@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Rollback Slurm feature updates
   hosts: localhost
   connection: local
@@ -22,13 +21,9 @@
     component_name: slurm
   tasks:
     - name: Read rollback_manifest.yml
-      ansible.builtin.slurp:
-        src: "{{ rollback_manifest_path }}"
-      register: raw_rollback_manifest
-
-    - name: Parse rollback manifest
-      ansible.builtin.set_fact:
-        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest_path }}"
+        name: rollback_manifest
 
     - name: Skip if slurm already rolled back
       ansible.builtin.meta: end_play
@@ -68,17 +63,486 @@
       ansible.builtin.debug:
         msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # TODO: Implement Slurm rollback steps per ESpec §4.11.5:
-    # 1. Pre-Rollback: Backup current state (slurmdbd, configs, GRE, mounts)
-    # 2. Point old image using BSS command
-    # 3. Restore Slurm database, configs, GRE configs
-    # 4. Rollback HPC Tools (login/compiler nodes)
-    # 5. Restore mount configurations
-    # 6. Validate cluster health
-    # 7. Rollback BSS + cloud-init to pre-upgrade state
-    - name: Slurm rollback placeholder
+    - name: Check for existing reboot state file
+      ansible.builtin.stat:
+        path: /opt/omnia/.data/slurm_rollback_reboot_state.yml
+      register: _reboot_state_stat
+
+    - name: Load reboot state from previous run
+      ansible.builtin.include_vars:
+        file: /opt/omnia/.data/slurm_rollback_reboot_state.yml
+        name: _reboot_state
+      when: _reboot_state_stat.stat.exists | default(false)
+
+    - name: Set previously successful reboot list
+      ansible.builtin.set_fact:
+        slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([]) }}"
+      when: _reboot_state_stat.stat.exists | default(false)
+
+    - name: Initialize previously rebooted list (no prior state)
+      ansible.builtin.set_fact:
+        slurm_previously_rebooted: []
+      when: not (_reboot_state_stat.stat.exists | default(false))
+
+- name: Create OIM host group for cloud-init/BSS update
+  ansible.builtin.import_playbook: ../../utils/create_container_group.yml
+  vars:
+    oim_group: true
+
+- name: Rollback cloud-init and BSS for slurm functional groups
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars:
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+  tasks:
+    - name: Skip if slurm upgrade not needed
+      ansible.builtin.meta: end_play
+      when:
+        - hostvars['localhost']['slurm_skip'] | default(false) | bool
+
+    - name: Read rollback_manifest.yml
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest_path }}"
+        name: rollback_manifest
+
+    - name: Read software_config.json
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest.backup_dir }}/input/project_default/software_config.json"
+        name: software_config
+
+    - name: Notify slurm not configured and end play
+      when: >-
+        (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length) == 0
+      block:
+        - name: Display message
+          ansible.builtin.debug:
+            msg: "Slurm is not configured in software_config.json. Skipping Slurm rollback."
+
+        - name: End play
+          ansible.builtin.meta: end_play
+
+    - name: Include omnia_config
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest.backup_dir }}/input/project_default/provision_config.yml"
+        name: provision_config
+
+    - name: Read pxe_mapping_file
+      community.general.read_csv:
+        path: "{{ rollback_manifest.backup_dir }}/input/project_default/{{ provision_config.pxe_mapping_file_path | basename }}"
+      register: pxe_mapping
+      delegate_to: localhost
+
+    - name: Filter rows first
+      ansible.builtin.set_fact:
+        slurm_filtered_rows: >-
+          {{ pxe_mapping.list
+            | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^(slurm|login)')
+                | list }}
+
+    - name: Build dict
+      ansible.builtin.set_fact:
+        slurm_host_group_map: >-
+          {{ dict(
+              slurm_filtered_rows | map(attribute='HOSTNAME')
+              | zip(slurm_filtered_rows | map(attribute='FUNCTIONAL_GROUP_NAME'))
+          ) }}
+
+    - name: End play if not slurm nodes in pxe_mapping
+      ansible.builtin.meta: end_play
+      when: slurm_host_group_map | default({}) | length == 0
+
+    - name: Get the backup directory
+      ansible.builtin.set_fact:
+        openchami_work_dir: >-
+          {{
+            rollback_manifest.backup_dir
+            | replace('/opt', hostvars['localhost']['oim_shared_path'])
+          }}/openchami/openchami_data/openchami/workdir
+
+    - name: SLURM ROLLBACK WARNING
       ansible.builtin.debug:
-        msg: "Slurm rollback tasks to be implemented (BSS repoint, DB restore, config rollback)"
+        msg: "{{ slurm_rollback_banner }}"
+      vars:
+        slurm_rollback_banner:
+          - "[ROLLBACK] SLURM CLUSTER — PRE-ROLLBACK NOTICE"
+          - ""
+          - "1. NODE REBOOT    — All Slurm/login nodes will reboot."
+          - "2. NFS MOUNTS     — Omnia 2.1 mount points are preserved. Do not modify during rollback."
+          - "3. ROLLBACK SCOPE — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback."
+
+    - name: Pause to display warning
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: "SLURM ROLLBACK - Proceeding in 10 seconds..."
+
+    - name: Refresh OpenCHAMI access token
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/tasks/common/openchami_auth.yml"
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+    - name: Update cloud-init and BSS for slurm
+      environment: "{{ hostvars['oim']['ochami_env'] }}"
+      block:
+        - name: Include update_cloud_init_bss role
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../../utils/roles/update_cloud_init_bss"
+          vars:
+            functional_group_name: "{{ item }}"
+            bss_file_path: "{{ openchami_work_dir }}/boot/bss-{{ item }}.yaml"
+            cloud_init_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-{{ item }}.yaml"
+            ci_defaults_file_path: "{{ openchami_work_dir }}/cloud-init/ci-defaults.yaml"
+            ci_common_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-common.yaml"
+            hostname_file_path: "{{ openchami_work_dir }}/nodes/hostname.yaml"
+            update_cloud_init: true
+            update_ci_defaults: true
+            update_ci_common: true
+            update_hostname: true
+          loop: "{{ slurm_host_group_map.values() | list }}"
+
+    - name: Include slurm rollback role
+      ansible.builtin.include_role:
+        name: ../roles/rollback_slurm
+      tags: slurm
+
+- name: Reboot Slurm nodes and validate services
+  hosts: slurm_*, login_*
+  gather_facts: false
+  serial: 100%
+  strategy: host_pinned
+  vars:
+    reboot_timeout: 600
+    ssh_timeout: 60
+  tasks:
+    - name: Skip if slurm upgrade not needed
+      ansible.builtin.meta: end_play
+      when: slurm_skip | default(false) | bool
+
+    - name: Initialize state
+      ansible.builtin.set_fact:
+        node_status:
+          hostname: "{{ inventory_hostname }}"
+          reboot: false # TODO: rename as reboot_failed
+          ssh: false
+          sinfo: false
+          unreachable: false
+
+    - name: Check SSH connectivity
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        timeout: 10
+      register: ssh_check
+      ignore_errors: true
+      ignore_unreachable: true
+
+    - name: Mark node as unreachable if checks fail
+      ansible.builtin.set_fact:
+        node_status: "{{ node_status | combine({'unreachable': true}) }}"
+      when:
+        - ssh_check is failed
+
+    - name: Stop further execution
+      ansible.builtin.meta: end_host
+      when: ssh_check is failed
+
+    - name: Skip reboot — node successfully rebooted in previous run
+      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
+      block:
+        - name: Mark node as previously completed
+          ansible.builtin.set_fact:
+            node_status: "{{ node_status | combine({'reboot': true, 'ssh': true, 'sinfo': true}) }}"
+        - name: End host — already successfully rebooted
+          ansible.builtin.meta: end_host
+
+    # ---- REBOOT ----
+    - name: Reboot node
+      ansible.builtin.reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+        test_command: "sinfo"
+      register: reboot_result
+      ignore_errors: true
+      ignore_unreachable: true
+      # check_mode: true # for debug
+
+    - name: Debug reboot result
+      ansible.builtin.debug:
+        var: reboot_result
+
+    - name: Mark reboot
+      ansible.builtin.set_fact:
+        node_status: "{{ node_status | combine({'reboot': true}) }}"
+      when: reboot_result is succeeded
+
+    # ---- WAIT FOR SSH ----
+    - name: Wait for SSH
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: "{{ ssh_timeout }}"
+      register: ssh_result
+      ignore_errors: true
+
+    - name: Update SSH state
+      ansible.builtin.set_fact:
+        node_status: "{{ node_status | combine({'ssh': (ssh_result is succeeded)}) }}"
+
+    # TODO: check if cloud-init status ??
+
+    # ---- CHECK SLURM ----
+    - name: Check slurm services
+      ansible.builtin.command: sinfo
+      register: svc
+      changed_when: false
+      failed_when: false
+      retries: 5
+      delay: 15
+      until: svc.rc == 0
+      when: node_status.ssh or reboot_result is succeeded
+
+    - name: Capture service status
+      ansible.builtin.set_fact:
+        node_status: "{{ node_status | combine({'sinfo': (svc is defined and svc.rc == 0)}) }}"
+      when: node_status.ssh or reboot_result is succeeded
+
+# ============================================================================
+# Play 3b: Verify slurmctld health and node count on controller
+# ============================================================================
+- name: Verify slurmctld health on controller nodes
+  hosts: slurm_control_node_x86_64
+  gather_facts: false
+  tasks:
+    - name: Skip if slurm rollback not needed
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['slurm_skip'] | default(false) | bool
+
+    - name: Verify slurmctld is accepting requests
+      ansible.builtin.command: scontrol ping
+      register: ctld_ping
+      changed_when: false
+      failed_when: false
+      retries: 6
+      delay: 10
+      until: ctld_ping.rc == 0
+
+    - name: Get node list from sinfo on controller
+      ansible.builtin.command: sinfo -h -o "%n"
+      register: ctld_sinfo
+      changed_when: false
+      failed_when: false
+      when: ctld_ping.rc == 0
+
+    - name: Set ctld health fact
+      ansible.builtin.set_fact:
+        ctld_health:
+          hostname: "{{ inventory_hostname }}"
+          ctld_up: "{{ ctld_ping.rc == 0 }}"
+          sinfo_ok: "{{ ctld_sinfo is defined and ctld_sinfo.rc | default(1) == 0 }}"
+          sinfo_node_count: "{{ ctld_sinfo.stdout_lines | default([]) | length }}"
+
+- name: Rollback Slurm cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    component_name: slurm
+  tasks:
+    - name: Skip if slurm rollback not needed
+      ansible.builtin.meta: end_play
+      when: slurm_skip | default(false) | bool
+
+    - name: Set slurm nodes from inventory
+      ansible.builtin.set_fact:
+        slurm_nodes: >-
+          {{
+            groups | dict2items
+            | selectattr('key', 'match', '^(slurm_.*|login_.*)$')
+            | map(attribute='value')
+            | flatten | unique | list
+          }}
+
+    - name: Debug slurm nodes
+      ansible.builtin.debug:
+        var: slurm_nodes
+
+    - name: Set filtered nodes
+      ansible.builtin.set_fact:
+        slurm_rollback_failed: false
+        filtered_nodes: "{{ slurm_nodes | map('extract', hostvars, 'node_status') }}"
+
+    - name: Unreachable filter
+      ansible.builtin.set_fact:
+        unreachable_nodes: "{{ filtered_nodes | selectattr('unreachable', 'equalto', true) | list }}"
+        filtered_nodes: "{{ filtered_nodes | selectattr('unreachable', 'equalto', false) | list }}"
+
+    - name: Reboot filter
+      ansible.builtin.set_fact:
+        reboot_nodes: "{{ filtered_nodes | selectattr('reboot', 'equalto', false) | list }}"
+        filtered_nodes: "{{ filtered_nodes | selectattr('reboot', 'equalto', true) | list }}"
+
+    - name: SSH filter
+      ansible.builtin.set_fact:
+        ssh_nodes: "{{ filtered_nodes | selectattr('ssh', 'equalto', false) | list }}"
+        filtered_nodes: "{{ filtered_nodes | selectattr('ssh', 'equalto', true) | list }}"
+
+    - name: Sinfo filter
+      ansible.builtin.set_fact:
+        sinfo_nodes: "{{ filtered_nodes | selectattr('sinfo', 'equalto', false) | list }}"
+        filtered_nodes: "{{ filtered_nodes | selectattr('sinfo', 'equalto', true) | list }}"
+
+    - name: Set failure and success
+      ansible.builtin.set_fact:
+        failure_nodes: "{{ unreachable_nodes + reboot_nodes + ssh_nodes + sinfo_nodes }}"
+        success_nodes: "{{ filtered_nodes }}"
+
+    - name: Collect controller node health results
+      ansible.builtin.set_fact:
+        ctld_results: >-
+          {{
+            ((groups['slurm_control_node_x86_64'] | default([]))
+            + (groups['slurm_control_node_aarch64'] | default([])))
+            | map('extract', hostvars, 'ctld_health')
+            | select('defined') | list
+          }}
+
+    - name: Identify ctld and sinfo failures on controller
+      ansible.builtin.set_fact:
+        ctld_down_nodes: "{{ ctld_results | selectattr('ctld_up', 'equalto', false) | list }}"
+        ctld_sinfo_fail_nodes: "{{ ctld_results | selectattr('sinfo_ok', 'equalto', false) | list }}"
+
+    - name: Write reboot state file
+      ansible.builtin.copy:
+        content: >-
+          {{ {'successfully_rebooted': success_nodes | map(attribute='hostname') | list,
+              'failed': failure_nodes | map(attribute='hostname') | list} | to_nice_yaml }}
+        dest: /opt/omnia/.data/slurm_rollback_reboot_state.yml
+        mode: '0644'
+
+    - name: Set slurm rollback failed
+      ansible.builtin.set_fact:
+        slurm_rollback_failed: >-
+          {{ (failure_nodes | length > 0)
+             or (ctld_down_nodes | default([]) | length > 0)
+             or (ctld_sinfo_fail_nodes | default([]) | length > 0) }}
+
+    - name: Generate and display failure report
+      when: slurm_rollback_failed
+      block:
+        - name: Fail with failure report
+          ansible.builtin.pause:
+            prompt: "{{ failure_report }}"
+            seconds: 5
+          vars:
+            failure_report: |
+              ================================================================
+              SLURM CLUSTER ROLLBACK STATUS SUMMARY
+              ================================================================
+
+              Total Nodes: {{ slurm_nodes | length }}
+              Successful booted slurm nodes: {{ success_nodes | length }}
+              {% if ctld_down_nodes | length > 0 %}
+
+              -> CONTROLLER DOWN ({{ ctld_down_nodes | length }})
+              ─────────────────────────────────────────────────────────────────
+              {{ ctld_down_nodes | map(attribute='hostname') | join(', ') }}
+              slurmctld is NOT responding (scontrol ping failed)
+              {% endif %}
+              {% if ctld_sinfo_fail_nodes | length > 0 %}
+
+              -> SINFO FAILED ON CONTROLLER ({{ ctld_sinfo_fail_nodes | length }})
+              ─────────────────────────────────────────────────────────────────
+              {{ ctld_sinfo_fail_nodes | map(attribute='hostname') | join(', ') }}
+              sinfo returned non-zero on controller — cluster may be degraded
+              {% endif %}
+              {% if unreachable_nodes | length > 0 %}
+
+              -> UNREACHABLE NODES ({{ unreachable_nodes | length }})
+              ─────────────────────────────────────────────────────────────────
+              {{ unreachable_nodes | map(attribute='hostname') | join(', ') }}
+              {% endif %}
+              {% if reboot_nodes | length > 0 %}
+
+              -> REBOOT FAILED NODES ({{ reboot_nodes | length }})
+              ─────────────────────────────────────────────────────────────────
+              {{ reboot_nodes | map(attribute='hostname') | join(', ') }}
+              {% endif %}
+              {% if ssh_nodes | length > 0 %}
+
+              -> SSH FAILURES ({{ ssh_nodes | length }})
+              ─────────────────────────────────────────────────────────────────
+              {{ ssh_nodes | map(attribute='hostname') | join(', ') }}
+              {% endif %}
+              {% if sinfo_nodes | length > 0 %}
+
+              -> SINFO FAILURES ({{ sinfo_nodes | length }})
+              ─────────────────────────────────────────────────────────────────
+              {{ sinfo_nodes | map(attribute='hostname') | join(', ') }}
+              {% endif %}
+
+              -> NEXT STEPS
+              ─────────────────────────────────────────────────────────────────
+              {% if ctld_down_nodes | length > 0 %}
+              CONTROLLER DOWN:
+                - Check slurmctld service: systemctl status slurmctld
+                - Review logs: journalctl -u slurmctld -n 100
+                - Restart if needed: systemctl restart slurmctld
+                - Verify config: scontrol show config
+                - Re-run rollback playbook after controller is healthy
+
+              {% endif %}
+              {% if ctld_sinfo_fail_nodes | length > 0 %}
+              SINFO FAILURE ON CONTROLLER:
+                - Check slurmctld logs: journalctl -u slurmctld -n 100
+                - Verify all node entries: sinfo -a -R
+                - Check for DOWN nodes and reason: sinfo -t down
+
+              {% endif %}
+              {% if unreachable_nodes | length > 0 %}
+              UNREACHABLE NODES:
+                - Check network connectivity: ping {{ unreachable_nodes[0].hostname }}
+                - Check firewall rules and SSH port (22) accessibility
+                - Manually power cycle if necessary
+                - Re-run rollback playbook after fixing connectivity
+
+              {% endif %}
+              {% if reboot_nodes | length > 0 %}
+              REBOOT FAILURES:
+                - SSH into node and check: journalctl -xe
+                - Verify disk space: df -h
+                - Check for hung processes: ps aux | grep -i defunct
+                - Manually reboot: shutdown -r now
+
+              {% endif %}
+              {% if ssh_nodes | length > 0 %}
+              SSH CONNECTIVITY ISSUES:
+                - Verify SSH service is running: systemctl status sshd
+
+              {% endif %}
+              {% if sinfo_nodes | length > 0 %}
+              SLURM SERVICE FAILURES:
+                - Check Slurm daemon status: systemctl status <slurm_service>
+                - Review Slurm logs: journalctl -u <slurm_service> -n 100
+                - Restart Slurm daemon: systemctl restart <slurm_service>
+                - Verify Slurm config: sinfo -R
+
+              {% endif %}
+
+        - name: Fail with failure report
+          ansible.builtin.fail:
+            msg: "[ROLLBACK] Slurm rollback failed. Review the report above and re-run after remediation."
+
+    - name: Generate and display success report
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          [ROLLBACK] SLURM ROLLBACK — ALL NODES VERIFIED SUCCESSFULLY
+          ============================================================
+          Verified: {{ success_nodes | length }} / {{ slurm_nodes | length }} nodes
+            Reboot complete | SSH active | Slurm (sinfo) responding on all nodes.
+          Controller: slurmctld UP | sinfo OK
+            {{ ctld_results | default([]) | map(attribute='sinfo_node_count') | map('int') | sum }} node(s) visible from controller.
+          Cluster is ready for workload submission.
+          ============================================================
+      when: not slurm_rollback_failed
 
     - name: Mark slurm rollback as completed
       ansible.builtin.copy:

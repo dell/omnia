@@ -118,6 +118,24 @@
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
       when: proceed_provision | bool
 
+# ── Telemetry backups ──
+- name: "Telemetry Backups"
+  hosts: localhost
+  connection: ssh
+  gather_facts: false
+  vars:
+    input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
+  tasks:
+    - name: Include required input to resolve kube_vip
+      ansible.builtin.include_role:
+        name: ../roles/upgrade_telemetry
+        tasks_from: include_required_input.yml
+
+    - name: Backup telemetry scripts before provisioning target version
+      ansible.builtin.include_role:
+        name: ../roles/upgrade_telemetry
+        tasks_from: backup_telemetry.yml
+
 # ── Run provision playbook ──
 - name: Run provision (upgrade)
   ansible.builtin.import_playbook: ../../provision/provision.yml

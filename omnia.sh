@@ -1147,9 +1147,15 @@ setup_container() {
     echo "==> Setting up $container_name container"
 
     # SELinux option handling
+    # For external NFS: disable SELinux labeling entirely because NFS-mounted
+    # files carry the 'nfs_t' type which containers (container_t) cannot access.
+    # The ':z' relabel also fails on NFS since NFS does not support xattrs.
+    # For local/internal: use ':z' to relabel volumes for container access.
     selinux_option=":z"
+    selinux_disable=""
     if [ "$share_option" = "NFS" ] && [ "$nfs_type" = "external" ]; then
         selinux_option=""
+        selinux_disable="SecurityLabelDisable=true"
     fi
 
     # --- Generate Quadlet container file ---
@@ -1169,6 +1175,7 @@ Network=host
 
 # Capabilities
 AddCapability=CAP_AUDIT_WRITE
+${selinux_disable}
 
 # Volumes
 Volume=${omnia_path}/omnia:/opt/omnia${selinux_option}

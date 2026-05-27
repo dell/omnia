@@ -70,7 +70,6 @@
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # TODO: Implement per ESpec §4.8:
     # Phase 1: Existing component upgrade
     #   - Strimzi Kafka operator + broker upgrade
     #   - VictoriaMetrics StatefulSet upgrade
@@ -82,21 +81,43 @@
     #   - VAST exporter (if enabled)
     #   - VictoriaLogs (if enabled)
     #   - UFM exporter (if enabled)
-    - name: Telemetry upgrade placeholder
-      ansible.builtin.debug:
-        msg: "Telemetry upgrade tasks to be implemented (Phase 1: existing, Phase 2: new components)"
+    - name: Execute telemetry upgrade
+      block:
+        - name: Invoke upgrade_telemetry role
+          ansible.builtin.include_role:
+            name: ../roles/upgrade_telemetry
 
-    - name: Mark telemetry upgrade as completed
-      ansible.builtin.copy:
-        content: >-
-          {{ manifest | combine({
-               'component_status': manifest.component_status | combine({
-                 component_name: 'completed'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ manifest_path }}"
-        mode: '0644'
+        - name: Mark telemetry upgrade as completed
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'completed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
 
-    - name: "Display upgrade status completed — {{ component_name }}"
-      ansible.builtin.debug:
-        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
+        - name: "Display upgrade status completed — {{ component_name }}"
+          ansible.builtin.debug:
+            msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
+
+      rescue:
+        - name: Mark telemetry upgrade as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+
+        - name: "Display upgrade status failed — {{ component_name }}"
+          ansible.builtin.debug:
+            msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: failed"
+
+        - name: Fail the play
+          ansible.builtin.fail:
+            msg: "Telemetry upgrade failed. Status marked as 'failed' in manifest."

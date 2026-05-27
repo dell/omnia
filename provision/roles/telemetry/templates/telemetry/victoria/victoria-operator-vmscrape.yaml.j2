@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-{% if telemetry_sources.idrac.metrics_enabled | default(false) %}
+{% if victoria_metrics_support | default(false) %}
 # VMPodScrape - Native operator-based pod discovery for idrac-telemetry
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMPodScrape

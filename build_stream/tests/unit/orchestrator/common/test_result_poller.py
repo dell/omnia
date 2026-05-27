@@ -350,17 +350,15 @@ class TestBuildImageSuccess:
         self, mock_discover
     ):
         """On build-image success with artifact repos wired, ImageGroup + Images are created."""
-        # Mock S3 discovery to return fake paths (no real s3cmd needed)
-        mock_discover.return_value = {
-            "slurm_node_x86_64": [
-                "s3://boot-images/efi-images/slurm_node_x86_64/img-dir/",
-                "s3://boot-images/slurm_node_x86_64/img-dir/",
-            ],
-            "kube_cp_x86_64": [
-                "s3://boot-images/efi-images/kube_cp_x86_64/img-dir/",
-                "s3://boot-images/kube_cp_x86_64/img-dir/",
-            ],
-        }
+        def _mock_discover(bucket_uri, job_id, role_names):
+            return {
+                r: [
+                    f"s3://boot-images/{r}/rhel-{r}_{job_id}/",
+                    f"s3://boot-images/efi-images/{r}/rhel-{r}_{job_id}/",
+                ]
+                for r in role_names
+            }
+        mock_discover.side_effect = _mock_discover
 
         job_id = JobId(str(uuid.uuid4()))
 
@@ -482,6 +480,87 @@ class TestBuildImageSuccess:
         # But ImageGroup should NOT have been created
         ig = ig_repo.find_by_job_id(job_id)
         assert ig is None, "ImageGroup should not be created without artifact repos"
+
+    @patch("orchestrator.common.result_poller._discover_s3_image_paths")
+    def test_discovered_paths_contain_job_id(
+        self, mock_discover
+    ):
+        """Image paths discovered via s3cmd grep must contain the job_id."""
+        def _mock_discover(bucket_uri, job_id, role_names):
+            return {
+                r: [
+                    f"s3://boot-images/{r}/rhel-{r}_{job_id}-image-build-v39/",
+                    f"s3://boot-images/efi-images/{r}/rhel-{r}_{job_id}-image-build-v39/",
+                ]
+                for r in role_names
+            }
+        mock_discover.side_effect = _mock_discover
+
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("build-image-x86_64"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        img_repo = MockImageRepo()
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        _store_catalog_metadata(
+            artifact_store, artifact_metadata_repo, job_id,
+            {
+                "image_group_id": "image-build-v39",
+                "roles": ["slurm_node_x86_64"],
+                "role_images": {
+                    "slurm_node_x86_64": "slurm_node.qcow2",
+                },
+            },
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+            image_repo=img_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="build-image-x86_64",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+            duration_seconds=300,
+        )
+
+        poller._on_result_received(result)
+
+        # Images should have been created with deterministic paths
+        images = img_repo.find_by_image_group_id("image-build-v39")
+        assert len(images) == 1, "Image record was not created"
+        img = images[0]
+        assert img.role == "slurm_node_x86_64"
+
+        # image_name must contain both regular and EFI paths with
+        # job_id and image_key embedded (semicolon-delimited).
+        paths = img.image_name.split(";")
+        assert len(paths) == 2, "Expected regular + EFI path"
+        assert str(job_id) in paths[0], "job_id missing from regular path"
+        assert "image-build-v39" in paths[0], "image_key missing from regular path"
+        assert "efi-images" in paths[1], "EFI prefix missing from EFI path"
+        assert str(job_id) in paths[1], "job_id missing from EFI path"
 
     def test_no_image_group_for_non_build_image_stage(self):
         """Non-build-image stages should not trigger ImageGroup creation."""

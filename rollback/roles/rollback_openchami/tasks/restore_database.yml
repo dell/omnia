@@ -1,0 +1,187 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# restore_database.yml — Restore PostgreSQL Database from Backup
+# ============================================================================
+# Restores the HMS database (hmsds) from the pg_dump SQL file created during
+# the pre-upgrade backup phase. The postgres container must be running before
+# this task executes (it is started by start_postgres_only.yml).
+#
+# The pg_dump was created with --clean --if-exists so it will:
+#   - DROP existing objects (IF EXISTS) before recreating them
+#   - Restore the exact pre-upgrade schema and data
+#
+# For prepare_oim-only scenarios where the database was empty, the backup
+# SQL file may be a marker file — this is handled gracefully.
+#
+# Idempotency: Re-running this task will re-apply the same SQL dump,
+# producing the same database state (DROP IF EXISTS + CREATE is idempotent).
+# ============================================================================
+
+- name: Restore PostgreSQL database from backup
+  block:
+    # ── Retrieve PostgreSQL credentials ──────────────────────────────────
+    - name: Get POSTGRES_MULTIPLE_DATABASES from postgres container
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres printenv POSTGRES_MULTIPLE_DATABASES 2>/dev/null || echo ""
+      register: _rb_pg_multi_db_env
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Extract database credentials
+      ansible.builtin.set_fact:
+        postgres_db_name: >-
+          {{ _rb_pg_multi_db_env.stdout.split(',')[0].split(':')[0]
+             if (_rb_pg_multi_db_env.stdout | default('') | length > 0 and ':' in _rb_pg_multi_db_env.stdout)
+             else postgres_db_name }}
+        postgres_db_user: >-
+          {{ _rb_pg_multi_db_env.stdout.split(',')[0].split(':')[1]
+             if (_rb_pg_multi_db_env.stdout | default('') | length > 0 and ':' in _rb_pg_multi_db_env.stdout)
+             else postgres_db_user }}
+
+    # ── Wait for PostgreSQL to be ready ──────────────────────────────────
+    - name: Wait for PostgreSQL to accept connections
+      ansible.builtin.shell: |
+        set -o pipefail
+        for i in $(seq 1 30); do
+          if podman exec postgres pg_isready -U {{ postgres_db_user }} -d {{ postgres_db_name }} 2>/dev/null; then
+            echo "ready"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "timeout"
+        exit 1
+      register: rb_pg_ready
+      changed_when: false
+      failed_when: rb_pg_ready.rc != 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Check if the backup SQL file is a valid dump or just a marker ────
+    - name: Compute OIM host-side pg_dump backup path
+      ansible.builtin.set_fact:
+        rollback_oim_host_pgdump: >-
+          {{ rollback_oim_host_backup_dir }}/{{ backup_pgdump_subpath }}
+
+    - name: Check pg_dump file size
+      ansible.builtin.stat:
+        path: "{{ rollback_oim_host_pgdump }}"
+      register: rb_pgdump_file_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Check if pg_dump is a valid SQL file (not just a marker)
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -1 "{{ rollback_oim_host_pgdump }}" 2>/dev/null | grep -c "^--" || echo "0"
+      register: rb_pgdump_valid
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display pg_dump backup status
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: >-
+          PostgreSQL backup: {{ rb_pgdump_file_stat.stat.size | default(0) }} bytes,
+          valid SQL header: {{ 'yes' if rb_pgdump_valid.stdout | default('0') | trim != '0' else 'no (marker file or empty)' }}
+
+    # ── Restore the database ─────────────────────────────────────────────
+    # Copy the SQL file into the postgres container and execute it.
+    # Only restore if the file is a valid SQL dump (not a marker file).
+    - name: Copy pg_dump SQL file into postgres container
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman cp "{{ rollback_oim_host_pgdump }}" postgres:/tmp/rollback_restore.sql
+      register: rb_pgdump_copy
+      changed_when: rb_pgdump_copy.rc == 0
+      when:
+        - rb_pgdump_file_stat.stat.exists | default(false)
+        - rb_pgdump_file_stat.stat.size | default(0) | int > 500
+        - rb_pgdump_valid.stdout | default('0') | trim != '0'
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restore PostgreSQL database from backup SQL
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres psql -U {{ postgres_db_user }} -d {{ postgres_db_name }} \
+          -f /tmp/rollback_restore.sql 2>&1 | tail -20
+      register: rb_pgdump_restore
+      changed_when: rb_pgdump_restore.rc == 0
+      failed_when: rb_pgdump_restore.rc != 0
+      when:
+        - rb_pgdump_copy is defined
+        - rb_pgdump_copy.rc | default(1) == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Clean up temporary restore file inside postgres container
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres rm -f /tmp/rollback_restore.sql
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Skip database restore for marker/empty backup
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: >-
+          Skipping PostgreSQL restore — backup file is a marker or empty
+          ({{ rb_pgdump_file_stat.stat.size | default(0) }} bytes).
+          This is expected for prepare_oim-only setups.
+      when: >-
+        not (rb_pgdump_file_stat.stat.exists | default(false)) or
+        (rb_pgdump_file_stat.stat.size | default(0) | int <= 500) or
+        (rb_pgdump_valid.stdout | default('0') | trim == '0')
+
+    # ── Verify database after restore ────────────────────────────────────
+    - name: Query node count after database restore
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres psql -U {{ postgres_db_user }} -d {{ postgres_db_name }} -t -c \
+          "SELECT COUNT(*) FROM components;" 2>/dev/null || echo "0"
+      register: rb_post_restore_node_count
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display database restore summary
+      ansible.builtin.debug:
+        msg:
+          - "{{ rollback_messages.restore.database_success }}"
+          - "Node count after restore: {{ rb_post_restore_node_count.stdout | default('0') | trim }}"
+
+  rescue:
+    - name: Database restore failed
+      ansible.builtin.fail:
+        msg: "{{ rollback_messages.restore.database_failure }}"

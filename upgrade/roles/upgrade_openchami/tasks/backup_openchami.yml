@@ -75,6 +75,7 @@
 
     - name: Display path mapping
       ansible.builtin.debug:
+        verbosity: 1
         msg:
           - "Container backup path: {{ openchami_backup_dir }}"
           - "OIM host backup path:  {{ oim_host_backup_dir }}"
@@ -127,6 +128,7 @@
 
     - name: Display disk space status
       ansible.builtin.debug:
+        verbosity: 1
         msg:
           - "Backup target: {{ openchami_backup_dir }}"
           - "Available space: {{ backup_disk_space_gb.stdout | default('unknown') | trim }}GB"
@@ -212,6 +214,7 @@
 
     - name: Display pg_dump backup status
       ansible.builtin.debug:
+        verbosity: 1
         msg: >-
           PostgreSQL backup: {{ 'created' if pgdump_stat.stat.exists | default(false) else 'MISSING' }}
           ({{ pgdump_stat.stat.size | default(0) }} bytes,

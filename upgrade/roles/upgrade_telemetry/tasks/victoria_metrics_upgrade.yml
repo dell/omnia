@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# VictoriaMetrics Upgrade — Ansible-native implementation
+# ============================================================================
+# All manifests are pre-staged by upgrade_provision at:
+#   {{ telemetry_deploy_dir }}/deployments/
+#
+# Migration paths:
+#   statefulset_to_operator — Old 2.1 STS → operator CRs (PVC relabeling, downtime)
+#   already_operator        — Update existing CRs → operator rolling/restart
+#   fresh_deploy            — Clean install of operator CRs
+#
+# HA (cluster mode):  Operator rolling update → no downtime
+# Non-HA (single):    Pod restart → brief downtime (acceptable)
+# ============================================================================
+
+# Step 1: Detect current VictoriaMetrics deployment state
+- name: Detect VictoriaMetrics deployment state
+  ansible.builtin.include_tasks: detect_victoria_state.yml
+
+# Step 2: Backup live K8s resources
+- name: Backup VictoriaMetrics resources
+  ansible.builtin.include_tasks: backup_victoria.yml
+
+# Step 3: Install / upgrade VictoriaMetrics operator
+- name: Upgrade VictoriaMetrics operator
+  ansible.builtin.include_tasks: upgrade_operator.yml
+
+# Step 4: Pre-migration cleanup (only for StatefulSet migration)
+# Delete old StatefulSet while retaining PVCs for data preservation
+- name: Pre-migration cleanup for StatefulSet
+  ansible.builtin.include_tasks: migrate_statefulset.yml
+  when: victoria_migration_type == 'statefulset_to_operator'
+
+# Step 5: Apply operator CRs (creates new VMCluster)
+# This starts the new cluster with fresh or relabeled PVCs
+- name: Apply VictoriaMetrics CRs
+  ansible.builtin.include_tasks: apply_victoria_crs.yml
+
+# Step 6: Post-migration cleanup (only for VMSingle migration)
+# Delete old VMSingle after new VMCluster is running
+- name: Post-migration cleanup for VMSingle
+  ansible.builtin.include_tasks: migrate_vmsingle_to_vmcluster.yml
+  when: victoria_migration_type == 'vmsingle_to_vmcluster'
+
+# Step 7: Verify pods and health
+- name: Verify VictoriaMetrics health
+  ansible.builtin.include_tasks: verify_victoria.yml
+
+- name: Display upgrade summary
+  ansible.builtin.debug:
+    msg:
+      - "{{ victoria_upgrade_completed }}"
+      - "Migration type: {{ victoria_migration_type }}"
+      - "Deploy mode: {{ victoria_deploy_mode }}"
+      - "Backup: Taken in upgrade_provision"

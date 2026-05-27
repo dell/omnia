@@ -1,0 +1,231 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# reload_cloud_init_data.yml — Reload Cloud-Init Data After Rollback
+# ============================================================================
+# The cloud-init-server stores data in-memory, NOT in PostgreSQL. After
+# container restart during rollback, all cloud-init data is LOST.
+# This task reloads all cloud-init YAML files from the BACKUP directory
+# into the cloud-init-server using the ochami CLI.
+#
+# Data re-loaded:
+#   1. ci-defaults.yaml       → ochami cloud-init defaults set
+#   2. ci-group-common.yaml   → ochami cloud-init group set
+#   3. ci-group-<group>.yaml  → ochami cloud-init group set (per group)
+#   4. hostname.yaml           → ochami cloud-init node set (per-node)
+#
+# This is identical in logic to the upgrade reload, but reads from the
+# backup directory to ensure we restore the exact v2.1 cloud-init state.
+# ============================================================================
+
+- name: Reload cloud-init data from backup after rollback
+  block:
+    # ── Compute OIM host-side cloud-init paths from backup ──────────────
+    - name: Compute OIM host-side cloud-init paths
+      ansible.builtin.set_fact:
+        rb_oim_host_ci_dir: >-
+          {{ rollback_oim_host_backup_dir }}/{{ backup_openchami_data_subpath }}/workdir/cloud-init
+        rb_oim_host_hostname: >-
+          {{ rollback_oim_host_backup_dir }}/{{ backup_openchami_data_subpath }}/workdir/nodes/hostname.yaml
+
+    - name: Display resolved cloud-init paths
+      ansible.builtin.debug:
+        verbosity: 1
+        msg:
+          - "Cloud-init backup dir: {{ rb_oim_host_ci_dir }}"
+          - "Hostname backup file: {{ rb_oim_host_hostname }}"
+
+    # ── Generate ochami access token ────────────────────────────────────
+    - name: Generate ochami access token on OIM host
+      ansible.builtin.shell: bash -lc 'gen_access_token'  # noqa: command-instead-of-shell
+      become: true
+      register: rb_access_token_result
+      changed_when: false
+      failed_when: rb_access_token_result.rc != 0 or rb_access_token_result.stdout in ["", "null"]
+      retries: 5
+      delay: 5
+      until: rb_access_token_result.rc == 0 and rb_access_token_result.stdout not in ["", "null"]
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Set ochami environment for cloud-init reload
+      ansible.builtin.set_fact:
+        rb_ochami_env: "{{ {(rollback_cluster_name | upper | trim) ~ '_ACCESS_TOKEN': rb_access_token_result.stdout} }}"
+
+    # ── Verify cloud-init directory exists in backup ────────────────────
+    - name: Check cloud-init backup directory exists on OIM host
+      ansible.builtin.stat:
+        path: "{{ rb_oim_host_ci_dir }}"
+      register: rb_ci_dir_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Skip cloud-init reload if backup dir not found
+      ansible.builtin.debug:
+        msg: >-
+          Cloud-init backup directory not found at {{ rb_oim_host_ci_dir }}.
+          This is expected for prepare_oim-only setups. Skipping reload.
+      when: not (rb_ci_dir_stat.stat.exists | default(false))
+
+    # ── Main reload block ───────────────────────────────────────────────
+    - name: Reload cloud-init data from backup
+      when: rb_ci_dir_stat.stat.exists | default(false)
+      block:
+        # ── Wait for cloud-init-server API readiness ────────────────────
+        - name: Wait for cloud-init-server to accept requests
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/bin/ochami cloud-init service status 2>&1
+          environment: "{{ rb_ochami_env }}"
+          register: rb_ci_service_ready
+          changed_when: false
+          retries: "{{ api_readiness_retries }}"
+          delay: "{{ api_readiness_delay }}"
+          until: rb_ci_service_ready.rc == 0
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── Discover cloud-init YAML files in backup ────────────────────
+        - name: Check ci-defaults.yaml exists in backup
+          ansible.builtin.stat:
+            path: "{{ rb_oim_host_ci_dir }}/ci-defaults.yaml"
+          register: rb_ci_defaults_stat
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Check ci-group-common.yaml exists in backup
+          ansible.builtin.stat:
+            path: "{{ rb_oim_host_ci_dir }}/ci-group-common.yaml"
+          register: rb_ci_common_stat
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Find all ci-group-*.yaml files in backup
+          ansible.builtin.find:
+            paths: "{{ rb_oim_host_ci_dir }}"
+            patterns: "ci-group-*.yaml"
+            excludes: "ci-group-common.yaml"
+          register: rb_ci_group_files
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 1. Reload ci-defaults ───────────────────────────────────────
+        - name: Reload ci-defaults from backup
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init defaults set -f yaml
+            -d @{{ rb_oim_host_ci_dir }}/ci-defaults.yaml
+          environment: "{{ rb_ochami_env }}"
+          changed_when: true
+          when: rb_ci_defaults_stat.stat.exists | default(false)
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 2. Reload ci-group-common ───────────────────────────────────
+        - name: Reload ci-group-common from backup
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init group set -f yaml
+            -d @{{ rb_oim_host_ci_dir }}/ci-group-common.yaml
+          environment: "{{ rb_ochami_env }}"
+          changed_when: true
+          when: rb_ci_common_stat.stat.exists | default(false)
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 3. Reload each ci-group-<group>.yaml ────────────────────────
+        - name: Reload cloud-init group configurations from backup
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init group set -f yaml -d @{{ item.path }}
+          environment: "{{ rb_ochami_env }}"
+          loop: "{{ rb_ci_group_files.files | default([]) }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+          changed_when: true
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 4. Reload per-node hostname data ────────────────────────────
+        - name: Check hostname.yaml exists in backup
+          ansible.builtin.stat:
+            path: "{{ rb_oim_host_hostname }}"
+          register: rb_ci_hostname_stat
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Reload per-node hostname data from backup
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init node set -f yaml
+            -d @{{ rb_oim_host_hostname }}
+          environment: "{{ rb_ochami_env }}"
+          changed_when: true
+          when: rb_ci_hostname_stat.stat.exists | default(false)
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Warn if hostname.yaml not found in backup
+          ansible.builtin.debug:
+            msg: >-
+              hostname.yaml not found in backup at {{ rb_oim_host_hostname }}.
+              Nodes will boot with default nid-based hostnames.
+          when: not (rb_ci_hostname_stat.stat.exists | default(false))
+
+        # ── 5. Restore SELinux context ──────────────────────────────────
+        - name: Restore SELinux context on openchami workdir
+          ansible.builtin.command: >
+            chcon -R system_u:object_r:container_file_t:s0
+            {{ rollback_oim_shared_path }}/omnia/openchami
+          changed_when: true
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 6. Verify data loaded ───────────────────────────────────────
+        - name: Verify cloud-init defaults loaded
+          ansible.builtin.command: /usr/bin/ochami cloud-init defaults get -F json-pretty
+          environment: "{{ rb_ochami_env }}"
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Display cloud-init reload summary
+          ansible.builtin.debug:
+            msg:
+              - "Cloud-init data reloaded from backup after rollback."
+              - "ci-defaults: {{ 'reloaded' if rb_ci_defaults_stat.stat.exists | default(false) else 'skipped' }}"
+              - "ci-group-common: {{ 'reloaded' if rb_ci_common_stat.stat.exists | default(false) else 'skipped' }}"
+              - "ci-group configs: {{ rb_ci_group_files.files | default([]) | map(attribute='path') | map('basename') | list }}"
+              - "hostname data: {{ 'reloaded' if rb_ci_hostname_stat.stat.exists | default(false) else 'MISSING' }}"
+
+  rescue:
+    - name: Cloud-init reload failed (non-fatal for rollback)
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Cloud-init data reload failed after rollback.
+          Provisioned nodes may not receive cloud-init data on reboot.
+          Manual fix: ochami cloud-init defaults set -f yaml -d @<file>

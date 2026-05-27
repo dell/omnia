@@ -12,11 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #}
-{# PowerScale Telemetry - CSM Observability Helm Deployment (cloud-init fragment)
-   This template is included by ci-group-service_kube_control_plane_first_x86_64.yaml.j2
-   when powerscale_telemetry_support is enabled.
+{# PowerScale Telemetry - CSM Observability Helm Deployment
+   This template is included by telemetry.sh.j2
+   when powerscale_metrics_enabled is enabled.
 #}
-{% set csm_ns = hostvars['localhost']['csm_observability_namespace'] | default('telemetry') %}
+{% set csm_ns = csm_observability_namespace | default('telemetry') %}
             # ===== PowerScale Telemetry - CSM Observability Helm Deployment =====
             echo "===== Starting PowerScale Telemetry (CSM Observability) deployment ====="
             PS_TEL_FAILED=0
@@ -106,7 +106,7 @@
                   helm upgrade karavi-observability "$HELM_CHART_PATH" \
                     -n "${CSM_NS}" \
                     -f "$HELM_VALUES_FILE" \
-                    --wait --timeout 10m || {
+                    --timeout 10m || {
                     echo "ERROR: Helm upgrade failed."
                     PS_TEL_FAILED=1
                   }
@@ -115,7 +115,7 @@
                   helm install karavi-observability "$HELM_CHART_PATH" \
                     -n "${CSM_NS}" \
                     -f "$HELM_VALUES_FILE" \
-                    --wait --timeout 10m || {
+                    --timeout 10m || {
                     echo "ERROR: Helm install failed."
                     PS_TEL_FAILED=1
                   }
@@ -144,7 +144,7 @@
               }
 
               # Step 7: Create PVC for OTEL Collector persistent buffering
-              OTEL_PVC_SIZE="{{ hostvars['localhost']['telemetry_config']['powerscale_configurations']['otel_collector_storage_size'] | default('5Gi') }}"
+              OTEL_PVC_SIZE="{{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}"
               echo "Creating OTEL Collector PVC (${OTEL_PVC_SIZE}) for metric buffering..."
               OTEL_PVC_FILE=$(mktemp /tmp/otel-pvc-XXXXXX.yaml)
               echo "apiVersion: v1" > "$OTEL_PVC_FILE"

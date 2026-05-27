@@ -78,14 +78,22 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Fail if reboot function failed
-      ansible.builtin.fail:
-        msg: "{{ reboot_status }}"
+    - name: Report iDRAC reboot failure
+      ansible.builtin.debug:
+        msg: "[FAILED] {{ inventory_hostname }}: {{ reboot_status }}"
       when: reboot_failed
 
     - name: Show passed iDRACs
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ reboot_status }}"
+        msg: "[OK] {{ inventory_hostname }}: {{ reboot_status }}"
+      when: not reboot_failed
+
+    - name: Fail if reboot failed (non-BSM flow)
+      ansible.builtin.fail:
+        msg: "{{ reboot_status }}"
+      when:
+        - reboot_failed
+        - not (hostvars['localhost']['enable_build_stream'] | default(false) | bool)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 6: Filter phone-home list — exclude nodes whose reboot failed
@@ -95,49 +103,51 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Build list of successfully rebooted BMC IPs (exclude BSM-skipped and failed)
-      ansible.builtin.set_fact:
-        successful_bmc_ips: "{{ successful_bmc_ips | default([]) + [item] }}"
-      loop: "{{ groups['bmc'] | default([]) }}"
-      when:
-        - not (hostvars[item]['bsm_skip_this_host'] | default(false))
-        - not (hostvars[item]['reboot_failed'] | default(true))
-      tags: always
+    - name: BSM filtering block
+      when: enable_build_stream | default(false) | bool
+      block:
+        - name: Build list of successfully rebooted BMC IPs (exclude BSM-skipped and failed)
+          ansible.builtin.set_fact:
+            successful_bmc_ips: "{{ successful_bmc_ips | default([]) + [item] }}"
+          loop: "{{ groups['bmc'] | default([]) }}"
+          when:
+            - not (hostvars[item]['bsm_skip_this_host'] | default(false))
+            - not (hostvars[item]['reboot_failed'] | default(true))
+          tags: always
 
-    - name: Default successful_bmc_ips to empty list if none succeeded
-      ansible.builtin.set_fact:
-        successful_bmc_ips: "{{ successful_bmc_ips | default([]) }}"
-      tags: always
+        - name: Default successful_bmc_ips to empty list if none succeeded
+          ansible.builtin.set_fact:
+            successful_bmc_ips: "{{ successful_bmc_ips | default([]) }}"
+          tags: always
 
-    - name: Build filtered admin IPs for phone-home (only successfully rebooted nodes)
-      ansible.builtin.set_fact:
-        target_node_admin_ips: >-
-          {{ successful_bmc_ips
-             | map('extract', pxe_csv_node_map)
-             | map(attribute='ADMIN_IP')
-             | list }}
-        cacheable: true
-      when:
-        - enable_build_stream | default(false) | bool
-        - pxe_csv_node_map is defined
-        - successful_bmc_ips | length > 0
-      tags: always
+        - name: Build filtered admin IPs for phone-home (only successfully rebooted nodes)
+          ansible.builtin.set_fact:
+            target_node_admin_ips: >-
+              {{ successful_bmc_ips
+                 | map('extract', pxe_csv_node_map)
+                 | map(attribute='ADMIN_IP')
+                 | list }}
+            cacheable: true
+          when:
+            - pxe_csv_node_map is defined
+            - successful_bmc_ips | length > 0
+          tags: always
 
-    - name: Set empty phone-home list when no nodes rebooted successfully
-      ansible.builtin.set_fact:
-        target_node_admin_ips: []
-        cacheable: true
-      when: successful_bmc_ips | default([]) | length == 0
-      tags: always
+        - name: Set empty phone-home list when no nodes rebooted successfully
+          ansible.builtin.set_fact:
+            target_node_admin_ips: []
+            cacheable: true
+          when: successful_bmc_ips | default([]) | length == 0
+          tags: always
 
-    - name: Report phone-home target list
-      ansible.builtin.debug:
-        msg: >-
-          Phone-home targets: {{ target_node_admin_ips | default([]) | length }} of
-          {{ groups['bmc'] | default([]) | length }} nodes
-          ({{ successful_bmc_ips | default([]) | length }} rebooted successfully,
-          {{ (groups['bmc'] | default([]) | length) - (successful_bmc_ips | default([]) | length) }} failed)
-      tags: always
+        - name: Report phone-home target list
+          ansible.builtin.debug:
+            msg: >-
+              Phone-home targets: {{ target_node_admin_ips | default([]) | length }} of
+              {{ groups['bmc'] | default([]) | length }} nodes
+              ({{ successful_bmc_ips | default([]) | length }} rebooted successfully,
+              {{ (groups['bmc'] | default([]) | length) - (successful_bmc_ips | default([]) | length) }} failed)
+          tags: always
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 7: Create OIM group for phone-home verification
@@ -145,11 +155,14 @@
 - name: Create oim group for phone-home verification
   hosts: localhost
   connection: local
-  roles:
-    - create_container_group
-  vars:
-    oim_group: true
-  tags: always
+  tasks:
+    - name: Create OIM group (BSM only)
+      when: enable_build_stream | default(false) | bool
+      ansible.builtin.include_role:
+        name: create_container_group
+      vars:
+        oim_group: true
+      tags: always
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 8: [Phone-Home] via pxe_buildstream_manager role task
@@ -165,21 +178,22 @@
   ignore_unreachable: true
   max_fail_percentage: 100
   tasks:
-    - name: Skip phone-home when no nodes rebooted successfully
-      ansible.builtin.debug:
-        msg: "Skipping phone-home verification — no nodes rebooted successfully"
-      when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length == 0
+    - name: Phone-home block (BSM only)
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+      block:
+        - name: Skip phone-home when no nodes rebooted successfully
+          ansible.builtin.debug:
+            msg: "Skipping phone-home verification — no nodes rebooted successfully"
+          when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length == 0
 
-    - name: Run cloud-init phone-home verification via BSM role
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: cloudinit_phone_home
-      when:
-        - hostvars['localhost']['enable_build_stream'] | default(false) | bool
-        - hostvars['localhost']['target_node_admin_ips'] | default([]) | length > 0
-      vars:
-        pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
-        target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
+        - name: Run cloud-init phone-home verification via BSM role
+          ansible.builtin.include_role:
+            name: pxe_buildstream_manager
+            tasks_from: cloudinit_phone_home
+          when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length > 0
+          vars:
+            pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
+            target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 9: [BSM] Write per-node results AFTER phone-home verified
@@ -207,3 +221,25 @@
         name: pxe_buildstream_manager
         tasks_from: upload_to_gitlab
       when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 11: Fail the playbook if any nodes failed
+# (runs AFTER failed_nodes.json is written and uploaded to GitLab)
+# ─────────────────────────────────────────────────────────────────────────
+- name: Fail playbook if any nodes failed
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Fail if any nodes failed PXE boot or phone-home (BSM only)
+      ansible.builtin.fail:
+        msg: "Node failures detected. See failed_nodes.json for details."
+      when:
+        - enable_build_stream | default(false) | bool
+        - >-
+          (groups['bmc'] | default([])
+           | map('extract', hostvars)
+           | selectattr('reboot_failed', 'defined')
+           | selectattr('reboot_failed', 'equalto', true)
+           | list | length > 0)
+          or (phone_home_failed_ips | default([]) | length > 0)

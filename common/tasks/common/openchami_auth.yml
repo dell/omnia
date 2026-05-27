@@ -33,11 +33,6 @@
     ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
   when: access_token_result.rc == 0
 
-- name: Fail if setting ochami_env failed
-  ansible.builtin.fail:
-    msg: "Failed to set ochami_env"
-  when: access_token_result.rc != 0
-
 - name: Check ochami bss status
   ansible.builtin.command: ochami bss service status
   register: bss_status_result

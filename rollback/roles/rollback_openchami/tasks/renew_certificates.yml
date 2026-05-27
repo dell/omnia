@@ -1,0 +1,83 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# renew_certificates.yml — Renew OpenCHAMI TLS Certificates After Rollback
+# ============================================================================
+# After restoring v2.1 containers, the TLS certificates may be expired.
+# This task renews the certificates using openchami-certificate-update and
+# restarts the affected services to pick up the new certificates.
+#
+# This is critical for cloud-init-server communication via ochami CLI.
+# ============================================================================
+
+- name: Renew OpenCHAMI certificates after rollback
+  block:
+    - name: Read network_spec.yml for domain_name
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/network_spec.yml"
+
+    - name: Get cluster FQDN from network_spec.yml
+      ansible.builtin.set_fact:
+        rollback_cluster_fqdn: "{{ rollback_cluster_name }}.{{ domain_name }}"
+
+    - name: Renew OpenCHAMI certificates
+      ansible.builtin.command: openchami-certificate-update update {{ rollback_cluster_fqdn }}
+      become: true
+      changed_when: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restart openchami.target to pick up new certificates
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: restarted
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restart MinIO service
+      ansible.builtin.systemd:
+        name: minio.service
+        state: restarted
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restart registry service
+      ansible.builtin.systemd:
+        name: registry.service
+        state: restarted
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for all services to stabilize after certificate renewal
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    - name: Reset any failed services after certificate renewal
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display certificate renewal status
+      ansible.builtin.debug:
+        msg: "OpenCHAMI certificates renewed for {{ rollback_cluster_fqdn }}. All services restarted."

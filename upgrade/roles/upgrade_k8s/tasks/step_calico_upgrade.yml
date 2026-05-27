@@ -50,12 +50,12 @@
   register: autodetect_check
   changed_when: false
 
-- name: Patch IP_AUTODETECTION_METHOD
+- name: Add IP_AUTODETECTION_METHOD after IP autodetect
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.replace:
     path: "{{ calico_work }}"
-    regexp: '(^\\s*value: "autodetect"\\s*$)'
-    replace: "\\1\n            - name: IP_AUTODETECTION_METHOD\n              value: \"cidr={{ admin_nic_cidr }}\""
+    regexp: '(            - name: IP\n              value: "autodetect")'
+    replace: '\1\n            - name: IP_AUTODETECTION_METHOD\n              value: "cidr={{ admin_nic_cidr }}"'
   when: autodetect_check.stdout | int == 0
   changed_when: true
 

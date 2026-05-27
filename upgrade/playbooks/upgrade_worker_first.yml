@@ -89,7 +89,7 @@
               steps:
                 setup_repos:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
         # ── kubeadm_install ──────────────────────────────────────────
@@ -104,7 +104,7 @@
                   steps:
                     kubeadm_install:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Install kubeadm {{ k8s_target_version }}
               ansible.builtin.dnf:
@@ -122,7 +122,7 @@
                   steps:
                     kubeadm_install:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubeadm_install failed
@@ -134,7 +134,7 @@
                   steps:
                     kubeadm_install:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubeadm install failed')) }}"
             - name: Fail kubeadm_install step
               ansible.builtin.fail:
@@ -152,7 +152,7 @@
                   steps:
                     kubeadm_upgrade_node:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Run kubeadm upgrade node
               ansible.builtin.command: kubeadm upgrade node
@@ -167,7 +167,7 @@
                   steps:
                     kubeadm_upgrade_node:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubeadm_upgrade_node failed
@@ -179,7 +179,7 @@
                   steps:
                     kubeadm_upgrade_node:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('kubeadm upgrade node failed')) }}"
             - name: Fail kubeadm_upgrade_node step
               ansible.builtin.fail:
@@ -201,7 +201,7 @@
                   steps:
                     drain:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Cordon node (prevent new pod scheduling) {{ current_node_name }}
               ansible.builtin.command: kubectl cordon {{ node_ip }}
@@ -217,7 +217,7 @@
                   steps:
                     drain:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark drain failed
@@ -229,7 +229,7 @@
                   steps:
                     drain:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('cordon failed')) }}"
             - name: Fail drain step
               ansible.builtin.fail:
@@ -247,7 +247,7 @@
                   steps:
                     kubelet_install:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Install kubelet and kubectl {{ k8s_target_version }}
               ansible.builtin.dnf:
@@ -267,7 +267,7 @@
                   steps:
                     kubelet_install:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubelet_install failed
@@ -279,7 +279,7 @@
                   steps:
                     kubelet_install:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet install failed')) }}"
             - name: Fail kubelet_install step
               ansible.builtin.fail:
@@ -297,7 +297,7 @@
                   steps:
                     crio_install:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Install cri-o {{ k8s_target_version }}
               ansible.builtin.dnf:
@@ -325,7 +325,7 @@
                   steps:
                     crio_install:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark crio_install failed
@@ -337,7 +337,7 @@
                   steps:
                     crio_install:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('cri-o install failed')) }}"
             - name: Fail crio_install step
               ansible.builtin.fail:
@@ -355,7 +355,7 @@
                   steps:
                     kubelet_restart:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Reload systemd
               ansible.builtin.systemd:
@@ -388,7 +388,7 @@
                   steps:
                     kubelet_restart:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubelet_restart failed
@@ -400,7 +400,7 @@
                   steps:
                     kubelet_restart:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet restart failed')) }}"
             - name: Fail kubelet_restart step
               ansible.builtin.fail:
@@ -418,7 +418,7 @@
                   steps:
                     uncordon:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Uncordon node {{ current_node_name }}
               ansible.builtin.command: kubectl uncordon {{ node_ip }}
@@ -434,7 +434,7 @@
                   steps:
                     uncordon:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark uncordon failed
@@ -446,7 +446,7 @@
                   steps:
                     uncordon:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('uncordon failed')) }}"
             - name: Fail uncordon step
               ansible.builtin.fail:
@@ -464,7 +464,7 @@
                   steps:
                     validation:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Verify node version
               ansible.builtin.command: >
@@ -482,7 +482,7 @@
                   steps:
                     validation:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark validation failed
@@ -494,7 +494,7 @@
                   steps:
                     validation:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "Node version mismatch. Expected: v{{ k8s_target_version }}, Got: {{ node_version.stdout | default('unknown') }}"
             - name: Fail validation step
               ansible.builtin.fail:

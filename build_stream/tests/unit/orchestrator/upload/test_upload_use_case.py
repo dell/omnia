@@ -921,3 +921,75 @@ class TestUploadFilesAuditEvents:
         )
 
 
+class TestPxeMappingFileCustomPath:
+    """Tests for pxe_mapping_file.csv writing to configurable directory."""
+
+    def test_resolve_pxe_mapping_dir_reads_provision_config(self, tmp_path):
+        """_resolve_pxe_mapping_dir reads pxe_mapping_file_path from provision_config.yml."""
+        from orchestrator.upload.use_cases import upload_files
+
+        custom_dir = tmp_path / "my_project"
+        custom_dir.mkdir(parents=True)
+        provision_content = (
+            f'pxe_mapping_file_path: "{custom_dir}/pxe_mapping_file.csv"\n'
+        )
+        input_dir = tmp_path / "input"
+        input_dir.mkdir(parents=True)
+        (input_dir / "provision_config.yml").write_text(provision_content)
+
+        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
+        try:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
+            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
+            assert result == custom_dir
+        finally:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+
+    def test_resolve_pxe_mapping_dir_falls_back_when_no_key(self, tmp_path):
+        """Falls back to DEFAULT_PLAYBOOK_INPUT_DIR when provision_config has no key."""
+        from orchestrator.upload.use_cases import upload_files
+
+        input_dir = tmp_path / "input"
+        input_dir.mkdir(parents=True)
+        (input_dir / "provision_config.yml").write_text("language: en_US.UTF-8\n")
+
+        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
+        try:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
+            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
+            assert result == Path(str(input_dir) + "/")
+        finally:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+
+    def test_resolve_pxe_mapping_dir_falls_back_when_no_file(self, tmp_path):
+        """Falls back to DEFAULT_PLAYBOOK_INPUT_DIR when provision_config.yml missing."""
+        from orchestrator.upload.use_cases import upload_files
+
+        input_dir = tmp_path / "input"
+        input_dir.mkdir(parents=True)
+
+        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
+        try:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
+            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
+            assert result == Path(str(input_dir) + "/")
+        finally:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+
+    def test_resolve_pxe_mapping_dir_falls_back_on_yaml_error(self, tmp_path):
+        """Falls back to default when provision_config.yml has invalid YAML."""
+        from orchestrator.upload.use_cases import upload_files
+
+        input_dir = tmp_path / "input"
+        input_dir.mkdir(parents=True)
+        (input_dir / "provision_config.yml").write_text(": invalid: yaml: {{{\n")
+
+        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
+        try:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
+            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
+            assert result == Path(str(input_dir) + "/")
+        finally:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+
+

@@ -108,6 +108,12 @@ mounts:
 {% endif %}
 {% endif %}
 
+#  - name: "vast_storage"
+#    source: "172.16.107.77:/share/vast"
+#    mount_point: "/mnt/vast"
+#    mount_params: "vast_rdma"
+#    functional_group_prefix: ["slurm_node", "login"]
+
 # -------------------------Mount Params (Reusable Profiles)---------------------------
 # mount_params: Dictionary of named mount configuration profiles for reuse across mounts.
 #   Each profile is a named dictionary with optional fields:

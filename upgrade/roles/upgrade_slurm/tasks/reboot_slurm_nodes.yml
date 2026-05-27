@@ -52,40 +52,18 @@
       ansible.builtin.fail:
         msg: "Slurm cluster has ACTIVE jobs running. Please drain and stop jobs before proceeding with node reboot."
 
-- name: Issue reboot on all slurm nodes asynchronously
-  ansible.builtin.command:
-    cmd: shutdown -r now
-  delegate_to: "{{ item }}"
-  loop: "{{ slurm_host_group_map.keys() | list }}"
-  async: 10
-  poll: 0
-  failed_when: false
-  changed_when: true
-  ignore_unreachable: true
-  ignore_errors: true
-  register: async_reboot_results
+- name: Fail if job check fails
+  when: running_jobs.rc != 0
+  ansible.builtin.fail:
+    msg: "{{ job_check_failed }}"
+  vars:
+    job_check_failed:
+      - "Slurm cluster is not responding. Check the cluster status and retry the upgrade."
+      - "Failed to check for running jobs on slurm cluster."
+      - "Error: {{ running_jobs.stderr }}"
 
-- name: Wait for all slurm nodes to come back online
-  ansible.builtin.wait_for:
-    host: "{{ item }}"
-    port: 22
-    state: started
-    delay: 30
-    timeout: "{{ reboot_wait_timeout }}"
-  delegate_to: localhost
-  loop: "{{ slurm_host_group_map.keys() | list }}"
-  register: reboot_results
-
-- name: Report overall reboot status
-  ansible.builtin.debug:
-    msg: |
-      ========================================
-      Slurm Cluster Reboot Summary
-      ========================================
-      Total nodes rebooted: {{ slurm_host_group_map | length }}
-      Nodes successfully online: {{ reboot_results.results | selectattr('state', 'equalto', 'started') | list | length }}
-      Rebooted nodes:
-      {% for node in slurm_host_group_map.keys() | list %}
-        - {{ node }} ({{ slurm_host_group_map[node] }})
-      {% endfor %}
-      Status: SUCCESS - All nodes are back online
+- name: Create groups for slurm nodes
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: "{{ item.value }}"
+  loop: "{{ slurm_host_group_map | dict2items }}"

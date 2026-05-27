@@ -32,14 +32,23 @@
         - name: Upgrade OpenCHAMI containers
           ansible.builtin.include_tasks: upgrade_openchami_containers.yml
 
-        # Container IPs/ports may change after stop/remove/start cycle.
-        # Re-discover endpoints so migrate_database and post_upgrade checks
-        # use the correct addresses.
-        - name: Re-resolve SMD/BSS endpoints after container upgrade
-          ansible.builtin.include_tasks: resolve_admin_ip.yml
-
+        # Database migration uses podman exec postgres (direct container
+        # access) and does NOT need resolved HTTP endpoints. Running it
+        # before cert renewal avoids an extra resolve_admin_ip call.
         - name: Post-upgrade database migration and integrity check
           ansible.builtin.include_tasks: migrate_database.yml
+
+        # Renew certificates after container upgrade. The upgraded v2.2
+        # containers may have expired certificates. This restarts the
+        # entire openchami.target so ALL services pick up new certs.
+        - name: Renew OpenCHAMI certificates
+          ansible.builtin.include_tasks: renew_certificates.yml
+
+        # Re-resolve HAProxy-based endpoints after cert renewal restart.
+        # HAProxy port 8443 is stable, but re-reading the ochami config
+        # ensures we pick up any config changes from cert renewal.
+        - name: Resolve SMD/BSS endpoints after certificate renewal
+          ansible.builtin.include_tasks: resolve_admin_ip.yml
 
         - name: Reload cloud-init data into cloud-init-server
           ansible.builtin.include_tasks: reload_cloud_init_data.yml

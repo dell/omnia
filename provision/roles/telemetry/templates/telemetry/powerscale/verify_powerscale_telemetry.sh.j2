@@ -29,7 +29,7 @@ echo "=============================================="
 echo ""
 
 # 1. Check Kubernetes connectivity
-echo "[1/9] Checking Kubernetes connectivity..."
+echo "[1/11] Checking Kubernetes connectivity..."
 if kubectl cluster-info &>/dev/null; then
     echo "  PASS: Kubernetes cluster is reachable"
     ((PASS++))
@@ -39,7 +39,7 @@ else
 fi
 
 # 2. Check namespace
-echo "[2/9] Checking telemetry namespace..."
+echo "[2/11] Checking telemetry namespace..."
 if kubectl get namespace "$NAMESPACE" &>/dev/null; then
     echo "  PASS: Namespace '$NAMESPACE' exists"
     ((PASS++))
@@ -49,7 +49,7 @@ else
 fi
 
 # 3. Check Helm release
-echo "[3/9] Checking Helm release..."
+echo "[3/11] Checking Helm release..."
 HELM_STATUS=$(helm status "$HELM_RELEASE" -n "$NAMESPACE" -o json 2>/dev/null | grep -o '"status":"[^"]*"' | head -1)
 if echo "$HELM_STATUS" | grep -q "deployed"; then
     echo "  PASS: Helm release '$HELM_RELEASE' is deployed"
@@ -60,7 +60,7 @@ else
 fi
 
 # 4. Check PowerScale CSI secret (copied from isilon namespace)
-echo "[4/9] Checking PowerScale credentials secret..."
+echo "[4/11] Checking PowerScale credentials secret..."
 if kubectl get secret isilon-creds -n "$NAMESPACE" &>/dev/null; then
     echo "  PASS: Secret 'isilon-creds' exists in '$NAMESPACE'"
     ((PASS++))
@@ -70,7 +70,7 @@ else
 fi
 
 # 5. Check CSM Metrics PowerScale deployment (Helm-managed)
-echo "[5/9] Checking CSM Metrics PowerScale deployment..."
+echo "[5/11] Checking CSM Metrics PowerScale deployment..."
 CSM_DEPLOY=$(kubectl get deployment -n "$NAMESPACE" -l app.kubernetes.io/name=karavi-metrics-powerscale -o name 2>/dev/null)
 if [ -n "$CSM_DEPLOY" ]; then
     for dep in $CSM_DEPLOY; do
@@ -91,7 +91,7 @@ else
 fi
 
 # 6. Check OTEL Collector deployment (Helm-managed)
-echo "[6/9] Checking OTEL Collector deployment..."
+echo "[6/11] Checking OTEL Collector deployment..."
 OTEL_DEPLOY=$(kubectl get deployment -n "$NAMESPACE" -l app.kubernetes.io/name=otel-collector -o name 2>/dev/null)
 if [ -n "$OTEL_DEPLOY" ]; then
     for dep in $OTEL_DEPLOY; do
@@ -112,7 +112,7 @@ else
 fi
 
 # 7. Check cert-manager pods (Helm sub-chart)
-echo "[7/9] Checking cert-manager pods..."
+echo "[7/11] Checking cert-manager pods..."
 CM_PODS=$(kubectl get pods -n "$NAMESPACE" -l app=cert-manager --no-headers 2>/dev/null | wc -l)
 if [ "$CM_PODS" -ge 1 ]; then
     CM_READY=$(kubectl get pods -n "$NAMESPACE" -l app=cert-manager --no-headers 2>/dev/null | awk '$2 ~ /^[0-9]+\/[0-9]+$/ && $3=="Running"' | wc -l)
@@ -124,7 +124,7 @@ else
 fi
 
 # 8. Check OTEL Collector PVC
-echo "[8/9] Checking OTEL Collector PVC..."
+echo "[8/11] Checking OTEL Collector PVC..."
 PVC_STATUS=$(kubectl get pvc otel-collector-data -n "$NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null)
 if [ "$PVC_STATUS" == "Bound" ]; then
     PVC_SC=$(kubectl get pvc otel-collector-data -n "$NAMESPACE" -o jsonpath='{.spec.storageClassName}' 2>/dev/null)
@@ -139,14 +139,52 @@ else
     ((WARN++))
 fi
 
-# 9. Check metrics flow
-echo "[9/9] Checking metrics flow..."
-METRICS_LOG=$(kubectl logs -n "$NAMESPACE" -l app.kubernetes.io/name=karavi-metrics-powerscale --tail=5 2>/dev/null | grep -c "function duration")
+# 9. Check CSM Metrics logs
+echo "[9/11] Checking CSM Metrics PowerScale logs..."
+CSM_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=karavi-metrics-powerscale -o name 2>/dev/null | head -1)
+if [ -n "$CSM_POD" ]; then
+    echo "  Checking CSM Metrics logs for data collection (last 5 minutes)..."
+    CSM_LOG_COUNT=$(kubectl logs -n "$NAMESPACE" "$CSM_POD" --since=5m 2>/dev/null | grep -c "function duration" || echo "0")
+    if [ "$CSM_LOG_COUNT" -gt 0 ]; then
+        echo "  PASS: CSM Metrics collecting data (count: $CSM_LOG_COUNT)"
+        kubectl logs -n "$NAMESPACE" "$CSM_POD" --since=5m 2>/dev/null | grep "function duration" | tail -2
+        ((PASS++))
+    else
+        echo "  WARN: No data collection detected in CSM Metrics logs (last 5 minutes)"
+        echo "        This may indicate PowerScale connectivity issue or no data to collect"
+        ((WARN++))
+    fi
+else
+    echo "  FAIL: CSM Metrics pod not found"
+    ((FAIL++))
+fi
+
+# 10. Check CSI Volume Exporter logs (if deployed)
+echo "[10/11] Checking CSI Volume Exporter logs..."
+CSI_EXPORTER_POD=$(kubectl get pods -n isilon -l app.kubernetes.io/name=csi-snapshotter -o name 2>/dev/null | head -1)
+if [ -n "$CSI_EXPORTER_POD" ]; then
+    echo "  Checking CSI Volume Exporter logs (last 5 minutes)..."
+    CSI_LOG_COUNT=$(kubectl logs -n isilon "$CSI_EXPORTER_POD" --since=5m 2>/dev/null | grep -c "metrics" || echo "0")
+    if [ "$CSI_LOG_COUNT" -gt 0 ]; then
+        echo "  PASS: CSI Volume Exporter logging metrics (count: $CSI_LOG_COUNT)"
+        kubectl logs -n isilon "$CSI_EXPORTER_POD" --since=5m 2>/dev/null | grep "metrics" | tail -2
+        ((PASS++))
+    else
+        echo "  WARN: No metrics detected in CSI Volume Exporter logs (last 5 minutes)"
+        ((WARN++))
+    fi
+else
+    echo "  INFO: CSI Volume Exporter pod not found in isilon namespace (may not be deployed)"
+    ((WARN++))
+fi
+
+# 11. Check metrics flow
+echo "[11/11] Checking metrics flow (CSM -> OTEL)..."
 OTEL_LOG=$(kubectl logs -n "$NAMESPACE" -l app.kubernetes.io/name=otel-collector --all-containers --tail=5 2>/dev/null | grep -c "Metrics")
-if [ "$METRICS_LOG" -gt 0 ] && [ "$OTEL_LOG" -gt 0 ]; then
+if [ "$CSM_LOG_COUNT" -gt 0 ] && [ "$OTEL_LOG" -gt 0 ]; then
     echo "  PASS: Metrics flowing (CSM Metrics -> OTEL Collector)"
     ((PASS++))
-elif [ "$METRICS_LOG" -gt 0 ]; then
+elif [ "$CSM_LOG_COUNT" -gt 0 ]; then
     echo "  WARN: CSM Metrics collecting but OTEL Collector not logging metrics"
     ((WARN++))
 else
