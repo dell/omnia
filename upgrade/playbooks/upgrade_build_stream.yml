@@ -58,7 +58,7 @@
     # ── Set input_project_dir with fallback ──
     - name: Set input_project_dir with fallback
       ansible.builtin.set_fact:
-        input_project_dir: "{{ input_project_dir | default('/opt/omnia-sharedpath/omnia/input/project_default') }}"
+        input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
         cacheable: true
 
     - name: Read build_stream_config.yml
