@@ -88,11 +88,23 @@ else
         {print}
       ' /tmp/decoded_config.yaml > /tmp/updated_config.yaml
       encoded_config=$(base64 -w 0 /tmp/updated_config.yaml)
-      kubectl patch secret isilon-creds -n isilon \
-        --type merge \
-        -p "{\"data\":{\"config\":\"${encoded_config}\"}}}" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
-      rm -f /tmp/decoded_config.yaml /tmp/updated_config.yaml
-      echo "isilon-creds secret created and patched successfully."
+      cat > /tmp/isilon-creds-patch.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: isilon-creds
+  namespace: isilon
+type: Opaque
+data:
+  config: ${encoded_config}
+EOF
+      kubectl apply -f /tmp/isilon-creds-patch.yaml >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
+      rm -f /tmp/decoded_config.yaml /tmp/updated_config.yaml /tmp/isilon-creds-patch.yaml
+      if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+        echo "isilon-creds secret created and patched successfully."
+      else
+        echo "ERROR: Failed to patch isilon-creds secret with correct credentials."
+      fi
     fi
   fi
 
@@ -100,8 +112,7 @@ else
     echo "===== Applying empty certificate secret ====="
     if [ -f "/opt/omnia/{{ csi_powerscale_dir }}/empty_isilon-certs.yaml" ]; then
       kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/empty_isilon-certs.yaml || {
-        echo "Failed to apply empty certs secret. Continuing..."
-        POWERSCALE_DEPLOYMENT_FAILED=1
+        echo "Failed to apply empty certs secret (may already exist). Continuing..."
       }
     fi
   fi
@@ -147,18 +158,20 @@ else
     fi
   fi
 
-  FILE="/opt/omnia/{{ csi_powerscale_dir }}/values.yaml"
+  if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+    FILE="/opt/omnia/{{ csi_powerscale_dir }}/values.yaml"
 
-  echo "Updating arrayConnectivityPollRate in: $FILE"
+    echo "Updating arrayConnectivityPollRate in: $FILE"
 
-  if grep -Fq -- "--arrayConnectivityPollRate=60" "$FILE"; then
-    echo "Found existing poll rate 60. Updating to 20..."
-    sed -i 's/--arrayConnectivityPollRate=60/--arrayConnectivityPollRate=20/g' "$FILE"
-  else
-    echo "No poll rate value 60 found. Nothing to change."
+    if grep -Fq -- "--arrayConnectivityPollRate=60" "$FILE"; then
+      echo "Found existing poll rate 60. Updating to 20..."
+      sed -i 's/--arrayConnectivityPollRate=60/--arrayConnectivityPollRate=20/g' "$FILE"
+    else
+      echo "No poll rate value 60 found. Nothing to change."
+    fi
+
+    echo "Done updating poll rate."
   fi
-
-  echo "Done updating poll rate."
 
   if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
     echo "===== Running CSI PowerScale installation script ====="
