@@ -154,6 +154,8 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream"
+  - "/opt/omnia/build_stream_root"
+  - "/opt/omnia/playbook_queue"
 
 build_stream_container_name: omnia_build_stream
 playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
