@@ -1,0 +1,132 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Restore /etc/kubernetes/ from backup on a single control plane.
+# Called from restore_k8s_configs.yml with loop_var: _cp_node
+
+- name: Skip if restore_k8s_configs already done for {{ _cp_node }}
+  ansible.builtin.debug:
+    msg: "restore_k8s_configs already completed on {{ _cp_node }} — skipping."
+  when: >-
+    (rollback_status.nodes[_cp_node].steps.restore_k8s_configs.status | default('pending'))
+    == 'completed'
+
+- name: Restore K8s configs on {{ _cp_node }}
+  when: >-
+    (rollback_status.nodes[_cp_node].steps.restore_k8s_configs.status | default('pending'))
+    != 'completed'
+  block:
+    # ── Back up current /etc/kubernetes/ (safety net) ──────────────
+    - name: Back up current /etc/kubernetes/ on {{ _cp_node }}
+      ansible.builtin.command:
+        cmd: >-
+          cp -a /etc/kubernetes
+          /etc/kubernetes.{{ k8s_current_version }}.bak
+      delegate_to: "{{ _cp_node }}"
+      args:
+        creates: "/etc/kubernetes.{{ k8s_current_version }}.bak"
+
+    # ── Clear current /etc/kubernetes/ contents ────────────────────
+    # /etc/kubernetes can be a busy mountpoint; avoid deleting it.
+    - name: Remove existing /etc/kubernetes/* contents on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          find /etc/kubernetes -mindepth 1 -delete 2>/dev/null || true
+          find /etc/kubernetes -mindepth 1 -exec rm -rf {} + 2>/dev/null || true
+      delegate_to: "{{ _cp_node }}"
+      changed_when: true
+
+    # ── Ensure /etc/kubernetes/ directory exists ───────────────────
+    - name: Create /etc/kubernetes/ directory on {{ _cp_node }}
+      ansible.builtin.file:
+        path: /etc/kubernetes
+        state: directory
+        mode: "{{ dir_perm_755 }}"
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Extract backup tarball via temp path (handles varying tar layouts) ──
+    - name: Create temporary restore directory on {{ _cp_node }}
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: k8s-config-restore-
+      delegate_to: "{{ _cp_node }}"
+      register: _k8s_cfg_tmpdir
+
+    - name: Extract K8s config backup to temp dir on {{ _cp_node }}
+      ansible.builtin.unarchive:
+        src: "{{ k8s_config_backup_dir }}/{{ _cp_node }}/k8s-config.tar.gz"
+        dest: "{{ _k8s_cfg_tmpdir.path }}"
+        remote_src: true
+      delegate_to: "{{ _cp_node }}"
+
+    - name: Copy restored Kubernetes config tree into /etc/kubernetes on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          if [ -d "{{ _k8s_cfg_tmpdir.path }}/etc/kubernetes" ]; then
+            cp -a "{{ _k8s_cfg_tmpdir.path }}/etc/kubernetes/." /etc/kubernetes/
+          elif [ -d "{{ _k8s_cfg_tmpdir.path }}/kubernetes" ]; then
+            cp -a "{{ _k8s_cfg_tmpdir.path }}/kubernetes/." /etc/kubernetes/
+          elif [ -f "{{ _k8s_cfg_tmpdir.path }}/admin.conf" ]; then
+            cp -a "{{ _k8s_cfg_tmpdir.path }}/." /etc/kubernetes/
+          else
+            exit 2
+          fi
+      delegate_to: "{{ _cp_node }}"
+      changed_when: true
+
+    - name: Remove temporary restore directory on {{ _cp_node }}
+      ansible.builtin.file:
+        path: "{{ _k8s_cfg_tmpdir.path }}"
+        state: absent
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Verify critical files exist after restore ──────────────────
+    - name: Verify /etc/kubernetes/admin.conf exists on {{ _cp_node }}
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf
+      delegate_to: "{{ _cp_node }}"
+      register: _admin_conf
+
+    - name: Verify /etc/kubernetes/pki/ca.crt exists on {{ _cp_node }}
+      ansible.builtin.stat:
+        path: /etc/kubernetes/pki/ca.crt
+      delegate_to: "{{ _cp_node }}"
+      register: _ca_crt
+
+    - name: Fail if critical K8s config files missing on {{ _cp_node }}
+      ansible.builtin.fail:
+        msg: >-
+          K8s config restore failed on {{ _cp_node }}.
+          admin.conf: {{ _admin_conf.stat.exists }},
+          pki/ca.crt: {{ _ca_crt.stat.exists }}.
+          Backup archive: {{ k8s_config_backup_dir }}/{{ _cp_node }}/k8s-config.tar.gz
+      when: not (_admin_conf.stat.exists and _ca_crt.stat.exists)
+
+    # ── Update per-node status ─────────────────────────────────────
+    - name: Mark restore_k8s_configs completed for {{ _cp_node }}
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ _cp_node }}"
+        node_status_update:
+          steps:
+            restore_k8s_configs:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+
+    - name: Display restore result for {{ _cp_node }}
+      ansible.builtin.debug:
+        msg: "K8s configs restored on {{ _cp_node }} from {{ k8s_config_backup_dir }}/{{ _cp_node }}/k8s-config.tar.gz"

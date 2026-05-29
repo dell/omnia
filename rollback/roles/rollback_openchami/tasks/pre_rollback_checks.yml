@@ -21,7 +21,11 @@
 #   2. Backed-up quadlet files exist
 #   3. Backed-up openchami.target exists
 #   4. PostgreSQL backup SQL file exists
-#   5. Idempotency: if v2.1 coresmd container is already running, skip rollback
+#   5. Backed-up /etc/openchami directory exists
+#
+# No idempotency check — rollback always executes regardless of current
+# container state. This ensures rollback works even in partial or failed
+# upgrade states.
 # ============================================================================
 
 - name: Pre-rollback validation
@@ -58,6 +62,11 @@
         path: "{{ rollback_backup_dir }}/{{ backup_openchami_data_subpath }}"
       register: rollback_data_stat
 
+    - name: Check backed-up /etc/openchami directory exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir }}/{{ backup_etc_openchami_subpath }}"
+      register: rollback_etc_openchami_stat
+
     - name: Display backup inventory
       ansible.builtin.debug:
         verbosity: 1
@@ -67,6 +76,7 @@
           - "openchami.target backup: {{ 'found' if rollback_target_stat.stat.exists | default(false) else 'MISSING' }}"
           - "PostgreSQL dump: {{ 'found' if rollback_pgdump_stat.stat.exists | default(false) else 'MISSING' }}"
           - "openchami_data backup: {{ 'found' if rollback_data_stat.stat.exists | default(false) else 'MISSING' }}"
+          - "/etc/openchami backup: {{ 'found' if rollback_etc_openchami_stat.stat.exists | default(false) else 'MISSING' }}"
 
     - name: Fail if critical backup components are missing
       ansible.builtin.fail:
@@ -75,54 +85,11 @@
           Quadlets: {{ 'found' if rollback_quadlets_stat.stat.exists | default(false) else 'MISSING' }}
           openchami.target: {{ 'found' if rollback_target_stat.stat.exists | default(false) else 'MISSING' }}
           PostgreSQL dump: {{ 'found' if rollback_pgdump_stat.stat.exists | default(false) else 'MISSING (non-fatal for prepare_oim-only)' }}
+          /etc/openchami: {{ 'found' if rollback_etc_openchami_stat.stat.exists | default(false) else 'MISSING' }}
       when: >-
         not (rollback_quadlets_stat.stat.exists | default(false)) or
         not (rollback_target_stat.stat.exists | default(false))
 
-    # ── Idempotency: check if already rolled back ───────────────────────
-    # If the v2.1 single coresmd container is already running AND the v2.2
-    # split containers (coresmd-coredhcp, coresmd-coredns) are NOT running,
-    # we are already at v2.1 state. Skip rollback.
-    - name: Check if v2.1 coresmd container is running (idempotency)
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman ps --filter "name=^coresmd$" --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | grep -w "^coresmd$" || echo ""
-      register: rollback_coresmd_v21_check
-      changed_when: false
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Check if v2.2 coresmd-coredhcp container is running
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman ps --filter "name=^coresmd-coredhcp$" --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | grep -w "coresmd-coredhcp" || echo ""
-      register: rollback_coresmd_v22_check
-      changed_when: false
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Determine if rollback is needed
-      ansible.builtin.set_fact:
-        rollback_needed: >-
-          {{
-            not (rollback_coresmd_v21_check.stdout | trim | length > 0 and
-                 rollback_coresmd_v22_check.stdout | trim | length == 0)
-          }}
-
-    - name: Skip rollback if already at v2.1
+    - name: Display rollback proceeding message
       ansible.builtin.debug:
-        msg: "{{ rollback_messages.pre_check.already_v21 }}"
-      when: not (rollback_needed | bool)
-
-    - name: Display rollback decision
-      ansible.builtin.debug:
-        verbosity: 1
-        msg: >-
-          Rollback needed: {{ rollback_needed }}.
-          v2.1 coresmd: {{ 'running' if rollback_coresmd_v21_check.stdout | trim | length > 0 else 'not running' }}.
-          v2.2 coresmd-coredhcp: {{ 'running' if rollback_coresmd_v22_check.stdout | trim | length > 0 else 'not running' }}.
-      when: rollback_needed | bool
+        msg: "{{ rollback_messages.pre_check.backup_found }}"

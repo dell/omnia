@@ -986,7 +986,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     artifact_dir = request_data["artifact_dir"]
     config_path = request_data["config_path"]
     test_suite = request_data.get("test_suite", "")
-    timeout_minutes = request_data.get("timeout_minutes", 120)
+    timeout_minutes = request_data.get("timeout_minutes", 150)
     correlation_id = request_data.get("correlation_id", job_id)
     
     log_secure_info("info", "Executing molecule for job", job_id)
@@ -1050,14 +1050,38 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        
-        # Write molecule output to log file
-        log_file_path = os.path.join(artifact_dir, "molecule_output.log")
+
+        # Extract attempt number from request data (default to 1)
+        attempt = request_data.get("attempt", 1)
+
+        # Build NFS log path (consistent with execute_playbook)
+        host_log_file_path, _, _ = _build_log_paths(
+            "validate", started_at, attempt
+        )
+
+        # Write molecule output to NFS log file
         try:
-            with open(log_file_path, 'w') as f:
+            with open(str(host_log_file_path), 'w') as f:
                 f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
         except OSError:
-            log_secure_info("warning", "Failed to write molecule output log", job_id)
+            log_secure_info("warning", "Failed to write molecule NFS log", job_id)
+
+        # Move log to job-specific directory on NFS
+        if host_log_file_path.exists():
+            host_log_file_path = move_log_to_job_directory(
+                host_log_file_path, job_id
+            )
+
+        # Also write a copy to the artifact directory for local access
+        artifact_log_path = os.path.join(artifact_dir, "molecule_output.log")
+        try:
+            with open(artifact_log_path, 'w') as f:
+                f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
+        except OSError:
+            log_secure_info("warning", "Failed to write molecule artifact log", job_id)
+
+        # Use the NFS log path as the canonical log_file_path
+        log_file_path = str(host_log_file_path)
         
         # Parse metadata from molecule_output.log (report_id, suites)
         test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
@@ -1213,7 +1237,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         duration_seconds = (completed_at - started_at).total_seconds()
         
         log_secure_info("error", "Molecule execution timed out for job", job_id)
-        
+
+        # Build NFS log path for timeout case
+        err_attempt = request_data.get("attempt", 1)
+        err_log_path, _, _ = _build_log_paths("validate", started_at, err_attempt)
+        err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
+
         return {
             "job_id": job_id,
             "stage_name": stage_type,
@@ -1223,7 +1252,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "exit_code": 124,
             "error_summary": f"Molecule execution timed out after {timeout_minutes} minutes",
             "artifact_dir": artifact_dir,
-            "log_file_path": os.path.join(artifact_dir, "molecule_output.log"),
+            "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
@@ -1235,7 +1264,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         duration_seconds = (completed_at - started_at).total_seconds()
         
         log_secure_info("error", "Unexpected error executing molecule for job", job_id, exc_info=True)
-        
+
+        # Build NFS log path for error case
+        err_attempt = request_data.get("attempt", 1)
+        err_log_path, _, _ = _build_log_paths("validate", started_at, err_attempt)
+        err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
+
         return {
             "job_id": job_id,
             "stage_name": stage_type,
@@ -1245,7 +1279,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "exit_code": -1,
             "error_summary": f"System error during molecule execution: {str(e)}",
             "artifact_dir": artifact_dir,
-            "log_file_path": os.path.join(artifact_dir, "molecule_output.log"),
+            "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),

@@ -233,4 +233,4 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
     finally:
         logger.info(f"Overall status for {package['package']}: {status}")
         logger.info("#" * 30 + f" {process_rpm.__name__} end " + "#" * 30)
-        return status
+    return status

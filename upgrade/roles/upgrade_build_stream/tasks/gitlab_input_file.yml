@@ -14,7 +14,7 @@
 
 # ────────────────────────────────────────────────────────────────────────
 # Sync a single Omnia input file to the GitLab repository (create or update).
-# Called in a loop from upgrade_build_stream.yml with loop_var: _input_file
+# Called in a loop from gitlab_config_upgrade.yml with loop_var: _input_file
 #
 # Required variables (set by caller):
 #   _input_file.name           — filename (e.g. build_stream_config.yml)
@@ -37,9 +37,15 @@
   register: _input_content
   failed_when: false
 
+- name: Build API URL for input file check
+  ansible.builtin.set_fact:
+    _input_file_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _encoded_input_path }}?ref={{ gitlab_default_branch }}
+
 - name: Check if input file exists in repository
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}?ref={{ gitlab_default_branch }}"
+    url: "{{ _input_file_api_url }}"
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"

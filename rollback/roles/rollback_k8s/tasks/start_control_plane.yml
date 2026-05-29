@@ -1,0 +1,195 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 5b: Start control plane nodes ────────────────────────────
+# Reload systemd, restart CRI-O, start kubelet, wait for Ready,
+# then uncordon each CP.
+
+- name: Skip start_control_plane if already completed
+  ansible.builtin.debug:
+    msg: "start_control_plane already completed — skipping."
+  when: (rollback_status.stages.start_control_plane.status | default('pending')) == 'completed'
+
+- name: Start control planes
+  when: (rollback_status.stages.start_control_plane.status | default('pending')) != 'completed'
+  block:
+    - name: Mark start_control_plane in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            start_control_plane:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Start kubelet on ALL CPs before waiting ─────────────────────
+    # etcd requires quorum (2 of 3 members) before the API server can
+    # serve requests.  Starting CPs sequentially and waiting for Ready
+    # after each one deadlocks because a single etcd member can never
+    # form quorum.  Start all kubelets first, then wait.
+    - name: Reload systemd on all CPs
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      delegate_to: "{{ item }}"
+      changed_when: true
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Restart crio on all CPs
+      ansible.builtin.systemd_service:
+        name: crio
+        state: restarted
+      delegate_to: "{{ item }}"
+      changed_when: true
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Restart kubelet on all CPs
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: restarted
+      delegate_to: "{{ item }}"
+      changed_when: true
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Wait for API server to be fully responsive ─────────────────
+    # Use --server to bypass kube_vip (VIP may not be up yet)
+    - name: Wait for API server on first CP
+      ansible.builtin.command:
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get --raw /healthz
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _api_health
+      changed_when: false
+      retries: "{{ apiserver_wait_retries }}"
+      delay: "{{ apiserver_wait_delay }}"
+      until:
+        - _api_health.rc == 0
+        - "'ok' in _api_health.stdout"
+
+    # ── Wait for each CP node to become Ready ──────────────────────
+    - name: Wait for node {{ item }} to be Ready at {{ k8s_rollback_version }} version  # noqa:name[template]
+      ansible.builtin.command: >-
+        kubectl --server=https://{{ first_cp_ip }}:6443
+        get node {{ node_ips[item] }}
+        -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _node_ready
+      changed_when: false
+      retries: "{{ kubelet_ready_retries }}"
+      delay: "{{ kubelet_ready_delay }}"
+      until:
+        - _node_ready.rc == 0
+        - "'v' + k8s_rollback_version + ':True' in _node_ready.stdout"
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Mark start_kubelet completed for each CP ─────────────────────
+    - name: Mark start_kubelet completed for CPs
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ item }}"
+        node_status_update:
+          version_current: "{{ k8s_rollback_version }}"
+          steps:
+            start_kubelet:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Verify etcd cluster health ─────────────────────────────────
+    # Copy etcdctl from the etcd container to the host, then run
+    # the health check directly — avoids stale overlay issues with
+    # kubectl exec / crictl exec.
+    - name: Copy etcdctl binary from CRI-O overlay to host
+      ansible.builtin.shell:
+        cmd: |
+          set -eo pipefail
+          ETCDCTL_PATH=$(find /tmp/crio-storage/overlay -name etcdctl -type f 2>/dev/null | head -1)
+          [ -n "$ETCDCTL_PATH" ] || { echo "etcdctl not found in CRI-O overlay" >&2; exit 1; }
+          cp "$ETCDCTL_PATH" /usr/local/bin/etcdctl
+          chmod 0755 /usr/local/bin/etcdctl
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      changed_when: true
+      register: _etcdctl_copy
+
+    - name: Check etcd cluster health
+      ansible.builtin.command:
+        cmd: >-
+          etcdctl
+          --endpoints=https://127.0.0.1:2379
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt
+          --cert=/etc/kubernetes/pki/etcd/server.crt
+          --key=/etc/kubernetes/pki/etcd/server.key
+          endpoint health --cluster
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _etcd_health
+      changed_when: false
+      retries: "{{ etcd_health_retries }}"
+      delay: "{{ etcd_health_delay }}"
+      until: _etcd_health.rc == 0
+
+    # ── Mark etcd_health_check completed on all CPs ────────────────
+    - name: Mark etcd_health_check completed for CPs
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ item }}"
+        node_status_update:
+          steps:
+            etcd_health_check:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Uncordon all CPs ───────────────────────────────────────────
+    - name: Uncordon control plane nodes
+      ansible.builtin.command:
+        cmd: "kubectl --server=https://{{ first_cp_ip }}:6443 uncordon {{ node_ips[item] }}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _uncordon_result
+      changed_when: true
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Mark start_control_plane completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            start_control_plane:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display start_control_plane completion
+      ansible.builtin.debug:
+        msg: >-
+          All {{ all_cp_nodes | length }} control planes started, uncordoned,
+          and etcd cluster healthy.

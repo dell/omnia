@@ -1,0 +1,59 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Set example catalog paths
+  ansible.builtin.set_fact:
+    _gitlab_example_repo_path: "examples/{{ catalog_file_name }}"
+    _gitlab_example_hosted_path: "{{ gitlab_hosted_payload_dir }}/examples/{{ catalog_file_name }}"
+    _gitlab_example_encoded_path: "{{ ('examples/' ~ catalog_file_name) | urlencode | replace('/', '%2F') }}"
+
+- name: Check if example catalog exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: gitlab_example_catalog_check
+  no_log: true
+
+- name: Copy example catalog to GitLab host
+  ansible.builtin.copy:
+    src: "{{ catalog_file_path }}"
+    dest: "{{ _gitlab_example_hosted_path }}"
+    mode: '0644'
+
+- name: Read example catalog from GitLab host
+  ansible.builtin.slurp:
+    src: "{{ _gitlab_example_hosted_path }}"
+  register: gitlab_example_catalog_content
+
+- name: Create example catalog in GitLab repository
+  when: gitlab_example_catalog_check.status == 404
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      encoding: base64
+      content: "{{ gitlab_example_catalog_content.content }}"
+      commit_message: "Add example catalog: {{ catalog_file_name }}"
+    status_code: [200, 201]
+    validate_certs: false
+  no_log: true

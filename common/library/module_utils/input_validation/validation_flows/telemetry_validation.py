@@ -331,6 +331,8 @@ def validate_telemetry_config(
     ufm_source = telemetry_sources.get("ufm", {})
     vast_source = telemetry_sources.get("vast", {})
 
+    ome_source = telemetry_sources.get("ome", {})
+
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
 
@@ -395,6 +397,16 @@ def validate_telemetry_config(
             "telemetry_sources.ufm.collection_targets",
             list(invalid_ufm_targets),
             f"Invalid collection targets for UFM. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_ufm_targets}"
+        ))
+
+    # OME: only supports kafka (OME does NOT push directly to VictoriaMetrics)
+    ome_targets = set(ome_source.get("collection_targets", []))
+    if ome_targets and ome_targets != {"kafka"}:
+        errors.append(create_error_msg(
+            "telemetry_sources.ome.collection_targets",
+            list(ome_targets),
+            "OME only supports 'kafka' as collection target. OME publishes to Kafka; "
+            "Vector-OME bridge routes to victoria_metrics/victoria_logs."
         ))
 
     # =========================================================================
@@ -638,12 +650,53 @@ def validate_telemetry_config(
     #         f"LDMS collection_targets missing 'kafka': {ldms_collection_targets}"
     #     )
 
-    # Validation 3: Log Vector-OME bridge status
+    # =========================================================================
+    # OME source ↔ Vector-OME bridge independent validation
+    # =========================================================================
+    # Metrics and logs channels are validated independently:
+    #   - vector_ome.metrics_enabled requires ome.metrics_enabled
+    #   - vector_ome.logs_enabled requires ome.logs_enabled
+    ome_metrics_enabled = ome_source.get("metrics_enabled", False)
+    ome_logs_enabled = ome_source.get("logs_enabled", False)
+
+    # Validation: Vector-OME metrics bridge requires OME metrics source
+    if vector_ome_metrics_enabled and not ome_metrics_enabled:
+        errors.append(create_error_msg(
+            "telemetry_bridges.vector_ome.metrics_enabled",
+            "true",
+            "Vector-OME metrics bridge is enabled but telemetry_sources.ome.metrics_enabled is false. "
+            "Either enable telemetry_sources.ome.metrics_enabled or disable "
+            "telemetry_bridges.vector_ome.metrics_enabled."
+        ))
+        logger.error(
+            "OME-VectorOME metrics dependency validation FAILED: "
+            f"ome.metrics_enabled={ome_metrics_enabled}, "
+            f"vector_ome.metrics_enabled={vector_ome_metrics_enabled}"
+        )
+
+    # Validation: Vector-OME logs bridge requires OME logs source
+    if vector_ome_logs_enabled and not ome_logs_enabled:
+        errors.append(create_error_msg(
+            "telemetry_bridges.vector_ome.logs_enabled",
+            "true",
+            "Vector-OME logs bridge is enabled but telemetry_sources.ome.logs_enabled is false. "
+            "Either enable telemetry_sources.ome.logs_enabled or disable "
+            "telemetry_bridges.vector_ome.logs_enabled."
+        ))
+        logger.error(
+            "OME-VectorOME logs dependency validation FAILED: "
+            f"ome.logs_enabled={ome_logs_enabled}, "
+            f"vector_ome.logs_enabled={vector_ome_logs_enabled}"
+        )
+
+    # Log Vector-OME bridge status
     if vector_ome_metrics_enabled or vector_ome_logs_enabled:
         logger.info(
-            "Vector-OME bridge validation: "
+            "Vector-OME bridge validation PASSED: "
             f"metrics_enabled={vector_ome_metrics_enabled}, "
-            f"logs_enabled={vector_ome_logs_enabled}"
+            f"logs_enabled={vector_ome_logs_enabled}, "
+            f"ome_source.metrics_enabled={ome_metrics_enabled}, "
+            f"ome_source.logs_enabled={ome_logs_enabled}"
         )
 
     # =========================================================================
@@ -1071,5 +1124,17 @@ def validate_telemetry_storage_config(
         ))
     else:
         logger.info("csi_volume_exporter_storage validation passed")
+
+    # Validate idrac_telemetry_storage when iDRAC metrics are enabled
+    idrac_source = telemetry_sources.get("idrac", {})
+    idrac_metrics_enabled = idrac_source.get("metrics_enabled", False)
+    if idrac_metrics_enabled and not storage_config.get("idrac_telemetry_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.idrac_telemetry_storage",
+            "not defined",
+            en_us_validation_msg.IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG
+        ))
+    elif idrac_metrics_enabled:
+        logger.info("idrac_telemetry_storage validation passed")
 
     return errors

@@ -61,13 +61,13 @@
       set -o pipefail
       podman run --rm --device /dev/fuse --network host \
         -e S3_ACCESS={{ s3_access }} -e S3_SECRET={{ s3_secret }} \
-        -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required --user 0 --privileged \
+        {{ aws_checksum_env }} --user 0 --privileged \
         -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z \
         -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z \
         {{ ochami_aarch64_image | join(' ') }} \
         {{ ochami_base_command | join(' ') }} \
         > '{{ oim_shared_path }}/omnia/log/openchami/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
-  async: 3600
+  async: "{{ job_async }}"
   poll: 0
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:

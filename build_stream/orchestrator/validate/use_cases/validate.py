@@ -15,6 +15,7 @@
 """Validate use case implementation."""
 
 import logging
+import os
 from datetime import datetime, timezone
 
 from api.logging_utils import log_secure_info
@@ -49,9 +50,11 @@ from orchestrator.validate.dtos import ValidateResponse
 
 logger = logging.getLogger(__name__)
 
-ARTIFACTS_BASE = "/opt/omnia/build_stream_root/artifacts"
+ARTIFACTS_BASE = os.environ.get(
+    "NFS_ARTIFACT_BASE", "/opt/omnia/build_stream_root"
+) + "/artifacts"
 CONFIG_PATH = "/opt/omnia/automation/omnia_test_config.yml"
-DEFAULT_TIMEOUT_MINUTES = 120
+DEFAULT_TIMEOUT_MINUTES = 150
 
 
 class ValidateUseCase:

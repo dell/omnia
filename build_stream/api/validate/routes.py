@@ -124,7 +124,7 @@ def create_validate(
             correlation_id=correlation_id,
             scenario_names=request_body.scenario_names or ["all"],
             test_suite=request_body.test_suite or "",
-            timeout_minutes=request_body.timeout_minutes or 120,
+            timeout_minutes=request_body.timeout_minutes or 150,
         )
         result = use_case.execute(command)
 

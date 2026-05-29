@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 7b: Start worker nodes ──────────────────────────────────
+# Reload systemd, restart CRI-O, start kubelet, wait Ready, uncordon.
+
+- name: Skip start_workers if already completed
+  ansible.builtin.debug:
+    msg: "start_workers already completed — skipping."
+  when: (rollback_status.stages.start_workers.status | default('pending')) == 'completed'
+
+- name: Start workers
+  when: (rollback_status.stages.start_workers.status | default('pending')) != 'completed'
+  block:
+    - name: Mark start_workers in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            start_workers:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Start kubelet on each worker
+      ansible.builtin.include_tasks: start_single_node.yml
+      loop: "{{ all_worker_nodes }}"
+      loop_control:
+        loop_var: _node
+        label: "{{ _node }}"
+
+    # ── Uncordon all workers ───────────────────────────────────────
+    - name: Uncordon worker nodes
+      ansible.builtin.command:
+        cmd: "kubectl --server=https://{{ first_cp_ip }}:6443 uncordon {{ node_ips[item] }}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _uncordon_result
+      changed_when: true
+      loop: "{{ all_worker_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Mark start_workers completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            start_workers:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display start_workers completion
+      ansible.builtin.debug:
+        msg: >-
+          All {{ all_worker_nodes | length }} workers started, uncordoned,
+          and Ready at v{{ k8s_rollback_version }}.

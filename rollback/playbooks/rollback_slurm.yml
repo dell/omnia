@@ -20,6 +20,19 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     component_name: slurm
   tasks:
+    - name: Check if rollback manifest exists
+      ansible.builtin.stat:
+        path: "{{ rollback_manifest_path }}"
+      register: manifest_stat
+
+    - name: Fail if rollback manifest not found
+      ansible.builtin.fail:
+        msg: >-
+          Rollback manifest not found at '{{ rollback_manifest_path }}'.
+          Run the full rollback.yml playbook, or ensure the manifest exists
+          before running rollback_slurm.yml standalone.
+      when: not manifest_stat.stat.exists
+
     - name: Read rollback_manifest.yml
       ansible.builtin.include_vars:
         file: "{{ rollback_manifest_path }}"
@@ -158,7 +171,7 @@
           {{
             rollback_manifest.backup_dir
             | replace('/opt', hostvars['localhost']['oim_shared_path'])
-          }}/openchami/openchami_data/openchami/workdir
+          }}/openchami/openchami_data/workdir
 
     - name: SLURM ROLLBACK WARNING
       ansible.builtin.debug:
@@ -175,6 +188,19 @@
       ansible.builtin.pause:
         seconds: 10
         prompt: "SLURM ROLLBACK - Proceeding in 10 seconds..."
+
+    - name: Read oim_metadata for oim_node_name (standalone fallback)
+      ansible.builtin.include_vars:
+        file: /opt/omnia/.data/oim_metadata.yml
+        name: _oim_meta
+      when: hostvars['localhost']['oim_node_name'] is not defined
+
+    - name: Set oim_node_name from oim_metadata if not provided by parent playbook
+      ansible.builtin.set_fact:
+        oim_node_name: "{{ _oim_meta.oim_node_name }}"
+      delegate_to: localhost
+      delegate_facts: true
+      when: hostvars['localhost']['oim_node_name'] is not defined
 
     - name: Refresh OpenCHAMI access token
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/tasks/common/openchami_auth.yml"
@@ -255,6 +281,16 @@
           ansible.builtin.meta: end_host
 
     # ---- REBOOT ----
+    - name: Remove stale SSH host key before reboot
+      ansible.builtin.known_hosts:
+        name: "{{ inventory_hostname }}"
+        state: absent
+      delegate_to: localhost
+
+    - name: Trigger reboot message
+      ansible.builtin.debug:
+        msg: "Triggering reboot for {{ inventory_hostname }}"
+
     - name: Reboot node
       ansible.builtin.reboot:
         reboot_timeout: "{{ reboot_timeout }}"
@@ -303,47 +339,12 @@
         node_status: "{{ node_status | combine({'sinfo': (svc is defined and svc.rc == 0)}) }}"
       when: node_status.ssh or reboot_result is succeeded
 
-# ============================================================================
-# Play 3b: Verify slurmctld health and node count on controller
-# ============================================================================
-- name: Verify slurmctld health on controller nodes
-  hosts: slurm_control_node_x86_64
-  gather_facts: false
-  tasks:
-    - name: Skip if slurm rollback not needed
-      ansible.builtin.meta: end_play
-      when: hostvars['localhost']['slurm_skip'] | default(false) | bool
-
-    - name: Verify slurmctld is accepting requests
-      ansible.builtin.command: scontrol ping
-      register: ctld_ping
-      changed_when: false
-      failed_when: false
-      retries: 6
-      delay: 10
-      until: ctld_ping.rc == 0
-
-    - name: Get node list from sinfo on controller
-      ansible.builtin.command: sinfo -h -o "%n"
-      register: ctld_sinfo
-      changed_when: false
-      failed_when: false
-      when: ctld_ping.rc == 0
-
-    - name: Set ctld health fact
-      ansible.builtin.set_fact:
-        ctld_health:
-          hostname: "{{ inventory_hostname }}"
-          ctld_up: "{{ ctld_ping.rc == 0 }}"
-          sinfo_ok: "{{ ctld_sinfo is defined and ctld_sinfo.rc | default(1) == 0 }}"
-          sinfo_node_count: "{{ ctld_sinfo.stdout_lines | default([]) | length }}"
-
 - name: Rollback Slurm cluster
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
-    manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     component_name: slurm
   tasks:
     - name: Skip if slurm rollback not needed
@@ -363,6 +364,14 @@
     - name: Debug slurm nodes
       ansible.builtin.debug:
         var: slurm_nodes
+
+    - name: Fail if no slurm nodes found in inventory
+      ansible.builtin.fail:
+        msg: >-
+          No slurm_* or login_* hosts found in inventory.
+          The pxe_mapping may contain no slurm/login entries, or check_slurm_cluster.yml
+          did not populate the host groups. Verify pxe_mapping and re-run the rollback playbook.
+      when: slurm_nodes | length == 0
 
     - name: Set filtered nodes
       ansible.builtin.set_fact:
@@ -394,21 +403,6 @@
         failure_nodes: "{{ unreachable_nodes + reboot_nodes + ssh_nodes + sinfo_nodes }}"
         success_nodes: "{{ filtered_nodes }}"
 
-    - name: Collect controller node health results
-      ansible.builtin.set_fact:
-        ctld_results: >-
-          {{
-            ((groups['slurm_control_node_x86_64'] | default([]))
-            + (groups['slurm_control_node_aarch64'] | default([])))
-            | map('extract', hostvars, 'ctld_health')
-            | select('defined') | list
-          }}
-
-    - name: Identify ctld and sinfo failures on controller
-      ansible.builtin.set_fact:
-        ctld_down_nodes: "{{ ctld_results | selectattr('ctld_up', 'equalto', false) | list }}"
-        ctld_sinfo_fail_nodes: "{{ ctld_results | selectattr('sinfo_ok', 'equalto', false) | list }}"
-
     - name: Write reboot state file
       ansible.builtin.copy:
         content: >-
@@ -419,10 +413,7 @@
 
     - name: Set slurm rollback failed
       ansible.builtin.set_fact:
-        slurm_rollback_failed: >-
-          {{ (failure_nodes | length > 0)
-             or (ctld_down_nodes | default([]) | length > 0)
-             or (ctld_sinfo_fail_nodes | default([]) | length > 0) }}
+        slurm_rollback_failed: "{{ failure_nodes | length > 0 }}"
 
     - name: Generate and display failure report
       when: slurm_rollback_failed
@@ -439,20 +430,6 @@
 
               Total Nodes: {{ slurm_nodes | length }}
               Successful booted slurm nodes: {{ success_nodes | length }}
-              {% if ctld_down_nodes | length > 0 %}
-
-              -> CONTROLLER DOWN ({{ ctld_down_nodes | length }})
-              ─────────────────────────────────────────────────────────────────
-              {{ ctld_down_nodes | map(attribute='hostname') | join(', ') }}
-              slurmctld is NOT responding (scontrol ping failed)
-              {% endif %}
-              {% if ctld_sinfo_fail_nodes | length > 0 %}
-
-              -> SINFO FAILED ON CONTROLLER ({{ ctld_sinfo_fail_nodes | length }})
-              ─────────────────────────────────────────────────────────────────
-              {{ ctld_sinfo_fail_nodes | map(attribute='hostname') | join(', ') }}
-              sinfo returned non-zero on controller — cluster may be degraded
-              {% endif %}
               {% if unreachable_nodes | length > 0 %}
 
               -> UNREACHABLE NODES ({{ unreachable_nodes | length }})
@@ -480,22 +457,6 @@
 
               -> NEXT STEPS
               ─────────────────────────────────────────────────────────────────
-              {% if ctld_down_nodes | length > 0 %}
-              CONTROLLER DOWN:
-                - Check slurmctld service: systemctl status slurmctld
-                - Review logs: journalctl -u slurmctld -n 100
-                - Restart if needed: systemctl restart slurmctld
-                - Verify config: scontrol show config
-                - Re-run rollback playbook after controller is healthy
-
-              {% endif %}
-              {% if ctld_sinfo_fail_nodes | length > 0 %}
-              SINFO FAILURE ON CONTROLLER:
-                - Check slurmctld logs: journalctl -u slurmctld -n 100
-                - Verify all node entries: sinfo -a -R
-                - Check for DOWN nodes and reason: sinfo -t down
-
-              {% endif %}
               {% if unreachable_nodes | length > 0 %}
               UNREACHABLE NODES:
                 - Check network connectivity: ping {{ unreachable_nodes[0].hostname }}
@@ -538,11 +499,20 @@
           ============================================================
           Verified: {{ success_nodes | length }} / {{ slurm_nodes | length }} nodes
             Reboot complete | SSH active | Slurm (sinfo) responding on all nodes.
-          Controller: slurmctld UP | sinfo OK
-            {{ ctld_results | default([]) | map(attribute='sinfo_node_count') | map('int') | sum }} node(s) visible from controller.
           Cluster is ready for workload submission.
           ============================================================
       when: not slurm_rollback_failed
+
+    - name: Remove reboot state file after successful rollback
+      ansible.builtin.file:
+        path: /opt/omnia/.data/slurm_rollback_reboot_state.yml
+        state: absent
+      when: not slurm_rollback_failed
+
+    - name: Read rollback_manifest.yml
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest_path }}"
+        name: rollback_manifest
 
     - name: Mark slurm rollback as completed
       ansible.builtin.copy:

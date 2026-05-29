@@ -39,6 +39,8 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
     gitlab_role_path: "{{ playbook_dir }}/../../gitlab/roles/hosted_gitlab"
+    upgrade_role_tasks: "{{ playbook_dir }}/../roles/upgrade_build_stream/tasks"
+    example_catalog_path: "{{ playbook_dir }}/../../examples/catalog"
   tasks:
     # ── Set upgrade_mode to bypass upgrade_checkup in credential utility ──
     - name: Set upgrade_mode to bypass upgrade_checkup in imported playbooks
@@ -53,6 +55,12 @@
         cacheable: true
 
     # ── Load build_stream_config.yml ──
+    # ── Set input_project_dir with fallback ──
+    - name: Set input_project_dir with fallback
+      ansible.builtin.set_fact:
+        input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
+        cacheable: true
+
     - name: Read build_stream_config.yml
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/build_stream_config.yml"
@@ -91,6 +99,45 @@
       ansible.builtin.meta: end_play
       when: manifest.component_status[component_name] | default('pending') == 'completed'
 
+    # ── Validate: disabling build_stream during upgrade is not supported ──
+    - name: Read backup build_stream_config.yml (pre-upgrade state)
+      ansible.builtin.slurp:
+        src: "{{ backup_dir }}/input/project_default/build_stream_config.yml"
+      register: _backup_bs_config_slurp
+      failed_when: false
+
+    - name: Parse backup build_stream_config.yml
+      ansible.builtin.set_fact:
+        _backup_enable_build_stream: "{{ (_backup_bs_config_slurp.content | b64decode | from_yaml).enable_build_stream | default(false) | bool }}"
+      when: _backup_bs_config_slurp is not failed
+
+    - name: "Abort — disabling BuildStream during upgrade is not supported"
+      ansible.builtin.fail:
+        msg: |
+          ══════════════════════════════════════════════════════════════
+                UNSUPPORTED TOPOLOGY CHANGE DETECTED
+          ══════════════════════════════════════════════════════════════
+
+          BuildStream was ENABLED in the pre-upgrade (2.1) configuration
+          but is now DISABLED in the current build_stream_config.yml.
+
+          Disabling BuildStream during an upgrade is not a supported
+          topology. Once BuildStream is enabled, it cannot be disabled
+          through the upgrade process.
+
+          To proceed, restore enable_build_stream: true in:
+            {{ input_project_dir }}/build_stream_config.yml
+
+          Pre-upgrade config (backup):
+            enable_build_stream: {{ _backup_enable_build_stream }}
+          Current config:
+            enable_build_stream: {{ enable_build_stream }}
+
+          ══════════════════════════════════════════════════════════════
+      when:
+        - _backup_enable_build_stream | default(false) | bool
+        - not enable_build_stream | bool
+
     - name: Mark build_stream as skipped when not enabled
       ansible.builtin.copy:
         content: >-
@@ -125,9 +172,9 @@
         msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
       when: manifest.component_status.oim | default('pending') != 'completed'
 
-    - name: Run GitLab upgrade prerequisites
+    - name: Load common GitLab configuration
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/tasks/upgrade_gitlab_prereqs.yml"
+        file: "{{ upgrade_role_tasks }}/gitlab_load_config.yml"
 
     - name: Map variables needed by deploy_containers roles
       ansible.builtin.set_fact:
@@ -210,7 +257,7 @@
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
 # ══════════════════════════════════════════════════════════════════
-# Play 4: Execute upgrade on OIM host (reuses prepare_oim roles)
+# Play 2: Execute upgrade on OIM host (reuses prepare_oim roles)
 # ══════════════════════════════════════════════════════════════════
 - name: "Execute BuildStream upgrade on OIM host"
   hosts: oim
@@ -229,9 +276,9 @@
         name: "{{ playbook_dir }}/../roles/upgrade_build_stream"
 
 # ══════════════════════════════════════════════════════════════════
-# Play 5: GitLab Configuration Upgrade (Step 4)
+# Play 3: GitLab Configuration Upgrade (upgrade_existing only)
 # ══════════════════════════════════════════════════════════════════
-- name: "Step 4: GitLab Configuration Upgrade"
+- name: "Step 4: GitLab Configuration Upgrade (upgrade_existing)"
   hosts: localhost
   connection: local
   gather_facts: false
@@ -239,39 +286,29 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
     gitlab_role_path: "{{ playbook_dir }}/../../gitlab/roles/hosted_gitlab"
+    upgrade_role_tasks: "{{ playbook_dir }}/../roles/upgrade_build_stream/tasks"
+    example_catalog_path: "{{ playbook_dir }}/../../examples/catalog"
     input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia-sharedpath/omnia/input/project_default') }}"
     backup_dir: "{{ hostvars['localhost']['backup_dir'] }}"
     gitlab_host: "{{ hostvars['localhost']['gitlab_host'] }}"
     gitlab_external_url_computed: "{{ hostvars['localhost']['gitlab_external_url_computed'] }}"
-    gitlab_root_token: "{{ hostvars['localhost']['gitlab_root_token'] }}"
-    gitlab_project_id: "{{ hostvars['localhost']['gitlab_project_id'] }}"
     build_stream_host_ip: "{{ hostvars['localhost']['build_stream_host_ip'] }}"
     build_stream_port: "{{ hostvars['localhost']['build_stream_port'] }}"
     provision_password: "{{ hostvars['localhost']['provision_password'] }}"
     gitlab_default_branch: "{{ hostvars['localhost']['gitlab_default_branch'] | default('main') }}"
   tasks:
-    - name: Skip GitLab config upgrade when BuildStream is not enabled
+    - name: Skip when not enabled or not upgrade_existing path
       ansible.builtin.meta: end_play
-      when: hostvars['localhost']['build_stream_skip'] | default(true) | bool
+      when: >
+        (hostvars['localhost']['build_stream_skip'] | default(true) | bool) or
+        (hostvars['localhost']['upgrade_path'] | default('') != 'upgrade_existing')
 
     # Step 4: GitLab Configuration Upgrade (ESpec §4.6.4, BS-08)
-    # Map upgrade_path to expected format for upgrade_gitlab_config.yml
-    - name: Map upgrade_path variable for GitLab config tasks
-      ansible.builtin.set_fact:
-        upgrade_path: >-
-          {{ 'path_a' if upgrade_path == 'upgrade_existing' else 'path_b' }}
-        cacheable: true
-
-    - name: Run GitLab configuration upgrade (Step 4 — PATH A)
+    # Includes GL-PREREQ (host registration, token, pipeline gate)
+    # followed by 4A.1–4A.7 (backup, reconfigure, CI files, runner, etc.)
+    - name: Run GitLab configuration upgrade (upgrade_existing)
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/tasks/upgrade_gitlab_config.yml"
-
-    # ── Set proceed flags for PATH B play and post-completion play ──
-    - name: Set proceed flag for subsequent plays
-      ansible.builtin.set_fact:
-        proceed_gitlab_upgrade: true
-        upgrade_mode: true
-        cacheable: true
+        file: "{{ upgrade_role_tasks }}/gitlab_config_upgrade.yml"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PATH B: GitLab Fresh Install
@@ -280,15 +317,14 @@
 # Imports the full gitlab.yml playbook which handles credential loading,
 # prerequisite validation, and the hosted_gitlab role deployment.
 
-- name: GitLab fresh install (PATH B — upgrade_build_stream Step 4)
+- name: GitLab fresh install (fresh_install — upgrade_build_stream Step 4)
   ansible.builtin.import_playbook: ../../gitlab/gitlab.yml
   when:
     - not (hostvars['localhost']['build_stream_skip'] | default(true) | bool)
-    - hostvars['localhost']['proceed_gitlab_upgrade'] | default(false) | bool
-    - hostvars['localhost']['upgrade_path'] | default('') == 'path_b'
+    - hostvars['localhost']['upgrade_path'] | default('') == 'fresh_install'
 
 # ══════════════════════════════════════════════════════════════════
-# Play 6: Mark completion and set terminal gate (localhost)
+# Play 4: Mark completion and set terminal gate (localhost)
 # ══════════════════════════════════════════════════════════════════
 - name: "Mark build_stream completed and set terminal gate"
   hosts: localhost
@@ -298,11 +334,9 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
   tasks:
-    - name: Skip post-completion if BuildStream was not enabled or upgrade did not proceed
+    - name: Skip post-completion if BuildStream was not enabled
       ansible.builtin.meta: end_play
-      when: >
-        (hostvars['localhost']['build_stream_skip'] | default(true) | bool) or
-        not (hostvars['localhost']['proceed_gitlab_upgrade'] | default(false) | bool)
+      when: hostvars['localhost']['build_stream_skip'] | default(true) | bool
 
     - name: Set terminal gate flag
       ansible.builtin.set_fact:
@@ -349,3 +383,4 @@
           - "  Tags local_repo, build_image, provision, k8s,"
           - "  telemetry, and slurm have been SKIPPED in this upgrade run."
           - "============================================================"
+        verbosity: 1

@@ -1,0 +1,146 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ---------------------------------------------------------------------------
+# Paths  (set dynamically in main.yml after load_version_vars.yml)
+# ---------------------------------------------------------------------------
+# rollback_status_file:    {{ k8s_client_mount_path }}/upgrade/rollback_status.yml
+# upgrade_status_file:     {{ k8s_client_mount_path }}/upgrade/upgrade_status.yml
+# lock_file:               {{ k8s_client_mount_path }}/upgrade/rollback.lock
+# k8s_backup_dir:          {{ k8s_client_mount_path }}/upgrade/backup
+# etcd_snapshot_file:      {{ k8s_client_mount_path }}/upgrade/backup/<from_version>/etcd-snapshot.db
+# etcd_members_file:       {{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json
+# k8s_config_backup_dir:   {{ k8s_client_mount_path }}/upgrade/backup/configs
+
+repo_file_path: "/etc/yum.repos.d/omnia-upgrade.repo"
+
+nfs_storage_name: "nfs_k8s"
+
+# nodes.yaml location (created by discovery)
+nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+
+# Input config paths
+software_config_file: "{{ input_project_dir }}/software_config.json"
+storage_config_file: "{{ input_project_dir }}/storage_config.yml"
+ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
+
+# Omnia system paths
+local_repo_access_file: "{{ oim_provision_path }}/local_repo_access.yml"
+
+# Temp file paths
+rollback_status_temp_json: "{{ tmp_path }}/rollback_status.tmp.json"
+rollback_status_temp_yml: "{{ tmp_path }}/rollback_status_temp.yml"
+
+# Pulp base URL
+pulp_content_base: "{{ pulp_protocol | default('http') }}://{{ admin_nic_ip }}:2225/pulp/content"
+pulp_repo_base: "{{ pulp_content_base }}/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ cluster_os_version }}/rpms"
+
+# ---------------------------------------------------------------------------
+# Timeouts and retries
+# ---------------------------------------------------------------------------
+kubelet_ready_timeout: 120
+kubelet_ready_delay: 5
+kubelet_ready_retries: 24
+etcd_health_retries: 12
+etcd_health_delay: 10
+apiserver_wait_timeout: 300
+apiserver_wait_delay: 10
+apiserver_wait_retries: 30
+kubelet_stop_timeout: 60
+vip_settle_delay: 15
+
+# ---------------------------------------------------------------------------
+# Node group suffixes (from nodes.yaml)
+# ---------------------------------------------------------------------------
+group_cp_first: "service_kube_control_plane_first_x86_64"
+group_cp: "service_kube_control_plane_x86_64"
+group_worker: "service_kube_node_x86_64"
+
+# ---------------------------------------------------------------------------
+# Rollback step definitions per role
+# ---------------------------------------------------------------------------
+rollback_cp_steps:
+  - stop_kubelet
+  - restore_etcd
+  - restore_k8s_configs
+  - downgrade_packages
+  - crio_restart
+  - start_kubelet
+  - validation
+  - etcd_health_check
+
+rollback_worker_steps:
+  - stop_kubelet
+  - downgrade_packages
+  - crio_restart
+  - start_kubelet
+  - validation
+
+# ---------------------------------------------------------------------------
+# File permissions
+# ---------------------------------------------------------------------------
+file_perm_644: "0644"
+file_perm_600: "0600"
+file_perm_755: "0755"
+dir_perm_755: "0755"
+
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+msg_rollback_lock_held_same_host: >-
+  Another K8s rollback is running (PID {{ existing_lock.pid }} since
+  {{ existing_lock.started_at }}). Aborting.
+msg_rollback_lock_held_other_host: >-
+  Rollback lock held by {{ existing_lock.host }} (PID {{ existing_lock.pid }} since
+  {{ existing_lock.started_at }}). If stale, delete manually:
+  rm {{ lock_file }}
+msg_rollback_stale_lock_removed: >-
+  Removing stale rollback lock from PID {{ existing_lock.pid }}
+  (process no longer running on this host).
+msg_rollback_lock_verification_failed: >-
+  Rollback lock file verification failed — possible race condition. Aborting.
+msg_etcd_quorum_lost: >-
+  etcd quorum lost after rollback! Manual intervention required.
+msg_rollback_backup_missing: >-
+  Required backup not found: {{ _missing_backup }}.
+  Cannot proceed with rollback. Ensure upgrade backups exist.
+msg_rollback_complete: >-
+  K8s rollback from {{ k8s_current_version }} to {{ k8s_rollback_version }}
+  completed successfully. All nodes Ready.
+msg_rollback_failed: >-
+  K8s rollback failed. Check rollback_status.yml for details.
+  Status file: {{ rollback_status_file }}
+msg_metallb_cleanup: >-
+  Stale MetalLB IPs detected. Removing secondary IPs from node interfaces
+  to prevent split-brain when speakers restart.
+msg_metallb_cleanup_complete: >-
+  MetalLB IP cleanup complete. Speakers will re-announce the correct IPs
+  after the cluster restarts.
+msg_vip_split_brain: >-
+  kube-vip split-brain detected after etcd restore.
+  VIP found on multiple nodes. Cleaning up stale VIP assignments.
+msg_bss_backup_workdir_missing: >-
+  BSS restore failed: openchami backup workdir not found at
+  {{ _bss_backup_workdir_container }}.
+  Verify that the upgrade backup ({{ _openchami_backup_dir }}) was created
+  successfully and contains openchami/openchami_data/workdir/.
+msg_bss_backup_boot_missing: >-
+  BSS restore failed: boot/ directory not found in openchami backup workdir
+  {{ _bss_backup_workdir_container }}/boot.
+  The backup may be incomplete or corrupted.
+msg_bss_backup_ci_missing: >-
+  BSS restore failed: cloud-init/ directory not found in openchami backup
+  workdir {{ _bss_backup_workdir_container }}/cloud-init.
+  The backup may be incomplete or corrupted.

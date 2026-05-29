@@ -6,9 +6,9 @@
 # Architecture: Kafka '{{ ome_id }}.*' topics → Vector-OME → vmagent-vector:8429 (metrics)
 #                                                           → vlagent-vector:9427 (logs)
 # Topics (pre-existing in OME Kafka — NOT created by Omnia):
-#   Metrics → VictoriaMetrics: {{ ome_id }}.inventory, {{ ome_id }}.health, {{ ome_id }}.telemetry
+#   Metrics → VictoriaMetrics: {{ ome_id }}.inventory, {{ ome_id }}.health, {{ ome_id }}.telemetry, {{ ome_id }}.event
 #   Logs    → VictoriaLogs:    {{ ome_id }}.alerts, {{ ome_id }}.auditlogs, {{ ome_id }}.logs
-#   Unknown → VictoriaMetrics (best-effort Redfish processing)
+#   Unknown → VictoriaMetrics (best-effort processing)
 # Q2 Status: Active — Omnia-deployed
 # Spec Reference: Vector HLD Engineering Spec (ESPEC-VECTOR-2026-001) §4.1.3.2, CD-10
 
@@ -21,7 +21,7 @@ data_dir = "/var/lib/vector"
 # SOURCE: Kafka Consumer for OME Topics (regex subscription)
 # ============================================================================
 # OME publishes to topics: {{ ome_id }}.inventory, {{ ome_id }}.health, {{ ome_id }}.telemetry,
-#                          {{ ome_id }}.alerts, {{ ome_id }}.auditlogs, {{ ome_id }}.logs
+#                          {{ ome_id }}.alerts, {{ ome_id }}.auditlogs, {{ ome_id }}.logs, {{ ome_id }}.event
 # Uses regex subscription to capture all OME topics dynamically (Constraint C-05)
 [sources.kafka_ome]
 type = "kafka"
@@ -31,6 +31,11 @@ topics = ['{{ vector.ome.kafka_topics_pattern }}']
 auto_offset_reset = "earliest"
 session_timeout_ms = 30000
 fetch_wait_max_ms = 100
+
+[sources.kafka_ome.librdkafka_options]
+"metadata.max.age.ms" = "10000"
+"topic.metadata.refresh.interval.ms" = "10000"
+"allow.auto.create.topics" = "false"
 
 # Kafka mTLS authentication (dedicated vector-ome-user KafkaUser secret)
 [sources.kafka_ome.tls]
@@ -60,7 +65,7 @@ source = '''
 # TRANSFORM: OME Topic Router
 # ============================================================================
 # Step 2: Route by topic name (prefix from ome_identifier input variable):
-#   metrics → {{ ome_id }}.inventory, {{ ome_id }}.health, {{ ome_id }}.telemetry → VictoriaMetrics
+#   metrics → {{ ome_id }}.inventory, {{ ome_id }}.health, {{ ome_id }}.telemetry, {{ ome_id }}.event → VictoriaMetrics
 #   logs    → {{ ome_id }}.alerts, {{ ome_id }}.auditlogs, {{ ome_id }}.logs → VictoriaLogs
 #   _unmatched → VictoriaMetrics (best-effort for any unknown topics)
 [transforms.ome_topic_router]
@@ -69,7 +74,7 @@ inputs = ["parse_ome_topic"]
 
   [transforms.ome_topic_router.route]
 {% if telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool %}
-  metrics = '.source_topic == "{{ ome_id }}.inventory" || .source_topic == "{{ ome_id }}.health" || .source_topic == "{{ ome_id }}.telemetry"'
+  metrics = '.source_topic == "{{ ome_id }}.inventory" || .source_topic == "{{ ome_id }}.health" || .source_topic == "{{ ome_id }}.telemetry" || .source_topic == "{{ ome_id }}.event"'
 {% endif %}
 {% if telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool %}
   logs = '.source_topic == "{{ ome_id }}.alerts" || .source_topic == "{{ ome_id }}.auditlogs" || .source_topic == "{{ ome_id }}.logs"'
@@ -79,23 +84,26 @@ inputs = ["parse_ome_topic"]
 # ============================================================================
 # TRANSFORM: Metric Enricher — Unified OME Metric Extraction
 # ============================================================================
-# Step 3: Handles two OME metric data formats:
-#   Redfish format ({{ ome_id }}.inventory, {{ ome_id }}.telemetry):
+# Step 3: Handles three OME metric data formats:
+#   Redfish format ({{ ome_id }}.telemetry):
 #     System[] array with nested Metric[] sub-arrays — flattened to individual metric events.
+#   Inventory format ({{ ome_id }}.inventory, {{ ome_id }}.event):
+#     System[] array with Component[].Data[].Properties — numeric/boolean properties extracted.
 #   Health format  ({{ ome_id }}.health):
 #     System[] array with flat fields — all numeric/boolean fields are dynamically extracted as metrics.
-#   _unmatched: best-effort Redfish processing — events not matching System[] are dropped.
+#   _unmatched: best-effort processing — events without System[] are dropped gracefully.
 [transforms.metric_enricher]
 type = "remap"
 inputs = ["ome_topic_router.metrics", "ome_topic_router._unmatched"]
 source = '''
   all_metrics = []
-  SystemArr = array!(.System)
+  SystemArr = array(.System) ?? []
 
   for_each(SystemArr) -> |_index, system| {
     identifier = to_string(system.Identifier) ?? "unknown"
 
     if system.Metric != null && is_array(system.Metric) {
+      # Redfish telemetry format: System[].Metric[] arrays
       for_each(array!(system.Metric)) -> |_index1, metric| {
         id_replaced = replace!(metric.MetricId, ".", "_")
         parts = split(id_replaced, "_")
@@ -118,7 +126,35 @@ source = '''
 
         all_metrics = append(all_metrics, parsed_metric)
       }
+    } else if system.Component != null && is_array(system.Component) {
+      # Inventory format: System[].Component[].Data[].Properties
+      ts = to_string(system.CollectionTime) ?? ""
+      for_each(array!(system.Component)) -> |_ci, component| {
+        comp_type = to_string(component.ComponentType) ?? "unknown"
+        data_arr = array(component.Data) ?? []
+        for_each(data_arr) -> |_di, data_entry| {
+          props = data_entry.Properties
+          if props != null && is_object(props) {
+            prop_keys = keys!(props)
+            for_each(prop_keys) -> |_pi, pkey| {
+              pval = get!(props, [pkey])
+              if is_float(pval) || is_integer(pval) || is_boolean(pval) {
+                parsed_metric = [{
+                  "MetricName": pkey,
+                  "MetricValue": to_float(pval) ?? 0.0,
+                  "ComponentId": comp_type,
+                  "TimeStamp": ts,
+                  "Identifier": identifier,
+                  "Type": "inventory"
+                }]
+                all_metrics = append(all_metrics, parsed_metric)
+              }
+            }
+          }
+        }
+      }
     } else {
+      # Health format: flat numeric/boolean fields at system level
       ts = to_string(system.CollectionTime) ?? ""
       sys_keys = keys!(system)
       for_each(sys_keys) -> |_i, key| {

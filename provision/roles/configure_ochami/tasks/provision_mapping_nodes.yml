@@ -83,14 +83,14 @@
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"
       until: cloud_init_status.rc == 0
+      failed_when: false
       changed_when: false
 
     - name: Fail if cloud-init-server is not running
       ansible.builtin.fail:
         msg: "{{ cloud_init_failed_msg }}"
       when:
-        - cloud_init_server_status is defined
-        - cloud_init_server_status is not success
+        - cloud_init_status.rc != 0
 
     - name: Check whether openchami.target is up
       ansible.builtin.service:

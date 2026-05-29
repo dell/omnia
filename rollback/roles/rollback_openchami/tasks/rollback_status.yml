@@ -41,19 +41,12 @@
         mode: "{{ file_permissions_644 }}"
       when:
         - not (openchami_rollback_failed | default(false) | bool)
-        - rollback_needed | default(true) | bool
 
     - name: Report rollback success
       ansible.builtin.debug:
         msg: "{{ rollback_messages.status.success }}"
       when:
         - not (openchami_rollback_failed | default(false) | bool)
-        - rollback_needed | default(true) | bool
-
-    - name: Report rollback skipped (already at v2.1)
-      ansible.builtin.debug:
-        msg: "{{ rollback_messages.pre_check.already_v21 }}"
-      when: not (rollback_needed | default(true) | bool)
 
 - name: Fail the play if rollback failed
   ansible.builtin.fail:

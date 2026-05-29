@@ -1,0 +1,306 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Ensure kube_vip is in inventory for delegation ─────────────────
+- name: Ensure kube_vip host is present for delegation
+  ansible.builtin.add_host:
+    name: "{{ kube_vip }}"
+    ansible_host: "{{ kube_vip }}"
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups: kube_vip_group
+
+# ── Read nodes.yaml for inventory ──────────────────────────────────
+- name: Read nodes.yaml
+  ansible.builtin.slurp:
+    src: "{{ nodes_yaml_path }}"
+  register: nodes_slurp
+  changed_when: false
+
+- name: Parse nodes.yaml
+  ansible.builtin.set_fact:
+    parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+
+# ── Build node lists by role ────────────────────────────────────────
+- name: Build first control plane list
+  ansible.builtin.set_fact:
+    groups_cp_first: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_cp_first)
+         | map(attribute='name') | list }}
+
+- name: Build additional control plane list
+  ansible.builtin.set_fact:
+    groups_cp: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_cp)
+         | map(attribute='name') | list }}
+
+- name: Build worker list
+  ansible.builtin.set_fact:
+    groups_worker: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_worker)
+         | map(attribute='name') | list }}
+
+- name: Build all nodes list
+  ansible.builtin.set_fact:
+    all_cp_nodes: "{{ groups_cp_first + groups_cp }}"
+    all_worker_nodes: "{{ groups_worker }}"
+    all_rollback_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
+
+# ── Build node IP map ───────────────────────────────────────────────
+- name: Build node name-to-IP mapping
+  ansible.builtin.set_fact:
+    node_ips: >-
+      {{ node_ips | default({}) | combine({
+           item.name: (item.interfaces | first).ip_addrs
+                      | selectattr('name', 'equalto', 'management')
+                      | map(attribute='ip_addr') | first
+         }) }}
+  loop: "{{ parsed_nodes.nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# ── Add all nodes to Ansible inventory ──────────────────────────────
+- name: Add K8s nodes to inventory
+  ansible.builtin.include_tasks:
+    file: add_nodes_to_inventory.yml
+
+# ── Try to load existing rollback status ────────────────────────────
+- name: Try to load existing rollback status file
+  when: rollback_status is not defined
+  block:
+    - name: Check if rollback status file exists
+      ansible.builtin.stat:
+        path: "{{ rollback_status_file }}"
+      delegate_to: "{{ first_cp_node }}"
+      register: _rb_status_file_stat
+
+    - name: Read rollback status file (only if it exists)
+      ansible.builtin.slurp:
+        src: "{{ rollback_status_file }}"
+      delegate_to: "{{ first_cp_node }}"
+      register: _existing_rb_status_slurp
+      when: _rb_status_file_stat.stat.exists | default(false)
+
+    - name: Parse existing rollback status
+      ansible.builtin.set_fact:
+        rollback_status: "{{ _parsed_rb_status }}"
+      vars:
+        _parsed_rb_status: "{{ (_existing_rb_status_slurp.content | b64decode | from_yaml) | default({}, true) }}"
+      when:
+        - _rb_status_file_stat.stat.exists | default(false)
+        - _existing_rb_status_slurp is defined
+        - (_existing_rb_status_slurp.content | default('') | length) > 0
+        - _parsed_rb_status is mapping
+        - _parsed_rb_status.rollback is defined
+
+    - name: Debug loaded rollback status
+      ansible.builtin.debug:
+        msg: "Loaded existing rollback status from {{ rollback_status_file }}"
+      when:
+        - rollback_status is defined
+        - rollback_status is mapping
+        - rollback_status.rollback is defined
+
+# ── Normalize existing rollback status ───────────────────────────────
+- name: Initialize normalized rollback nodes map
+  ansible.builtin.set_fact:
+    normalized_rb_nodes: {}
+  when:
+    - rollback_status is defined
+    - rollback_status.nodes is defined
+
+- name: Normalize rollback node order and ensure crio_restart step exists
+  ansible.builtin.set_fact:
+    normalized_rb_nodes: >-
+      {{ normalized_rb_nodes | combine({
+           item: (
+             rollback_status.nodes[item]
+             | combine({
+                 'steps': (
+                   rollback_status.nodes[item].steps
+                   | default({})
+                   | combine({
+                       'crio_restart': (
+                         rollback_status.nodes[item].steps.crio_restart
+                         | default({'status': 'pending', 'timestamp': None, 'error': None})
+                       )
+                     }, recursive=True)
+                 )
+               }, recursive=True)
+           )
+         }, recursive=True) }}
+  loop: "{{ all_rollback_nodes }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - rollback_status is defined
+    - rollback_status.nodes is defined
+    - rollback_status.nodes[item] is defined
+
+- name: Apply normalized rollback nodes map
+  ansible.builtin.set_fact:
+    rollback_status: "{{ rollback_status | combine({'nodes': normalized_rb_nodes}, recursive=True) }}"
+  when:
+    - rollback_status is defined
+    - rollback_status.nodes is defined
+    - normalized_rb_nodes is defined
+
+# ── Initialize rollback status for new rollback ─────────────────────
+- name: Initialize rollback status
+  when:
+    - rollback_status is not defined or
+      (rollback_status is defined and rollback_status.keys() | length == 0) or
+      (rollback_status is defined and rollback_status.rollback is not defined)
+  block:
+    - name: Build initial node rollback status entries
+      ansible.builtin.set_fact:
+        initial_rb_nodes: >-
+          {{ initial_rb_nodes | default({}) | combine({
+               item.0: {
+                 'role': item.1,
+                 'ip': node_ips[item.0],
+                 'version_before': k8s_current_version,
+                 'version_current': k8s_current_version,
+                 'status': 'pending',
+                 'steps': (
+                   {
+                     'stop_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'restore_etcd': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'restore_k8s_configs': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'downgrade_packages': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'start_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'etcd_health_check': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 in ['control_plane_first', 'control_plane']
+                   else {
+                     'stop_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'downgrade_packages': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'start_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                 )
+               }
+             }) }}
+      loop: >-
+        {{ (groups_cp_first | zip_longest([], fillvalue='control_plane_first'))
+         + (groups_cp | zip_longest([], fillvalue='control_plane'))
+         + (groups_worker | zip_longest([], fillvalue='worker')) }}
+      loop_control:
+        label: "{{ item.0 }}"
+
+    - name: Set initial rollback_status
+      ansible.builtin.set_fact:
+        rollback_status:
+          rollback:
+            from_version: "{{ k8s_current_version }}"
+            target_version: "{{ k8s_rollback_version }}"
+            status: in_progress
+            started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+            completed_at:
+          stages:
+            preflight:
+              status: pending
+              timestamp:
+            stop_cluster:
+              status: pending
+              timestamp:
+            cleanup_metallb_ips:
+              status: pending
+              timestamp:
+            restore_etcd:
+              status: pending
+              timestamp:
+            restore_k8s_configs:
+              status: pending
+              timestamp:
+            downgrade_cp:
+              status: pending
+              timestamp:
+            start_control_plane:
+              status: pending
+              timestamp:
+            fix_vip:
+              status: pending
+              timestamp:
+            downgrade_workers:
+              status: pending
+              timestamp:
+            start_workers:
+              status: pending
+              timestamp:
+            post_validation:
+              status: pending
+              timestamp:
+            restart_network_pods:
+              status: pending
+              timestamp:
+            cleanup_stale_volume_attachments:
+              status: pending
+              timestamp:
+            restore_bss_cloud_init:
+              status: pending
+              timestamp:
+          nodes: "{{ initial_rb_nodes }}"
+
+    - name: Write initial rollback status file locally
+      ansible.builtin.copy:
+        content: "{{ rollback_status | to_json }}"
+        dest: "{{ rollback_status_temp_json }}"
+        mode: "0644"
+      changed_when: true
+
+    - name: Convert JSON to YAML
+      ansible.builtin.shell:
+        cmd: >-
+          python3 -c "import json, yaml;
+          f = open('{{ rollback_status_temp_json }}');
+          data = json.load(f); f.close();
+          f = open('{{ rollback_status_temp_yml }}', 'w');
+          yaml.dump(data, f, default_flow_style=False, sort_keys=False);
+          f.close()"
+      changed_when: true
+
+    - name: Copy rollback status file to NFS
+      ansible.builtin.copy:
+        src: "{{ rollback_status_temp_yml }}"
+        dest: "{{ rollback_status_file }}"
+        mode: "0644"
+      delegate_to: "{{ first_cp_node }}"
+
+    - name: Verify rollback status file was created
+      ansible.builtin.stat:
+        path: "{{ rollback_status_file }}"
+      delegate_to: "{{ first_cp_node }}"
+      register: _rb_status_verify
+
+    - name: Fail if rollback status file was not created
+      ansible.builtin.fail:
+        msg: "Failed to create rollback status file: {{ rollback_status_file }}"
+      when: not (_rb_status_verify.stat.exists | default(false))
+
+    - name: Clean up temp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ rollback_status_temp_json }}"
+        - "{{ rollback_status_temp_yml }}"
+      changed_when: false
