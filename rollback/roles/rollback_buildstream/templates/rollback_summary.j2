@@ -1,0 +1,25 @@
+════════════════════════════════════════════════════════
+  BUILDSTREAM ROLLBACK SUMMARY
+════════════════════════════════════════════════════════
+  Component:        {{ buildstream_orchestrator_component_name }}
+  Rollback Path:    {{ build_stream_upgrade_path }}
+  Status:           {{ _rollback_final_status | default('completed') }}
+{% if build_stream_upgrade_path == 'upgrade_existing' %}
+
+  PATH A — Restore from backup:
+    BuildStream:    Quadlet restored, service restarted
+    PostgreSQL:     Quadlet restored, migration → {{ buildstream_orchestrator_migration_target }}
+    Watcher:        Service preserved (2.1 state)
+    GitLab:         Config restored, upgrade commits reverted
+{% else %}
+
+  PATH B — Fresh install removed:
+    BuildStream:    Container stopped, quadlet removed, image cleaned
+    PostgreSQL:     Container stopped, quadlet removed
+    Watcher:        Service stopped, disabled, unit file removed
+    Automation:     Framework directory removed
+    GitLab:         Fully uninstalled from {{ gitlab_host | default('N/A') }}
+    Directories:    All build_stream NFS directories removed
+    omnia.target:   BuildStream/watcher entries removed
+{% endif %}
+════════════════════════════════════════════════════════
