@@ -20,70 +20,115 @@
   changed_when: false
   failed_when: false
 
-- name: Parse PDB list and backup minAvailable values
+- name: Parse PDB list and backup numeric minAvailable values
   ansible.builtin.set_fact:
     _pdbs_with_minavailable: >-
       {{
-        _pdb_list.stdout
-        | from_json
-        | json_query(
-            'items[?spec.minAvailable].{name: metadata.name, namespace: metadata.namespace, minAvailable: spec.minAvailable, selector: spec.selector}'
-          )
+        (
+          _pdb_list.stdout
+          | from_json
+          | json_query(
+              'items[?spec.minAvailable].{
+                name: metadata.name,
+                namespace: metadata.namespace,
+                minAvailable: spec.minAvailable,
+                matchLabels: spec.selector.matchLabels
+              }'
+            )
+        )
+        | selectattr('minAvailable', 'number')
+        | list
       }}
   when: _pdb_list.rc == 0
 
-- name: Get all pods on the node being drained
+- name: Initialize pdb patch list
+  ansible.builtin.set_fact:
+    _pdbs_to_patch: []
+
+- name: Find pods matching each PDB on node
   ansible.builtin.command:
-    cmd: kubectl get pods -A --field-selector spec.nodeName={{ node_ip }} -o json
+    cmd: >-
+      kubectl get pods
+      -n {{ item.namespace }}
+      --field-selector spec.nodeName={{ node_ip }}
+      -l {% for k, v in (item.matchLabels | default({})).items() %}
+      {{ k }}={{ v }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+      -o json
   delegate_to: "{{ kube_vip }}"
-  register: _pods_on_node
+  register: _matching_pods
+  loop: "{{ _pdbs_with_minavailable }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
   changed_when: false
   failed_when: false
 
-- name: Calculate new minAvailable for each PDB
+- name: Build list of PDBs requiring temporary patch
   ansible.builtin.set_fact:
-    _pdbs_to_patch: "{{ _pdbs_to_patch_computed | from_json }}"
+    _pdbs_to_patch: "{{ _pdbs_to_patch + [pdb_patch_item] }}"
   vars:
-    _pdbs_to_patch_computed: >-
-      {% set result = [] %}
-      {% set pods_list = (_pods_on_node.stdout | from_json).items %}
-      {% for pdb in (_pdbs_with_minavailable | default([])) %}
-        {% set matching_pods = [] %}
-        {% for pod in pods_list %}
-          {% set match = true %}
-          {% if pdb.selector.matchLabels is defined %}
-            {% for label_key, label_value in pdb.selector.matchLabels.items() %}
-              {% if pod.metadata.labels[label_key] | default('') != label_value %}
-                {% set match = false %}
-              {% endif %}
-            {% endfor %}
-          {% endif %}
-          {% if match and pod.metadata.namespace == pdb.namespace %}
-            {% set _ = matching_pods.append(pod) %}
-          {% endif %}
-        {% endfor %}
-        {% set pods_on_node_count = matching_pods | length %}
-        {% set new_min = [pdb.minAvailable - pods_on_node_count, 0] | max %}
-        {% set _ = result.append({
-          'name': pdb.name,
-          'namespace': pdb.namespace,
-          'original_minAvailable': pdb.minAvailable,
-          'new_minAvailable': new_min,
-          'pods_on_node': pods_on_node_count
-        }) %}
-      {% endfor %}
-      {{ result | to_json }}
+    pods_on_node_count: >-
+      {{
+        (
+          item.stdout
+          | default('{}')
+          | from_json
+        ).items
+        | length
+        | int
+      }}
+
+    original_min: >-
+      {{
+        item.item.minAvailable
+        | int
+      }}
+
+    new_min_available: >-
+      {{
+        [
+          (
+            original_min | int
+          ) - (
+            pods_on_node_count | int
+          ),
+          0
+        ] | max
+      }}
+
+    pdb_patch_item:
+      name: "{{ item.item.name }}"
+      namespace: "{{ item.item.namespace }}"
+      original_minAvailable: "{{ original_min }}"
+      new_minAvailable: "{{ new_min_available }}"
+      pods_on_node: "{{ pods_on_node_count }}"
+
+  loop: "{{ _matching_pods.results }}"
+  loop_control:
+    label: "{{ item.item.namespace }}/{{ item.item.name }}"
   when:
-    - _pdb_list.rc == 0
-    - _pods_on_node.rc == 0
+    - item.rc == 0
+    - pods_on_node_count | int > 0
+
+- name: Debug PDB patch list
+  ansible.builtin.debug:
+    var: _pdbs_to_patch
 
 - name: Temporarily reduce PDB minAvailable to allow drain
   ansible.builtin.command:
-    cmd: kubectl patch pdb {{ item.name }} -n {{ item.namespace }} --type merge -p '{"spec":{"minAvailable":{{ item.new_minAvailable }}}}'
+    cmd: >-
+      kubectl patch pdb {{ item.name }}
+      -n {{ item.namespace }}
+      --type merge
+      -p '{"spec":{"minAvailable":{{ item.new_minAvailable }}}}'
   delegate_to: "{{ kube_vip }}"
-  loop: "{{ _pdbs_to_patch | default([], true) }}"
+  loop: "{{ _pdbs_to_patch }}"
   loop_control:
-    label: "{{ item.namespace }}/{{ item.name }} ({{ item.original_minAvailable }} -> {{ item.new_minAvailable }}, {{ item.pods_on_node }} pods on node)"
+    label: >-
+      {{ item.namespace }}/{{ item.name }}
+      ({{ item.original_minAvailable }}
+      -> {{ item.new_minAvailable }},
+      {{ item.pods_on_node }} pods)
   register: _pdb_patch
   changed_when: true
   failed_when: false
@@ -93,16 +138,24 @@
 
 - name: Drain node - {{ current_node_name }}
   ansible.builtin.command:
-    cmd: kubectl drain {{ node_ip }} --ignore-daemonsets --delete-emptydir-data --timeout=300s
+    cmd: >-
+      kubectl drain {{ node_ip }}
+      --ignore-daemonsets
+      --delete-emptydir-data
+      --timeout=300s
   delegate_to: "{{ kube_vip }}"
   register: drain_result
   changed_when: true
 
 - name: Restore PDB minAvailable to original values
   ansible.builtin.command:
-    cmd: kubectl patch pdb {{ item.name }} -n {{ item.namespace }} --type merge -p '{"spec":{"minAvailable":{{ item.original_minAvailable }}}}'
+    cmd: >-
+      kubectl patch pdb {{ item.name }}
+      -n {{ item.namespace }}
+      --type merge
+      -p '{"spec":{"minAvailable":{{ item.original_minAvailable }}}}'
   delegate_to: "{{ kube_vip }}"
-  loop: "{{ _pdbs_to_patch | default([], true) }}"
+  loop: "{{ _pdbs_to_patch }}"
   loop_control:
     label: "{{ item.namespace }}/{{ item.name }}"
   changed_when: true
