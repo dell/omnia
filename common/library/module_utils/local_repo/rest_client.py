@@ -51,7 +51,7 @@ class RestClient:
         parsed_url = urlparse(self.base_url)
  
         if parsed_url.scheme == 'https':
-            context = ssl._create_unverified_context()
+            context = ssl._create_unverified_context()  # NOSONAR - Internal Pulp server uses self-signed certificates
             return http.client.HTTPSConnection(parsed_url.hostname, parsed_url.port, context=context, timeout=60)
         # http support is disabled
         # elif parsed_url.scheme == 'http':

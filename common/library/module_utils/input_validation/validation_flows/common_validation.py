@@ -1257,7 +1257,7 @@ def validate_smtp_server(data, errors, logger):
 
     smtp_server = data.get("smtp_server","")
     logger.info(f"smpt server info info {smtp_server}")
-    if len(smtp_server) != 1 or len(smtp_server) < 0:
+    if len(smtp_server) != 1:
         errors.append(
             create_error_msg(
                 "smpt_server",
