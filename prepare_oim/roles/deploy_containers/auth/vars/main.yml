@@ -23,7 +23,7 @@ openldap_ports:
   - 636
 wait_time: 10
 auth_service_image_name: omnia_auth
-auth_service_image_tag: "1.0"
+auth_service_image_tag: "1.1"
 auth_service_registry: "docker.io/dellhpcomniaaisolution"
 auth_service_container_name: omnia_auth
 auth_service_image_pull_fail_msg:
