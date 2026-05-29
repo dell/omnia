@@ -1,0 +1,174 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# DATA-PRESERVING reversal: VictoriaMetrics operator (2.2) -> 2.1 StatefulSet
+# ============================================================================
+# Why this cannot be a plain restore:
+#   The upgrade (migrate_statefulset.yml / relabel_pvc.yml) DELETED the old
+#   2.1 storage PVCs and rebound their PVs to operator-named PVCs. If we simply
+#   re-ran the old telemetry.sh, the old StatefulSet's volumeClaimTemplate would
+#   provision BRAND NEW PVCs/PVs -> the 2.1 data on the existing PVs would be
+#   orphaned (effectively data loss).
+#
+# This task reverses the relabeling so the existing PVs (which still hold the
+# pre-upgrade data) are rebound to the exact 2.1 PVC names. The restored old
+# telemetry.sh then creates the 2.1 StatefulSet which adopts those PVCs.
+# ============================================================================
+
+# ── Detect operator-managed VictoriaMetrics ──
+- name: Check for VMCluster CR (operator-managed, 2.2)
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get vmcluster {{ new_vmcluster_name }} --no-headers 2>/dev/null \
+      && echo "found" || echo "not_found"
+  register: vmcluster_present
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Skip Victoria reversal when no operator deployment present
+  ansible.builtin.debug:
+    msg: "{{ rollback_no_victoria_msg }}"
+  when: "'not_found' in vmcluster_present.stdout"
+
+- name: Execute data-preserving VictoriaMetrics reversal
+  when: "'found' in vmcluster_present.stdout"
+  block:
+    # ── 1. Stop the write path (vmagent) so no new data races the migration ──
+    - name: Scale down operator vmagent (stop writes)
+      ansible.builtin.shell: |
+        for d in $(kubectl -n {{ telemetry_namespace }} get deploy -o name 2>/dev/null \
+            | grep -iE 'vmagent'); do
+          kubectl -n {{ telemetry_namespace }} scale "$d" --replicas=0 || true
+        done
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    # ── 2. Load old 2.1 PVC specs from the upgrade backup ──
+    - name: Fail if old VictoriaMetrics PVC backup is unavailable
+      ansible.builtin.fail:
+        msg: >-
+          {{ old_victoria_pvcs_backup }} not found. Cannot safely rebind PVs to
+          the 2.1 PVC names without it. Aborting to avoid data loss.
+      when: not (old_victoria_pvc_backup_available | default(false) | bool)
+
+    - name: Read old VictoriaMetrics PVC backup
+      ansible.builtin.slurp:
+        src: "{{ old_victoria_pvcs_backup }}"
+      register: old_pvc_raw
+      delegate_to: "{{ oim_host }}"
+      connection: ssh
+
+    - name: Parse old VictoriaMetrics PVC backup
+      ansible.builtin.set_fact:
+        old_victoria_pvc_list: >-
+          {{ (old_pvc_raw.content | b64decode | from_yaml).get('items', [])
+             | map('combine', {}) | list }}
+
+    - name: Build minimal old-PVC mapping (name, size, pv)
+      ansible.builtin.set_fact:
+        old_pvc_map: >-
+          {{ old_pvc_map | default([]) + [{
+               'name': item.metadata.name,
+               'size': item.spec.resources.requests.storage,
+               'pv': item.spec.volumeName | default('')
+             }] }}
+      loop: "{{ old_victoria_pvc_list }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      when: (item.spec.volumeName | default('')) | length > 0
+
+    - name: Display PVCs to rebind for data preservation
+      ansible.builtin.debug:
+        msg: "Will rebind {{ old_pvc_map | default([]) | length }} PV(s) to 2.1 PVC names: {{ old_pvc_map | default([]) | map(attribute='name') | list }}"
+
+    # ── 3. Delete the VMCluster CR but ORPHAN the PVCs/PVs (preserve data) ──
+    - name: Delete VMCluster CR (orphan cascade preserves storage)
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} delete vmcluster {{ new_vmcluster_name }} \
+          --cascade=orphan --timeout=120s 2>/dev/null || true
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for vmstorage pods to terminate
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl -n {{ telemetry_namespace }} get pods -l {{ new_vmstorage_pvc_label }} \
+          --no-headers 2>/dev/null | wc -l
+      register: vmstorage_pod_count
+      until: (vmstorage_pod_count.stdout | trim | int) == 0
+      retries: 90
+      delay: 2
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    # ── 4. Rebind each PV from the operator PVC back to the 2.1 PVC name ──
+    - name: Reverse-relabel each storage PVC (data-preserving)
+      ansible.builtin.include_tasks: reverse_relabel_pvc.yml
+      loop: "{{ old_pvc_map | default([]) }}"
+      loop_control:
+        loop_var: pvc_entry
+        label: "{{ pvc_entry.name }}"
+
+    # ── 5. Remove leftover operator CRs and stateless operator PVCs ──
+    - name: Delete remaining VictoriaMetrics operator CRs
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} delete {{ item }} --all --timeout=60s 2>/dev/null || true
+      loop:
+        - vmcluster
+        - vmagent
+        - vmsingle
+        - vmservicescrape
+        - vmpodscrape
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: "Delete leftover operator storage PVCs not rebound (stateless vminsert/vmselect/vmagent)"
+      ansible.builtin.shell: |
+        set -o pipefail
+        for pvc in $(kubectl -n {{ telemetry_namespace }} get pvc --no-headers 2>/dev/null \
+            | awk '{print $1}' | grep -E 'victoria-cluster|vminsert|vmselect|vmagent' || true); do
+          kubectl -n {{ telemetry_namespace }} delete pvc "$pvc" --timeout=60s 2>/dev/null || true
+        done
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    # ── 6. Uninstall the VictoriaMetrics operator (2.2-only component) ──
+    - name: Uninstall victoria-metrics-operator Helm release
+      ansible.builtin.shell: |
+        if helm status {{ victoria_operator_release }} -n {{ telemetry_namespace }} >/dev/null 2>&1; then
+          helm uninstall {{ victoria_operator_release }} -n {{ telemetry_namespace }} --timeout 5m || true
+        else
+          echo "operator release not present"
+        fi
+      register: operator_uninstall
+      changed_when: "'not present' not in operator_uninstall.stdout"
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Display VictoriaMetrics reversal complete
+      ansible.builtin.debug:
+        msg: "{{ rollback_victoria_reversed_msg }}"

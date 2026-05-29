@@ -16,15 +16,55 @@
 # Install / upgrade VictoriaMetrics operator via Helm
 # ============================================================================
 
-- name: Delete existing VictoriaMetrics CRDs (to fix Helm ownership issues)
+- name: Check if VictoriaMetrics CRDs exist
   ansible.builtin.shell: |
-    set -o pipefail
-    kubectl get crd | grep victoriametrics | awk '{print $1}' | xargs kubectl delete crd 2>/dev/null || true
-  register: crd_delete_result
-  changed_when: true
+    kubectl get crd | grep victoriametrics | wc -l
+  register: vm_crd_count
+  changed_when: false
   failed_when: false
   delegate_to: "{{ kube_vip }}"
   connection: ssh
+
+- name: Remove finalizers from VictoriaMetrics CRDs (prevents hang on rerun after failed upgrade)
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl get crd | grep victoriametrics | awk '{print $1}' | while read crd; do
+      kubectl patch crd "$crd" --type=json \
+        -p='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+    done
+  register: crd_finalizer_remove
+  changed_when: true
+  failed_when: false
+  timeout: 30
+  when: vm_crd_count.stdout | int > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Delete existing VictoriaMetrics CRDs
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl get crd | grep victoriametrics | awk '{print $1}' | \
+      xargs -r kubectl delete crd --timeout=30s 2>/dev/null || true
+  register: crd_delete_result
+  changed_when: true
+  failed_when: false
+  timeout: 60
+  when: vm_crd_count.stdout | int > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Verify VictoriaMetrics CRDs are deleted
+  ansible.builtin.shell: |
+    kubectl get crd | grep victoriametrics | wc -l
+  register: vm_crd_remaining
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display CRD cleanup status
+  ansible.builtin.debug:
+    msg: "VictoriaMetrics CRDs remaining: {{ vm_crd_remaining.stdout | default('0') }}"
 
 - name: Install VictoriaMetrics operator from tarball
   ansible.builtin.command:

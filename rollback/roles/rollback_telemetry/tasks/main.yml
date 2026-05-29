@@ -1,0 +1,55 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Telemetry Rollback Orchestrator (Omnia 2.2 -> 2.1)
+# ============================================================================
+# Strategy: script-based restore with ZERO data loss.
+#
+#   Phase 1  Resolve runtime input (kube_vip, NFS path, telemetry_config)
+#   Phase 2  Pre-check the upgrade backup exists
+#   Phase 3  Detect installed new components (PowerScale, VAST, UFM,
+#            VictoriaLogs) and warn user what will be uninstalled
+#   Phase 4  Data-preserving VictoriaMetrics operator -> 2.1 StatefulSet
+#            reversal (GRANULAR — the only step a plain restore cannot do
+#            without losing data, because PVCs were relabeled on upgrade)
+#   Phase 5  Restore old 2.1 telemetry folder + telemetry.sh from backup
+#   Phase 6  Uninstall NEW 2.2 components (Ansible tasks, no shell script)
+#   Phase 7  Execute restored 2.1 telemetry.sh to redeploy the 2.1 stack
+#   Phase 8  Verify all telemetry pods Running + PVCs bound (data intact)
+# ============================================================================
+
+- name: "Phase 1 — Resolve required input variables"
+  ansible.builtin.include_tasks: include_required_input.yml
+
+- name: "Phase 2 — Pre-check upgrade backup"
+  ansible.builtin.include_tasks: precheck_backup.yml
+
+- name: "Phase 3 — Detect installed new components and warn user"
+  ansible.builtin.include_tasks: detect_new_components.yml
+
+- name: "Phase 4 — Data-preserving VictoriaMetrics operator -> StatefulSet reversal"
+  ansible.builtin.include_tasks: rollback_victoria_to_statefulset.yml
+
+- name: "Phase 5 — Restore old 2.1 telemetry artifacts from backup"
+  ansible.builtin.include_tasks: restore_backup_files.yml
+
+- name: "Phase 6 — Uninstall NEW 2.2 components (PowerScale, VAST, UFM, VictoriaLogs)"
+  ansible.builtin.include_tasks: uninstall_new_components.yml
+
+- name: "Phase 7 — Execute restored 2.1 telemetry.sh to redeploy 2.1 stack"
+  ansible.builtin.include_tasks: execute_old_telemetry_sh.yml
+
+- name: "Phase 8 — Verify telemetry rollback"
+  ansible.builtin.include_tasks: verify_telemetry.yml

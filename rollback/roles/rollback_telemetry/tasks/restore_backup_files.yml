@@ -1,0 +1,82 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Restore the old 2.1 telemetry artifacts from the upgrade backup
+# ============================================================================
+# Restores (on the NFS share, owned by OIM):
+#   - telemetry/        (deployments incl. kustomization.yaml, scripts, ldms)
+#   - idrac_telemetry/  (idrac config/secrets)
+# And restores telemetry.sh onto the control plane node where it executes.
+# ============================================================================
+
+# ── Restore telemetry folder (deployments + kustomization + ldms) ──
+- name: Restore old 2.1 telemetry folder to live NFS share
+  ansible.builtin.copy:
+    src: "{{ telemetry_backup_folder }}/"
+    dest: "{{ telemetry_deploy_dir }}/"
+    remote_src: true
+    mode: preserve
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Check for backed-up idrac_telemetry folder
+  ansible.builtin.stat:
+    path: "{{ idrac_backup_folder }}"
+  register: idrac_backup_stat
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Restore old 2.1 idrac_telemetry folder to live NFS share
+  ansible.builtin.copy:
+    src: "{{ idrac_backup_folder }}/"
+    dest: "{{ k8s_client_mount_path }}/idrac_telemetry/"
+    remote_src: true
+    mode: preserve
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+  when: idrac_backup_stat.stat.exists | default(false)
+
+# ── Restore telemetry.sh onto the control plane (kube_vip) ──
+- name: Check for backed-up telemetry.sh
+  ansible.builtin.stat:
+    path: "{{ telemetry_backup_script }}"
+  register: backup_script_stat
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Copy backed-up telemetry.sh from OIM to control plane
+  ansible.builtin.copy:
+    src: "{{ telemetry_backup_script }}"
+    dest: "{{ control_plane_telemetry_script }}"
+    remote_src: true
+    mode: '0755'
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  when: backup_script_stat.stat.exists | default(false)
+
+# Also ensure a copy is at the NFS deploy dir so the rollback script can find it
+- name: Stage restored telemetry.sh into deploy dir
+  ansible.builtin.copy:
+    src: "{{ telemetry_backup_script }}"
+    dest: "{{ telemetry_deploy_dir }}/telemetry.sh"
+    remote_src: true
+    mode: '0755'
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+  when: backup_script_stat.stat.exists | default(false)
+
+- name: Display restore complete
+  ansible.builtin.debug:
+    msg: "{{ rollback_restore_done_msg }}"

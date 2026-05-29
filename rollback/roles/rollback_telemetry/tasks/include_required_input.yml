@@ -1,0 +1,83 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Resolve runtime variables required for telemetry rollback
+# ============================================================================
+# Reads the input config from the rollback backup (the 2.1 inputs) so the
+# resolved cluster coordinates match the target (2.1) deployment:
+#   - k8s_client_mount_path  (NFS share mount used for telemetry artifacts)
+#   - kube_vip               (control-plane VIP to run kubectl/helm against)
+#   - telemetry_config       (which sources/targets were enabled)
+# ============================================================================
+
+# The backup_dir from the rollback manifest holds the 2.1 input snapshot.
+- name: Set input snapshot directory from rollback backup
+  ansible.builtin.set_fact:
+    rb_input_dir: "{{ rollback_manifest.backup_dir }}/input/project_default"
+
+- name: Load omnia_config.yml (2.1 snapshot)
+  ansible.builtin.include_vars:
+    file: "{{ rb_input_dir }}/omnia_config.yml"
+    name: omnia_config
+
+- name: Load storage_config.yml (2.1 snapshot)
+  ansible.builtin.include_vars:
+    file: "{{ rb_input_dir }}/storage_config.yml"
+    name: storage_config
+
+- name: Load high_availability_config.yml (2.1 snapshot)
+  ansible.builtin.include_vars:
+    file: "{{ rb_input_dir }}/high_availability_config.yml"
+    name: ha_config
+
+- name: Load telemetry_config.yml (2.1 snapshot)
+  ansible.builtin.include_vars:
+    file: "{{ rb_input_dir }}/telemetry_config.yml"
+    name: telemetry_config
+
+# ── Resolve k8s NFS client mount path ──
+- name: Set k8s_nfs_storage_name from omnia_config
+  ansible.builtin.set_fact:
+    k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+  when:
+    - omnia_config.service_k8s_cluster is defined
+    - omnia_config.service_k8s_cluster | length > 0
+
+- name: Set k8s_client_mount_path from storage_config
+  ansible.builtin.set_fact:
+    k8s_client_mount_path: >-
+      {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}
+  when:
+    - storage_config.mounts is defined
+    - k8s_nfs_storage_name is defined
+
+# ── Resolve kube_vip (control-plane virtual IP) ──
+- name: Set kube_vip from high_availability_config
+  ansible.builtin.set_fact:
+    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+  when:
+    - ha_config.service_k8s_cluster_ha is defined
+    - ha_config.service_k8s_cluster_ha | length > 0
+
+- name: Fail if kube_vip could not be resolved
+  ansible.builtin.fail:
+    msg: "{{ rollback_kube_vip_missing_msg }}"
+  when: kube_vip is not defined or kube_vip | length == 0
+
+- name: Display resolved telemetry rollback coordinates
+  ansible.builtin.debug:
+    msg: "{{ rollback_input_coords_display }}"

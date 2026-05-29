@@ -1,0 +1,100 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Rebind a single PV (which still holds pre-upgrade data) back to its
+# original 2.1 PVC name. Reverse of upgrade/relabel_pvc.yml.
+#
+# Input loop var: pvc_entry = { name: <old 2.1 pvc name>,
+#                               size: <storage size>,
+#                               pv:   <PV that holds the data> }
+# ============================================================================
+
+- name: "Reverse-relabel: protect PV {{ pvc_entry.pv }} with Retain policy"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl patch pv {{ pvc_entry.pv }}
+      -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
+  changed_when: true
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: "Reverse-relabel: find current PVC bound to PV {{ pvc_entry.pv }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl get pvc -n {{ telemetry_namespace }} -o json 2>/dev/null \
+      | jq -r --arg pv "{{ pvc_entry.pv }}" \
+        '.items[] | select(.spec.volumeName==$pv) | .metadata.name' \
+      | head -1
+  register: current_pvc_on_pv
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: "Reverse-relabel: delete current operator PVC on PV {{ pvc_entry.pv }}"
+  ansible.builtin.command:
+    cmd: kubectl -n {{ telemetry_namespace }} delete pvc {{ current_pvc_on_pv.stdout | trim }} --timeout=60s
+  when: current_pvc_on_pv.stdout | trim | length > 0
+  changed_when: true
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: "Reverse-relabel: clear claimRef on PV {{ pvc_entry.pv }}"
+  ansible.builtin.command:
+    cmd: "kubectl patch pv {{ pvc_entry.pv }} -p '{\"spec\":{\"claimRef\": null}}'"
+  changed_when: true
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: "Reverse-relabel: recreate 2.1 PVC {{ pvc_entry.name }} bound to PV {{ pvc_entry.pv }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: {{ pvc_entry.name }}
+      namespace: {{ telemetry_namespace }}
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      volumeName: {{ pvc_entry.pv }}
+      resources:
+        requests:
+          storage: {{ pvc_entry.size }}
+    EOF
+  changed_when: true
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: "Reverse-relabel: wait for 2.1 PVC {{ pvc_entry.name }} to bind"
+  ansible.builtin.command:
+    cmd: kubectl -n {{ telemetry_namespace }} get pvc {{ pvc_entry.name }} -o jsonpath='{.status.phase}'
+  register: rebound_pvc_phase
+  until: rebound_pvc_phase.stdout == 'Bound'
+  retries: 30
+  delay: 2
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: "Reverse-relabel: fail if PVC {{ pvc_entry.name }} did not rebind"
+  ansible.builtin.fail:
+    msg: "{{ rollback_pvc_rebind_fail_msg }}"
+  when: rebound_pvc_phase.stdout != 'Bound'

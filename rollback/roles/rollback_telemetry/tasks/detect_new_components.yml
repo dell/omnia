@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Detect which NEW Omnia 2.2 components are currently installed
+# ============================================================================
+# Checks for PowerScale (Helm), VAST (Service), UFM (Service), VictoriaLogs (CR)
+# and builds a list of installed components to warn the user before rollback.
+# ============================================================================
+
+- name: Check if PowerScale (karavi-observability) Helm release is installed
+  ansible.builtin.shell: |
+    helm status {{ detection_patterns.powerscale.release }} \
+      -n {{ detection_patterns.powerscale.namespace }} >/dev/null 2>&1 \
+      && echo "installed" || echo "not_installed"
+  register: powerscale_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check if VAST Service is deployed
+  ansible.builtin.shell: |
+    kubectl -n {{ detection_patterns.vast.namespace }} get service {{ detection_patterns.vast.name }} \
+      --no-headers 2>/dev/null && echo "installed" || echo "not_installed"
+  register: vast_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check if UFM Service is deployed
+  ansible.builtin.shell: |
+    kubectl -n {{ detection_patterns.ufm.namespace }} get service {{ detection_patterns.ufm.name }} \
+      --no-headers 2>/dev/null && echo "installed" || echo "not_installed"
+  register: ufm_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check if VictoriaLogs (VLCluster) is deployed
+  ansible.builtin.shell: |
+    kubectl -n {{ detection_patterns.victorialogs.namespace }} get {{ detection_patterns.victorialogs.resource }} \
+      --no-headers 2>/dev/null && echo "installed" || echo "not_installed"
+  register: victorialogs_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Build list of installed new components
+  ansible.builtin.set_fact:
+    installed_new_components: >-
+      {{ installed_new_components | default([]) + [item.name] }}
+  loop:
+    - name: "PowerScale Telemetry (CSM Observability)"
+      installed: "{{ 'installed' in powerscale_check.stdout }}"
+    - name: "VAST Storage Telemetry"
+      installed: "{{ 'installed' in vast_check.stdout }}"
+    - name: "UFM InfiniBand Telemetry"
+      installed: "{{ 'installed' in ufm_check.stdout }}"
+    - name: "VictoriaLogs (log collection)"
+      installed: "{{ 'installed' in victorialogs_check.stdout }}"
+  when: item.installed | bool
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Display warning about new components to be uninstalled
+  ansible.builtin.debug:
+    msg: "{{ rollback_new_components_warning }}"
+  when: installed_new_components | default([]) | length > 0
+
+- name: Display no new components message
+  ansible.builtin.debug:
+    msg: "{{ rollback_no_new_components_msg }}"
+  when: installed_new_components | default([]) | length == 0

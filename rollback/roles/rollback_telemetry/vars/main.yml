@@ -1,0 +1,166 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# SHARED TELEMETRY ROLLBACK VARIABLES (Omnia 2.2 -> 2.1)
+# ============================================================================
+# Strategy: script-based restore with ZERO data loss. Granular Ansible is
+# used ONLY for the VictoriaMetrics operator -> StatefulSet reversal, because
+# the upgrade relabeled the storage PVCs and a plain restore cannot rebind
+# the existing PVs to the old 2.1 PVC names without data loss.
+# ============================================================================
+
+# Kubernetes namespace shared by all telemetry components
+telemetry_namespace: telemetry
+
+# OIM host (NFS share owner) used for file restore operations
+oim_host: oim
+
+# Live telemetry deployment directory on the k8s NFS share
+telemetry_deploy_dir: "{{ k8s_client_mount_path }}/telemetry"
+
+# Backup directory created during upgrade (backup_telemetry.yml).
+# During upgrade it was: .../upgrade/telemetry/omnia_{{ source_version }}
+# where source_version was the version being upgraded FROM (i.e. 2.1).
+# On rollback, the version we are rolling back TO == rollback target_version.
+telemetry_backup_dir: >-
+  {{ k8s_client_mount_path }}/upgrade/telemetry/omnia_{{ rollback_manifest.target_version | default('unknown') }}
+
+# Backup artifacts (produced by upgrade backup_telemetry.yml / backup_victoria.yml)
+telemetry_backup_folder: "{{ telemetry_backup_dir }}/telemetry"
+idrac_backup_folder: "{{ telemetry_backup_dir }}/idrac_telemetry"
+telemetry_backup_script: "{{ telemetry_backup_dir }}/telemetry.sh"
+old_victoria_pvcs_backup: "{{ telemetry_backup_dir }}/old_victoria_pvcs.yaml"
+
+# Restored old telemetry.sh location on the control plane (where it ran originally)
+control_plane_telemetry_script: /root/telemetry.sh
+
+# ── VictoriaMetrics operator (2.2) identifiers to reverse ──
+new_vmcluster_name: victoria-cluster
+victoria_operator_release: victoria-metrics-operator
+new_vmstorage_pvc_label: "app.kubernetes.io/name=vmstorage"
+old_vmagent_deployment: vmagent
+
+# ── New Omnia 2.2 components to uninstall (no 2.1 equivalent) ──
+# PowerScale (CSM Observability) is the ONLY new Helm release.
+# VAST and UFM are plain K8s Service/Endpoints (deployed via kustomize).
+new_helm_releases:
+  - name: karavi-observability     # PowerScale / CSM Observability (OTEL collector)
+    namespace: "{{ telemetry_namespace }}"
+
+# New-only Custom Resources to delete (VictoriaLogs is new in 2.2).
+# VictoriaMetrics (vmcluster/vmagent/vmsingle) is handled by the data-preserving
+# reversal task, NOT here.
+new_custom_resources:
+  - vlcluster
+  - vlagent
+
+# New-only K8s Service/Endpoints resources (VAST, UFM are plain manifests)
+new_services:
+  - vast-external
+  - ufm-external
+
+# New-only Secrets (VAST, UFM credentials)
+new_secrets:
+  - vast-telemetry-secret
+  - ufm-telemetry-secret
+
+# New-only leftover resources to clean after helm uninstall
+new_leftover_pvcs:
+  - otel-collector-data
+
+# Detection patterns for installed new components (used for warning)
+detection_patterns:
+  powerscale:
+    type: helm
+    release: karavi-observability
+    namespace: "{{ telemetry_namespace }}"
+  vast:
+    type: service
+    name: vast-external
+    namespace: "{{ telemetry_namespace }}"
+  ufm:
+    type: service
+    name: ufm-external
+    namespace: "{{ telemetry_namespace }}"
+  victorialogs:
+    type: cr
+    resource: vlcluster
+    namespace: "{{ telemetry_namespace }}"
+
+# Pod readiness wait configuration
+pod_wait_retries: 60
+pod_wait_delay: 15
+
+# ============================================================================
+# MESSAGES
+# ============================================================================
+rollback_backup_missing_msg: >-
+  Telemetry backup not found at {{ telemetry_backup_dir }}. The upgrade backup
+  (telemetry.sh + deployments) is required to roll back. Cannot proceed.
+rollback_no_victoria_msg: "No VictoriaMetrics operator (VMCluster) detected — skipping operator->StatefulSet reversal."
+rollback_victoria_reversed_msg: "VictoriaMetrics reverted to 2.1 StatefulSet layout (PVCs rebound, data preserved)."
+rollback_restore_done_msg: "Old 2.1 telemetry folder and telemetry.sh restored from backup."
+rollback_telemetry_sh_failed_msg: >-
+  Restored 2.1 telemetry.sh failed (rc={{ telemetry_sh_result.rc | default('unknown') }}).
+  stderr: {{ telemetry_sh_result.stderr | default('N/A') }}
+rollback_script_done_msg: "Rollback script executed: new components uninstalled and 2.1 stack redeployed."
+rollback_verify_ok_msg: "Telemetry rollback verified: all telemetry pods are Running/Completed."
+rollback_verify_fail_msg: >-
+  Telemetry rollback verification FAILED: some pods are not Running. Review
+  'kubectl get pods -n {{ telemetry_namespace }}' and pod logs.
+rollback_kube_vip_missing_msg: >-
+  Could not resolve kube_vip from {{ rb_input_dir }}/high_availability_config.yml.
+  Telemetry rollback requires the service K8s control-plane VIP.
+rollback_telemetry_sh_not_found_msg: >-
+  Restored 2.1 telemetry.sh not found at {{ control_plane_telemetry_script }}.
+  The backup restore step may have failed. Cannot redeploy the 2.1 stack.
+rollback_new_components_warning:
+  - "========================================="
+  - "  TELEMETRY ROLLBACK WARNING"
+  - "========================================="
+  - "The following NEW Omnia 2.2 components are currently installed and will be UNINSTALLED during rollback:"
+  - ""
+  - "{{ installed_new_components | default(['(none detected)']) }}"
+  - ""
+  - "These components have NO equivalent in Omnia 2.1 and cannot be preserved."
+  - "VictoriaMetrics operator will also be uninstalled and reverted to 2.1 StatefulSet (data preserved)."
+  - ""
+  - "========================================="
+rollback_no_new_components_msg: "No NEW 2.2-only components detected (PowerScale, VAST, UFM, VictoriaLogs). Rollback will proceed."
+rollback_pvc_rebind_fail_msg: >-
+  PVC {{ pvc_entry.name }} failed to rebind to PV {{ pvc_entry.pv }}
+  (phase: {{ rebound_pvc_phase.stdout | default('unknown') }}). Pre-upgrade
+  data is still on the PV (Retain policy set); manual intervention required.
+rollback_backup_artifacts_missing_msg: >-
+  Required backup artifacts not found.
+  telemetry.sh present: {{ backup_script_stat.stat.exists | default(false) }};
+  deployments/kustomization.yaml present: {{ backup_kustomization_stat.stat.exists | default(false) }}.
+  {{ rollback_backup_missing_msg }}
+rollback_precheck_summary:
+  - "Backup dir: {{ telemetry_backup_dir }} (exists)"
+  - "telemetry.sh backup: {{ backup_script_stat.stat.exists | default(false) }}"
+  - "deployments backup: {{ backup_kustomization_stat.stat.exists | default(false) }}"
+  - "old VictoriaMetrics PVC backup: {{ old_victoria_pvc_backup_available | default(false) }}"
+rollback_input_coords_display:
+  - "kube_vip: {{ kube_vip }}"
+  - "k8s_client_mount_path: {{ k8s_client_mount_path }}"
+  - "telemetry_backup_dir: {{ telemetry_backup_dir }}"
+rollback_uninstall_summary:
+  - "New 2.2 component uninstall complete."
+  - "Helm releases: {{ new_helm_releases | map(attribute='name') | list }}"
+  - "Custom Resources: {{ new_custom_resources }}"
+  - "Services/Endpoints: {{ new_services }}"
+  - "Secrets: {{ new_secrets }}"
+  - "OTEL leftovers and PVCs cleaned."
