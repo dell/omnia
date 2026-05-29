@@ -36,7 +36,7 @@
 - name: Create oim group
   when:
     - not oim_group_status | default(false) | bool
-    - "'local_repo' in (omnia_run_tags | default(ansible_run_tags) | default([])) or 'all' in (ansible_run_tags | default([]))"
+    - "'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or 'all' in (ansible_run_tags | default([]) | list)"
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
     oim_group: true
@@ -51,7 +51,7 @@
     - always
   tasks:
     - name: Run subscription validation tasks
-      when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags) | default([])) or 'all' in (ansible_run_tags | default([]))"
+      when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or 'all' in (ansible_run_tags | default([]) | list)"
       block:
         - name: Include metadata vars
           ansible.builtin.include_vars: "/opt/omnia/.data/oim_metadata.yml"

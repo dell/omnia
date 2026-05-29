@@ -181,8 +181,8 @@
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_rollback_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list }}
 
     # ─── Initialize rollback_manifest.yml using oim_metadata as source-of-truth ───
     - name: Initialize rollback_manifest.yml (first invocation)

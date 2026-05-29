@@ -19,7 +19,7 @@
     - name: Fail if no tags provided
       ansible.builtin.fail:
         msg: "{{ tags_required_msg }}"
-      when: ansible_run_tags | default(['all']) | length == 1 and 'all' in ansible_run_tags | default(['all'])
+      when: ansible_run_tags | default(['all']) | list | length == 1 and 'all' in (ansible_run_tags | default(['all']) | list)
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
