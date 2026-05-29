@@ -143,6 +143,16 @@
 #   2. If container not running, use podman run --rm with 2.2 image
 #   3. If neither works, fall back to pg_dump restore
 
+- name: "Postgres | Check if buildstream container exists"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_bs_container }}"
+  register: _bs_exists_check
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'rollback_migration'
+
 - name: "Postgres | Check if buildstream container is running"
   ansible.builtin.command: "podman inspect --format '{{ '{{' }}.State.Running{{ '}}' }}' {{ buildstream_orchestrator_bs_container }}"
   register: _bs_running_check
@@ -151,7 +161,9 @@
   delegate_to: oim
   delegate_facts: true
   connection: ssh
-  when: _action == 'rollback_migration'
+  when:
+    - _action == 'rollback_migration'
+    - _bs_exists_check.rc | default(1) == 0
 
 - name: "Postgres | Check current Alembic migration (exec into running container)"
   ansible.builtin.command: >
@@ -186,7 +198,7 @@
 - name: "Postgres | Alembic downgrade via podman run (container not running)"
   ansible.builtin.command: >
     podman run --rm --network host
-    -v /opt/omnia/omnia:/opt/omnia
+    -v {{ omnia_nfs_share }}:/opt/omnia
     {{ buildstream_orchestrator_bs_image }}:{{ buildstream_orchestrator_bs_version }}
     bash -c "cd {{ buildstream_orchestrator_alembic_workdir }} && alembic downgrade {{ buildstream_orchestrator_migration_target }}"
   register: _alembic_downgrade_run
@@ -206,6 +218,18 @@
          (_alembic_downgrade_run.rc | default(1) == 0) }}
   when: _action == 'rollback_migration'
 
+- name: "Postgres | Check if postgres container is running (for verify)"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_pg_container }}"
+  register: _pg_exists_for_verify
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _alembic_downgrade_success | default(false) | bool
+
 - name: "Postgres | Verify migration after downgrade"
   ansible.builtin.command: >
     podman exec {{ buildstream_orchestrator_pg_container }}
@@ -220,6 +244,7 @@
   when:
     - _action == 'rollback_migration'
     - _alembic_downgrade_success | default(false) | bool
+    - _pg_exists_for_verify.rc | default(1) == 0
 
 - name: "Postgres | Display migration status"
   ansible.builtin.debug:
@@ -228,10 +253,23 @@
     - _action == 'rollback_migration'
     - _migration_verify is defined
 
+- name: "Postgres | Fallback — check if postgres container exists"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_pg_container }}"
+  register: _pg_exists_for_fallback
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - not (_alembic_downgrade_success | default(false) | bool)
+
 - name: "Postgres | Fallback — restore from pg_dump (alembic downgrade failed)"
   when:
     - _action == 'rollback_migration'
     - not (_alembic_downgrade_success | default(false) | bool)
+    - _pg_exists_for_fallback.rc | default(1) == 0
   block:
     - name: "Postgres | Fallback — display warning"
       ansible.builtin.debug:
@@ -244,6 +282,7 @@
         podman exec {{ buildstream_orchestrator_pg_container }}
         psql -U {{ buildstream_orchestrator_pg_user }} -c "DROP DATABASE IF EXISTS {{ buildstream_orchestrator_pg_db }};"
       changed_when: true
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -253,6 +292,7 @@
         podman exec {{ buildstream_orchestrator_pg_container }}
         psql -U {{ buildstream_orchestrator_pg_user }} -c "CREATE DATABASE {{ buildstream_orchestrator_pg_db }};"
       changed_when: true
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -263,6 +303,7 @@
         psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
         < {{ backup_dir }}/{{ postgres_backup_sql_subpath }}
       changed_when: true
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -273,6 +314,7 @@
         psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
         -c "SELECT 1;"
       changed_when: false
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -348,10 +390,10 @@
   when: _action == 'cleanup_full'
 
 # ── validate_health ──────────────────────────────────────────────────────────
-- name: "Postgres | Validate connectivity (PATH A)"
-  ansible.builtin.command: >
-    podman exec {{ buildstream_orchestrator_pg_container }}
-    pg_isready -U {{ buildstream_orchestrator_pg_user }}
+- name: "Postgres | Check if postgres container exists (PATH A health)"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_pg_container }}"
+  register: _pg_exists_for_health
+  failed_when: false
   changed_when: false
   delegate_to: oim
   delegate_facts: true
@@ -360,6 +402,20 @@
     - _action == 'validate_health'
     - build_stream_upgrade_path == 'upgrade_existing'
 
+- name: "Postgres | Validate connectivity (PATH A)"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_pg_container }}
+    pg_isready -U {{ buildstream_orchestrator_pg_user }}
+  changed_when: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) == 0
+
 - name: "Postgres | Validate migration version (PATH A)"
   ansible.builtin.command: >
     podman exec {{ buildstream_orchestrator_pg_container }}
@@ -367,12 +423,14 @@
     -t -c "SELECT version_num FROM alembic_version;"
   register: _pg_migration_validate
   changed_when: false
+  failed_when: false
   delegate_to: oim
   delegate_facts: true
   connection: ssh
   when:
     - _action == 'validate_health'
     - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) == 0
 
 - name: "Postgres | Assert migration is at target {{ buildstream_orchestrator_migration_target }}"
   ansible.builtin.assert:
@@ -383,6 +441,15 @@
   when:
     - _action == 'validate_health'
     - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) == 0
+
+- name: "Postgres | Warn — postgres container not found for health check (PATH A)"
+  ansible.builtin.debug:
+    msg: "WARNING: Postgres container '{{ buildstream_orchestrator_pg_container }}' not found. Skipping connectivity and migration validation."
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) != 0
 
 - name: "Postgres | Validate no container running (PATH B)"
   ansible.builtin.command: "podman ps --filter name={{ buildstream_orchestrator_pg_container }} --format '{{ '{{' }}.Names{{ '}}' }}'"

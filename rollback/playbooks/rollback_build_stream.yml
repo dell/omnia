@@ -43,3 +43,4 @@
     - name: Execute BuildStream rollback role
       ansible.builtin.include_role:
         name: "{{ playbook_dir }}/../roles/rollback_buildstream"
+      tags: [buildstream]

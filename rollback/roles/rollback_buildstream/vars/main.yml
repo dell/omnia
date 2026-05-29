@@ -23,6 +23,9 @@
 # Component identification
 component_name: build_stream
 
+# Shared NFS path (matches oim_cleanup pattern)
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt') }}/omnia"
+
 # OIM metadata
 oim_metadata_file: /opt/omnia/.data/oim_metadata.yml
 
@@ -46,15 +49,15 @@ gitlab_backup_secrets_subpath: configs/gitlab/gitlab-secrets.json
 # BuildStream cleanup directories (from oim_cleanup role vars)
 # Used by PATH B to remove all buildstream artifacts
 build_stream_cleanup_directories:
-  - "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/log/build_stream"
-  - "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/playbook_queue"
-  - "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/build_stream_ssl"
-  - "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/build_stream_root"
-  - "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/build_stream_inv"
-  - "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/build_stream"
+  - "{{ omnia_nfs_share }}/log/build_stream"
+  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/build_stream_ssl"
+  - "{{ omnia_nfs_share }}/build_stream_root"
+  - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream"
 
 # Automation framework paths (from oim_cleanup role vars)
-automation_base_dir: /opt/omnia/automation
+automation_base_dir: "{{ omnia_nfs_share }}/automation"
 automation_venv_dir: "{{ automation_base_dir }}/.venv"
 automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
 
