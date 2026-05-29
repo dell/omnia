@@ -63,7 +63,7 @@
         {{ ochami_x86_64_image | join(' ') }} \
         {{ ochami_base_command | join(' ') }} \
         > '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
-  async: 3600
+  async: "{{ job_async }}"
   poll: 0
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:

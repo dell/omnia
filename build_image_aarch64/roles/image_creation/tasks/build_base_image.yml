@@ -59,7 +59,7 @@
             > '{{ openchami_aarch64_base_image_log_path }}' 2>&1
       delegate_to: "{{ aarch64_build_host }}"
       connection: ssh
-      async: 3600
+      async: "{{ job_async }}"
       poll: 0
       register: base_image_build
       changed_when: true
