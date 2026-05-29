@@ -127,6 +127,7 @@ mounts:
     source: "172.16.107.77:/share/vast"
     mount_point: "/mnt/vast"
     mount_params: "vast_rdma"
+    mount_on_oim: true
     functional_group_prefix: ["slurm_node", "login"]
 
 # -----------------------------Mount Params (Profiles)-------------------------------

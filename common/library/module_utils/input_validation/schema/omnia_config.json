@@ -156,6 +156,7 @@
         "required": [
           "cluster_name",
           "k8s_cni",
+          "etcd_on_local_disk",
           "k8s_service_addresses",
           "k8s_crio_storage_size"
         ],

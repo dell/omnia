@@ -181,7 +181,7 @@
 
 - name: Populate CSI volume exporter deployment
   ansible.builtin.template:
-    src: 'telemetry/victoria/csi-volume-exporter.yaml.j2'
+    src: 'telemetry/powerscale/csi-volume-exporter.yaml.j2'
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/csi-volume-exporter.yaml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   when:

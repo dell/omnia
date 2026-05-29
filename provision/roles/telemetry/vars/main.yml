@@ -319,7 +319,7 @@ powerscale_victoria_logs_validation_fail_msg: >-
 # ============================================================================
 # CSI Volume Exporter Configuration
 # ============================================================================
-# Usage: csi-volume-exporter.yaml.j2, victoria-operator-vmscrape.yaml.j2
+# Usage: powerscale/csi-volume-exporter.yaml.j2, victoria-operator-vmscrape.yaml.j2
 # Deployed when telemetry_sources.powerscale.metrics_enabled: true
 # Exposes PowerScale PersistentVolume status as Prometheus metrics
 csi_volume_exporter:

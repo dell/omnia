@@ -156,6 +156,24 @@ def _append_unique_source(pkg_sources, source):
     if source not in pkg_sources:
         pkg_sources.append(source)
 
+def _merge_package_entries(dst, src):
+    """Merge package fields from src into dst, combining sets and sources."""
+    # Merge architectures and bundles (both are sets)
+    if 'architectures' in src and src['architectures']:
+        dst.setdefault('architectures', set()).update(src['architectures'])
+    if 'bundles' in src and src['bundles']:
+        dst.setdefault('bundles', set()).update(src['bundles'])
+    # Merge sources (deduplicated)
+    for s in src.get('sources', []) or []:
+        _append_unique_source(dst.setdefault('sources', []), s)
+    # Prefer explicit tag/version/url if missing in dst
+    if not dst.get('tag') and src.get('tag'):
+        dst['tag'] = src['tag']
+    if not dst.get('version') and src.get('version'):
+        dst['version'] = src['version']
+    if not dst.get('url') and src.get('url'):
+        dst['url'] = src['url']
+
 def _render_templated_url(template: str, bundle_name: str, versions_by_name: dict) -> str:
     """Render very simple Jinja-like templates used in config URLs.
 
@@ -291,16 +309,17 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
                         if version:
                             git_key = f"{pkg_name}_{pkg_type}_{version}"
                             if git_key != key:
-                                # Migrate any data already stored
-                                # under the short key if this is the
-                                # first version we encounter.
-                                if key in packages and git_key not in packages:
+                                # Always consolidate under the version-aware key
+                                if git_key in packages and key in packages:
+                                    _merge_package_entries(packages[git_key], packages.pop(key))
+                                elif key in packages:
                                     packages[git_key] = packages.pop(key)
                                 key = git_key
-                                packages[key]['name'] = pkg_name
-                                packages[key]['type'] = pkg_type
-                                packages[key]['architectures'].add(arch)
-                                packages[key]['bundles'].add(bundle_name)
+                            # Ensure fields are set on the consolidated entry
+                            packages[key]['name'] = pkg_name
+                            packages[key]['type'] = pkg_type
+                            packages[key]['architectures'].add(arch)
+                            packages[key]['bundles'].add(bundle_name)
                         packages[key]['url'] = url
                         packages[key]['version'] = version
                         if url:
@@ -313,8 +332,24 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
                             )
                     elif pkg_type == 'image':
                         tag = pkg.get('tag', '')
-                        packages[key]['tag'] = tag
-                        packages[key]['version'] = tag
+                        # Use tag-aware key for images so two entries with the same
+                        # name but different tags are treated as distinct packages.
+                        img_key = f"{pkg_name}_{pkg_type}_{tag}" if tag else f"{pkg_name}_{pkg_type}"
+                        if tag and img_key != key:
+                            # Always consolidate under the tag-aware key
+                            if img_key in packages and key in packages:
+                                _merge_package_entries(packages[img_key], packages.pop(key))
+                            elif key in packages:
+                                packages[img_key] = packages.pop(key)
+                            key = img_key
+                        # Ensure fields are set on the consolidated entry
+                        packages[key]['name'] = pkg_name
+                        packages[key]['type'] = pkg_type
+                        packages[key]['architectures'].add(arch)
+                        packages[key]['bundles'].add(bundle_name)
+                        if tag:
+                            packages[key]['tag'] = tag
+                            packages[key]['version'] = tag
 
     return packages
 
@@ -592,6 +627,12 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, p
                         git_key = f"{pkg_name}_{pkg_type}_{pkg['version']}"
                         if git_key in package_id_map:
                             key = git_key
+                    # For image packages, include tag in key when present (must
+                    # match the key used in collect_packages_from_config)
+                    if pkg_type == 'image' and pkg.get('tag'):
+                        img_key = f"{pkg_name}_{pkg_type}_{pkg['tag']}"
+                        if img_key in package_id_map:
+                            key = img_key
 
                     if key in package_id_map:
                         pkg_id = package_id_map[key]

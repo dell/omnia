@@ -134,8 +134,8 @@ auth_tls_certs_path: "/opt/omnia/auth/tls_certs/ldapserver.crt"
 slurm_installation_type: configless
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 controller_empty_msg: "Slurm controller functional group is missing from PXE mapping file. Please update the file and rerun provision.yml."
-download_container_image_path: "{{ slurm_config_path }}/hpc_tools/scripts/download_container_image.sh"
-container_image_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/container_image.list"
+download_container_image_path: "{{ hpc_tools_path }}/scripts/download_container_image.sh"
+container_image_list_path: "{{ hpc_tools_path }}/scripts/container_image.list"
 pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
 packages_base_dir_x86_64: "{{ slurm_config_path }}/packages/x86_64"
 packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
@@ -163,8 +163,8 @@ nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/{{ hostvars['l
 nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
 
 # Benchmark pull script path
-pull_benchmarks_script_path: "{{ slurm_config_path }}/hpc_tools/scripts/pull_benchmarks.sh"
-benchmark_tools_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/benchmark_tools.list"
+pull_benchmarks_script_path: "{{ hpc_tools_path }}/scripts/pull_benchmarks.sh"
+benchmark_tools_list_path: "{{ hpc_tools_path }}/scripts/benchmark_tools.list"
 
 # parallel file copy
 parallel_copy_max_workers: 4

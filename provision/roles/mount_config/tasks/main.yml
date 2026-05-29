@@ -29,6 +29,8 @@
 - name: Check if slurm support is true
   ansible.builtin.set_fact:
     slurm_support: false
+    filter_slurm_nfs: []
+    filter_service_k8s_nfs: []
 
 - name: Check if slurm support is true and if not slurm nodes in 'functional_groups'
   ansible.builtin.set_fact:
@@ -41,18 +43,24 @@
   ansible.builtin.set_fact:
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'in', ['service_k8s']) | list | length > 0 }}"
 
+- name: Include omnia_config
+  ansible.builtin.include_vars:
+    file: "{{ omnia_config_vars }}"
+    name: omnia_config
+
+- name: Set facts for slurm
+  ansible.builtin.set_fact:
+    filter_slurm_nfs: "{{ omnia_config.slurm_cluster | map(attribute='nfs_storage_name') | list }}"
+  when: "'slurm_cluster' in omnia_config"
+
+- name: Set facts for service_k8s
+  ansible.builtin.set_fact:
+    filter_service_k8s_nfs: "{{ omnia_config.service_k8s_cluster | map(attribute='nfs_storage_name') | list }}"
+  when: "'service_k8s_cluster' in omnia_config"
+
 - name: Block for filtering slurm mounts
   when: ('slurm' in omnia_run_tags) and (slurm_support)
   block:
-    - name: Include omnia_config
-      ansible.builtin.include_vars:
-        file: "{{ omnia_config_vars }}"
-        name: omnia_config
-
-    - name: Set facts for slurm
-      ansible.builtin.set_fact:
-        filter_slurm_nfs: "{{ omnia_config.slurm_cluster | map(attribute='nfs_storage_name') | list }}"
-
     - name: Select the nfs client parameters for slurm
       ansible.builtin.set_fact:
         slurm_nfs: "{{ mounts | selectattr('name', 'in', filter_slurm_nfs) | list }}"
@@ -64,15 +72,6 @@
 - name: Block for filtering service_k8s mounts
   when: ('service_k8s' in omnia_run_tags) and (service_k8s_support)
   block:
-    - name: Include omnia_config
-      ansible.builtin.include_vars:
-        file: "{{ omnia_config_vars }}"
-        name: omnia_config
-
-    - name: Set facts for service_k8s
-      ansible.builtin.set_fact:
-        filter_service_k8s_nfs: "{{ omnia_config.service_k8s_cluster | map(attribute='nfs_storage_name') | list }}"
-
     - name: Select the nfs client parameters for service_k8s
       ansible.builtin.set_fact:
         service_k8s_nfs: "{{ mounts | selectattr('name', 'in', filter_service_k8s_nfs) | list }}"
@@ -81,17 +80,21 @@
       ansible.builtin.set_fact:
         storage_to_be_mounted: "{{ storage_to_be_mounted + service_k8s_nfs }}"
 
+- name: Remove slurm from mounts when slurm support is disabled
+  ansible.builtin.set_fact:
+    mounts: "{{ mounts | rejectattr('name', 'in', filter_slurm_nfs) | list }}"
+  when: not slurm_support
+
+- name: Remove service_k8s from mounts when k8s support is disabled
+  ansible.builtin.set_fact:
+    mounts: "{{ mounts | rejectattr('name', 'in', filter_service_k8s_nfs) | list }}"
+  when: not service_k8s_support
+
+- name: Add storages to be mounted
+  ansible.builtin.set_fact:
+    storage_to_be_mounted: "{{ storage_to_be_mounted
+     + mounts | selectattr('mount_on_oim', 'defined') | selectattr('mount_on_oim', 'equalto', true) }}"
+
 - name: Install NFS client with bolt-on support (Slurm/K8s selections)
   ansible.builtin.include_tasks: mount_on_oim.yml
   with_items: "{{ storage_to_be_mounted }}"
-
-# - name: Mount entries from mounts[] flagged for OIM (mount_on_oim=true)
-#   ansible.builtin.include_tasks: mount_on_oim.yml
-#   loop: "{{ mounts | default([])
-#     | selectattr('mount_on_oim', 'defined')
-#     | selectattr('mount_on_oim', 'equalto', true)
-#     | rejectattr('name', 'in', storage_to_be_mounted | map(attribute='name') | list)
-#     | list }}"
-#   loop_control:
-#     loop_var: item
-#     label: "{{ item.name | default(item.mount_point | default('unnamed')) }}"
