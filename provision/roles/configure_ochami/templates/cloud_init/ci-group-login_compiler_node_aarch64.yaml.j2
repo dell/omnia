@@ -187,7 +187,7 @@
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/hpc_tools/configure_nvhpc_env.sh.j2') | indent(12) }}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
         - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
           permissions: '{{ file_mode_755 }}'
           content: |
@@ -208,7 +208,7 @@
         - bash /usr/local/bin/doca-install.sh || true
         - bash /usr/local/bin/configure-ib-network.sh
 {# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
-{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
         - {{ cmd }}
 {% endfor %}
@@ -233,7 +233,7 @@
 {% set fg_swap = cloud_init_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
 {% include 'configure_swap.yaml.j2' %}
         - mount -av
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # VAST storage: create subdirectory structure for login+compiler node

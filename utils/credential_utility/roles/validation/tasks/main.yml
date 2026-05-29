@@ -15,7 +15,7 @@
 
 - name: Initialize list of tags
   ansible.builtin.set_fact:
-    omnia_run_tags: "{{ ansible_run_tags | default([]) }}"
+    omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
   when: omnia_run_tags is not defined
 
 - name: Load build_stream_config.yml to check if enabled

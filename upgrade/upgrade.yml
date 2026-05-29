@@ -245,8 +245,8 @@
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list }}
 
     - name: Validate tag dependency order
       ansible.builtin.fail:
@@ -312,7 +312,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['build_stream', 'gitlab']
             ) | unique
           }}
@@ -532,7 +532,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['prepare_oim', 'local_repo', 'ufm_telemetry', 'vast_telemetry', 'ldms', 'idrac_telemetry']
             ) | unique
           }}
@@ -631,8 +631,8 @@
       ansible.builtin.set_fact:
         finalize_requested_tags: >-
           {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags | intersect(all_components) }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list | intersect(all_components) }}
 
     - name: Build cleaned component_status (only update requested tags)
       ansible.builtin.set_fact:

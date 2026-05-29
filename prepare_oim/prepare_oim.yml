@@ -31,7 +31,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['prepare_oim', 'local_repo', 'discovery', 'provision']
             ) | unique
           }}

@@ -44,7 +44,7 @@
 
 - name: Set run tags for telemetry
   ansible.builtin.set_fact:
-    omnia_run_tags: "{{ (omnia_run_tags | default([])) + (result.telemetry_status_list | default([])) | unique }}"
+    omnia_run_tags: "{{ ((omnia_run_tags | default([])) + (result.telemetry_status_list | default([]))) | unique }}"
   when:
     - not result.skipped | default(false)
     - result.telemetry_status_list | length > 0
