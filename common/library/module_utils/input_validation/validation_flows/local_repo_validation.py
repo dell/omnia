@@ -156,6 +156,7 @@ def validate_local_repo_config(input_file_path, data,
     for arch in all_archs:
         arch_repo_names = []
         arch_list = url_list + [url+'_'+arch for url in url_list]
+        base_subscription_repos = []
          # define base repos dynamically for this arch if subscription registered 
         if sub_result:
             base_subscription_repos = ["baseos", "appstream", "codeready-builder"]
