@@ -751,7 +751,159 @@
         }
       },
       "required": ["kafka", "entity_operator"]
+    },
+    "idrac_telemetry_storage": {
+      "type": "object",
+      "description": "iDRAC Telemetry container resource configuration. Required when iDRAC metrics are enabled.",
+      "properties": {
+        "mysqldb": {
+          "type": "object",
+          "description": "MySQL database container resource configuration.",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["resources"]
+        },
+        "activemq": {
+          "type": "object",
+          "description": "ActiveMQ container resource configuration.",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["resources"]
+        },
+        "receiver": {
+          "type": "object",
+          "description": "iDRAC telemetry receiver container resource configuration.",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["resources"]
+        },
+        "kafka_pump": {
+          "type": "object",
+          "description": "Kafka pump container resource configuration.",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["resources"]
+        },
+        "victoria_pump": {
+          "type": "object",
+          "description": "Victoria pump container resource configuration.",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                  },
+                  "required": ["cpu", "memory"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["resources"]
+        }
+      },
+      "required": ["mysqldb", "activemq", "receiver", "kafka_pump", "victoria_pump"]
     }
   },
-  "required": ["victoria_cluster_storage", "victoria_logs_cluster_storage", "vector_storage", "csi_volume_exporter_storage", "csm_metrics_powerscale_storage", "kafka_storage"]
+  "required": ["victoria_cluster_storage", "victoria_logs_cluster_storage", "vector_storage", "csi_volume_exporter_storage", "csm_metrics_powerscale_storage", "kafka_storage", "idrac_telemetry_storage"]
 }

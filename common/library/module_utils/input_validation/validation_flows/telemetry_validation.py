@@ -1126,4 +1126,16 @@ def validate_telemetry_storage_config(
     else:
         logger.info("csi_volume_exporter_storage validation passed")
 
+    # Validate idrac_telemetry_storage when iDRAC metrics are enabled
+    idrac_source = telemetry_sources.get("idrac", {})
+    idrac_metrics_enabled = idrac_source.get("metrics_enabled", False)
+    if idrac_metrics_enabled and not storage_config.get("idrac_telemetry_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.idrac_telemetry_storage",
+            "not defined",
+            en_us_validation_msg.IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG
+        ))
+    elif idrac_metrics_enabled:
+        logger.info("idrac_telemetry_storage validation passed")
+
     return errors

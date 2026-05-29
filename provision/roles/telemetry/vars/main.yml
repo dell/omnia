@@ -67,6 +67,47 @@ mysql_image: "{{ telemetry_images['library/mysql'] | default('docker.io/library/
 pod_wait_timeout: "10m"
 kafka_skip_verify: true
 
+# ============================================================================
+# iDRAC Telemetry Container Resource Limits
+# ============================================================================
+# Usage: idrac_telemetry_statefulset.yaml.j2
+idrac_telemetry_resources:
+  mysqldb:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.cpu | default('100m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.memory | default('256Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.cpu | default('500m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.memory | default('512Mi') }}"
+  activemq:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.cpu | default('100m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.memory | default('256Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.cpu | default('500m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.memory | default('512Mi') }}"
+  receiver:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.requests.cpu | default('100m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.requests.memory | default('128Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.limits.cpu | default('500m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.limits.memory | default('256Mi') }}"
+  kafka_pump:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.cpu | default('50m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.memory | default('64Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.cpu | default('200m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.memory | default('256Mi') }}"
+  victoria_pump:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.cpu | default('50m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.memory | default('64Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.cpu | default('200m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.memory | default('256Mi') }}"
+
 # Usage: kafka_deployment.yml
 kafka:
   app_name: "kafka"

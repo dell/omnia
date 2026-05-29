@@ -125,6 +125,13 @@ spec:
                 secretKeyRef:
                   name: {{ mysqldb_secrets_name }}
                   key: mysqldb_root_password
+          resources:
+            requests:
+              cpu: {{ idrac_telemetry_resources.mysqldb.requests.cpu }}
+              memory: {{ idrac_telemetry_resources.mysqldb.requests.memory }}
+            limits:
+              cpu: {{ idrac_telemetry_resources.mysqldb.limits.cpu }}
+              memory: {{ idrac_telemetry_resources.mysqldb.limits.memory }}
           ports:
             - containerPort: {{ mysqldb_container_port1 }}
             - containerPort: {{ mysqldb_container_port2 }}
@@ -132,6 +139,13 @@ spec:
         - name: activemq
           image: {{ activemq_image }}
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: {{ idrac_telemetry_resources.activemq.requests.cpu }}
+              memory: {{ idrac_telemetry_resources.activemq.requests.memory }}
+            limits:
+              cpu: {{ idrac_telemetry_resources.activemq.limits.cpu }}
+              memory: {{ idrac_telemetry_resources.activemq.limits.memory }}
           ports:
             - containerPort: {{ activemq_http_port_1 }}
             - containerPort: {{ activemq_http_port_2 }}
@@ -162,6 +176,13 @@ spec:
               value: mysqldb
             - name: MYSQL_HOST_PORT
               value: "{{ mysqldb_container_port1 }}"
+          resources:
+            requests:
+              cpu: {{ idrac_telemetry_resources.receiver.requests.cpu }}
+              memory: {{ idrac_telemetry_resources.receiver.requests.memory }}
+            limits:
+              cpu: {{ idrac_telemetry_resources.receiver.limits.cpu }}
+              memory: {{ idrac_telemetry_resources.receiver.limits.memory }}
 
 {% if 'kafka' in types %}
         - name: kafka-pump
@@ -197,6 +218,13 @@ spec:
               value: "false"
             - name: KAFKA_PARTITION
               value: "0"
+          resources:
+            requests:
+              cpu: {{ idrac_telemetry_resources.kafka_pump.requests.cpu }}
+              memory: {{ idrac_telemetry_resources.kafka_pump.requests.memory }}
+            limits:
+              cpu: {{ idrac_telemetry_resources.kafka_pump.limits.cpu }}
+              memory: {{ idrac_telemetry_resources.kafka_pump.limits.memory }}
 {% endif %}
 
 {% if 'victoria' in types %}
@@ -210,6 +238,13 @@ spec:
               value: "{{ messagebus_http_port }}"
             - name: MESSAGEBUS_TYPE
               value: stomp
+          resources:
+            requests:
+              cpu: {{ idrac_telemetry_resources.victoria_pump.requests.cpu }}
+              memory: {{ idrac_telemetry_resources.victoria_pump.requests.memory }}
+            limits:
+              cpu: {{ idrac_telemetry_resources.victoria_pump.limits.cpu }}
+              memory: {{ idrac_telemetry_resources.victoria_pump.limits.memory }}
           ports:
             - containerPort: 2112
               name: victoriapump
