@@ -1,0 +1,111 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Validates user-provided additional_cloud_init from provision_config.yml.
+# Ensures:
+#   - No prohibited keys (bootcmd, network, network-config) are present
+#   - Only allowed keys (write_files, packages, runcmd) are used
+#   - write_files entries have required 'path' field
+#   - runcmd entries are strings
+#   - packages entries are strings
+# Failures produce structured, actionable error messages.
+
+- name: Load additional_cloud_init from provision_config
+  ansible.builtin.set_fact:
+    additional_cloud_init_data: "{{ hostvars['localhost']['additional_cloud_init'] | default({}) }}"
+
+- name: Skip validation if additional_cloud_init is empty
+  ansible.builtin.set_fact:
+    additional_cloud_init_enabled: "{{ additional_cloud_init_data | length > 0 }}"
+
+- name: Validate additional_cloud_init - check for prohibited keys
+  ansible.builtin.fail:
+    msg: >-
+      additional_cloud_init validation FAILED: Prohibited key '{{ item }}' found.
+      The keys 'bootcmd', 'network', and 'network-config' are platform-managed
+      and must NOT be overridden by user cloud-init. These affect early boot
+      and networking stages that are critical for node provisioning.
+      Remove '{{ item }}' from additional_cloud_init in provision_config.yml.
+  when:
+    - additional_cloud_init_enabled | bool
+    - item in additional_cloud_init_data
+  loop: "{{ additional_cloud_init_prohibited_keys }}"
+
+- name: Validate additional_cloud_init - check for unknown keys
+  ansible.builtin.fail:
+    msg: >-
+      additional_cloud_init validation FAILED: Unknown key '{{ item }}' found.
+      Only the following keys are allowed: {{ additional_cloud_init_allowed_keys | join(', ') }}.
+      These correspond to cloud-init config and final stage directives.
+      Remove '{{ item }}' from additional_cloud_init in provision_config.yml.
+  when:
+    - additional_cloud_init_enabled | bool
+    - item not in additional_cloud_init_allowed_keys
+  loop: "{{ additional_cloud_init_data.keys() | list }}"
+
+- name: Validate additional_cloud_init - write_files entries have path
+  ansible.builtin.fail:
+    msg: >-
+      additional_cloud_init validation FAILED: write_files entry at index {{ idx }}
+      is missing the required 'path' field. Each write_files entry must specify
+      the target file path on the node.
+      Fix: Add 'path: /path/to/file' to the entry in additional_cloud_init.write_files.
+  when:
+    - additional_cloud_init_enabled | bool
+    - "'write_files' in additional_cloud_init_data"
+    - item.path is not defined or item.path | trim == ''
+  loop: "{{ additional_cloud_init_data.write_files | default([]) }}"
+  loop_control:
+    index_var: idx
+
+- name: Validate additional_cloud_init - runcmd entries are strings
+  ansible.builtin.fail:
+    msg: >-
+      additional_cloud_init validation FAILED: runcmd entry at index {{ idx }}
+      is not a string: '{{ item }}' (type: {{ item | type_debug }}).
+      Each runcmd entry must be a shell command string.
+      Fix: Ensure all entries in additional_cloud_init.runcmd are strings.
+  when:
+    - additional_cloud_init_enabled | bool
+    - "'runcmd' in additional_cloud_init_data"
+    - item is not string
+  loop: "{{ additional_cloud_init_data.runcmd | default([]) }}"
+  loop_control:
+    index_var: idx
+
+- name: Validate additional_cloud_init - packages entries are strings
+  ansible.builtin.fail:
+    msg: >-
+      additional_cloud_init validation FAILED: packages entry at index {{ idx }}
+      is not a string: '{{ item }}' (type: {{ item | type_debug }}).
+      Each packages entry must be a package name string.
+      Fix: Ensure all entries in additional_cloud_init.packages are strings.
+  when:
+    - additional_cloud_init_enabled | bool
+    - "'packages' in additional_cloud_init_data"
+    - item is not string
+  loop: "{{ additional_cloud_init_data.packages | default([]) }}"
+  loop_control:
+    index_var: idx
+
+- name: Log additional_cloud_init validation result
+  ansible.builtin.debug:
+    msg: >-
+      additional_cloud_init validation PASSED.
+      Enabled: {{ additional_cloud_init_enabled }}.
+      Keys: {{ additional_cloud_init_data.keys() | list | default([]) }}.
+      write_files: {{ additional_cloud_init_data.write_files | default([]) | length }} entries.
+      packages: {{ additional_cloud_init_data.packages | default([]) | length }} entries.
+      runcmd: {{ additional_cloud_init_data.runcmd | default([]) | length }} entries.
+  when: additional_cloud_init_enabled | bool

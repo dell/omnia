@@ -1,0 +1,44 @@
+- name: {{ additional_cloud_init_group_name }}
+  description: "User-provided additional cloud-init (config and final stages only)"
+  file:
+    encoding: plain
+    content: |
+      ## template: jinja
+      #cloud-config
+      merge_how:
+        - name: list
+          settings: [append]
+        - name: dict
+          settings: [no_replace, recurse_list]
+{% if additional_cloud_init_data.write_files is defined and additional_cloud_init_data.write_files | length > 0 %}
+      write_files:
+{% for wf in additional_cloud_init_data.write_files %}
+        - path: {{ wf.path }}
+{% if wf.permissions is defined %}
+          permissions: '{{ wf.permissions }}'
+{% endif %}
+{% if wf.owner is defined %}
+          owner: {{ wf.owner }}
+{% endif %}
+{% if wf.append is defined %}
+          append: {{ wf.append | lower }}
+{% endif %}
+{% if wf.encoding is defined %}
+          encoding: {{ wf.encoding }}
+{% endif %}
+          content: |
+            {{ wf.content | indent(12) }}
+{% endfor %}
+{% endif %}
+{% if additional_cloud_init_data.packages is defined and additional_cloud_init_data.packages | length > 0 %}
+      packages:
+{% for pkg in additional_cloud_init_data.packages %}
+        - {{ pkg }}
+{% endfor %}
+{% endif %}
+{% if additional_cloud_init_data.runcmd is defined and additional_cloud_init_data.runcmd | length > 0 %}
+      runcmd:
+{% for cmd in additional_cloud_init_data.runcmd %}
+        - {{ cmd }}
+{% endfor %}
+{% endif %}
