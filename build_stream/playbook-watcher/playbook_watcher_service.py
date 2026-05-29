@@ -986,7 +986,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     artifact_dir = request_data["artifact_dir"]
     config_path = request_data["config_path"]
     test_suite = request_data.get("test_suite", "")
-    timeout_minutes = request_data.get("timeout_minutes", 120)
+    timeout_minutes = request_data.get("timeout_minutes", 150)
     correlation_id = request_data.get("correlation_id", job_id)
     
     log_secure_info("info", "Executing molecule for job", job_id)
