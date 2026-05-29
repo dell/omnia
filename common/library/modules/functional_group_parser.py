@@ -37,7 +37,7 @@ def normalize_functional_groups(data):
 
 
 def get_functional_groups(config_path):
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return normalize_functional_groups(data)
 

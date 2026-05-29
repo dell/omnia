@@ -26,7 +26,7 @@ TARGET_VERSIONS = {
     "csi_driver_powerscale": "v2.16.0"
 }
 
-with open(backup_file, 'r') as f:
+with open(backup_file, 'r', encoding='utf-8') as f:
     backup = json.load(f)
 
 # Start with a copy of the backup (preserves user's configuration exactly)
@@ -50,13 +50,16 @@ for sw in result.get('softwares', []):
 # If additional_packages exists as a TOP-LEVEL key in backup, append "os" if not present
 # This is the array like: "additional_packages": [{"name": "..."}, ...]
 if 'additional_packages' in result and isinstance(result['additional_packages'], list):
-    existing_names = {item.get('name') for item in result['additional_packages'] if isinstance(item, dict) and 'name' in item}
+    existing_names = {
+        item.get('name') for item in result['additional_packages']
+        if isinstance(item, dict) and 'name' in item
+    }
     if 'os' not in existing_names:
         result['additional_packages'].append({"name": "os"})
         print("Added {'name': 'os'} to additional_packages array", file=sys.stderr)
 
 # Write the result with compact formatting (no extra whitespace in arrays)
-with open(target_file, 'w') as f:
+with open(target_file, 'w', encoding='utf-8') as f:
     json.dump(result, f, indent=4, separators=(',', ': '))
     f.write('\n')
 
