@@ -193,7 +193,7 @@
     - _action == 'rollback_migration'
     - _bs_running_check.stdout | default('') | trim == 'true'
     - _alembic_current.rc | default(1) == 0
-    - buildstream_orchestrator_migration_target not in (_alembic_current.stdout | default(''))
+    - (buildstream_orchestrator_migration_target | default('')) not in (_alembic_current.stdout | default(''))
 
 - name: "Postgres | Alembic downgrade via podman run (container not running)"
   ansible.builtin.command: >
@@ -216,7 +216,7 @@
     _alembic_downgrade_success: >-
       {{ (_alembic_downgrade_exec.rc | default(1) == 0) or
          (_alembic_downgrade_run.rc | default(1) == 0) or
-         (buildstream_orchestrator_migration_target in (_alembic_current.stdout | default('', true))) }}
+         ((buildstream_orchestrator_migration_target | default('')) in (_alembic_current.stdout | default('', true))) }}
   when: _action == 'rollback_migration'
 
 - name: "Postgres | Check if postgres container is running (for verify)"
@@ -435,7 +435,7 @@
 - name: "Postgres | Assert migration is at target {{ buildstream_orchestrator_migration_target }}"
   ansible.builtin.assert:
     that:
-      - buildstream_orchestrator_migration_target in (_pg_migration_validate.stdout | default(''))
+      - (buildstream_orchestrator_migration_target | default('')) in (_pg_migration_validate.stdout | default(''))
     fail_msg: >-
       Migration version mismatch. Expected {{ buildstream_orchestrator_migration_target }},
       got: {{ _pg_migration_validate.stdout | default('unknown') | trim }}
