@@ -63,6 +63,7 @@
     src: "{{ oim_shared_path | default('/opt') }}/omnia/build_stream"
     dest: "{{ hostvars['localhost']['backup_path_from_oim'] }}/buildstream/"
     remote_src: true
+    mode: preserve
   failed_when: false
 
 # ══════════════════════════════════════════════════════════════════

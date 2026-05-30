@@ -179,7 +179,7 @@
     - _action == 'rollback_migration'
     - _bs_running_check.stdout | default('') | trim == 'true'
 
-- name: "Postgres | Run Alembic downgrade to {{ buildstream_orchestrator_migration_target }} (exec)"
+- name: "Postgres | Run Alembic downgrade to {{ buildstream_orchestrator_migration_target }} exec"
   ansible.builtin.command: >
     podman exec {{ buildstream_orchestrator_bs_container }}
     bash -c "cd {{ buildstream_orchestrator_alembic_workdir }} && alembic downgrade {{ buildstream_orchestrator_migration_target }}"
@@ -436,7 +436,9 @@
   ansible.builtin.assert:
     that:
       - buildstream_orchestrator_migration_target in (_pg_migration_validate.stdout | default(''))
-    fail_msg: "Migration version mismatch. Expected {{ buildstream_orchestrator_migration_target }}, got: {{ _pg_migration_validate.stdout | default('unknown') | trim }}"
+    fail_msg: >-
+      Migration version mismatch. Expected {{ buildstream_orchestrator_migration_target }},
+      got: {{ _pg_migration_validate.stdout | default('unknown') | trim }}
     success_msg: "Migration version confirmed at {{ buildstream_orchestrator_migration_target }}"
   when:
     - _action == 'validate_health'

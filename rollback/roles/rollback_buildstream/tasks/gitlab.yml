@@ -172,7 +172,9 @@
 
 - name: "GitLab | Restore — Fail if upgrade commit exists but is not in metadata"
   ansible.builtin.fail:
-    msg: "FATAL: Found upgrade commit '[omnia-upgrade-2.1-to-2.2]' in repository history, but no commit SHA was found in metadata. Manual intervention required to revert."
+    msg: >-
+      FATAL: Found upgrade commit '[omnia-upgrade-2.1-to-2.2]' in repository history,
+      but no commit SHA was found in metadata. Manual intervention required to revert.
   when:
     - _action == 'revert_commits'
     - _gl_upgrade_commit_sha | default('') == ''
