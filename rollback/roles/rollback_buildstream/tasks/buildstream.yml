@@ -237,7 +237,7 @@
   connection: ssh
   when: _action == 'cleanup_full'
 
-- name: "BuildStream | Uninstall — Remove container image {{ buildstream_orchestrator_bs_image }}:{{ buildstream_orchestrator_bs_version }}"
+- name: "BuildStream | Uninstall — Remove container image"
   ansible.builtin.command: "podman rmi {{ buildstream_orchestrator_bs_image }}:{{ buildstream_orchestrator_bs_version }}"
   failed_when: false
   changed_when: true

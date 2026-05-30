@@ -179,7 +179,7 @@
     - _action == 'rollback_migration'
     - _bs_running_check.stdout | default('') | trim == 'true'
 
-- name: "Postgres | Run Alembic downgrade to {{ buildstream_orchestrator_migration_target }} exec"
+- name: "Postgres | Run Alembic downgrade via exec"
   ansible.builtin.command: >
     podman exec {{ buildstream_orchestrator_bs_container }}
     bash -c "cd {{ buildstream_orchestrator_alembic_workdir }} && alembic downgrade {{ buildstream_orchestrator_migration_target }}"
@@ -216,7 +216,7 @@
     _alembic_downgrade_success: >-
       {{ (_alembic_downgrade_exec.rc | default(1) == 0) or
          (_alembic_downgrade_run.rc | default(1) == 0) or
-         (buildstream_orchestrator_migration_target in (_alembic_current.stdout | default(''))) }}
+         (buildstream_orchestrator_migration_target in (_alembic_current.stdout | default('', true))) }}
   when: _action == 'rollback_migration'
 
 - name: "Postgres | Check if postgres container is running (for verify)"

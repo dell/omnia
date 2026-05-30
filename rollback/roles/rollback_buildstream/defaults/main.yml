@@ -35,7 +35,7 @@ buildstream_orchestrator_bs_container: omnia_build_stream
 buildstream_orchestrator_pg_container: omnia_postgres
 
 # BuildStream image version (upgrade was 1.0 → 1.1; rollback removes 1.1)
-buildstream_orchestrator_bs_image: "localhost/omnia_build_stream"
+buildstream_orchestrator_bs_image: "docker.io/dellhpcomniaaisolution/omnia_build_stream"
 buildstream_orchestrator_bs_version: "1.1"
 
 # Quadlet directory
