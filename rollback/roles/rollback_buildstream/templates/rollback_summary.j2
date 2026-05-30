@@ -10,7 +10,7 @@
     BuildStream:    Quadlet restored, service restarted
     PostgreSQL:     Quadlet restored, migration → {{ buildstream_orchestrator_migration_target }}
     Watcher:        Service preserved (2.1 state)
-    GitLab:         Config restored, upgrade commits reverted
+    GitLab:         Config restored, {% if _gl_upgrade_commit_sha | default('') != '' %}upgrade commits reverted{% else %}repository revert skipped{% endif %}
 {% else %}
 
   Uninstall fresh install (fresh_install):

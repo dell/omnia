@@ -17,7 +17,7 @@
 # ============================================================================
 # Available _action values:
 #   revert_commits   — Restore: restore gitlab.rb/secrets, reconfigure, revert
-#                      upgrade commits, restore runner config
+#                      the single upgrade commit via SHA, restore runner config
 #   cleanup_full     — Uninstall: full GitLab uninstall (stop, uninstall packages,
 #                      remove dirs, runner, creds) — matches cleanup_gitlab role
 #   validate_health  — Restore: API check; Uninstall: verify removed
@@ -148,27 +148,81 @@
     - _action == 'revert_commits'
     - _gl_project_search.json | default([]) | length > 0
 
-- name: "GitLab | Restore — Check for upgrade commits"
+- name: "GitLab | Restore — Read upgrade commit SHA from metadata"
+  ansible.builtin.set_fact:
+    _gl_upgrade_commit_sha: "{{ _upgrade_path_metadata.upgrade_gitlab_commit_sha | default('') }}"
+    _gl_upgrade_pre_tag: "{{ _upgrade_path_metadata.upgrade_gitlab_pre_tag | default('') }}"
+  when:
+    - _action == 'revert_commits'
+
+- name: "GitLab | Restore — Check recent commits if SHA is missing from metadata"
   ansible.builtin.uri:
-    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits?search=[Uu]pgrade&per_page=20"
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits?per_page=1"
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ _gl_root_token }}"
     validate_certs: false
     status_code: [200]
-  register: _gl_upgrade_commits
-  no_log: true
+  register: _gl_latest_commits
   failed_when: false
   when:
     - _action == 'revert_commits'
     - _gl_project_id is defined
+    - _gl_upgrade_commit_sha | default('') == ''
 
-- name: "GitLab | Restore — Skip if no upgrade commits found"
-  ansible.builtin.debug:
-    msg: "No upgrade commits found in GitLab project. Skipping commit revert."
+- name: "GitLab | Restore — Fail if upgrade commit exists but is not in metadata"
+  ansible.builtin.fail:
+    msg: "FATAL: Found upgrade commit '[omnia-upgrade-2.1-to-2.2]' in repository history, but no commit SHA was found in metadata. Manual intervention required to revert."
   when:
     - _action == 'revert_commits'
-    - _gl_upgrade_commits.json | default([]) | length == 0
+    - _gl_upgrade_commit_sha | default('') == ''
+    - _gl_latest_commits is defined
+    - _gl_latest_commits.status | default(0) == 200
+    - _gl_latest_commits.json | default([]) | selectattr('message', 'search', '\\[omnia-upgrade-2.1-to-2.2\\]') | list | length > 0
+
+- name: "GitLab | Restore — Skip if no upgrade commit SHA found"
+  ansible.builtin.debug:
+    msg: "INFO: No upgrade commit SHA in metadata, and no upgrade commit found in recent repository history. Skipping repository revert."
+  when:
+    - _action == 'revert_commits'
+    - _gl_upgrade_commit_sha | default('') == ''
+
+- name: "GitLab | Restore — Revert upgrade commit [omnia-upgrade-2.1-to-2.2]"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits/{{ _gl_upgrade_commit_sha }}/revert"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch | default('main') }}"
+    validate_certs: false
+    status_code: [200, 201]
+  register: _gl_revert_result
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_project_id is defined
+    - _gl_upgrade_commit_sha | default('') != ''
+
+- name: "GitLab | Restore — Display revert result"
+  ansible.builtin.debug:
+    msg:
+      - "Reverted upgrade commit: {{ _gl_upgrade_commit_sha[:12] }}"
+      - "Revert commit SHA: {{ _gl_revert_result.json.id[:12] | default('N/A') }}"
+      - "Pre-upgrade tag: {{ _gl_upgrade_pre_tag }}"
+  when:
+    - _action == 'revert_commits'
+    - _gl_revert_result is defined
+    - _gl_revert_result.status | default(0) in [200, 201]
+
+- name: "GitLab | Restore — Warn if revert failed (commit may already be reverted)"
+  ansible.builtin.debug:
+    msg: "WARNING: Could not revert commit {{ _gl_upgrade_commit_sha[:12] | default('?') }}. It may have already been reverted or the branch is protected."
+  when:
+    - _action == 'revert_commits'
+    - _gl_revert_result is defined
+    - _gl_revert_result.status | default(0) not in [200, 201]
 
 - name: "GitLab | Restore — Restore runner configuration from backup"
   ansible.builtin.shell: |
