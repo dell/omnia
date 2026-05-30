@@ -20,7 +20,7 @@
 # Architecture: Single File Per Component + Action Variable Dispatch + Looped
 # Orchestrator. Each component file (buildstream.yml, postgres.yml, gitlab.yml)
 # is dispatched by an _action variable. Loops are used where multiple components
-# share the same _action in the same phase. Phase 5 PATH A is explicitly
+# share the same _action in the same phase. Phase 5 Restore path is explicitly
 # sequential (NO loop) because alembic downgrade must happen BETWEEN postgres
 # start and buildstream start.
 #
@@ -29,13 +29,13 @@
 # The downgrade must execute while the 2.2 image is still available.
 #
 # Phase ordering:
-#   0: Pre-flight (read manifests, determine PATH A/B)
-#   1: Pre-rollback validation (PATH A: verify backups)
-#   2: DB migration rollback (PATH A: alembic downgrade while 2.2 is up)
+#   0: Pre-flight (read manifests, determine Restore/Uninstall path)
+#   1: Pre-rollback validation (Restore: verify backups)
+#   2: DB migration rollback (Restore: alembic downgrade while 2.2 is up)
 #   3: Stop all services (reverse dependency order)
 #   4: Restore/Remove quadlets and configs
 #   5: Reload systemd
-#   6: Start services (PATH A) / Full cleanup (PATH B)
+#   6: Start services (Restore) / Full cleanup (Uninstall)
 #   7: GitLab rollback
 #   8: End-to-end validation
 #   9: Post-rollback status update
@@ -51,7 +51,7 @@
         - build_stream_rollback
         - preflight
 
-    # ── Phase 1: Pre-Rollback Validation (PATH A only) ────────────────────
+    # ── Phase 1: Pre-Rollback Validation (Restore only) ────────────────────
     - name: "Phase 1 | Validate backups"
       ansible.builtin.include_tasks: "{{ validate_item.task_file }}"
       vars:
@@ -67,7 +67,7 @@
         - build_stream_rollback
         - validate
 
-    # ── Phase 2: DB Migration Rollback (PATH A — BEFORE stopping services) ─
+    # ── Phase 2: DB Migration Rollback (Restore — BEFORE stopping services) ─
     # Must run while 2.2 buildstream container/image is still available.
     # The 2.1 image does not have migrations 006/007 downgrade() code.
     # v2.1 was at migration 005; v2.2 added 006 + 007.
@@ -96,7 +96,7 @@
         - stop
 
     # ── Phase 4: Restore/Remove Quadlets and Configs ───────────────────────
-    - name: "Phase 4 | Restore quadlets and configs (PATH A)"
+    - name: "Phase 4 | Restore quadlets and configs (Restore)"
       ansible.builtin.include_tasks: "{{ restore_item.task_file }}"
       vars:
         _action: "{{ restore_item._action }}"
@@ -112,7 +112,7 @@
         - build_stream_rollback
         - restore
 
-    - name: "Phase 4 | Remove quadlets (PATH B)"
+    - name: "Phase 4 | Remove quadlets (Uninstall)"
       ansible.builtin.include_tasks: "{{ remove_item.task_file }}"
       vars:
         _action: remove_quadlet
@@ -138,9 +138,9 @@
         - build_stream_rollback
         - reload
 
-    # ── Phase 6: Start Services (PATH A) / Full Cleanup (PATH B) ──────────
-    # PATH A: DO NOT LOOP — start postgres, then buildstream (dependency order)
-    - name: "Phase 6 | Start postgres (PATH A)"
+    # ── Phase 6: Start Services (Restore) / Full Cleanup (Uninstall) ──────────
+    # Restore: DO NOT LOOP — start postgres, then buildstream (dependency order)
+    - name: "Phase 6 | Start postgres (Restore)"
       ansible.builtin.include_tasks: postgres.yml
       vars:
         _action: start
@@ -149,7 +149,7 @@
         - build_stream_rollback
         - start
 
-    - name: "Phase 6 | Start buildstream (PATH A)"
+    - name: "Phase 6 | Start buildstream (Restore)"
       ansible.builtin.include_tasks: buildstream.yml
       vars:
         _action: start
@@ -158,8 +158,8 @@
         - build_stream_rollback
         - start
 
-    # PATH B: Full cleanup (containers, dirs, images, watcher, automation, omnia.target)
-    - name: "Phase 6 | Full BuildStream cleanup (PATH B)"
+    # Uninstall: Full cleanup (containers, dirs, images, watcher, automation, omnia.target)
+    - name: "Phase 6 | Full BuildStream cleanup (Uninstall)"
       ansible.builtin.include_tasks: buildstream.yml
       vars:
         _action: cleanup_full
@@ -168,7 +168,7 @@
         - build_stream_rollback
         - cleanup
 
-    - name: "Phase 6 | Full Postgres cleanup (PATH B)"
+    - name: "Phase 6 | Full Postgres cleanup (Uninstall)"
       ansible.builtin.include_tasks: postgres.yml
       vars:
         _action: cleanup_full
@@ -178,7 +178,7 @@
         - cleanup
 
     # ── Phase 7: GitLab Rollback ───────────────────────────────────────────
-    - name: "Phase 7 | GitLab rollback — revert commits + restore config (PATH A)"
+    - name: "Phase 7 | GitLab rollback — revert commits + restore config (Restore)"
       ansible.builtin.include_tasks: gitlab.yml
       vars:
         _action: revert_commits
@@ -187,7 +187,7 @@
         - build_stream_rollback
         - gitlab
 
-    - name: "Phase 7 | GitLab rollback — full uninstall (PATH B)"
+    - name: "Phase 7 | GitLab rollback — full uninstall (Uninstall)"
       ansible.builtin.include_tasks: gitlab.yml
       vars:
         _action: cleanup_full

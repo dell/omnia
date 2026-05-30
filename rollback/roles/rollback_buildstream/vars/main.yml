@@ -47,7 +47,7 @@ gitlab_backup_config_subpath: configs/gitlab/gitlab.rb
 gitlab_backup_secrets_subpath: configs/gitlab/gitlab-secrets.json
 
 # BuildStream cleanup directories (from oim_cleanup role vars)
-# Used by PATH B to remove all buildstream artifacts
+# Used by Uninstall path to remove all buildstream artifacts
 build_stream_cleanup_directories:
   - "{{ omnia_nfs_share }}/log/build_stream"
   - "{{ omnia_nfs_share }}/playbook_queue"

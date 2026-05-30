@@ -281,6 +281,15 @@
         - rollback_manifest.component_status[item] in ['completed', 'skipped']
 
 # ──────────────────────────────────────────────────────────────────────
+# Load credentials (provision_password etc.) from omnia_config_credentials.yml
+# Mirrors upgrade pattern: ../utils/credential_utility/get_config_credentials.yml
+# Read-only — no interactive prompts, no re-encryption.
+# ──────────────────────────────────────────────────────────────────────
+- name: Load rollback credentials
+  ansible.builtin.import_playbook: playbooks/load_rollback_credentials.yml
+  tags: [build_stream, buildstream, oim]
+
+# ──────────────────────────────────────────────────────────────────────
 # Rollback sub-flows (reverse order of upgrade):
 #   slurm → telemetry → k8s → build_stream → oim
 # Each reads rollback_manifest and skips if already 'completed'.

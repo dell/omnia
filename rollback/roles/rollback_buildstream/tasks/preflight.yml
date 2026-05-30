@@ -16,7 +16,7 @@
 # preflight.yml — Phase 0: Pre-flight Checks
 # ============================================================================
 # Reads rollback manifest, resolves backup_dir, reads upgrade_path from the
-# metadata file written during upgrade (validate.yml), determines PATH A or B.
+# metadata file written during upgrade (validate.yml), determines Restore or Uninstall path.
 # Runs on localhost (omnia_core container).
 # ============================================================================
 
@@ -93,7 +93,7 @@
       - "  BuildStream Rollback — Phase 0 Pre-flight Complete"
       - "============================================================"
       - "Rollback path: {{ build_stream_upgrade_path | upper }}"
-      - "  {{ 'PATH A: Restore from backup (upgrade_existing)' if build_stream_upgrade_path == 'upgrade_existing' else 'PATH B: Remove fresh install' }}"
+      - "  {{ 'Restore: Restore from backup (upgrade_existing)' if build_stream_upgrade_path == 'upgrade_existing' else 'Uninstall: Remove fresh install (fresh_install)' }}"
       - "Backup dir: {{ backup_dir }}"
       - "============================================================"
 
@@ -107,3 +107,7 @@
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
   failed_when: false
+
+# Note: Credentials (provision_password etc.) are loaded at the top level
+# by rollback.yml → playbooks/load_rollback_credentials.yml
+# (mirrors upgrade pattern: utils/credential_utility/get_config_credentials.yml)

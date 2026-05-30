@@ -42,7 +42,7 @@ buildstream_orchestrator_bs_version: "1.1"
 buildstream_orchestrator_quadlet_dir: /etc/containers/systemd
 
 # Database
-buildstream_orchestrator_pg_user: "{{ hostvars['localhost']['postgres_user'] | default('postgres') }}"
+buildstream_orchestrator_pg_user: "{{ hostvars['localhost']['postgres_user'] | default('admin') }}"
 buildstream_orchestrator_pg_db: build_stream_db
 
 # Alembic migration — v2.1 was at 005, v2.2 added 006 + 007
@@ -69,7 +69,7 @@ buildstream_orchestrator_watcher_service_file: /etc/systemd/system/playbook_watc
 # omnia.target
 buildstream_orchestrator_omnia_target: /etc/systemd/system/omnia.target
 
-# Cleanup (PATH B) — remove container images after uninstall
+# Cleanup (Uninstall) — remove container images after uninstall
 buildstream_orchestrator_cleanup_images: true
 
 # GitLab
