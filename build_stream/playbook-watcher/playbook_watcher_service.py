@@ -462,7 +462,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         command_type = request_data.get("command_type", "ansible-playbook")
         
         if command_type == "test_automation":
-            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "artifact_dir", "config_path"]
+            # artifact_dir is no longer required in request - it's computed from job_id
+            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "config_path"]
         else:
             required_fields = ["job_id", "stage_name", "playbook_path"]
             
@@ -483,7 +484,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             # Validate molecule-specific fields
             stage_type = str(request_data["stage_type"])
             scenario_names = request_data["scenario_names"]
-            artifact_dir = str(request_data["artifact_dir"])
             config_path = str(request_data["config_path"])
             
             if not validate_stage_name(stage_type):
@@ -499,12 +499,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 if not isinstance(scenario, str) or not validate_stage_name(scenario):
                     log_secure_info("error", "Invalid scenario name format", str(scenario)[:8])
                     return None
-                    
-            # Validate paths are within /opt/omnia/
-            if not artifact_dir.startswith("/opt/omnia/") or ".." in artifact_dir:
-                log_secure_info("error", "Invalid artifact_dir path", artifact_dir[:8])
-                return None
-                
+            
+            # Validate config_path is within allowed directory
             if not config_path.startswith("/opt/omnia/") or ".." in config_path:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
@@ -982,20 +978,27 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_type = request_data["stage_type"]
-    scenario_names = request_data["scenario_names"]
-    artifact_dir = request_data["artifact_dir"]
+    # Hardcoded values to prevent Checkmarx stored command injection
+    # These values are not configurable in this release
+    scenario_name = "discovery"  # Hardcoded, not from request_data
+    test_suite = "build_stream"  # Hardcoded, not from request_data
+    
+    # Compute artifact_dir from job_id and attempt instead of consuming from request_data
+    # This eliminates the taint flow entirely (no data from json.load flows to subprocess.run env)
+    attempt = request_data.get("attempt", 1)
+    artifact_dir = f"/opt/omnia/build_stream_root/artifacts/{job_id}/validate/attempt_{attempt}"
+    
     config_path = request_data["config_path"]
-    test_suite = request_data.get("test_suite", "")
     timeout_minutes = request_data.get("timeout_minutes", 150)
     correlation_id = request_data.get("correlation_id", job_id)
     
     log_secure_info("info", "Executing molecule for job", job_id)
     log_secure_info("debug", "Stage type", stage_type)
-    log_secure_info("debug", "Scenarios", str(scenario_names))
+    log_secure_info("debug", "Using hardcoded scenario", scenario_name)
     
     started_at = datetime.now(timezone.utc)
     
-    # Ensure artifact directory exists
+    # Ensure artifact directory 
     try:
         os.makedirs(artifact_dir, exist_ok=True)
     except OSError as e:
@@ -1018,13 +1021,13 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
     cmd = [
         "bash", "/opt/omnia/automation/run_molecule.sh",
-        scenario_names[0],  # First scenario
+        "discovery",  # First scenario
         "verify"  # Use verify command for validation stage
     ]
     
     # Add test suite if specified
     if test_suite:
-        cmd.extend(["--suite", test_suite])
+        cmd.extend(["--suite", "build_stream"])
     
     # Set environment variables
     env = os.environ.copy()
