@@ -136,26 +136,6 @@
   connection: ssh
   when: _action == 'start'
 
-- name: "BuildStream | Read HOST from backup quadlet file"
-  ansible.builtin.shell:
-    cmd: "grep '^Environment=HOST=' {{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }} | cut -d'=' -f3"
-  register: _bs_host_from_backup
-  changed_when: false
-  delegate_to: localhost
-  connection: local
-  failed_when: false
-  when: _action == 'start'
-
-- name: "BuildStream | Set IP from backup quadlet"
-  ansible.builtin.set_fact:
-    _bs_actual_host_ip: "{{ _bs_host_from_backup.stdout | trim }}"
-  delegate_to: localhost
-  connection: local
-  when:
-    - _action == 'start'
-    - _bs_host_from_backup.stdout is defined
-    - _bs_host_from_backup.stdout | trim != ''
-
 - name: "BuildStream | Wait for health check"
   ansible.builtin.uri:
     url: "https://{{ _bs_actual_host_ip | default(buildstream_orchestrator_bs_host_ip) }}:{{ buildstream_orchestrator_bs_port }}/health"
@@ -327,7 +307,7 @@
 # ── validate_health ──────────────────────────────────────────────────────────
 - name: "BuildStream | Validate API health (Restore)"
   ansible.builtin.uri:
-    url: "https://{{ buildstream_orchestrator_bs_host_ip }}:{{ buildstream_orchestrator_bs_port }}/health"
+    url: "https://{{ _bs_actual_host_ip | default(buildstream_orchestrator_bs_host_ip) }}:{{ buildstream_orchestrator_bs_port }}/health"
     validate_certs: false
     status_code: 200
   register: _bs_validate_health

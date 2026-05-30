@@ -57,7 +57,7 @@ build_stream_cleanup_directories:
   - "{{ omnia_nfs_share }}/build_stream"
 
 # Automation framework paths (from oim_cleanup role vars)
-automation_base_dir: "{{ omnia_nfs_share }}/automation"
+automation_base_dir: "/opt/omnia/automation"
 automation_venv_dir: "{{ automation_base_dir }}/.venv"
 automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
 

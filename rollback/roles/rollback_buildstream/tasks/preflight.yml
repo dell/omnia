@@ -102,6 +102,22 @@
     name: _build_stream_config
   failed_when: false
 
+- name: "Phase 0 | Read HOST from backup quadlet file (Restore only)"
+  ansible.builtin.shell:
+    cmd: "grep '^Environment=HOST=' {{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }} | cut -d'=' -f3"
+  register: _bs_host_from_backup
+  changed_when: false
+  failed_when: false
+  when: build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "Phase 0 | Set BuildStream actual IP fact"
+  ansible.builtin.set_fact:
+    _bs_actual_host_ip: "{{ _bs_host_from_backup.stdout | trim }}"
+  when:
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _bs_host_from_backup.stdout is defined
+    - _bs_host_from_backup.stdout | trim != ''
+
 - name: "Phase 0 | Load gitlab_config.yml for gitlab_host and project details"
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
