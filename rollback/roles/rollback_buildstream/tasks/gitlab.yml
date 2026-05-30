@@ -187,6 +187,39 @@
     - _action == 'revert_commits'
     - _gl_upgrade_commit_sha | default('') == ''
 
+- name: "GitLab | Restore — Check if upgrade commit was already reverted"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits?search={{ _gl_upgrade_commit_sha }}&per_page=2"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gl_revert_search
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_project_id is defined
+    - _gl_upgrade_commit_sha | default('') != ''
+
+- name: "GitLab | Restore — Analyze if already reverted"
+  ansible.builtin.set_fact:
+    _gl_already_reverted: >-
+      {{ _gl_revert_search.json | default([])
+         | rejectattr('id', 'equalto', _gl_upgrade_commit_sha)
+         | selectattr('message', 'search', _gl_upgrade_commit_sha)
+         | list | length > 0 }}
+  when:
+    - _action == 'revert_commits'
+    - _gl_upgrade_commit_sha | default('') != ''
+
+- name: "GitLab | Restore — Log if already reverted"
+  ansible.builtin.debug:
+    msg: "SUCCESS: Upgrade commit {{ _gl_upgrade_commit_sha[:12] }} was already reverted. Skipping revert API call."
+  when:
+    - _action == 'revert_commits'
+    - _gl_already_reverted | default(false) | bool
+
 - name: "GitLab | Restore — Revert upgrade commit [omnia-upgrade-2.1-to-2.2]"
   ansible.builtin.uri:
     url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits/{{ _gl_upgrade_commit_sha }}/revert"
@@ -204,6 +237,7 @@
     - _action == 'revert_commits'
     - _gl_project_id is defined
     - _gl_upgrade_commit_sha | default('') != ''
+    - not (_gl_already_reverted | default(false) | bool)
 
 - name: "GitLab | Restore — Display revert result"
   ansible.builtin.debug:
@@ -221,6 +255,7 @@
     msg: "WARNING: Could not revert commit {{ _gl_upgrade_commit_sha[:12] | default('?') }}. It may have already been reverted or the branch is protected."
   when:
     - _action == 'revert_commits'
+    - not (_gl_already_reverted | default(false) | bool)
     - _gl_revert_result is defined
     - _gl_revert_result.status | default(0) not in [200, 201]
 
