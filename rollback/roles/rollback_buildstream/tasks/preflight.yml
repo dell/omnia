@@ -42,9 +42,13 @@
   ansible.builtin.set_fact:
     backup_dir: "{{ _rollback_manifest.backup_dir }}"
 
+- name: "Phase 0 | Set backup path for OIM host perspective"
+  ansible.builtin.set_fact:
+    backup_path_from_oim: "{{ backup_dir | regex_replace('^/opt/omnia', omnia_nfs_share) }}"
+
 - name: "Phase 0 | Check for upgrade path metadata file"
   ansible.builtin.stat:
-    path: "{{ backup_dir }}/{{ upgrade_path_metadata_subpath }}"
+    path: "{{ backup_dir }}/{{ buildstream_upgrade_metadata_subpath }}"
   register: _upgrade_path_metadata_stat
 
 - name: "Phase 0 | Skip if metadata file does not exist (BuildStream was never upgraded)"
@@ -62,13 +66,13 @@
         mode: '0644'
     - name: "Phase 0 | End play — nothing to rollback"
       ansible.builtin.debug:
-        msg: "No upgrade_path_metadata.yml found at {{ backup_dir }}. BuildStream was never upgraded. Marking as skipped."
+        msg: "No buildstream_upgrade_metadata.yml found at {{ backup_dir }}. BuildStream was never upgraded. Marking as skipped."
     - name: "Phase 0 | End play"
       ansible.builtin.meta: end_play
 
 - name: "Phase 0 | Read upgrade path metadata"
   ansible.builtin.include_vars:
-    file: "{{ backup_dir }}/{{ upgrade_path_metadata_subpath }}"
+    file: "{{ backup_dir }}/{{ buildstream_upgrade_metadata_subpath }}"
     name: _upgrade_path_metadata
 
 - name: "Phase 0 | Set upgrade path fact"
@@ -89,13 +93,8 @@
 - name: "Phase 0 | Display rollback path"
   ansible.builtin.debug:
     msg:
-      - "============================================================"
-      - "  BuildStream Rollback — Phase 0 Pre-flight Complete"
-      - "============================================================"
-      - "Rollback path: {{ build_stream_upgrade_path | upper }}"
-      - "  {{ 'Restore: Restore from backup (upgrade_existing)' if build_stream_upgrade_path == 'upgrade_existing' else 'Uninstall: Remove fresh install (fresh_install)' }}"
+      - "Rollback path: {{ 'Restore to 2.1 from backup (during upgrade, buildstream had taken upgrade_existing path)' if build_stream_upgrade_path == 'upgrade_existing' else 'Remove fresh installation (during upgrade, buildstream had taken fresh_install path)' }}"
       - "Backup dir: {{ backup_dir }}"
-      - "============================================================"
 
 - name: "Phase 0 | Load build_stream_config.yml for gitlab_host"
   ansible.builtin.include_vars:

@@ -22,7 +22,7 @@
 #          containers, quadlets, watcher, automation, GitLab uninstall.
 #
 # The rollback path is determined from metadata stored during upgrade at:
-#   {backup_dir}/upgrade_path_metadata.yml
+#   {backup_dir}/buildstream_upgrade_metadata.yml
 # (Written by upgrade/roles/upgrade_build_stream/tasks/validate.yml)
 #
 # The rollback_buildstream role handles all phases (0–9) including:
@@ -40,6 +40,13 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: BuildStream Rollback Banner
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  BuildStream Rollback (started)"
+          - "============================================================"
+
     - name: Execute BuildStream rollback role
       ansible.builtin.include_role:
         name: "{{ playbook_dir }}/../roles/rollback_buildstream"

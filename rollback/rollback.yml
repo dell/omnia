@@ -307,17 +307,8 @@
   tags: [k8s]
 
 - name: Rollback BuildStream upgrade / enablement
-  hosts: localhost
-  connection: local
-  gather_facts: false
+  ansible.builtin.import_playbook: playbooks/rollback_build_stream.yml
   tags: [buildstream, build_stream]
-  tasks:
-    - name: Execute BuildStream rollback role
-      ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/roles/rollback_buildstream"
-        apply:
-          tags: [buildstream, build_stream]
-      tags: [buildstream, build_stream]
 
 - name: Rollback OIM (includes OpenCHAMI) — rolled back last
   ansible.builtin.import_playbook: playbooks/rollback_oim.yml

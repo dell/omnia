@@ -40,7 +40,7 @@ postgres_db_name: build_stream_db
 buildstream_backup_quadlet_subpath: buildstream/omnia_build_stream.container.bak
 postgres_backup_quadlet_subpath: buildstream/omnia_postgres.container.bak
 postgres_backup_sql_subpath: buildstream/buildstream_db_backup.sql
-upgrade_path_metadata_subpath: upgrade_path_metadata.yml
+buildstream_upgrade_metadata_subpath: buildstream_upgrade_metadata.yml
 
 # GitLab backup subpaths (from upgrade/playbooks/tasks/upgrade_gitlab_config.yml)
 gitlab_backup_config_subpath: configs/gitlab/gitlab.rb

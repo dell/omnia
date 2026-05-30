@@ -95,6 +95,18 @@
         backup_dir: "{{ (raw_manifest.content | b64decode | from_yaml).backup_dir }}"
         cacheable: true
 
+    - name: Load OIM metadata for path resolution
+      ansible.builtin.include_vars:
+        file: /opt/omnia/.data/oim_metadata.yml
+        name: _oim_meta
+      no_log: true
+
+    - name: Set backup path variables for core and OIM perspectives
+      ansible.builtin.set_fact:
+        backup_path_from_core: "{{ backup_dir }}"
+        backup_path_from_oim: "{{ backup_dir | regex_replace('^/opt/omnia', _oim_meta.oim_shared_path ~ '/omnia') }}"
+        cacheable: true
+
     - name: Skip if build_stream already completed
       ansible.builtin.meta: end_play
       when: manifest.component_status[component_name] | default('pending') == 'completed'
@@ -264,7 +276,6 @@
   connection: ssh
   gather_facts: true
   vars:
-    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
   tasks:
     - name: Skip BuildStream execution when not enabled

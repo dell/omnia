@@ -31,7 +31,7 @@
 # ── validate_backup ──────────────────────────────────────────────────────────
 - name: "BuildStream | Validate backup quadlet exists"
   ansible.builtin.stat:
-    path: "{{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }}"
+    path: "{{ backup_path_from_oim }}/{{ buildstream_backup_quadlet_subpath }}"
   register: _bs_quadlet_backup_stat
   delegate_to: oim
   delegate_facts: true
@@ -40,7 +40,7 @@
 
 - name: "BuildStream | Fail if backup quadlet missing"
   ansible.builtin.fail:
-    msg: "BuildStream backup quadlet not found: {{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }}"
+    msg: "BuildStream backup quadlet not found: {{ backup_path_from_oim }}/{{ buildstream_backup_quadlet_subpath }}"
   when:
     - _action == 'validate_backup'
     - not (_bs_quadlet_backup_stat.stat.exists | default(false))
@@ -72,7 +72,7 @@
 # ── restore_quadlet ──────────────────────────────────────────────────────────
 - name: "BuildStream | Restore quadlet from backup"
   ansible.builtin.copy:
-    src: "{{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }}"
+    src: "{{ backup_path_from_oim }}/{{ buildstream_backup_quadlet_subpath }}"
     dest: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_build_stream.container"
     remote_src: true
     owner: root
@@ -94,6 +94,19 @@
     mode: '0644'
   failed_when: false
   when: _action == 'restore_config'
+
+# ── restore_source ───────────────────────────────────────────────────────────
+- name: "BuildStream | Restore build_stream source directory from backup"
+  ansible.builtin.copy:
+    src: "{{ backup_path_from_oim }}/buildstream/build_stream"
+    dest: "{{ omnia_nfs_share }}/"
+    remote_src: true
+    mode: preserve
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  failed_when: false
+  when: _action == 'restore_source'
 
 # ── remove_quadlet ───────────────────────────────────────────────────────────
 - name: "BuildStream | Remove quadlet (Uninstall)"
@@ -125,7 +138,7 @@
 
 - name: "BuildStream | Read HOST from backup quadlet file"
   ansible.builtin.shell:
-    cmd: "grep '^Environment=HOST=' {{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }} | cut -d'=' -f2"
+    cmd: "grep '^Environment=HOST=' {{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }} | cut -d'=' -f3"
   register: _bs_host_from_backup
   changed_when: false
   delegate_to: localhost

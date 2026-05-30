@@ -34,7 +34,7 @@
 # ── validate_backup ──────────────────────────────────────────────────────────
 - name: "Postgres | Validate backup quadlet exists"
   ansible.builtin.stat:
-    path: "{{ backup_dir }}/{{ postgres_backup_quadlet_subpath }}"
+    path: "{{ backup_path_from_oim }}/{{ postgres_backup_quadlet_subpath }}"
   register: _pg_quadlet_backup_stat
   delegate_to: oim
   delegate_facts: true
@@ -43,7 +43,7 @@
 
 - name: "Postgres | Validate backup SQL dump exists"
   ansible.builtin.stat:
-    path: "{{ backup_dir }}/{{ postgres_backup_sql_subpath }}"
+    path: "{{ backup_path_from_oim }}/{{ postgres_backup_sql_subpath }}"
   register: _pg_sql_backup_stat
   delegate_to: oim
   delegate_facts: true
@@ -53,7 +53,7 @@
 - name: "Postgres | Fail if backup files missing"
   ansible.builtin.fail:
     msg: >-
-      Postgres backup file(s) missing in {{ backup_dir }}/buildstream/:
+      Postgres backup file(s) missing in {{ backup_path_from_oim }}/buildstream/:
       quadlet={{ _pg_quadlet_backup_stat.stat.exists | default(false) }},
       sql={{ _pg_sql_backup_stat.stat.exists | default(false) }}
   when:
@@ -88,7 +88,7 @@
 # ── restore_quadlet ──────────────────────────────────────────────────────────
 - name: "Postgres | Restore quadlet from backup"
   ansible.builtin.copy:
-    src: "{{ backup_dir }}/{{ postgres_backup_quadlet_subpath }}"
+    src: "{{ backup_path_from_oim }}/{{ postgres_backup_quadlet_subpath }}"
     dest: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_postgres.container"
     remote_src: true
     owner: root
@@ -301,7 +301,7 @@
       ansible.builtin.shell: >
         podman exec -i {{ buildstream_orchestrator_pg_container }}
         psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
-        < {{ backup_dir }}/{{ postgres_backup_sql_subpath }}
+        < {{ backup_path_from_oim }}/{{ postgres_backup_sql_subpath }}
       changed_when: true
       failed_when: false
       delegate_to: oim
