@@ -989,7 +989,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     artifact_dir = f"/opt/omnia/build_stream_root/artifacts/{job_id}/validate/attempt_{attempt}"
     
     config_path = request_data["config_path"]
-    timeout_minutes = request_data.get("timeout_minutes", 150)
+    timeout_minutes = 150  # Hardcoded default, not from request_data
     correlation_id = request_data.get("correlation_id", job_id)
     
     log_secure_info("info", "Executing molecule for job", job_id)
