@@ -682,9 +682,12 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_name = request_data["stage_name"]
-    # Use the full_playbook_path which is the mapped full path from playbook name
-    playbook_path = request_data["full_playbook_path"]
-    playbook_name = request_data["playbook_name"]  # Original playbook name for logging
+    # Perform a fresh whitelist lookup to break taint chain
+    # Reading from request_data["full_playbook_path"] is tainted because the dict comes from json.load()
+    playbook_name = str(request_data.get("playbook_name", request_data.get("playbook_path", "")))
+    playbook_path = map_playbook_name_to_path(playbook_name)
+    if playbook_path is None:
+        raise ValueError(f"Invalid playbook name: {playbook_name[:8]}")
     # Use default timeout to prevent potential injection from user input
     timeout_minutes = DEFAULT_TIMEOUT_MINUTES
     correlation_id = request_data.get("correlation_id", job_id)
