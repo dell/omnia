@@ -76,7 +76,7 @@
 # Each source can be independently enabled/disabled.
 # Sources produce telemetry data that flows through bridges to sinks.
 #
-# Supported sources: idrac, ldms, dcgm, powerscale
+# Supported sources: idrac, ldms, dcgm, powerscale, ufm, vast, ome
 
 telemetry_sources:
 
@@ -191,6 +191,30 @@ telemetry_sources:
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
+
+  # --------------------------------------------------------------------------
+  # OME — Dell OpenManage Enterprise Telemetry
+  # --------------------------------------------------------------------------
+  # Collects: Server inventory, health, alerts, and firmware metrics from OME
+  # Requires: Dell OpenManage Enterprise configured to publish to Kafka
+  # Data path: OME → Kafka 'ome.*' topics → Vector-OME → victoria_metrics/victoria_logs
+  #
+  # NOTE: OME does NOT push directly to VictoriaMetrics. OME publishes data to
+  # Kafka topics, and the Vector-OME bridge consumes from Kafka and routes to
+  # Victoria sinks. If OME source is disabled, Vector-OME bridge must also be disabled.
+  ome:
+    # Enable or disable OME metrics collection
+    # Default: true
+    metrics_enabled: true
+
+    # Enable or disable OME logs collection
+    # Default: true
+    logs_enabled: true
+
+    # OME only supports Kafka collection (no direct victoria_metrics/victoria_logs path)
+    # Vector-OME bridge consumes from Kafka and routes to victoria_metrics/victoria_logs
+    collection_targets:
+      - "kafka"
 
 
 # ============================================================================

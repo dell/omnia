@@ -4,9 +4,9 @@ exec > >(tee -a "$LOGFILE") 2>&1
 
 echo "===== Configuring UCX / OpenMPI environment (Slurm node) ====="
 
-CLIENT_MOUNT="{{ client_mount_path }}"
-UCX_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
-OPENMPI_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+CLIENT_MOUNT="/hpc_tools"
+UCX_PREFIX="/hpc_tools/benchmarks/ucx"
+OPENMPI_PREFIX="/hpc_tools/benchmarks/openmpi"
 
 PROFILE_DIR="/etc/profile.d"
 

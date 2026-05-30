@@ -1,0 +1,117 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 2b: Clean up stale MetalLB IPs after cluster stop ────────
+# When kubelet stops, MetalLB speaker pods die but the LoadBalancer
+# IPs they bound to the node interfaces persist. If left in place,
+# these stale IPs can cause a MetalLB split-brain after restart
+# (two nodes answering ARP for the same IP). This stage removes all
+# MetalLB-assigned secondary IPs from every node so speakers can
+# cleanly re-announce them after the cluster comes back up.
+#
+# The kube-vip VIP is intentionally left alone here — it is handled
+# separately by fix_vip_split_brain.yml after the control plane
+# restarts.
+
+- name: Skip cleanup_metallb_ips if already completed
+  ansible.builtin.debug:
+    msg: "cleanup_metallb_ips already completed — skipping."
+  when: (rollback_status.stages.cleanup_metallb_ips.status | default('pending')) == 'completed'
+
+- name: Clean up stale MetalLB IPs
+  when: (rollback_status.stages.cleanup_metallb_ips.status | default('pending')) != 'completed'
+  block:
+    - name: Mark cleanup_metallb_ips in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            cleanup_metallb_ips:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Remove stale secondary IPs on each node ────────────────────
+    # Uses a single shell command per node: finds all secondary IPs,
+    # skips the kube-vip VIP, and deletes the rest.
+    - name: Remove stale MetalLB IPs on each node
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          removed=0
+          while IFS=' ' read -r iface cidr; do
+            ip addr del "$cidr" dev "$iface" 2>/dev/null && removed=$((removed + 1))
+          done < <(ip -o addr show scope global secondary \
+                   | awk '{print $2, $4}' \
+                   | grep -v '{{ kube_vip }}')
+          echo "$removed"
+        executable: /bin/bash
+      delegate_to: "{{ item }}"
+      register: _metallb_cleanup
+      changed_when: (_metallb_cleanup.stdout | default('0') | int) > 0
+      failed_when: false
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Display results ─────────────────────────────────────────────
+    - name: Display MetalLB cleanup results
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: removed {{ item.stdout | default('0') }} stale MetalLB IP(s)"
+      loop: "{{ _metallb_cleanup.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ── Verify no stale IPs remain ──────────────────────────────────
+    - name: Verify no stale MetalLB IPs remain
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          ip -o addr show scope global secondary
+          | grep -v '{{ kube_vip }}'
+          | awk '{print $4}'
+        executable: /bin/bash
+      delegate_to: "{{ item }}"
+      register: _verify_cleanup
+      changed_when: false
+      failed_when: false
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Warn if stale IPs remain
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Stale secondary IPs still present on {{ item.item }}:
+          {{ item.stdout_lines | join(', ') }}
+      loop: "{{ _verify_cleanup.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stdout_lines | default([]) | length > 0
+
+    # ── Mark completed ──────────────────────────────────────────────
+    - name: Mark cleanup_metallb_ips completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            cleanup_metallb_ips:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display cleanup_metallb_ips completion
+      ansible.builtin.debug:
+        msg: >-
+          {{ msg_metallb_cleanup_complete }}

@@ -1,0 +1,58 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 4: Restore /etc/kubernetes/ configs on all CPs ──────────
+# Extracts the backed-up tar.gz from NFS into /etc/kubernetes/ on
+# each control plane. Workers do NOT need config restore — they only
+# have kubelet.conf, pki/ca.crt, and an empty manifests/ dir, none
+# of which are version-specific.
+
+- name: Skip restore_k8s_configs if already completed
+  ansible.builtin.debug:
+    msg: "restore_k8s_configs already completed — skipping."
+  when: (rollback_status.stages.restore_k8s_configs.status | default('pending')) == 'completed'
+
+- name: Restore K8s configs
+  when: (rollback_status.stages.restore_k8s_configs.status | default('pending')) != 'completed'
+  block:
+    - name: Mark restore_k8s_configs in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            restore_k8s_configs:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Restore configs on each CP
+      ansible.builtin.include_tasks: restore_k8s_configs_single_cp.yml
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        loop_var: _cp_node
+        label: "{{ _cp_node }}"
+
+    - name: Mark restore_k8s_configs completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            restore_k8s_configs:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display restore_k8s_configs completion
+      ansible.builtin.debug:
+        msg: "K8s configs restored on all {{ all_cp_nodes | length }} control planes."

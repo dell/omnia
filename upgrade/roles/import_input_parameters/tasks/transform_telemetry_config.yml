@@ -238,6 +238,15 @@
          | default(backup_telemetry_powerscale_config.powerscale_log_enabled
          | default(telemetry_default_powerscale_log_enabled)) }}
 
+- name: Normalize OME source values from backup (new in 2.2)
+  ansible.builtin.set_fact:
+    telemetry_ome_metrics_enabled: >-
+      {{ (backup_telemetry_sources.ome | default({})).metrics_enabled
+         | default(telemetry_default_ome_metrics_enabled) }}
+    telemetry_ome_logs_enabled: >-
+      {{ (backup_telemetry_sources.ome | default({})).logs_enabled
+         | default(telemetry_default_ome_logs_enabled) }}
+
 - name: Normalize UFM source values from backup (new in 2.2)
   ansible.builtin.set_fact:
     telemetry_ufm_metrics_enabled: >-
@@ -353,6 +362,8 @@
     telemetry_dcgm_support: "{{ telemetry_dcgm_support }}"
     telemetry_powerscale_metrics_enabled: "{{ telemetry_powerscale_metrics_enabled }}"
     telemetry_powerscale_logs_enabled: "{{ telemetry_powerscale_logs_enabled }}"
+    telemetry_ome_metrics_enabled: "{{ telemetry_ome_metrics_enabled }}"
+    telemetry_ome_logs_enabled: "{{ telemetry_ome_logs_enabled }}"
     telemetry_vector_ldms_metrics_enabled: "{{ telemetry_vector_ldms_metrics_enabled }}"
     telemetry_vector_ome_metrics_enabled: "{{ telemetry_vector_ome_metrics_enabled }}"
     telemetry_vector_ome_logs_enabled: "{{ telemetry_vector_ome_logs_enabled }}"
@@ -422,8 +433,9 @@
       - victoria_configurations → telemetry_sinks.victoria_metrics
       - kafka_configurations → telemetry_sinks.kafka (topic_partitions converted to dict)
       - ldms_* ports/samplers → ldms_configurations
-      - Added new sections: telemetry_sources (ldms, dcgm, powerscale, ufm, vast), telemetry_bridges, telemetry_sinks.victoria_logs
+      - Added new sections: telemetry_sources (ldms, dcgm, powerscale, ufm, ome, vast) telemetry_bridges, telemetry_sinks.victoria_logs
       - Added telemetry_sources.ufm (metrics_enabled, logs_enabled, collection_targets) with defaults
+      - Added telemetry_sources.ome (metrics_enabled, logs_enabled, collection_targets=kafka) with defaults
       - Added ufm_configuration section (ufm_endpoint, ufm_metrics_port, scrape_interval, tls_mode, auth_mode)
       - Added telemetry_sources.vast (metrics_enabled, logs_enabled, collection_targets) with defaults
       - Added vast_configuration section (vast_endpoint, vast_metrics_port, metrics_path, scrape_interval, tls_mode, auth_mode)

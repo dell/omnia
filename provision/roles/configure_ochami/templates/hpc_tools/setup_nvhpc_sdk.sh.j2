@@ -4,25 +4,13 @@ exec > >(tee -a "$LOGFILE") 2>&1
 
 echo "===== NVHPC SDK setup (mount + wait) ====="
 
-PARENT_NFS="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk"
-PARENT_MOUNT="/shared-nvhpc-sdk"
+PARENT_NFS="/hpc_tools/nvidia_sdk"
+PARENT_MOUNT="/hpc_tools/nvidia_sdk"
 
 NVHPC_NFS_SHARE="$PARENT_MOUNT/nvhpc"
 NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
 
-mkdir -p "$PARENT_MOUNT"
-
-
-if ! mountpoint -q "$PARENT_MOUNT"; then
-    mount -t nfs "$PARENT_NFS" "$PARENT_MOUNT"
-fi
-
-if ! mountpoint -q "$PARENT_MOUNT"; then
-    echo "[ERROR] Failed to mount NVHPC parent export"
-    exit 1
-fi
-
-echo "[INFO] Parent NVHPC export mounted"
+echo "[INFO] Using NVHPC parent path: $PARENT_MOUNT"
 
 mkdir -p "$NVHPC_NFS_SHARE"
 # 3. Ensure fstab entry exists (bind mount, NOT NFS)

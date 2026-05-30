@@ -51,7 +51,7 @@
             {{ ochami_x86_64_image | join(' ') }} \
             {{ ochami_base_command | join(' ') }} \
             > '{{ openchami_x86_64_base_image_log_path }}' 2>&1
-      async: 3600
+      async: "{{ job_async }}"
       poll: 0
       register: base_image_build
       changed_when: true

@@ -17,4 +17,4 @@
   ansible.builtin.include_tasks: slurm_backup.yml
 
 - name: Task to reboot slurm nodes
-  ansible.builtin.include_tasks: reboot_slurm_nodes.yml
+  ansible.builtin.include_tasks: check_slurm_cluster.yml

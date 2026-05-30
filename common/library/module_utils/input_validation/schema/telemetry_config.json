@@ -150,9 +150,38 @@
             }
           },
           "required": ["metrics_enabled", "collection_targets"]
+        },
+        "ome": {
+          "type": "object",
+          "description": "Dell OpenManage Enterprise telemetry. OME publishes to Kafka; Vector-OME bridge routes to Victoria sinks.",
+          "properties": {
+            "metrics_enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable or disable OME metrics collection."
+            },
+            "logs_enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable or disable OME logs collection."
+            },
+            "collection_targets": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["kafka"]
+              },
+              "minItems": 1,
+              "maxItems": 1,
+              "uniqueItems": true,
+              "default": ["kafka"],
+              "description": "OME only supports Kafka collection. Vector-OME bridge routes to victoria_metrics/victoria_logs."
+            }
+          },
+          "required": ["metrics_enabled", "logs_enabled", "collection_targets"]
         }
       },
-      "required": ["idrac", "ldms", "dcgm", "powerscale", "ufm", "vast"]
+      "required": ["idrac", "ldms", "dcgm", "powerscale", "ufm", "vast", "ome"]
     },
     "telemetry_bridges": {
       "type": "object",

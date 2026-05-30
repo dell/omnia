@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Identify the kube-vip leader to determine the correct shutdown order.
+# The VIP leader should be stopped LAST to keep API server accessible
+# as long as possible during the shutdown phase.
+
+- name: Get kube-vip leader lease
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --server=https://{{ first_cp_ip }}:6443
+      get lease plndr-cp-lock -n kube-system
+      -o jsonpath='{.spec.holderIdentity}'
+  delegate_to: "{{ groups_cp_first | first }}"
+  register: _vip_leader_result
+  changed_when: false
+  failed_when: false
+
+- name: Set VIP leader IP
+  ansible.builtin.set_fact:
+    vip_leader_ip: "{{ _vip_leader_result.stdout | default('') }}"
+  when: _vip_leader_result.rc == 0
+
+- name: Determine VIP leader node name
+  ansible.builtin.set_fact:
+    vip_leader_node: >-
+      {{ all_cp_nodes | select('in',
+           node_ips | dict2items
+           | selectattr('value', 'equalto', vip_leader_ip)
+           | map(attribute='key') | list
+         ) | first | default('') }}
+  when: vip_leader_ip | default('') | length > 0
+
+- name: Build ordered CP shutdown list (VIP leader last)
+  ansible.builtin.set_fact:
+    cp_shutdown_order: >-
+      {{ (all_cp_nodes | reject('equalto', vip_leader_node) | list)
+         + [vip_leader_node] }}
+  when: vip_leader_node | default('') | length > 0
+
+- name: Use default CP order if VIP leader not detected
+  ansible.builtin.set_fact:
+    cp_shutdown_order: "{{ all_cp_nodes }}"
+  when: vip_leader_node | default('') | length == 0
+
+- name: Display shutdown order
+  ansible.builtin.debug:
+    msg: >-
+      Shutdown order — Workers: {{ all_worker_nodes | join(', ') }},
+      CPs: {{ cp_shutdown_order | join(', ') }}
+      {% if vip_leader_node | default('') | length > 0 %}
+      (VIP leader {{ vip_leader_node }}/{{ vip_leader_ip }} stopped last)
+      {% endif %}

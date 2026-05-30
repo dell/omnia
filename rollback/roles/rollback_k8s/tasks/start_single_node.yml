@@ -1,0 +1,89 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Start kubelet on a single node: daemon-reload → restart crio → start kubelet → wait Ready.
+# Called with loop_var: _node
+
+- name: Skip if start_kubelet already done for {{ _node }}
+  ansible.builtin.debug:
+    msg: "start_kubelet already completed on {{ _node }} — skipping."
+  when: >-
+    (rollback_status.nodes[_node].steps.start_kubelet.status | default('pending'))
+    == 'completed'
+
+- name: Start kubelet on {{ _node }}
+  when: >-
+    (rollback_status.nodes[_node].steps.start_kubelet.status | default('pending'))
+    != 'completed'
+  block:
+    # ── Reload systemd (picks up new unit files from downgrade) ────
+    - name: Reload systemd on {{ _node }}
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      delegate_to: "{{ _node }}"
+      changed_when: true
+
+    # ── Restart CRI-O ──────────────────────────────────────────────
+    - name: Restart crio on {{ _node }}
+      ansible.builtin.systemd_service:
+        name: crio
+        state: restarted
+      delegate_to: "{{ _node }}"
+      changed_when: true
+
+    # ── Restart kubelet ────────────────────────────────────────────
+    - name: Restart kubelet on {{ _node }}
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: restarted
+      delegate_to: "{{ _node }}"
+      changed_when: true
+
+    # ── Wait for node to become Ready with rollback version ────────
+    # Use --server to bypass kube_vip (VIP may not be up yet during CP startup)
+    - name: Wait for node {{ _node }} to be Ready at rollback version {{ k8s_rollback_version }}  # noqa:name[template]
+      ansible.builtin.command: >-
+        kubectl --server=https://{{ first_cp_ip }}:6443
+        get node {{ node_ips[_node] }}
+        -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _node_ready
+      changed_when: false
+      retries: "{{ kubelet_ready_retries }}"
+      delay: "{{ kubelet_ready_delay }}"
+      until:
+        - _node_ready.rc == 0
+        - "'v' + k8s_rollback_version + ':True' in _node_ready.stdout"
+
+    # ── Update per-node status ─────────────────────────────────────
+    - name: Mark start_kubelet completed for {{ _node }}
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ _node }}"
+        node_status_update:
+          version_current: "{{ k8s_rollback_version }}"
+          steps:
+            crio_restart:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+            start_kubelet:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+
+    - name: Display start result for {{ _node }}
+      ansible.builtin.debug:
+        msg: "{{ _node }} is Ready at v{{ k8s_rollback_version }}."

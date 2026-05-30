@@ -38,6 +38,8 @@
       ansible.builtin.stat:
         path: "{{ item }}"
       register: slurm_dirs_stat
+      failed_when: false
+      ignore_errors: true
       loop:
         - "{{ slurm_cleanup_path }}"
         - "{{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/ctld_track"
@@ -45,7 +47,7 @@
 
     - name: Set cleanup needed flag
       ansible.builtin.set_fact:
-        cleanup_needed: "{{ slurm_dirs_stat.results | selectattr('stat.exists') | list | length > 0 }}"
+        cleanup_needed: "{{ slurm_dirs_stat.results | selectattr('stat', 'defined') | selectattr('stat.exists') | list | length > 0 }}"
 
     - name: Skip slurm cleanup if no directories exist
       ansible.builtin.debug:
@@ -246,8 +248,10 @@
         path: "{{ slurm_cleanup_path }}"
         state: absent
       register: slurm_cleanup_result
+      ignore_errors: true
       when:
         - cleanup_needed | default(false)
+        - slurm_dirs_stat.results[0].stat is defined
         - slurm_dirs_stat.results[0].stat.exists
 
     - name: Set related directories to clean
@@ -262,8 +266,10 @@
         path: "{{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/ctld_track"
         state: absent
       register: ctld_track_cleanup_result
+      ignore_errors: true
       when:
         - cleanup_needed | default(false)
+        - slurm_dirs_stat.results[1].stat is defined
         - slurm_dirs_stat.results[1].stat.exists
 
     - name: Delete openldap directory
@@ -271,8 +277,10 @@
         path: "{{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/openldap"
         state: absent
       register: openldap_cleanup_result
+      ignore_errors: true
       when:
         - cleanup_needed | default(false)
+        - slurm_dirs_stat.results[2].stat is defined
         - slurm_dirs_stat.results[2].stat.exists
 
     - name: Display slurm cleanup completion message
@@ -280,29 +288,29 @@
         msg: |
           Slurm-related cleanup completed.
           {% if slurm_cleanup_result is defined and slurm_cleanup_result.changed %}
-          ✅ Slurm configuration directory deleted: {{ slurm_cleanup_path }}
+          -> Slurm configuration directory deleted: {{ slurm_cleanup_path }}
           {% elif slurm_cleanup_result is defined %}
-          ℹ️  Slurm configuration directory already absent: {{ slurm_cleanup_path }}
+          -> Slurm configuration directory already absent: {{ slurm_cleanup_path }}
           {% endif %}
           {% if ctld_track_cleanup_result is defined and ctld_track_cleanup_result.changed %}
-          ✅ Controller tracking directory deleted: {{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/ctld_track
+          -> Controller tracking directory deleted: {{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/ctld_track
           {% elif ctld_track_cleanup_result is defined %}
-          ℹ️  Controller tracking directory already absent
+          -> Controller tracking directory already absent
           {% endif %}
           {% if openldap_cleanup_result is defined and openldap_cleanup_result.changed %}
-          ✅ OpenLDAP directory deleted: {{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/openldap
+          -> OpenLDAP directory deleted: {{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/openldap
           {% elif openldap_cleanup_result is defined %}
-          ℹ️  OpenLDAP directory already absent
+          -> OpenLDAP directory already absent
           {% endif %}
-          ℹ️  Slurm backups preserved at: {{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/slurm_backups
+          -> Slurm backups preserved at: {{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point }}/slurm_backups
           {% if backup_choice_bool | default(false) %}
           {% if backup_skipped is defined %}
-          ⚠️  Backup was skipped due to missing nodes.yaml.
+          -> Backup was skipped due to missing nodes.yaml.
           {% else %}
-          ✅ Backup was created using slurm_config_backup role.
+          -> Backup was created using slurm_config_backup role.
           To restore, use: ansible-playbook utils/slurm_config_util.yml --tags config_rollback
           {% endif %}
           {% else %}
-          ⚠️  No backup was created. This action cannot be undone.
+          -> No backup was created. This action cannot be undone.
           {% endif %}
       when: cleanup_needed | default(false)

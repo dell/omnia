@@ -13,49 +13,46 @@
 #  limitations under the License.
 ---
 ## Mount an entry on the OIM node.
+- name: Resolve mount_params profile if specified
+  ansible.builtin.set_fact:
+    resolved_mount_profile: "{{ mount_params[item.mount_params] | default({}) }}"
+  when: item.mount_params is defined and item.mount_params in mount_params
+
 - name: Initialize client mount path (new schema)
   ansible.builtin.set_fact:
-    client_mount_path: "{{ item.mount_point }}"
-
-- name: Derive NFS src for new schema (localhost remap)
-  block:
-    - name: Derive NFS source path component
-      ansible.builtin.set_fact:
-        nfs_src_path: "{{ (item.source.split(':') | last) | trim }}"
-
-    - name: Build NFS src (replace localhost with admin_nic_ip)
-      ansible.builtin.set_fact:
-        nfs_src: "{{ hostvars['127.0.0.1']['admin_nic_ip'] + ':' + nfs_src_path }}"
-      when: item.source is match('^localhost:')
-
-    - name: Use source as-is when server is not localhost
-      ansible.builtin.set_fact:
-        nfs_src: "{{ item.source }}"
-      when: item.source is not match('^localhost:')
+    mount_point: "{{ item.mount_point }}"
+    source: "{{ item.source }}"
+    fs_type: "{{ item.fs_type | default(resolved_mount_profile.fs_type | default('auto')) }}"
+    mnt_opts: "{{ item.mnt_opts | default(resolved_mount_profile.mnt_opts | default('defaults')) }}"
+    dump_freq: "{{ item.dump_freq | default(resolved_mount_profile.dump_freq | default('0')) }}"
+    fsck_pass: "{{ item.fsck_pass | default(resolved_mount_profile.fsck_pass | default('0')) }}"
 
 - name: Create the directory for mounting on OIM
   ansible.builtin.file:
-    path: "{{ client_mount_path }}"
+    path: "{{ mount_point }}"
     state: directory
     mode: "{{ mounted_dir_perm }}"
   register: dir_check
   ignore_errors: true
 
+- name: Fallback to tcp nfs if rdma
+  ansible.builtin.set_fact:
+    mnt_opts: "{{ default_client_mount_options }}"
+  when: "'rdma' in mnt_opts"
+
 - name: Mount NFS share on OIM with fstab entry
   block:
     - name: Add/ensure fstab entry via mount module
       ansible.posix.mount:
-        src: "{{ nfs_src }}"
-        path: "{{ client_mount_path }}"
-        opts: "{{ (item.mnt_opts | default(omit)) | default(item.client_mount_options | default(default_oim_mount_options)) }}"
+        src: "{{ source }}"
+        path: "{{ mount_point }}"
+        opts: "{{ mnt_opts }}"
         state: mounted
-        fstype: "{{ (item.fs_type | default(omit)) | default('nfs') }}"
+        fstype: "{{ fs_type }}"
 
     - name: Mount current share explicitly for immediate availability # noqa: command-instead-of-module
       ansible.builtin.command: >
-        mount -t {{ (item.fs_type | default(omit)) | default('nfs') }}
-        -o {{ (item.mnt_opts | default(omit)) | default(item.client_mount_options | default(default_oim_mount_options)) }}
-        {{ nfs_src }} {{ client_mount_path }}
+        mount -t {{ fs_type }} -o {{ mnt_opts }} {{ source }} {{ mount_point }}
       register: oim_mount_result
       changed_when: oim_mount_result.rc == 0
       failed_when: oim_mount_result.rc != 0
@@ -63,7 +60,7 @@
   rescue:
     - name: Remove from fstab on failure
       ansible.posix.mount:
-        path: "{{ client_mount_path }}"
+        path: "{{ mount_point }}"
         state: absent_from_fstab
 
     - name: Fail if OIM mount failed

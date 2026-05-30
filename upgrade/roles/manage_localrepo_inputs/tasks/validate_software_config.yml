@@ -48,38 +48,76 @@
          | selectattr('version', 'defined')
          | items2dict(key_name='name', value_name='version') }}
 
-- name: "Validate software config — Verify versions for enabled components"
-  ansible.builtin.assert:
-    that:
-      - current_versions[item.key] is defined
-    fail_msg: >-
-      Current version not found for {{ item.key }}! Component must be deployed before upgrade.
-    success_msg: "  {{ item.key }}: {{ current_versions[item.key] }}"
-  loop: "{{ enabled_components }}"
-  loop_control:
-    label: "{{ item.key }}"
+- name: "Validate software config — Extract software names from software_config.json"
+  ansible.builtin.set_fact:
+    _sw_config_software_names: >-
+      {{ current_software_config.softwares
+         | map(attribute='name')
+         | list }}
 
-- name: "Validate software config — Check JSON files exist"
-  ansible.builtin.stat:
-    path: >-
-      {{ input_project_dir }}/config/{{ item.1 }}/{{
-      current_software_config.cluster_os_type }}/{{
-      current_software_config.cluster_os_version }}/{{
-      item.0.key }}_v{{ current_versions[item.0.key] }}.json
-  register: _json_file_check
-  loop: "{{ enabled_components | product(upgrade_active_architectures) | list }}"
-  loop_control:
-    label: "{{ item.0.key }}/{{ item.1 }}"
-  when: current_versions[item.0.key] is defined
+- name: "Validate software config — Identify components missing from software_config.json"
+  ansible.builtin.set_fact:
+    _components_missing_from_sw_config: >-
+      {{ enabled_components
+         | rejectattr('key', 'in', _sw_config_software_names)
+         | map(attribute='key')
+         | list }}
 
-- name: "Validate software config — Fail if JSON files missing"
-  ansible.builtin.fail:
+- name: "Validate software config — Warn about components not in software_config.json"
+  ansible.builtin.debug:
     msg: >-
-      JSON file not found: {{ item.invocation.module_args.path }}.
-      Expected: {{ item.item.0.key }}_v{{ current_versions[item.item.0.key] }}.json
-  loop: "{{ _json_file_check.results }}"
-  loop_control:
-    label: "{{ item.item.0.key }}/{{ item.item.1 }}"
-  when:
-    - item.stat is defined
-    - not item.stat.exists
+      Component '{{ item }}' is enabled but not present in software_config.json.
+      Skipping validation and upgrade for this component.
+  loop: "{{ _components_missing_from_sw_config }}"
+  when: _components_missing_from_sw_config | length > 0
+
+- name: "Validate software config — Filter to components present in software_config.json"
+  ansible.builtin.set_fact:
+    _validatable_components: >-
+      {{ enabled_components
+         | selectattr('key', 'in', _sw_config_software_names)
+         | list }}
+
+- name: "Validate software config — Skip validation when no components to validate"
+  ansible.builtin.debug:
+    msg: "No enabled components found in software_config.json softwares list. Skipping version and JSON file validation."
+  when: _validatable_components | length == 0
+
+- name: "Validate software config — Verify versions and JSON files for enabled components"
+  when: _validatable_components | length > 0
+  block:
+    - name: "Validate software config — Verify versions for enabled components"
+      ansible.builtin.assert:
+        that:
+          - current_versions[item.key] is defined
+        fail_msg: >-
+          Current version not found for {{ item.key }}! Component must be deployed before upgrade.
+        success_msg: "  {{ item.key }}: {{ current_versions[item.key] }}"
+      loop: "{{ _validatable_components }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: "Validate software config — Check JSON files exist"
+      ansible.builtin.stat:
+        path: >-
+          {{ input_project_dir }}/config/{{ item.1 }}/{{
+          current_software_config.cluster_os_type }}/{{
+          current_software_config.cluster_os_version }}/{{
+          item.0.key }}_v{{ current_versions[item.0.key] }}.json
+      register: _json_file_check
+      loop: "{{ _validatable_components | product(upgrade_active_architectures) | list }}"
+      loop_control:
+        label: "{{ item.0.key }}/{{ item.1 }}"
+      when: current_versions[item.0.key] is defined
+
+    - name: "Validate software config — Fail if JSON files missing"
+      ansible.builtin.fail:
+        msg: >-
+          JSON file not found: {{ item.invocation.module_args.path }}.
+          Expected: {{ item.item.0.key }}_v{{ current_versions[item.item.0.key] }}.json
+      loop: "{{ _json_file_check.results }}"
+      loop_control:
+        label: "{{ item.item.0.key }}/{{ item.item.1 }}"
+      when:
+        - item.stat is defined
+        - not item.stat.exists

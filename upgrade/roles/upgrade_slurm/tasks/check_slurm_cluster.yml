@@ -1,0 +1,160 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Identify slurm control node hostname
+  ansible.builtin.set_fact:
+    slurm_ctld_host: >-
+      {{ slurm_host_group_map
+         | dict2items
+         | selectattr('value', 'match', '^slurm_control_node_')
+         | map(attribute='key')
+         | first }}
+
+- name: Check for running jobs on slurm cluster
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      squeue -h | wc -l
+  register: running_jobs
+  changed_when: false
+  failed_when: false
+  retries: 5
+  delay: 5
+  until: running_jobs.rc == 0
+  delegate_to: "{{ slurm_ctld_host }}"
+
+- name: Upgrade complete reboot pending
+  when: running_jobs.stdout | trim | int > 0
+  block:
+    - name: Show upgrade completion message
+      ansible.builtin.debug:
+        msg: "{{ slurm_reboot_message }}"
+      vars:
+        slurm_reboot_message:
+          - "Slurm upgrade will be halted. as there are active jobs running."
+          - "Note: {{ running_jobs.stdout | trim }} running job(s) detected."
+          - "Please drain and stop jobs before proceeding with node reboot."
+          - "Then, rerun the upgrade playbook to complete the process."
+
+    - name: Abort reboot if jobs are running
+      ansible.builtin.fail:
+        msg: "Slurm cluster has ACTIVE jobs running. Please drain and stop jobs before proceeding with node reboot."
+
+- name: Fail if job check fails
+  when: running_jobs.rc != 0
+  ansible.builtin.fail:
+    msg: "{{ job_check_failed }}"
+  vars:
+    job_check_failed:
+      - "Slurm cluster is not responding. Check the cluster status and retry the upgrade."
+      - "Failed to check for running jobs on slurm cluster."
+      - "Error: {{ running_jobs.stderr }}"
+
+- name: Identify slurm compute node hostnames from host group map
+  ansible.builtin.set_fact:
+    slurm_compute_hosts: >-
+      {{ slurm_host_group_map
+         | dict2items
+         | selectattr('value', 'match', '^slurm_node_')
+         | map(attribute='key')
+         | list }}
+
+- name: Get idle compute nodes from Slurm controller
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sinfo -h -N -o "%n" -t idle
+  register: sinfo_idle_nodes
+  changed_when: false
+  failed_when: false
+  retries: 5
+  delay: 5
+  until: sinfo_idle_nodes.rc == 0
+  delegate_to: "{{ slurm_ctld_host }}"
+  ignore_unreachable: true
+
+- name: Fail if slurm control node unreachable during idle node check
+  when: sinfo_idle_nodes.unreachable | default(false)
+  ansible.builtin.fail:
+    msg: >-
+      Slurm controller '{{ slurm_ctld_host }}' is unreachable during idle node state check.
+      Ensure slurmctld host is up and SSH is accessible, then re-run the upgrade playbook.
+
+- name: Fail if sinfo idle node query failed
+  when: sinfo_idle_nodes.rc | default(1) != 0
+  ansible.builtin.fail:
+    msg: "{{ sinfo_query_fail_msg }}"
+  vars:
+    sinfo_query_fail_msg:
+      - "Failed to query node states from Slurm controller '{{ slurm_ctld_host }}'."
+      - "Error: {{ sinfo_idle_nodes.stderr | default('(no error output)') }}"
+      - "Ensure slurmctld is running and reachable, then re-run the upgrade playbook."
+
+- name: Identify compute nodes not in idle state
+  ansible.builtin.set_fact:
+    slurm_idle_node_list: "{{ sinfo_idle_nodes.stdout_lines | map('trim') | select | list }}"
+    slurm_non_idle_nodes: >-
+      {{ slurm_compute_hosts
+         | difference(sinfo_idle_nodes.stdout_lines | map('trim') | select | list) }}
+
+- name: Report and abort if compute nodes are not idle
+  when: slurm_non_idle_nodes | length > 0
+  block:
+    - name: Get current state of non-idle nodes for diagnostics
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          sinfo -h -N -o "%n %T %R" --nodes="{{ slurm_non_idle_nodes | join(',') }}"
+      register: sinfo_non_idle_detail
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ slurm_ctld_host }}"
+
+    - name: Show non-idle node details and remediation steps
+      ansible.builtin.debug:
+        msg: "{{ non_idle_report }}"
+      vars:
+        non_idle_report:
+          - "Pre-upgrade node state check FAILED."
+          - "{{ slurm_non_idle_nodes | length }} compute node(s) are NOT in idle state."
+          - ""
+          - "Non-idle nodes:"
+          - "{{ slurm_non_idle_nodes | join(', ') }}"
+          - ""
+          - "Current state (node / state / reason):"
+          - "{{ sinfo_non_idle_detail.stdout_lines | default(['(unable to retrieve)']) }}"
+          - ""
+          - "All slurm_node_* compute nodes must be idle before upgrade can proceed."
+          - ""
+          - "Remediation — run the following on '{{ slurm_ctld_host }}':"
+          - "  1. Cancel running jobs on affected nodes:"
+          - "       scancel --nodelist={{ slurm_non_idle_nodes | join(',') }}"
+          - "  2. Drain nodes to prevent new job scheduling:"
+          - "       scontrol update NodeName={{ slurm_non_idle_nodes | join(',') }} State=drain Reason='upgrade'"
+          - "  3. Wait for nodes to reach idle/drained state:"
+          - "       watch -n5 'sinfo -N -o \"%n %T\" --nodes={{ slurm_non_idle_nodes | join(',') }}'"
+          - "  4. Re-run the upgrade playbook once all nodes are idle."
+
+    - name: Abort upgrade — compute nodes not in idle state
+      ansible.builtin.fail:
+        msg: >-
+          Upgrade aborted: {{ slurm_non_idle_nodes | length }} compute node(s) not idle:
+          {{ slurm_non_idle_nodes | join(', ') }}.
+          Drain nodes and cancel jobs, then re-run the upgrade playbook.
+
+- name: Create groups for slurm nodes reboot play
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: "{{ item.value }}"
+  loop: "{{ slurm_host_group_map | dict2items }}"

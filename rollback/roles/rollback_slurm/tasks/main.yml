@@ -16,5 +16,5 @@
 - name: Execute Slurm 2.1 NFS backup and cleanup
   ansible.builtin.include_tasks: slurm_backup.yml
 
-- name: Task to reboot slurm nodes
-  ansible.builtin.include_tasks: reboot_slurm_nodes.yml
+- name: Task to check slurm cluster
+  ansible.builtin.include_tasks: check_slurm_cluster.yml

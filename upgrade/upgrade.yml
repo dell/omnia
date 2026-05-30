@@ -513,7 +513,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # Set upgrade_mode to bypass upgrade_checkup guard within credential utility.
-# Set default omnia_run_tags (prepare_oim, ufm_telemetry, ldms, idrac_telemetry).
+# Set default omnia_run_tags (prepare_oim, local_repo, ufm_telemetry, vast_telemetry, ldms, idrac_telemetry).
 # Conditionally add gitlab tag when build_stream is enabled.
 # ──────────────────────────────────────────────────────────────────────
 - name: Set upgrade mode flag and dynamic run tags for credential utility
@@ -533,7 +533,7 @@
           {{
             (
               ansible_run_tags | default([]) +
-              ['prepare_oim', 'ufm_telemetry', 'ldms', 'idrac_telemetry']
+              ['prepare_oim', 'local_repo', 'ufm_telemetry', 'vast_telemetry', 'ldms', 'idrac_telemetry']
             ) | unique
           }}
         cacheable: true

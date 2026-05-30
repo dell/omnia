@@ -61,7 +61,7 @@
 - name: Get default StorageClass name
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
-    cmd: kubectl get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'
+    cmd: kubectl get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}'
   register: default_sc_name
   changed_when: false
   failed_when: false
@@ -91,13 +91,6 @@
 # ───────────────────────────────────────────────────────────────────────────
 # Step 3: Backup PersistentVolumeClaims using PowerScale StorageClass
 # ───────────────────────────────────────────────────────────────────────────
-- name: Get default StorageClass name
-  delegate_to: "{{ kube_vip }}"
-  ansible.builtin.shell:
-    cmd: kubectl get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'
-  register: default_sc_name
-  changed_when: false
-  failed_when: false
 
 - name: Get all PVCs using default StorageClass
   delegate_to: "{{ kube_vip }}"

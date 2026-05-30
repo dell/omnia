@@ -316,6 +316,7 @@ msg_telemetry_config_transform_summary: |
   - Added telemetry_sources.ldms (metrics_enabled, collection_targets) with defaults
   - Added telemetry_sources.dcgm with default metrics_enabled=true
   - Added telemetry_sources.powerscale with default metrics and logs enabled
+  - Added telemetry_sources.ome (metrics_enabled, logs_enabled, collection_targets=kafka) with defaults
   - Added telemetry_bridges section (vector_ldms, vector_ome) with defaults
   - Added telemetry_sinks.victoria_logs with default storage and retention
   - Removed single-node VM deployment mode (always cluster in 2.2)
@@ -422,6 +423,10 @@ telemetry_default_powerscale_support: false
 telemetry_default_powerscale_log_enabled: false
 telemetry_default_otel_collector_storage_size: "5Gi"
 telemetry_default_csm_observability_values_file_path: ""
+
+# OME Telemetry Defaults
+telemetry_default_ome_metrics_enabled: false
+telemetry_default_ome_logs_enabled: false
 
 # UFM Telemetry Defaults
 telemetry_default_ufm_metrics_enabled: false

@@ -325,9 +325,9 @@ class _PulpApiSession:
         beyond this helper's local scope.
         """
         credential = (
-            cli_section.get("username", "admin")
+            (cli_section.get("username") or "admin")
             + ":"
-            + cli_section.get("password", "")
+            + (cli_section.get("password") or "")
         ).encode("utf-8")
         header = "Basic " + base64.b64encode(credential).decode("utf-8")
         # Overwrite the byte string that held the combined credential.
@@ -345,7 +345,7 @@ class _PulpApiSession:
 
     def _make_connection(self) -> http.client.HTTPSConnection:
         """Create a fresh HTTPS connection to the Pulp server."""
-        context = ssl._create_unverified_context()
+        context = ssl._create_unverified_context()  # NOSONAR - Pulp server uses self-signed certificates
         port = self._parsed.port or 443
         return http.client.HTTPSConnection(
             self._parsed.hostname, port, context=context, timeout=120

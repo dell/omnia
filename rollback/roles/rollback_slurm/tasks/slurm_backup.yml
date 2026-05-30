@@ -106,7 +106,7 @@
 
 - name: Fail if etc/slurm/slurm.conf not found in nfs
   ansible.builtin.fail:
-    msg: "SLURM: etc/slurm/slurm.conf not found in nfs"
+    msg: "SLURM: etc/slurm/slurm.conf not found in nfs."
   when: not slurm_conf_exists.stat.exists
 
 - name: Set mysql datadir fact
