@@ -104,6 +104,7 @@
         - { task_file: buildstream.yml, _action: restore_quadlet }
         - { task_file: buildstream.yml, _action: restore_config }
         - { task_file: buildstream.yml, _action: restore_source }
+        - { task_file: buildstream.yml, _action: remove_automation }
         - { task_file: postgres.yml,    _action: restore_quadlet }
       loop_control:
         loop_var: restore_item

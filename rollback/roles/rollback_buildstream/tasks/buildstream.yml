@@ -306,7 +306,7 @@
   delegate_to: oim
   delegate_facts: true
   connection: ssh
-  when: _action == 'cleanup_full'
+  when: _action == 'cleanup_full' or _action == 'remove_automation'
 
 - name: "BuildStream | Uninstall — Set enable_build_stream: false in config"
   ansible.builtin.lineinfile:
