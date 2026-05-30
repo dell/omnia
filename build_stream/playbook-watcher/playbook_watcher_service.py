@@ -983,10 +983,10 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     scenario_name = "discovery"  # Hardcoded, not from request_data
     test_suite = "build_stream"  # Hardcoded, not from request_data
     
-    # Compute artifact_dir from job_id and attempt instead of consuming from request_data
-    # This eliminates the taint flow entirely (no data from json.load flows to subprocess.run env)
+    # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
+    # Use a temp directory with timestamp (no job_id/attempt) for molecule execution,
+    # then copy reports to the job-specific NFS directory after completion
     attempt = request_data.get("attempt", 1)
-    artifact_dir = f"/opt/omnia/build_stream_root/artifacts/{job_id}/validate/attempt_{attempt}"
     
     config_path = request_data["config_path"]
     timeout_minutes = 150  # Hardcoded default, not from request_data
@@ -998,8 +998,16 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     
     started_at = datetime.now(timezone.utc)
     
-    # Ensure artifact directory 
+    # Create a temp report directory with timestamp for uniqueness (no tainted data)
+    # Reports will be copied to the job-specific NFS directory after molecule completes
+    timestamp = started_at.strftime("%Y%m%d_%H%M%S")
+    temp_report_dir = str(ARTIFACTS_DIR / f"molecule_run_{timestamp}")
+    # Final NFS artifact directory for the job
+    artifact_dir = str(ARTIFACTS_DIR / job_id / "validate" / f"attempt_{attempt}")
+    
+    # Ensure both directories exist
     try:
+        os.makedirs(temp_report_dir, exist_ok=True)
         os.makedirs(artifact_dir, exist_ok=True)
     except OSError as e:
         log_secure_info("error", "Failed to create artifact directory", job_id)
@@ -1030,9 +1038,10 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         cmd.extend(["--suite", "build_stream"])
     
     # Set environment variables
+    # Use temp_report_dir (hardcoded, no tainted data) to break taint chain
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-    env["MOLECULE_REPORT_DIR"] = artifact_dir
+    env["MOLECULE_REPORT_DIR"] = temp_report_dir
     
     log_secure_info("info", "Executing molecule command for job", job_id)
     
@@ -1075,13 +1084,33 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 host_log_file_path, job_id
             )
 
-        # Also write a copy to the artifact directory for local access
+        # Copy molecule reports from temp dir to job-specific NFS artifact directory
+        # This mirrors the log-copy pattern used in execute_playbook
+        try:
+            for item in os.listdir(temp_report_dir):
+                src = os.path.join(temp_report_dir, item)
+                dst = os.path.join(artifact_dir, item)
+                if os.path.isfile(src):
+                    shutil.copy2(src, dst)
+                elif os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+            log_secure_info("info", "Copied molecule reports to job artifact directory", job_id)
+        except OSError:
+            log_secure_info("warning", "Failed to copy molecule reports to artifact dir", job_id)
+
+        # Also write molecule output log to the artifact directory
         artifact_log_path = os.path.join(artifact_dir, "molecule_output.log")
         try:
             with open(artifact_log_path, 'w') as f:
                 f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
         except OSError:
             log_secure_info("warning", "Failed to write molecule artifact log", job_id)
+
+        # Clean up temp report directory
+        try:
+            shutil.rmtree(temp_report_dir, ignore_errors=True)
+        except OSError:
+            log_secure_info("debug", "Failed to clean up temp report dir", job_id)
 
         # Use the NFS log path as the canonical log_file_path
         log_file_path = str(host_log_file_path)
