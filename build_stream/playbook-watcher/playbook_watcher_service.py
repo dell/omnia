@@ -500,8 +500,11 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                     log_secure_info("error", "Invalid scenario name format", str(scenario)[:8])
                     return None
                     
-            # Validate paths are within /opt/omnia/
-            if not artifact_dir.startswith("/opt/omnia/") or ".." in artifact_dir:
+            # Validate artifact_dir is within the configured NFS share path.
+            # The artifact base is derived from the NFS share (NFS_SHARE_PATH),
+            # so it must not be hard-coded to /opt/omnia.
+            nfs_base = str(NFS_SHARE_PATH).rstrip("/")
+            if ".." in artifact_dir or not artifact_dir.startswith(f"{nfs_base}/"):
                 log_secure_info("error", "Invalid artifact_dir path", artifact_dir[:8])
                 return None
                 
