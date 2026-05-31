@@ -36,14 +36,14 @@
 - name: Check if current PowerScale CSI driver folder exists
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.stat:
-    path: "{{ powerscale_cluster_base }}/csi-driver-powerscale"
+    path: "{{ k8s_client_mount_path }}/csi-driver-powerscale"
   register: current_powerscale_dir_check
   failed_when: false
 
 - name: Backup current PowerScale CSI driver folder
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.archive:
-    path: "{{ powerscale_cluster_base }}/csi-driver-powerscale"
+    path: "{{ k8s_client_mount_path }}/csi-driver-powerscale"
     dest: "{{ backup_dir }}/csi/csi-driver-powerscale-backup.tar.gz"
     format: gz
     mode: "0644"

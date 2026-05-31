@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -42,7 +42,12 @@
 - name: Extract service_k8s_v<version>.json and set facts for pip_modules and python_version
   ansible.builtin.set_fact:
     k8s_pip_packages: >-
-      {{ telemetry_packages['service_kube_control_plane']['cluster']
+      {{ (telemetry_packages['service_kube_control_plane']['cluster']
         | selectattr('type', 'equalto', 'pip_module')
         | map(attribute='package')
-        | list }}
+        | list
+        + telemetry_packages['service_k8s']['cluster']
+        | selectattr('type', 'equalto', 'pip_module')
+        | map(attribute='package')
+        | list)
+        | unique }}

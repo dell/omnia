@@ -29,10 +29,10 @@
     path: "{{ input_project_dir }}/telemetry_storage_config.yml"
   register: storage_config_stat
 
-- name: Fail if telemetry_storage_config.yml file exists
+- name: Fail if telemetry_storage_config.yml file doesn't exist
   ansible.builtin.fail:
-    msg: "{{ fail_msg_telemetry_storage_config_file_exists }}"
-  when: storage_config_stat.stat.exists
+    msg: "{{ fail_msg_telemetry_storage_config_file }}"
+  when: not storage_config_stat.stat.exists
 
 - name: Load telemetry storage configuration (optional)
   ansible.builtin.include_vars:

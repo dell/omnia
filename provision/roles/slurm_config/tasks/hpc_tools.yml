@@ -15,7 +15,7 @@
 
 - name: Create HPC tools directories on share
   ansible.builtin.file:
-    path: "{{ slurm_config_path }}/hpc_tools/{{ item }}"
+    path: "{{ hpc_tools_path }}/{{ item }}"
     state: directory
     owner: root
     group: root

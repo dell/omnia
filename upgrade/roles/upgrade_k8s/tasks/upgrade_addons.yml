@@ -197,18 +197,10 @@
       timestamp: "{{ ansible_date_time.iso8601 }}"
   when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) == 'not_installed'
 
-- name: Pause after PowerScale pre-upgrade validation
-  ansible.builtin.pause:
-    seconds: 15
-
 - name: Starting PowerScale upgrade
   ansible.builtin.debug:
     msg: "Starting PowerScale addon upgrade from {{ powerscale_from_version | default('unknown') }} to {{ powerscale_target_version }}..."
   when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) not in ['completed', 'not_installed', 'skipped']
-
-- name: Pause after PowerScale pre-upgrade validation
-  ansible.builtin.pause:
-    seconds: 15
 
 - name: Mark PowerScale in_progress
   ansible.builtin.include_tasks: update_addon_step.yml
@@ -220,33 +212,17 @@
       timestamp: "{{ ansible_date_time.iso8601 }}"
   when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) not in ['completed', 'not_installed', 'skipped']
 
-- name: Pause after PowerScale pre-upgrade validation
-  ansible.builtin.pause:
-    seconds: 15
-
 - name: Upgrade PowerScale CSI Driver
   when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) not in ['completed', 'not_installed', 'skipped']
   block:
     - name: Execute PowerScale pre-upgrade validation
       ansible.builtin.include_tasks: powerscale_prepare_upgrade.yml
 
-    - name: Pause after PowerScale pre-upgrade validation
-      ansible.builtin.pause:
-        seconds: 15
-
     - name: Execute PowerScale backup
       ansible.builtin.include_tasks: powerscale_backup_folder.yml
 
-    - name: Pause after PowerScale backup
-      ansible.builtin.pause:
-        seconds: 15
-
     - name: Execute PowerScale upgrade
       ansible.builtin.include_tasks: upgrade_powerscale.yml
-
-    - name: Pause after PowerScale upgrade
-      ansible.builtin.pause:
-        seconds: 15
 
     - name: Mark PowerScale completed
       ansible.builtin.include_tasks: update_addon_step.yml

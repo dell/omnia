@@ -69,7 +69,7 @@ def check_image_in_registry(
     try:
         request_args = {
             "timeout": 10,
-            "verify": False,
+            "verify": False,  # NOSONAR - User registries may use self-signed certificates
             "headers": {
                 "Accept": (
                     "application/vnd.oci.image.manifest.v1+json,"

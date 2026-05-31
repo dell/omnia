@@ -189,12 +189,8 @@
               ansible.builtin.fail:
                 msg: "kubeadm_upgrade_node failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
 
-        # ── cordon (production-safe: cordon only, no eviction) ────────
-        # Instead of drain (which evicts pods and can be blocked by PDBs),
-        # we cordon the node to prevent new pods, then let existing pods
-        # restart in-place after kubelet upgrade. This is safer for stateful
-        # workloads like Kafka that have strict PodDisruptionBudgets.
-        - name: Run cordon on {{ current_node_name }}
+        # ── drain (same logic as control planes) ─────────────────────
+        - name: Execute drain
           when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
           block:
             - name: Mark drain in_progress
@@ -205,13 +201,10 @@
                   steps:
                     drain:
                       status: in_progress
-                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+                      timestamp: "{{ now(utc=True).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
-            - name: Cordon node (prevent new pod scheduling) {{ current_node_name }}
-              ansible.builtin.command: kubectl cordon {{ node_ip }}
-              delegate_to: "{{ kube_vip }}"
-              register: cordon_result
-              changed_when: false
+            - name: Execute drain
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_drain.yml"
 
             - name: Mark drain completed
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
@@ -221,7 +214,7 @@
                   steps:
                     drain:
                       status: completed
-                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+                      timestamp: "{{ now(utc=True).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark drain failed
@@ -233,11 +226,11 @@
                   steps:
                     drain:
                       status: failed
-                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
-                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('cordon failed')) }}"
+                      timestamp: "{{ now(utc=True).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('drain failed')) }}"
             - name: Fail drain step
               ansible.builtin.fail:
-                msg: "cordon/drain failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+                msg: "drain failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
 
         # ── kubelet_install ──────────────────────────────────────────
         - name: Run kubelet_install on {{ current_node_name }}
@@ -424,11 +417,8 @@
                       status: in_progress
                       timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
-            - name: Uncordon node {{ current_node_name }}
-              ansible.builtin.command: kubectl uncordon {{ node_ip }}
-              delegate_to: "{{ kube_vip }}"
-              register: uncordon_result
-              changed_when: false
+            - name: Execute uncordon
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_uncordon.yml"
 
             - name: Mark uncordon completed
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"

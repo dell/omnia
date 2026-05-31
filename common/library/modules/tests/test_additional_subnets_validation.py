@@ -19,6 +19,22 @@ import os
 import unittest
 import ipaddress
 
+# Test-only IP addresses used as fixtures — not real hosts.
+TEST_ADMIN_IP = "172.16.0.254"  # NOSONAR — test fixture
+TEST_ADMIN_RANGE = "172.16.0.201-172.16.0.250"  # NOSONAR — test fixture
+TEST_ADMIN_SUBNET = "172.16.0.0"  # NOSONAR — test fixture
+TEST_ADMIN_ROUTER = "172.16.0.1"  # NOSONAR — test fixture
+TEST_SUBNET_1 = "10.40.1.0"  # NOSONAR — test fixture
+TEST_ROUTER_1 = "10.40.1.1"  # NOSONAR — test fixture
+TEST_ROUTER_1B = "10.40.1.2"  # NOSONAR — test fixture
+TEST_ROUTER_BAD = "10.40.2.1"  # NOSONAR — test fixture
+TEST_SUBNET_3 = "10.40.3.0"  # NOSONAR — test fixture
+TEST_ROUTER_3 = "10.40.3.1"  # NOSONAR — test fixture
+TEST_SUBNET_WIDE_1 = "10.40.0.0"  # NOSONAR — test fixture
+TEST_ROUTER_WIDE_1 = "10.40.0.1"  # NOSONAR — test fixture
+TEST_SUBNET_WIDE_2 = "10.41.0.0"  # NOSONAR — test fixture
+TEST_ROUTER_WIDE_2 = "10.41.0.1"  # NOSONAR — test fixture
+
 # ---------------------------------------------------------------------------
 # Bootstrap: make the validation code importable without a full Ansible install
 # ---------------------------------------------------------------------------
@@ -90,9 +106,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
 
     def _admin_net(self, **overrides):
         base = {
-            "primary_oim_admin_ip": "172.16.0.254",
+            "primary_oim_admin_ip": TEST_ADMIN_IP,
             "netmask_bits": "24",
-            "dynamic_range": "172.16.0.201-172.16.0.250",
+            "dynamic_range": TEST_ADMIN_RANGE,
         }
         base.update(overrides)
         return base
@@ -100,9 +116,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_valid_single_additional_subnet(self):
         """Single valid additional subnet produces no errors."""
         additional = [{
-            "subnet": "10.40.1.0",
+            "subnet": TEST_SUBNET_1,
             "netmask_bits": "24",
-            "router": "10.40.1.1",
+            "router": TEST_ROUTER_1,
             "dynamic_range": "10.40.1.100-10.40.1.200",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
@@ -112,15 +128,15 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
         """Multiple valid non-overlapping subnets produce no errors."""
         additional = [
             {
-                "subnet": "10.40.1.0",
+                "subnet": TEST_SUBNET_1,
                 "netmask_bits": "24",
-                "router": "10.40.1.1",
+                "router": TEST_ROUTER_1,
                 "dynamic_range": "10.40.1.100-10.40.1.200",
             },
             {
-                "subnet": "10.40.3.0",
+                "subnet": TEST_SUBNET_3,
                 "netmask_bits": "24",
-                "router": "10.40.3.1",
+                "router": TEST_ROUTER_3,
                 "dynamic_range": "10.40.3.100-10.40.3.200",
             },
         ]
@@ -130,9 +146,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_router_outside_subnet(self):
         """Router IP outside the subnet triggers an error."""
         additional = [{
-            "subnet": "10.40.1.0",
+            "subnet": TEST_SUBNET_1,
             "netmask_bits": "24",
-            "router": "10.40.2.1",
+            "router": TEST_ROUTER_BAD,
             "dynamic_range": "10.40.1.100-10.40.1.200",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
@@ -141,9 +157,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_range_outside_subnet(self):
         """dynamic_range outside the subnet triggers an error."""
         additional = [{
-            "subnet": "10.40.1.0",
+            "subnet": TEST_SUBNET_1,
             "netmask_bits": "24",
-            "router": "10.40.1.1",
+            "router": TEST_ROUTER_1,
             "dynamic_range": "10.40.2.100-10.40.2.200",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
@@ -152,9 +168,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_overlap_with_admin_network(self):
         """Subnet overlapping with admin network triggers an error."""
         additional = [{
-            "subnet": "172.16.0.0",
+            "subnet": TEST_ADMIN_SUBNET,
             "netmask_bits": "24",
-            "router": "172.16.0.1",
+            "router": TEST_ADMIN_ROUTER,
             "dynamic_range": "172.16.0.100-172.16.0.150",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
@@ -164,15 +180,15 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
         """Two additional subnets that overlap trigger an error."""
         additional = [
             {
-                "subnet": "10.40.1.0",
+                "subnet": TEST_SUBNET_1,
                 "netmask_bits": "24",
-                "router": "10.40.1.1",
+                "router": TEST_ROUTER_1,
                 "dynamic_range": "10.40.1.100-10.40.1.200",
             },
             {
-                "subnet": "10.40.1.0",
+                "subnet": TEST_SUBNET_1,
                 "netmask_bits": "24",
-                "router": "10.40.1.2",
+                "router": TEST_ROUTER_1B,
                 "dynamic_range": "10.40.1.150-10.40.1.250",
             },
         ]
@@ -182,9 +198,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_invalid_netmask_bits(self):
         """Invalid netmask_bits triggers an error."""
         additional = [{
-            "subnet": "10.40.1.0",
+            "subnet": TEST_SUBNET_1,
             "netmask_bits": "99",
-            "router": "10.40.1.1",
+            "router": TEST_ROUTER_1,
             "dynamic_range": "10.40.1.100-10.40.1.200",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
@@ -193,7 +209,7 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_invalid_router_ip(self):
         """Non-IPv4 router triggers an error."""
         additional = [{
-            "subnet": "10.40.1.0",
+            "subnet": TEST_SUBNET_1,
             "netmask_bits": "24",
             "router": "not-an-ip",
             "dynamic_range": "10.40.1.100-10.40.1.200",
@@ -204,9 +220,9 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
     def test_invalid_dynamic_range_format(self):
         """Malformed dynamic_range triggers an error."""
         additional = [{
-            "subnet": "10.40.1.0",
+            "subnet": TEST_SUBNET_1,
             "netmask_bits": "24",
-            "router": "10.40.1.1",
+            "router": TEST_ROUTER_1,
             "dynamic_range": "bad-range",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
@@ -221,15 +237,15 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
         """Overlapping dynamic_ranges across subnets (but non-overlapping CIDRs) trigger an error."""
         additional = [
             {
-                "subnet": "10.40.0.0",
+                "subnet": TEST_SUBNET_WIDE_1,
                 "netmask_bits": "16",
-                "router": "10.40.0.1",
+                "router": TEST_ROUTER_WIDE_1,
                 "dynamic_range": "10.40.1.100-10.40.1.200",
             },
             {
-                "subnet": "10.41.0.0",
+                "subnet": TEST_SUBNET_WIDE_2,
                 "netmask_bits": "16",
-                "router": "10.41.0.1",
+                "router": TEST_ROUTER_WIDE_2,
                 "dynamic_range": "10.41.1.100-10.41.1.200",
             },
         ]

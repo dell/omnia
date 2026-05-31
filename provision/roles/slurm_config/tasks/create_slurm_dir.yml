@@ -140,6 +140,10 @@
     mode: "{{ file_mode }}"
   become: true
 
+- name: Set hpc_tools_path
+  ansible.builtin.set_fact:
+    hpc_tools_path: "{{ vast_mount_point }}/{{ slurm_dir_name }}/hpc_tools"
+
 - name: Create hpc tools dirs
   ansible.builtin.include_tasks: hpc_tools.yml
 

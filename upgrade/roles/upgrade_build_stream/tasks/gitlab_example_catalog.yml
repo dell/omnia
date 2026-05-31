@@ -13,13 +13,11 @@
 # limitations under the License.
 
 # ────────────────────────────────────────────────────────────────────────
-# Sync a single Omnia input file to the GitLab repository (create or update).
-# Called in a loop from upgrade_build_stream.yml with loop_var: _input_file
+# Sync a single example catalog file to the GitLab repository (create or update).
+# Called in a loop from gitlab_config_upgrade.yml with loop_var: _example_catalog
 #
 # Required variables (set by caller):
-#   _input_file.name           — filename (e.g. build_stream_config.yml)
-#   _input_file.src            — local path to the input file
-#   gitlab_input_repo_dir      — repository subdirectory (e.g. "input")
+#   _example_catalog               — full path to local catalog file
 #   gitlab_external_url_computed
 #   gitlab_project_id
 #   gitlab_root_token
@@ -27,41 +25,48 @@
 # ────────────────────────────────────────────────────────────────────────
 ---
 
-- name: Set encoded repo path for input file
+- name: Set example catalog filename and encoded repo path
   ansible.builtin.set_fact:
-    _encoded_input_path: "{{ (gitlab_input_repo_dir ~ '/' ~ _input_file.name) | urlencode | replace('/', '%2F') }}"
+    _example_catalog_name: "{{ _example_catalog | basename }}"
+    _encoded_example_path: "{{ ('examples/' ~ (_example_catalog | basename)) | urlencode | replace('/', '%2F') }}"
 
-- name: Read input file from NFS input directory
+- name: Read example catalog file
   ansible.builtin.slurp:
-    src: "{{ _input_file.src }}"
-  register: _input_content
+    src: "{{ _example_catalog }}"
+  register: _example_catalog_content
   failed_when: false
 
-- name: Check if input file exists in repository
+- name: Build API URL for example catalog check
+  ansible.builtin.set_fact:
+    _example_catalog_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _encoded_example_path }}?ref={{ gitlab_default_branch }}
+
+- name: Check if example catalog exists in repository
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}?ref={{ gitlab_default_branch }}"
+    url: "{{ _example_catalog_api_url }}"
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
     validate_certs: false
     status_code: [200, 404]
-  register: _input_repo_check
+  register: _example_catalog_check
   no_log: true
-  when: _input_content is succeeded
+  when: _example_catalog_content is succeeded
 
-- name: Create or update input file in repository
+- name: Create or update example catalog in repository
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}"
-    method: "{{ 'PUT' if _input_repo_check.status == 200 else 'POST' }}"
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_example_path }}"
+    method: "{{ 'PUT' if _example_catalog_check.status == 200 else 'POST' }}"
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
     body_format: json
     body:
       branch: "{{ gitlab_default_branch }}"
       encoding: base64
-      content: "{{ _input_content.content }}"
-      commit_message: "Upgrade {{ gitlab_input_repo_dir }}/{{ _input_file.name }} to Omnia 2.2"
+      content: "{{ _example_catalog_content.content }}"
+      commit_message: "Upgrade examples/{{ _example_catalog_name }} to Omnia 2.2"
     validate_certs: false
     status_code: [200, 201]
   no_log: true
-  when: _input_content is succeeded
+  when: _example_catalog_content is succeeded

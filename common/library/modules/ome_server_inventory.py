@@ -474,20 +474,33 @@ def extract_server_info(client, device, device_group_map=None):
                 info["first_nic_mac"] = nic.get("MacAddress", "")
                 break
 
-    # Get InfiniBand NIC: FQDD contains "InfiniBand" and LinkStatus is Up
-    # Use port-level PortId (e.g. "InfiniBand.Slot.7-1") for precise identification
+    # Get InfiniBand NIC: FQDD contains "InfiniBand"
+    # Priority: Up (best) > Unknown (fallback) > Down/other (last resort)
+    # (iDRAC may report "Unknown" even when IB is active at OS level — OMN01D-2442)
+    _IB_STATUS_PRIORITY = {"UP": 0, "UNKNOWN": 1}
+    fallback_ib_nic_name = ""
+    fallback_ib_priority = 99
     for nic in nic_info_list:
         nic_id = nic.get("NicId", "")
         if "infiniband" not in nic_id.lower():
             continue
         for port in nic.get("Ports", []):
-            link_status = (port.get("LinkStatus") or "").strip()
-            if link_status.upper() == "UP":
-                port_id = port.get("PortId", "")
-                info["ib_nic_name"] = port_id if port_id else nic_id
+            port_id = port.get("PortId", "")
+            candidate = port_id if port_id else nic_id
+            link_status = (port.get("LinkStatus") or "").strip().upper()
+            if link_status == "UP":
+                info["ib_nic_name"] = candidate
                 break
+            port_priority = _IB_STATUS_PRIORITY.get(link_status, 2)
+            if port_priority < fallback_ib_priority:
+                fallback_ib_nic_name = candidate
+                fallback_ib_priority = port_priority
+            elif port_priority == fallback_ib_priority and not fallback_ib_nic_name:
+                fallback_ib_nic_name = candidate
         if info["ib_nic_name"]:
             break
+    if not info["ib_nic_name"] and fallback_ib_nic_name:
+        info["ib_nic_name"] = fallback_ib_nic_name
 
     # Get group name from pre-built device→group map
     if device_group_map:

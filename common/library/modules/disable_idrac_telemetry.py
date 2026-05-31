@@ -67,7 +67,7 @@ def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
                 json=payload,
                 headers=headers,
                 auth=(username, password),
-                verify=False,
+                verify=False,  # NOSONAR - iDRAC BMC uses self-signed certificates
                 timeout=timeout
             )
             

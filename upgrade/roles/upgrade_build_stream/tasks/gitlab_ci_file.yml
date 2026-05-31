@@ -14,7 +14,7 @@
 
 # ────────────────────────────────────────────────────────────────────────
 # Upgrade a single CI/CD pipeline file in the GitLab repository.
-# Called in a loop from upgrade_build_stream.yml with loop_var: _ci_file_name
+# Called in a loop from gitlab_config_upgrade.yml with loop_var: _ci_file_name
 #
 # Required variables (set by caller):
 #   _ci_file_name              — filename (e.g. .gitlab-ci-build.yml)
@@ -31,11 +31,15 @@
     src: "{{ gitlab_role_path }}/files/{{ _ci_file_name }}"
   register: _ci_file_content
 
+- name: Build API URL for CI file check
+  ansible.builtin.set_fact:
+    _ci_file_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _ci_file_name | urlencode }}?ref={{ gitlab_default_branch }}
+
 - name: Check if CI file exists in repository
   ansible.builtin.uri:
-    url: >-
-      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/
-      repository/files/{{ _ci_file_name | urlencode }}?ref={{ gitlab_default_branch }}
+    url: "{{ _ci_file_api_url }}"
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"

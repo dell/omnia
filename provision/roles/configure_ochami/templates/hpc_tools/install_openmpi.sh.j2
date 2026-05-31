@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-CLIENT_MOUNT="{{ client_mount_path }}"
-OPENMPI_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
-OPENMPI_BUILD="{{ client_mount_path }}/slurm/hpc_tools/compile/openmpi"
+CLIENT_MOUNT="/hpc_tools"
+OPENMPI_PREFIX="/hpc_tools/benchmarks/openmpi"
+OPENMPI_BUILD="/hpc_tools/compile/openmpi"
 
 # Comprehensive logging
 LOGFILE="/var/log/openmpi_installation.log"
@@ -69,8 +69,8 @@ fi
 
 # UCX detection
 echo "[INFO] Detecting UCX integration..."
-if [ -x "{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx/bin/ucx_info" ]; then
-  UCX_FLAG="--with-ucx={{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+if [ -x "/hpc_tools/benchmarks/ucx/bin/ucx_info" ]; then
+  UCX_FLAG="--with-ucx=/hpc_tools/benchmarks/ucx"
   echo "[INFO] UCX detected - enabling UCX integration"
 else
   UCX_FLAG=""
@@ -97,7 +97,7 @@ OPENMPI_ENV_FILE="/etc/profile.d/openmpi.sh"
 echo "[INFO] Setting up OpenMPI environment variables in $OPENMPI_ENV_FILE..."
 cat > "$OPENMPI_ENV_FILE" <<EOF
 # OpenMPI environment
-export OPENMPI_HOME="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+export OPENMPI_HOME="/hpc_tools/benchmarks/openmpi"
 export PATH="\$OPENMPI_HOME/bin:\$PATH"
 export LD_LIBRARY_PATH="\$OPENMPI_HOME/lib:\$LD_LIBRARY_PATH"
 export MANPATH="\$OPENMPI_HOME/share/man:\$MANPATH"
@@ -125,7 +125,7 @@ echo ""
 echo "Log File Created:"
 echo "  - Installation Log: $LOGFILE" | tee -a "$LOGFILE"
 
-echo "[INFO] OpenMPI installed under {{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi" | tee -a "$LOGFILE"
+echo "[INFO] OpenMPI installed under /hpc_tools/benchmarks/openmpi" | tee -a "$LOGFILE"
 echo "[INFO] OpenMPI environment configured in $OPENMPI_ENV_FILE" | tee -a "$LOGFILE"
 
 echo "===== OpenMPI Installation Completed =====" | tee -a "$LOGFILE"
