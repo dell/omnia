@@ -111,7 +111,21 @@ telemetry_sh_helm_skip_msg: >-
   telemetry.sh had Helm errors (existing releases), but StatefulSet was already patched
   with terminationGracePeriodSeconds=120s for MySQL safety. Skipping full re-deployment.
   Image tags should be updated via kustomize if needed.
+telemetry_sh_missing_msg: >-
+  telemetry.sh not found at {{ telemetry_script_path }} on kube_vip.
+  Ensure the provision playbook has generated the telemetry deployment script.
+kustomization_missing_msg: >-
+  kustomization.yaml not found at {{ telemetry_kustomization_dir }}/kustomization.yaml on kube_vip.
+  Ensure the provision playbook has generated the kustomize deployment files.
+telemetry_sh_non_helm_error_msg: "telemetry.sh failed with non-Helm error: {{ telemetry_sh_result.stderr }}"
+idrac_rollout_timeout_warning_msg: >-
+  WARNING: idrac-telemetry rollout did not complete within 300s (rc={{ rollout_scale_result.rc }}).
+  Continuing with pod readiness check.
 pods_not_ready_msg: "Some telemetry pods are not ready after deployment."
+pods_not_ready_detailed_msg: >-
+  {{ pods_not_ready_msg }}
+  Review the pod status report above and check pod logs for errors:
+    kubectl logs -n {{ telemetry_namespace }} <pod-name>
 mysql_crash_error_msg: |
   ERROR: idrac-telemetry MySQL container failed to start after graceful shutdown.
   Manual intervention required:

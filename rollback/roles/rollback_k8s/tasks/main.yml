@@ -197,6 +197,10 @@
     - name: "Stage 8c — Clean up stale CSI VolumeAttachments"
       ansible.builtin.include_tasks: cleanup_stale_volume_attachments.yml
 
+    # ── Stage 8d: Verify telemetry pods after etcd restore ───────
+    - name: "Stage 8d — Verify telemetry rollback"
+      ansible.builtin.include_tasks: verify_telemetry_rollback.yml
+
     # ── Stage 9: Restore BSS boot params and cloud-init ──────────
     - name: "Stage 9 — Restore BSS boot params and cloud-init"
       ansible.builtin.include_tasks: restore_bss_cloud_init.yml

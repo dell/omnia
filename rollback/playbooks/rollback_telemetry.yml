@@ -68,17 +68,25 @@
       ansible.builtin.debug:
         msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # TODO: Implement telemetry rollback steps per ESpec §4.8.5:
-    # 1. Helm uninstall new components (powerscale, vast, victorialogs, ufm)
-    # 2. Rollback Strimzi operator + Kafka brokers to previous version
-    # 3. Rollback VictoriaMetrics StatefulSet(s) to previous version
-    # 4. Rollback iDRAC telemetry receiver + pump images
-    # 5. Restore LDMS sampler/aggregator configs from backup
-    # 6. Rolling restart LDMS pods
-    # 7. Validate: all telemetry pods Running, metrics/logs flowing
-    - name: Telemetry rollback placeholder
+    # ── Telemetry rollback strategy ──────────────────────────────────
+    # The K8s rollback (etcd snapshot restore) restores ALL Kubernetes objects
+    # to their pre-upgrade (2.1) state, which includes all telemetry namespace
+    # resources: Deployments, StatefulSets, Services, ConfigMaps, Secrets,
+    # PVCs, Helm release secrets, and CRDs.
+    #
+    # 2.2-only components (vector-ldms, vector-ome, victoria-logs cluster,
+    # victoria-metrics-operator CRDs, vlagent-vector, vmagent-vector) are
+    # automatically removed because they did not exist in the etcd snapshot.
+    #
+    # Post-K8s-rollback telemetry pod verification is performed by
+    # verify_telemetry_rollback.yml (Stage 8d) inside the rollback_k8s role.
+    - name: "Telemetry rollback — handled by K8s rollback (etcd restore)"
       ansible.builtin.debug:
-        msg: "Telemetry rollback tasks to be implemented (Helm uninstall, component rollback)"
+        msg:
+          - "Telemetry rollback is handled by K8s rollback via etcd snapshot restore."
+          - "The etcd snapshot contains the full 2.1 telemetry namespace state."
+          - "2.2-only components will be removed automatically."
+          - "Post-rollback telemetry pod verification runs in K8s rollback Stage 8d."
 
     - name: Mark telemetry rollback as completed
       ansible.builtin.copy:
