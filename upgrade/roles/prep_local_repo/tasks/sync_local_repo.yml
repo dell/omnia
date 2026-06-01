@@ -54,7 +54,9 @@
     name: oim
     pulp_protocol: "{{ pulp_protocol }}"
     pulp_server_port: "{{ pulp_server_port }}"
-    ansible_connection: local
+    ansible_connection: ssh
+    ansible_host: "localhost"
+    ansible_port: "{{ oim_host_port }}"
 
 - name: "Sync — Display sync configuration"
   ansible.builtin.debug:
