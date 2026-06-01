@@ -175,7 +175,6 @@
       containers.podman.podman_image:
         name: "{{ pulp_aarch_image }}"
         state: present
-        executable: /usr/bin/podman
       register: podman_pull_result
       retries: "{{ pull_image_retries }}"
       delay: "{{ pull_image_delay }}"
