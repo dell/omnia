@@ -30,10 +30,8 @@
       ansible.builtin.set_fact:
         omnia_run_tags: >-
           {{
-            (
-              ansible_run_tags | default([]) +
-              ['prepare_oim', 'local_repo', 'discovery', 'provision']
-            ) | unique
+            (ansible_run_tags | default([]) | list)
+            | union(['prepare_oim', 'local_repo', 'discovery', 'provision'])
           }}
         cacheable: true
 
