@@ -7,7 +7,7 @@ per-file, per-cluster package differences.
 
 Usage:
     python3 diff_input_configs.py \
-        --expected /opt/omnia/windsurf/build_stream_venu_oim/input \
+        --expected /omnia/input \
         --actual   /tmp/adapter_output_test/input
 
 The tool:
