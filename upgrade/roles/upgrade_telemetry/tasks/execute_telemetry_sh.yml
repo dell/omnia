@@ -77,6 +77,12 @@
       changed_when: true
       timeout: 900
       failed_when: false
+      retries: 2
+      delay: 30
+      until: >
+        telemetry_sh_result.rc == 0 or 
+        (telemetry_sh_result.stderr is not search('Failed to find required executable') and
+         telemetry_sh_result.stderr is not search('podman.*not found'))
 
     - name: Check if telemetry.sh failed due to Helm errors
       ansible.builtin.set_fact:
