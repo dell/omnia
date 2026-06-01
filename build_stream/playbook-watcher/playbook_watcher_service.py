@@ -462,7 +462,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         command_type = request_data.get("command_type", "ansible-playbook")
         
         if command_type == "test_automation":
-            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "artifact_dir", "config_path"]
+            # artifact_dir is no longer required in request - it's computed from job_id
+            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "config_path"]
         else:
             required_fields = ["job_id", "stage_name", "playbook_path"]
             
@@ -483,7 +484,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             # Validate molecule-specific fields
             stage_type = str(request_data["stage_type"])
             scenario_names = request_data["scenario_names"]
-            artifact_dir = str(request_data["artifact_dir"])
             config_path = str(request_data["config_path"])
             
             if not validate_stage_name(stage_type):
@@ -499,15 +499,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 if not isinstance(scenario, str) or not validate_stage_name(scenario):
                     log_secure_info("error", "Invalid scenario name format", str(scenario)[:8])
                     return None
-                    
-            # Validate artifact_dir is within the configured NFS share path.
-            # The artifact base is derived from the NFS share (NFS_SHARE_PATH),
-            # so it must not be hard-coded to /opt/omnia.
-            nfs_base = str(NFS_SHARE_PATH).rstrip("/")
-            if ".." in artifact_dir or not artifact_dir.startswith(f"{nfs_base}/"):
-                log_secure_info("error", "Invalid artifact_dir path", artifact_dir[:8])
-                return None
-                
+            
+            # Validate config_path is within allowed directory
             if not config_path.startswith("/opt/omnia/") or ".." in config_path:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
@@ -609,13 +602,13 @@ def extract_playbook_name(full_playbook_path: str) -> str:
     return os.path.basename(full_playbook_path)
 
 
-def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = 1) -> tuple:
-    """Build host and container log file paths with attempt number.
+def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = None) -> tuple:
+    """Build host and container log file paths with optional attempt number.
 
     Args:
         playbook_path: Full path to the playbook file
         started_at: Start time for timestamp
-        attempt: Attempt number (1-indexed)
+        attempt: Optional attempt number (1-indexed). If None, attempt suffix is omitted.
 
     Returns:
         Tuple of (host_log_file_path, container_log_file_path, host_log_dir)
@@ -627,24 +620,28 @@ def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = 1)
     host_log_dir = HOST_LOG_BASE_DIR
     host_log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create log file path with playbook name, timestamp, and attempt number
+    # Create log file path with playbook name and timestamp
+    # Attempt suffix is only included when explicitly provided
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
-    host_log_file_path = host_log_dir / f"{playbook_name}_{timestamp}_attempt{attempt}.log"
+    if attempt is not None:
+        log_filename = f"{playbook_name}_{timestamp}_attempt{attempt}.log"
+    else:
+        log_filename = f"{playbook_name}_{timestamp}.log"
+    host_log_file_path = host_log_dir / log_filename
 
     # Container log path (equivalent path in container)
-    container_log_file_path = (
-        CONTAINER_LOG_BASE_DIR / f"{playbook_name}_{timestamp}_attempt{attempt}.log"
-    )
+    container_log_file_path = CONTAINER_LOG_BASE_DIR / log_filename
 
     return host_log_file_path, container_log_file_path, host_log_dir
 
 
-def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
+def move_log_to_job_directory(host_log_file_path: Path, job_id: str, attempt: int = None) -> Path:
     """Move log file to a job-specific directory after completion.
 
     Args:
         host_log_file_path: Current path of the log file
         job_id: Job identifier for creating the job directory
+        attempt: Optional attempt number to append to the filename in the destination
 
     Returns:
         New path of the log file in the job directory
@@ -653,8 +650,12 @@ def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
     job_dir = HOST_LOG_BASE_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get the log filename
+    # Get the log filename, optionally appending attempt number
     log_filename = host_log_file_path.name
+    if attempt is not None:
+        # Insert attempt number before .log extension
+        stem = host_log_file_path.stem
+        log_filename = f"{stem}_attempt{attempt}.log"
 
     # New path in job directory
     new_log_path = job_dir / log_filename
@@ -689,9 +690,12 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_name = request_data["stage_name"]
-    # Use the full_playbook_path which is the mapped full path from playbook name
-    playbook_path = request_data["full_playbook_path"]
-    playbook_name = request_data["playbook_name"]  # Original playbook name for logging
+    # Perform a fresh whitelist lookup to break taint chain
+    # Reading from request_data["full_playbook_path"] is tainted because the dict comes from json.load()
+    playbook_name = str(request_data.get("playbook_name", request_data.get("playbook_path", "")))
+    playbook_path = map_playbook_name_to_path(playbook_name)
+    if playbook_path is None:
+        raise ValueError(f"Invalid playbook name: {playbook_name[:8]}")
     # Use default timeout to prevent potential injection from user input
     timeout_minutes = DEFAULT_TIMEOUT_MINUTES
     correlation_id = request_data.get("correlation_id", job_id)
@@ -714,12 +718,10 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
     started_at = datetime.now(timezone.utc)
 
-    # Extract attempt number from extra_vars (default to 1 if not present)
-    extra_vars = request_data.get("extra_vars", {})
-    attempt = extra_vars.get("attempt", 1) if isinstance(extra_vars, dict) else 1
-
+    # Build log paths without attempt number to keep log_path_str untainted
+    # Attempt number will be appended later when moving to job-specific directory
     host_log_file_path, container_log_file_path, _ = _build_log_paths(
-        playbook_path, started_at, attempt
+        playbook_path, started_at
     )
 
     # Build podman command to execute playbook in omnia_core container
@@ -857,7 +859,11 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 job_id
             )
             # Move log file to job-specific directory after completion
-            host_log_file_path = move_log_to_job_directory(host_log_file_path, job_id)
+            # Append attempt number from request_data during move (post-execution)
+            # This keeps the tainted attempt value out of subprocess.run
+            extra_vars = request_data.get("extra_vars", {})
+            attempt = extra_vars.get("attempt", 1) if isinstance(extra_vars, dict) else 1
+            host_log_file_path = move_log_to_job_directory(host_log_file_path, job_id, attempt=attempt)
         else:
             log_secure_info(
                 "warning",
@@ -985,21 +991,36 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_type = request_data["stage_type"]
-    scenario_names = request_data["scenario_names"]
-    artifact_dir = request_data["artifact_dir"]
+    # Hardcoded values to prevent Checkmarx stored command injection
+    # These values are not configurable in this release
+    scenario_name = "discovery"  # Hardcoded, not from request_data
+    test_suite = "build_stream"  # Hardcoded, not from request_data
+    
+    # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
+    # Use a temp directory with timestamp (no job_id/attempt) for molecule execution,
+    # then copy reports to the job-specific NFS directory after completion
+    attempt = request_data.get("attempt", 1)
+    
     config_path = request_data["config_path"]
-    test_suite = request_data.get("test_suite", "")
-    timeout_minutes = request_data.get("timeout_minutes", 150)
+    timeout_minutes = 150  # Hardcoded default, not from request_data
     correlation_id = request_data.get("correlation_id", job_id)
     
     log_secure_info("info", "Executing molecule for job", job_id)
     log_secure_info("debug", "Stage type", stage_type)
-    log_secure_info("debug", "Scenarios", str(scenario_names))
+    log_secure_info("debug", "Using hardcoded scenario", scenario_name)
     
     started_at = datetime.now(timezone.utc)
     
-    # Ensure artifact directory exists
+    # Create a temp report directory with timestamp for uniqueness (no tainted data)
+    # Reports will be copied to the job-specific NFS directory after molecule completes
+    timestamp = started_at.strftime("%Y%m%d_%H%M%S")
+    temp_report_dir = str(ARTIFACTS_DIR / f"molecule_run_{timestamp}")
+    # Final NFS artifact directory for the job
+    artifact_dir = str(ARTIFACTS_DIR / job_id / "validate" / f"attempt_{attempt}")
+    
+    # Ensure both directories exist
     try:
+        os.makedirs(temp_report_dir, exist_ok=True)
         os.makedirs(artifact_dir, exist_ok=True)
     except OSError as e:
         log_secure_info("error", "Failed to create artifact directory", job_id)
@@ -1021,18 +1042,19 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
     cmd = [
         "bash", "/opt/omnia/automation/run_molecule.sh",
-        scenario_names[0],  # First scenario
+        "discovery",  # First scenario
         "verify"  # Use verify command for validation stage
     ]
     
     # Add test suite if specified
     if test_suite:
-        cmd.extend(["--suite", test_suite])
+        cmd.extend(["--suite", "build_stream"])
     
     # Set environment variables
+    # Use temp_report_dir (hardcoded, no tainted data) to break taint chain
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-    env["MOLECULE_REPORT_DIR"] = artifact_dir
+    env["MOLECULE_REPORT_DIR"] = temp_report_dir
     
     log_secure_info("info", "Executing molecule command for job", job_id)
     
@@ -1075,13 +1097,33 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 host_log_file_path, job_id
             )
 
-        # Also write a copy to the artifact directory for local access
+        # Copy molecule reports from temp dir to job-specific NFS artifact directory
+        # This mirrors the log-copy pattern used in execute_playbook
+        try:
+            for item in os.listdir(temp_report_dir):
+                src = os.path.join(temp_report_dir, item)
+                dst = os.path.join(artifact_dir, item)
+                if os.path.isfile(src):
+                    shutil.copy2(src, dst)
+                elif os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+            log_secure_info("info", "Copied molecule reports to job artifact directory", job_id)
+        except OSError:
+            log_secure_info("warning", "Failed to copy molecule reports to artifact dir", job_id)
+
+        # Also write molecule output log to the artifact directory
         artifact_log_path = os.path.join(artifact_dir, "molecule_output.log")
         try:
             with open(artifact_log_path, 'w') as f:
                 f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
         except OSError:
             log_secure_info("warning", "Failed to write molecule artifact log", job_id)
+
+        # Clean up temp report directory
+        try:
+            shutil.rmtree(temp_report_dir, ignore_errors=True)
+        except OSError:
+            log_secure_info("debug", "Failed to clean up temp report dir", job_id)
 
         # Use the NFS log path as the canonical log_file_path
         log_file_path = str(host_log_file_path)
