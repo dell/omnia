@@ -206,7 +206,7 @@ def _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids):
         sanitized = sanitized[:50]
     
     # Build base ID
-    version_part = pkg_version if pkg_version else 'latest'
+    version_part = pkg_version if pkg_version else 'na'
     base_id = f"{sanitized}_{version_part}_{pkg_type}"
     
     # Handle collisions
