@@ -462,7 +462,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         command_type = request_data.get("command_type", "ansible-playbook")
         
         if command_type == "test_automation":
-            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "artifact_dir", "config_path"]
+            # artifact_dir is no longer required in request - it's computed from job_id
+            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "config_path"]
         else:
             required_fields = ["job_id", "stage_name", "playbook_path"]
             
@@ -992,7 +993,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     stage_type = request_data["stage_type"]
     # Hardcoded values to prevent Checkmarx stored command injection
     # These values are not configurable in this release
-    scenario_name = "provision"  # Hardcoded, not from request_data
+    scenario_name = "discovery"  # Hardcoded, not from request_data
     test_suite = "build_stream"  # Hardcoded, not from request_data
     
     # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
@@ -1041,7 +1042,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
     cmd = [
         "bash", "/opt/omnia/automation/run_molecule.sh",
-        "provision",  # First scenario
+        "discovery",  # First scenario
         "verify"  # Use verify command for validation stage
     ]
     
