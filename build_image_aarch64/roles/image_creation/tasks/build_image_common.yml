@@ -58,3 +58,10 @@
       {{ s3_configurations.endpoint_url
          if s3_configurations.provider == 'powerscale'
          else 'http://' + oim_node_name + '.' + domain_name + ':9000' }}
+
+- name: Set AWS checksum env vars for PowerScale S3 provider
+  ansible.builtin.set_fact:
+    aws_checksum_env: >-
+      {{ '-e AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+      -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required'
+      if s3_configurations.provider == 'powerscale' else '' }}

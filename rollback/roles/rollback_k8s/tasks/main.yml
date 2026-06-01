@@ -1,0 +1,245 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ══════════════════════════════════════════════════════════════════════
+# K8s Rollback Orchestrator
+# ══════════════════════════════════════════════════════════════════════
+# Rolls back a Kubernetes cluster to the pre-upgrade version using
+# etcd snapshot restore + package downgrade.
+#
+# Prerequisites:
+#   - Upgrade backups must exist (etcd snapshot, K8s configs, etcd members)
+#   - Target rollback version packages must be available in Pulp repo
+#
+# Rollback stages:
+#   1.  Preflight checks (backups, packages, SSH)
+#   2.  Stop the cluster (cordon, stop kubelet in correct order)
+#   2b. Clean up stale MetalLB IPs on all nodes
+#   3.  Restore etcd snapshot on all CPs
+#   4.  Restore /etc/kubernetes/ configs on all CPs
+#   5.  Downgrade packages on all CPs + start kubelet
+#   6.  Fix kube-vip split-brain
+#   7.  Downgrade packages on workers + start kubelet
+#   8.  Post-validation
+#   8b. Restart network pods (clear stale BIRD/speaker processes)
+#   8c. Clean up stale CSI VolumeAttachments (PowerScale/Isilon)
+#   9.  Restore BSS boot params and cloud-init from backup
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Load configuration and version variables ─────────────────────────
+- name: Load config and version variables
+  ansible.builtin.include_tasks:
+    file: load_version_vars.yml
+
+- name: Load local_repo_access.yml to get pulp protocol
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_access_file }}"
+  when: inventory_hostname == "localhost"
+
+- name: Extract pulp protocol from local_repo_access
+  ansible.builtin.set_fact:
+    pulp_protocol: "{{ offline_tarball_path | regex_replace('^(https?)://.*', '\\1') }}"
+  when: inventory_hostname == "localhost"
+
+# ── Set rollback paths on client NFS mount ───────────────────────────
+- name: Set rollback paths on client NFS mount
+  ansible.builtin.set_fact:
+    upgrade_dir_client: "{{ k8s_client_mount_path }}/upgrade"
+    rollback_status_file: "{{ k8s_client_mount_path }}/upgrade/rollback_status.yml"
+    upgrade_status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+    lock_file: "{{ k8s_client_mount_path }}/upgrade/rollback.lock"
+    k8s_backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup"
+    etcd_members_file: "{{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json"
+    k8s_config_backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup/configs"
+
+# ── Resolve first CP node for delegation (avoids kube_vip dependency) ─
+- name: Read nodes.yaml for early CP resolution
+  ansible.builtin.slurp:
+    src: "{{ nodes_yaml_path }}"
+  register: _early_nodes_slurp
+
+- name: Parse nodes.yaml and resolve first CP
+  ansible.builtin.set_fact:
+    _early_parsed_nodes: "{{ _early_nodes_slurp.content | b64decode | from_yaml }}"
+
+- name: Set first CP node for delegation
+  ansible.builtin.set_fact:
+    first_cp_node: >-
+      {{ (_early_parsed_nodes.nodes
+          | selectattr('group', 'equalto', group_cp_first)
+          | first).name }}
+    first_cp_ip: >-
+      {{ ((_early_parsed_nodes.nodes
+           | selectattr('group', 'equalto', group_cp_first)
+           | first).interfaces | first).ip_addrs
+         | selectattr('name', 'equalto', 'management')
+         | map(attribute='ip_addr') | first }}
+
+- name: Add first CP to inventory for delegation
+  ansible.builtin.add_host:
+    name: "{{ first_cp_node }}"
+    ansible_host: "{{ first_cp_ip }}"
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+# ── Use status_file alias for the custom module ──────────────────────
+- name: Set status_file alias for update_status tasks
+  ansible.builtin.set_fact:
+    status_file: "{{ k8s_client_mount_path }}/upgrade/rollback_status.yml"
+    status_delegate_host: "{{ first_cp_node }}"
+
+# ══════════════════════════════════════════════════════════════════════
+# Rollback execution
+# ══════════════════════════════════════════════════════════════════════
+- name: Execute rollback
+  block:
+    # ── Acquire rollback lock ──────────────────────────────────────
+    - name: Acquire rollback lock
+      ansible.builtin.include_tasks: acquire_rollback_lock.yml
+
+    # ── Determine rollback version from upgrade_status.yml ─────────
+    - name: Read upgrade status to determine rollback version
+      ansible.builtin.slurp:
+        src: "{{ upgrade_status_file }}"
+      delegate_to: "{{ first_cp_node }}"
+      register: _upgrade_status_slurp
+
+    - name: Parse upgrade status
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ _upgrade_status_slurp.content | b64decode | from_yaml }}"
+
+    - name: Set rollback version variables
+      ansible.builtin.set_fact:
+        k8s_current_version: "{{ upgrade_status.upgrade.target_version }}"
+        k8s_rollback_version: "{{ upgrade_status.upgrade.from_version }}"
+
+    - name: Set etcd snapshot path from upgrade status
+      ansible.builtin.set_fact:
+        etcd_snapshot_file: "{{ upgrade_status.etcd_backup.path }}"
+
+    - name: Display rollback plan
+      ansible.builtin.debug:
+        msg: "{{ rollback_banner }}"
+      vars:
+        rollback_banner:
+          - "========================================================================"
+          - "[ROLLBACK] Kubernetes Cluster Rollback"
+          - "========================================================================"
+          - "Current version: {{ k8s_current_version }}"
+          - "Rollback to:     {{ k8s_rollback_version }}"
+          - "etcd snapshot:   {{ etcd_snapshot_file }}"
+          - "Config backups:  {{ k8s_config_backup_dir }}"
+          - "========================================================================"
+
+    # ── Load rollback status (or create new) ───────────────────────
+    - name: Load or create rollback status
+      ansible.builtin.include_tasks: load_rollback_status.yml
+
+    # ── Stage 1: Preflight checks ─────────────────────────────────
+    - name: "Stage 1 — Preflight checks"
+      ansible.builtin.include_tasks: preflight_checks.yml
+
+    # ── Stage 2: Stop the cluster ──────────────────────────────────
+    - name: "Stage 2 — Stop the cluster"
+      ansible.builtin.include_tasks: stop_cluster.yml
+
+    # ── Stage 2b: Clean up stale MetalLB IPs ────────────────────────
+    - name: "Stage 2b — Clean up stale MetalLB IPs"
+      ansible.builtin.include_tasks: cleanup_metallb_ips.yml
+
+    # ── Stage 3: Restore etcd snapshot on all CPs ──────────────────
+    - name: "Stage 3 — Restore etcd snapshot"
+      ansible.builtin.include_tasks: restore_etcd.yml
+
+    # ── Stage 4: Restore K8s configs on all CPs ───────────────────
+    - name: "Stage 4 — Restore K8s configs"
+      ansible.builtin.include_tasks: restore_k8s_configs.yml
+
+    # ── Stage 5: Downgrade packages on CPs and start kubelet ──────
+    - name: "Stage 5 — Downgrade and start control planes"
+      ansible.builtin.include_tasks: downgrade_cp_packages.yml
+
+    - name: "Stage 5b — Start control plane"
+      ansible.builtin.include_tasks: start_control_plane.yml
+
+    # ── Stage 6: Fix kube-vip split-brain ──────────────────────────
+    - name: "Stage 6 — Fix kube-vip split-brain"
+      ansible.builtin.include_tasks: fix_vip_split_brain.yml
+
+    # ── Stage 7: Downgrade packages on workers and start kubelet ──
+    - name: "Stage 7 — Downgrade and start workers"
+      ansible.builtin.include_tasks: downgrade_worker_packages.yml
+
+    - name: "Stage 7b — Start workers"
+      ansible.builtin.include_tasks: start_workers.yml
+
+    # ── Stage 8: Post-validation ───────────────────────────────────
+    - name: "Stage 8 — Post-validation"
+      ansible.builtin.include_tasks: post_validation.yml
+
+    # ── Stage 8b: Restart network pods to clear stale processes ────
+    - name: "Stage 8b — Restart network pods"
+      ansible.builtin.include_tasks: restart_network_pods.yml
+
+    # ── Stage 8c: Clean up stale CSI VolumeAttachments ──────────
+    - name: "Stage 8c — Clean up stale CSI VolumeAttachments"
+      ansible.builtin.include_tasks: cleanup_stale_volume_attachments.yml
+
+    # ── Stage 9: Restore BSS boot params and cloud-init ──────────
+    - name: "Stage 9 — Restore BSS boot params and cloud-init"
+      ansible.builtin.include_tasks: restore_bss_cloud_init.yml
+
+    # ── Mark rollback completed ────────────────────────────────────
+    - name: Mark rollback completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          rollback:
+            status: completed
+            failed_at:
+            completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display rollback success
+      ansible.builtin.debug:
+        msg: "{{ msg_rollback_complete }}"
+
+  rescue:
+    - name: Mark rollback as failed
+      block:
+        - name: Update rollback failed status
+          ansible.builtin.include_tasks:
+            file: update_status.yml
+          vars:
+            status_update:
+              rollback:
+                status: failed
+                failed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+      rescue:
+        - name: Skip rollback failed status update errors
+          ansible.builtin.debug:
+            msg: "Could not update rollback failed status file."
+
+    - name: Display rollback failure
+      ansible.builtin.debug:
+        msg: "{{ msg_rollback_failed }}"
+
+    - name: Fail the playbook
+      ansible.builtin.fail:
+        msg: "Kubernetes rollback failed. Check {{ rollback_status_file }} for details."
+
+  always:
+    - name: Release rollback lock
+      ansible.builtin.include_tasks: release_rollback_lock.yml

@@ -99,6 +99,7 @@ backup_quadlets_subpath: "openchami/quadlets"
 backup_target_subpath: "openchami/openchami.target"
 backup_openchami_data_subpath: "openchami/openchami_data"
 backup_pgdump_subpath: "openchami/postgresql_backup/openchami.sql"
+backup_etc_openchami_subpath: "openchami/etc_openchami"
 
 # Cloud-init paths (resolved from backup)
 rollback_cloud_init_dir: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_openchami_data_subpath }}/workdir/cloud-init"

@@ -566,7 +566,7 @@ def process_manifest(file, status_file_path, content_base_dir, repo_name, logger
         write_status_to_file(status_file_path, package_name, package_type,
                              status, logger, file_lock)
         logger.info("#" * 30 + f" {process_manifest.__name__} end " + "#" * 30)  # End of function
-        return status
+    return status
 
 def process_git(file, status_file_path, content_base_dir, repo_name, logger):
     """
@@ -641,7 +641,7 @@ def process_git(file, status_file_path, content_base_dir, repo_name, logger):
                              status, logger, file_lock)
 
         logger.info("#" * 30 + f" {process_git.__name__} end " + "#" * 30)  # End of function
-        return status
+    return status
 
 # Function to process a shell file
 def process_shell(file, status_file_path, content_base_dir, repo_name, logger):
@@ -689,7 +689,7 @@ def process_shell(file, status_file_path, content_base_dir, repo_name, logger):
         # Write the status to the file
         write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
         logger.info("#" * 30 + f" {process_shell.__name__} end " + "#" * 30)  # End of function
-        return status
+    return status
 
 def process_ansible_galaxy_collection(file, status_file_path, content_base_dir, repo_name, logger):
     """
@@ -783,7 +783,7 @@ def process_ansible_galaxy_collection(file, status_file_path, content_base_dir, 
         write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
 
         logger.info("#" * 30 + f" {process_ansible_galaxy_collection.__name__} end " + "#" * 30)
-        return status
+    return status
 
 def process_tarball(package, status_file_path, version_variables, content_base_dir, repo_name, logger):
     """
@@ -861,7 +861,7 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
                     write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
                     logger.info("#" * 30 + f" {process_tarball.__name__} end " + "#" * 30)  # End of function
 
-                    return status
+                return status
             else:
                 status = "No URL provided"
         except subprocess.CalledProcessError:
@@ -871,7 +871,7 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
             write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
             logger.info("#" * 30 + f" {process_tarball.__name__} end " + "#" * 30)  # End of function
 
-            return status
+        return status
     elif path_support is True and url_support is False:
         try:
             shutil.copy(path, tarball_path)
@@ -889,7 +889,7 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
             write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
             logger.info("#" * 30 + f" {process_tarball.__name__} end " + "#" * 30)  # End of function
 
-            return status
+        return status
 
 def process_iso(package, status_file_path,
                version_variables, content_base_dir, repo_name, logger):
@@ -970,7 +970,7 @@ def process_iso(package, status_file_path,
             # Write the status to the file
             write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
             logger.info("#" * 30 + f" {process_iso.__name__} end " + "#" * 30)  # End of function
-            return status
+        return status
 
     elif path_support is True and url_support is False:
         try:
@@ -994,7 +994,7 @@ def process_iso(package, status_file_path,
             # Write the status to the file
             write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
             logger.info("#" * 30 + f" {process_iso.__name__} end " + "#" * 30)  # End of function
-            return status
+        return status
 
 def process_pip(package, status_file_path, content_base_dir, repo_name, logger):
     """
@@ -1098,7 +1098,7 @@ def process_pip(package, status_file_path, content_base_dir, repo_name, logger):
         write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
 
         logger.info("#" * 30 + f" {process_pip.__name__} end " + "#" * 30)
-        return status
+    return status
 
 def process_rpm_file(package, status_file_path, content_base_dir, repo_name_arg, logger):
     """
@@ -1248,4 +1248,4 @@ def process_rpm_file(package, status_file_path, content_base_dir, repo_name_arg,
         # Write the status to the file
         write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
         logger.info("#" * 30 + f" {process_rpm_file.__name__} end " + "#" * 30)
-        return status
+    return status

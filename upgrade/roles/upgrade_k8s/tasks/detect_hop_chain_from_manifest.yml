@@ -21,7 +21,7 @@
 #   components         — loaded from upgrade_vars.yml (top-level key)
 #
 # Outputs (set_fact):
-#   hop_chain         — list of dicts: [{from_minor, to_version}, ...]
+#   hop_chain         — list of dicts: [{from_version, from_minor, to_version}, ...]
 #   is_multi_hop      — boolean, true if chain has > 1 hop
 #   k8s_target_version — target version from manifest
 
@@ -76,6 +76,7 @@
   ansible.builtin.set_fact:
     hop_chain: >-
       {{ hop_chain + [{
+        'from_version': _hop_from_versions[hop_idx],
         'from_minor': _hop_from_versions[hop_idx] | regex_replace('\.[0-9]+$', ''),
         'to_version': _hop_chain_raw[hop_idx],
         'artifacts_dir': 'v' + _hop_chain_raw[hop_idx]

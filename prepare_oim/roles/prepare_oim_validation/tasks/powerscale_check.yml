@@ -36,7 +36,7 @@
   ansible.builtin.uri:
     url: "{{ s3_configurations.endpoint_url }}"
     method: GET
-    validate_certs: false
+    validate_certs: false  # NOSONAR - PowerScale may use self-signed certificates
     status_code: [200, 403, 404, 405]
     timeout: 10
   register: ps_endpoint_check

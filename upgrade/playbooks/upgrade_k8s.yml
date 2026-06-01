@@ -447,14 +447,21 @@
         (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Get current cluster version
-      ansible.builtin.command: /usr/bin/kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
+      ansible.builtin.command: >-
+        /usr/bin/kubectl get nodes
+        -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}'
       register: cluster_version_raw
       changed_when: false
 
     - name: Set cluster version facts
+      vars:
+        _min_version: >-
+          {{ cluster_version_raw.stdout.split()
+             | map('regex_replace', '^v', '')
+             | sort | first }}
       ansible.builtin.set_fact:
-        k8s_from_version: "{{ cluster_version_raw.stdout | regex_replace('^v', '') }}"
-        k8s_from_minor: "{{ cluster_version_raw.stdout | regex_replace('^v', '') | regex_replace('\\.[0-9]+$', '') }}"
+        k8s_from_version: "{{ _min_version }}"
+        k8s_from_minor: "{{ _min_version | regex_replace('\\.[0-9]+$', '') }}"
 
 - name: "Kubernetes Upgrade - Setup upgrade directory on kube_vip"
   hosts: kube_vip_group

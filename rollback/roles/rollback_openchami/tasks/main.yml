@@ -30,9 +30,9 @@
 #   - Database rolled back to pre-upgrade state
 #   - Cloud-init data reloaded from backup workdir
 #
-# Idempotency:
-#   - If v2.1 containers are already running, rollback is skipped
-#   - Re-running after successful rollback is a no-op
+# No idempotency check — rollback always executes regardless of current
+# container state. This ensures rollback works even in partial or failed
+# upgrade states.
 # ============================================================================
 
 - name: Resolve backup directory for rollback
@@ -44,7 +44,6 @@
       ansible.builtin.include_tasks: pre_rollback_checks.yml
 
     - name: Execute OpenCHAMI rollback
-      when: rollback_needed | default(true) | bool
       block:
         - name: Stop v2.2 containers and services
           ansible.builtin.include_tasks: stop_current_containers.yml

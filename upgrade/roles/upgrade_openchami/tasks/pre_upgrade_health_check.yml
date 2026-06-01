@@ -14,23 +14,19 @@
 ---
 
 # ============================================================================
-# pre_upgrade_health_check.yml — Pre-Upgrade Detection, Idempotency & Health
+# pre_upgrade_health_check.yml — Pre-Upgrade Detection & Health Check
 # ============================================================================
 # Scenarios handled:
 #   A. OpenCHAMI not deployed → openchami_deployed=false, upgrade skipped
-#   B. Deployed, already at target versions → upgrade_needed=false, no-op rerun
-#   C. Deployed, upgrade needed → full health validation, then proceed
-#   D. Deployed, empty DB (prepare_oim-only) → health passes, node count=0
-#   E. Deployed, full cluster with nodes → health passes, node count recorded
+#   B. Deployed, empty DB (prepare_oim-only) → health passes, node count=0
+#   C. Deployed, full cluster with nodes → health passes, node count recorded
 #
 # Design:
 #   - SMD/BSS API endpoints MUST be reachable (with retry/wait). Hard failure
 #     if unreachable after retries — these services must always be up.
 #   - Node count from DB is non-fatal (0 is valid for prepare_oim-only).
 #   - S3 check is non-fatal (may not be configured yet).
-#   - Idempotency check uses a robust single-command podman inspect that
-#     avoids fragile shell pipes. On rerun after success, upgrade_needed=false
-#     and no containers are touched.
+#   - No idempotency check — upgrade always executes when OpenCHAMI is deployed.
 # ============================================================================
 
 # --- Detection: Check if OpenCHAMI was previously deployed ---
@@ -92,82 +88,12 @@
 - name: Pre-upgrade checks
   when: openchami_deployed | default(false) | bool
   block:
-    # ── Idempotency: Check if upgrade is actually needed ──────────────
-    # Uses a single podman inspect command per container to get ImageName.
-    # Avoids the fragile two-command pipe pattern that could fail and
-    # incorrectly trigger a full upgrade cycle on a healthy system.
-    - name: Check current OpenCHAMI container versions
-      block:
-        - name: Get current container image tags
-          ansible.builtin.shell: |
-            set -o pipefail
-            NAME=$(podman inspect --format '{% raw %}{{.ImageName}}{% endraw %}' {{ item.container }} 2>/dev/null || true)
-            if [ -z "$NAME" ] || [ "$NAME" = "" ] || [ "$NAME" = "<no value>" ]; then
-              # Fallback: resolve via image ID
-              IMG_ID=$(podman inspect --format '{% raw %}{{.Image}}{% endraw %}' {{ item.container }} 2>/dev/null || true)
-              if [ -n "$IMG_ID" ]; then
-                NAME=$(podman inspect --format '{% raw %}{{index .RepoTags 0}}{% endraw %}' "$IMG_ID" 2>/dev/null || true)
-              fi
-            fi
-            echo "${NAME:-not_found}"
-          loop: "{{ openchami_containers }}"
-          register: current_images
-          changed_when: false
-          failed_when: false
-          delegate_to: oim
-          delegate_facts: true
-          connection: ssh
-
-        - name: Build current vs expected image comparison
-          ansible.builtin.set_fact:
-            current_image_list: >-
-              {{ current_images.results |
-                 selectattr('stdout', 'defined') |
-                 map(attribute='stdout') |
-                 map('trim') | list }}
-            expected_image_list: >-
-              {{ openchami_containers | map(attribute='expected_image') | list }}
-
-        - name: Determine if upgrade is needed
-          ansible.builtin.set_fact:
-            upgrade_needed: "{{ current_image_list != expected_image_list }}"
-
-        - name: Display idempotency check result
-          ansible.builtin.debug:
-            msg: >-
-              {{ upgrade_messages.idempotency.skip_message
-                 if not (upgrade_needed | bool)
-                 else upgrade_messages.idempotency.upgrade_needed }}
-
-        - name: Display per-container version comparison
-          ansible.builtin.debug:
-            verbosity: 1
-            msg: >-
-              {{ item.container }}: current={{ current_image_list[idx] | default('unknown') }},
-              expected={{ item.expected_image }}
-              {{ '✓' if current_image_list[idx] | default('') == item.expected_image else '→ NEEDS UPDATE' }}
-          loop: "{{ openchami_containers }}"
-          loop_control:
-            index_var: idx
-            label: "{{ item.container }}"
-          when: upgrade_needed | bool
-
-      rescue:
-        - name: Upgrade state check failed - proceed with upgrade to be safe
-          ansible.builtin.set_fact:
-            upgrade_needed: true
-
-        - name: Display state check failure
-          ansible.builtin.debug:
-            msg: "{{ upgrade_messages.idempotency.check_failure }}"
-
     # --- Retrieve PostgreSQL credentials from container environment ---
     - name: Retrieve PostgreSQL credentials
       ansible.builtin.include_tasks: retrieve_postgres_credentials.yml
 
-    # --- Pre-upgrade health verification (only when upgrade is needed) ---
+    # --- Pre-upgrade health verification ---
     - name: Pre-upgrade health check
-      when: upgrade_needed | default(true) | bool
       block:
         # ── Verify current OpenCHAMI version from version.yml ─────────
         - name: Check if version.yml exists

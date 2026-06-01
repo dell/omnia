@@ -16,140 +16,38 @@
 # rollback_build_stream.yml — BuildStream Rollback
 # ============================================================================
 # Per ESpec §4.6.4 Rollback:
-#   PATH A Rollback (upgrade → restore): Restore quadlets, Postgres, GitLab
-#          from backup to pre-upgrade state.
-#   PATH B Rollback (fresh install → remove): Stop and remove all containers
-#          and quadlets that were freshly installed.
+#   PATH A Rollback (upgrade_existing → restore): Restore quadlets, Postgres
+#          migration downgrade (007→005), GitLab config restore + commit revert.
+#   PATH B Rollback (fresh_install → remove): Full cleanup — stop/remove
+#          containers, quadlets, watcher, automation, GitLab uninstall.
 #
 # The rollback path is determined from metadata stored during upgrade at:
-#   {{ backup_dir }}/metadata/buildstream_upgrade_path.yml
+#   {backup_dir}/buildstream_upgrade_metadata.yml
+# (Written by upgrade/roles/upgrade_build_stream/tasks/validate.yml)
 #
-# STATUS: Framework only — debug statements outline the rollback flow.
-#         Actual implementation to be added when BuildStream rollback is ready.
+# The rollback_buildstream role handles all phases (0–9) including:
+#   - Pre-flight, manifest read, path determination
+#   - Backup validation (PATH A)
+#   - Alembic downgrade BEFORE quadlet swap (2.2 image required for downgrade code)
+#   - Stop services, restore/remove quadlets, reload systemd
+#   - Start services (PATH A) / full cleanup (PATH B)
+#   - GitLab rollback (revert commits or full uninstall)
+#   - End-to-end validation and status update
 # ============================================================================
 
 - name: Rollback BuildStream upgrade / enablement
   hosts: localhost
   connection: local
   gather_facts: false
-  vars:
-    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
-    component_name: build_stream
   tasks:
-    # ── Manifest read & idempotency guard ──
-    - name: Read rollback_manifest.yml
-      ansible.builtin.slurp:
-        src: "{{ rollback_manifest_path }}"
-      register: raw_rollback_manifest
-
-    - name: Parse rollback manifest
-      ansible.builtin.set_fact:
-        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
-        backup_dir: "{{ (raw_rollback_manifest.content | b64decode | from_yaml).backup_dir }}"
-
-    - name: Skip if build_stream rollback already completed
-      ansible.builtin.meta: end_play
-      when:
-        - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
-
-    # ── Determine which path was used during upgrade ──
-    - name: Check for upgrade path metadata
-      ansible.builtin.stat:
-        path: "{{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
-      register: path_metadata_stat
-
-    - name: Mark build_stream rollback as skipped when never upgraded
-      ansible.builtin.copy:
-        content: >-
-          {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ rollback_manifest_path }}"
-        mode: '0644'
-      when: not path_metadata_stat.stat.exists
-
-    - name: Skip if BuildStream was never upgraded (no metadata)
-      ansible.builtin.meta: end_play
-      when: not path_metadata_stat.stat.exists
-
-    - name: Set build_stream rollback status to in-progress
-      ansible.builtin.copy:
-        content: >-
-          {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'in-progress'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ rollback_manifest_path }}"
-        mode: '0644'
-
-    - name: "Display rollback status in-progress — {{ component_name }}"
-      ansible.builtin.debug:
-        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
-
-    # ── Framework: Debug statements outlining the rollback flow ──
-    - name: "[FRAMEWORK] BuildStream rollback flow outline"
+    - name: BuildStream Rollback Banner
       ansible.builtin.debug:
         msg:
           - "============================================================"
-          - "  BuildStream Rollback — Framework (ESpec §4.6.4)"
-          - "============================================================"
-          - ""
-          - "Component: {{ component_name }}"
-          - "Rollback manifest: {{ rollback_manifest_path }}"
-          - "Backup dir: {{ backup_dir }}"
-          - "Upgrade path metadata: {{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
-          - ""
-          - "--- Rollback path detection ---"
-          - "  Read {{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
-          - "  Determine: PATH_A (restore from backup) or PATH_B (remove fresh install)"
-          - ""
-          - "--- PATH A Rollback: Upgrade → Restore from backup ---"
-          - "  Step 1: Restore BuildStream quadlet from backup"
-          - "  Step 2: Reload systemd daemon"
-          - "  Step 3: Restart all BuildStream services (postgres, buildstream, gitlab)"
-          - "  Step 4: Wait for Postgres ready (pg_isready)"
-          - "  Step 5: Restore Postgres data from pg_dump backup"
-          - "  Step 6: Restore GitLab config from backup (gitlab.rb, secrets)"
-          - "  Step 7: gitlab-ctl reconfigure"
-          - "  Step 8: Restore build_stream_config.yml from backup"
-          - "  Step 9: Validate services at previous version"
-          - ""
-          - "--- PATH B Rollback: Fresh install → Remove everything ---"
-          - "  Step 1: Stop all BuildStream containers"
-          - "  Step 2: Remove BuildStream quadlets"
-          - "  Step 3: Reload systemd daemon"
-          - "  Step 4: Remove container images (optional cleanup)"
-          - ""
-          - "--- Post-rollback ---"
-          - "  Mark build_stream rollback as completed in manifest"
+          - "  BuildStream Rollback (started)"
           - "============================================================"
 
-    # ── Mark completed ──
-    - name: "[FRAMEWORK] Re-read rollback manifest"
-      ansible.builtin.slurp:
-        src: "{{ rollback_manifest_path }}"
-      register: raw_rollback_final
-
-    - name: "[FRAMEWORK] Mark build_stream rollback as completed"
-      ansible.builtin.copy:
-        content: >-
-          {{ (raw_rollback_final.content | b64decode | from_yaml) | combine({
-               'component_status': (raw_rollback_final.content | b64decode | from_yaml).component_status | combine({
-                 component_name: 'completed'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ rollback_manifest_path }}"
-        mode: '0644'
-
-    - name: "Display rollback status completed — {{ component_name }}"
-      ansible.builtin.debug:
-        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"
-
-    - name: "[FRAMEWORK] Display rollback summary"
-      ansible.builtin.debug:
-        msg:
-          - "BuildStream rollback completed (FRAMEWORK MODE)."
-          - "Actual rollback logic to be implemented."
+    - name: Execute BuildStream rollback role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../roles/rollback_buildstream"
+      tags: [buildstream]

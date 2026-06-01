@@ -192,9 +192,13 @@ prepare_oim_templates_path: "{{ role_path }}/../../../prepare_oim/roles/deploy_c
 
 # OpenCHAMI configuration paths
 openchami_config_dir: "/etc/openchami/configs"
+openchami_etc_dir: "/etc/openchami"
 openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_work_dir: "/opt/omnia/openchami/workdir"
 ochami_dir: "/etc/ochami"
+
+# Backup sub-path for /etc/openchami directory (backed up as a whole)
+backup_etc_openchami_subpath: "openchami/etc_openchami"
 
 # Cloud-init workdir paths (for reloading data after container upgrade)
 # The cloud-init-server stores group configs in-memory, NOT in PostgreSQL.

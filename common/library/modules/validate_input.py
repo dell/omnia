@@ -198,8 +198,8 @@ def main():
                 if not enable_build_stream:
                     skip_gitlab_validation = True
                     logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
-        except Exception as e:
-            logger.warning(f"Failed to check build_stream status: {e}")
+        except Exception:
+            logger.warning("Failed to check build_stream status from build_stream_config.yml")
     
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):

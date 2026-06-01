@@ -105,68 +105,42 @@
       delegate_facts: true
       connection: ssh
 
-    # ── 4. Restore v2.1 configs ────────────────────────────────────────
-    # Config files live at /etc/openchami/configs/ on the OIM host (NOT
-    # under /opt/omnia/openchami/), so the omnia.sh backup of
-    # openchami_data/ may not contain them.
-    #
-    # Primary source: .pre-upgrade files created by upgrade_openchami_containers.yml
-    #   /etc/openchami/configs/coredhcp.yaml.pre-upgrade
-    #   /etc/openchami/configs/Corefile.pre-upgrade
-    # Fallback: backup openchami_data/ (if someone copied configs there)
-    - name: Compute OIM host-side openchami_data backup path
+    # ── 4. Restore v2.1 configs from /etc/openchami backup ──────────────
+    # The entire /etc/openchami directory was backed up during upgrade by
+    # backup_openchami.yml. Restore it in full to get all config files
+    # (coredhcp.yaml, Corefile, openchami.env, certs, etc.) back to their
+    # pre-upgrade state.
+    - name: Compute OIM host-side /etc/openchami backup path
       ansible.builtin.set_fact:
+        rollback_oim_host_etc_openchami: >-
+          {{ rollback_oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}
         rollback_oim_host_data: >-
           {{ rollback_oim_host_backup_dir }}/{{ backup_openchami_data_subpath }}
 
-    # --- coredhcp.yaml ---
-    - name: Check if .pre-upgrade coredhcp.yaml exists on OIM host
+    - name: Check if /etc/openchami backup exists on OIM host
       ansible.builtin.stat:
-        path: "{{ openchami_config_dir }}/coredhcp.yaml.pre-upgrade"
-      register: rollback_coredhcp_pre_stat
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-      failed_when: false
-
-    - name: Restore v2.1 coredhcp.yaml from .pre-upgrade file
-      ansible.builtin.copy:
-        src: "{{ openchami_config_dir }}/coredhcp.yaml.pre-upgrade"
-        dest: "{{ openchami_config_dir }}/coredhcp.yaml"
-        remote_src: true
-        owner: root
-        group: root
-        mode: "{{ file_permissions_644 }}"
-      when: rollback_coredhcp_pre_stat.stat.exists | default(false)
+        path: "{{ rollback_oim_host_etc_openchami }}"
+      register: rollback_etc_openchami_backup_stat
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
-    # --- Corefile ---
-    # In v2.1, Corefile may not have existed (CoreDNS was new in v2.2).
-    # If there is a .pre-upgrade backup, restore it. Otherwise leave as-is
-    # since v2.1 coresmd does not require a separate Corefile.
-    - name: Check if .pre-upgrade Corefile exists on OIM host
-      ansible.builtin.stat:
-        path: "{{ openchami_config_dir }}/Corefile.pre-upgrade"
-      register: rollback_corefile_pre_stat
+    - name: Restore entire /etc/openchami from backup
+      ansible.builtin.shell: |
+        set -o pipefail
+        cp -a {{ rollback_oim_host_etc_openchami }}/. {{ openchami_config_dir | regex_replace('/configs$', '') }}/
+      when: rollback_etc_openchami_backup_stat.stat.exists | default(false)
+      changed_when: true
       delegate_to: oim
       delegate_facts: true
       connection: ssh
-      failed_when: false
 
-    - name: Restore v2.1 Corefile from .pre-upgrade file
-      ansible.builtin.copy:
-        src: "{{ openchami_config_dir }}/Corefile.pre-upgrade"
-        dest: "{{ openchami_config_dir }}/Corefile"
-        remote_src: true
-        owner: root
-        group: root
-        mode: "{{ file_permissions_644 }}"
-      when: rollback_corefile_pre_stat.stat.exists | default(false)
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
+    - name: Display /etc/openchami restore status
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: >-
+          /etc/openchami: {{ 'restored from backup' if rollback_etc_openchami_backup_stat.stat.exists
+          | default(false) else 'backup NOT found — configs may be in v2.2 state' }}
 
     # --- configs_vars.yaml ---
     # This file lives at /opt/omnia/openchami/configs_vars.yaml and IS
@@ -245,9 +219,6 @@
           - "Quadlet files restored: {{ rollback_quadlet_files.files | length }}"
           - "v2.2-only quadlets removed: {{ rollback_v22_only_quadlets | join(', ') }}"
           - "openchami.target: restored from backup (references coresmd.service)"
-          - "coredhcp.yaml: {{ 'restored from .pre-upgrade' if rollback_coredhcp_pre_stat.stat.exists | default(false) else 'no .pre-upgrade file found' }}"
-          - >-
-            Corefile: {{ 'restored from .pre-upgrade' if rollback_corefile_pre_stat.stat.exists
-            | default(false) else 'no .pre-upgrade file (v2.1 may not have had it)' }}
+          - "/etc/openchami: {{ 'restored from backup' if rollback_etc_openchami_backup_stat.stat.exists | default(false) else 'backup NOT found' }}"
           - "configs_vars.yaml: {{ 'restored' if rollback_configvars_stat.stat.exists | default(false) else 'not in backup' }}"
           - "RPMs restored: {{ rollback_rpm_files.files | default([]) | length }}"

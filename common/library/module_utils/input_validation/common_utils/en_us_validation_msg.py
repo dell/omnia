@@ -783,6 +783,12 @@ CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG = (
     "when PowerScale metrics are enabled. Please configure resource requests and limits."
 )
 
+IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG = (
+    "idrac_telemetry_storage section is required in telemetry_storage_config.yml "
+    "when iDRAC metrics are enabled. Please configure resource requests and limits "
+    "for mysqldb, activemq, receiver, kafka_pump, and victoria_pump containers."
+)
+
 TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (
     "telemetry_storage_config.yml file not found. This file is required when "
     "telemetry collection is enabled. Please create the file with appropriate storage configurations."

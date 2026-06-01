@@ -25,12 +25,12 @@ nvidia-smi -pm 1 || true
 
 # Mount shared toolkit at /usr/local/cuda (harmless if already mounted)
 mkdir -p /usr/local/cuda
-CUDA_NFS="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
+CUDA_NFS="/hpc_tools/cuda"
 if ! mountpoint -q /usr/local/cuda; then
-    mount -t nfs "$CUDA_NFS" /usr/local/cuda || true
+    mount --bind "$CUDA_NFS" /usr/local/cuda || true
 fi
 grep -q "$CUDA_NFS /usr/local/cuda" /etc/fstab || \
-    echo "$CUDA_NFS /usr/local/cuda nfs defaults,_netdev 0 0" >> /etc/fstab
+    echo "$CUDA_NFS /usr/local/cuda none bind,_netdev 0 0" >> /etc/fstab
 
 cat > /etc/profile.d/cuda.sh <<'EOF'
 export PATH=/usr/local/cuda/bin:$PATH

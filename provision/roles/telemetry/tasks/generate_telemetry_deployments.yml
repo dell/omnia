@@ -188,9 +188,13 @@
     - powerscale_volume_health_enabled | default(false) | bool
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
   tags: telemetry_deployment
+
 - name: Vector vmagent configuration
   when:
-    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled or telemetry_config.telemetry_bridges.vector_ome.metrics_enabled
+    - >-
+      telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled or
+      telemetry_config.telemetry_bridges.vector_ome.metrics_enabled or
+      telemetry_config.telemetry_bridges.vector_ome.logs_enabled
   block:
     - name: Render vmagent-vector Deployment (write buffer for Vector bridges)
       ansible.builtin.template:
