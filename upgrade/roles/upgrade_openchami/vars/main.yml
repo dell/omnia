@@ -241,7 +241,7 @@ coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
 
 # Retry and wait settings
-pull_image_retries: 3
+pull_image_retries: 5
 pull_image_delay: 10
 max_retries: 10
 max_delay: 10
