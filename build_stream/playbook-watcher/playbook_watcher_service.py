@@ -462,8 +462,7 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         command_type = request_data.get("command_type", "ansible-playbook")
         
         if command_type == "test_automation":
-            # artifact_dir is no longer required in request - it's computed from job_id
-            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "config_path"]
+            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "artifact_dir", "config_path"]
         else:
             required_fields = ["job_id", "stage_name", "playbook_path"]
             
