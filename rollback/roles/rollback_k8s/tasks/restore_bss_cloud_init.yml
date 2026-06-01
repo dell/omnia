@@ -1,0 +1,182 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 9: Restore BSS boot params and cloud-init ──────────────────
+# During K8s upgrade, update_k8s_cloud_init_bss.yml updates BSS boot
+# params with NEW squashfs images and cloud-init configs.  On rollback
+# these are NOT automatically reverted, so nodes would boot with the
+# wrong (new) images.
+#
+# This stage restores the PRE-UPGRADE BSS/cloud-init configs from the
+# openchami backup so nodes boot with the correct (old) images on next
+# reboot.
+#
+# Mechanism:
+#   1. Read upgrade_manifest.yml → backup_dir (container path)
+#   2. Read oim_metadata.yml    → oim_shared_path (host bind-mount root)
+#   3. Compute OIM host-side backup workdir path
+#   4. Verify backup boot/cloud-init files exist
+#   5. Call update_k8s_cloud_init_bss.yml for each K8s functional group
+#      with -e openchami_work_dir=<backup_workdir> to override the
+#      default (current) workdir with the pre-upgrade backup
+
+- name: Skip restore_bss_cloud_init if already completed
+  ansible.builtin.debug:
+    msg: "restore_bss_cloud_init already completed — skipping."
+  when: (rollback_status.stages.restore_bss_cloud_init.status | default('pending')) == 'completed'
+
+- name: Restore BSS boot params and cloud-init from backup
+  when: (rollback_status.stages.restore_bss_cloud_init.status | default('pending')) != 'completed'
+  block:
+    - name: Mark restore_bss_cloud_init in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            restore_bss_cloud_init:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Read upgrade_manifest.yml to get openchami backup_dir ────────
+    - name: Read upgrade_manifest.yml for backup_dir
+      ansible.builtin.slurp:
+        src: "{{ oim_data_path }}/upgrade_manifest.yml"
+      register: _bss_manifest_raw
+
+    - name: Parse openchami_backup_dir from manifest
+      ansible.builtin.set_fact:
+        _openchami_backup_dir: "{{ (_bss_manifest_raw.content | b64decode | from_yaml).backup_dir }}"
+
+    # ── Read oim_metadata.yml to get oim_shared_path ─────────────────
+    # The OIM host bind-mounts ${oim_shared_path}/omnia → /opt/omnia
+    # inside the container.  BSS files must be accessed from the OIM
+    # host side, so we transform container paths accordingly.
+    - name: Read oim_metadata.yml for oim_shared_path
+      ansible.builtin.slurp:
+        src: "{{ oim_data_path }}/oim_metadata.yml"
+      register: _bss_metadata_raw
+
+    - name: Parse oim_shared_path from metadata
+      ansible.builtin.set_fact:
+        _bss_oim_shared_path: >-
+          {{ (_bss_metadata_raw.content | b64decode | from_yaml).oim_shared_path
+             | regex_replace('/$', '') }}
+
+    # ── Compute backup workdir paths ─────────────────────────────────
+    # Container: /opt/omnia/...  →  OIM host: {{ oim_shared_path }}/omnia/...
+    - name: Compute backup workdir paths
+      ansible.builtin.set_fact:
+        _bss_backup_workdir_container: "{{ _openchami_backup_dir }}/openchami/openchami_data/workdir"
+        _bss_backup_workdir_host: >-
+          {{ _openchami_backup_dir
+             | regex_replace('^/opt/omnia', _bss_oim_shared_path ~ '/omnia')
+          }}/openchami/openchami_data/workdir
+
+    - name: Display BSS restore paths
+      ansible.builtin.debug:
+        msg:
+          - "========================================================================"
+          - "[ROLLBACK] Stage 9 — Restoring BSS boot params and cloud-init"
+          - "========================================================================"
+          - "Backup dir (manifest):        {{ _openchami_backup_dir }}"
+          - "OIM shared path:              {{ _bss_oim_shared_path }}"
+          - "Backup workdir (container):   {{ _bss_backup_workdir_container }}"
+          - "Backup workdir (OIM host):    {{ _bss_backup_workdir_host }}"
+          - "========================================================================"
+
+    # ── Verify backup workdir and subdirectories exist ────────────────
+    - name: Verify backup workdir exists
+      ansible.builtin.stat:
+        path: "{{ _bss_backup_workdir_container }}"
+      register: _bss_workdir_stat
+
+    - name: Fail if backup workdir is missing
+      ansible.builtin.fail:
+        msg: "{{ msg_bss_backup_workdir_missing }}"
+      when: not (_bss_workdir_stat.stat.exists | default(false))
+
+    - name: Verify backup boot directory exists
+      ansible.builtin.stat:
+        path: "{{ _bss_backup_workdir_container }}/boot"
+      register: _bss_boot_stat
+
+    - name: Fail if boot directory is missing
+      ansible.builtin.fail:
+        msg: "{{ msg_bss_backup_boot_missing }}"
+      when: not (_bss_boot_stat.stat.exists | default(false))
+
+    - name: Verify backup cloud-init directory exists
+      ansible.builtin.stat:
+        path: "{{ _bss_backup_workdir_container }}/cloud-init"
+      register: _bss_ci_stat
+
+    - name: Fail if cloud-init directory is missing
+      ansible.builtin.fail:
+        msg: "{{ msg_bss_backup_ci_missing }}"
+      when: not (_bss_ci_stat.stat.exists | default(false))
+
+    # ── Restore BSS and cloud-init for each K8s functional group ─────
+    # Reuses the existing update_k8s_cloud_init_bss.yml playbook with
+    # -e openchami_work_dir=<backup_path> to override the default
+    # workdir.  Ansible extra vars have highest precedence and override
+    # the play-level vars in update_k8s_cloud_init_bss.yml.
+    # Only include group_cp if additional control planes exist (single-CP
+    # clusters have no nodes in that group).
+    - name: Build BSS restore group list
+      ansible.builtin.set_fact:
+        _bss_restore_groups: >-
+          {{ [group_cp_first]
+             + ([] if (groups_cp | length == 0) else [group_cp])
+             + [group_worker] }}
+
+    - name: "Restore BSS and cloud-init for {{ item }}"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ upgrade_dir }}/playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name={{ item }}
+          -e 'openchami_work_dir={{ _bss_backup_workdir_host }}'
+          2>&1 | tee /tmp/rollback_bss_{{ item }}.log
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ upgrade_dir }}/ansible.cfg"
+      register: _bss_restore_result
+      changed_when: true
+      failed_when: _bss_restore_result.rc != 0
+      loop: "{{ _bss_restore_groups }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Mark restore_bss_cloud_init completed ────────────────────────
+    - name: Mark restore_bss_cloud_init completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            restore_bss_cloud_init:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display BSS restore completion
+      ansible.builtin.debug:
+        msg:
+          - "========================================================================"
+          - "[ROLLBACK] Stage 9 — BSS boot params and cloud-init restored"
+          - "========================================================================"
+          - "All K8s functional groups updated with pre-upgrade BSS configurations."
+          - "Nodes will boot with the correct (rolled-back) images on next reboot."
+          - "========================================================================"

@@ -49,7 +49,6 @@
       when:
         - not (openchami_upgrade_failed | default(false) | bool)
         - openchami_deployed | default(false) | bool
-        - upgrade_needed | default(true) | bool
 
     - name: Report upgrade success
       ansible.builtin.debug:
@@ -57,19 +56,11 @@
       when:
         - not (openchami_upgrade_failed | default(false) | bool)
         - openchami_deployed | default(false) | bool
-        - upgrade_needed | default(true) | bool
 
     - name: Report upgrade skipped (not deployed)
       ansible.builtin.debug:
         msg: "{{ upgrade_messages.deployment.not_deployed }}"
       when: not (openchami_deployed | default(false) | bool)
-
-    - name: Report upgrade skipped (already at target)
-      ansible.builtin.debug:
-        msg: "{{ upgrade_messages.idempotency.skip_message }}"
-      when:
-        - openchami_deployed | default(false) | bool
-        - not (upgrade_needed | default(true) | bool)
 
 - name: Fail the play if upgrade failed
   ansible.builtin.fail:

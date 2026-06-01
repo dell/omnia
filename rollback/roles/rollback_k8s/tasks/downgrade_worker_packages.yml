@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 7a: Downgrade packages on all workers ───────────────────
+# Workers need kubeadm, kubelet, and cri-o.
+# kubectl is optional on workers but we skip it (not installed by upgrade).
+
+- name: Skip downgrade_workers if already completed
+  ansible.builtin.debug:
+    msg: "downgrade_workers already completed — skipping."
+  when: (rollback_status.stages.downgrade_workers.status | default('pending')) == 'completed'
+
+- name: Downgrade worker packages
+  when: (rollback_status.stages.downgrade_workers.status | default('pending')) != 'completed'
+  block:
+    - name: Mark downgrade_workers in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            downgrade_workers:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Downgrade packages on each worker
+      ansible.builtin.include_tasks: downgrade_packages_single_node.yml
+      loop: "{{ all_worker_nodes }}"
+      loop_control:
+        loop_var: _node
+        label: "{{ _node }}"
+      vars:
+        _node_role: worker
+        _packages:
+          - "kubeadm-{{ k8s_rollback_version }}"
+          - "kubelet-{{ k8s_rollback_version }}"
+        _crio_package: "cri-o-{{ k8s_rollback_version }}"
+
+    - name: Mark downgrade_workers completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            downgrade_workers:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display downgrade_workers completion
+      ansible.builtin.debug:
+        msg: "Packages downgraded to {{ k8s_rollback_version }} on all {{ all_worker_nodes | length }} workers."

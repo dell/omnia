@@ -39,47 +39,6 @@
 
 - name: Upgrade OpenCHAMI containers
   block:
-    # ── Defence-in-depth idempotency guard ─────────────────────────────
-    # Even though main.yml gates on upgrade_needed, verify here as well.
-    # On a rerun after success, this prevents any destructive action.
-    - name: Verify current container images match targets (idempotency guard)
-      ansible.builtin.shell: |
-        set -o pipefail
-        NAME=$(podman inspect --format '{% raw %}{{.ImageName}}{% endraw %}' {{ item.container }} 2>/dev/null || true)
-        if [ -z "$NAME" ] || [ "$NAME" = "" ] || [ "$NAME" = "<no value>" ]; then
-          IMG_ID=$(podman inspect --format '{% raw %}{{.Image}}{% endraw %}' {{ item.container }} 2>/dev/null || true)
-          if [ -n "$IMG_ID" ]; then
-            NAME=$(podman inspect --format '{% raw %}{{index .RepoTags 0}}{% endraw %}' "$IMG_ID" 2>/dev/null || true)
-          fi
-        fi
-        echo "${NAME:-not_found}"
-      loop: "{{ openchami_containers }}"
-      register: pre_upgrade_images
-      changed_when: false
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Determine if containers actually need updating
-      ansible.builtin.set_fact:
-        containers_need_restart: >-
-          {{
-            pre_upgrade_images.results |
-            selectattr('stdout', 'defined') |
-            map(attribute='stdout') |
-            map('trim') | list !=
-            openchami_containers | map(attribute='expected_image') | list
-          }}
-
-    - name: Skip upgrade if all containers already at target versions
-      ansible.builtin.debug:
-        verbosity: 1
-        msg: >-
-          All containers are already running target images. Skipping
-          destructive stop/remove/start cycle. This is a safe rerun.
-      when: not (containers_need_restart | bool)
-
     # --- 1. Pull all target images (only if not already present) ---
     - name: Check which target images are already present
       ansible.builtin.shell: |
@@ -88,7 +47,6 @@
       register: image_presence
       changed_when: false
       failed_when: false
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -104,47 +62,24 @@
       until: pull_result.rc == 0
       changed_when: pull_result.rc == 0
       when:
-        - containers_need_restart | bool
         - item.stdout | default('missing') | trim == 'missing'
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
-    # --- 2. Back up configs and install updated RPMs ---
+    # --- 2. Install updated RPMs ---
     # The openchami RPM ships all quadlet files (coresmd-coredns.container,
     # coresmd-coredhcp.container, etc.) - no Ansible templates needed.
-    # IMPORTANT: Back up existing config files BEFORE RPM install since the RPM
-    # overwrites them with default/sample files (all values commented out).
-    - name: Back up existing Corefile before RPM install
-      ansible.builtin.copy:
-        src: "{{ openchami_config_dir }}/Corefile"
-        dest: "{{ openchami_config_dir }}/Corefile.pre-upgrade"
-        remote_src: true
-        mode: "{{ file_permissions_644 }}"
-      when: containers_need_restart | bool
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-      failed_when: false
-
-    - name: Back up existing coredhcp.yaml before RPM install
-      ansible.builtin.copy:
-        src: "{{ openchami_config_dir }}/coredhcp.yaml"
-        dest: "{{ openchami_config_dir }}/coredhcp.yaml.pre-upgrade"
-        remote_src: true
-        mode: "{{ file_permissions_644 }}"
-      when: containers_need_restart | bool
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-      failed_when: false
+    # NOTE: Config files (Corefile, coredhcp.yaml) are backed up as part of
+    # the full /etc/openchami directory backup in backup_openchami.yml.
+    # If RPM overwrites configs, they are restored from the backup dir
+    # or regenerated from templates below.
 
     - name: Create work directory for RPM downloads
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}"
         state: directory
         mode: "{{ dir_permissions_755 }}"
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -156,7 +91,6 @@
       delay: "{{ max_delay }}"
       until: download_openchami.rc == 0
       changed_when: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -165,7 +99,6 @@
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
         mode: "{{ dir_permissions_755 }}"
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -175,7 +108,6 @@
         name: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
         state: present
         disable_gpg_check: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -187,7 +119,6 @@
       delay: "{{ max_delay }}"
       until: download_ochami.rc == 0
       changed_when: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -196,7 +127,6 @@
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}/{{ ochami_client_rpm_name }}"
         mode: "{{ dir_permissions_755 }}"
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -206,7 +136,6 @@
         name: "{{ openchami_work_dir }}/{{ ochami_client_rpm_name }}"
         state: present
         disable_gpg_check: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -220,7 +149,6 @@
         line: "Image={{ item.image }}"
         state: present
       loop: "{{ openchami_quadlet_updates }}"
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -242,7 +170,6 @@
         owner: root
         group: root
         mode: "{{ dir_permissions_755 }}"
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -252,14 +179,12 @@
       ansible.builtin.stat:
         path: "{{ openchami_config_vars_path }}"
       register: config_vars_stat_local
-      when: containers_need_restart | bool
 
     # --- Check configs_vars.yaml on OIM (in case it was copied there) ---
     - name: Check if configs_vars.yaml exists on OIM
       ansible.builtin.stat:
         path: "{{ openchami_config_vars_path }}"
       register: config_vars_stat_oim
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -271,7 +196,6 @@
           {{ 'localhost' if config_vars_stat_local.stat.exists | default(false)
              else ('oim' if config_vars_stat_oim.stat.exists | default(false)
              else 'none') }}
-      when: containers_need_restart | bool
 
     # --- Load configs_vars.yaml from wherever it exists ---
     # IMPORTANT: Use separate register names to avoid Ansible's skipped-task
@@ -281,7 +205,6 @@
         src: "{{ openchami_config_vars_path }}"
       register: config_vars_raw_local
       when:
-        - containers_need_restart | bool
         - config_vars_stat_local.stat.exists | default(false)
 
     - name: Load configs_vars.yaml from OIM
@@ -289,7 +212,6 @@
         src: "{{ openchami_config_vars_path }}"
       register: config_vars_raw_oim
       when:
-        - containers_need_restart | bool
         - not (config_vars_stat_local.stat.exists | default(false))
         - config_vars_stat_oim.stat.exists | default(false)
       delegate_to: oim
@@ -303,13 +225,11 @@
              if (config_vars_raw_local.content is defined)
              else (config_vars_raw_oim.content | default('')) }}
       when:
-        - containers_need_restart | bool
         - config_vars_available | default(false) | bool
 
     # --- Regenerate configs_vars.yaml from source-of-truth files if missing everywhere ---
     - name: Regenerate configs_vars.yaml from authoritative sources
       when:
-        - containers_need_restart | bool
         - not (config_vars_available | default(false) | bool)
       block:
         - name: Check if oim_metadata.yml exists
@@ -389,7 +309,6 @@
       ansible.builtin.set_fact:
         cluster_config: "{{ config_vars_content | b64decode | from_yaml }}"
       when:
-        - containers_need_restart | bool
         - config_vars_content is defined and config_vars_content | length > 0
 
     - name: Set cluster variables from config
@@ -405,7 +324,6 @@
         coredhcp_lease_duration: "{{ cluster_config.coredhcp_lease_duration | default('86400s') }}"
         coredhcp_dhcp_pool: "{{ cluster_config.coredhcp_dhcp_pool | default('') }}"
       when:
-        - containers_need_restart | bool
         - config_vars_content is defined and config_vars_content | length > 0
 
     - name: Determine if cluster config is available for template rendering
@@ -417,7 +335,6 @@
             (cluster_domain | default('') | length > 0) and
             (cluster_boot_ip | default('') | length > 0)
           }}
-      when: containers_need_restart | bool
 
     - name: Display cluster config status
       ansible.builtin.debug:
@@ -428,7 +345,6 @@
           cluster={{ cluster_name | default('N/A') }}.{{ cluster_domain | default('N/A') }},
           boot_ip={{ cluster_boot_ip | default('N/A') }},
           ochami_url={{ ochami_base_url | default('N/A') }}
-      when: containers_need_restart | bool
 
     # --- Deploy configs if we have cluster info ---
     - name: Deploy updated CoreDNS Corefile
@@ -439,7 +355,6 @@
         group: root
         mode: "{{ file_permissions_644 }}"
       when:
-        - containers_need_restart | bool
         - cluster_config_available | default(false) | bool
       delegate_to: oim
       delegate_facts: true
@@ -453,40 +368,51 @@
         group: root
         mode: "{{ file_permissions_644 }}"
       when:
-        - containers_need_restart | bool
         - cluster_config_available | default(false) | bool
         - cluster_boot_interface | default('') | length > 0
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
-    # --- Restore backups if template deployment was not possible ---
-    - name: Restore pre-upgrade Corefile (cluster config not available)
+    # --- Restore configs from /etc/openchami backup if template deployment was not possible ---
+    # Uses the full /etc/openchami backup created by backup_openchami.yml
+    - name: Compute OIM host-side /etc/openchami backup path
+      ansible.builtin.set_fact:
+        upgrade_etc_openchami_backup: >-
+          {{
+            oim_host_backup_dir |
+            default(
+              openchami_backup_dir_default |
+              regex_replace('^/opt/omnia', oim_shared_path ~ '/omnia')
+            )
+          }}/{{ backup_etc_openchami_subpath }}
+      when:
+        - not (cluster_config_available | default(false) | bool)
+
+    - name: Restore Corefile from /etc/openchami backup (cluster config not available)
       ansible.builtin.copy:
-        src: "{{ openchami_config_dir }}/Corefile.pre-upgrade"
+        src: "{{ upgrade_etc_openchami_backup }}/configs/Corefile"
         dest: "{{ openchami_config_dir }}/Corefile"
         remote_src: true
         owner: root
         group: root
         mode: "{{ file_permissions_644 }}"
       when:
-        - containers_need_restart | bool
         - not (cluster_config_available | default(false) | bool)
       delegate_to: oim
       delegate_facts: true
       connection: ssh
       failed_when: false
 
-    - name: Restore pre-upgrade coredhcp.yaml (cluster config not available)
+    - name: Restore coredhcp.yaml from /etc/openchami backup (cluster config not available)
       ansible.builtin.copy:
-        src: "{{ openchami_config_dir }}/coredhcp.yaml.pre-upgrade"
+        src: "{{ upgrade_etc_openchami_backup }}/configs/coredhcp.yaml"
         dest: "{{ openchami_config_dir }}/coredhcp.yaml"
         remote_src: true
         owner: root
         group: root
         mode: "{{ file_permissions_644 }}"
       when:
-        - containers_need_restart | bool
         - not (cluster_config_available | default(false) | bool)
       delegate_to: oim
       delegate_facts: true
@@ -498,27 +424,23 @@
         msg: |
           Cannot deploy CoreDNS/CoreDHCP configs - cluster configuration not available.
           Checked: configs_vars.yaml (localhost + OIM), oim_metadata.yml, network_spec.yml.
-          Restored pre-upgrade backup configs as fallback.
+          Restored configs from /etc/openchami backup as fallback.
       when:
-        - containers_need_restart | bool
         - not (cluster_config_available | default(false) | bool)
 
     # =================================================================
-    # Steps 5-9: DESTRUCTIVE operations — only run if containers need
-    # updating. On a rerun after successful upgrade, containers_need_restart
-    # is false and this entire block is skipped, preserving running state.
+    # Steps 5-9: DESTRUCTIVE operations — always executed.
+    # Idempotency checks have been removed; upgrade always runs
+    # regardless of current container state.
     # =================================================================
 
     # --- 5. Remove legacy coresmd quadlet and update openchami.target ---
     # Done BEFORE daemon-reload so systemd picks up the target changes.
-    # file: state=absent and replace are idempotent on their own, but we
-    # gate them anyway to avoid unnecessary I/O on rerun.
     - name: Remove legacy coresmd quadlet file from omnia-2.1
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop: "{{ openchami_legacy_quadlet_files }}"
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -528,7 +450,6 @@
         path: /etc/systemd/system/openchami.target
         regexp: 'coresmd\.service'
         replace: 'coresmd-coredhcp.service coresmd-coredns.service'
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -538,7 +459,6 @@
     - name: Reload systemd daemon to apply all quadlet and target changes
       ansible.builtin.systemd:
         daemon_reload: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -548,7 +468,6 @@
       ansible.builtin.systemd:
         name: openchami.target
         state: stopped
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -558,7 +477,6 @@
       ansible.builtin.systemd:
         name: minio.service
         state: stopped
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -568,7 +486,6 @@
       ansible.builtin.systemd:
         name: registry.service
         state: stopped
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -577,7 +494,6 @@
     - name: Wait for containers to stop
       ansible.builtin.pause:
         seconds: 10
-      when: containers_need_restart | bool
 
     # --- 8. Remove old containers (preserve volumes) ---
     - name: Remove current OpenCHAMI containers (preserve volumes)
@@ -586,7 +502,6 @@
       register: remove_result
       changed_when: remove_result.rc == 0
       failed_when: false
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -595,7 +510,6 @@
       ansible.builtin.command: podman rm -f minio-server
       changed_when: true
       failed_when: false
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -606,7 +520,6 @@
       register: remove_legacy
       changed_when: remove_legacy.rc == 0
       failed_when: false
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -617,7 +530,6 @@
         name: openchami.target
         state: started
         enabled: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -627,7 +539,6 @@
         name: minio.service
         state: started
         enabled: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -637,7 +548,6 @@
         name: registry.service
         state: started
         enabled: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -645,14 +555,12 @@
     - name: Wait for services to stabilize
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
-      when: containers_need_restart | bool
 
     # Recover any openchami services that failed initial startup
     - name: Reset any failed openchami services
       ansible.builtin.command: systemctl reset-failed
       changed_when: true
       failed_when: false
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -663,7 +571,6 @@
         state: restarted
         enabled: true
         daemon_reload: true
-      when: containers_need_restart | bool
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -671,14 +578,10 @@
     - name: Wait for restarted services to stabilize
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
-      when: containers_need_restart | bool
 
     - name: Display container upgrade success
       ansible.builtin.debug:
-        msg: >-
-          {{ upgrade_messages.container_upgrade.success
-             if containers_need_restart | bool
-             else 'Containers already at target versions — no restart performed.' }}
+        msg: "{{ upgrade_messages.container_upgrade.success }}"
 
   rescue:
     - name: Container upgrade failed

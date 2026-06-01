@@ -1,0 +1,282 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 8c: Clean up stale storage volumes ──────────────────────
+# After rollback, pods using persistent storage may fail to start due
+# to stale volume state.  This stage handles two provisioner types:
+#
+# A) CSI-based (PowerScale/Isilon):
+#    VolumeAttachments from the pre-rollback state may still reference
+#    old nodes or have stale client entries on the storage array.
+#    The CSI driver refuses to attach to a new node when the access
+#    mode is ReadWriteOnce (SINGLE_NODE_MULTI_WRITER) and the old
+#    client is still registered on the export.
+#
+# B) NFS client provisioner (nfs-subdir-external-provisioner):
+#    Does NOT use CSI VolumeAttachments — kubelet mounts NFS directly.
+#    However, the provisioner pod itself may not be Running after
+#    rollback, and pods with NFS PVCs may be stuck on FailedMount
+#    due to stale NFS mounts on nodes.
+#
+# This stage:
+#   1. Detects stale (non-attached) CSI VolumeAttachments and deletes them
+#   2. Bounces any pods stuck due to FailedAttachVolume or FailedMount
+#   3. Cleans up stale NFS mounts on nodes that block new pods
+#   4. Verifies CSI driver and NFS provisioner pods are healthy
+
+- name: Skip cleanup_stale_volume_attachments if already completed
+  ansible.builtin.debug:
+    msg: "cleanup_stale_volume_attachments already completed — skipping."
+  when: (rollback_status.stages.cleanup_stale_volume_attachments.status | default('pending')) == 'completed'
+
+- name: Clean up stale CSI VolumeAttachments
+  when: (rollback_status.stages.cleanup_stale_volume_attachments.status | default('pending')) != 'completed'
+  block:
+    - name: Mark cleanup_stale_volume_attachments in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            cleanup_stale_volume_attachments:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Check if any CSI drivers are installed ────────────────────
+    - name: Check for CSI drivers in the cluster
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get csidrivers -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _csi_drivers
+      changed_when: false
+      failed_when: false
+
+    - name: Skip if no CSI drivers installed
+      ansible.builtin.debug:
+        msg: "No CSI drivers found — skipping VolumeAttachment cleanup."
+      when: _csi_drivers.stdout_lines | default([]) | length == 0
+
+    # ── Find stale VolumeAttachments (attached=false) ─────────────
+    - name: Get stale VolumeAttachments (not attached)
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          JPATH='{range .items[?(@.status.attached==false)]}'
+          JPATH+=$'{.metadata.name}\t{.spec.attacher}'
+          JPATH+=$'\t{.spec.nodeName}'
+          JPATH+=$'\t{.spec.source.persistentVolumeName}\n{end}'
+          kubectl --server=https://{{ first_cp_ip }}:6443 \
+            get volumeattachments \
+            -o jsonpath="$JPATH" \
+            | grep -v '^$'
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _stale_va
+      changed_when: false
+      failed_when: false
+      when: _csi_drivers.stdout_lines | default([]) | length > 0
+
+    - name: Display stale VolumeAttachments found
+      ansible.builtin.debug:
+        msg: "Stale VolumeAttachments: {{ _stale_va.stdout_lines | default([]) }}"
+      when:
+        - _csi_drivers.stdout_lines | default([]) | length > 0
+        - _stale_va.stdout_lines | default([]) | length > 0
+
+    # ── Delete stale VolumeAttachments ────────────────────────────
+    - name: Delete stale VolumeAttachments
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete volumeattachment {{ item.split('\t')[0] }} --timeout=30s
+      delegate_to: "{{ groups_cp_first | first }}"
+      loop: "{{ _stale_va.stdout_lines | default([]) }}"
+      when:
+        - _csi_drivers.stdout_lines | default([]) | length > 0
+        - _stale_va.stdout_lines | default([]) | length > 0
+      changed_when: true
+      failed_when: false
+      loop_control:
+        label: "{{ item.split('\t')[0] | default(item) }}"
+
+    # ── Find pods stuck due to volume failures (CSI + NFS) ──────────
+    # FailedAttachVolume: CSI driver can't attach (PowerScale stale export)
+    # FailedMount: kubelet can't mount (stale NFS mount, wrong server, etc.)
+    - name: Get pods with FailedAttachVolume or FailedMount events
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get events -A
+          --field-selector reason=FailedAttachVolume
+          -o jsonpath='{range .items[*]}{.involvedObject.namespace}/{.involvedObject.name}{"\n"}{end}';
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get events -A
+          --field-selector reason=FailedMount
+          -o jsonpath='{range .items[*]}{.involvedObject.namespace}/{.involvedObject.name}{"\n"}{end}'
+          | sort -u
+          | grep -v '^$'
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _stuck_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Display pods stuck on volume failures
+      ansible.builtin.debug:
+        msg: "Pods with volume failures: {{ _stuck_pods.stdout_lines | default([]) }}"
+      when: _stuck_pods.stdout_lines | default([]) | length > 0
+
+    # ── Clean up stale NFS mounts on all nodes ────────────────────
+    # After rollback, kubelet may have stale NFS mounts in
+    # /var/lib/kubelet/pods/*/volumes/kubernetes.io~nfs/ that
+    # prevent new pods from mounting the same PV.  Unmount them.
+    - name: Clean up stale NFS mounts on all nodes
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          cleaned=0
+          for mnt in $(findmnt -t nfs,nfs4 -n -o TARGET 2>/dev/null \
+                       | grep '/var/lib/kubelet/pods/' || true); do
+            # Only unmount if the pod UID directory no longer exists
+            # in kubelet's active pod list
+            pod_uid=$(echo "$mnt" | grep -oP 'pods/\K[^/]+')
+            if [ -n "$pod_uid" ] && \
+               ! crictl pods -q 2>/dev/null | grep -q "$pod_uid"; then
+              umount -f "$mnt" 2>/dev/null && cleaned=$((cleaned + 1))
+            fi
+          done
+          echo "$cleaned"
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ item }}"
+      register: _nfs_cleanup
+      changed_when: "item.stdout | default('0') | int > 0"
+      failed_when: false
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Report stale NFS mounts cleaned
+      ansible.builtin.debug:
+        msg: "Stale NFS mounts cleaned on {{ item.item }}: {{ item.stdout | default('0') }}"
+      loop: "{{ _nfs_cleanup.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: "item.stdout | default('0') | int > 0"
+
+    # ── Bounce stuck pods to trigger fresh volume mount/attach ────
+    - name: Delete pods stuck on volume failures to trigger recreation
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete pod -n {{ item.split('/')[0] }} {{ item.split('/')[1] }}
+          --force --grace-period=0
+      delegate_to: "{{ groups_cp_first | first }}"
+      loop: "{{ _stuck_pods.stdout_lines | default([]) }}"
+      when:
+        - _stuck_pods.stdout_lines | default([]) | length > 0
+      changed_when: true
+      failed_when: false
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Wait for CSI driver pods to be ready (PowerScale) ─────────
+    - name: Verify PowerScale CSI driver pods are Running
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get pods -A
+          -l 'app in (isilon-controller,isilon-node)'
+          -o jsonpath='{range .items[*]}{.metadata.name}:{.status.phase}{"\n"}{end}'
+          | grep -v ':Running$' || true
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _csi_pods_check
+      changed_when: false
+      retries: 12
+      delay: 10
+      until: _csi_pods_check.stdout | trim | length == 0
+      when: "'csi-isilon.dellemc.com' in (_csi_drivers.stdout | default(''))"
+
+    # ── Verify NFS client provisioner pod is Running ──────────────
+    - name: Check if NFS client provisioner exists
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get deployment -A
+          -l app=nfs-subdir-external-provisioner
+          -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _nfs_provisioner_deploy
+      changed_when: false
+      failed_when: false
+
+    - name: Verify NFS client provisioner pod is Running
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get pods -A
+          -l app=nfs-subdir-external-provisioner
+          -o jsonpath='{range .items[*]}{.metadata.name}:{.status.phase}{"\n"}{end}'
+          | grep -v ':Running$' || true
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _nfs_prov_check
+      changed_when: false
+      retries: 6
+      delay: 10
+      until: _nfs_prov_check.stdout | trim | length == 0
+      when: _nfs_provisioner_deploy.stdout_lines | default([]) | length > 0
+
+    # ── Restart NFS provisioner if it's stuck ─────────────────────
+    - name: Restart NFS provisioner deployment if pods were not Running
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          rollout restart deployment
+          -l app=nfs-subdir-external-provisioner -A
+      delegate_to: "{{ groups_cp_first | first }}"
+      changed_when: true
+      failed_when: false
+      when:
+        - _nfs_provisioner_deploy.stdout_lines | default([]) | length > 0
+        - _nfs_prov_check is defined
+        - _nfs_prov_check.attempts | default(0) | int > 5
+
+    - name: Mark cleanup_stale_volume_attachments completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            cleanup_stale_volume_attachments:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display cleanup_stale_volume_attachments completion
+      ansible.builtin.debug:
+        msg: >-
+          Storage volume cleanup complete.
+          Stale CSI attachments removed: {{ _stale_va.stdout_lines | default([]) | length }}.
+          Stuck pods bounced: {{ _stuck_pods.stdout_lines | default([]) | length }}.
+          Stale NFS mounts cleaned: {{ _nfs_cleanup.results | map(attribute='stdout') | map('int') | sum }}.

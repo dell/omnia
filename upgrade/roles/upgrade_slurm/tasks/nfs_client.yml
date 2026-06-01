@@ -12,62 +12,57 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Initialize variable when client_share_path value is not given
+## Mount an entry on the OIM node.
+- name: Resolve mount_params profile if specified
   ansible.builtin.set_fact:
-    client_mount_path: "{{ item.server_share_path }}"
-  when: item.client_share_path | default("", true) | length < 1
+    resolved_mount_profile: "{{ storage_config.mount_params[item.mount_params] | default({}) }}"
+  when: item.mount_params is defined and item.mount_params in storage_config.mount_params
 
-- name: Initialize variable when client_share_path value is given
+- name: Initialize client mount path (new schema)
   ansible.builtin.set_fact:
-    client_mount_path: "{{ item.client_share_path }}"
-  when: item.client_share_path | default("", true) | length >= 1
+    mount_point: "{{ item.mount_point }}"
+    source: "{{ item.source }}"
+    fs_type: "{{ item.fs_type | default(resolved_mount_profile.fs_type | default('nfs')) }}"
+    mnt_opts: "{{ item.mnt_opts | default(resolved_mount_profile.mnt_opts | default('defaults')) }}"
+    dump_freq: "{{ item.dump_freq | default(resolved_mount_profile.dump_freq | default('0')) }}"
+    fsck_pass: "{{ item.fsck_pass | default(resolved_mount_profile.fsck_pass | default('0')) }}"
 
-- name: Fetch server_ip and server_share_path from list when nfs sever is not localhost
-  ansible.builtin.set_fact:
-    nfs_server_ip: "{{ item.server_ip }}"
-  when: item.server_ip != "localhost"
-
-- name: Fetch server_ip and server_share_path from list when nfs sever is localhost
-  ansible.builtin.set_fact:
-    nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
-  when: item.server_ip == "localhost"
-
-- name: Mount facts items to dict
-  ansible.builtin.set_fact:
-    nfs_src: "{{ nfs_server_ip }}:{{ item.server_share_path }}"
-
-- name: Create the directory for mounting NFS client with server_share_path as client_share_path
+- name: Create the directory for mounting on OIM
   ansible.builtin.file:
-    path: "{{ client_mount_path }}"
+    path: "{{ mount_point }}"
     state: directory
-    mode: "{{ mounted_dir_perm }}"
+    mode: "0644"
   register: dir_check
   ignore_errors: true
 
-- name: Mount NFS share
-  block:
-    - name: Mount NFS share with fstab entry # This task not failing if NFS server unreachable
-      ansible.posix.mount:
-        src: "{{ nfs_src }}"
-        path: "{{ client_mount_path }}"
-        opts: "{{ item.client_mount_options | default(default_client_mount_options) }}"
-        state: mounted # This is needed to add entry to fstab
-        fstype: nfs
+- name: Fallback to tcp nfs if rdma
+  ansible.builtin.set_fact:
+    mnt_opts: "nosuid,rw,sync,hard"
+  when: "'rdma' in mnt_opts"
 
-    - name: Mount only the current nfs item # noqa: command-instead-of-module
+- name: Mount NFS share on OIM with fstab entry
+  block:
+    - name: Add/ensure fstab entry via mount module
+      ansible.posix.mount:
+        src: "{{ source }}"
+        path: "{{ mount_point }}"
+        opts: "{{ mnt_opts }}"
+        state: mounted
+        fstype: "{{ fs_type }}"
+
+    - name: Mount current share explicitly for immediate availability # noqa: command-instead-of-module
       ansible.builtin.command: >
-        mount -t nfs -o {{ item.client_mount_options | default(default_client_mount_options) }}
-        {{ nfs_src }} {{ client_mount_path }}
-      register: mount_result
-      changed_when: mount_result.rc == 0
-      failed_when: mount_result.rc != 0
+        mount -t {{ fs_type }} -o {{ mnt_opts }} {{ source }} {{ mount_point }}
+      register: oim_mount_result
+      changed_when: oim_mount_result.rc == 0
+      failed_when: oim_mount_result.rc != 0
 
   rescue:
-    - name: Remove from fstab
+    - name: Remove from fstab on failure
       ansible.posix.mount:
-        path: "{{ client_mount_path }}"
+        path: "{{ mount_point }}"
         state: absent_from_fstab
 
-    - name: Fail if mount failed
+    - name: Fail if OIM mount failed
       ansible.builtin.fail:
-        msg: "{{ slurm_nfs_fail_msg }}"
+        msg: "{{ oim_nfs_fail_msg }}"

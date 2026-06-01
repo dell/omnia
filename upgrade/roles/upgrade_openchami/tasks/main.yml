@@ -24,7 +24,6 @@
     - name: Execute OpenCHAMI upgrade
       when:
         - openchami_deployed | default(false) | bool
-        - upgrade_needed | default(true) | bool
       block:
         - name: Pre-upgrade backup (pg_dump, configs, quadlets, metadata)
           ansible.builtin.include_tasks: backup_openchami.yml

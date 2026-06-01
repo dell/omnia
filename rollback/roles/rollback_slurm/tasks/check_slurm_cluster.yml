@@ -1,0 +1,107 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Identify slurm control node hostname
+  ansible.builtin.set_fact:
+    slurm_ctld_host: >-
+      {{ slurm_host_group_map
+         | dict2items
+         | selectattr('value', 'equalto', 'slurm_control_node_x86_64')
+         | map(attribute='key')
+         | first }}
+
+- name: Check for running jobs on slurm cluster
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      squeue -h | wc -l
+  register: running_jobs
+  changed_when: false
+  failed_when: false
+  retries: 5
+  delay: 5
+  until: running_jobs.rc == 0
+  delegate_to: "{{ slurm_ctld_host }}"
+  ignore_unreachable: true
+
+- name: Fail if slurm control node is unreachable
+  when: running_jobs.unreachable | default(false)
+  block:
+    - name: Notify that OpenCHAMI changes are already applied
+      ansible.builtin.debug:
+        msg: "{{ ctld_unreachable_msg }}"
+      vars:
+        ctld_unreachable_msg:
+          - "ERROR: Slurm control node '{{ slurm_ctld_host }}' is unreachable."
+          - ""
+          - "NOTE: OpenCHAMI cloud-init and BSS changes have already been applied."
+          - "      The cluster nodes are ready to be rebooted into the rollback image."
+          - ""
+          - "ACTION REQUIRED: Reboot the nodes using the iDRAC PXE boot playbook:"
+          - "  ansible-playbook utils/set_pxe_boot.yml"
+          - ""
+
+    - name: Abort — control node unreachable, manual PXE reboot required
+      ansible.builtin.fail:
+        msg: >-
+          Rollback aborted: '{{ slurm_ctld_host }}' is unreachable.
+          OpenCHAMI changes are done. Run 'ansible-playbook utils/set_pxe_boot.yml'
+          to reboot nodes via iDRAC, then re-run the rollback playbook.
+
+- name: Rollback cluster check
+  when: running_jobs.stdout | trim | int > 0
+  block:
+    - name: Show rollback completion message
+      ansible.builtin.debug:
+        msg: "{{ slurm_rollback_message }}"
+      vars:
+        slurm_rollback_message:
+          - "Slurm rollback will be halted. as there are active jobs running."
+          - "Note: {{ running_jobs.stdout | trim }} running job(s) detected."
+          - "Please drain and stop jobs before proceeding with node reboot."
+          - "Then, rerun the rollback playbook to complete the process."
+
+    - name: Abort rollback if jobs are running
+      ansible.builtin.fail:
+        msg: "Slurm cluster has ACTIVE jobs running. Please drain and stop jobs before proceeding with node reboot."
+
+- name: Fail if job check fails
+  when: running_jobs.rc != 0
+  block:
+    - name: Warn that slurmctld is not responding
+      ansible.builtin.debug:
+        msg: "{{ ctld_warn_msg }}"
+      vars:
+        ctld_warn_msg:
+          - "WARNING: Slurm controller '{{ slurm_ctld_host }}' is not responding to squeue."
+          - "Error: {{ running_jobs.stderr | default('(no error output)') }}"
+          - "Proceeding with rollback may be unsafe if the cluster is in an unknown state."
+
+    - name: Ask user whether to proceed despite unresponsive controller
+      ansible.builtin.pause:
+        prompt: >
+          slurmctld on '{{ slurm_ctld_host }}' is not responding.
+          Type 'yes/y' to proceed with rollback anyway, or press Enter to abort
+      register: ctld_proceed_choice
+
+    - name: Abort rollback — user chose not to proceed
+      ansible.builtin.fail:
+        msg: "Rollback aborted by user: slurmctld is not responding on '{{ slurm_ctld_host }}'. Resolve the controller issue and re-run."
+      when: ctld_proceed_choice.user_input | trim | lower not in ['yes', 'y']
+
+- name: Create groups for slurm nodes reboot play
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: "{{ item.value }}"
+  loop: "{{ slurm_host_group_map | dict2items }}"

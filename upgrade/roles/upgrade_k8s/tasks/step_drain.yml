@@ -41,9 +41,34 @@
       }}
   when: _pdb_list.rc == 0
 
+- name: Debug PDB inputs
+  ansible.builtin.debug:
+    msg:
+      node_ip: "{{ node_ip }}"
+      pdbs_found: "{{ _pdbs_with_minavailable | default([]) }}"
+
 - name: Initialize pdb patch list
   ansible.builtin.set_fact:
     _pdbs_to_patch: []
+
+- name: Build label selector string for each PDB
+  ansible.builtin.set_fact:
+    _pdb_label_selectors: >-
+      {{
+        _pdb_label_selectors | default({})
+        | combine({
+            item.namespace ~ '/' ~ item.name:
+              (
+                item.matchLabels | default({})
+                | dictsort
+                | map('join', '=')
+                | join(',')
+              )
+          })
+      }}
+  loop: "{{ _pdbs_with_minavailable }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
 
 - name: Find pods matching each PDB on node
   ansible.builtin.command:
@@ -51,9 +76,7 @@
       kubectl get pods
       -n {{ item.namespace }}
       --field-selector spec.nodeName={{ node_ip }}
-      -l {% for k, v in (item.matchLabels | default({})).items() %}
-      {{ k }}={{ v }}{% if not loop.last %},{% endif %}
-      {% endfor %}
+      -l "{{ _pdb_label_selectors[item.namespace ~ '/' ~ item.name] }}"
       -o json
   delegate_to: "{{ kube_vip }}"
   register: _matching_pods
@@ -63,6 +86,17 @@
   changed_when: false
   failed_when: false
 
+- name: Debug kubectl pod query results
+  ansible.builtin.debug:
+    msg:
+      pdb: "{{ item.item.namespace }}/{{ item.item.name }}"
+      rc: "{{ item.rc }}"
+      stdout_snippet: "{{ (item.stdout | default(''))[:200] }}"
+      stderr: "{{ item.stderr | default('') }}"
+  loop: "{{ _matching_pods.results }}"
+  loop_control:
+    label: "{{ item.item.namespace }}/{{ item.item.name }}"
+
 - name: Build list of PDBs requiring temporary patch
   ansible.builtin.set_fact:
     _pdbs_to_patch: "{{ _pdbs_to_patch + [pdb_patch_item] }}"
@@ -71,9 +105,9 @@
       {{
         (
           item.stdout
-          | default('{}')
+          | default('{"items":[]}')
           | from_json
-        ).items
+        )["items"]
         | length
         | int
       }}

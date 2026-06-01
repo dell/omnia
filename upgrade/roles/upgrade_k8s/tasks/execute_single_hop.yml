@@ -68,8 +68,8 @@
     # reference {{ backup_dir }} and pick up this override automatically.
     - name: "Hop — Set per-hop backup directory"
       ansible.builtin.set_fact:
-        backup_dir: "{{ upgrade_dir_client }}/backup/{{ _current_hop.from_minor }}"
-        backup_dir_client: "{{ upgrade_dir_client }}/backup/{{ _current_hop.from_minor }}"
+        backup_dir: "{{ upgrade_dir_client }}/backup/{{ _current_hop.from_version }}"
+        backup_dir_client: "{{ upgrade_dir_client }}/backup/{{ _current_hop.from_version }}"
 
     - name: "Hop — Determine if this is final hop"
       ansible.builtin.set_fact:

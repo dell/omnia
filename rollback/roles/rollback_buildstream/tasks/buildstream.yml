@@ -1,0 +1,343 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# buildstream.yml — All BuildStream Tasks (Action Dispatch)
+# ============================================================================
+# Available _action values:
+#   validate_backup   — stat check backup quadlet exists, fail if missing
+#   stop              — Restore: systemd stop; Uninstall: podman stop
+#   restore_quadlet   — copy backup quadlet to /etc/containers/systemd/
+#   restore_config    — copy backup build_stream_config.yml
+#   remove_quadlet    — file absent + set enable_build_stream: false
+#   start             — systemd start + URI health check retry loop
+#   cleanup_full      — Uninstall: stop/remove watcher, remove dirs, images, omnia.target entries, automation
+#   validate_health   — Restore: URI health check; Uninstall: confirm no container
+#
+# All OIM host operations use delegate_to: oim + connection: ssh
+# ============================================================================
+
+# ── validate_backup ──────────────────────────────────────────────────────────
+- name: "BuildStream | Validate backup quadlet exists"
+  ansible.builtin.stat:
+    path: "{{ backup_path_from_oim }}/{{ buildstream_backup_quadlet_subpath }}"
+  register: _bs_quadlet_backup_stat
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'validate_backup'
+
+- name: "BuildStream | Fail if backup quadlet missing"
+  ansible.builtin.fail:
+    msg: "BuildStream backup quadlet not found: {{ backup_path_from_oim }}/{{ buildstream_backup_quadlet_subpath }}"
+  when:
+    - _action == 'validate_backup'
+    - not (_bs_quadlet_backup_stat.stat.exists | default(false))
+
+# ── stop ─────────────────────────────────────────────────────────────────────
+- name: "BuildStream | Stop service (Restore)"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_bs_service }}"
+    state: stopped
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'stop'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "BuildStream | Stop container (Uninstall)"
+  ansible.builtin.command: "podman stop {{ buildstream_orchestrator_bs_container }}"
+  failed_when: false
+  changed_when: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'stop'
+    - build_stream_upgrade_path == 'fresh_install'
+
+# ── restore_quadlet ──────────────────────────────────────────────────────────
+- name: "BuildStream | Restore quadlet from backup"
+  ansible.builtin.copy:
+    src: "{{ backup_path_from_oim }}/{{ buildstream_backup_quadlet_subpath }}"
+    dest: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_build_stream.container"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'restore_quadlet'
+
+# ── restore_config ───────────────────────────────────────────────────────────
+- name: "BuildStream | Restore build_stream_config.yml from backup"
+  ansible.builtin.copy:
+    src: "{{ backup_dir }}/input/project_default/build_stream_config.yml"
+    dest: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+  failed_when: false
+  when: _action == 'restore_config'
+
+# ── restore_source ───────────────────────────────────────────────────────────
+- name: "BuildStream | Restore build_stream source directory from backup"
+  ansible.builtin.copy:
+    src: "{{ backup_path_from_oim }}/buildstream/build_stream"
+    dest: "{{ omnia_nfs_share }}/"
+    remote_src: true
+    mode: preserve
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  failed_when: false
+  when: _action == 'restore_source'
+
+# ── remove_quadlet ───────────────────────────────────────────────────────────
+- name: "BuildStream | Remove quadlet (Uninstall)"
+  ansible.builtin.file:
+    path: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_build_stream.container"
+    state: absent
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'remove_quadlet'
+
+- name: "BuildStream | Set enable_build_stream: false in config"
+  ansible.builtin.lineinfile:
+    path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+    regexp: '^enable_build_stream:'
+    line: 'enable_build_stream: false'
+  failed_when: false
+  when: _action == 'remove_quadlet'
+
+# ── start ────────────────────────────────────────────────────────────────────
+- name: "BuildStream | Start service"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_bs_service }}"
+    state: started
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'start'
+
+- name: "BuildStream | Wait for health check"
+  ansible.builtin.uri:
+    url: "https://{{ _bs_actual_host_ip | default(buildstream_orchestrator_bs_host_ip) }}:{{ buildstream_orchestrator_bs_port }}/health"
+    validate_certs: false
+    status_code: 200
+  register: _bs_health
+  until: _bs_health.status | default(0) == 200
+  retries: 20
+  delay: 2
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'start'
+
+# ── cleanup_full (Uninstall) ────────────────────────────────────────────────
+# Comprehensive cleanup matching oim_cleanup/cleanup_build_stream.yml
+# Order: watcher → container → quadlets → dirs → images → omnia.target → automation
+
+- name: "BuildStream | Uninstall — Stop playbook_watcher service"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_watcher_service }}"
+    state: stopped
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Disable playbook_watcher service"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_watcher_service }}"
+    enabled: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Remove playbook_watcher service file"
+  ansible.builtin.file:
+    path: "{{ buildstream_orchestrator_watcher_service_file }}"
+    state: absent
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Remove omnia_build_stream container"
+  containers.podman.podman_container:
+    name: "{{ buildstream_orchestrator_bs_container }}"
+    state: absent
+    force_delete: true
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Find and remove all omnia_build_stream quadlet files"
+  ansible.builtin.find:
+    paths: "{{ buildstream_orchestrator_quadlet_dir }}"
+    patterns: 'omnia_build_stream*'
+    file_type: file
+  register: _bs_quadlet_files
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Remove omnia_build_stream quadlet files"
+  ansible.builtin.file:
+    path: "{{ quadlet_file_item.path }}"
+    state: absent
+  loop: "{{ _bs_quadlet_files.files | default([]) }}"
+  loop_control:
+    loop_var: quadlet_file_item
+    label: "{{ quadlet_file_item.path | basename }}"
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'cleanup_full'
+    - _bs_quadlet_files.files | default([]) | length > 0
+
+- name: "BuildStream | Uninstall — Remove build_stream directories"
+  ansible.builtin.file:
+    path: "{{ bs_dir_item }}"
+    state: absent
+    force: true
+  register: _bs_dir_removal
+  until: _bs_dir_removal is not failed
+  retries: 3
+  loop: "{{ build_stream_cleanup_directories }}"
+  loop_control:
+    loop_var: bs_dir_item
+    label: "{{ bs_dir_item | basename }}"
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Remove container image"
+  ansible.builtin.command: "podman rmi {{ buildstream_orchestrator_bs_image }}:{{ buildstream_orchestrator_bs_version }}"
+  failed_when: false
+  changed_when: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'cleanup_full'
+    - buildstream_orchestrator_cleanup_images | bool
+
+- name: "BuildStream | Uninstall — Remove omnia_build_stream from omnia.target"
+  ansible.builtin.replace:
+    path: "{{ buildstream_orchestrator_omnia_target }}"
+    regexp: "{{ buildstream_orchestrator_bs_container }}.service"
+    replace: ''
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Remove playbook_watcher from omnia.target"
+  ansible.builtin.replace:
+    path: "{{ buildstream_orchestrator_omnia_target }}"
+    regexp: "playbook_watcher.service"
+    replace: ''
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Remove automation framework"
+  ansible.builtin.file:
+    path: "{{ automation_item }}"
+    state: absent
+    force: true
+  loop:
+    - "{{ automation_venv_dir }}"
+    - "{{ automation_config_file }}"
+    - "{{ automation_base_dir }}"
+  loop_control:
+    loop_var: automation_item
+    label: "{{ automation_item | basename }}"
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full' or _action == 'remove_automation'
+
+- name: "BuildStream | Uninstall — Set enable_build_stream: false in config"
+  ansible.builtin.lineinfile:
+    path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+    regexp: '^enable_build_stream:'
+    line: 'enable_build_stream: false'
+  failed_when: false
+  when: _action == 'cleanup_full'
+
+- name: "BuildStream | Uninstall — Reload systemd daemon after cleanup"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+# ── validate_health ──────────────────────────────────────────────────────────
+- name: "BuildStream | Validate API health (Restore)"
+  ansible.builtin.uri:
+    url: "https://{{ _bs_actual_host_ip | default(buildstream_orchestrator_bs_host_ip) }}:{{ buildstream_orchestrator_bs_port }}/health"
+    validate_certs: false
+    status_code: 200
+  register: _bs_validate_health
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "BuildStream | Validate no container running (Uninstall)"
+  ansible.builtin.command: "podman ps --filter name={{ buildstream_orchestrator_bs_container }} --format '{{ '{{' }}.Names{{ '}}' }}'"
+  register: _bs_container_validate
+  changed_when: false
+  failed_when: _bs_container_validate.stdout | trim | length > 0
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'fresh_install'
+
+- name: "BuildStream | Validate quadlet removed (Uninstall)"
+  ansible.builtin.stat:
+    path: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_build_stream.container"
+  register: _bs_quadlet_validate
+  failed_when: _bs_quadlet_validate.stat.exists | default(false)
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'fresh_install'

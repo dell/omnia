@@ -18,6 +18,7 @@
   connection: local
   gather_facts: false
   vars:
+    input_project_dir: "/opt/omnia/input/project_default"
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     component_name: k8s
   tasks:
@@ -53,6 +54,49 @@
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
 
+    # ── Pre-check: Skip rollback if service_k8s is not in software_config.json ──
+    - name: "Load software_config.json"
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_slurp
+
+    - name: "Parse software_config.json"
+      ansible.builtin.set_fact:
+        _software_config: "{{ _sw_config_slurp.content | b64decode | from_json }}"
+
+    - name: "Check if service_k8s is configured in software_config.json"
+      ansible.builtin.set_fact:
+        k8s_rollback_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
+    - name: "Mark as skipped — service_k8s not configured"
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+      when: not k8s_rollback_enabled
+
+    - name: "Display skip message — service_k8s not configured"
+      ansible.builtin.debug:
+        msg: "{{ banner_k8s_not_configured }}"
+      vars:
+        banner_k8s_not_configured:
+          - "========================================================================"
+          - "[ROLLBACK] Component 'k8s' — SKIPPED"
+          - "========================================================================"
+          - "Reason: service_k8s is not present in software_config.json softwares list."
+          - "K8s cluster was not provisioned, skipping K8s rollback."
+          - "========================================================================"
+      when: not k8s_rollback_enabled
+
+    - name: "Skip — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not k8s_rollback_enabled
+
     - name: Set K8s rollback status to in-progress
       ansible.builtin.copy:
         content: >-
@@ -68,16 +112,69 @@
       ansible.builtin.debug:
         msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # TODO: Implement K8s rollback steps per ESpec §4.11.4:
-    # 1. Restore etcd from pre-upgrade snapshot
-    # 2. Deploy cluster with previous version image
-    # 3. Restore /etc/kubernetes configs from backup
-    # 4. Restart K8s services on all nodes
-    # 5. Validate cluster health (nodes Ready, etcd quorum, pods running)
-    # 6. Rollback BSS + cloud-init to pre-upgrade state
-    - name: K8s rollback placeholder
-      ansible.builtin.debug:
-        msg: "K8s rollback tasks to be implemented (etcd restore, cluster redeploy, BSS rollback)"
+    # ── Cache configuration files for rollback ─────────────────────────────
+    - name: Cache storage_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/storage_config.yml"
+        name: cached_storage_config
+
+    - name: Cache omnia_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/omnia_config.yml"
+        name: cached_omnia_config
+
+    - name: Cache high_availability_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: cached_ha_config
+
+    # ── K8s Rollback ─────────────────────────────────────────────────
+    # The rollback_k8s role handles the full lifecycle:
+    #   preflight_checks → stop_cluster → cleanup_metallb_ips
+    #   → restore_etcd → restore_k8s_configs → downgrade_cp_packages
+    #   → start_control_plane → fix_vip_split_brain
+    #   → downgrade_worker_packages → start_workers
+    #   → post_validation → restart_network_pods
+    #   → restore_bss_cloud_init
+    # On failure, the role marks its internal rollback_status as failed
+    # and raises fail. The rescue block below updates the framework
+    # manifest accordingly.
+    - name: "Execute K8s Rollback"
+      block:
+        - name: Rollback Kubernetes cluster
+          ansible.builtin.include_role:
+            name: rollback_k8s
+
+        - name: Display K8s rollback outcome
+          ansible.builtin.debug:
+            msg: "[ROLLBACK] K8s rollback completed successfully."
+
+      rescue:
+        - name: Re-read rollback_manifest.yml after failure
+          ansible.builtin.slurp:
+            src: "{{ rollback_manifest_path }}"
+          register: rescue_raw_rollback_manifest
+
+        - name: Parse current manifest state
+          ansible.builtin.set_fact:
+            rescue_rollback_manifest: "{{ rescue_raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+        - name: K8s rollback failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ rescue_rollback_manifest | combine({
+                   'component_status': rescue_rollback_manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+
+        - name: Fail with K8s rollback error
+          ansible.builtin.fail:
+            msg: >-
+              K8s rollback failed. Check rollback_status.yml on the NFS mount
+              and /opt/omnia/log/core/playbooks/rollback.log for details.
 
     - name: Mark K8s rollback as completed
       ansible.builtin.copy:

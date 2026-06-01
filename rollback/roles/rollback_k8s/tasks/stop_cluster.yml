@@ -1,0 +1,186 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 2: Stop the cluster ──────────────────────────────────────
+# Cordon all nodes, then stop kubelet in the correct order:
+#   1. Workers first
+#   2. Non-leader CPs
+#   3. VIP leader last (keeps API accessible as long as possible)
+
+- name: Skip stop_cluster if already completed
+  ansible.builtin.debug:
+    msg: "stop_cluster already completed — skipping."
+  when: (rollback_status.stages.stop_cluster.status | default('pending')) == 'completed'
+
+- name: Stop cluster
+  when: (rollback_status.stages.stop_cluster.status | default('pending')) != 'completed'
+  block:
+    - name: Mark stop_cluster in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            stop_cluster:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Identify VIP leader for shutdown order ─────────────────────
+    - name: Identify VIP leader
+      ansible.builtin.include_tasks: identify_vip_leader.yml
+
+    # ── Cordon all nodes (if cluster is accessible) ────────────────
+    - name: Cordon all nodes
+      ansible.builtin.command:
+        cmd: "kubectl --server=https://{{ first_cp_ip }}:6443 cordon {{ node_ips[item] }}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _cordon_result
+      changed_when: true
+      failed_when: false
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Stop kubelet on workers first ──────────────────────────────
+    - name: Stop kubelet on workers
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
+      delegate_to: "{{ item }}"
+      changed_when: true
+      loop: "{{ all_worker_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Mark worker nodes stop_kubelet completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ item }}"
+        node_status_update:
+          status: in_progress
+          steps:
+            stop_kubelet:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+      loop: "{{ all_worker_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Stop kubelet on CPs (VIP leader last) ──────────────────────
+    - name: Stop kubelet on control planes (VIP leader last)
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
+      delegate_to: "{{ item }}"
+      changed_when: true
+      loop: "{{ cp_shutdown_order }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Mark CP nodes stop_kubelet completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ item }}"
+        node_status_update:
+          status: in_progress
+          steps:
+            stop_kubelet:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Verify all kubelet services stopped ────────────────────────
+    - name: Verify kubelet is stopped on all nodes
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
+      delegate_to: "{{ item }}"
+      register: _kubelet_status
+      changed_when: false
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Fail if any kubelet is still active
+      ansible.builtin.fail:
+        msg: "kubelet is still active on {{ item.item }}. Cannot proceed."
+      loop: "{{ _kubelet_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item is failed
+
+    # ── Kill orphaned container processes on all nodes ────────────
+    # kubelet stop does not guarantee that all container processes
+    # exit (same issue documented in restore_etcd_single_cp.yml for
+    # etcd).  Stale BIRD (calico), kube-vip, and speaker (metallb)
+    # processes can hold ports/sockets and prevent new pods from
+    # starting after the cluster is brought back up.
+    - name: Kill stale container processes on all nodes (BIRD, kube-vip, speaker)
+      ansible.builtin.shell:
+        cmd: |
+          killed=""
+          for proc in bird bird6 kube-vip speaker; do
+            if pids=$(pgrep -x "$proc" 2>/dev/null); then
+              kill -9 $pids 2>/dev/null || true
+              killed="$killed $proc"
+            fi
+          done
+          # Also kill runsv supervisors for bird (calico uses runsv)
+          for proc in runsv; do
+            if pids=$(pgrep -f "runsv bird" 2>/dev/null); then
+              kill -9 $pids 2>/dev/null || true
+              killed="$killed runsv-bird"
+            fi
+          done
+          echo "${killed:-none}"
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ item }}"
+      changed_when: "'none' not in _kill_stale.stdout"
+      failed_when: false
+      register: _kill_stale
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Report stale processes killed
+      ansible.builtin.debug:
+        msg: "Stale processes killed on {{ item.item }}: {{ item.stdout | trim }}"
+      loop: "{{ _kill_stale.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: "'none' not in item.stdout"
+
+    # ── Mark stop_cluster completed ────────────────────────────────
+    - name: Mark stop_cluster completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            stop_cluster:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display stop_cluster completion
+      ansible.builtin.debug:
+        msg: >-
+          Cluster stopped. All kubelet services inactive on {{ all_rollback_nodes | length }} nodes.
+          API server, etcd, and kube-vip are down.

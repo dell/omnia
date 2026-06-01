@@ -103,16 +103,47 @@
       ansible.builtin.debug:
         msg: "PowerScale CSI driver upgrade: {{ powerscale_v21_version }} to {{ powerscale_v22_version }}"
 
+    - name: Read backup omnia_config.yml for values_path
+      ansible.builtin.slurp:
+        src: "{{ backup_location }}/omnia_config.yml"
+      register: backup_omnia_config_slurp
+
+    - name: Parse backup omnia_config.yml
+      ansible.builtin.set_fact:
+        backup_omnia_config: "{{ backup_omnia_config_slurp.content | b64decode | from_yaml }}"
+
+    - name: Fetch PowerScale values_path from backup omnia_config
+      ansible.builtin.set_fact:
+        powerscale_values_path: >-
+          {{ backup_omnia_config.service_k8s_cluster
+             | selectattr('csi_powerscale_driver_values_file_path', 'defined')
+             | map(attribute='csi_powerscale_driver_values_file_path')
+             | select('ne', '')
+             | first | default('') }}
+
+    - name: Display PowerScale values_path from backup omnia_config
+      ansible.builtin.debug:
+        msg: "PowerScale values_path from backup omnia_config: {{ powerscale_values_path }}"
+
+    - name: Extract values file name from backup omnia_config powerscale_values_path
+      ansible.builtin.set_fact:
+        powerscale_values_filename: "{{ powerscale_values_path | basename | default('values.yaml') }}"
+      when: powerscale_values_path | length > 0
+
+    - name: Display extracted PowerScale values file name
+      ansible.builtin.debug:
+        msg: "PowerScale values file name from backup omnia_config: {{ powerscale_values_filename }}"
+
     - name: Build dynamic GitHub URL for target version values.yaml
       ansible.builtin.set_fact:
         powerscale_target_values_url: "{{ powerscale_values_github_url_template | replace('{version}', powerscale_v22_version | regex_replace('^v', '')) }}"
 
-    - name: Check if v2.1 values.yaml exists in backup
+    - name: Check if v2.1 values file exists in backup
       ansible.builtin.stat:
-        path: "{{ backup_location }}/values.yaml"
+        path: "{{ backup_location }}/{{ powerscale_values_filename }}"
       register: v21_values_stat
 
-    - name: Fail if v2.1 values.yaml not found
+    - name: Fail if v2.1 values file not found
       ansible.builtin.fail:
         msg: "{{ msg_backup_powerscale_values_missing }}"
       when: not v21_values_stat.stat.exists
@@ -120,17 +151,17 @@
     - name: Download target version values.yaml template from GitHub
       ansible.builtin.get_url:
         url: "{{ powerscale_target_values_url }}"
-        dest: "{{ input_project_dir }}/values.yaml"
+        dest: "{{ input_project_dir }}/{{ powerscale_values_filename }}"
         mode: "{{ default_file_mode }}"
       register: download_target_values
 
-    - name: Merge v2.1 settings into v2.16 values.yaml
+    - name: Merge v2.1 settings into v2.2 values file
       ansible.builtin.script:
         cmd: >-
           ../scripts/merge_powerscale_values.py
-          "{{ backup_location }}/values.yaml"
-          "{{ input_project_dir }}/values.yaml"
-          "{{ input_project_dir }}/values.yaml"
+          "{{ backup_location }}/{{ powerscale_values_filename }}"
+          "{{ input_project_dir }}/{{ powerscale_values_filename }}"
+          "{{ input_project_dir }}/{{ powerscale_values_filename }}"
       register: merge_values_result
       changed_when: merge_values_result.rc == 0
 

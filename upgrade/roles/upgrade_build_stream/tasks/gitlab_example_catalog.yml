@@ -13,8 +13,12 @@
 # limitations under the License.
 
 # ────────────────────────────────────────────────────────────────────────
-# Sync a single example catalog file to the GitLab repository (create or update).
+# Collect a single example catalog file action for the batched upgrade commit.
 # Called in a loop from gitlab_config_upgrade.yml with loop_var: _example_catalog
+#
+# Instead of committing each file individually, this task reads the file
+# content and checks whether it already exists in the repo, then appends
+# a create/update action to the _upgrade_commit_actions list.
 #
 # Required variables (set by caller):
 #   _example_catalog               — full path to local catalog file
@@ -22,6 +26,7 @@
 #   gitlab_project_id
 #   gitlab_root_token
 #   gitlab_default_branch
+#   _upgrade_commit_actions        — list accumulator (initialized by caller)
 # ────────────────────────────────────────────────────────────────────────
 ---
 
@@ -54,19 +59,13 @@
   no_log: true
   when: _example_catalog_content is succeeded
 
-- name: Create or update example catalog in repository
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_example_path }}"
-    method: "{{ 'PUT' if _example_catalog_check.status == 200 else 'POST' }}"
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      encoding: base64
-      content: "{{ _example_catalog_content.content }}"
-      commit_message: "Upgrade examples/{{ _example_catalog_name }} to Omnia 2.2"
-    validate_certs: false
-    status_code: [200, 201]
-  no_log: true
+- name: Collect example catalog action for batched commit
+  ansible.builtin.set_fact:
+    _upgrade_commit_actions: >-
+      {{ _upgrade_commit_actions | default([]) + [{
+        'action': 'update' if _example_catalog_check.status == 200 else 'create',
+        'file_path': 'examples/' ~ _example_catalog_name,
+        'content': _example_catalog_content.content | b64decode,
+        'encoding': 'text'
+      }] }}
   when: _example_catalog_content is succeeded

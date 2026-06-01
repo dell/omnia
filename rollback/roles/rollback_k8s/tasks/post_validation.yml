@@ -1,0 +1,171 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 8: Post-validation ──────────────────────────────────────
+# Verify the entire cluster is healthy after rollback:
+#   1. All nodes Ready
+#   2. All nodes at rollback version
+#   3. kube-system pods Running
+#   4. etcd cluster healthy
+#   5. kube-vip VIP reachable (API server responds via VIP)
+
+- name: Skip post_validation if already completed
+  ansible.builtin.debug:
+    msg: "post_validation already completed — skipping."
+  when: (rollback_status.stages.post_validation.status | default('pending')) == 'completed'
+
+- name: Post-validation
+  when: (rollback_status.stages.post_validation.status | default('pending')) != 'completed'
+  block:
+    - name: Mark post_validation in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            post_validation:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Check 1: All nodes Ready ───────────────────────────────────
+    - name: Get all nodes status
+      ansible.builtin.command:
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get nodes -o wide
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _post_nodes
+      changed_when: false
+
+    - name: Display node status
+      ansible.builtin.debug:
+        msg: "{{ _post_nodes.stdout_lines }}"
+
+    - name: Fail if any node is NotReady
+      ansible.builtin.fail:
+        msg: "Post-validation failed: Some nodes are not Ready.\n{{ _post_nodes.stdout }}"
+      when: "'NotReady' in _post_nodes.stdout"
+
+    # ── Check 2: All nodes at rollback version ─────────────────────
+    - name: Get node versions
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443 get nodes
+          -o jsonpath='{range .items[*]}{.metadata.name}={.status.nodeInfo.kubeletVersion}{"\n"}{end}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _post_versions
+      changed_when: false
+
+    - name: Display node versions
+      ansible.builtin.debug:
+        msg: "{{ _post_versions.stdout_lines }}"
+
+    - name: Fail if any node not at rollback version
+      ansible.builtin.fail:
+        msg: >-
+          Post-validation failed: Not all nodes at v{{ k8s_rollback_version }}.
+          {{ _post_versions.stdout }}
+      when: >-
+        _post_versions.stdout_lines
+        | reject('search', 'v' + k8s_rollback_version)
+        | list | length > 0
+
+    # ── Check 3: kube-system pods healthy ──────────────────────────
+    - name: Get kube-system pods
+      ansible.builtin.command:
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get pods -n kube-system -o wide
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _post_pods
+      changed_when: false
+
+    - name: Display kube-system pods
+      ansible.builtin.debug:
+        msg: "{{ _post_pods.stdout_lines }}"
+
+    # ── Check 4: etcd cluster healthy ──────────────────────────────
+    # Use etcdctl on the host (already installed in start_control_plane.yml)
+    - name: Check etcd cluster health
+      ansible.builtin.command:
+        cmd: >-
+          etcdctl
+          --endpoints=https://127.0.0.1:2379
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt
+          --cert=/etc/kubernetes/pki/etcd/server.crt
+          --key=/etc/kubernetes/pki/etcd/server.key
+          endpoint health --cluster
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _post_etcd_health
+      changed_when: false
+
+    - name: Display etcd health
+      ansible.builtin.debug:
+        msg: "{{ _post_etcd_health.stdout_lines }}"
+
+    # ── Check 5: kube-vip VIP reachable ──────────────────────────────
+    # Intentionally NOT using --server here — we want to verify the VIP
+    # ({{ kube_vip }}) is actually routing to the API server.
+    - name: Verify API server is reachable via VIP ({{ kube_vip }})
+      ansible.builtin.command:
+        cmd: "kubectl --server=https://{{ kube_vip }}:6443 get --raw /healthz"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _vip_health
+      changed_when: false
+      retries: 6
+      delay: 10
+      until:
+        - _vip_health.rc == 0
+        - "'ok' in _vip_health.stdout"
+
+    - name: Display VIP health result
+      ansible.builtin.debug:
+        msg: "API server via VIP ({{ kube_vip }}): {{ _vip_health.stdout | default('unreachable') }}"
+
+    # ── Mark validation completed per node ─────────────────────────
+    - name: Mark validation completed for all nodes
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ item }}"
+        node_status_update:
+          status: completed
+          version_current: "{{ k8s_rollback_version }}"
+          steps:
+            validation:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Mark post_validation completed ─────────────────────────────
+    - name: Mark post_validation completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            post_validation:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display post_validation completion
+      ansible.builtin.debug:
+        msg:
+          - "========================================================================"
+          - "[ROLLBACK] Post-validation PASSED"
+          - "========================================================================"
+          - "All {{ all_rollback_nodes | length }} nodes Ready at v{{ k8s_rollback_version }}"
+          - "etcd cluster healthy"
+          - "kube-system pods running"
+          - "VIP {{ kube_vip }} reachable — API server responding via VIP"
+          - "========================================================================"

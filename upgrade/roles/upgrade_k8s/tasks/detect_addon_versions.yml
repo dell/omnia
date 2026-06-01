@@ -141,7 +141,7 @@
          | selectattr('package', 'search', 'csi-powerscale')
          | map(attribute='package')
          | first
-         | regex_replace('^csi-powerscale-', '')
+         | regex_replace('^csi-powerscale-v?', '')
          if powerscale_json_load is succeeded
          else 'unknown' }}
 
