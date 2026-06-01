@@ -281,6 +281,15 @@
         - rollback_manifest.component_status[item] in ['completed', 'skipped']
 
 # ──────────────────────────────────────────────────────────────────────
+# Load credentials (provision_password etc.) from omnia_config_credentials.yml
+# Mirrors upgrade pattern: ../utils/credential_utility/get_config_credentials.yml
+# Read-only — no interactive prompts, no re-encryption.
+# ──────────────────────────────────────────────────────────────────────
+- name: Load rollback credentials
+  ansible.builtin.import_playbook: playbooks/load_rollback_credentials.yml
+  tags: [build_stream, buildstream, oim]
+
+# ──────────────────────────────────────────────────────────────────────
 # Rollback sub-flows (reverse order of upgrade):
 #   slurm → telemetry → k8s → build_stream → oim
 # Each reads rollback_manifest and skips if already 'completed'.
@@ -299,7 +308,7 @@
 
 - name: Rollback BuildStream upgrade / enablement
   ansible.builtin.import_playbook: playbooks/rollback_build_stream.yml
-  tags: [build_stream]
+  tags: [buildstream, build_stream]
 
 - name: Rollback OIM (includes OpenCHAMI) — rolled back last
   ansible.builtin.import_playbook: playbooks/rollback_oim.yml
@@ -331,15 +340,15 @@
 
     # Build cleaned component_status: preserve 'skipped' for BuildStream-gated
     # components; mark everything else as 'completed'.
-    - name: Build cleaned component_status (mark skipped or completed)
+    - name: Build cleaned component_status (preserve failed; mark pending as completed)
       ansible.builtin.set_fact:
         cleaned_component_status: >-
           {%- set result = {} -%}
           {%- for key, val in rollback_manifest.component_status.items() -%}
-          {%-   if val == 'skipped' -%}
-          {%-     set _ = result.update({key: 'skipped'}) -%}
+          {%-   if val in ['completed', 'skipped', 'failed'] -%}
+          {%-     set _ = result.update({key: val}) -%}
           {%-   else -%}
-          {%-     set _ = result.update({key: val if val in ['completed', 'skipped'] else 'completed'}) -%}
+          {%-     set _ = result.update({key: 'completed'}) -%}
           {%-   endif -%}
           {%- endfor -%}
           {{ result | to_json }}
@@ -348,13 +357,15 @@
       ansible.builtin.set_fact:
         cleaned_component_status: "{{ cleaned_component_status | from_json }}"
 
-    - name: Determine rollback_status (treat 'skipped' as acceptable for 'completed')
+    - name: Determine rollback_status (failed if any failed, partial if pending, else completed)
       ansible.builtin.set_fact:
         new_status: >-
-          {{ 'completed'
-             if (cleaned_component_status.values()
-                 | reject('in', ['completed', 'skipped']) | list | length == 0)
-             else 'partial' }}
+          {{ 'failed'
+             if ('failed' in cleaned_component_status.values() | list)
+             else ('completed'
+                   if (cleaned_component_status.values()
+                       | reject('in', ['completed', 'skipped']) | list | length == 0)
+                   else 'partial') }}
 
     - name: Write finalized rollback_manifest.yml with cleaned component_status
       ansible.builtin.copy:
