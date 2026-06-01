@@ -60,6 +60,7 @@
       containers.podman.podman_image:
         name: "{{ pulp_x86_image }}"
         state: present
+        executable: /usr/bin/podman
       register: pull_result
       retries: "{{ pull_image_retries }}"
       delay: "{{ pull_image_delay }}"
