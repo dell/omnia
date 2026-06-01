@@ -123,14 +123,17 @@
       changed_when: false
       failed_when: false
       register: rollout_scale_result
+      retries: "{{ idrac_rollout_retries }}"
+      delay: "{{ idrac_rollout_delay }}"
+      until: rollout_scale_result.rc == 0
       when:
         - idrac_sts_check.rc == 0
         - idrac_replica_count.stdout | int > 0
         - restore_replicas_result.changed | default(false)
 
-    - name: Warn if idrac-telemetry rollout did not complete in time
-      ansible.builtin.debug:
-        msg: "{{ idrac_rollout_timeout_warning_msg }}"
+    - name: Fail if idrac-telemetry rollout did not complete after retries
+      ansible.builtin.fail:
+        msg: "{{ idrac_rollout_fail_msg }}"
       when:
         - rollout_scale_result is defined
         - rollout_scale_result.rc | default(0) != 0

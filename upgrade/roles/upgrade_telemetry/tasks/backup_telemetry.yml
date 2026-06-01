@@ -75,7 +75,8 @@
       ansible.builtin.copy:
         src: /root/telemetry.sh
         dest: "{{ tel_backup_dir }}/telemetry.sh"
-        mode: '0644'
+        mode: "{{ executable_mode }}"
+        remote_src: true
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       when:
