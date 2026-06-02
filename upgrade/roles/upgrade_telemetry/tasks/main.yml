@@ -51,38 +51,6 @@
     msg: "{{ victoria_upgrade_skipped }}"
   when: not (victoria_upgrade_needed | default(false) | bool)
 
-# ── Phase 2.5: Clean stale Kafka lock files before redeploy ──
-- name: Clean stale Kafka lock files from PVCs (prevents CrashLoopBackOff)
-  ansible.builtin.shell: |
-    set -o pipefail
-    for pvc_name in $(kubectl get pvc -n {{ telemetry_namespace }} -l strimzi.io/cluster=kafka \
-        -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
-      pod_name="kafka-lock-cleanup-${pvc_name}"
-      kubectl delete pod "${pod_name}" -n {{ telemetry_namespace }} --ignore-not-found 2>/dev/null || true
-      kubectl run "${pod_name}" --rm --attach --restart=Never -n {{ telemetry_namespace }} \
-        --image=busybox:latest \
-        --overrides="{
-          \"spec\": {
-            \"containers\": [{
-              \"name\": \"cleanup\",
-              \"image\": \"busybox:latest\",
-              \"command\": [\"sh\", \"-c\", \"find /data -name .lock -delete && echo cleaned ${pvc_name}\"],
-              \"volumeMounts\": [{\"name\": \"data\", \"mountPath\": \"/data\"}]
-            }],
-            \"volumes\": [{\"name\": \"data\", \"persistentVolumeClaim\": {\"claimName\": \"${pvc_name}\"}}],
-            \"restartPolicy\": \"Never\"
-          }
-        }" 2>/dev/null || true
-    done
-  delegate_to: "{{ kube_vip }}"
-  connection: ssh
-  changed_when: true
-  failed_when: false
-  timeout: 300
-  when:
-    - kube_vip is defined
-    - kube_vip | length > 0
-
 # ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
 - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
   ansible.builtin.include_tasks: execute_telemetry_sh.yml

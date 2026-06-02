@@ -83,27 +83,16 @@ spec:
         operator: Exists
         tolerationSeconds: 5
       initContainers:
-        # Clean up stale MySQL lock/InnoDB artifacts only after ungraceful shutdown
+        # Clean up stale MySQL lock files from previous ungraceful shutdowns
         - name: cleanup-mysql-locks
           image: {{ mysql_image }}
           command:
             - /bin/sh
             - -c
             - |
-              DATADIR="/var/lib/mysql"
-              # Only run cleanup if datadir has existing MySQL data (not a fresh install)
-              if [ ! -f "${DATADIR}/mysql.ibd" ]; then
-                echo "Fresh install detected — skipping cleanup."
-                exit 0
-              fi
-              # Detect unclean shutdown: pid/sock files should not exist when no mysqld is running
-              if [ -f "${DATADIR}/mysqld.pid" ] || ls ${DATADIR}/*.sock 1>/dev/null 2>&1 || ls ${DATADIR}/*.lck 1>/dev/null 2>&1; then
-                echo "Stale lock artifacts detected — previous shutdown was unclean."
-                rm -f ${DATADIR}/*.sock ${DATADIR}/*.pid ${DATADIR}/*.lck 2>/dev/null || true
-                echo "Stale artifacts removed."
-              else
-                echo "No stale artifacts — previous shutdown was clean."
-              fi
+              echo "Checking for stale MySQL lock files..."
+              rm -f /var/lib/mysql/*.sock /var/lib/mysql/*.pid 2>/dev/null || true
+              echo "Lock file cleanup complete"
           volumeMounts:
             - name: mysqldb-pvc
               mountPath: /var/lib/mysql/
@@ -114,20 +103,10 @@ spec:
           volumeMounts:
             - name: mysqldb-pvc
               mountPath: /var/lib/mysql/
-          args:
-            - --innodb-use-native-aio=0
-            - --innodb-flush-log-at-trx-commit=1
-            - --innodb-flush-method=fsync
           lifecycle:
             preStop:
               exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - |
-                    mysqladmin shutdown -uroot -p"${MYSQL_ROOT_PASSWORD}" --wait=45 2>/dev/null || true
-                    while mysqladmin ping -uroot -p"${MYSQL_ROOT_PASSWORD}" 2>/dev/null; do sleep 1; done
-                    rm -f /var/lib/mysql/conf.d/recovery.cnf 2>/dev/null || true
+                command: ["/bin/sh", "-c", "mysqladmin shutdown -uroot -p${MYSQL_ROOT_PASSWORD} 2>/dev/null || true"]
           env:
             - name: MYSQL_DATABASE
               value: {{ mysqldb_name }}
