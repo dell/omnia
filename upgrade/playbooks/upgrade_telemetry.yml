@@ -35,6 +35,27 @@
       when:
         - manifest.component_status[component_name] | default('pending') in ['completed', 'skipped']
 
+    # ── BuildStream terminal gate (C-24) ──
+    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: "Skip — BuildStream terminal gate active (C-24)"
+      ansible.builtin.meta: end_play
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
     # ── Pre-check: Skip telemetry upgrade if service_k8s is not in software_config.json ──
     - name: "Load software_config.json for service_k8s check"
       ansible.builtin.slurp:
@@ -85,26 +106,6 @@
     - name: "Skip — service_k8s not configured"
       ansible.builtin.meta: end_play
       when: not (telemetry_upgrade_enabled | default(false) | bool)
-
-    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
-      ansible.builtin.copy:
-        content: >-
-          {{ manifest | combine({
-               'component_status': manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ manifest_path }}"
-        mode: '0644'
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
-
-    - name: "Skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.meta: end_play
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
 
     - name: Set telemetry upgrade status to in-progress
       ansible.builtin.copy:

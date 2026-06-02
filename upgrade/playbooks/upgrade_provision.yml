@@ -126,6 +126,10 @@
   vars:
     input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
   tasks:
+    - name: "Skip telemetry backups — provision not proceeding"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['proceed_provision'] | default(false) | bool)
+
     - name: "Load software_config.json to check for service_k8s"
       ansible.builtin.slurp:
         path: "{{ input_project_dir }}/software_config.json"

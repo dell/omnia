@@ -198,7 +198,7 @@
 - name: Parse service_k8s JSON
   ansible.builtin.set_fact:
     service_k8s_config: "{{ service_k8s_slurp.content | b64decode | from_json }}"
-  when: 
+  when:
     - service_k8s_slurp is not failed
     - service_k8s_slurp is not skipped
   tags: always
