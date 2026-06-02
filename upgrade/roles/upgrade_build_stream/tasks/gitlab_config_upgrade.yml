@@ -278,24 +278,11 @@
   until: _api_ready.status in gitlab_default_status_codes.api_version
 
 # ══════════════════════════════════════════════════════════════════
-# 4A.3: Collect CI/CD pipeline file actions
+# 4A.3: Collect input file and example catalog actions FIRST
 # ══════════════════════════════════════════════════════════════════
-
-- name: "[Step 4A] Collect CI/CD pipeline file actions for upgrade commit"
-  ansible.builtin.include_tasks:
-    file: gitlab_ci_file.yml
-  loop:
-    - .gitlab-ci.yml
-    - .gitlab-ci-build.yml
-    - .gitlab-ci-deploy.yml
-    - .gitlab-ci-deploy-child-template.yml
-    - .gitlab-ci-cleanup.yml
-    - .gitlab-ci-cleanup-child-template.yml
-  loop_control:
-    loop_var: _ci_file_name
-
-# ══════════════════════════════════════════════════════════════════
-# 4A.4: Collect input file and example catalog actions
+# COMMIT ORDER FIX: Collect catalog and input files BEFORE pipeline YAMLs
+# to prevent incorrect pipeline triggers when trigger files are committed
+# before pipeline definitions exist in the repository.
 # ══════════════════════════════════════════════════════════════════
 
 - name: "[Step 4A] Collect Omnia input file actions for upgrade commit"
@@ -306,7 +293,7 @@
     loop_var: _input_file
     label: "{{ _input_file.name }}"
 
-# ── 4A.4b: Collect example catalog actions ──
+# ── 4A.3b: Collect example catalog actions ──
 - name: "[Step 4A] Find example catalog files"
   ansible.builtin.find:
     paths: "{{ example_catalog_path }}"
@@ -322,6 +309,23 @@
     loop_var: _example_catalog
     label: "{{ _example_catalog | basename }}"
   when: _example_catalog_files.files | default([]) | length > 0
+
+# ══════════════════════════════════════════════════════════════════
+# 4A.4: Collect CI/CD pipeline file actions AFTER input files
+# ══════════════════════════════════════════════════════════════════
+
+- name: "[Step 4A] Collect CI/CD pipeline file actions for upgrade commit"
+  ansible.builtin.include_tasks:
+    file: gitlab_ci_file.yml
+  loop:
+    - .gitlab-ci.yml
+    - .gitlab-ci-build.yml
+    - .gitlab-ci-deploy.yml
+    - .gitlab-ci-deploy-child-template.yml
+    - .gitlab-ci-cleanup.yml
+    - .gitlab-ci-cleanup-child-template.yml
+  loop_control:
+    loop_var: _ci_file_name
 
 # ══════════════════════════════════════════════════════════════════
 # 4A.4c: Commit all collected file changes in a single commit
