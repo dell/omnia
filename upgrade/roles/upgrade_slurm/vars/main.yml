@@ -19,6 +19,6 @@ slurm_nfs_fail_msg: "Failed to mount NFS share. Please check if the NFS server i
 oim_metadata: "/opt/omnia/.data/oim_metadata.yml"
 backup_slurm_nfs_contents: true # To create a copy of all slurm contents on the nfs share
 slurm_2_1_backup_dir_effective: "{{ slurm_2_1_backup_dir | default('/opt/omnia/backups/upgrade/version_2.1.0.0') }}"
-slurm_2_1_backup_subdir: "slurm_21_nfs_backups"
+slurm_2_1_backup_dir: "slurm_21_nfs_backups"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
 oim_nfs_fail_msg: "Failed to mount NFS on oim"
