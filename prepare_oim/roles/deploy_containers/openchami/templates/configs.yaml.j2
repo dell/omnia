@@ -14,11 +14,12 @@ cluster_nidlength: 3
 
 {% set additional = network_data.admin_network.additional_subnets | default([]) %}
 {% if additional | length > 0 %}
-# Multi-subnet support (coresmd subnet= directives)
+# Multi-subnet support (coresmd rule-level subnet: match keys)
 coredhcp_subnets:
 {% for s in additional %}
   - cidr: "{{ s.subnet }}/{{ s.netmask_bits }}"
     router: "{{ s.router }}"
+    netmask_bits: "{{ s.netmask_bits }}"
 {% endfor %}
 
 # Multi-subnet bootloop pools (bootloop subnet_pool= directives)
