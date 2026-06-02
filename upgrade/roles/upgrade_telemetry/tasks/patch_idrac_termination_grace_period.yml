@@ -53,7 +53,7 @@
     cmd: >
       kubectl patch statefulset idrac-telemetry -n {{ telemetry_namespace }}
       --type=strategic
-      -p '{"spec":{"template":{"spec":{"terminationGracePeriodSeconds":120}}}}'
+      -p '{"spec":{"template":{"spec":{"terminationGracePeriodSeconds":60}}}}'
   delegate_to: "{{ kube_vip }}"
   connection: ssh
   register: idrac_patch_result

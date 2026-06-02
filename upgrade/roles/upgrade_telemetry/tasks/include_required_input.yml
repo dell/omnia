@@ -60,6 +60,7 @@
   when:
     - omnia_config is defined
     - omnia_config.service_k8s_cluster is defined
+    - omnia_config.service_k8s_cluster | length > 0
   tags: always
 
 - name: Set k8s_client_mount_path
@@ -70,13 +71,21 @@
           | first).mount_point }}
   when:
     - storage_config is defined
+    - storage_config.mounts is defined
     - k8s_nfs_storage_name is defined
+    - storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | list | length > 0
   tags: always
 # ── Load high_availability_config.yml ──
+- name: Check if high_availability_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/high_availability_config.yml"
+  register: ha_config_stat
+
 - name: Read high_availability_config.yml for kube_vip
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/high_availability_config.yml"
     name: ha_config
+  when: ha_config_stat.stat.exists
 
 - name: Debug high_availability_config.yml content
   ansible.builtin.debug:
@@ -90,6 +99,7 @@
     kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
     cacheable: true
   when:
+    - ha_config is defined
     - ha_config.service_k8s_cluster_ha is defined
     - ha_config.service_k8s_cluster_ha | length > 0
 
@@ -148,6 +158,7 @@
   when:
     - software_config is defined
     - software_config.softwares is defined
+    - software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0
   tags: always
 
 - name: Set os_version from software_config.json
@@ -164,6 +175,7 @@
   when:
     - software_config is defined
     - software_config.softwares is defined
+    - software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0
   tags: always
 
 # ── Load service_k8s JSON for victoria operator package name ──
@@ -172,12 +184,19 @@
     src: "{{ input_project_dir }}/config/{{ architecture }}/rhel/{{ os_version }}/service_k8s_v{{ k8s_version }}.json"
   register: service_k8s_slurp
   failed_when: false
+  when:
+    - architecture is defined
+    - os_version is defined
+    - k8s_version is defined
   tags: always
 
 - name: Parse service_k8s JSON
   ansible.builtin.set_fact:
     service_k8s_config: "{{ service_k8s_slurp.content | b64decode | from_yaml }}"
-  when: service_k8s_slurp is not failed
+  when:
+    - service_k8s_slurp is defined
+    - service_k8s_slurp is not failed
+    - service_k8s_slurp is not skipped
   tags: always
 
 - name: Extract victoria operator package name from service_k8s JSON

@@ -9,6 +9,9 @@ spec:
   replicas: 3
   roles:
     - controller
+  template:
+    pod:
+      terminationGracePeriodSeconds: 120
   storage:
     type: jbod
     volumes:
@@ -30,6 +33,9 @@ spec:
   replicas: 3
   roles:
     - broker
+  template:
+    pod:
+      terminationGracePeriodSeconds: 120
   storage:
     type: jbod
     volumes:
@@ -83,6 +89,9 @@ spec:
       log.segment.bytes: {{ kafka_log_segment_bytes }}
       log.retention.bytes: {{ kafka_log_retention_bytes }}
       log.retention.check.interval.ms: 300000
+      controlled.shutdown.enable: true
+      controlled.shutdown.max.retries: 3
+      controlled.shutdown.retry.backoff.ms: 5000
       # Enable topic auto-creation for external clients
       auto.create.topics.enable: true
       num.partitions: 3
