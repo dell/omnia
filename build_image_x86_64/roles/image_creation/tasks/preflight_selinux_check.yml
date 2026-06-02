@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Pre-flight: Install minimal SELinux policy module to fix container-selinux
+# regression on RHEL 10.2 (crun 1.27 + kernel 6.12). SELinux stays enforcing.
+# Retire this when an updated container-selinux ships the bpf prog_run rule.
+
+- name: Install omnia-crun-bpf SELinux policy module
+  block:
+    - name: Ensure SELinux policy build tools are present
+      ansible.builtin.package:
+        name:
+          - policycoreutils
+          - checkpolicy
+        state: present
+
+    - name: Check if omnia-crun-bpf SELinux module is loaded
+      ansible.builtin.command: semodule -lfull
+      register: _selinux_modules
+      changed_when: false
+
+    - name: Create SELinux custom policy directory
+      ansible.builtin.file:
+        path: "{{ selinux_policy_dir }}"
+        state: directory
+        mode: "0755"
+      when: selinux_module_name not in _selinux_modules.stdout
+
+    - name: Copy omnia-crun-bpf policy source
+      ansible.builtin.copy:
+        src: omnia-crun-bpf.te
+        dest: "{{ selinux_policy_dir }}/omnia-crun-bpf.te"
+        mode: "0600"
+      when: selinux_module_name not in _selinux_modules.stdout
+
+    - name: Compile SELinux policy module
+      ansible.builtin.command:
+        cmd: >-
+          checkmodule -M -m
+          -o {{ selinux_policy_dir }}/omnia-crun-bpf.mod
+          {{ selinux_policy_dir }}/omnia-crun-bpf.te
+      changed_when: true
+      when: selinux_module_name not in _selinux_modules.stdout
+
+    - name: Package SELinux policy module
+      ansible.builtin.command:
+        cmd: >-
+          semodule_package
+          -o {{ selinux_policy_dir }}/omnia-crun-bpf.pp
+          -m {{ selinux_policy_dir }}/omnia-crun-bpf.mod
+      changed_when: true
+      when: selinux_module_name not in _selinux_modules.stdout
+
+    - name: Load SELinux policy module
+      ansible.builtin.command:
+        cmd: semodule -X 300 -i {{ selinux_policy_dir }}/omnia-crun-bpf.pp
+      changed_when: true
+      when: selinux_module_name not in _selinux_modules.stdout
+
+  rescue:
+    - name: Warn that SELinux policy module installation failed
+      ansible.builtin.debug:
+        msg: "{{ selinux_install_warn_msg }}"
