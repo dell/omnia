@@ -143,7 +143,7 @@
   block:
     - name: Create backup directory structure
       ansible.builtin.file:
-        path: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups/{{ item }}"
+        path: "{{ slurm_nfs_mounted_path }}/slurm_21_nfs_backups/{{ item }}"
         state: directory
         owner: root
         group: root
@@ -155,13 +155,13 @@
     - name: Backup etc/slurm directory
       ansible.builtin.copy:
         src: "{{ ctld_dir_nfs }}/etc/slurm/"
-        dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups/etc/slurm"
+        dest: "{{ slurm_nfs_mounted_path }}/slurm_21_nfs_backups/etc/slurm"
         remote_src: true
         mode: preserve
 
     - name: Backup var/lib/mysql directory
       ansible.builtin.copy:
         src: "{{ ctld_dir_nfs }}/var/lib/mysql/"
-        dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups/var/lib/mysql"
+        dest: "{{ slurm_nfs_mounted_path }}/slurm_21_nfs_backups/var/lib/mysql"
         remote_src: true
         mode: preserve
