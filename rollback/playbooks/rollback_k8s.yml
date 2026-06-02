@@ -20,7 +20,7 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
-    component_name: k8s
+    component_name: k8s-telemetry
   tasks:
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
@@ -86,7 +86,7 @@
       vars:
         banner_k8s_not_configured:
           - "========================================================================"
-          - "[ROLLBACK] Component 'k8s' — SKIPPED"
+          - "[ROLLBACK] Component 'k8s-telemetry' — SKIPPED"
           - "========================================================================"
           - "Reason: service_k8s is not present in software_config.json softwares list."
           - "K8s cluster was not provisioned, skipping K8s rollback."

@@ -174,6 +174,55 @@ def _merge_package_entries(dst, src):
     if not dst.get('url') and src.get('url'):
         dst['url'] = src['url']
 
+def _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids):
+    """Generate a human-readable package ID with collision handling.
+    
+    Format: {sanitized_name}_{version}_{type}
+    If collision occurs, append counter: {base_id}_{counter}
+    """
+    # Extract version from package name if present (e.g., PyMySQL==1.1.2)
+    name_for_id = pkg_name
+    if '==' in pkg_name and pkg_type == 'pip_module':
+        # For pip modules, name==version format
+        parts = pkg_name.split('==')
+        if len(parts) == 2:
+            name_for_id = parts[0]
+            if not pkg_version:
+                pkg_version = parts[1]
+    elif '-' in pkg_name and pkg_type == 'rpm' and not pkg_version:
+        # Some RPMs have version in name (e.g., python3-PyMySQL-1.1.2)
+        # Try to extract version if it looks like a version number
+        parts = pkg_name.rsplit('-', 1)
+        if len(parts) == 2 and re.match(r'^\d', parts[1]):
+            name_for_id = parts[0]
+            pkg_version = parts[1]
+    
+    # Sanitize package name: replace special chars with hyphens
+    sanitized = re.sub(r'[/@:.]', '-', name_for_id)
+    sanitized = re.sub(r'-+', '-', sanitized).strip('-')
+    
+    # Truncate very long names to reasonable length
+    if len(sanitized) > 50:
+        sanitized = sanitized[:50]
+    
+    # Build base ID
+    version_part = pkg_version if pkg_version else 'na'
+    base_id = f"{sanitized}_{version_part}_{pkg_type}"
+    
+    # Handle collisions
+    if base_id not in used_ids:
+        used_ids.add(base_id)
+        return base_id
+    
+    # Collision detected - append counter
+    counter = 1
+    while True:
+        collision_id = f"{base_id}_{counter}"
+        if collision_id not in used_ids:
+            used_ids.add(collision_id)
+            return collision_id
+        counter += 1
+
 def _render_templated_url(template: str, bundle_name: str, versions_by_name: dict) -> str:
     """Render very simple Jinja-like templates used in config URLs.
 
@@ -405,8 +454,10 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
     infra_packages = {}
     misc_package_ids = []
 
-    os_pkg_id_counter = 1
-    infra_pkg_id_counter = 1
+    # Track used IDs for collision detection across all package types
+    used_ids = set()
+    # Add functional package IDs to used_ids to avoid collisions
+    used_ids.update(package_id_map.values())
 
     # Precompute OS-role flags
     has_os_x86_64 = 'os_x86_64' in (pxe_groups or [])
@@ -434,8 +485,10 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
 
         # --- Infrastructure ---
         if is_infra:
-            pkg_id = f"infrastructure_package_id_{infra_pkg_id_counter}"
-            infra_pkg_id_counter += 1
+            pkg_name = pkg_data['name']
+            pkg_type = pkg_data['type']
+            pkg_version = pkg_data.get('version') or pkg_data.get('tag')
+            pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             infra_packages[pkg_id] = create_infra_package_entry(pkg_data)
             # Infra packages are exclusive; skip other sections
             continue
@@ -452,8 +505,10 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
             func_pkg_id = package_id_map[key]
             functional_packages[func_pkg_id] = create_package_entry(pkg_data)
             # Also add to OS so adapter_policy can generate ldms.json from base_os.json
-            os_pkg_id = f"os_package_id_{os_pkg_id_counter}"
-            os_pkg_id_counter += 1
+            pkg_name = pkg_data['name']
+            pkg_type = pkg_data['type']
+            pkg_version = pkg_data.get('version') or pkg_data.get('tag')
+            os_pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             os_packages[os_pkg_id] = create_package_entry(pkg_data)
             continue
 
@@ -462,14 +517,17 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
         #   (a) it belongs to at least one non-functional, non-infra bundle, OR
         #   (b) it does not belong to any functional or infra bundle at all
         if has_base_os_bundle or (not is_functional and not is_infra):
-            os_pkg_id = f"os_package_id_{os_pkg_id_counter}"
-            os_pkg_id_counter += 1
+            pkg_name = pkg_data['name']
+            pkg_type = pkg_data['type']
+            pkg_version = pkg_data.get('version') or pkg_data.get('tag')
+            os_pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             os_packages[os_pkg_id] = create_package_entry(pkg_data)
 
-    catalog["Catalog"]["FunctionalPackages"] = functional_packages
-    catalog["Catalog"]["OSPackages"] = os_packages
+    # Sort all package dictionaries alphabetically by key
+    catalog["Catalog"]["FunctionalPackages"] = dict(sorted(functional_packages.items()))
+    catalog["Catalog"]["OSPackages"] = dict(sorted(os_packages.items()))
+    catalog["Catalog"]["InfrastructurePackages"] = dict(sorted(infra_packages.items()))
     catalog["Catalog"]["Miscellaneous"] = sorted(list(set(misc_package_ids)))
-    catalog["Catalog"]["InfrastructurePackages"] = infra_packages
 
     # Add BaseOS section
     catalog["Catalog"]["BaseOS"] = [{
@@ -486,9 +544,11 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
         }]
 
     # Build Functional Layers based on PXE mapping
-    catalog["Catalog"]["FunctionalLayer"] = build_functional_layers(
+    functional_layers = build_functional_layers(
         functional_packages, pxe_groups, role_package_map
     )
+    # Sort functional layers by Name
+    catalog["Catalog"]["FunctionalLayer"] = sorted(functional_layers, key=lambda x: x["Name"])
 
     return catalog
 
@@ -535,29 +595,9 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
             })
         generated.add(pxe_group)
 
-    # ── 2. Generate _first variant layers for PXE-listed role+arch combos ──
-    for role_name, pkg_ids in role_package_map.items():
-        if not role_name.endswith('_first'):
-            continue
-        base_role = role_name[:-6]  # strip "_first"
-        allowed_arches = pxe_role_arches.get(base_role, set())
-        for arch in allowed_arches:
-            layer_name = f"{role_name}_{arch}"
-            if layer_name in generated:
-                continue
-
-            filtered = [
-                pid for pid in pkg_ids
-                if pid in functional_packages
-                and arch in functional_packages[pid].get('Architecture', [])
-            ]
-
-            if filtered:
-                functional_layers.append({
-                    "Name": layer_name,
-                    "FunctionalPackages": sorted(filtered),
-                })
-            generated.add(layer_name)
+    # ── 2. Generate _first variant layers only if explicitly in PXE mapping ──
+    # Skip this step since PXE mapping doesn't include _first variants
+    # The adapter policy will handle _first variants during bundle expansion
 
     return functional_layers
 
@@ -567,7 +607,8 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, p
     role_package_map = defaultdict(list)
     package_id_map = {}
 
-    pkg_id_counter = 1
+    # Track used IDs for collision detection
+    used_ids = set()
 
     # Check if os_x86_64 or os_aarch64 exist in PXE groups
     has_os_roles = any(g in (pxe_groups or []) for g in ['os_x86_64', 'os_aarch64'])
@@ -575,6 +616,7 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, p
     # First pass: assign package IDs (functional bundles + infra if os_* roles exist)
     for key, pkg_data in packages.items():
         pkg_name = pkg_data['name']
+        pkg_type = pkg_data['type']
         bundles = set(pkg_data.get('bundles') or [])
         is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
         is_infra = bool(bundles & _INFRA_BUNDLES)
@@ -582,14 +624,21 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, p
         # Include ldms packages in package_id_map when os_* roles exist
         is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
         
+        # Determine version for ID generation
+        pkg_version = None
+        if pkg_type == 'image' and pkg_data.get('tag'):
+            pkg_version = pkg_data['tag']
+        elif pkg_type == 'git' and pkg_data.get('version'):
+            pkg_version = pkg_data['version']
+        elif pkg_data.get('version'):
+            pkg_version = pkg_data['version']
+        
         if is_functional and not is_infra:
-            pkg_id = f"package_id_{pkg_id_counter}"
-            pkg_id_counter += 1
+            pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             package_id_map[key] = pkg_id
         elif is_os_layer_bundle and has_os_roles:
             # ldms packages should be added to functional packages for os_* layers
-            pkg_id = f"package_id_{pkg_id_counter}"
-            pkg_id_counter += 1
+            pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             package_id_map[key] = pkg_id
 
     # Second pass: map packages to roles by scanning config files

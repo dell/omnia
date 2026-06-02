@@ -171,15 +171,14 @@ telemetry_sources:
       - "victoria_logs"
 
   # --------------------------------------------------------------------------
-  # VAST — VAST Storage Telemetry
+  # VAST — VAST Data Storage Telemetry
   # --------------------------------------------------------------------------
-  # Collects: Storage performance, capacity metrics, volume metrics, device health, cluster status
-  # Requires: VAST Storage appliance with Prometheus exporter enabled (port 443)
-  # Data path: VAST Prometheus Exporter → vmagent(shared) → victoria_metrics
-  #            VAST Syslog → rsyslog relay → VLAgent → victoria_logs
+  # Collects: Storage performance metrics from VAST Data clusters via Prometheus API
+  # Requires: VAST Data cluster with Prometheus metrics endpoint enabled
+  # Data path: VAST Prometheus API → vmagent(shared) → victoria_metrics
   #
   # NOTE: Omnia does NOT deploy VAST itself. Omnia configures the existing
-  # vmagent to scrape the VAST Prometheus endpoints for storage metrics.
+  # vmagent to scrape the VAST Prometheus endpoint for storage metrics.
   vast:
     # Enable or disable VAST storage metrics collection
     # Default: false
@@ -475,7 +474,7 @@ ufm_configuration:
 # --------------------------------------------------------------------------
 # VAST Telemetry Configuration
 # --------------------------------------------------------------------------
-# VAST telemetry collects storage performance metrics from VAST Data clusters
+# VAST telemetry collects storage metrics from VAST Data clusters
 # using Prometheus scraping via the VAST Prometheus metrics API.
 #
 # DATA PIPELINE:

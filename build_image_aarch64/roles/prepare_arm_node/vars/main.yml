@@ -17,7 +17,7 @@
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 pulp_aarch64_image_name: "dellhpcomniaaisolution/image-build-aarch64:1.1"
 aarch64_local_tag: "aarch64-image-builder/ochami"
-pull_image_retries: "3"
+pull_image_retries: "5"
 pull_image_delay: "10"
 network_spec: "{{ input_project_dir }}/network_spec.yml"
 ochami_aarch_64_dir: "/opt/omnia/openchami/aarch64"

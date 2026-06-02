@@ -993,7 +993,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     stage_type = request_data["stage_type"]
     # Hardcoded values to prevent Checkmarx stored command injection
     # These values are not configurable in this release
-    scenario_name = "discovery"  # Hardcoded, not from request_data
+    scenario_name = "provision"  # Hardcoded, not from request_data
     test_suite = "build_stream"  # Hardcoded, not from request_data
     
     # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
@@ -1042,7 +1042,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
     cmd = [
         "bash", "/opt/omnia/automation/run_molecule.sh",
-        "discovery",  # First scenario
+        "provision",  # First scenario
         "verify"  # Use verify command for validation stage
     ]
     

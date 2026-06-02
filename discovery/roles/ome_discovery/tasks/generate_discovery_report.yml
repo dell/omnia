@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Ensure discovery report directory exists
+  ansible.builtin.file:
+    path: "{{ discovery_report_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Set timestamped discovery report output file path
+  ansible.builtin.set_fact:
+    discovery_report_output_file: "{{ discovery_report_dir }}/bmc_discovery_report_{{ pxe_mapping_timestamp }}.csv"
+
+- name: Generate BMC discovery report
+  generate_discovery_report:
+    servers: "{{ discovered_servers }}"
+    output_file: "{{ discovery_report_output_file }}"
+  register: discovery_report_result
+
+- name: Load build_stream_config to check if build_stream is enabled
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/build_stream_config.yml"
+    name: build_stream_config_data
+  failed_when: false
+
+- name: Display discovery completion message (without BuildStream)
+  when: not (build_stream_config_data.enable_build_stream | default(false) | bool)
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "OME Discovery Complete"
+      - "============================================================"
+      - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
+      - "BMC discovery report generated: {{ discovery_report_output_file }}"
+      - "  (Lists link status of BMC, Ethernet, and InfiniBand NICs for each server)"
+      - "Total servers discovered: {{ discovered_servers | length }}"
+      - ""
+      - "Next Steps:"
+      - "1. Review and edit the generated PXE mapping file:"
+      - "     {{ pxe_mapping_output_file }}"
+      - ""
+      - "2. Review the discovery report for NIC link statuses:"
+      - "     {{ discovery_report_output_file }}"
+      - ""
+      - "3. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
+      - ""
+      - "4. Update the following parameter in provision_config.yml:"
+      - "     pxe_mapping_file_path: {{ pxe_mapping_output_file }}"
+      - ""
+      - "5. Run:"
+      - "     ansible-playbook provision/provision.yml"
+      - "============================================================"
+
+- name: Display discovery completion message (with BuildStream)
+  when: build_stream_config_data.enable_build_stream | default(false) | bool
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "OME Discovery Complete"
+      - "============================================================"
+      - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
+      - "BMC discovery report generated: {{ discovery_report_output_file }}"
+      - "  (Lists link status of BMC, Ethernet, and InfiniBand NICs for each server)"
+      - "Total servers discovered: {{ discovered_servers | length }}"
+      - ""
+      - "Next Steps:"
+      - "1. Review and edit the generated PXE mapping file:"
+      - "     {{ pxe_mapping_output_file }}"
+      - ""
+      - "2. Review the discovery report for NIC link statuses:"
+      - "     {{ discovery_report_output_file }}"
+      - ""
+      - "3. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
+      - ""
+      - "4. Update the following parameter in provision_config.yml:"
+      - "     pxe_mapping_file_path: {{ pxe_mapping_output_file }}"
+      - ""
+      - "5. If using BuildStream, manually copy the PXE mapping file to GitLab:"
+      - "     input/pxe_mapping_file.csv"
+      - ""
+      - "6. Run:"
+      - "     ansible-playbook provision/provision.yml"
+      - "============================================================"
