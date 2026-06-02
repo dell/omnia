@@ -690,7 +690,7 @@ validate:
       echo "  [1/3] Triggering validate stage..."
       VALIDATE_PAYLOAD=$(cat <<EOF
       {
-        "scenario_names": ["discovery"],
+        "scenario_names": ["provision"],
         "test_suite": "build_stream",
         "timeout_minutes": 120
       }

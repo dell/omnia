@@ -7,3 +7,4 @@ upgrade_active_architectures:
 
 # Cleanup staging directory after sync
 upgrade_cleanup_staging: true
+oim_host_port: "22"

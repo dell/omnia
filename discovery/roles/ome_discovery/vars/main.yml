@@ -24,6 +24,10 @@ omnia_config_credentials_vault_key: "{{ input_project_dir | default(playbook_dir
 
 # Output file configuration
 pxe_mapping_output_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/bmc_pxe_mapping_file.csv"
+
+# Discovery report output directory and file
+discovery_report_dir: "/opt/omnia/discovery"
+discovery_report_file: "{{ discovery_report_dir }}/bmc_discovery_report.csv"
 pxe_mapping_headers:  # yamllint disable-line rule:line-length
   "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,BMC_HOSTNAME,IB_NIC_NAME,IB_IP"
 

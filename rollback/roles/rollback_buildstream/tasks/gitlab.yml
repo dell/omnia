@@ -1,0 +1,484 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# gitlab.yml — All GitLab Tasks (Action Dispatch)
+# ============================================================================
+# Available _action values:
+#   revert_commits   — Restore: restore gitlab.rb/secrets, reconfigure, revert
+#                      the single upgrade commit via SHA, restore runner config
+#   cleanup_full     — Uninstall: full GitLab uninstall (stop, uninstall packages,
+#                      remove dirs, runner, creds) — matches cleanup_gitlab role
+#   validate_health  — Restore: API check; Uninstall: verify removed
+#
+# GitLab is REMOTE — all operations use sshpass/ssh/scp from localhost
+# (matching the upgrade pattern in upgrade_gitlab_config.yml)
+# ============================================================================
+
+# ── revert_commits (Restore) ─────────────────────────────────────────────────
+
+- name: "GitLab | Set SSH credentials availability flag"
+  ansible.builtin.set_fact:
+    _gl_has_ssh_creds: "{{ (hostvars['localhost']['provision_password'] | default('')) != '' }}"
+  when: _action in ['revert_commits', 'cleanup_full']
+
+- name: "GitLab | Restore — Skip if provision_password unavailable"
+  ansible.builtin.debug:
+    msg: "WARNING: provision_password is not set. Skipping GitLab rollback steps that require SSH access."
+  when:
+    - _action == 'revert_commits'
+    - not (_gl_has_ssh_creds | default(false) | bool)
+
+- name: "GitLab | Restore — Read root API token from GitLab host"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "cat {{ gitlab_root_token_file_path | default('/root/.gitlab_root_token') }}"
+  register: _gl_raw_root_token
+  changed_when: false
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Set root token fact"
+  ansible.builtin.set_fact:
+    _gl_root_token: "{{ _gl_raw_root_token.stdout | trim }}"
+  no_log: true
+  when:
+    - _action == 'revert_commits'
+    - _gl_raw_root_token.rc | default(1) == 0
+
+- name: "GitLab | Restore — Restore gitlab.rb from backup"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      scp -o StrictHostKeyChecking=no \
+      {{ backup_dir }}/{{ gitlab_backup_config_subpath }} \
+      root@{{ gitlab_host }}:/etc/gitlab/gitlab.rb
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Restore gitlab-secrets.json from backup"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      scp -o StrictHostKeyChecking=no \
+      {{ backup_dir }}/{{ gitlab_backup_secrets_subpath }} \
+      root@{{ gitlab_host }}:/etc/gitlab/gitlab-secrets.json
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Reconfigure GitLab (gitlab-ctl reconfigure)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "{{ buildstream_orchestrator_gitlab_ctl_command }} reconfigure"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  async: 600
+  poll: 30
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Wait for GitLab HTTPS port ready"
+  ansible.builtin.wait_for:
+    host: "{{ gitlab_host }}"
+    port: 443
+    delay: 15
+    timeout: 300
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Wait for GitLab API ready"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/version"
+    validate_certs: false
+    status_code: [200, 401]
+  register: _gl_api_ready
+  retries: 20
+  delay: 15
+  until: _gl_api_ready.status | default(0) in [200, 401]
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Resolve project ID"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects?search={{ gitlab_project_name }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gl_project_search
+  no_log: true
+  when:
+    - _action == 'revert_commits'
+    - _gl_root_token is defined
+
+- name: "GitLab | Restore — Set project ID fact"
+  ansible.builtin.set_fact:
+    _gl_project_id: >-
+      {{ (_gl_project_search.json
+          | selectattr('name', 'equalto', gitlab_project_name)
+          | first).id | string }}
+  when:
+    - _action == 'revert_commits'
+    - _gl_project_search.json | default([]) | length > 0
+
+- name: "GitLab | Restore — Read upgrade commit SHA from metadata"
+  ansible.builtin.set_fact:
+    _gl_upgrade_commit_sha: "{{ _upgrade_path_metadata.upgrade_gitlab_commit_sha | default('') }}"
+    _gl_upgrade_pre_tag: "{{ _upgrade_path_metadata.upgrade_gitlab_pre_tag | default('') }}"
+  when:
+    - _action == 'revert_commits'
+
+- name: "GitLab | Restore — Check recent commits if SHA is missing from metadata"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits?per_page=1"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gl_latest_commits
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_project_id is defined
+    - _gl_upgrade_commit_sha | default('') == ''
+
+- name: "GitLab | Restore — Fail if upgrade commit exists but is not in metadata"
+  ansible.builtin.fail:
+    msg: >-
+      FATAL: Found upgrade commit '[omnia-upgrade-2.1-to-2.2]' in repository history,
+      but no commit SHA was found in metadata. Manual intervention required to revert.
+  when:
+    - _action == 'revert_commits'
+    - _gl_upgrade_commit_sha | default('') == ''
+    - _gl_latest_commits is defined
+    - _gl_latest_commits.status | default(0) == 200
+    - _gl_latest_commits.json | default([]) | selectattr('message', 'search', '\\[omnia-upgrade-2.1-to-2.2\\]') | list | length > 0
+
+- name: "GitLab | Restore — Skip if no upgrade commit SHA found"
+  ansible.builtin.debug:
+    msg: "INFO: No upgrade commit SHA in metadata, and no upgrade commit found in recent repository history. Skipping repository revert."
+  when:
+    - _action == 'revert_commits'
+    - _gl_upgrade_commit_sha | default('') == ''
+
+- name: "GitLab | Restore — Check if upgrade commit was already reverted"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits?search={{ _gl_upgrade_commit_sha }}&per_page=2"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gl_revert_search
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_project_id is defined
+    - _gl_upgrade_commit_sha | default('') != ''
+
+- name: "GitLab | Restore — Analyze if already reverted"
+  ansible.builtin.set_fact:
+    _gl_already_reverted: >-
+      {{ _gl_revert_search.json | default([])
+         | rejectattr('id', 'equalto', _gl_upgrade_commit_sha)
+         | selectattr('message', 'search', _gl_upgrade_commit_sha)
+         | list | length > 0 }}
+  when:
+    - _action == 'revert_commits'
+    - _gl_upgrade_commit_sha | default('') != ''
+
+- name: "GitLab | Restore — Log if already reverted"
+  ansible.builtin.debug:
+    msg: "SUCCESS: Upgrade commit {{ _gl_upgrade_commit_sha[:12] }} was already reverted. Skipping revert API call."
+  when:
+    - _action == 'revert_commits'
+    - _gl_already_reverted | default(false) | bool
+
+- name: "GitLab | Restore — Revert upgrade commit [omnia-upgrade-2.1-to-2.2]"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id }}/repository/commits/{{ _gl_upgrade_commit_sha }}/revert"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch | default('main') }}"
+    validate_certs: false
+    status_code: [200, 201]
+  register: _gl_revert_result
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_project_id is defined
+    - _gl_upgrade_commit_sha | default('') != ''
+    - not (_gl_already_reverted | default(false) | bool)
+
+- name: "GitLab | Restore — Display revert result"
+  ansible.builtin.debug:
+    msg:
+      - "Reverted upgrade commit: {{ _gl_upgrade_commit_sha[:12] }}"
+      - "Revert commit SHA: {{ _gl_revert_result.json.id[:12] | default('N/A') }}"
+      - "Pre-upgrade tag: {{ _gl_upgrade_pre_tag }}"
+  when:
+    - _action == 'revert_commits'
+    - _gl_revert_result is defined
+    - _gl_revert_result.status | default(0) in [200, 201]
+
+- name: "GitLab | Restore — Warn if revert failed (commit may already be reverted)"
+  ansible.builtin.debug:
+    msg: "WARNING: Could not revert commit {{ _gl_upgrade_commit_sha[:12] | default('?') }}. It may have already been reverted or the branch is protected."
+  when:
+    - _action == 'revert_commits'
+    - not (_gl_already_reverted | default(false) | bool)
+    - _gl_revert_result is defined
+    - _gl_revert_result.status | default(0) not in [200, 201]
+
+- name: "GitLab | Restore — Restore runner configuration from backup"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      scp -o StrictHostKeyChecking=no \
+      {{ backup_dir }}/configs/gitlab/{{ gitlab_runner_container_name }}.container \
+      root@{{ gitlab_host }}:{{ quadlet_dir }}/{{ gitlab_runner_container_name }}.container
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Reload systemd on GitLab host"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl daemon-reload"
+  changed_when: true
+  no_log: true
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Restore — Start runner service"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl start {{ gitlab_runner_container_name }}.service"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'revert_commits'
+    - _gl_has_ssh_creds | default(false) | bool
+
+# ── cleanup_full (Uninstall) ────────────────────────────────────────────────────
+# Full GitLab uninstall — matches gitlab/roles/cleanup_gitlab pattern.
+# GitLab was freshly installed during upgrade; rollback removes it entirely.
+# All operations via sshpass/ssh to the remote gitlab_host.
+
+- name: "GitLab | Uninstall — Read root API token"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "cat {{ gitlab_root_token_file_path | default('/root/.gitlab_root_token') }}"
+  register: _gl_raw_token_b
+  changed_when: false
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Stop GitLab services (gitlab-ctl stop)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "{{ buildstream_orchestrator_gitlab_ctl_command }} stop"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Stop runner service"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl stop {{ gitlab_runner_container_name }}.service"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Remove runner container"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "podman rm -f {{ gitlab_runner_container_name }}"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Remove runner quadlet"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "rm -f {{ quadlet_dir }}/{{ gitlab_runner_container_name }}.container"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Remove runner config directory"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "rm -rf {{ gitlab_runner_config_path }}"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Uninstall GitLab packages"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "dnf remove -y {{ gitlab_pkg_item }} 2>/dev/null || true"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  loop: "{{ gitlab_cleanup_packages }}"
+  loop_control:
+    loop_var: gitlab_pkg_item
+    label: "{{ gitlab_pkg_item }}"
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Remove GitLab core directories"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "rm -rf {{ gitlab_dir_item }}"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  loop: "{{ gitlab_cleanup_core_directories }}"
+  loop_control:
+    loop_var: gitlab_dir_item
+    label: "{{ gitlab_dir_item }}"
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Remove root token file"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "rm -f /root/.gitlab_root_token /root/.gitlab_trigger_token"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Uninstall — Reload systemd on GitLab host"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl daemon-reload"
+  changed_when: true
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'cleanup_full'
+    - _gl_has_ssh_creds | default(false) | bool
+
+# ── validate_health ──────────────────────────────────────────────────────────
+- name: "GitLab | Validate API accessible (Restore)"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/version"
+    validate_certs: false
+    status_code: [200, 401]
+  register: _gl_validate_api
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "GitLab | Validate runner is online (Restore)"
+  ansible.builtin.uri:
+    url: "https://{{ gitlab_host }}/api/v4/projects/{{ _gl_project_id | default('') }}/runners"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _gl_root_token | default('') }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gl_runner_status
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _gl_project_id is defined
+
+- name: "GitLab | Validate gitlab-ctl not found (Uninstall)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "which gitlab-ctl"
+  register: _gl_ctl_check_b
+  changed_when: false
+  no_log: true
+  failed_when: false
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'fresh_install'
+    - _gl_has_ssh_creds | default(false) | bool
+
+- name: "GitLab | Confirm GitLab is removed (Uninstall)"
+  ansible.builtin.assert:
+    that:
+      - _gl_ctl_check_b.rc != 0
+    fail_msg: "GitLab is still installed on {{ gitlab_host }}. gitlab-ctl was found."
+    success_msg: "GitLab successfully removed from {{ gitlab_host }}."
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'fresh_install'
+    - _gl_ctl_check_b is defined

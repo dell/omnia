@@ -1,0 +1,237 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# rollback_buildstream — Main Orchestrator
+# ============================================================================
+# Phase-based rollback from Omnia 2.2 → 2.1 for BuildStream module.
+#
+# Architecture: Single File Per Component + Action Variable Dispatch + Looped
+# Orchestrator. Each component file (buildstream.yml, postgres.yml, gitlab.yml)
+# is dispatched by an _action variable. Loops are used where multiple components
+# share the same _action in the same phase. Phase 5 Restore path is explicitly
+# sequential (NO loop) because alembic downgrade must happen BETWEEN postgres
+# start and buildstream start.
+#
+# CRITICAL: Alembic downgrade runs BEFORE stopping services (Phase 2) because
+# the 2.1 container image does not have migrations 006/007 downgrade code.
+# The downgrade must execute while the 2.2 image is still available.
+#
+# Phase ordering:
+#   0: Pre-flight (read manifests, determine Restore/Uninstall path)
+#   1: Pre-rollback validation (Restore: verify backups)
+#   2: DB migration rollback (Restore: alembic downgrade while 2.2 is up)
+#   3: Stop all services (reverse dependency order)
+#   4: Restore/Remove quadlets and configs
+#   5: Reload systemd
+#   6: Start services (Restore) / Full cleanup (Uninstall)
+#   7: GitLab rollback
+#   8: End-to-end validation
+#   9: Post-rollback status update
+# ============================================================================
+
+- name: "BuildStream Rollback Orchestrator"
+  block:
+
+    # ── Phase 0: Pre-flight ────────────────────────────────────────────────
+    - name: "Phase 0 | Pre-flight checks"
+      ansible.builtin.include_tasks: preflight.yml
+      tags:
+        - build_stream_rollback
+        - preflight
+
+    # ── Phase 1: Pre-Rollback Validation (Restore only) ────────────────────
+    - name: "Phase 1 | Validate backups"
+      ansible.builtin.include_tasks: "{{ validate_item.task_file }}"
+      vars:
+        _action: validate_backup
+      loop:
+        - { task_file: buildstream.yml }
+        - { task_file: postgres.yml }
+      loop_control:
+        loop_var: validate_item
+        label: "{{ validate_item.task_file }}"
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - validate
+
+    # ── Phase 2: DB Migration Rollback (Restore — BEFORE stopping services) ─
+    # Must run while 2.2 buildstream container/image is still available.
+    # The 2.1 image does not have migrations 006/007 downgrade() code.
+    # v2.1 was at migration 005; v2.2 added 006 + 007.
+    - name: "Phase 2 | Rollback DB migration (005 ← 007)"
+      ansible.builtin.include_tasks: postgres.yml
+      vars:
+        _action: rollback_migration
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - migration
+
+    # ── Phase 3: Stop All Services (reverse dependency order) ──────────────
+    - name: "Phase 3 | Stop all services"
+      ansible.builtin.include_tasks: "{{ stop_item.task_file }}"
+      vars:
+        _action: stop
+      loop:
+        - { task_file: buildstream.yml }
+        - { task_file: postgres.yml }
+      loop_control:
+        loop_var: stop_item
+        label: "{{ stop_item.task_file }}"
+      tags:
+        - build_stream_rollback
+        - stop
+
+    # ── Phase 4: Restore/Remove Quadlets and Configs ───────────────────────
+    - name: "Phase 4 | Restore quadlets and configs (Restore)"
+      ansible.builtin.include_tasks: "{{ restore_item.task_file }}"
+      vars:
+        _action: "{{ restore_item._action }}"
+      loop:
+        - { task_file: buildstream.yml, _action: restore_quadlet }
+        - { task_file: buildstream.yml, _action: restore_config }
+        - { task_file: buildstream.yml, _action: restore_source }
+        - { task_file: buildstream.yml, _action: remove_automation }
+        - { task_file: postgres.yml, _action: restore_quadlet }
+      loop_control:
+        loop_var: restore_item
+        label: "{{ restore_item.task_file }} → {{ restore_item._action }}"
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - restore
+
+    - name: "Phase 4 | Remove quadlets (Uninstall)"
+      ansible.builtin.include_tasks: "{{ remove_item.task_file }}"
+      vars:
+        _action: remove_quadlet
+      loop:
+        - { task_file: buildstream.yml }
+        - { task_file: postgres.yml }
+      loop_control:
+        loop_var: remove_item
+        label: "{{ remove_item.task_file }}"
+      when: build_stream_upgrade_path == 'fresh_install'
+      tags:
+        - build_stream_rollback
+        - remove
+
+    # ── Phase 5: Reload Systemd ────────────────────────────────────────────
+    - name: "Phase 5 | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      tags:
+        - build_stream_rollback
+        - reload
+
+    # ── Phase 6: Start Services (Restore) / Full Cleanup (Uninstall) ──────────
+    # Restore: DO NOT LOOP — start postgres, then buildstream (dependency order)
+    - name: "Phase 6 | Start postgres (Restore)"
+      ansible.builtin.include_tasks: postgres.yml
+      vars:
+        _action: start
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - start
+
+    - name: "Phase 6 | Start buildstream (Restore)"
+      ansible.builtin.include_tasks: buildstream.yml
+      vars:
+        _action: start
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - start
+
+    # Uninstall: Full cleanup (containers, dirs, images, watcher, automation, omnia.target)
+    - name: "Phase 6 | Full BuildStream cleanup (Uninstall)"
+      ansible.builtin.include_tasks: buildstream.yml
+      vars:
+        _action: cleanup_full
+      when: build_stream_upgrade_path == 'fresh_install'
+      tags:
+        - build_stream_rollback
+        - cleanup
+
+    - name: "Phase 6 | Full Postgres cleanup (Uninstall)"
+      ansible.builtin.include_tasks: postgres.yml
+      vars:
+        _action: cleanup_full
+      when: build_stream_upgrade_path == 'fresh_install'
+      tags:
+        - build_stream_rollback
+        - cleanup
+
+    # ── Phase 7: GitLab Rollback ───────────────────────────────────────────
+    - name: "Phase 7 | GitLab rollback — revert commits + restore config (Restore)"
+      ansible.builtin.include_tasks: gitlab.yml
+      vars:
+        _action: revert_commits
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - gitlab
+
+    - name: "Phase 7 | GitLab rollback — full uninstall (Uninstall)"
+      ansible.builtin.include_tasks: gitlab.yml
+      vars:
+        _action: cleanup_full
+      when: build_stream_upgrade_path == 'fresh_install'
+      tags:
+        - build_stream_rollback
+        - gitlab
+
+    # ── Phase 8: End-to-End Validation ─────────────────────────────────────
+    - name: "Phase 8 | Validate health"
+      ansible.builtin.include_tasks: "{{ health_item.task_file }}"
+      vars:
+        _action: validate_health
+      loop:
+        - { task_file: postgres.yml }
+        - { task_file: buildstream.yml }
+        - { task_file: gitlab.yml }
+      loop_control:
+        loop_var: health_item
+        label: "{{ health_item.task_file }}"
+      tags:
+        - build_stream_rollback
+        - validation
+
+  rescue:
+    - name: "Rollback failed — set failure flag"
+      ansible.builtin.set_fact:
+        _rollback_failed: true
+
+    - name: "Rollback failed — display error"
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  BUILDSTREAM ROLLBACK FAILED"
+          - "============================================================"
+          - "Review errors above. Manual intervention may be required."
+          - "============================================================"
+
+  always:
+    # ── Phase 9: Status Update ─────────────────────────────────────────────
+    - name: "Phase 9 | Update rollback status"
+      ansible.builtin.include_tasks: status_update.yml
+      tags:
+        - build_stream_rollback
+        - status

@@ -14,7 +14,7 @@
 ---
 pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.1"
 x86_64_local_tag: "x86_64-image-builder/ochami"
-pull_image_retries: "3"
+pull_image_retries: "5"
 pull_image_delay: "10"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"

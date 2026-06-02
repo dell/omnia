@@ -486,6 +486,43 @@ def check_distribution_exists(repo_name, log):
         return False
 
 
+def get_latest_publication_href(repo_name, log):
+    """
+    Get the pulp_href of the latest publication for a repository.
+
+    Args:
+        repo_name (str): The name of the repository.
+        log (logging.Logger): Logger instance for logging.
+
+    Returns:
+        str or None: The pulp_href of the latest publication, or None if not found.
+    """
+    try:
+        command = pulp_rpm_commands["check_publication"] % repo_name
+        cmd_list = shlex.split(command)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            log.info("No publications found for '%s'", repo_name)
+            return None
+
+        publications = json.loads(result.stdout)
+        if not publications:
+            log.info("Empty publication list for '%s'", repo_name)
+            return None
+
+        pub_href = publications[-1].get("pulp_href")
+        if pub_href:
+            validated_href = validate_pulp_href(pub_href)
+            log.info("Latest publication href for '%s': %s", repo_name, validated_href)
+            return validated_href
+
+        return None
+    except Exception as e:
+        log.error("Error getting latest publication for '%s': %s", repo_name, str(e))
+        return None
+
+
 def delete_old_publications(repo_name, log):
     """
     Delete all existing publications for a repository.
@@ -647,10 +684,27 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
         log.info("Checking if distribution exists for repository '%s'", repo_name)
         if execute_command(show_command, log):
             log.info(f"Distribution for {package_name} exists. Updating it.")
-            return execute_command(update_command, log), repo_name
+            result = execute_command(update_command, log)
         else:
             log.info(f"Distribution for {package_name} does not exist. Creating it.")
-            return execute_command(create_command, log), repo_name
+            result = execute_command(create_command, log)
+
+        if not result:
+            return False, repo_name
+
+        # Link distribution to the latest publication so that served package
+        # paths match the publication metadata (nested_alphabetically layout).
+        pub_href = get_latest_publication_href(repo_name, log)
+        if pub_href:
+            log.info("Linking distribution '%s' to publication '%s'", repo_name, pub_href)
+            update_pub_cmd = pulp_rpm_commands["update_distribution_publication"] % (repo_name, pub_href)
+            pub_result = execute_command(update_pub_cmd, log)
+            if not pub_result:
+                log.warning("Failed to link distribution '%s' to publication. Packages may not be served correctly.", repo_name)
+        else:
+            log.warning("No publication found for '%s'. Distribution linked to repository only.", repo_name)
+
+        return True, repo_name
 
     except Exception as e:
         log.error("Unexpected error during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))

@@ -123,6 +123,16 @@ mounts:
     mount_on_oim: true
     functional_group_prefix: ["service_kube"]
 
+  # VAST Storage - High-performance NFS for HPC tools and benchmarks
+  # This storage is critical for the Slurm cluster and must be accessible from OIM.
+  # Purpose: Serves as the centralized repository for HPC tools (UCX, OpenMPI, CUDA, benchmarks)
+  #          that are bind-mounted to /hpc_tools on compute and login nodes.
+  # OIM Access: The VAST server (172.16.107.77) must be accessible from OIM to copy hpc_tools
+  #             content during provisioning. OIM mounts this storage to populate the shared
+  #             hpc_tools directory structure before nodes boot.
+  # Configuration: The slurm_cluster section in omnia_config.yml should reference this storage
+  #                to ensure proper integration with cluster provisioning workflows.
+  # Note: Uses RDMA mount parameters for optimal performance on InfiniBand networks.
   - name: "vast_storage"
     source: "172.16.107.77:/share/vast"
     mount_point: "/mnt/vast"

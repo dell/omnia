@@ -13,8 +13,12 @@
 # limitations under the License.
 
 # ────────────────────────────────────────────────────────────────────────
-# Sync a single Omnia input file to the GitLab repository (create or update).
+# Collect a single Omnia input file action for the batched upgrade commit.
 # Called in a loop from gitlab_config_upgrade.yml with loop_var: _input_file
+#
+# Instead of committing each file individually, this task reads the file
+# content and checks whether it already exists in the repo, then appends
+# a create/update action to the _upgrade_commit_actions list.
 #
 # Required variables (set by caller):
 #   _input_file.name           — filename (e.g. build_stream_config.yml)
@@ -24,11 +28,13 @@
 #   gitlab_project_id
 #   gitlab_root_token
 #   gitlab_default_branch
+#   _upgrade_commit_actions    — list accumulator (initialized by caller)
 # ────────────────────────────────────────────────────────────────────────
 ---
 
-- name: Set encoded repo path for input file
+- name: Set repo path for input file
   ansible.builtin.set_fact:
+    _input_repo_path: "{{ gitlab_input_repo_dir }}/{{ _input_file.name }}"
     _encoded_input_path: "{{ (gitlab_input_repo_dir ~ '/' ~ _input_file.name) | urlencode | replace('/', '%2F') }}"
 
 - name: Read input file from NFS input directory
@@ -55,19 +61,13 @@
   no_log: true
   when: _input_content is succeeded
 
-- name: Create or update input file in repository
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}"
-    method: "{{ 'PUT' if _input_repo_check.status == 200 else 'POST' }}"
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      encoding: base64
-      content: "{{ _input_content.content }}"
-      commit_message: "Upgrade {{ gitlab_input_repo_dir }}/{{ _input_file.name }} to Omnia 2.2"
-    validate_certs: false
-    status_code: [200, 201]
-  no_log: true
+- name: Collect input file action for batched commit
+  ansible.builtin.set_fact:
+    _upgrade_commit_actions: >-
+      {{ _upgrade_commit_actions | default([]) + [{
+        'action': 'update' if _input_repo_check.status == 200 else 'create',
+        'file_path': _input_repo_path,
+        'content': _input_content.content | b64decode,
+        'encoding': 'text'
+      }] }}
   when: _input_content is succeeded

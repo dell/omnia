@@ -1,0 +1,466 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# postgres.yml — All Postgres Tasks (Action Dispatch)
+# ============================================================================
+# Available _action values:
+#   validate_backup      — stat check backup quadlet + pg_dump exist
+#   stop                 — Restore: systemd stop; Uninstall: podman stop
+#   restore_quadlet      — copy backup quadlet to /etc/containers/systemd/
+#   remove_quadlet       — file absent
+#   start                — systemd start + pg_isready retry loop
+#   rollback_migration   — alembic downgrade to 005 (must run WHILE 2.2 container is still up)
+#   cleanup_full         — Uninstall: stop/remove container, remove quadlet, omnia.target entry
+#   validate_health      — pg_isready + alembic current check (Restore); no container check (Uninstall)
+#
+# All OIM host operations use delegate_to: oim + connection: ssh
+#
+# NOTE: Postgres image is NOT removed — same image version is used in 2.1 and 2.2.
+#       Removing it would break other components.
+# ============================================================================
+
+# ── validate_backup ──────────────────────────────────────────────────────────
+- name: "Postgres | Validate backup quadlet exists"
+  ansible.builtin.stat:
+    path: "{{ backup_path_from_oim }}/{{ postgres_backup_quadlet_subpath }}"
+  register: _pg_quadlet_backup_stat
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'validate_backup'
+
+- name: "Postgres | Validate backup SQL dump exists"
+  ansible.builtin.stat:
+    path: "{{ backup_path_from_oim }}/{{ postgres_backup_sql_subpath }}"
+  register: _pg_sql_backup_stat
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'validate_backup'
+
+- name: "Postgres | Fail if backup files missing"
+  ansible.builtin.fail:
+    msg: >-
+      Postgres backup file(s) missing in {{ backup_path_from_oim }}/buildstream/:
+      quadlet={{ _pg_quadlet_backup_stat.stat.exists | default(false) }},
+      sql={{ _pg_sql_backup_stat.stat.exists | default(false) }}
+  when:
+    - _action == 'validate_backup'
+    - not (_pg_quadlet_backup_stat.stat.exists | default(false)) or
+      not (_pg_sql_backup_stat.stat.exists | default(false))
+
+# ── stop ─────────────────────────────────────────────────────────────────────
+- name: "Postgres | Stop service (Restore)"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_pg_service }}"
+    state: stopped
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'stop'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "Postgres | Stop container (Uninstall)"
+  ansible.builtin.command: "podman stop {{ buildstream_orchestrator_pg_container }}"
+  failed_when: false
+  changed_when: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'stop'
+    - build_stream_upgrade_path == 'fresh_install'
+
+# ── restore_quadlet ──────────────────────────────────────────────────────────
+- name: "Postgres | Restore quadlet from backup"
+  ansible.builtin.copy:
+    src: "{{ backup_path_from_oim }}/{{ postgres_backup_quadlet_subpath }}"
+    dest: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_postgres.container"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'restore_quadlet'
+
+# ── remove_quadlet ───────────────────────────────────────────────────────────
+- name: "Postgres | Remove quadlet (Uninstall)"
+  ansible.builtin.file:
+    path: "{{ buildstream_orchestrator_quadlet_dir }}/omnia_postgres.container"
+    state: absent
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'remove_quadlet'
+
+# ── start ────────────────────────────────────────────────────────────────────
+- name: "Postgres | Start service"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_pg_service }}"
+    state: started
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'start'
+
+- name: "Postgres | Wait for pg_isready"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_pg_container }}
+    pg_isready -U {{ buildstream_orchestrator_pg_user }}
+  register: _pg_ready
+  until: _pg_ready.rc | default(1) == 0
+  retries: "{{ buildstream_orchestrator_pg_ready_retries }}"
+  delay: "{{ buildstream_orchestrator_pg_ready_delay }}"
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'start'
+
+# ── rollback_migration ───────────────────────────────────────────────────────
+# CRITICAL: This must run WHILE the 2.2 buildstream container image is still
+# available (before quadlet restore). The 2.1 image does not have migrations
+# 006/007 downgrade code. v2.1 was at migration 005, v2.2 added 006+007.
+#
+# Strategy:
+#   1. Try podman exec into running 2.2 container (if still running)
+#   2. If container not running, use podman run --rm with 2.2 image
+#   3. If neither works, fall back to pg_dump restore
+
+- name: "Postgres | Check if buildstream container exists"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_bs_container }}"
+  register: _bs_exists_check
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'rollback_migration'
+
+- name: "Postgres | Check if buildstream container is running"
+  ansible.builtin.command: "podman inspect --format '{{ '{{' }}.State.Running{{ '}}' }}' {{ buildstream_orchestrator_bs_container }}"
+  register: _bs_running_check
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _bs_exists_check.rc | default(1) == 0
+
+- name: "Postgres | Check current Alembic migration (exec into running container)"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_bs_container }}
+    bash -c "cd {{ buildstream_orchestrator_alembic_workdir }} && alembic current"
+  register: _alembic_current
+  changed_when: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _bs_running_check.stdout | default('') | trim == 'true'
+
+- name: "Postgres | Run Alembic downgrade via exec"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_bs_container }}
+    bash -c "cd {{ buildstream_orchestrator_alembic_workdir }} && alembic downgrade {{ buildstream_orchestrator_migration_target }}"
+  register: _alembic_downgrade_exec
+  changed_when: true
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _bs_running_check.stdout | default('') | trim == 'true'
+    - _alembic_current.rc | default(1) == 0
+    - (buildstream_orchestrator_migration_target | default('')) not in (_alembic_current.stdout | default(''))
+
+- name: "Postgres | Alembic downgrade via podman run (container not running)"
+  ansible.builtin.command: >
+    podman run --rm --network host
+    -v {{ omnia_nfs_share }}:/opt/omnia
+    {{ buildstream_orchestrator_bs_image }}:{{ buildstream_orchestrator_bs_version }}
+    bash -c "cd {{ buildstream_orchestrator_alembic_workdir }} && alembic downgrade {{ buildstream_orchestrator_migration_target }}"
+  register: _alembic_downgrade_run
+  changed_when: true
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _bs_running_check.stdout | default('') | trim != 'true'
+
+- name: "Postgres | Set combined alembic result"
+  ansible.builtin.set_fact:
+    _alembic_downgrade_success: >-
+      {{ (_alembic_downgrade_exec.rc | default(1) == 0) or
+         (_alembic_downgrade_run.rc | default(1) == 0) or
+         ((buildstream_orchestrator_migration_target | default('')) in (_alembic_current.stdout | default('', true))) }}
+  when: _action == 'rollback_migration'
+
+- name: "Postgres | Check if postgres container is running (for verify)"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_pg_container }}"
+  register: _pg_exists_for_verify
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _alembic_downgrade_success | default(false) | bool
+
+- name: "Postgres | Verify migration after downgrade"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_pg_container }}
+    psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
+    -t -c "SELECT version_num FROM alembic_version;"
+  register: _migration_verify
+  changed_when: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - _alembic_downgrade_success | default(false) | bool
+    - _pg_exists_for_verify.rc | default(1) == 0
+
+- name: "Postgres | Display migration status"
+  ansible.builtin.debug:
+    msg: "Current migration version: {{ _migration_verify.stdout | default(_alembic_current.stdout | default('unknown')) | trim }}"
+  when:
+    - _action == 'rollback_migration'
+
+- name: "Postgres | Fallback — check if postgres container exists"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_pg_container }}"
+  register: _pg_exists_for_fallback
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'rollback_migration'
+    - not (_alembic_downgrade_success | default(false) | bool)
+
+- name: "Postgres | Fallback — restore from pg_dump (alembic downgrade failed)"
+  when:
+    - _action == 'rollback_migration'
+    - not (_alembic_downgrade_success | default(false) | bool)
+    - _pg_exists_for_fallback.rc | default(1) == 0
+  block:
+    - name: "Postgres | Fallback — display warning"
+      ansible.builtin.debug:
+        msg:
+          - "WARNING: Alembic downgrade failed. Falling back to pg_dump restore."
+          - "This will drop and recreate the database from backup."
+
+    - name: "Postgres | Fallback — drop database"
+      ansible.builtin.command: >
+        podman exec {{ buildstream_orchestrator_pg_container }}
+        psql -U {{ buildstream_orchestrator_pg_user }} -c "DROP DATABASE IF EXISTS {{ buildstream_orchestrator_pg_db }};"
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: "Postgres | Fallback — create database"
+      ansible.builtin.command: >
+        podman exec {{ buildstream_orchestrator_pg_container }}
+        psql -U {{ buildstream_orchestrator_pg_user }} -c "CREATE DATABASE {{ buildstream_orchestrator_pg_db }};"
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: "Postgres | Fallback — restore from pg_dump backup"
+      ansible.builtin.shell: >
+        podman exec -i {{ buildstream_orchestrator_pg_container }}
+        psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
+        < {{ backup_path_from_oim }}/{{ postgres_backup_sql_subpath }}
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: "Postgres | Fallback — verify data integrity"
+      ansible.builtin.command: >
+        podman exec {{ buildstream_orchestrator_pg_container }}
+        psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
+        -c "SELECT 1;"
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+# ── cleanup_full (Uninstall) ─────────────────────────────────────────────────
+# Cleanup matching oim_cleanup/cleanup_omnia_postgres.yml
+# NOTE: Postgres image is NOT removed (same version in 2.1 and 2.2)
+
+- name: "Postgres | Uninstall — Remove omnia_postgres container"
+  containers.podman.podman_container:
+    name: "{{ buildstream_orchestrator_pg_container }}"
+    state: absent
+    force_delete: true
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "Postgres | Uninstall — Find and remove all omnia_postgres quadlet files"
+  ansible.builtin.find:
+    paths: "{{ buildstream_orchestrator_quadlet_dir }}"
+    patterns: 'omnia_postgres*'
+    file_type: file
+  register: _pg_quadlet_files
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "Postgres | Uninstall — Remove omnia_postgres quadlet files"
+  ansible.builtin.file:
+    path: "{{ pg_quadlet_item.path }}"
+    state: absent
+  loop: "{{ _pg_quadlet_files.files | default([]) }}"
+  loop_control:
+    loop_var: pg_quadlet_item
+    label: "{{ pg_quadlet_item.path | basename }}"
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'cleanup_full'
+    - _pg_quadlet_files.files | default([]) | length > 0
+
+- name: "Postgres | Uninstall — Remove omnia_postgres from omnia.target"
+  ansible.builtin.replace:
+    path: "{{ buildstream_orchestrator_omnia_target }}"
+    regexp: "{{ buildstream_orchestrator_pg_container }}.service"
+    replace: ''
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "Postgres | Uninstall — Disable omnia_postgres service"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_pg_service }}"
+    enabled: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+- name: "Postgres | Uninstall — Reload systemd daemon"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'cleanup_full'
+
+# ── validate_health ──────────────────────────────────────────────────────────
+- name: "Postgres | Check if postgres container exists (Restore health)"
+  ansible.builtin.command: "podman container exists {{ buildstream_orchestrator_pg_container }}"
+  register: _pg_exists_for_health
+  failed_when: false
+  changed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "Postgres | Validate connectivity (Restore)"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_pg_container }}
+    pg_isready -U {{ buildstream_orchestrator_pg_user }}
+  changed_when: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) == 0
+
+- name: "Postgres | Validate migration version (Restore)"
+  ansible.builtin.command: >
+    podman exec {{ buildstream_orchestrator_pg_container }}
+    psql -U {{ buildstream_orchestrator_pg_user }} -d {{ buildstream_orchestrator_pg_db }}
+    -t -c "SELECT version_num FROM alembic_version;"
+  register: _pg_migration_validate
+  changed_when: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) == 0
+
+- name: "Postgres | Assert migration is at target {{ buildstream_orchestrator_migration_target }}"
+  ansible.builtin.assert:
+    that:
+      - (buildstream_orchestrator_migration_target | default('')) in (_pg_migration_validate.stdout | default(''))
+    fail_msg: >-
+      Migration version mismatch. Expected {{ buildstream_orchestrator_migration_target }},
+      got: {{ _pg_migration_validate.stdout | default('unknown') | trim }}
+    success_msg: "Migration version confirmed at {{ buildstream_orchestrator_migration_target }}"
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) == 0
+
+- name: "Postgres | Warn — postgres container not found for health check (Restore)"
+  ansible.builtin.debug:
+    msg: "WARNING: Postgres container '{{ buildstream_orchestrator_pg_container }}' not found. Skipping connectivity and migration validation."
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _pg_exists_for_health.rc | default(1) != 0
+
+- name: "Postgres | Validate no container running (Uninstall)"
+  ansible.builtin.command: "podman ps --filter name={{ buildstream_orchestrator_pg_container }} --format '{{ '{{' }}.Names{{ '}}' }}'"
+  register: _pg_container_validate
+  changed_when: false
+  failed_when: _pg_container_validate.stdout | trim | length > 0
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'fresh_install'

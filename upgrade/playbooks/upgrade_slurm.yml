@@ -34,7 +34,7 @@
         msg: >-
           Upgrade manifest not found at '{{ manifest_path }}'.
           Run the full upgrade.yml playbook, or ensure the manifest exists
-          before running upgrade_slurm.yml standalone.
+          before running upgrade.
       when: not manifest_stat.stat.exists
 
     - name: Read upgrade_manifest.yml
@@ -432,12 +432,8 @@
       ansible.builtin.debug:
         var: slurm_nodes
 
-    - name: Fail if no slurm nodes found in inventory
-      ansible.builtin.fail:
-        msg: >-
-          No slurm_* or login_* hosts found in inventory.
-          The pxe_mapping may contain no slurm/login entries, or check_slurm_cluster.yml
-          did not populate the host groups. Verify pxe_mapping and re-run the upgrade playbook.
+    - name: End play if no slurm nodes found in inventory
+      ansible.builtin.meta: end_play
       when: slurm_nodes | length == 0
 
     - name: Set filtered nodes
