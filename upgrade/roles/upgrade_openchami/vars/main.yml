@@ -14,7 +14,9 @@
 ---
 
 # File permissions
+dir_permissions_700: "0700"
 dir_permissions_755: "0755"
+file_permissions_600: "0600"
 file_permissions_644: "0644"
 
 # Manifest path for upgrade state tracking
