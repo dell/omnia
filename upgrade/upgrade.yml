@@ -499,7 +499,8 @@
 
             7. telemetry     → Upgrade the Omnia telemetry stack
                                for kafka, victoria metrics, and other components
-            8. slurm         → {% if slurm_upgrade_enabled | default(false) %}Upgrade the Slurm controller, slurm nodes{% else %}SKIPPED (not configured in software_config.json){% endif %}
+            8. slurm         → {% if slurm_upgrade_enabled | default(false) %}Upgrade the Slurm controller, slurm nodes
+                               {% else %}SKIPPED (not configured in software_config.json){% endif %}
 
           ── Impact & Risk ────────────────────────────────────────────
             • Running Omnia services will be modified and briefly restarted.
@@ -521,7 +522,7 @@
             CONFIRMATION REQUIRED:
             Type 'yes' to confirm all pre-flight checks are complete
             and PROCEED with the Omnia upgrade.
-            
+
             Type anything else or press Ctrl+C to ABORT.
           ══════════════════════════════════════════════════════════════
       register: operator_confirmation
