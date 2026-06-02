@@ -390,18 +390,12 @@
           content: |
             {{ lookup('template', 'templates/hpc_tools/configure_ucx_openmpi_env.sh.j2') | indent(12) }}
 
+        # NVIDIA HPC SDK setup script (run manually: /usr/local/bin/setup_nvhpc_sdk.sh)
         - path: /usr/local/bin/setup_nvhpc_sdk.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/hpc_tools/setup_nvhpc_sdk.sh.j2') | indent(12) }}
-
-        - path: /usr/local/bin/export_nvhpc_env.sh
-          owner: root:root
-          permissions: '{{ file_mode_755 }}'
-          content: |
-            {{ lookup('template', 'templates/hpc_tools/export_nvhpc_env.sh.j2') | indent(12) }}
-
 {% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
         - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
           permissions: '{{ file_mode_755 }}'
@@ -502,18 +496,25 @@
         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -av
 {% endif %}
-{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
-        - echo "One or more shared components (UCX / OpenMPI / LDMS) are enabled."
-        - /usr/local/bin/configure_ucx_openmpi_env.sh || echo "UCX/OpenMPI environment setup failed (non-critical)"
+        # UCX and OpenMPI auto-compilation disabled
+        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 used by default
+{% if hostvars['localhost']['ucx_support'] %}
+        - echo "===== UCX Configuration ====="
+        - echo "UCX version specified in software_config.json (available for manual compilation)"
+        - echo "Default stack - DOCA UCX 1.20.0 (system default)"
+{% endif %}
+{% if hostvars['localhost']['openmpi_support'] %}
+        - echo "===== OpenMPI Configuration ====="
+        - echo "OpenMPI version specified in software_config.json (available for manual compilation)"
+        - echo "Default stack - DOCA OpenMPI 4.1.9a1 (system default)"
 {% endif %}
 
 {% if ldms_support %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
         - /root/ldms_sampler.sh || echo "LDMS setup failed (non-critical)"
 {% endif %}
-        - /usr/local/bin/setup_nvhpc_sdk.sh || echo "NVHPC SDK setup failed (non-critical)"
-        - /usr/local/bin/export_nvhpc_env.sh || echo "NVHPC environment export failed (non-critical)"
-
+        # NVIDIA HPC SDK: Script deployed to /usr/local/bin/setup_nvhpc_sdk.sh
+        # User must run manually after NVHPC is installed on compiler node
+        - echo "Run /usr/local/bin/setup_nvhpc_sdk.sh to setup NVIDIA HPC SDK"
         - systemctl restart slurmd
         - echo "Cloud-Init has completed successfully."
-
