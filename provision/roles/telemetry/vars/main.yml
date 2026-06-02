@@ -667,7 +667,7 @@ vector:
     # Dynamic pattern based on ome_identifier from telemetry_config.yml
     # Example: if ome_identifier="ome", pattern="^ome\\..*$" (matches ome.inventory, ome.health, etc.)
     # Example: if ome_identifier="OME-637-2-100.100.5.8", pattern matches OME-637-2-100.100.5.8.* topics
-    kafka_topics_pattern: "^{{ telemetry_bridges.vector_ome.ome_identifier | default('ome') | regex_escape }}\\..*$"
+    kafka_topics_pattern: "^{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') | regex_escape }}\\..*$"
     consumer_group: "vector-ome-group"
     kafka_user: "vector-ome-user"  # Dedicated KafkaUser for OME
     health_port: 8688
