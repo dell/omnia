@@ -257,7 +257,7 @@
       when:
         - item in tag_dependencies
         - tag_dependencies[item] | difference(requested_tags) | length > 0
-        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'equalto', 'completed') |
+        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'in', ['completed', 'skipped']) |
           map(attribute='key') | list ) | list | length > 0
 
     - name: Report already-upgraded components (will be skipped)

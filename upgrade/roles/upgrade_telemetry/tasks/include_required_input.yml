@@ -138,8 +138,22 @@
 
 - name: Parse software_config.json
   ansible.builtin.set_fact:
-    software_config: "{{ software_config_slurp.content | b64decode | from_yaml }}"
+    software_config: "{{ software_config_slurp.content | b64decode | from_json }}"
   when: software_config_slurp is not failed
+  tags: always
+
+- name: Check if service_k8s exists in software_config.json
+  ansible.builtin.set_fact:
+    service_k8s_exists: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length) > 0 }}"
+  when:
+    - software_config is defined
+    - software_config.softwares is defined
+  tags: always
+
+- name: Set service_k8s_exists to false if software_config not loaded
+  ansible.builtin.set_fact:
+    service_k8s_exists: false
+  when: software_config is not defined
   tags: always
 
 - name: Set architecture from software_config.json (from service_k8s arch)
@@ -148,6 +162,7 @@
   when:
     - software_config is defined
     - software_config.softwares is defined
+    - service_k8s_exists | default(false) | bool
   tags: always
 
 - name: Set os_version from software_config.json
@@ -164,6 +179,7 @@
   when:
     - software_config is defined
     - software_config.softwares is defined
+    - service_k8s_exists | default(false) | bool
   tags: always
 
 # ── Load service_k8s JSON for victoria operator package name ──
@@ -172,12 +188,19 @@
     src: "{{ input_project_dir }}/config/{{ architecture }}/rhel/{{ os_version }}/service_k8s_v{{ k8s_version }}.json"
   register: service_k8s_slurp
   failed_when: false
+  when:
+    - service_k8s_exists | default(false) | bool
+    - architecture is defined
+    - os_version is defined
+    - k8s_version is defined
   tags: always
 
 - name: Parse service_k8s JSON
   ansible.builtin.set_fact:
-    service_k8s_config: "{{ service_k8s_slurp.content | b64decode | from_yaml }}"
-  when: service_k8s_slurp is not failed
+    service_k8s_config: "{{ service_k8s_slurp.content | b64decode | from_json }}"
+  when:
+    - service_k8s_slurp is not failed
+    - service_k8s_slurp is not skipped
   tags: always
 
 - name: Extract victoria operator package name from service_k8s JSON
