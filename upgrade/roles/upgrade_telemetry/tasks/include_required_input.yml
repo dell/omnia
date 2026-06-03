@@ -60,6 +60,7 @@
   when:
     - omnia_config is defined
     - omnia_config.service_k8s_cluster is defined
+    - omnia_config.service_k8s_cluster | length > 0
   tags: always
 
 - name: Set k8s_client_mount_path
@@ -70,13 +71,22 @@
           | first).mount_point }}
   when:
     - storage_config is defined
+    - storage_config.mounts is defined
     - k8s_nfs_storage_name is defined
+    - storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | list | length > 0
   tags: always
+
 # ── Load high_availability_config.yml ──
+- name: Check if high_availability_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/high_availability_config.yml"
+  register: ha_config_stat
+
 - name: Read high_availability_config.yml for kube_vip
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/high_availability_config.yml"
     name: ha_config
+  when: ha_config_stat.stat.exists
 
 - name: Debug high_availability_config.yml content
   ansible.builtin.debug:
@@ -90,6 +100,7 @@
     kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
     cacheable: true
   when:
+    - ha_config is defined
     - ha_config.service_k8s_cluster_ha is defined
     - ha_config.service_k8s_cluster_ha | length > 0
 

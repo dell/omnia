@@ -121,18 +121,45 @@
              | select('ne', '')
              | first | default('') }}
 
+    - name: Fetch PowerScale secret_path from backup omnia_config
+      ansible.builtin.set_fact:
+        powerscale_secret_path: >-
+          {{ backup_omnia_config.service_k8s_cluster
+             | selectattr('csi_powerscale_driver_secret_file_path', 'defined')
+             | map(attribute='csi_powerscale_driver_secret_file_path')
+             | select('ne', '')
+             | first | default('') }}
+
     - name: Display PowerScale values_path from backup omnia_config
       ansible.builtin.debug:
         msg: "PowerScale values_path from backup omnia_config: {{ powerscale_values_path }}"
+
+    - name: Display PowerScale secret_path from backup omnia_config
+      ansible.builtin.debug:
+        msg: "PowerScale secret_path from backup omnia_config: {{ powerscale_secret_path }}"
 
     - name: Extract values file name from backup omnia_config powerscale_values_path
       ansible.builtin.set_fact:
         powerscale_values_filename: "{{ powerscale_values_path | basename | default('values.yaml') }}"
       when: powerscale_values_path | length > 0
 
+    - name: Extract secret file name from backup omnia_config powerscale_secret_path
+      ansible.builtin.set_fact:
+        powerscale_secret_filename: "{{ powerscale_secret_path | basename | default('secret.yaml') }}"
+      when: powerscale_secret_path | length > 0
+
+    - name: Set default secret filename if path not configured
+      ansible.builtin.set_fact:
+        powerscale_secret_filename: "secret.yaml"
+      when: powerscale_secret_path | default('') | length == 0
+
     - name: Display extracted PowerScale values file name
       ansible.builtin.debug:
         msg: "PowerScale values file name from backup omnia_config: {{ powerscale_values_filename }}"
+
+    - name: Display extracted PowerScale secret file name
+      ansible.builtin.debug:
+        msg: "PowerScale secret file name from backup omnia_config: {{ powerscale_secret_filename }}"
 
     - name: Build dynamic GitHub URL for target version values.yaml
       ansible.builtin.set_fact:
@@ -170,12 +197,17 @@
         msg: "{{ merge_values_result.stderr_lines | default([]) }}"
       when: merge_values_result.stderr_lines | default([]) | length > 0
 
-    - name: Copy secret.yaml from v2.1 backup
+    - name: Check if v2.1 secret file exists in backup
+      ansible.builtin.stat:
+        path: "{{ backup_location }}/{{ powerscale_secret_filename }}"
+      register: v21_secret_stat
+
+    - name: Copy secret file from v2.1 backup
       ansible.builtin.copy:
-        src: "{{ backup_location }}/secret.yaml"
-        dest: "{{ input_project_dir }}/secret.yaml"
+        src: "{{ backup_location }}/{{ powerscale_secret_filename }}"
+        dest: "{{ input_project_dir }}/{{ powerscale_secret_filename }}"
         mode: "0600"
-      when: v21_values_stat.stat.exists
+      when: v21_secret_stat.stat.exists
 
     - name: Display PowerScale values.yaml transformation summary
       ansible.builtin.debug:
