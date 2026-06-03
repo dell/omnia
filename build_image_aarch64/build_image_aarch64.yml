@@ -107,16 +107,6 @@
     oim_group: true
   tags: always
 
-- name: Pre-flight SELinux policy fix on aarch64 node
-  hosts: admin_aarch64
-  connection: ssh
-  gather_facts: false
-  tasks:
-    - name: Install SELinux policy module for container runtime
-      ansible.builtin.include_role:
-        name: image_creation
-        tasks_from: preflight_selinux_check.yml
-
 - name: Configure auth for OpenCHAMI
   hosts: oim
   connection: ssh
@@ -146,6 +136,16 @@
   gather_facts: false
   roles:
     - prepare_arm_node
+
+- name: Pre-flight SELinux policy fix on aarch64 node
+  hosts: admin_aarch64
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Install SELinux policy module for container runtime
+      ansible.builtin.include_role:
+        name: image_creation
+        tasks_from: preflight_selinux_check.yml
 
 - name: Fetch packages for aarch64
   hosts: localhost
