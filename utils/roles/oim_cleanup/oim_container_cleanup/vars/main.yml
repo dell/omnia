@@ -182,6 +182,16 @@ postgres_cleanup_directory:
   - "{{ omnia_nfs_share }}/postgres"
 
 postgres_container_name: omnia_postgres
+
+# Usage: cleanup_omnia_postgres.yml (image_groups DB update)
+image_groups_cleaned_msg: >-
+  BuildStream image_groups: All records updated to CLEANED status.
+  S3 images were already removed during OpenCHAMI cleanup.
+  Database is now consistent for backup.
+image_groups_cleanup_failure_msg: >-
+  WARNING: Failed to update image_groups status to CLEANED in build_stream_db.
+  If postgres_backup is enabled, the backed-up database may contain stale image_groups records.
+  This does not affect the cleanup process. Proceeding with Postgres container removal.
 postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
  if postgres_backup | bool else 'DELETE data (postgres_backup=false)' }}"
 postgres_preserved_msg: "PRESERVED: Postgres data directories retained (postgres_backup=true): {{ postgres_cleanup_directory }}"

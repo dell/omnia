@@ -20,6 +20,64 @@
   ansible.builtin.debug:
     msg: "{{ postgres_cleanup_mode_msg }}"
 
+- name: Mark all image_groups as CLEANED before stopping Postgres
+  block:
+    - name: Check if omnia_postgres container is running
+      containers.podman.podman_container_info:
+        name: "{{ postgres_container_name }}"
+      register: pg_pre_check
+      failed_when: false
+
+    - name: Check if image_groups table exists in build_stream_db
+      ansible.builtin.command:
+        cmd: >-
+          podman exec {{ postgres_container_name }}
+          psql -U admin -d build_stream_db -tAc
+          "SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'image_groups');"
+      register: image_groups_table_check
+      changed_when: false
+      failed_when: false
+      when:
+        - pg_pre_check.containers | default([]) | length > 0
+        - pg_pre_check.containers[0].State.Running | default(false)
+
+    - name: Count non-CLEANED image_groups records
+      ansible.builtin.command:
+        cmd: >-
+          podman exec {{ postgres_container_name }}
+          psql -U admin -d build_stream_db -tAc
+          "SELECT COUNT(*) FROM image_groups WHERE status != 'CLEANED';"
+      register: non_cleaned_count
+      changed_when: false
+      failed_when: false
+      when:
+        - image_groups_table_check is not skipped
+        - image_groups_table_check.stdout | default('') | trim == 't'
+
+    - name: Update all non-CLEANED image_groups to CLEANED
+      ansible.builtin.command:
+        cmd: >-
+          podman exec {{ postgres_container_name }}
+          psql -U admin -d build_stream_db -c
+          "UPDATE image_groups SET status = 'CLEANED', updated_at = NOW()
+          WHERE status != 'CLEANED';"
+      register: image_groups_update
+      changed_when: image_groups_update.rc == 0
+      when:
+        - non_cleaned_count is not skipped
+        - (non_cleaned_count.stdout | default('0') | trim | int) > 0
+
+    - name: Display image_groups cleanup result
+      ansible.builtin.debug:
+        msg: "{{ image_groups_cleaned_msg }}"
+      when:
+        - image_groups_update is not skipped
+        - image_groups_update.rc | default(1) == 0
+  rescue:
+    - name: Log image_groups cleanup failure
+      ansible.builtin.debug:
+        msg: "{{ image_groups_cleanup_failure_msg }}"
+
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
