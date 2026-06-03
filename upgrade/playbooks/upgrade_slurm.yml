@@ -42,42 +42,42 @@
         file: "{{ manifest_path }}"
         name: manifest
 
-    - name: Initialize slurm_skip
-      ansible.builtin.set_fact:
-        slurm_skip: false
+    - name: Read software_config.json
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
+        name: software_config
 
-    - name: Set slurm_skip when already completed
+    - name: Determine slurm_skip status
       ansible.builtin.set_fact:
-        slurm_skip: true
-      when:
-        - manifest.component_status[component_name] | default('pending') == 'completed'
+        slurm_skip: >-
+          {{
+            (manifest.component_status[component_name] | default('pending') == 'completed')
+            or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
+          }}
 
-    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
-      ansible.builtin.copy:
-        content: >-
-          {{ manifest | combine({
-               'component_status': manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ manifest_path }}"
-        mode: '0644'
-      when:
-        - not slurm_skip
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
-
-    - name: "Set slurm_skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.set_fact:
-        slurm_skip: true
+    - name: "Handle BuildStream terminal gate (C-24)"
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
         - manifest.component_status.build_stream | default('pending') == 'completed'
+      block:
+        - name: "Mark as skipped — BuildStream terminal gate active"
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'skipped'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+          when: not slurm_skip
 
-    - name: "Skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.meta: end_play
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - name: "Set slurm_skip — BuildStream terminal gate active"
+          ansible.builtin.set_fact:
+            slurm_skip: true
+
+        - name: "Skip — BuildStream terminal gate active"
+          ansible.builtin.meta: end_play
 
     - name: Block when slurm is already completed
       when: not slurm_skip
@@ -128,12 +128,12 @@
     oim_group: true
 
 # ============================================================================
-# Play 2: Update cloud-init and BSS for slurm_control_node_x86_64 on OIM
+# Play 2: Update cloud-init and BSS for slurm on OIM
 # ============================================================================
 # During upgrade_provision.yml, the provision flow runs with upgrade_mode=true.
 # Templates are re-rendered (BSS YAML, cloud-init group YAML) but ochami CLI
 # delete/set commands are skipped. This play applies those skipped operations
-# for the slurm_control_node_x86_64 functional group using the
+# for the slurm functional groups using the
 # update_cloud_init_bss utility role.
 # ============================================================================
 - name: Update cloud-init and BSS for slurm functional groups

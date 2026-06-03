@@ -18,9 +18,9 @@
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
 
-- name: Set k8s NFS storage name
+- name: Get k8s NFS storage names from all clusters
   ansible.builtin.set_fact:
-    k8s_nfs_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
+    k8s_nfs_storage_names: "{{ service_k8s_cluster | map(attribute='nfs_storage_name') | list | default([]) }}"
   when:
     - service_k8s_cluster is defined
     - service_k8s_cluster | length > 0
@@ -28,64 +28,73 @@
 - name: Fail if k8s cluster not configured
   ansible.builtin.fail:
     msg: "K8s cluster not configured in omnia_config.yml. Please configure service_k8s_cluster first."
-  when: k8s_nfs_storage_name is not defined
+  when: k8s_nfs_storage_names is not defined or k8s_nfs_storage_names | length == 0
 
-- name: Check if k8s mount exists in storage_config
+- name: Find all k8s storage mounts
   ansible.builtin.set_fact:
-    k8s_mount_found: >-
-      {{ mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | list | length > 0 }}
+    k8s_storage_mounts: "{{ mounts | selectattr('name', 'in', k8s_nfs_storage_names) | list }}"
 
-- name: Skip k8s cleanup if mount not configured
+- name: Skip k8s cleanup if no mounts found
   ansible.builtin.debug:
     msg: >
-      K8s NFS mount '{{ k8s_nfs_storage_name }}' not found in storage_config.yml.
+      K8s NFS mounts {{ k8s_nfs_storage_names }} not found in storage_config.yml.
       Skipping k8s cleanup. If you want to clean k8s directories, please configure
-      the mount for '{{ k8s_nfs_storage_name }}' in storage_config.yml.
-  when: not k8s_mount_found
-
-- name: Set k8s base path from detected mount
-  ansible.builtin.set_fact:
-    k8s_base_path: "{{ (mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}"
-  when: k8s_mount_found
+      the mounts in storage_config.yml.
+  when: k8s_storage_mounts | length == 0
 
 - name: K8s cleanup tasks
-  when: k8s_mount_found
+  when: k8s_storage_mounts | length > 0
   block:
-    - name: Display detected k8s base path
-      ansible.builtin.debug:
-        msg: "K8s cleanup using mount: {{ k8s_base_path }} (storage name: {{ k8s_nfs_storage_name }})"
-
-    - name: Build k8s cleanup paths from variable list
+    - name: Build cleanup paths for all storage mounts
       ansible.builtin.set_fact:
-        k8s_static_cleanup_paths: []
+        all_k8s_base_paths: []
 
-    - name: Build cleanup paths using loop
+    - name: Build cleanup paths for each storage mount
       ansible.builtin.set_fact:
-        k8s_static_cleanup_paths: "{{ k8s_static_cleanup_paths + [k8s_base_path + '/' + item] }}"
-      loop: "{{ k8s_cleanup_directories }}"
+        all_k8s_base_paths: "{{ all_k8s_base_paths + [item.mount_point] }}"
+      loop: "{{ k8s_storage_mounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Build k8s cleanup paths from variable list for all mounts
+      ansible.builtin.set_fact:
+        all_k8s_static_cleanup_paths: []
+
+    - name: Build cleanup paths using loop for all mounts
+      ansible.builtin.set_fact:
+        all_k8s_static_cleanup_paths: "{{ all_k8s_static_cleanup_paths + [path_item[0] + '/' + path_item[1]] }}"
+      loop: "{{ all_k8s_base_paths | product(k8s_cleanup_directories) | list }}"
+      loop_control:
+        loop_var: path_item
 
     - name: Check if static k8s directories exist
       ansible.builtin.stat:
         path: "{{ item }}"
       register: k8s_static_dirs_stat
-      loop: "{{ k8s_static_cleanup_paths }}"
+      loop: "{{ all_k8s_static_cleanup_paths }}"
 
-    - name: Find node IP directories when enabled
+    - name: Find node IP directories when enabled for all mounts
       when: k8s_cleanup_node_ips | default(false)
       block:
-        - name: Find all directories in k8s base path
+        - name: Find all directories in all k8s base paths
           ansible.builtin.find:
-            paths: "{{ k8s_base_path }}"
+            paths: "{{ item }}"
             file_type: directory
           register: k8s_all_dirs
+          loop: "{{ all_k8s_base_paths }}"
 
-        - name: Filter IP-named directories using basename
+        - name: Combine all found directories
+          ansible.builtin.set_fact:
+            k8s_all_found_dirs: "{{ k8s_all_dirs.results | map(attribute='files') | list | flatten }}"
+
+        - name: Filter IP-named directories using basename for all mounts
           ansible.builtin.set_fact:
             k8s_ip_dirs: >-
-              {{ k8s_all_dirs.files
-                 | selectattr('path', 'match', k8s_base_path + '/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
+              {{ k8s_all_found_dirs
+                 | selectattr('path', 'match', item + '/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
                  | map(attribute='path')
                  | list }}
+          loop: "{{ all_k8s_base_paths }}"
 
     - name: Set empty IP dirs list when disabled
       ansible.builtin.set_fact:
@@ -112,29 +121,40 @@
     - name: Display k8s cleanup information
       ansible.builtin.debug:
         msg: |
-          WARNING: This will delete K8s-related directories from NFS share:
-          Base path: {{ k8s_base_path }}
+          WARNING: This will delete K8s-related directories from NFS shares:
+          {% for mount in k8s_storage_mounts %}
+          Storage: {{ mount.name }} ({{ mount.mount_point }})
           {% for item in k8s_static_dirs_stat.results %}
-          {% if item.stat.exists %}
+          {% if item.stat.exists and item.item.startswith(mount.mount_point) %}
           - {{ item.item }} ({{ item.item | basename }})
           {% endif %}
           {% endfor %}
           {% if k8s_cleanup_node_ips | default(false) %}
           Node IP directories:
           {% for item in k8s_ip_dirs %}
+          {% if item.startswith(mount.mount_point) %}
           - {{ item }} ({{ item | basename }})
+          {% endif %}
           {% else %}
           - No IP directories found
           {% endfor %}
           {% else %}
           Node IP directories: Skipped (k8s_cleanup_node_ips: false)
           {% endif %}
+          {% endfor %}
+
+          CRITICAL WARNING: Deleting NFS shared data will affect ALL nodes!
+          - Ensure K8s services are stopped on all nodes
+          - Ensure nodes are not accessing these directories
+          - This may cause stale file handles on running nodes
+          - Only proceed if you understand the impact on your cluster
+
           This action is destructive and cannot be undone.
       when: k8s_cleanup_needed | default(false)
 
     - name: Prompt for k8s cleanup confirmation
       ansible.builtin.pause:
-        prompt: "This will delete K8s-related directories. Type {{ k8s_cleanup_confirm_token }} to continue"
+        prompt: "I understand this will delete NFS data affecting all nodes. Type {{ k8s_cleanup_confirm_token }} to continue"
       register: k8s_cleanup_confirm
 
     - name: Fail if cleanup not confirmed
@@ -142,57 +162,27 @@
         msg: "K8s cleanup aborted"
       when: k8s_cleanup_confirm.user_input | lower != k8s_cleanup_confirm_token | lower
 
-    - name: Delete static k8s directories
-      ansible.builtin.file:
-        path: "{{ item.item }}"
-        state: absent
-      register: k8s_static_cleanup_result
-      when:
-        - k8s_cleanup_needed | default(false)
-        - item.stat.exists
-      loop: "{{ k8s_static_dirs_stat.results }}"
-
-    - name: Delete node IP directories
+    - name: Delete all k8s directories
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
-      register: k8s_ip_cleanup_result
-      when:
-        - k8s_cleanup_needed | default(false)
-        - k8s_cleanup_node_ips | default(false)
-      loop: "{{ k8s_ip_dirs }}"
+      register: k8s_cleanup_result
+      when: k8s_cleanup_needed | default(false)
+      loop: "{{ k8s_all_cleanup_paths }}"
 
     - name: Display k8s cleanup completion message
       ansible.builtin.debug:
         msg: |
           K8s-related cleanup completed.
-          Base path: {{ k8s_base_path }}
-          {% if k8s_static_cleanup_result.results is defined %}
-          Static directories:
-          {% for item in k8s_static_cleanup_result.results %}
-          {% if item is defined and item.changed %}
-          ✅ Deleted: {{ item.item }}
-          {% elif item is defined and not item.changed %}
-          ℹ️  Already absent: {{ item.item }}
-          {% endif %}
+          {% for mount in k8s_storage_mounts %}
+          Storage: {{ mount.name }} ({{ mount.mount_point }})
+          {% set mount_deleted = k8s_cleanup_result.results | selectattr('item', 'search', '^' + mount.mount_point) | selectattr('changed') | list %}
+          {% if mount_deleted %}
+          {% for item in mount_deleted %}
+          -> Deleted: {{ item.item }}
           {% endfor %}
           {% else %}
-          Static directories: None deleted
-          {% endif %}
-          {% if k8s_cleanup_node_ips | default(false) %}
-          {% if k8s_ip_cleanup_result.results is defined %}
-          Node IP directories:
-          {% for item in k8s_ip_cleanup_result.results %}
-          {% if item is defined and item.changed %}
-          ✅ Deleted: {{ item.item }}
-          {% elif item is defined and not item.changed %}
-          ℹ️  Already absent: {{ item.item }}
+          -> No directories deleted from this storage
           {% endif %}
           {% endfor %}
-          {% else %}
-          Node IP directories: None deleted
-          {% endif %}
-          {% else %}
-          Node IP directories: Skipped
-          {% endif %}
       when: k8s_cleanup_needed | default(false)

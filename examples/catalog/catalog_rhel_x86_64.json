@@ -252,7 +252,6 @@
           "msr-safe_na_tarball",
           "munge_na_rpm",
           "nvcr-io-nvidia-hpc-benchmarks_25.09_image",
-          "nvhpc_2025_2511_Linux_x86_64_cuda_13-0_na_tarball",
           "osu-micro-benchmarks_na_tarball",
           "papi_na_tarball",
           "pmix_na_rpm",
@@ -1387,25 +1386,6 @@
         "Type": "image",
         "Tag": "25.09",
         "Version": "25.09"
-      },
-      "nvhpc_2025_2511_Linux_x86_64_cuda_13-0_na_tarball": {
-        "Name": "nvhpc_2025_2511_Linux_x86_64_cuda_13.0",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "tarball",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://developer.download.nvidia.com/hpc-sdk/25.11/nvhpc_2025_2511_Linux_x86_64_cuda_13.0.tar.gz"
-          }
-        ]
       },
       "omsdk_1.2.518_pip_module": {
         "Name": "omsdk==1.2.518",

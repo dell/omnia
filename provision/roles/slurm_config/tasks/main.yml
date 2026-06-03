@@ -32,6 +32,12 @@
   ansible.builtin.include_tasks: read_slurm_hostnames.yml
   when: slurm_support
 
+- name: Backup slurm conf if upgrade
+  ansible.builtin.include_tasks: upgrade_conf_db_backup.yml
+  when:
+    - slurm_support
+    - (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 # This does not consider hierarchy of slurm nodes
 - name: Entering the slurm configuration only if slurm in nodes.yaml
   ansible.builtin.include_tasks: create_slurm_dir.yml

@@ -42,42 +42,43 @@
         file: "{{ rollback_manifest_path }}"
         name: manifest
 
-    - name: Initialize slurm_skip
-      ansible.builtin.set_fact:
-        slurm_skip: false
+    - name: Read software_config.json
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest.backup_dir }}/input/project_default/software_config.json"
+        name: software_config
 
-    - name: Set slurm_skip when already completed
+    - name: Determine slurm_skip status
       ansible.builtin.set_fact:
-        slurm_skip: true
-      when:
-        - manifest.component_status[component_name] | default('pending') == 'completed'
+        slurm_skip: >-
+          {{
+            (manifest.component_status[component_name] | default('pending') == 'completed')
+            or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
+          }}
 
-    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
-      ansible.builtin.copy:
-        content: >-
-          {{ manifest | combine({
-               'component_status': manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ rollback_manifest_path }}"
-        mode: '0644'
-      when:
-        - not slurm_skip
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
-
-    - name: "Set slurm_skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.set_fact:
-        slurm_skip: true
+    - name: "Handle BuildStream terminal gate (C-24)"
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
         - manifest.component_status.build_stream | default('pending') == 'completed'
+      block:
+        - name: "Mark as skipped — BuildStream terminal gate active"
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'skipped'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+          delegate_to: localhost
+          when: not slurm_skip
 
-    - name: "Skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.meta: end_play
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - name: "Set slurm_skip — BuildStream terminal gate active"
+          ansible.builtin.set_fact:
+            slurm_skip: true
+
+        - name: "Skip — BuildStream terminal gate active"
+          ansible.builtin.meta: end_play
 
     - name: Block when slurm is already completed
       when: not slurm_skip
@@ -118,11 +119,17 @@
             slurm_previously_rebooted: []
           when: not (_reboot_state_stat.stat.exists | default(false))
 
+# ============================================================================
+# Create OIM host group (needed for cloud-init/BSS update on OIM)
+# ============================================================================
 - name: Create OIM host group for cloud-init/BSS update
   ansible.builtin.import_playbook: ../../utils/create_container_group.yml
   vars:
     oim_group: true
 
+# ============================================================================
+# Play 2: Update cloud-init and BSS from backup openchami_data
+# ============================================================================
 - name: Rollback cloud-init and BSS for slurm functional groups
   hosts: oim
   connection: ssh
