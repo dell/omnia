@@ -532,6 +532,11 @@
         - not (build_stream_terminal | default(false) | bool)
 
     - name: Validate operator confirmation
+      when:
+        - not (skip_approval | default(false) | bool)
+        - approval_manifest.approval_status | default('pending') != 'approved'
+        - not (build_stream_terminal | default(false) | bool)
+        - operator_confirmation.user_input | default('') | lower != 'yes'
       block:
         - name: Display abort message
           ansible.builtin.pause:
@@ -557,11 +562,6 @@
         - name: Fail the playbook
           ansible.builtin.fail:
             msg: "Upgrade aborted: operator did not confirm pre-flight checks"
-      when:
-        - not (skip_approval | default(false) | bool)
-        - approval_manifest.approval_status | default('pending') != 'approved'
-        - not (build_stream_terminal | default(false) | bool)
-        - operator_confirmation.user_input | default('') | lower != 'yes'
 
     - name: Update approval_status to approved in manifest
       ansible.builtin.copy:
