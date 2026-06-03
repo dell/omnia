@@ -75,6 +75,7 @@
     - k8s_nfs_storage_name is defined
     - storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | list | length > 0
   tags: always
+  
 # ── Load high_availability_config.yml ──
 - name: Check if high_availability_config.yml exists
   ansible.builtin.stat:
