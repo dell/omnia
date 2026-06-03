@@ -532,29 +532,36 @@
         - not (build_stream_terminal | default(false) | bool)
 
     - name: Validate operator confirmation
-      ansible.builtin.fail:
-        msg: |
-          ══════════════════════════════════════════════════════════════
-                    UPGRADE ABORTED — CONFIRMATION REQUIRED
-          ══════════════════════════════════════════════════════════════
-
-          You did not type 'yes' to confirm that all pre-flight checks
-          have been completed.
-
-          To proceed with the upgrade, you MUST explicitly confirm by
-          typing 'yes' when prompted.
-
-          Please re-run the upgrade playbook and type 'yes' at the
-          confirmation prompt:
-
-            ansible-playbook upgrade/upgrade.yml
-
-          ══════════════════════════════════════════════════════════════
       when:
         - not (skip_approval | default(false) | bool)
         - approval_manifest.approval_status | default('pending') != 'approved'
         - not (build_stream_terminal | default(false) | bool)
         - operator_confirmation.user_input | default('') | lower != 'yes'
+      block:
+        - name: Display abort message
+          ansible.builtin.pause:
+            seconds: 1
+            prompt: |2
+              ══════════════════════════════════════════════════════════════
+                        UPGRADE ABORTED — CONFIRMATION REQUIRED
+              ══════════════════════════════════════════════════════════════
+
+              You did not type 'yes' to confirm that all pre-flight checks
+              have been completed.
+
+              To proceed with the upgrade, you MUST explicitly confirm by
+              typing 'yes' when prompted.
+
+              Please re-run the upgrade playbook and type 'yes' at the
+              confirmation prompt:
+
+                ansible-playbook upgrade/upgrade.yml
+
+              ══════════════════════════════════════════════════════════════
+
+        - name: Fail the playbook
+          ansible.builtin.fail:
+            msg: "Upgrade aborted: operator did not confirm pre-flight checks"
 
     - name: Update approval_status to approved in manifest
       ansible.builtin.copy:
