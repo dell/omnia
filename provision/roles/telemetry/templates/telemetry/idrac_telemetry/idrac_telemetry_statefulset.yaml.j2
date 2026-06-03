@@ -72,7 +72,7 @@ spec:
         - ip: "127.0.0.1"
           hostnames:
             - "mysqldb"
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 120
       tolerations:
       - effect: NoExecute
         key: node.kubernetes.io/not-ready

@@ -390,6 +390,13 @@
           content: |
             {{ lookup('template', 'templates/hpc_tools/configure_ucx_openmpi_env.sh.j2') | indent(12) }}
 
+        - path: /usr/local/bin/setup_doca_mpi_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/setup_doca_mpi_env.sh.j2') | indent(12) }}
+            
+
         # NVIDIA HPC SDK setup script (run manually: /usr/local/bin/setup_nvhpc_sdk.sh)
         - path: /usr/local/bin/setup_nvhpc_sdk.sh
           owner: root:root
@@ -414,6 +421,10 @@
         # DOCA and IB configuration - now ready before vendor_data mounts
         - bash /usr/local/bin/doca-install.sh || echo "DOCA install failed (non-critical)"
         - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"
+{% if hostvars['localhost']['openmpi_support'] %}
+        - bash /usr/local/bin/setup_doca_mpi_env.sh || echo "DOCA MPI environment setup failed (non-critical)"
+{% endif %}
+        
 {# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
 {%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}

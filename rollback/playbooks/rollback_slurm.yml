@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+# ============================================================================
+# Play 1: Pre-flight — manifest gating, BuildStream terminal gate
+# ============================================================================
 - name: Rollback Slurm feature updates
   hosts: localhost
   connection: local
@@ -36,66 +40,83 @@
     - name: Read rollback_manifest.yml
       ansible.builtin.include_vars:
         file: "{{ rollback_manifest_path }}"
-        name: rollback_manifest
+        name: manifest
 
-    - name: Skip if slurm already rolled back
-      ansible.builtin.meta: end_play
+    - name: Initialize slurm_skip
+      ansible.builtin.set_fact:
+        slurm_skip: false
+
+    - name: Set slurm_skip when already completed
+      ansible.builtin.set_fact:
+        slurm_skip: true
       when:
-        - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
+        - manifest.component_status[component_name] | default('pending') == 'completed'
 
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
         content: >-
-          {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
                  component_name: 'skipped'
                })
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
       when:
+        - not slurm_skip
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: "Set slurm_skip — BuildStream terminal gate active (C-24)"
+      ansible.builtin.set_fact:
+        slurm_skip: true
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
 
     - name: "Skip — BuildStream terminal gate active (C-24)"
       ansible.builtin.meta: end_play
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
 
-    - name: Set slurm rollback status to in-progress
-      ansible.builtin.copy:
-        content: >-
-          {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'in-progress'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ rollback_manifest_path }}"
-        mode: '0644'
+    - name: Block when slurm is already completed
+      when: not slurm_skip
+      block:
+        - name: Set slurm rollback status to in-progress
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                  'component_status': manifest.component_status | combine({
+                    component_name: 'in-progress'
+                  })
+                }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
 
-    - name: "Display rollback status in-progress — {{ component_name }}"
-      ansible.builtin.debug:
-        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
+        - name: "Display rollback status in-progress — {{ component_name }}"
+          ansible.builtin.debug:
+            msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
-    - name: Check for existing reboot state file
-      ansible.builtin.stat:
-        path: /opt/omnia/.data/slurm_rollback_reboot_state.yml
-      register: _reboot_state_stat
+        - name: Check for existing reboot state file
+          ansible.builtin.stat:
+            path: /opt/omnia/.data/slurm_rollback_reboot_state.yml
+          register: _reboot_state_stat
 
-    - name: Load reboot state from previous run
-      ansible.builtin.include_vars:
-        file: /opt/omnia/.data/slurm_rollback_reboot_state.yml
-        name: _reboot_state
-      when: _reboot_state_stat.stat.exists | default(false)
+        - name: Load reboot state from previous run
+          ansible.builtin.include_vars:
+            file: /opt/omnia/.data/slurm_rollback_reboot_state.yml
+            name: _reboot_state
+          when: _reboot_state_stat.stat.exists | default(false)
 
-    - name: Set previously successful reboot list
-      ansible.builtin.set_fact:
-        slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([]) }}"
-      when: _reboot_state_stat.stat.exists | default(false)
+        - name: Set previously successful reboot list
+          ansible.builtin.set_fact:
+            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([]) }}"
+          when: _reboot_state_stat.stat.exists | default(false)
 
-    - name: Initialize previously rebooted list (no prior state)
-      ansible.builtin.set_fact:
-        slurm_previously_rebooted: []
-      when: not (_reboot_state_stat.stat.exists | default(false))
+        - name: Initialize previously rebooted list (no prior state)
+          ansible.builtin.set_fact:
+            slurm_previously_rebooted: []
+          when: not (_reboot_state_stat.stat.exists | default(false))
 
 - name: Create OIM host group for cloud-init/BSS update
   ansible.builtin.import_playbook: ../../utils/create_container_group.yml
@@ -111,8 +132,7 @@
   tasks:
     - name: Skip if slurm upgrade not needed
       ansible.builtin.meta: end_play
-      when:
-        - hostvars['localhost']['slurm_skip'] | default(false) | bool
+      when: hostvars['localhost']['slurm_skip'] | default(false) | bool
 
     - name: Read rollback_manifest.yml
       ansible.builtin.include_vars:
@@ -131,6 +151,18 @@
         - name: Display message
           ansible.builtin.debug:
             msg: "Slurm is not configured in software_config.json. Skipping Slurm rollback."
+
+        - name: Add skipped to rollback_manifest
+          ansible.builtin.copy:
+            content: >-
+              {{ rollback_manifest | combine({
+                      'component_status': rollback_manifest.component_status | combine({
+                        'slurm': 'skipped'
+                      })
+                    }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+          delegate_to: localhost
 
         - name: End play
           ansible.builtin.meta: end_play
@@ -173,21 +205,17 @@
             | replace('/opt', hostvars['localhost']['oim_shared_path'])
           }}/openchami/openchami_data/workdir
 
-    - name: SLURM ROLLBACK WARNING
-      ansible.builtin.debug:
-        msg: "{{ slurm_rollback_banner }}"
-      vars:
-        slurm_rollback_banner:
-          - "[ROLLBACK] SLURM CLUSTER — PRE-ROLLBACK NOTICE"
-          - ""
-          - "1. NODE REBOOT    — All Slurm/login nodes will reboot."
-          - "2. NFS MOUNTS     — Omnia 2.1 mount points are preserved. Do not modify during rollback."
-          - "3. ROLLBACK SCOPE — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback."
-
     - name: Pause to display warning
       ansible.builtin.pause:
         seconds: 10
-        prompt: "SLURM ROLLBACK - Proceeding in 10 seconds..."
+        prompt: "{{ slurm_rollback_banner }}"
+      vars:
+        slurm_rollback_banner: |
+          [ROLLBACK] SLURM CLUSTER — PRE-ROLLBACK NOTICE
+          ==============================================
+          1. NODE REBOOT    — All Slurm/login nodes will reboot.
+          2. NFS MOUNTS     — Omnia 2.1 mount points are preserved. Do not modify during rollback.
+          3. ROLLBACK SCOPE — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback.
 
     - name: Read oim_metadata for oim_node_name (standalone fallback)
       ansible.builtin.include_vars:
@@ -242,13 +270,13 @@
   tasks:
     - name: Skip if slurm upgrade not needed
       ansible.builtin.meta: end_play
-      when: slurm_skip | default(false) | bool
+      when: hostvars['localhost']['slurm_skip'] | default(false) | bool
 
     - name: Initialize state
       ansible.builtin.set_fact:
         node_status:
           hostname: "{{ inventory_hostname }}"
-          reboot: false # TODO: rename as reboot_failed
+          reboot: false
           ssh: false
           sinfo: false
           unreachable: false
@@ -349,7 +377,7 @@
   tasks:
     - name: Skip if slurm rollback not needed
       ansible.builtin.meta: end_play
-      when: slurm_skip | default(false) | bool
+      when: hostvars['localhost']['slurm_skip'] | default(false) | bool
 
     - name: Set slurm nodes from inventory
       ansible.builtin.set_fact:
@@ -365,9 +393,27 @@
       ansible.builtin.debug:
         var: slurm_nodes
 
-    - name: End play if no slurm nodes found in inventory
-      ansible.builtin.meta: end_play
+    - name: Read rollback_manifest.yml
+      ansible.builtin.include_vars:
+        file: "{{ rollback_manifest_path }}"
+        name: rollback_manifest
+
+    - name: Handle skipped case
       when: slurm_nodes | length == 0
+      block:
+        - name: Add skipped to rollback_manifest
+          ansible.builtin.copy:
+            content: >-
+              {{ rollback_manifest | combine({
+                      'component_status': rollback_manifest.component_status | combine({
+                        'slurm': 'skipped'
+                      })
+                    }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+
+        - name: End play if no slurm nodes found in inventory
+          ansible.builtin.meta: end_play
 
     - name: Set filtered nodes
       ansible.builtin.set_fact:
@@ -488,14 +534,17 @@
             msg: "[ROLLBACK] Slurm rollback failed. Review the report above and re-run after remediation."
 
     - name: Generate and display success report
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: |
           ============================================================
           [ROLLBACK] SLURM ROLLBACK — ALL NODES VERIFIED SUCCESSFULLY
           ============================================================
+
           Verified: {{ success_nodes | length }} / {{ slurm_nodes | length }} nodes
-            Reboot complete | SSH active | Slurm (sinfo) responding on all nodes.
-          Cluster is ready for workload submission.
+            ✓ Reboot complete | SSH active | Slurm (sinfo) responding on all nodes
+
+          Cluster is ready for workload submission!
           ============================================================
       when: not slurm_rollback_failed
 
@@ -504,11 +553,6 @@
         path: /opt/omnia/.data/slurm_rollback_reboot_state.yml
         state: absent
       when: not slurm_rollback_failed
-
-    - name: Read rollback_manifest.yml
-      ansible.builtin.include_vars:
-        file: "{{ rollback_manifest_path }}"
-        name: rollback_manifest
 
     - name: Mark slurm rollback as completed
       ansible.builtin.copy:

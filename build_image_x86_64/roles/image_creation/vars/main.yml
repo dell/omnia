@@ -61,3 +61,16 @@ network_spec: "{{ input_project_dir }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed to load network_spec.yml due to syntax error"
 storage_config_file_path: "{{ input_project_dir }}/storage_config.yml"
 storage_config_syntax_fail_msg: "Failed to load storage_config.yml due to syntax error"
+
+# preflight_selinux_check.yml
+selinux_module_name: "omnia-crun-bpf"
+selinux_policy_dir: "/etc/selinux/targeted/custom"
+podman_verify_fail_msg: >-
+  Podman cannot start containers on this node.
+  Ensure the node was rebooted after the kernel update and that the
+  omnia-crun-bpf SELinux module loaded successfully
+  (semodule -lfull | grep omnia-crun-bpf).
+selinux_install_warn_msg: >-
+  WARNING: Failed to install omnia-crun-bpf SELinux policy module.
+  Build will continue but may fail if the eBPF device filter issue is present.
+  Check SELinux policy tools and audit log on this node.

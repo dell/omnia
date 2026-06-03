@@ -132,7 +132,8 @@ slurm_cluster:
     # Configuration: Must match the 'name' field of the VAST storage entry in storage_config.yml
     # Note: The VAST server must be reachable from OIM to enable hpc_tools population during
     #       cluster provisioning. Ensure network connectivity and mount permissions are configured.
-    # vast_storage_name: {{ _cluster.vast_storage_name | default('vast_storage') }}
+    # Uncomment this line to enable VAST storage for hpc_tools
+    # vast_storage_name: "vast_storage"
     # skip_merge: {{ _cluster.skip_merge | default(false) }}
     
     # Uncomment to enable homogeneous discovery mode
