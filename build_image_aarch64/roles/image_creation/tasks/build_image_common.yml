@@ -65,3 +65,17 @@
       {{ '-e AWS_REQUEST_CHECKSUM_CALCULATION=when_required
       -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required'
       if s3_configurations.provider == 'powerscale' else '' }}
+
+- name: Verify Podman can run containers
+  ansible.builtin.command:
+    cmd: podman run --rm localhost/{{ aarch64_local_tag }} echo ok
+  register: _podman_verify
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+
+- name: Fail if Podman container runtime is broken
+  ansible.builtin.fail:
+    msg: "{{ podman_verify_fail_msg }} Error: {{ _podman_verify.stderr | default('unknown') }}"
+  when: _podman_verify.rc != 0

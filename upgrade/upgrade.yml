@@ -257,7 +257,7 @@
       when:
         - item in tag_dependencies
         - tag_dependencies[item] | difference(requested_tags) | length > 0
-        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'equalto', 'completed') |
+        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'in', ['completed', 'skipped']) |
           map(attribute='key') | list ) | list | length > 0
 
     - name: Report already-upgraded components (will be skipped)
@@ -356,6 +356,34 @@
           will be SKIPPED after build_stream completes. User must trigger
           GitLab pipeline manually post-upgrade.
       when: build_stream_terminal | bool
+
+# ──────────────────────────────────────────────────────────────────────
+# Detect K8s and Slurm configuration — check if services are enabled
+# ──────────────────────────────────────────────────────────────────────
+- name: Detect K8s and Slurm configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Read software_config.json
+      ansible.builtin.slurp:
+        src: "{{ input_project_dir }}/software_config.json"
+      register: _software_config_slurp
+
+    - name: Parse software_config.json
+      ansible.builtin.set_fact:
+        _software_config: "{{ _software_config_slurp.content | b64decode | from_json }}"
+
+    - name: Check if service_k8s is configured
+      ansible.builtin.set_fact:
+        k8s_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+        cacheable: true
+
+    - name: Check if slurm_custom is configured
+      ansible.builtin.set_fact:
+        slurm_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length > 0 }}"
+        cacheable: true
 
 # ──────────────────────────────────────────────────────────────────────
 # Operator Approval — shows upgrade plan and waits for confirmation.
@@ -466,34 +494,67 @@
                                the new Omnia 2.2 package set
             5. provision     → Refresh Cloud-Init data and BSS boot
                                configurations to point at 2.2 images
-            6. k8s           → Roll the Kubernetes cluster to the new
-                               Omnia-supported version (control plane + nodes)
+            6. k8s           → {% if k8s_upgrade_enabled | default(false) %}Roll the Kubernetes cluster to the new
+                               Omnia-supported version (control plane + nodes){% else %}SKIPPED (not configured in software_config.json){% endif %}
+
             7. telemetry     → Upgrade the Omnia telemetry stack
                                for kafka, victoria metrics, and other components
-            8. slurm         → Upgrade the Slurm controller, slurm nodes
+            8. slurm         → {% if slurm_upgrade_enabled | default(false) %}Upgrade the Slurm controller, slurm nodes
+                               {% else %}SKIPPED (not configured in software_config.json){% endif %}
 
           ── Impact & Risk ────────────────────────────────────────────
             • Running Omnia services will be modified and briefly restarted.
             • Do NOT reboot the OIM during the upgrade
             • Compute workloads should be drained or completed beforehand.
 
-          ── Pre-flight Checklist ─────────────────────────────────────
-            [ ] prepare_upgrade.yml completed without errors
-            [ ] Kubernetes cluster healthy (no failing pods, all PVCs
+          ── Pre-flight Checklist (REQUIRED) ──────────────────────────
+            BEFORE proceeding, verify ALL of the following:
+
+            • prepare_upgrade.yml completed without errors
+            {% if k8s_upgrade_enabled | default(false) %}• Kubernetes cluster healthy (no failing pods, all PVCs
                 bound, LoadBalancer services have external IPs)
-            [ ] Slurm cluster healthy (no failing jobs, all nodes ready)
-            [ ] Stable internet connectivity verified on the OIM
-            [ ] Maintenance window is active and stakeholders notified
-            [ ] Sufficient disk space available for new images & packages
+            {% endif %}{% if slurm_upgrade_enabled | default(false) %}• Slurm cluster healthy (no failing jobs, all nodes ready)
+            {% endif %}• Stable internet connectivity verified on the OIM
+            • Maintenance window is active and stakeholders notified
+            • Sufficient disk space available for new images & packages
 
           ──────────────────────────────────────────────────────────────
-            Press  ENTER       to PROCEED with the Omnia upgrade
-            Press  Ctrl+C, A   to ABORT and exit safely
+            CONFIRMATION REQUIRED:
+            Type 'yes' to confirm all pre-flight checks are complete
+            and PROCEED with the Omnia upgrade.
+
+            Type anything else or press Ctrl+C to ABORT.
+          ══════════════════════════════════════════════════════════════
+      register: operator_confirmation
+      when:
+        - not (skip_approval | default(false) | bool)
+        - approval_manifest.approval_status | default('pending') != 'approved'
+        - not (build_stream_terminal | default(false) | bool)
+
+    - name: Validate operator confirmation
+      ansible.builtin.fail:
+        msg: |
+          ══════════════════════════════════════════════════════════════
+                    UPGRADE ABORTED — CONFIRMATION REQUIRED
+          ══════════════════════════════════════════════════════════════
+
+          You did not type 'yes' to confirm that all pre-flight checks
+          have been completed.
+
+          To proceed with the upgrade, you MUST explicitly confirm by
+          typing 'yes' when prompted.
+
+          Please re-run the upgrade playbook and type 'yes' at the
+          confirmation prompt:
+
+            ansible-playbook upgrade/upgrade.yml
+
           ══════════════════════════════════════════════════════════════
       when:
         - not (skip_approval | default(false) | bool)
         - approval_manifest.approval_status | default('pending') != 'approved'
         - not (build_stream_terminal | default(false) | bool)
+        - operator_confirmation.user_input | default('') | lower != 'yes'
 
     - name: Update approval_status to approved in manifest
       ansible.builtin.copy:

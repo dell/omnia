@@ -415,12 +415,13 @@
               status: in_progress
               started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
+        - groups_cp | default([]) | length > 0
         - upgrade_status.upgrade.status != 'completed'
         - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
 
     - name: "Hop — Update cloud-init and BSS for service_kube_control_plane_x86_64"
       when:
-        - ha_config_data.service_k8s_cluster_ha | length > 1
+        - groups_cp | default([]) | length > 0
         - upgrade_status.upgrade.status != 'completed'
         - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
       ansible.builtin.shell:
@@ -447,10 +448,25 @@
               status: completed
               completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
+        - groups_cp | default([]) | length > 0
         - upgrade_status.upgrade.status != 'completed'
         - bss_cp_additional_result is defined
         - bss_cp_additional_result is not skipped
         - bss_cp_additional_result.rc == 0
+
+    - name: "Hop — Set BSS status to completed for service_kube_control_plane (no additional CPs)"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane:
+              status: completed
+              completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              note: "Skipped - no additional control planes to update"
+      when:
+        - groups_cp | default([]) | length == 0
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
 
     - name: "Hop — Control plane upgrades complete"
       ansible.builtin.debug:
