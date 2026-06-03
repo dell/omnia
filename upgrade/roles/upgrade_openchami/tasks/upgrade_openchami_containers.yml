@@ -525,6 +525,93 @@
       connection: ssh
 
     # --- 9. Start services and recover any failed services ---
+    # Create Podman networks if they don't exist - these enable DNS resolution
+    # between containers (e.g., hydra, postgres hostname resolution)
+    - name: Ensure ochami-internal Podman network exists
+      ansible.builtin.command: >
+        podman network create --ignore ochami-internal
+      register: create_internal_net
+      changed_when: "'ochami-internal' in create_internal_net.stdout"
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Ensure ochami-jwt-internal Podman network exists
+      ansible.builtin.command: >
+        podman network create --ignore ochami-jwt-internal
+      register: create_jwt_net
+      changed_when: "'ochami-jwt-internal' in create_jwt_net.stdout"
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Ensure ochami-cert-internal Podman network exists
+      ansible.builtin.command: >
+        podman network create --ignore ochami-cert-internal
+      register: create_cert_net
+      changed_when: "'ochami-cert-internal' in create_cert_net.stdout"
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Ensure ochami-external Podman network exists
+      ansible.builtin.command: >
+        podman network create --ignore ochami-external
+      register: create_ext_net
+      changed_when: "'ochami-external' in create_ext_net.stdout"
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # Start Podman network services if they exist (from openchami RPM)
+    - name: Start OpenCHAMI internal network service
+      ansible.builtin.systemd:
+        name: openchami-internal-network.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Start OpenCHAMI external network service
+      ansible.builtin.systemd:
+        name: openchami-external-network.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Start OpenCHAMI cert internal network service
+      ansible.builtin.systemd:
+        name: openchami-cert-internal-network.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Start OpenCHAMI JWT internal network service
+      ansible.builtin.systemd:
+        name: openchami-jwt-internal-network.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Wait for network services to initialize
+      ansible.builtin.pause:
+        seconds: 5
+
     - name: Start OpenCHAMI services with new images
       ansible.builtin.systemd:
         name: openchami.target

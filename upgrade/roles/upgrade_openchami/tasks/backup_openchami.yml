@@ -92,13 +92,13 @@
       ansible.builtin.file:
         path: "{{ openchami_backup_dir }}/openchami/postgresql_backup"
         state: directory
-        mode: "{{ dir_permissions_755 }}"
+        mode: "{{ dir_permissions_700 }}"
 
     - name: Create PostgreSQL backup directory (OIM host — shared path)
       ansible.builtin.file:
         path: "{{ oim_host_backup_dir }}/openchami/postgresql_backup"
         state: directory
-        mode: "{{ dir_permissions_755 }}"
+        mode: "{{ dir_permissions_700 }}"
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -181,6 +181,15 @@
       delegate_facts: true
       connection: ssh
 
+    - name: Set PostgreSQL backup file permissions to 0600
+      ansible.builtin.file:
+        path: "{{ oim_host_backup_dir }}/openchami/postgresql_backup/openchami.sql"
+        mode: "0600"
+      when: pgdump_result.rc == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
     - name: Create empty backup marker if pg_dump failed
       ansible.builtin.copy:
         content: |
@@ -188,7 +197,7 @@
           -- Database may be empty (prepare_oim-only scenario)
           -- stderr: {{ pgdump_result.stderr | default('') | trim }}
         dest: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
-        mode: "{{ file_permissions_644 }}"
+        mode: "{{ file_permissions_600 }}"
       when: pgdump_result.rc | default(1) != 0
 
     - name: Display pg_dump warning if it failed
@@ -232,7 +241,7 @@
       ansible.builtin.file:
         path: "{{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}"
         state: directory
-        mode: "{{ dir_permissions_755 }}"
+        mode: "{{ dir_permissions_700 }}"
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -249,6 +258,8 @@
       ansible.builtin.shell: |
         set -o pipefail
         cp -a {{ openchami_etc_dir }}/. {{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}/
+        chmod -R 0600 {{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}/*
+        find {{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }} -type d -exec chmod 0700 {} \;
       register: etc_openchami_backup_result
       changed_when: etc_openchami_backup_result.rc == 0
       when: etc_openchami_stat.stat.exists | default(false)
@@ -318,7 +329,7 @@
             path: "{{ backup_etc_openchami_subpath }}"
             present: {{ etc_openchami_backup_stat.stat.exists | default(false) }}
         dest: "{{ openchami_backup_dir }}/openchami_backup_manifest.yml"
-        mode: "{{ file_permissions_644 }}"
+        mode: "{{ file_permissions_600 }}"
 
     - name: Display backup completion summary
       ansible.builtin.debug:
