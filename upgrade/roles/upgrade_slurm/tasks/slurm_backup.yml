@@ -137,31 +137,3 @@
   ansible.builtin.fail:
     msg: "SLURM: MySQL datadir not found in nfs"
   when: not is_mysql_datadir
-
-- name: Create backup directory
-  when: backup_slurm_nfs_contents
-  block:
-    - name: Create backup directory structure
-      ansible.builtin.file:
-        path: "{{ slurm_nfs_mounted_path }}/slurm_21_nfs_backups/{{ item }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-      loop:
-        - "etc/slurm"
-        - "var/lib/mysql"
-
-    - name: Backup etc/slurm directory
-      ansible.builtin.copy:
-        src: "{{ ctld_dir_nfs }}/etc/slurm/"
-        dest: "{{ slurm_nfs_mounted_path }}/slurm_21_nfs_backups/etc/slurm"
-        remote_src: true
-        mode: preserve
-
-    - name: Backup var/lib/mysql directory
-      ansible.builtin.copy:
-        src: "{{ ctld_dir_nfs }}/var/lib/mysql/"
-        dest: "{{ slurm_nfs_mounted_path }}/slurm_21_nfs_backups/var/lib/mysql"
-        remote_src: true
-        mode: preserve

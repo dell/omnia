@@ -30,6 +30,7 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 YELLOW='\033[0;33m'
+WHITE='\033[0;37m'
 
 # Function to get version from git tag
 get_version_from_git_tag() {
@@ -1785,14 +1786,11 @@ backup_openchami_data() {
         return 0
     fi
 
-    # Create openchami backup directory structure with secure permissions
+    # Create openchami backup directory structure
     if ! podman exec -u root omnia_core bash -c "
         set -e
         mkdir -p '${backup_base%/}/openchami/openchami_data'
-        chmod 0700 '${backup_base%/}/openchami'
         cp -a /opt/omnia/openchami/. '${backup_base%/}/openchami/openchami_data/' 2>&1
-        chmod -R 0600 '${backup_base%/}/openchami/openchami_data'/*
-        find '${backup_base%/}/openchami/openchami_data' -type d -exec chmod 0700 {} \;
     "; then
         echo "[WARN] [ORCHESTRATOR] Failed to backup OpenCHAMI data — upgrade will continue"
         return 0
@@ -1809,17 +1807,15 @@ backup_openchami_data() {
     if [ -f "/etc/systemd/system/openchami.target" ]; then
         podman cp "/etc/systemd/system/openchami.target" \
             "omnia_core:${backup_base%/}/openchami/openchami.target" >/dev/null 2>&1 || true
-        podman exec -u root omnia_core chmod 0600 "${backup_base%/}/openchami/openchami.target" 2>/dev/null || true
         echo "[INFO] [ORCHESTRATOR] openchami.target backed up"
     fi
 
     # Backup quadlet .container files from host (if they exist)
     if ls /etc/containers/systemd/*.container >/dev/null 2>&1; then
-        podman exec -u root omnia_core bash -c "mkdir -p '${backup_base%/}/openchami/quadlets' && chmod 0700 '${backup_base%/}/openchami/quadlets'" 2>/dev/null || true
+        podman exec -u root omnia_core mkdir -p "${backup_base%/}/openchami/quadlets" 2>/dev/null || true
         for qfile in /etc/containers/systemd/*.container; do
             podman cp "$qfile" \
                 "omnia_core:${backup_base%/}/openchami/quadlets/$(basename "$qfile")" >/dev/null 2>&1 || true
-            podman exec -u root omnia_core chmod 0600 "${backup_base%/}/openchami/quadlets/$(basename "$qfile")" 2>/dev/null || true
         done
         echo "[INFO] [ORCHESTRATOR] Quadlet .container files backed up"
     fi
@@ -1827,11 +1823,10 @@ backup_openchami_data() {
     # Backup quadlet .network files from host (if they exist)
     # These define Podman networks that enable DNS resolution between containers
     if ls /etc/containers/systemd/*.network >/dev/null 2>&1; then
-        podman exec -u root omnia_core bash -c "mkdir -p '${backup_base%/}/openchami/quadlets' && chmod 0700 '${backup_base%/}/openchami/quadlets'" 2>/dev/null || true
+        podman exec -u root omnia_core mkdir -p "${backup_base%/}/openchami/quadlets" 2>/dev/null || true
         for nfile in /etc/containers/systemd/*.network; do
             podman cp "$nfile" \
                 "omnia_core:${backup_base%/}/openchami/quadlets/$(basename "$nfile")" >/dev/null 2>&1 || true
-            podman exec -u root omnia_core chmod 0600 "${backup_base%/}/openchami/quadlets/$(basename "$nfile")" 2>/dev/null || true
         done
         echo "[INFO] [ORCHESTRATOR] Quadlet .network files backed up"
     fi
@@ -2533,7 +2528,7 @@ rollback_omnia_core() {
             echo "[INFO] [ROLLBACK] No components upgraded yet. Core container rollback is safe to proceed."
         fi
     else
-        echo "[INFO] [ROLLBACK] No upgrade manifest found. Core container rollback is safe to proceed."
+        echo -e "${WHITE}[INFO] [ROLLBACK] No upgrade manifest found. Core container rollback is safe to proceed.${NC}"
     fi
     # ═══════════════════════════════════════════════════════════════════════════
     
@@ -2641,6 +2636,14 @@ rollback_omnia_core() {
         upgrade_guard_lock_path=$(get_upgrade_guard_lock_path)
         rm -f "$upgrade_guard_lock_path" >/dev/null 2>&1 || true
         echo "[INFO] [ROLLBACK] Cleared upgrade guard lock: $upgrade_guard_lock_path"
+
+        # Remove upgrade_backup_dir and previous_omnia_version from metadata
+        # These are upgrade-only fields that should not persist after rollback
+        podman exec -u root omnia_core bash -c "
+            sed -i '/^upgrade_backup_dir:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+            sed -i '/^previous_omnia_version:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+        " 2>/dev/null || true
+        echo "[INFO] [ROLLBACK] Cleaned upgrade_backup_dir and previous_omnia_version from metadata"
 
         # Fetch config from restored metadata (populates omnia_path, domain_name, etc.)
         fetch_config
@@ -2778,6 +2781,14 @@ rollback_omnia_core() {
 
     rm -f "$upgrade_guard_lock_path" >/dev/null 2>&1 || true
     echo "[INFO] [ROLLBACK] Cleared upgrade guard lock: $upgrade_guard_lock_path"
+
+    # Remove upgrade_backup_dir and previous_omnia_version from metadata
+    # These are upgrade-only fields that should not persist after rollback
+    podman exec -u root omnia_core bash -c "
+        sed -i '/^upgrade_backup_dir:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+        sed -i '/^previous_omnia_version:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+    " 2>/dev/null || true
+    echo "[INFO] [ROLLBACK] Cleaned upgrade_backup_dir and previous_omnia_version from metadata"
 
     # Fetch config from restored metadata (populates omnia_path, domain_name, etc.)
     fetch_config
