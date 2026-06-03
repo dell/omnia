@@ -353,13 +353,13 @@ msg_powerscale_v22_version_missing: |
   Please check the software_config.json file.
 msg_powerscale_values_transform_summary: |
   PowerScale CSI driver values.yaml transformed: {{ powerscale_v21_version }} to {{ powerscale_v22_version }}.
-  Backup preserved at: {{ backup_location }}/values.yaml
-  Target: {{ input_project_dir }}/values.yaml
+  Backup preserved at: {{ backup_location }}/{{ powerscale_values_filename | default('values.yaml') }}
+  Target: {{ input_project_dir }}/{{ powerscale_values_filename | default('values.yaml') }}
   Changes:
   - Downloaded {{ powerscale_v22_version }} values.yaml template from GitHub
   - Preserved v2.1 settings: isiPath, isiAccessZone, controllerCount, custom configurations
   - Updated to {{ powerscale_v22_version }} structure with new parameters
-  Secret file copied: {{ input_project_dir }}/secret.yaml
+  Secret file copied: {{ input_project_dir }}/{{ powerscale_secret_filename | default('secret.yaml') }}
 
 # PowerScale GitHub URL template for values.yaml
 powerscale_values_github_url_template: "https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-{version}/charts/csi-isilon/values.yaml"
