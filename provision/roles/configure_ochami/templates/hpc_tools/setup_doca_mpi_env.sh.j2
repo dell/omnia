@@ -1,0 +1,60 @@
+#!/bin/bash
+LOGFILE="/var/log/setup_doca_mpi_env.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== Setting up DOCA MPI Environment ====="
+echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+
+# DOCA MPI installation path
+DOCA_MPI_PATH="/usr/mpi/gcc/openmpi-4.1.9a1"
+PROFILE_DIR="/etc/profile.d"
+
+# Check if DOCA MPI is installed
+if [ ! -d "$DOCA_MPI_PATH" ]; then
+    echo "[ERROR] DOCA MPI not found at $DOCA_MPI_PATH"
+    echo "[INFO] DOCA MPI installation may have failed"
+    exit 1
+fi
+
+echo "[INFO] DOCA MPI found at $DOCA_MPI_PATH"
+
+# Create DOCA MPI environment profile
+cat > "$PROFILE_DIR/doca_mpi.sh" <<'ENVEOF'
+#!/bin/bash
+# DOCA MPI and UCX Environment Setup
+# Automatically configured for DOCA OpenMPI 4.1.9a1
+
+# DOCA OpenMPI environment
+export PATH=/usr/mpi/gcc/openmpi-4.1.9a1/bin:$PATH
+export LD_LIBRARY_PATH=/usr/mpi/gcc/openmpi-4.1.9a1/lib64:$LD_LIBRARY_PATH
+export MANPATH=/usr/mpi/gcc/openmpi-4.1.9a1/share/man:$MANPATH
+export MPI_ROOT=/usr/mpi/gcc/openmpi-4.1.9a1
+
+# DOCA UCX environment (included with DOCA-OFED)
+export UCX_HOME=/usr/mpi/gcc/openmpi-4.1.9a1
+export UCX_LIB_DIR=/usr/mpi/gcc/openmpi-4.1.9a1/lib64
+ENVEOF
+
+chmod 644 "$PROFILE_DIR/doca_mpi.sh"
+echo "[SUCCESS] DOCA MPI environment configured in $PROFILE_DIR/doca_mpi.sh"
+
+# Source the environment immediately for current session
+source "$PROFILE_DIR/doca_mpi.sh"
+
+# Verify installation
+if command -v mpirun &> /dev/null; then
+    MPI_VERSION=$(mpirun --version | head -1)
+    echo "[SUCCESS] DOCA MPI environment verified: $MPI_VERSION"
+else
+    echo "[ERROR] mpirun not found after environment setup"
+    exit 1
+fi
+
+if command -v mpicc &> /dev/null; then
+    echo "[SUCCESS] mpicc compiler available"
+else
+    echo "[WARN] mpicc compiler not found"
+fi
+
+echo "[INFO] DOCA MPI environment setup completed successfully"
+echo "===== DOCA MPI Environment Setup Complete ====="

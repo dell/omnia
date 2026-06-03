@@ -444,7 +444,7 @@ def extract_server_info(client, device, device_group_map=None):
     fallback_nic_link_status = ""
     for nic in nic_info_list:
         nic_id = nic.get("NicId", "")
-        if "iDRAC" not in nic_id.upper():
+        if "iDRAC" not in nic_id.upper() and "INFINIBAND" not in nic_id.upper():
             ports = nic.get("Ports", [])
             for port in ports:
                 partitions = port.get("Partitions", [])
@@ -457,9 +457,9 @@ def extract_server_info(client, device, device_group_map=None):
                 if not fallback_nic_mac:
                     fallback_nic_name = nic_id
                     fallback_nic_mac = mac
-                    fallback_nic_link_status = (port.get("LinkStatus") or "").strip()
+                    fallback_nic_link_status = (port.get("LinkStatus") or "Unknown").strip()
                 # Prefer port with LinkStatus "Up"
-                link_status = (port.get("LinkStatus") or "").strip()
+                link_status = (port.get("LinkStatus") or "Unknown").strip()
                 if link_status.upper() == "UP":
                     info["first_nic_name"] = nic_id
                     info["first_nic_mac"] = mac
@@ -478,7 +478,7 @@ def extract_server_info(client, device, device_group_map=None):
         device_nics = client.get_device_inventory(device_id, "deviceNics")
         for nic in device_nics.get("InventoryInfo", []):
             nic_id = nic.get("NicId", "")
-            if "iDRAC" not in str(nic_id).upper():
+            if "iDRAC" not in str(nic_id).upper() and "INFINIBAND" not in str(nic_id).upper():
                 info["first_nic_name"] = nic_id
                 info["first_nic_mac"] = nic.get("MacAddress", "")
                 break
@@ -497,7 +497,7 @@ def extract_server_info(client, device, device_group_map=None):
         for port in nic.get("Ports", []):
             port_id = port.get("PortId", "")
             candidate = port_id if port_id else nic_id
-            link_status = (port.get("LinkStatus") or "").strip().upper()
+            link_status = (port.get("LinkStatus") or "Unknown").strip().upper()
             if link_status == "UP":
                 info["ib_nic_name"] = candidate
                 info["ib_nic_link_status"] = "Up"
@@ -505,11 +505,11 @@ def extract_server_info(client, device, device_group_map=None):
             port_priority = _IB_STATUS_PRIORITY.get(link_status, 2)
             if port_priority < fallback_ib_priority:
                 fallback_ib_nic_name = candidate
-                fallback_ib_link_status = (port.get("LinkStatus") or "").strip()
+                fallback_ib_link_status = (port.get("LinkStatus") or "Unknown").strip()
                 fallback_ib_priority = port_priority
             elif port_priority == fallback_ib_priority and not fallback_ib_nic_name:
                 fallback_ib_nic_name = candidate
-                fallback_ib_link_status = (port.get("LinkStatus") or "").strip()
+                fallback_ib_link_status = (port.get("LinkStatus") or "Unknown").strip()
         if info["ib_nic_name"]:
             break
     if not info["ib_nic_name"] and fallback_ib_nic_name:

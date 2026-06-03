@@ -145,6 +145,7 @@
   connection: ssh
   gather_facts: false
   vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir"
   tasks:
     - name: Skip if slurm upgrade not needed
@@ -164,6 +165,22 @@
         - name: Display message
           ansible.builtin.debug:
             msg: "Slurm is not configured in software_config.json. Skipping Slurm upgrade."
+
+        - name: Read upgrade_manifest.yml
+          ansible.builtin.include_vars:
+            file: "{{ manifest_path }}"
+            name: manifest
+
+        - name: Add skipped to upgrade_manifest
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                      'component_status': manifest.component_status | combine({
+                        'slurm': 'skipped'
+                      })
+                    }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
 
         - name: End play
           ansible.builtin.meta: end_play
@@ -432,9 +449,27 @@
       ansible.builtin.debug:
         var: slurm_nodes
 
-    - name: End play if no slurm nodes found in inventory
-      ansible.builtin.meta: end_play
+    - name: Include omnia_config
+      ansible.builtin.include_vars:
+        file: "{{ manifest_path }}"
+        name: manifest
+
+    - name: Handle skipped case
       when: slurm_nodes | length == 0
+      block:
+        - name: Add skipped to upgrade_manifest
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                      'component_status': manifest.component_status | combine({
+                        'slurm': 'skipped'
+                      })
+                    }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+
+        - name: End play if no slurm nodes found in inventory
+          ansible.builtin.meta: end_play
 
     - name: Set filtered nodes
       ansible.builtin.set_fact:
@@ -602,28 +637,27 @@
             msg: "[UPGRADE] Slurm upgrade failed. Review the report above and re-run after remediation."
 
     - name: Generate and display success report
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: |
           =======================================================================
           [UPGRADE] SLURM UPGRADE — ALL NODES VERIFIED SUCCESSFULLY
           =======================================================================
+
           Verified: {{ success_nodes | length }} / {{ slurm_nodes | length }} nodes
-            Reboot complete | SSH active | Slurm (sinfo) responding on all nodes.
-          Controller: slurmctld UP | sinfo OK
-            {{ ctld_results | default([]) | map(attribute='sinfo_node_count') | map('int') | sum }} node(s) visible from controller.
-          Cluster is ready for workload submission.
+            ✓ Reboot complete | SSH active | Slurm (sinfo) responding on all nodes
+
+          Controller Status:
+            ✓ slurmctld UP | sinfo OK
+            ✓ {{ ctld_results | default([]) | map(attribute='sinfo_node_count') | map('int') | sum }} node(s) visible from controller
+
+          Cluster is ready for workload submission!
           =======================================================================
-      when: not slurm_upgrade_failed
 
     - name: Remove reboot flag after successful verification
       ansible.builtin.file:
         path: /opt/omnia/.data/slurm_upgrade_reboot_state.yml
         state: absent
-
-    - name: Include omnia_config
-      ansible.builtin.include_vars:
-        file: "{{ manifest_path }}"
-        name: manifest
 
     - name: Mark slurm upgrade as completed
       ansible.builtin.copy:
