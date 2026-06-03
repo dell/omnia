@@ -335,6 +335,10 @@
             grep -q "^nodeStatusReportFrequency:" $CONFIG_FILE || echo "nodeStatusReportFrequency: 10s" >> $CONFIG_FILE
             grep -q "^syncFrequency:" $CONFIG_FILE || echo "syncFrequency: 10s" >> $CONFIG_FILE
 
+            # Enable old Kubernetes behavior: reset pod status on kubelet restart
+            echo "Adding kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+
             # Restart kubelet to apply changes
             systemctl restart kubelet
             # Mark initialization complete so all of above is skipped on reboot!
@@ -345,6 +349,12 @@
             # SUBSEQUENT BOOT - SKIP JOIN
             echo "service_kube_node_x86_64 is already part of cluster."
             echo "Cluster already initialized. Performing node reboot procedures."
+            
+            # Reapply kubelet feature gate (ephemeral overlay filesystem)
+            echo "Reapplying kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+            systemctl daemon-reload
+            
             # CRI and kubelet already enabled above
             systemctl status kubelet
             echo "Cloud-Init finished successfully after the reboot."
