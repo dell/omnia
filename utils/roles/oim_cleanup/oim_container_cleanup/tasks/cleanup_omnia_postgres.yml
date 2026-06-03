@@ -16,6 +16,10 @@
   ansible.builtin.set_fact:
     postgres_backup: "{{ postgres_backup | default(true) }}"
 
+- name: Set postgres_user from hostvars or default to admin
+  ansible.builtin.set_fact:
+    postgres_user: "{{ hostvars['localhost']['postgres_user'] | default('admin') }}"
+
 - name: Display cleanup mode
   ansible.builtin.debug:
     msg: "{{ postgres_cleanup_mode_msg }}"
@@ -32,7 +36,7 @@
       ansible.builtin.command:
         cmd: >-
           podman exec {{ postgres_container_name }}
-          psql -U admin -d build_stream_db -tAc
+          psql -U {{ postgres_user }} -d build_stream_db -tAc
           "SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'image_groups');"
       register: image_groups_table_check
       changed_when: false
@@ -45,7 +49,7 @@
       ansible.builtin.command:
         cmd: >-
           podman exec {{ postgres_container_name }}
-          psql -U admin -d build_stream_db -tAc
+          psql -U {{ postgres_user }} -d build_stream_db -tAc
           "SELECT COUNT(*) FROM image_groups WHERE status != 'CLEANED';"
       register: non_cleaned_count
       changed_when: false
@@ -58,7 +62,7 @@
       ansible.builtin.command:
         cmd: >-
           podman exec {{ postgres_container_name }}
-          psql -U admin -d build_stream_db -c
+          psql -U {{ postgres_user }} -d build_stream_db -c
           "UPDATE image_groups SET status = 'CLEANED', updated_at = NOW()
           WHERE status != 'CLEANED';"
       register: image_groups_update
