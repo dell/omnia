@@ -102,6 +102,18 @@ SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = ("The 'service_node' role defined 
     " is not currently supported and is reserved for future use. Please remove or update this role"
     " to avoid configuration errors.")
 
+# Mapping file and software_config.json consistency validation messages
+SERVICE_K8S_FUNCTIONAL_GROUP_WITHOUT_SOFTWARE_MSG = (
+    "Service Kubernetes functional groups (service_kube_node_* or service_kube_control_plane_*) "
+    "are defined in the PXE mapping file, but 'service_k8s' is not configured in software_config.json. "
+    "Please add 'service_k8s' to the 'softwares' list in software_config.json to deploy the service cluster."
+)
+SLURM_FUNCTIONAL_GROUP_WITHOUT_SOFTWARE_MSG = (
+    "Slurm functional groups (slurm_control_node_* or slurm_node_*) "
+    "are defined in the PXE mapping file, but 'slurm_custom' is not configured in software_config.json. "
+    "Please add 'slurm_custom' to the 'softwares' list in software_config.json to deploy the Slurm cluster."
+)
+
 # Functional Groups Config Validation Messages
 
 EMPTY_OR_SYNTAX_ERROR_FUNCTIONAL_GROUPS_CONFIG_MSG = (
