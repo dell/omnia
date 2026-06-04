@@ -426,33 +426,14 @@
         state: absent
     # ─────────────────────────────────────────────────────────────────────────
 
-    # FIX 3: Read from cleaned_component_status (real-time accurate values)
-    #        instead of rollback_manifest.component_status (stale/corrupt).
-    - name: Display rollback summary
-      ansible.builtin.debug:
-        msg:
-          - "========================================="
-          - "       ROLLBACK {{ new_status | upper }}"
-          - "========================================="
-          - "Rollback ID: {{ rollback_manifest.rollback_id }}"
-          - "Source: {{ rollback_manifest.source_version }} → Target: {{ rollback_manifest.target_version }}"
-          - ""
-          - "Component Status:"
-          - "  slurm:          {{ cleaned_component_status.slurm }}"
-          - "  k8s-telemetry:  {{ cleaned_component_status['k8s-telemetry'] }}"
-          - "  build_stream:   {{ cleaned_component_status.build_stream }}"
-          - "  oim:            {{ cleaned_component_status.oim }}"
-          - ""
-          - "Upgrade manifest archived; next upgrade run will start fresh."
-          - ""
-          - "========================================="
-          - "       NEXT REQUIRED STEP"
-          - "========================================="
-          - "Exit the omnia_core container and run the following command on the OIM host:"
-          - ""
-          - "  sudo ./omnia.sh --rollback"
-          - ""
-          - "This will rollback the omnia_core container image to the previous version."
+    # Save rollback summary facts for the final banner play
+    - name: Save rollback summary facts
+      ansible.builtin.set_fact:
+        _rollback_new_status: "{{ new_status }}"
+        _rollback_id: "{{ rollback_manifest.rollback_id }}"
+        _rollback_source_version: "{{ rollback_manifest.source_version }}"
+        _rollback_target_version: "{{ rollback_manifest.target_version }}"
+        _rollback_component_status: "{{ cleaned_component_status }}"
 
 # ──────────────────────────────────────────────────────────────────────
 # Archive upgrade/rollback artifacts on NFS share.
@@ -464,6 +445,55 @@
 - name: Archive upgrade artifacts on NFS
   ansible.builtin.import_playbook: playbooks/archive_upgrade_artifacts.yml
   tags: always
+
+# ──────────────────────────────────────────────────────────────────────
+# Final rollback summary banner — displayed last so the user sees
+# the important "NEXT REQUIRED STEP" message at the end.
+# ──────────────────────────────────────────────────────────────────────
+- name: Display rollback summary
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Skip banner if finalize did not complete
+      ansible.builtin.meta: end_play
+      when: _rollback_new_status is not defined
+
+    - name: Display rollback summary banner
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            ['=========================================',
+             '       ROLLBACK ' + (_rollback_new_status | upper),
+             '=========================================',
+             'Rollback ID: ' + _rollback_id,
+             'Source: ' + _rollback_source_version + ' → Target: ' + _rollback_target_version,
+             '',
+             'Component Status:',
+             '  slurm:          ' + _rollback_component_status.slurm,
+             '  k8s-telemetry:  ' + _rollback_component_status['k8s-telemetry'],
+             '  build_stream:   ' + _rollback_component_status.build_stream,
+             '  oim:            ' + _rollback_component_status.oim]
+            +
+            (['',
+              'Upgrade manifest archived; next upgrade run will start fresh.',
+              '',
+              '=========================================',
+              '       NEXT REQUIRED STEP',
+              '=========================================',
+              'Exit the omnia_core container and run the following command on the OIM host:',
+              '',
+              '  sudo ./omnia.sh --rollback',
+              '',
+              'This will rollback the omnia_core container image to the previous version.']
+             if _rollback_new_status == 'completed'
+             else
+             ['',
+              'Some components are not yet rolled back.',
+              'Run rollback again to complete the remaining components.']
+            )
+          }}
 
 # ──────────────────────────────────────────────────────────────────────
 # Guaranteed terminal cleanup (C-30) — defense-in-depth against
