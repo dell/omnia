@@ -30,7 +30,7 @@
   ansible.builtin.copy:
     src: /etc/kubernetes/manifests/kube-controller-manager.yaml
     dest: "/tmp/kube-controller-manager-backup-{{ now(utc=true).strftime('%Y%m%d%H%M%S') }}.yaml"
-    remote_src: yes
+    remote_src: true
     mode: '0644'
   when: _kcm_manifest_stat.stat.exists
 
@@ -62,22 +62,22 @@
 - name: Check each required argument
   ansible.builtin.set_fact:
     _needs_update: true
-  when: 
+  when:
     - _kcm_manifest_stat.stat.exists
     - item not in _kcm_manifest
   loop: "{{ _required_kcm_args }}"
 
 - name: Update kube-controller-manager manifest with required arguments
   ansible.builtin.shell: |
-    set -e
+    set -eo pipefail
     MANIFEST="/etc/kubernetes/manifests/kube-controller-manager.yaml"
-    
+
     # Function to add or update argument
     add_or_update_arg() {
       local arg_name="$1"
       local arg_value="$2"
       local full_arg="--${arg_name}=${arg_value}"
-      
+
       # Check if argument exists
       if grep -q "^\s*- --${arg_name}=" "$MANIFEST"; then
         # Update existing argument
@@ -89,7 +89,7 @@
         echo "Added: ${full_arg}"
       fi
     }
-    
+
     # Update/add each argument
     add_or_update_arg "node-monitor-period" "5s"
     add_or_update_arg "node-monitor-grace-period" "40s"
@@ -97,11 +97,12 @@
     add_or_update_arg "secondary-node-eviction-rate" "1"
     add_or_update_arg "terminated-pod-gc-threshold" "50"
     add_or_update_arg "controllers" "*,nodeipam,nodelifecycle,bootstrapsigner,tokencleaner"
-    
+
     echo "kube-controller-manager manifest updated successfully"
   args:
     executable: /bin/bash
-  when: 
+  changed_when: _kcm_update_result.rc == 0
+  when:
     - _kcm_manifest_stat.stat.exists
     - _needs_update | bool
   register: _kcm_update_result
@@ -109,14 +110,14 @@
 - name: Display update result
   ansible.builtin.debug:
     msg: "{{ _kcm_update_result.stdout_lines }}"
-  when: 
+  when:
     - _kcm_update_result is defined
     - _kcm_update_result is changed
 
 - name: Wait for kube-controller-manager to restart (kubelet auto-restarts static pods)
   ansible.builtin.pause:
     seconds: 30
-  when: 
+  when:
     - _kcm_update_result is defined
     - _kcm_update_result is changed
 
@@ -127,18 +128,19 @@
 - name: Verify kube-controller-manager is running
   ansible.builtin.shell: |
     kubectl get pod kube-controller-manager-{{ _node_ip }} -n kube-system -o jsonpath='{.status.phase}'
+  changed_when: false
   register: _kcm_status
   retries: 10
   delay: 5
   until: _kcm_status.stdout == "Running"
   delegate_to: "{{ kube_vip }}"
-  when: 
+  when:
     - _kcm_update_result is defined
     - _kcm_update_result is changed
 
 - name: Display success message
   ansible.builtin.debug:
     msg: "kube-controller-manager arguments successfully updated on {{ _node_ip }}"
-  when: 
+  when:
     - _kcm_update_result is defined
     - _kcm_update_result is changed

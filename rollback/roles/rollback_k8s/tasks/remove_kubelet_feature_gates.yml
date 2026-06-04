@@ -54,7 +54,7 @@
       loop: "{{ _kubelet_config_remove.results }}"
       loop_control:
         label: "{{ item.item }}"
-      when: item.changed
+      when: item.changed # noqa: no-handler
 
     - name: Reload systemd daemon on all nodes
       ansible.builtin.systemd_service:

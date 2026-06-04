@@ -101,7 +101,16 @@
 # Note: daemon-reload and kubelet restart are handled by the caller
 # (step_kubelet_restart.yml). No restart here to avoid double restart.
 
+- name: Determine node role label
+  ansible.builtin.set_fact:
+    _node_role: >-
+      {{ 'cp_first' if (_is_cp_first | bool)
+         else 'cp_additional' if (_is_cp_additional | bool)
+         else 'worker' }}
+
 - name: Display kubelet config update status
   ansible.builtin.debug:
-    msg: "Updated /var/lib/kubelet/config.yaml on {{ inventory_hostname }} (role: {{ 'cp_first' if (_is_cp_first | bool) else 'cp_additional' if (_is_cp_additional | bool) else 'worker' }})"
+    msg: >-
+      Updated /var/lib/kubelet/config.yaml
+      on {{ inventory_hostname }} (role: {{ _node_role }})
   when: _kubelet_config_stat.stat.exists
