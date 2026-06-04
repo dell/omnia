@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Get etcd pod name on {{ current_node_name }}
+- name: Wait for etcd pod on {{ current_node_name }}
   ansible.builtin.command:
     cmd: >-
       kubectl get pods -n kube-system
@@ -22,6 +22,11 @@
   delegate_to: "{{ kube_vip }}"
   register: etcd_pod
   changed_when: false
+  retries: 30
+  delay: 10
+  until:
+    - etcd_pod.rc == 0
+    - etcd_pod.stdout | length > 0
 
 - name: Check etcd cluster health after upgrade (kubectl exec) - {{ current_node_name }}
   ansible.builtin.command:
