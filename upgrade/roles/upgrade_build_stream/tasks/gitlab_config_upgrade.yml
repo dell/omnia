@@ -140,7 +140,7 @@
       ACTION REQUIRED:
         Wait for all pipelines to complete or cancel them before re-running.
       ============================================================
-  when: _active_pipeline_list | default([]) | length > 0
+  when: _active_pipeline_list | default([], true) | length > 0
 
 # ══════════════════════════════════════════════════════════════════
 # GL-TAG: Create pre-upgrade tag for rollback safety

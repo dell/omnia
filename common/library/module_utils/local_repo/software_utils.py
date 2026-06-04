@@ -17,14 +17,18 @@
 This module util contains all custom software utilities used across custom modules
 """
 from collections import defaultdict
+import logging
 import os
 import json
 import csv
 import re
 import shlex
+import ssl
 import yaml
 from jinja2 import Template
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
 from ansible.module_utils.local_repo.parse_and_download import execute_command
@@ -92,7 +96,7 @@ def load_json(file_path):
         ValueError: If the JSON parsing fails.
     """
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Error: File '{file_path}' not found.") from exc
@@ -170,6 +174,35 @@ def get_csv_file_path(software_name, user_csv_dir, arch):
     return status_csv_file_path
 
 
+class _RelaxedCAAdapter(HTTPAdapter):
+    """HTTPAdapter that loads a custom CA but clears VERIFY_X509_STRICT.
+
+    Python 3.13+ enforces strict RFC 5280 Basic Constraints validation,
+    rejecting CA certs where the extension is not marked critical. Some
+    vendor CAs (e.g. Red Hat redhat-uep.pem) have non-critical Basic
+    Constraints which OpenSSL/curl accept. This adapter restores the
+    Python 3.12 behavior while keeping full chain and hostname validation.
+
+    Remove this workaround once the upstream CA is reissued with the
+    Basic Constraints extension marked critical.
+    """
+
+    def __init__(self, ca_cert, client_cert, client_key, *args, **kwargs):
+        self._ca_cert = ca_cert
+        self._client_cert = client_cert
+        self._client_key = client_key
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        ctx = ssl.create_default_context(cafile=self._ca_cert)
+        ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
+        if self._client_cert and self._client_key:
+            ctx.load_cert_chain(self._client_cert, self._client_key)
+        self.poolmanager = PoolManager(
+            num_pools=connections, maxsize=maxsize,
+            block=block, ssl_context=ctx, **pool_kwargs)
+
+
 def is_remote_url_reachable(remote_url, timeout=10,
                             client_cert=None, client_key=None, ca_cert=None):
     """
@@ -186,20 +219,41 @@ def is_remote_url_reachable(remote_url, timeout=10,
     Returns:
         bool: True if the URL is reachable (HTTP status 200), False otherwise.
     """
+    logger = logging.getLogger(__name__)
     try:
         # Check if SSL certs are provided and handle accordingly
         if client_cert and client_key and ca_cert:
-            response = requests.get(
-                remote_url,
-                cert=(client_cert, client_key),
-                verify=ca_cert,
-                timeout=timeout
-            )
+            try:
+                response = requests.get(
+                    remote_url,
+                    cert=(client_cert, client_key),
+                    verify=ca_cert,
+                    timeout=timeout
+                )
+            except requests.exceptions.SSLError as ssl_exc:
+                # Python 3.13+ rejects CA certs with non-critical Basic
+                # Constraints (RFC 5280 strict mode). Retry against the
+                # SAME CA with VERIFY_X509_STRICT cleared — still validates
+                # the full chain and hostname, just relaxes the one check.
+                logger.warning(
+                    f"Strict SSL verification failed for {remote_url}: "
+                    f"{ssl_exc}. Retrying with VERIFY_X509_STRICT cleared.")
+                session = requests.Session()
+                adapter = _RelaxedCAAdapter(
+                    ca_cert, client_cert, client_key)
+                session.mount("https://", adapter)
+                response = session.get(remote_url, timeout=timeout)
         else:
             # Proceed with a regular HTTP request if no SSL certs are provided
             response = requests.get(remote_url, timeout=timeout)
+        if response.status_code != 200:
+            logger.error(
+                f"URL {remote_url} returned HTTP {response.status_code}")
         return response.status_code == 200
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            f"URL reachability exception for {remote_url}: "
+            f"{type(exc).__name__}: {exc}")
         return False
 
 def transform_package_dict(data, arch_val,logger):
@@ -396,6 +450,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             )
 
             logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
+            logger.info(f"RHEL SSL paths: ca_cert={ca_cert}, client_key={client_key}, client_cert={client_cert}")
+            logger.info(f"RHEL SSL files exist: ca_cert={os.path.exists(ca_cert) if ca_cert else 'N/A'}, "
+                         f"client_key={os.path.exists(client_key) if client_key else 'N/A'}, "
+                         f"client_cert={os.path.exists(client_cert) if client_cert else 'N/A'}")
 
             for path in [ca_cert, client_key, client_cert]:
                 mode = "decrypt"
@@ -573,7 +631,7 @@ def get_csv_software(file_name):
     if not os.path.isfile(file_name):
         return csv_software
 
-    with open(file_name, mode='r') as csv_file:
+    with open(file_name, mode='r', encoding='utf-8') as csv_file:
         reader = csv.DictReader(csv_file)
         csv_software = [row.get(CSV_COLUMNS["column1"], "").strip()
                         for row in reader]
@@ -596,7 +654,7 @@ def get_failed_software(file_path):
     if not os.path.isfile(file_path):
         return failed_software
 
-    with open(file_path, mode='r') as csv_file:
+    with open(file_path, mode='r', encoding='utf-8') as csv_file:
         reader = csv.DictReader(csv_file)
         failed_software = [
             str(row.get(CSV_COLUMNS["column1"]) or "").strip()
@@ -796,7 +854,7 @@ def check_csv_existence(path):
 
 def read_status_csv(csv_path):
     """Reads the status.csv file and returns a list of row dictionaries."""
-    with open(csv_path, mode='r', newline='') as file:
+    with open(csv_path, mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         return [row for row in reader]
 
@@ -911,7 +969,7 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
     return combined, failed_packages
 
 def get_software_names(json_file_path):
-    with open(json_file_path, "r") as f:
+    with open(json_file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     softwares = data.get("softwares", [])

@@ -50,7 +50,7 @@
           if (backup_network_spec is mapping and backup_network_spec.admin_network is defined)
           else
             (
-              (backup_network_spec.Networks | default([])
+              (backup_network_spec.Networks | default([], true)
                 | select('mapping')
                 | selectattr('admin_network', 'defined')
                 | map(attribute='admin_network')
@@ -65,7 +65,7 @@
           if (backup_network_spec is mapping and backup_network_spec.ib_network is defined)
           else
             (
-              (backup_network_spec.Networks | default([])
+              (backup_network_spec.Networks | default([], true)
                 | select('mapping')
                 | selectattr('ib_network', 'defined')
                 | map(attribute='ib_network')

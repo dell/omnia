@@ -100,8 +100,12 @@ omnia_credentials:
   idrac_telemetry:
     mandatory:
       - { username: bmc_username, password: bmc_password }
-      - { username: mysqldb_user, password: mysqldb_password }
-      - { password: mysqldb_root_password }
+    conditional_mandatory:
+      - username: mysqldb_user
+        password: mysqldb_password
+        condition: "{{ idrac_telemetry_support | default(false) | bool }}"
+      - password: mysqldb_root_password
+        condition: "{{ idrac_telemetry_support | default(false) | bool }}"
   csi_driver_powerscale:
     conditional_mandatory:
       - username: csi_username

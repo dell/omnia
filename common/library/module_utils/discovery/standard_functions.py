@@ -82,7 +82,7 @@ def update_json(new_data, filepath):
     """
     if os.path.exists(filepath):
         # Load existing data
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             try:
                 existing_data = json.load(f)
             except json.JSONDecodeError:
@@ -94,5 +94,5 @@ def update_json(new_data, filepath):
     existing_data.update(new_data)
 
     # Write back to file
-    with open(filepath, 'w') as f:
+    with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(existing_data, f, indent=2)

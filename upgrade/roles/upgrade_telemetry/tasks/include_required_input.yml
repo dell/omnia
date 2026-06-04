@@ -123,10 +123,10 @@
   ansible.builtin.set_fact:
     victoria_in_targets: >-
       {{
-        telemetry_config.telemetry_sources.idrac.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
-        or telemetry_config.telemetry_sources.powerscale.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
-        or telemetry_config.telemetry_sources.vast.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
-        or telemetry_config.telemetry_sources.ufm.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
+        telemetry_config.telemetry_sources.idrac.collection_targets | default([], true) | select('search', 'victoria_metrics') | list | length > 0
+        or telemetry_config.telemetry_sources.powerscale.collection_targets | default([], true) | select('search', 'victoria_metrics') | list | length > 0
+        or telemetry_config.telemetry_sources.vast.collection_targets | default([], true) | select('search', 'victoria_metrics') | list | length > 0
+        or telemetry_config.telemetry_sources.ufm.collection_targets | default([], true) | select('search', 'victoria_metrics') | list | length > 0
       }}
   when:
     - telemetry_config is defined

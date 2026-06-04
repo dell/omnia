@@ -133,7 +133,7 @@
              | combine({
                  'steps': (
                    rollback_status.nodes[item].steps
-                   | default({})
+                   | default({}, true)
                    | combine({
                        'crio_restart': (
                          rollback_status.nodes[item].steps.crio_restart

@@ -162,7 +162,7 @@
 # user_registry:
 #    - { host: "172.16.107.254:4000", cert_path: "/opt/omnia/domain.crt", key_path: "/opt/omnia/domain.key" }
 user_registry:
-{% set _user_registry = local_repo_user_registry | default([]) %}
+{% set _user_registry = local_repo_user_registry | default([], true) %}
 {% if (_user_registry | length) > 0 %}
 {% for _reg in _user_registry %}
   - { host: {{ (_reg.host | default('')) | to_json }}, cert_path: {{ (_reg.cert_path | default('')) | to_json }}, key_path: {{ (_reg.key_path | default('')) | to_json }} }
@@ -171,14 +171,14 @@ user_registry:
 # user_repo_url_x86_64:
 #  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
-{% set _user_repo_url_x86_64 = local_repo_user_repo_url_x86_64 | default([]) %}
+{% set _user_repo_url_x86_64 = local_repo_user_repo_url_x86_64 | default([], true) %}
 {% if (_user_repo_url_x86_64 | length) > 0 %}
 {% for _repo in _user_repo_url_x86_64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
 {% endfor %}
 {% endif %}
 user_repo_url_aarch64:
-{% set _user_repo_url_aarch64 = local_repo_user_repo_url_aarch64 | default([]) %}
+{% set _user_repo_url_aarch64 = local_repo_user_repo_url_aarch64 | default([], true) %}
 {% if (_user_repo_url_aarch64 | length) > 0 %}
 {% for _repo in _user_repo_url_aarch64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
@@ -190,14 +190,14 @@ user_repo_url_aarch64:
 #  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "baseos"}
 #  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }
 rhel_os_url_x86_64:
-{% set _rhel_os_url_x86_64 = local_repo_rhel_os_url_x86_64 | default([]) %}
+{% set _rhel_os_url_x86_64 = local_repo_rhel_os_url_x86_64 | default([], true) %}
 {% if (_rhel_os_url_x86_64 | length) > 0 %}
 {% for _repo in _rhel_os_url_x86_64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
 {% endfor %}
 {% endif %}
 rhel_os_url_aarch64:
-{% set _rhel_os_url_aarch64 = local_repo_rhel_os_url_aarch64 | default([]) %}
+{% set _rhel_os_url_aarch64 = local_repo_rhel_os_url_aarch64 | default([], true) %}
 {% if (_rhel_os_url_aarch64 | length) > 0 %}
 {% for _repo in _rhel_os_url_aarch64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
@@ -227,14 +227,14 @@ omnia_repo_url_rhel_aarch64:
 #  - { url: "https://rpm.grafana.com/", gpgkey: "", name: "grafana" }
 #  - { url: "https://repo.example.com/x86_64/", gpgkey: "", name: "custom-repo", sslcacert: "/path/ca.crt", sslclientkey: "/path/client.key", sslclientcert: "/path/client.crt" }
 additional_repos_x86_64:
-{% set _additional_repos_x86_64 = local_repo_additional_repos_x86_64 | default([]) %}
+{% set _additional_repos_x86_64 = local_repo_additional_repos_x86_64 | default([], true) %}
 {% if (_additional_repos_x86_64 | length) > 0 %}
 {% for _repo in _additional_repos_x86_64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }} }
 {% endfor %}
 {% endif %}
 additional_repos_aarch64:
-{% set _additional_repos_aarch64 = local_repo_additional_repos_aarch64 | default([]) %}
+{% set _additional_repos_aarch64 = local_repo_additional_repos_aarch64 | default([], true) %}
 {% if (_additional_repos_aarch64 | length) > 0 %}
 {% for _repo in _additional_repos_aarch64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }} }

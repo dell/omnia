@@ -42,17 +42,20 @@ log_lock = multiprocessing.Lock()
 
 def load_docker_credentials(vault_yml_path, vault_password_file):
     """
-    Decrypts an Ansible Vault YAML file, extracts docker_username and docker_password,
-    and validates them using Docker Hub API.
+    Loads docker_username and docker_password from a credentials YAML file,
+    decrypting it with Ansible Vault only when the file is actually encrypted,
+    and validates the credentials using the Docker Hub API.
 
     Validation Logic:
+        - If the file is vault-encrypted, decrypts it using ansible-vault view.
+        - If the file is plain YAML (e.g. during upgrade staging), reads it directly.
         - Validates credentials via Docker Hub REST API
         - Returns credentials if authentication succeeds (HTTP 200)
         - Raises RuntimeError for all authentication failures
 
     Args:
-        vault_yml_path (str): Path to the encrypted Ansible Vault YAML file.
-        vault_password_file (str): Path to the vault password file.
+        vault_yml_path (str): Path to the Ansible Vault YAML file (may or may not be encrypted).
+        vault_password_file (str): Path to the vault password file (used only when encrypted).
 
     Returns:
         tuple: (docker_username, docker_password) or (None, None) if not provided.
@@ -63,17 +66,25 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
                      is not installed.
     """
     try:
-        env = os.environ.copy()
-        env["ANSIBLE_VAULT_PASSWORD_FILE"] = vault_password_file
+        # Check if the file is vault-encrypted before attempting decryption.
+        # If it is plain YAML (e.g. during upgrade where the staging copy was
+        # never encrypted), read it directly to avoid the
+        # "input is not vault encrypted data" error.
+        if is_encrypted(vault_yml_path):
+            env = os.environ.copy()
+            env["ANSIBLE_VAULT_PASSWORD_FILE"] = vault_password_file
 
-        result = subprocess.run(
-            ["ansible-vault", "view", vault_yml_path],
-            capture_output=True,
-            text=True,
-            check=True,
-            env=env
-        )
-        data = yaml.safe_load(result.stdout)
+            result = subprocess.run(
+                ["ansible-vault", "view", vault_yml_path],
+                capture_output=True,
+                text=True,
+                check=True,
+                env=env
+            )
+            data = yaml.safe_load(result.stdout)
+        else:
+            with open(vault_yml_path, "r", encoding="utf-8") as fh:
+                data = yaml.safe_load(fh)
         docker_username = data.get("docker_username")
         docker_password = data.get("docker_password")
 
@@ -142,7 +153,7 @@ def log_table_output(table_output, log_file):
         # Ensure the directory for the log file exists
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         # Write the table output to the log file
-        with open(log_file, "w") as file:
+        with open(log_file, "w", encoding="utf-8") as file:
             file.write("Command Execution Results Table:\n")  # Add a header to the table
             file.write(table_output)  # Write the actual table content
     except Exception as e:
