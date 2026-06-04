@@ -27,7 +27,7 @@
   tasks:
     - name: Set dynamic run tags for discovery validation
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['discovery']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['discovery']) | unique }}"
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations with discovery tag

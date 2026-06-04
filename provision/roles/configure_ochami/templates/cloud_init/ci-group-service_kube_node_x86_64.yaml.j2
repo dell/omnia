@@ -137,8 +137,8 @@
             location = "gcr.io"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
-{% if user_registry | default([]) | length > 0 %}
-{% for registry in user_registry %}
+{% if user_registry | default([], true) | length > 0 %}
+{% for registry in user_registry | default([], true) %}
 
             [[registry]]
             prefix = "{{ registry.host }}"
@@ -147,7 +147,7 @@
             location = "{{ pulp_mirror }}"
 {% endfor %}
 {% endif %}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
         - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
           permissions: '{{ file_mode_755 }}'
           content: |
@@ -161,7 +161,7 @@
         - "chronyc sources"
         - "chronyc -a makestep"
 {# Mount-specific runcmd entries #}
-{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
         - {{ cmd }}
 {% endfor %}
@@ -183,7 +183,7 @@
       {% endif %}
       {% endif %}
 {% endraw %}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %} 
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %} 
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # K8s NFS mount entries
@@ -246,7 +246,7 @@
           [ -n "$search_line" ] && echo "$search_line" > "$tmpfile"
 
           # Add your new nameserver entries
-          {% for ns in dns %}
+          {% for ns in dns | default([], true) %}
           echo "nameserver {{ ns }}" >> "$tmpfile"
           {% endfor %}
 

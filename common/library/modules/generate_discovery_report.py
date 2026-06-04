@@ -85,7 +85,7 @@ def generate_report(servers, output_file):
         os.makedirs(output_dir, exist_ok=True)
 
     server_count = 0
-    with open(output_file, 'w', newline='') as csvfile:
+    with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(REPORT_HEADERS)
 

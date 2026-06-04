@@ -168,3 +168,43 @@
       when: orphaned_pods.stdout_lines | default([]) | length > 0
       delegate_to: "{{ kube_vip }}"
       connection: ssh
+
+    # ── Cleanup old pre-operator services and deployments ──
+    # The operator creates new services with different names (e.g. vminsert-victoria-cluster),
+    # so the old standalone services become stale and waste LoadBalancer IPs.
+    - name: Find old pre-operator services
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl -n {{ telemetry_namespace }} get svc --no-headers 2>/dev/null \
+          | awk '{print $1}' \
+          | grep -xE 'vminsert|vmselect|vmstorage|vmagent' || true
+      register: old_services
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Delete old pre-operator services
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} delete svc {{ item }} --timeout=30s
+      loop: "{{ old_services.stdout_lines | default([]) | select() | list }}"
+      changed_when: true
+      failed_when: false
+      when: old_services.stdout_lines | default([]) | select() | list | length > 0
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Delete old vmagent deployment (replaced by operator-managed VMAgent)
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get deployment {{ old_vmagent_deployment }} --no-headers 2>/dev/null && \
+        kubectl -n {{ telemetry_namespace }} delete deployment {{ old_vmagent_deployment }} --timeout=60s || true
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Display old resource cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "Old services deleted: {{ old_services.stdout_lines | default([]) | select() | list }}"
+          - "Old vmagent deployment cleanup attempted: {{ old_vmagent_deployment }}"

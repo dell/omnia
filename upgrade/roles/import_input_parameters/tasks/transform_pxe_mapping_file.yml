@@ -47,7 +47,7 @@
 - name: Fail if no valid rows found in pxe_mapping_file
   ansible.builtin.fail:
     msg: "{{ msg_pxe_mapping_file_empty }}"
-  when: (pxe_mapping_rows | default([]) | length) == 0
+  when: (pxe_mapping_rows | default([], true) | length) == 0
 
 - name: Write pxe_mapping_file in Omnia 2.2 format with IB fields
   ansible.builtin.template:

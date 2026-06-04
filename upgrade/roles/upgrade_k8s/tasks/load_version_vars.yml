@@ -126,8 +126,3 @@
          | selectattr('type', 'equalto', 'tarball')
          | selectattr('package', 'search', 'helm')
          | map(attribute='package') | join }}
-
-# ── Set OIM host ───────────────────────────────────────────────────
-- name: Set oim_host to NFS server IP
-  ansible.builtin.set_fact:
-    oim_host: "{{ k8s_nfs_server_ip }}"

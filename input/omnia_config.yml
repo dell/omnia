@@ -31,35 +31,42 @@
 # Storage name corresponding to the VAST storage to be used by slurm cluster
 # This should match with exactly with a entry in storage_config.yml
 # The following directories will be mounted on the VAST storage:
-# - /scratch
-# - /tmp
-# - /home
-# - /apps
-# - /projects
+#   - /scratch
+#   - /tmp
+#   - /home
+#   - /apps
+#   - /projects
+#
+#   -> Centralized repository for HPC tools (UCX, OpenMPI, CUDA, benchmarks) that are
+#   bind-mounted to /hpc_tools on compute and login nodes. This storage must be
+#   accessible from OIM during provisioning to copy hpc_tools content to the cluster.
+#   -> Must match the 'name' field of the VAST storage entry(mounts) in storage_config.yml
+#   -> The VAST server must be reachable from OIM to enable hpc_tools population during
+#   cluster provisioning. Ensure network connectivity and mount permissions are configured.
 
 # skip_merge
-# Variable indicates whether a specific configuration file path
-# under config_sources should be used as-is without merging
-# If skip_merge is set to true for a configuration source path,
-# that configuration file will be applied directly
-# without merging with defaults or existing configurations
-# It accepts true and false values
-# Default value is false
+#   Variable indicates whether a specific configuration file path
+#   under config_sources should be used as-is without merging
+#   If skip_merge is set to true for a configuration source path,
+#   that configuration file will be applied directly
+#   without merging with defaults or existing configurations
+#   It accepts true and false values
+#   Default value is false
 
 # node_discovery_mode
-# Controls how hardware specifications are discovered for Slurm compute nodes
-# Options: "heterogeneous" or "homogeneous"
-# - heterogeneous: Discovers each node individually via iDRAC (1 call per node)
-#   Best for: Mixed hardware environments with different node configurations
-# - homogeneous: Groups nodes by hardware type for optimized discovery
-#   Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
+#   Controls how hardware specifications are discovered for Slurm compute nodes
+#   Options: "heterogeneous" or "homogeneous"
+#   - heterogeneous: Discovers each node individually via iDRAC (1 call per node)
+#     Best for: Mixed hardware environments with different node configurations
+#   - homogeneous: Groups nodes by hardware type for optimized discovery
+#     Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
 #   Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
-# Default value is heterogeneous
+#   Default value is heterogeneous
 
 # node_hardware_defaults
-# Optional: Pre-define hardware specifications for homogeneous node groups
-# Only used when node_discovery_mode is set to "homogeneous"
-# Key: GROUP_NAME from pxe_mapping_file.csv (e.g., grp0, grp1, grp2, etc.)
+#   Optional: Pre-define hardware specifications for homogeneous node groups
+#   Only used when node_discovery_mode is set to "homogeneous"
+#   Key: GROUP_NAME from pxe_mapping_file.csv (e.g., grp0, grp1, grp2, etc.)
 # Value: Hardware specifications for all nodes in that group
 #   - sockets: Number of CPU sockets per node (integer, minimum 1)
 #   - cores_per_socket: Number of CPU cores per socket (integer, minimum 1)
@@ -103,64 +110,37 @@
 # oci
 # topology
 # burst_buffer
-# Thes files will be written into the slurm_config directory with .conf suffix
+# 
+# These files will be written into the slurm_config directory with .conf suffix
+# config_sources:
+#   slurm:
+#     SlurmctldTimeout: 60
+#     SlurmdTimeout: 150
+#     NodeName:
+#       - NodeName: newnode1
+#         CPUs: 16
+#         RealMemory: 64000
+#       - NodeName: newnode2
+#         CPUs: 16
+#         RealMemory: 64000
+#   cgroup:
+#     CgroupPlugin: autodetect
+#     ConstrainCores: True
+#     ConstrainDevices: True
+#     ConstrainRAMSpace: True
+#     ConstrainSwapSpace: True
+#
+#   OR
+#
+# config_sources:
+#   slurm: /opt/omnia/input/project_default/slurm.conf
+#   cgroup: /opt/omnia/input/project_default/cgroup.conf
+#   slurmdbd: /opt/omnia/input/project_default/slurmdbd.conf
 
 slurm_cluster:
   - cluster_name: slurm_cluster
-    # nfs_storage_name: References the NFS storage defined in storage_config.yml for Slurm controller data
     nfs_storage_name: nfs_slurm
-    
-    # vast_storage_name: References the VAST high-performance NFS storage defined in storage_config.yml
-    # Purpose: Centralized repository for HPC tools (UCX, OpenMPI, CUDA, benchmarks) that are
-    #          bind-mounted to /hpc_tools on compute and login nodes. This storage must be
-    #          accessible from OIM during provisioning to copy hpc_tools content to the cluster.
-    # Configuration: Must match the 'name' field of the VAST storage entry in storage_config.yml
-    # Note: The VAST server must be reachable from OIM to enable hpc_tools population during
-    #       cluster provisioning. Ensure network connectivity and mount permissions are configured.
     vast_storage_name: vast_storage
-    # skip_merge: true
-    
-    # Uncomment to enable homogeneous discovery mode
-    # node_discovery_mode: "homogeneous"
-    
-    # Uncomment to provide hardware specs for homogeneous groups
-    # node_hardware_defaults:
-    #   grp1:
-    #     sockets: 2
-    #     cores_per_socket: 64
-    #     threads_per_core: 2
-    #     real_memory: 512000
-    #     gres: "gpu:4"
-    #   grp2:
-    #     sockets: 2
-    #     cores_per_socket: 32
-    #     threads_per_core: 2
-    #     real_memory: 256000
-    
-    # config_sources:
-    #   slurm:
-    #     SlurmctldTimeout: 60
-    #     SlurmdTimeout: 150
-    #     NodeName:
-    #       - NodeName: newnode1
-    #         CPUs: 16
-    #         RealMemory: 64000
-    #       - NodeName: newnode2
-    #         CPUs: 16
-    #         RealMemory: 64000
-    #   cgroup:
-    #     CgroupPlugin: autodetect
-    #     ConstrainCores: True
-    #     ConstrainDevices: True
-    #     ConstrainRAMSpace: True
-    #     ConstrainSwapSpace: True
-
-    #   OR
-  
-    # config_sources:
-    #   slurm: /opt/omnia/input/project_default/slurm.conf
-    #   cgroup: /opt/omnia/input/project_default/cgroup.conf
-    #   slurmdbd: /opt/omnia/input/project_default/slurmdbd.conf
   
 # ----------------------------SERVICE K8S------------------------------------------------------
 # For service k8s cluster below parameters are required,(List)

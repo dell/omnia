@@ -759,7 +759,6 @@ validate:
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${VALIDATE_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
-            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
             echo "  ------------------------------------------------------------"
 
             # Extract test summary from result_detail if available
@@ -769,6 +768,12 @@ validate:
               echo "${TEST_SUMMARY}" | jq '.'
               echo "  ------------------------------------------------------------"
             fi
+
+            # Display log file path after test summary with verbose message
+            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
+            echo "  ------------------------------------------------------------"
+            echo "  For more detailed information, refer to the logs below"
+            echo "  ------------------------------------------------------------"
             exit 1
             ;;
         esac

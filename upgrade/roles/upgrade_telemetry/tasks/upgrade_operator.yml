@@ -16,15 +16,29 @@
 # Install / upgrade VictoriaMetrics operator via Helm
 # ============================================================================
 
+- name: Remove finalizers from VictoriaMetrics CRDs (prevents delete hang)
+  ansible.builtin.shell: |
+    set -o pipefail
+    for crd in $(kubectl get crd 2>/dev/null | grep victoriametrics | awk '{print $1}'); do
+      kubectl patch crd "$crd" --type=merge -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
+    done
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
 - name: Delete existing VictoriaMetrics CRDs (to fix Helm ownership issues)
   ansible.builtin.shell: |
     set -o pipefail
-    kubectl get crd | grep victoriametrics | awk '{print $1}' | xargs kubectl delete crd 2>/dev/null || true
+    for crd in $(kubectl get crd 2>/dev/null | grep victoriametrics | awk '{print $1}'); do
+      timeout 30 kubectl delete crd "$crd" --timeout=30s 2>/dev/null || true
+    done
   register: crd_delete_result
   changed_when: true
   failed_when: false
   delegate_to: "{{ kube_vip }}"
   connection: ssh
+  timeout: 120
 
 - name: Install VictoriaMetrics operator from tarball
   ansible.builtin.command:

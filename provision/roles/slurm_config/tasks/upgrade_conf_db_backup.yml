@@ -1,0 +1,78 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Read upgrade_manifest
+  ansible.builtin.include_vars:
+    file: "/opt/omnia/.data/upgrade_manifest.yml"
+    name: upgrade_manifest
+  register: upgrade_manifest_result
+  ignore_errors: true
+
+- name: Fail if upgrade_manifest is not found
+  ansible.builtin.fail:
+    msg: "Slurm backup: Reading of upgrade_manifest.yml failed: {{ upgrade_manifest_result.msg }}"
+  when: upgrade_manifest_result is not defined or upgrade_manifest_result is failed
+
+- name: Include variable file omnia_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/omnia_config.yml"
+    name: upgrade_omnia_config
+
+- name: Include storage vars
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/storage_config.yml"
+    name: upgrade_storage_config
+
+- name: Set nfs storage name
+  ansible.builtin.set_fact:
+    up_nfs_storage_name: "{{ upgrade_omnia_config.slurm_cluster[0].nfs_storage_name }}"
+
+- name: Read the slurm mount point
+  ansible.builtin.set_fact:
+    up_slurm_nfs_mounted_path: "{{ (upgrade_storage_config.mounts | selectattr('name', 'equalto', up_nfs_storage_name) | first).mount_point }}"
+
+- name: Set path for slurm backup
+  ansible.builtin.set_fact:
+    up_slurm_backup_path: "{{ up_slurm_nfs_mounted_path }}/slurm_backups/preupgrade_{{ upgrade_manifest.source_version }}_backup"
+
+- name: Create backup directory structure
+  ansible.builtin.file:
+    path: "{{ up_slurm_backup_path }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "etc/slurm"
+    - "var/lib/mysql/slurm_acct_db"
+
+- name: Backup slurm etc/slurm and var/lib/mysql/slurm_acct_db directories
+  ansible.builtin.copy:
+    src: "{{ up_slurm_nfs_mounted_path }}/slurm/{{ ctld_list[0] }}/{{ item }}/"
+    dest: "{{ up_slurm_backup_path }}/{{ item }}/"
+    remote_src: true
+    mode: preserve
+  register: conf_backup_result
+  loop:
+    - "etc/slurm"
+    - "var/lib/mysql/slurm_acct_db"
+  ignore_errors: true
+
+- name: Backup completed for slurm
+  ansible.builtin.pause:
+    seconds: 2
+    prompt: |
+      Slurm confs and db backup completed before upgrade of slurm.
+      Backup location: {{ up_slurm_backup_path }}
+  when: conf_backup_result is success

@@ -178,8 +178,8 @@
             location = "gcr.io"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
-{% if user_registry | default([]) | length > 0 %}
-{% for registry in user_registry %}
+{% if user_registry | default([], true) | length > 0 %}
+{% for registry in user_registry | default([], true) %}
 
             [[registry]]
             prefix = "{{ registry.host }}"
@@ -348,7 +348,7 @@
         - "chronyc sources"
         - "chronyc -a makestep"
 {# Mount-specific runcmd entries #}
-{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
         - {{ cmd }}
 {% endfor %}
@@ -370,7 +370,7 @@
       {% endif %}
       {% endif %}
 {% endraw %}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %} 
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %} 
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # K8s NFS mount entries
@@ -445,7 +445,7 @@
           [ -n "$search_line" ] && echo "$search_line" > "$tmpfile"
 
           # Add your new nameserver entries
-          {% for ns in dns %}
+          {% for ns in dns | default([], true) %}
           echo "nameserver {{ ns }}" >> "$tmpfile"
           {% endfor %}
 
@@ -480,7 +480,7 @@
           echo "Installing Necessary Python pip packages"
           python3 -m ensurepip
 
-          PACKAGES=({% for pkg in k8s_pip_packages %}"{{ pkg }}"{% if not loop.last %} {% endif %}{% endfor %})
+          PACKAGES=({% for pkg in k8s_pip_packages | default([], true) %}"{{ pkg }}"{% if not loop.last %} {% endif %}{% endfor %})
 
           for pkg in "${PACKAGES[@]}"; do
               echo "Installing $pkg from offline repo..."
@@ -630,7 +630,7 @@
             kubectl -n kube-system get configmap coredns -o yaml > "$cfg"
 
             # Patch: append nameservers after /etc/resolv.conf using Jinja list "dns"
-            sed -i 's|/etc/resolv.conf|/etc/resolv.conf{% for ns in dns %} {{ ns }}{% endfor %}|' "$cfg"
+            sed -i 's|/etc/resolv.conf|/etc/resolv.conf{% for ns in dns | default([], true) %} {{ ns }}{% endfor %}|' "$cfg"
 
 {% if dns_enabled | default(false) | bool %}
             # Forward cluster-internal DNS domain to OIM CoreDNS

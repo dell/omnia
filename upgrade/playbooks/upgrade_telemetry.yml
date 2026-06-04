@@ -30,11 +30,12 @@
       ansible.builtin.set_fact:
         manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
 
-    - name: Skip if telemetry already upgraded
+    - name: Skip if telemetry already upgraded or skipped
       ansible.builtin.meta: end_play
       when:
-        - manifest.component_status[component_name] | default('pending') == 'completed'
+        - manifest.component_status[component_name] | default('pending') in ['completed', 'skipped']
 
+    # ── BuildStream terminal gate (C-24) ──
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
         content: >-
@@ -54,6 +55,57 @@
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
         - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    # ── Pre-check: Skip telemetry upgrade if service_k8s is not in software_config.json ──
+    - name: "Load software_config.json for service_k8s check"
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_slurp
+      failed_when: false
+
+    - name: "Parse software_config.json"
+      ansible.builtin.set_fact:
+        _software_config: "{{ _sw_config_slurp.content | b64decode | from_json }}"
+      when: _sw_config_slurp is not failed
+
+    - name: "Check if service_k8s is configured in software_config.json"
+      ansible.builtin.set_fact:
+        telemetry_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+      when: _software_config is defined
+
+    - name: "Set telemetry_upgrade_enabled to false if software_config not loaded"
+      ansible.builtin.set_fact:
+        telemetry_upgrade_enabled: false
+      when: _software_config is not defined
+
+    - name: "Mark as skipped — service_k8s not configured"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when: not (telemetry_upgrade_enabled | default(false) | bool)
+
+    - name: "Display skip message — service_k8s not configured"
+      ansible.builtin.debug:
+        msg: "{{ banner_telemetry_not_configured }}"
+      vars:
+        banner_telemetry_not_configured:
+          - "========================================================================"
+          - "[UPGRADE] Component 'telemetry' — SKIPPED"
+          - "========================================================================"
+          - "Reason: service_k8s is not present in software_config.json softwares list."
+          - "K8s cluster was not provisioned, skipping telemetry upgrade."
+          - "========================================================================"
+      when: not (telemetry_upgrade_enabled | default(false) | bool)
+
+    - name: "Skip — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (telemetry_upgrade_enabled | default(false) | bool)
 
     - name: Set telemetry upgrade status to in-progress
       ansible.builtin.copy:

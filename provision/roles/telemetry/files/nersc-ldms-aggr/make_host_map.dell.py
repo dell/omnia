@@ -23,7 +23,7 @@ def load_config(config_path):
     """Load the json config file given a file path."""
     if not os.path.exists(config_path):
         return {}
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 

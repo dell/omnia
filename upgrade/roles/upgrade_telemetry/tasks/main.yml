@@ -54,9 +54,21 @@
 # ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
 - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
   ansible.builtin.include_tasks: execute_telemetry_sh.yml
+  when:
+    - k8s_client_mount_path is defined
+    - kube_vip is defined
+    - kube_vip | length > 0
+
+- name: Skip telemetry.sh (k8s not configured)
+  ansible.builtin.debug:
+    msg: "Skipping telemetry.sh execution — service_k8s not configured (Slurm-only deployment)."
+  when: k8s_client_mount_path is not defined or kube_vip is not defined
 
 # ── Phase 4: Verify all telemetry pods and set upgrade status ──
 - name: Phase 4 - Verify all telemetry pods and set upgrade status
+  when:
+    - kube_vip is defined
+    - kube_vip | length > 0
   block:
     - name: Get all telemetry pods status
       ansible.builtin.shell:
