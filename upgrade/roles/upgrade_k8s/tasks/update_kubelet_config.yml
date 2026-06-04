@@ -51,31 +51,30 @@
         line: 'shutdownGracePeriodCriticalPods: 10s'
 
     # Node status and sync frequency settings
-    # Control plane additional: 10s / 60s / 60s
+    # All control planes (first + additional): 10s / 60s / 60s
     # Workers: 5s / 10s / 10s
-    # Control plane first: not set (uses defaults)
 
-    # ── Control plane additional nodes ──
-    - name: Set nodeStatusUpdateFrequency for control plane additional nodes
+    # ── Control plane nodes (first + additional) ──
+    - name: Set nodeStatusUpdateFrequency for control plane nodes
       ansible.builtin.lineinfile:
         path: /var/lib/kubelet/config.yaml
         regexp: '^nodeStatusUpdateFrequency:'
         line: 'nodeStatusUpdateFrequency: 10s'
-      when: _is_cp_additional | bool
+      when: (_is_cp_first | bool) or (_is_cp_additional | bool)
 
-    - name: Set nodeStatusReportFrequency for control plane additional nodes
+    - name: Set nodeStatusReportFrequency for control plane nodes
       ansible.builtin.lineinfile:
         path: /var/lib/kubelet/config.yaml
         regexp: '^nodeStatusReportFrequency:'
         line: 'nodeStatusReportFrequency: 60s'
-      when: _is_cp_additional | bool
+      when: (_is_cp_first | bool) or (_is_cp_additional | bool)
 
-    - name: Set syncFrequency for control plane additional nodes
+    - name: Set syncFrequency for control plane nodes
       ansible.builtin.lineinfile:
         path: /var/lib/kubelet/config.yaml
         regexp: '^syncFrequency:'
         line: 'syncFrequency: 60s'
-      when: _is_cp_additional | bool
+      when: (_is_cp_first | bool) or (_is_cp_additional | bool)
 
     # ── Worker nodes ──
     - name: Set nodeStatusUpdateFrequency for worker nodes
