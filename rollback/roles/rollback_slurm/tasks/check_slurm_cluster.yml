@@ -27,7 +27,7 @@
     state: absent
   when:
     - slurm_ctld_host is defined
-    - slurm_ctld_host not in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
+    - slurm_ctld_host not in (hostvars['localhost']['slurm_previously_rebooted'] | default([], true))
 
 - name: Check for running jobs on slurm cluster
   ansible.builtin.shell:

@@ -59,7 +59,7 @@
         | combine({
             item.namespace ~ '/' ~ item.name:
               (
-                item.matchLabels | default({})
+                item.matchLabels | default({}, true)
                 | dictsort
                 | map('join', '=')
                 | join(',')

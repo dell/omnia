@@ -110,7 +110,7 @@
 
         - name: Set previously successful reboot list
           ansible.builtin.set_fact:
-            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([]) }}"
+            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([], true) }}"
           when: _reboot_state_stat.stat.exists | default(false)
 
         - name: Initialize previously rebooted list (no prior state)
@@ -201,7 +201,7 @@
 
     - name: End play if not slurm nodes in pxe_mapping
       ansible.builtin.meta: end_play
-      when: slurm_host_group_map | default({}) | length == 0
+      when: slurm_host_group_map | default({}, true) | length == 0
 
     - name: Get the backup directory
       ansible.builtin.set_fact:
@@ -306,7 +306,7 @@
       when: ssh_check is failed
 
     - name: Skip reboot — node successfully rebooted in previous run
-      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
+      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([], true))
       block:
         - name: Mark node as previously completed
           ansible.builtin.set_fact:

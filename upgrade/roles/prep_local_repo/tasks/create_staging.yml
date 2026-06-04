@@ -45,7 +45,7 @@
     current_software_config: "{{ current_software_config }}"
     architectures: "{{ upgrade_active_architectures }}"
     target_omnia_version: "{{ upgrade_target_version }}"
-    calculated_hop_chains: "{{ calculated_hop_chains | default([]) }}"
+    calculated_hop_chains: "{{ calculated_hop_chains | default([], true) }}"
   register: _staging_result
 
 - name: "Staging — Display staging summary"

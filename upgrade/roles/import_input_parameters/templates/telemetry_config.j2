@@ -295,7 +295,7 @@ telemetry_sinks:
     #   additional_metric_remote_write_endpoints:
     #     - url: https://external-metrics-server:8480/insert/0/prometheus/api/v1/write
     #       tls_insecure_skip_verify: false
-    additional_metric_remote_write_endpoints: {{ telemetry_additional_metric_remote_write_endpoints | default([]) | to_json }}
+    additional_metric_remote_write_endpoints: {{ telemetry_additional_metric_remote_write_endpoints | default([], true) | to_json }}
 
   # --------------------------------------------------------------------------
   # victoria_logs — Centralized log storage and querying
@@ -322,7 +322,7 @@ telemetry_sinks:
     #   additional_log_write_endpoints:
     #     - url: https://external-logs-server:9481/internal/insert
     #       tls_insecure_skip_verify: false
-    additional_log_write_endpoints: {{ telemetry_additional_log_write_endpoints | default([]) | to_json }}
+    additional_log_write_endpoints: {{ telemetry_additional_log_write_endpoints | default([], true) | to_json }}
 
   # --------------------------------------------------------------------------
   # Kafka — Distributed streaming platform
@@ -391,7 +391,7 @@ ldms_configurations:
 {% if telemetry_ldms_sampler_configurations is none %}
     null
 {% else %}
-{% for _plugin in (telemetry_ldms_sampler_configurations | default([])) %}
+{% for _plugin in (telemetry_ldms_sampler_configurations | default([], true)) %}
     - plugin_name: {{ _plugin.plugin_name | default('') }}
       config_parameters: {{ _plugin.config_parameters | default('') | to_json }}
       activation_parameters: {{ _plugin.activation_parameters | default('interval=30000000') | to_json }}

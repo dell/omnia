@@ -336,7 +336,7 @@
     # ── Identify tags skipped by BuildStream terminal gate ──
     - name: Identify BuildStream-skipped components (rollback)
       ansible.builtin.set_fact:
-        bs_skipped_tags: "{{ bs_rollback_skipped | default([]) }}"
+        bs_skipped_tags: "{{ bs_rollback_skipped | default([], true) }}"
 
     - name: Resolve requested tags for finalize
       ansible.builtin.set_fact:

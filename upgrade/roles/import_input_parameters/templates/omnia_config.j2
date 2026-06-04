@@ -118,7 +118,7 @@
 # Thes files will be written into the slurm_config directory with .conf suffix
 
 slurm_cluster:
-{% set _slurm_cluster = omnia_slurm_cluster | default([]) %}
+{% set _slurm_cluster = omnia_slurm_cluster | default([], true) %}
 {% if (_slurm_cluster | length) > 0 %}
 {% for _cluster in _slurm_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
@@ -242,7 +242,7 @@ slurm_cluster:
 
 
 service_k8s_cluster:
-{% set _service_k8s_cluster = omnia_service_k8s_cluster | default([]) %}
+{% set _service_k8s_cluster = omnia_service_k8s_cluster | default([], true) %}
 {% if (_service_k8s_cluster | length) > 0 %}
 {% for _cluster in _service_k8s_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
