@@ -14,10 +14,10 @@
 ---
 
 # ============================================================================
-# rollback_status.yml — Report Rollback Result and Update Version Metadata
+# rollback_status.yml — Report Rollback Result
 # ============================================================================
 # Runs in the 'always' block of main.yml — executes regardless of success
-# or failure. Updates version.yml to reflect v2.1 state on success.
+# or failure.
 # ============================================================================
 
 - name: Report rollback result
@@ -26,21 +26,6 @@
       ansible.builtin.debug:
         msg: "{{ rollback_messages.status.failure }}"
       when: openchami_rollback_failed | default(false) | bool
-
-    # ── Update version.yml to reflect v2.1 state on success ─────────────
-    - name: Update version.yml with v2.1 metadata after successful rollback
-      ansible.builtin.copy:
-        content: |
-          # OpenCHAMI version metadata — updated by rollback_openchami role
-          openchami_version: "2.1.0.0"
-          omnia_version: "2.1.0.0"
-          rollback_timestamp: "{{ ansible_date_time.iso8601 }}"
-          rolled_back_from: "2.2.0.0"
-          rollback_backup_dir: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}"
-        dest: "/opt/omnia/.data/version.yml"
-        mode: "{{ file_permissions_644 }}"
-      when:
-        - not (openchami_rollback_failed | default(false) | bool)
 
     - name: Report rollback success
       ansible.builtin.debug:

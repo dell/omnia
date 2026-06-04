@@ -297,12 +297,18 @@
     - name: Create backup inventory manifest
       ansible.builtin.copy:
         content: |
-          # OpenCHAMI Pre-Upgrade Backup Manifest
+          # OpenCHAMI Backup Manifest
           backup_timestamp: "{{ ansible_date_time.iso8601 }}"
-          source_version: "{{ backup_manifest.source_version | default('unknown') }}"
-          target_version: "{{ backup_manifest.target_version | default('unknown') }}"
           upgrade_id: "{{ backup_manifest.upgrade_id | default('unknown') }}"
           backup_dir: "{{ openchami_backup_dir }}"
+
+          source_rpms:
+            openchami: "{{ current_openchami_rpm | default('not installed') }}"
+            ochami_cli: "{{ current_ochami_rpm | default('not installed') }}"
+
+          target_rpms:
+            openchami: "{{ openchami_rpm_name }}"
+            ochami_cli: "{{ ochami_client_rpm_name }}"
 
           postgresql_backup:
             file: "openchami/postgresql_backup/openchami.sql"
