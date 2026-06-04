@@ -56,6 +56,14 @@
         label: "{{ item.item }}"
       when: item.changed
 
+    - name: Reload systemd daemon on all nodes
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      delegate_to: "{{ item }}"
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
     - name: Mark remove_feature_gates completed
       ansible.builtin.include_tasks:
         file: update_status.yml
