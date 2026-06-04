@@ -62,7 +62,7 @@
 - name: Validate gitlab_host IP format if provided
   ansible.builtin.assert:
     that:
-      - gitlab_host == "" or gitlab_host | ansible.utils.ipaddr
+      - gitlab_host == "" or (gitlab_host | ansible.utils.ipaddr | bool)
     fail_msg: "gitlab_host '{{ gitlab_host }}' is not a valid IP address"
     success_msg: "gitlab_host is valid"
   when: gitlab_host != ""
@@ -85,7 +85,7 @@
 - name: Validate gitlab_default_branch format
   ansible.builtin.assert:
     that:
-      - gitlab_default_branch | regex_search('^[a-zA-Z0-9/_-]+$')
+      - gitlab_default_branch | regex_search('^[a-zA-Z0-9/_-]+$') is not none
     fail_msg: "gitlab_default_branch '{{ gitlab_default_branch }}' contains invalid characters"
     success_msg: "gitlab_default_branch is valid"
 
