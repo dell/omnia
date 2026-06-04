@@ -42,42 +42,42 @@
         file: "{{ manifest_path }}"
         name: manifest
 
-    - name: Initialize slurm_skip
-      ansible.builtin.set_fact:
-        slurm_skip: false
+    - name: Read software_config.json
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
+        name: software_config
 
-    - name: Set slurm_skip when already completed
+    - name: Determine slurm_skip status
       ansible.builtin.set_fact:
-        slurm_skip: true
-      when:
-        - manifest.component_status[component_name] | default('pending') == 'completed'
+        slurm_skip: >-
+          {{
+            (manifest.component_status[component_name] | default('pending') == 'completed')
+            or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
+          }}
 
-    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
-      ansible.builtin.copy:
-        content: >-
-          {{ manifest | combine({
-               'component_status': manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ manifest_path }}"
-        mode: '0644'
-      when:
-        - not slurm_skip
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
-
-    - name: "Set slurm_skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.set_fact:
-        slurm_skip: true
+    - name: "Handle BuildStream terminal gate (C-24)"
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
         - manifest.component_status.build_stream | default('pending') == 'completed'
+      block:
+        - name: "Mark as skipped — BuildStream terminal gate active"
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'skipped'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+          when: not slurm_skip
 
-    - name: "Skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.meta: end_play
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - name: "Set slurm_skip — BuildStream terminal gate active"
+          ansible.builtin.set_fact:
+            slurm_skip: true
+
+        - name: "Skip — BuildStream terminal gate active"
+          ansible.builtin.meta: end_play
 
     - name: Block when slurm is already completed
       when: not slurm_skip
@@ -111,7 +111,7 @@
 
         - name: Set previously successful reboot list
           ansible.builtin.set_fact:
-            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([]) }}"
+            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([], true) }}"
           when: _reboot_state_stat.stat.exists | default(false)
 
         - name: Initialize previously rebooted list (no prior state)
@@ -128,12 +128,12 @@
     oim_group: true
 
 # ============================================================================
-# Play 2: Update cloud-init and BSS for slurm_control_node_x86_64 on OIM
+# Play 2: Update cloud-init and BSS for slurm on OIM
 # ============================================================================
 # During upgrade_provision.yml, the provision flow runs with upgrade_mode=true.
 # Templates are re-rendered (BSS YAML, cloud-init group YAML) but ochami CLI
 # delete/set commands are skipped. This play applies those skipped operations
-# for the slurm_control_node_x86_64 functional group using the
+# for the slurm functional groups using the
 # update_cloud_init_bss utility role.
 # ============================================================================
 - name: Update cloud-init and BSS for slurm functional groups
@@ -210,7 +210,7 @@
 
     - name: End play if not slurm nodes in pxe_mapping
       ansible.builtin.meta: end_play
-      when: slurm_host_group_map | default({}) | length == 0
+      when: slurm_host_group_map | default({}, true) | length == 0
 
     - name: SLURM UPGRADE WARNING
       ansible.builtin.pause:
@@ -267,7 +267,7 @@
             update_ci_defaults: true
             update_ci_common: true
             update_hostname: true
-          loop: "{{ slurm_host_group_map.values() | list }}"
+          loop: "{{ slurm_host_group_map.values() | list | unique }}"
 
 - name: Reboot Slurm nodes and validate services
   hosts: slurm_*, login_*
@@ -275,7 +275,7 @@
   serial: 100%
   strategy: host_pinned
   vars:
-    reboot_timeout: 600
+    reboot_timeout: 1200
     ssh_timeout: 60
   tasks:
     - name: Skip if slurm upgrade not needed
@@ -310,7 +310,7 @@
       when: ssh_check is failed
 
     - name: Skip reboot — node successfully rebooted in previous run
-      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
+      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([], true))
       block:
         - name: Mark node as previously completed
           ansible.builtin.set_fact:
@@ -332,7 +332,7 @@
     - name: Reboot node
       ansible.builtin.reboot:
         reboot_timeout: "{{ reboot_timeout }}"
-        test_command: "sinfo"
+        # test_command: "sinfo"
       register: reboot_result
       ignore_errors: true
       ignore_unreachable: true
@@ -359,9 +359,26 @@
       ansible.builtin.set_fact:
         node_status: "{{ node_status | combine({'ssh': (ssh_result is succeeded)}) }}"
 
+    # ---- WAIT FOR CLOUD-INIT ----
+    - name: Wait for cloud-init
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: ci_wait
+      failed_when: false
+      changed_when: ci_wait.rc in [0, 2]
+      timeout: "{{ reboot_timeout }}"
+      ignore_errors: true
+      when: node_status.ssh
+
+    - name: Print cloud-init status
+      ansible.builtin.debug:
+        var: ci_wait
+      when: node_status.ssh and ci_wait is defined
+
     # ---- CHECK SLURM ----
     - name: Check slurm services
-      ansible.builtin.command: sinfo
+      ansible.builtin.command:
+        cmd: sinfo
       register: svc
       changed_when: false
       failed_when: false

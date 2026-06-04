@@ -220,7 +220,7 @@
         set -o pipefail
         ochami smd --cacert {{ ca_cert_path | default('/root_ca/root_ca.crt') }} \
           component get 2>&1 | head -20 || echo "ochami_unavailable"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ochami_smd_check
       changed_when: false
       failed_when: false
@@ -267,7 +267,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami bss boot params get -F yaml 2>&1 | grep -c 'cloud-init' || echo "0"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: bss_ci_ds_check
       changed_when: false
       failed_when: false
@@ -303,7 +303,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami cloud-init service status 2>&1
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ci_http_health
       changed_when: false
       failed_when: false
@@ -328,7 +328,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami cloud-init group get 2>&1 || echo "ci_unavailable"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ci_group_list
       changed_when: false
       failed_when: false
@@ -354,7 +354,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami cloud-init node get 2>&1 || echo "ci_node_unavailable"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ci_node_list
       changed_when: false
       failed_when: false

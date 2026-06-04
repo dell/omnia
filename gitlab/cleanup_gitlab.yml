@@ -26,7 +26,7 @@
     - name: Set dynamic run tags including 'gitlab'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['provision']) | unique }}"
         cacheable: true
 
 - name: Include input project directory

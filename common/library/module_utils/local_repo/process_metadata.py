@@ -32,7 +32,7 @@ def load_yaml(path):
     """
     if not os.path.isfile(path):
         return {}
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f) or {}
 
 def write_yaml(path, data):
@@ -42,7 +42,7 @@ def write_yaml(path, data):
     Uses block-style formatting (not flow style).
     """
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding='utf-8') as f:
         yaml.dump(data, f, default_flow_style=False)
 
 def load_config(config_path: str) -> dict:
@@ -53,7 +53,7 @@ def load_config(config_path: str) -> dict:
     """
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
-    with open(config_path) as f:
+    with open(config_path, encoding='utf-8') as f:
         return json.load(f)
 
 def generate_policy_dict(repo_list, default_policy):

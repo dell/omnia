@@ -46,7 +46,7 @@
     msg: "{{ msg_powerscale_controller_pods_missing }}"
   when: >
     powerscale_controller_pods.rc != 0 or
-    (powerscale_controllers['items'] | default([])) | length == 0
+    (powerscale_controllers['items'] | default([], true)) | length == 0
 
 - name: Check PowerScale node daemonset
   delegate_to: "{{ kube_vip }}"

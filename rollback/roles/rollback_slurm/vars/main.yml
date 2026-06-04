@@ -16,7 +16,7 @@
 mounted_dir_perm: "0755"
 default_client_mount_options: "nosuid,rw,sync,hard,intr"
 slurm_nfs_fail_msg: "Failed to mount NFS share. Please check if the NFS server is reachable or NFS is configured properly."
-oim_metadata: "/opt/omnia/.data/oim_metadata.yml"
+oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
 backup_slurm_nfs_contents: false # To create a copy of all slurm contents on the nfs share
 slurm_2_1_backup_dir_effective: "{{ slurm_2_1_backup_dir | default('/opt/omnia/backups/upgrade/version_2.1.0.0') }}"
 slurm_2_1_backup_subdir: "slurm_21_nfs_backups"

@@ -95,29 +95,41 @@
     # --- Pre-upgrade health verification ---
     - name: Pre-upgrade health check
       block:
-        # ── Verify current OpenCHAMI version from version.yml ─────────
-        - name: Check if version.yml exists
-          ansible.builtin.stat:
-            path: "/opt/omnia/.data/version.yml"
-          register: version_yml_stat
+        # ── Find source (2.1) OpenCHAMI and ochami CLI RPM filenames from backup ─────
+        # The live workdir already contains the 2.2 target RPMs by the time
+        # the upgrade playbook runs. The original 2.1 RPMs are preserved in the
+        # backup directory created by omnia.sh --upgrade.
+        - name: Find source openchami RPM filename from backup
+          ansible.builtin.shell: |
+            set -o pipefail
+            backup_dir="{{ openchami_backup_dir | default(openchami_backup_dir_default) }}"
+            RPM=$(ls -1 "${backup_dir}/openchami/openchami_data/workdir/openchami"*.rpm 2>/dev/null | head -1)
+            if [ -n "$RPM" ]; then basename "$RPM"; else echo "not found"; fi
+          register: source_openchami_rpm_result
+          changed_when: false
+          failed_when: false
 
-        - name: Read current OpenCHAMI version from version.yml
-          ansible.builtin.slurp:
-            src: "/opt/omnia/.data/version.yml"
-          register: version_yml_raw
-          when: version_yml_stat.stat.exists | default(false)
+        - name: Find source ochami CLI RPM filename from backup
+          ansible.builtin.shell: |
+            set -o pipefail
+            backup_dir="{{ openchami_backup_dir | default(openchami_backup_dir_default) }}"
+            RPM=$(ls -1 "${backup_dir}/openchami/openchami_data/workdir/ochami"*.rpm 2>/dev/null | head -1)
+            if [ -n "$RPM" ]; then basename "$RPM"; else echo "not found"; fi
+          register: source_ochami_rpm_result
+          changed_when: false
+          failed_when: false
 
-        - name: Parse version.yml and display current version
+        - name: Set current RPM filename facts
           ansible.builtin.set_fact:
-            current_openchami_version: "{{ (version_yml_raw.content | b64decode | from_yaml).openchami_version | default('unknown') }}"
-          when:
-            - version_yml_stat.stat.exists | default(false)
-            - version_yml_raw.content is defined
+            current_openchami_rpm: "{{ source_openchami_rpm_result.stdout | default('not found') | trim }}"
+            current_ochami_rpm: "{{ source_ochami_rpm_result.stdout | default('not found') | trim }}"
 
-        - name: Display current OpenCHAMI version
+        - name: Display current installed RPM filenames
           ansible.builtin.debug:
             verbosity: 1
-            msg: "Current OpenCHAMI version: {{ current_openchami_version | default('not recorded') }}"
+            msg:
+              - "Source openchami RPM: {{ current_openchami_rpm }}"
+              - "Source ochami CLI RPM: {{ current_ochami_rpm }}"
 
         # ── Verify no active provisioning jobs ────────────────────────
         - name: Check for running discovery processes
@@ -276,7 +288,8 @@
                 and 's3_unreachable' not in pre_s3_check.stdout | default('s3_unreachable'))
                 else 'not configured (non-fatal)' }}
               - "Node count: {{ pre_upgrade_node_count }}{{ ' (prepare_oim-only)' if (pre_upgrade_node_count | int) == 0 else '' }}"
-              - "Version: {{ current_openchami_version | default('not recorded') }}"
+              - "OpenCHAMI RPM: {{ current_openchami_rpm | default('not installed') }}"
+              - "ochami CLI RPM: {{ current_ochami_rpm | default('not installed') }}"
               - "════════════════════════════════════════════"
 
       rescue:

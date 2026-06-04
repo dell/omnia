@@ -92,13 +92,13 @@
       ansible.builtin.file:
         path: "{{ openchami_backup_dir }}/openchami/postgresql_backup"
         state: directory
-        mode: "{{ dir_permissions_700 }}"
+        mode: "{{ dir_permissions_755 }}"
 
     - name: Create PostgreSQL backup directory (OIM host — shared path)
       ansible.builtin.file:
         path: "{{ oim_host_backup_dir }}/openchami/postgresql_backup"
         state: directory
-        mode: "{{ dir_permissions_700 }}"
+        mode: "{{ dir_permissions_755 }}"
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -181,15 +181,6 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Set PostgreSQL backup file permissions to 0600
-      ansible.builtin.file:
-        path: "{{ oim_host_backup_dir }}/openchami/postgresql_backup/openchami.sql"
-        mode: "0600"
-      when: pgdump_result.rc == 0
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
     - name: Create empty backup marker if pg_dump failed
       ansible.builtin.copy:
         content: |
@@ -197,7 +188,7 @@
           -- Database may be empty (prepare_oim-only scenario)
           -- stderr: {{ pgdump_result.stderr | default('') | trim }}
         dest: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
-        mode: "{{ file_permissions_600 }}"
+        mode: "{{ file_permissions_644 }}"
       when: pgdump_result.rc | default(1) != 0
 
     - name: Display pg_dump warning if it failed
@@ -241,7 +232,7 @@
       ansible.builtin.file:
         path: "{{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}"
         state: directory
-        mode: "{{ dir_permissions_700 }}"
+        mode: "{{ dir_permissions_755 }}"
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -258,8 +249,6 @@
       ansible.builtin.shell: |
         set -o pipefail
         cp -a {{ openchami_etc_dir }}/. {{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}/
-        chmod -R 0600 {{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}/*
-        find {{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }} -type d -exec chmod 0700 {} \;
       register: etc_openchami_backup_result
       changed_when: etc_openchami_backup_result.rc == 0
       when: etc_openchami_stat.stat.exists | default(false)
@@ -308,12 +297,18 @@
     - name: Create backup inventory manifest
       ansible.builtin.copy:
         content: |
-          # OpenCHAMI Pre-Upgrade Backup Manifest
+          # OpenCHAMI Backup Manifest
           backup_timestamp: "{{ ansible_date_time.iso8601 }}"
-          source_version: "{{ backup_manifest.source_version | default('unknown') }}"
-          target_version: "{{ backup_manifest.target_version | default('unknown') }}"
           upgrade_id: "{{ backup_manifest.upgrade_id | default('unknown') }}"
           backup_dir: "{{ openchami_backup_dir }}"
+
+          source_rpms:
+            openchami: "{{ current_openchami_rpm | default('not installed') }}"
+            ochami_cli: "{{ current_ochami_rpm | default('not installed') }}"
+
+          target_rpms:
+            openchami: "{{ openchami_rpm_name }}"
+            ochami_cli: "{{ ochami_client_rpm_name }}"
 
           postgresql_backup:
             file: "openchami/postgresql_backup/openchami.sql"
@@ -329,7 +324,7 @@
             path: "{{ backup_etc_openchami_subpath }}"
             present: {{ etc_openchami_backup_stat.stat.exists | default(false) }}
         dest: "{{ openchami_backup_dir }}/openchami_backup_manifest.yml"
-        mode: "{{ file_permissions_600 }}"
+        mode: "{{ file_permissions_644 }}"
 
     - name: Display backup completion summary
       ansible.builtin.debug:

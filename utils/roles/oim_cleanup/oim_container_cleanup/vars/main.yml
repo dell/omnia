@@ -182,6 +182,16 @@ postgres_cleanup_directory:
   - "{{ omnia_nfs_share }}/postgres"
 
 postgres_container_name: omnia_postgres
+
+# Usage: cleanup_omnia_postgres.yml (image_groups DB update)
+image_groups_cleaned_msg: >-
+  BuildStream image_groups: All records updated to CLEANED status.
+  S3 images were already removed during OpenCHAMI cleanup.
+  Database is now consistent for backup.
+image_groups_cleanup_failure_msg: >-
+  WARNING: Failed to update image_groups status to CLEANED in build_stream_db.
+  If postgres_backup is enabled, the backed-up database may contain stale image_groups records.
+  This does not affect the cleanup process. Proceeding with Postgres container removal.
 postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
  if postgres_backup | bool else 'DELETE data (postgres_backup=false)' }}"
 postgres_preserved_msg: "PRESERVED: Postgres data directories retained (postgres_backup=true): {{ postgres_cleanup_directory }}"
@@ -196,21 +206,23 @@ oim_cleanup_note: |
   [Post-Cleanup Actions Required]
   1. Reboot the OIM node after running oim_cleanup.yml.
 
-  2. The playbook now removes Slurm-related directories from NFS share:
+  2. The playbook removes Slurm-related directories from NFS shares:
      - slurm (Slurm configuration)
      - ctld_track (Controller tracking)
      - openldap (OpenLDAP)
+     - apps (Applications)
+     - projects (Projects)
+     - scratch (Scratch space)
      - PRESERVED: slurm_backups (Backup directory)
-     - Slurm configuration backup is offered before cleanup (recommended to accept).
+     - Supports multi-storage: Cleans directories from all Slurm storage mounts configured in omnia_config.yml
+     - For Slurm configuration backup, use the separate utility: ansible-playbook utils/slurm_config_util.yml --tags config_backup
      - To skip slurm cleanup, run: ansible-playbook utils/oim_cleanup.yml --skip-tags slurm
-     - Backup uses existing slurm_config_backup role (same as slurm_config_util.yml)
-     - To restore slurm configs from backup, use: ansible-playbook utils/slurm_config_util.yml --tags config_rollback
 
-  3. The playbook now removes K8s-related directories from NFS share:
+  3. The playbook removes K8s-related directories from NFS shares:
      - ssh, calico, metallb, helm, packages, telemetry, karavi-observability, csi-driver-powerscale, nfs-client-provisioner
      - Node IP directories (when k8s_cleanup_node_ips: true)
-     - PRESERVED: slurm, ctld_track, openldap, slurm_backups (Slurm directories)
      - Directory list is configurable via k8s_cleanup_directories variable in vars/main.yml
+     - Supports multi-storage: Cleans directories from all K8s storage mounts configured in omnia_config.yml
      - To skip k8s cleanup, run: ansible-playbook utils/oim_cleanup.yml --skip-tags k8s
      - No backup is created for k8s directories (directory deletion only)
 

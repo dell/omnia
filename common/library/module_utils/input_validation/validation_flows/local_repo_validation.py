@@ -43,39 +43,43 @@ def check_subscription_status(logger=None):
     # 1. Check system entitlement certs first
     system_entitlement_certs = glob.glob(config.SYSTEM_ENTITLEMENT_PATH)
     has_system_entitlement = len(system_entitlement_certs) > 0
-    
+
     if has_system_entitlement:
         # System entitlement found - use system paths only
         entitlement_certs = system_entitlement_certs
         has_entitlement = True
         repo_file_to_check = config.SYSTEM_REDHAT_REPO
-        
+
         if logger:
-            logger.info(f"Found {len(system_entitlement_certs)} system entitlement certs - using system paths only")
+            logger.info(
+                f"Found {len(system_entitlement_certs)} system entitlement certs"
+                " - using system paths only")
     else:
         # No system entitlement - check Omnia paths
         omnia_entitlement_certs = glob.glob(config.OMNIA_ENTITLEMENT_PATH)
         entitlement_certs = omnia_entitlement_certs
         has_entitlement = len(omnia_entitlement_certs) > 0
         repo_file_to_check = config.OMNIA_REDHAT_REPO
-        
+
         if logger:
-            logger.info(f"No system entitlement found - checking Omnia paths: {len(omnia_entitlement_certs)} certs found")
+            logger.info(
+                f"No system entitlement found - checking Omnia paths:"
+                f" {len(omnia_entitlement_certs)} certs found")
 
     # 2. Check repos based on which entitlement path was used
     has_repos = False
     repo_urls = []
     redhat_repo_used = None
-    
+
     if os.path.exists(repo_file_to_check):
         try:
-            with open(repo_file_to_check, "r") as f:
+            with open(repo_file_to_check, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("baseurl ="):
                         url = line.split("=", 1)[1].strip()
                         if re.search(r"(codeready-builder|baseos|appstream)", url, re.IGNORECASE):
                             repo_urls.append(url)
-            
+
             if repo_urls:
                 has_repos = True
                 redhat_repo_used = repo_file_to_check
@@ -91,7 +95,7 @@ def check_subscription_status(logger=None):
 
     # 3. Subscription enabled if entitlement and repos are found in the same source
     subscription_enabled = has_entitlement and has_repos
-    
+
     if logger:
         logger.info(
             f"Subscription enabled: {subscription_enabled} "
@@ -111,24 +115,24 @@ def validate_local_repo_config(input_file_path, data,
     omnia_repo_url_rhel fields are present and accessible.
     """
     errors = []
-    base_repo_names = []
     local_repo_yml = create_file_path(input_file_path, file_names["local_repo_config"])
-    
-    user_registry = data.get("user_registry") 
+
+    user_registry = data.get("user_registry")
     if user_registry:
         for registry in user_registry:
-            host = registry.get("host")
             cert_path = registry.get("cert_path")
             key_path = registry.get("key_path")
-            
+
             # Validate user_registry certificate and key paths
             if cert_path and not os.path.exists(cert_path):
-                errors.append(create_error_msg(local_repo_yml, "user_registry", 
-                                             f"Certificate file not found: {cert_path}"))
-            
+                errors.append(create_error_msg(
+                    local_repo_yml, "user_registry",
+                    f"Certificate file not found: {cert_path}"))
+
             if key_path and not os.path.exists(key_path):
-                errors.append(create_error_msg(local_repo_yml, "user_registry", 
-                                             f"Key file not found: {key_path}"))
+                errors.append(create_error_msg(
+                    local_repo_yml, "user_registry",
+                    f"Key file not found: {key_path}"))
 
     # Validate user_repo_url entries have a 'name' field
     for repo_key in ("user_repo_url_x86_64", "user_repo_url_aarch64"):
@@ -156,11 +160,12 @@ def validate_local_repo_config(input_file_path, data,
     for arch in all_archs:
         arch_repo_names = []
         arch_list = url_list + [url+'_'+arch for url in url_list]
-         # define base repos dynamically for this arch if subscription registered 
+        base_subscription_repos = []
+        # define base repos dynamically for this arch if subscription registered
         if sub_result:
             base_subscription_repos = ["baseos", "appstream", "codeready-builder"]
             logger.info(f"Base subscription repos for {arch}: {base_subscription_repos}")
-        
+
         # Collect repo names from standard repo lists
         # Names are kept as-is (short format); build_repo_name() is applied at runtime
         for repurl in arch_list:
@@ -194,11 +199,11 @@ def validate_local_repo_config(input_file_path, data,
                 raw_name = x.get('name')
                 if raw_name:
                     arch_repo_names.append(raw_name)
-        
+
         # Add base subscription repos to the final list (they will be dynamically generated)
         if sub_result:
             arch_repo_names = arch_repo_names + base_subscription_repos
-        
+
         repo_names[arch] = arch_repo_names
         logger.info(f"Total repos for {arch}: {repo_names[arch]}")
 
@@ -232,7 +237,6 @@ def validate_local_repo_config(input_file_path, data,
                         )
                     )
 
-    os_ver_path = f"/{software_config_json['cluster_os_type']}/{software_config_json['cluster_os_version']}/"
     supported_subgroups = config.ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS
     additional_packages_warnings = False
 
@@ -244,7 +248,7 @@ def validate_local_repo_config(input_file_path, data,
         for arch in arch_list:
             # Use get_json_file_path for proper versioned JSON file resolution
             json_path = get_json_file_path(
-                sw, cluster_os_type, cluster_os_version, 
+                sw, cluster_os_type, cluster_os_version,
                 software_config_file_path, arch,
                 software_version=software_version)
             if not json_path or not os.path.exists(json_path):
@@ -254,7 +258,10 @@ def validate_local_repo_config(input_file_path, data,
                 else:
                     expected_file = f"{sw}.json"
                 errors.append(
-                    create_error_msg(sw + '/' + arch, f"{sw} JSON file not found for architecture {arch}.", expected_file))
+                    create_error_msg(
+                        sw + '/' + arch,
+                        f"{sw} JSON file not found for architecture {arch}.",
+                        expected_file))
             else:
                 curr_json = load_json(json_path)
                 pkg_list = curr_json[sw]['cluster']
@@ -278,7 +285,8 @@ def validate_local_repo_config(input_file_path, data,
                         elif json_key not in user_subgroups:
                             logger.warning(
                                 f"{sw}/{arch}: {json_path} - "
-                                f"Subgroup '{json_key}' is present in JSON but not listed under additional_packages in software_config.json.")
+                                f"Subgroup '{json_key}' is present in JSON but not listed"
+                                f" under additional_packages in software_config.json.")
                             additional_packages_warnings = True
                 if sw in software_config_json:
                     for sub_pkg in software_config_json[sw]:
@@ -289,12 +297,11 @@ def validate_local_repo_config(input_file_path, data,
                             if sw == "additional_packages":
                                 if sub_sw not in supported_subgroups.get(arch, []):
                                     continue
-                                else:
-                                    logger.warning(
-                                        f"{sw}/{arch}: {json_path} - "
-                                        f"Software {sub_sw} not found in {sw}.")
-                                    additional_packages_warnings = True
-                                    continue
+                                logger.warning(
+                                    f"{sw}/{arch}: {json_path} - "
+                                    f"Software {sub_sw} not found in {sw}.")
+                                additional_packages_warnings = True
+                                continue
                             errors.append(
                                 create_error_msg(sw + '/' + arch,
                                                 json_path,
@@ -317,10 +324,10 @@ def validate_local_repo_config(input_file_path, data,
                                 create_error_msg(sw + '/' + arch,
                                                  f"Repo name {repo_name} not found.",
                                                 json_path))
-    
+
     if additional_packages_warnings:
         logger.info(
             "[INFO] Additional packages validation completed with warnings. "
             "Please review the log file for additional_packages configuration details.")
-    
+
     return errors

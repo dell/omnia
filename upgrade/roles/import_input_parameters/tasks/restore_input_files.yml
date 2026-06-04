@@ -15,7 +15,7 @@
 
 - name: Validate restore_input_files is defined
   ansible.builtin.set_fact:
-    restore_input_files_effective: "{{ restore_input_files | default([]) }}"
+    restore_input_files_effective: "{{ restore_input_files | default([], true) }}"
 
 - name: Restore input files from backup (overwrite target)
   ansible.builtin.include_tasks: restore_single_input_file.yml

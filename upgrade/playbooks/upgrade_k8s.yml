@@ -1421,7 +1421,7 @@
           multi_hop:
             current_hop: "{{ upgrade_status.multi_hop.current_hop | default(0) }}"
             hops: >-
-              {{ (upgrade_status.multi_hop.hops | default([]))
+              {{ (upgrade_status.multi_hop.hops | default([], true))
                  | map('combine', {'status': 'completed', 'completed_at': now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ')})
                  | list }}
 

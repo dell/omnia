@@ -46,7 +46,7 @@
 - name: "Hop — Check if hop already completed"
   ansible.builtin.set_fact:
     _hop_completed: >-
-      {{ (upgrade_status.multi_hop.hops | default([]))
+      {{ (upgrade_status.multi_hop.hops | default([], true))
          | selectattr('to', 'equalto', _current_hop.to_version)
          | selectattr('status', 'equalto', 'completed')
          | list | length > 0 }}
@@ -147,7 +147,7 @@
           multi_hop:
             current_hop: "{{ _hop_idx }}"
             hops: >-
-              {{ (upgrade_status.multi_hop.hops | default([]))
+              {{ (upgrade_status.multi_hop.hops | default([], true))
                  | rejectattr('to', 'equalto', _current_hop.to_version)
                  | list
                  + [{
@@ -784,7 +784,7 @@
           multi_hop:
             current_hop: "{{ _hop_idx }}"
             hops: >-
-              {{ (upgrade_status.multi_hop.hops | default([]))
+              {{ (upgrade_status.multi_hop.hops | default([], true))
                  | rejectattr('to', 'equalto', _current_hop.to_version)
                  | list
                  + [{

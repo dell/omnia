@@ -46,19 +46,19 @@
   ansible.builtin.set_fact:
     backup_telemetry_victoria_config: >-
       {{ backup_telemetry_config.victoria_metrics_configurations
-         | default(backup_telemetry_config.victoria_configurations | default({})) }}
+         | default(backup_telemetry_config.victoria_configurations | default({}, true)) }}
     backup_telemetry_kafka_config: >-
-      {{ backup_telemetry_config.kafka_configurations | default({}) }}
+      {{ backup_telemetry_config.kafka_configurations | default({}, true) }}
     backup_telemetry_victoria_logs_config: >-
-      {{ backup_telemetry_config.victoria_logs_configurations | default({}) }}
+      {{ backup_telemetry_config.victoria_logs_configurations | default({}, true) }}
     backup_telemetry_powerscale_config: >-
-      {{ backup_telemetry_config.powerscale_configurations | default({}) }}
+      {{ backup_telemetry_config.powerscale_configurations | default({}, true) }}
     backup_telemetry_sources: >-
-      {{ backup_telemetry_config.telemetry_sources | default({}) }}
+      {{ backup_telemetry_config.telemetry_sources | default({}, true) }}
     backup_telemetry_sinks: >-
-      {{ backup_telemetry_config.telemetry_sinks | default({}) }}
+      {{ backup_telemetry_config.telemetry_sinks | default({}, true) }}
     backup_telemetry_ldms_config: >-
-      {{ backup_telemetry_config.ldms_configurations | default({}) }}
+      {{ backup_telemetry_config.ldms_configurations | default({}, true) }}
 
 - name: Extract iDRAC telemetry support from backup (2.1 or 2.2 format)
   ansible.builtin.set_fact:
@@ -66,7 +66,7 @@
       {{
         backup_telemetry_config.idrac_telemetry_support
         | default(
-            (backup_telemetry_sources.idrac | default({})).metrics_enabled
+            (backup_telemetry_sources.idrac | default({}, true)).metrics_enabled
             | default(telemetry_default_idrac_support)
           )
       }}
@@ -84,7 +84,7 @@
   ansible.builtin.set_fact:
     telemetry_idrac_collection_targets: >-
       {{
-        (backup_telemetry_sources.idrac | default({})).collection_targets
+        (backup_telemetry_sources.idrac | default({}, true)).collection_targets
         | default(
             telemetry_telemetry_collection_type.split(',')
             | map('trim')
@@ -96,47 +96,47 @@
 - name: Normalize VictoriaMetrics sink values from backup
   ansible.builtin.set_fact:
     telemetry_victoria_persistence_size: >-
-      {{ (backup_telemetry_sinks.victoria_metrics | default({})).persistence_size
+      {{ (backup_telemetry_sinks.victoria_metrics | default({}, true)).persistence_size
          | default(backup_telemetry_victoria_config.persistence_size
          | default(telemetry_default_victoria_persistence_size)) }}
     telemetry_victoria_retention_period: >-
-      {{ (backup_telemetry_sinks.victoria_metrics | default({})).retention_period
+      {{ (backup_telemetry_sinks.victoria_metrics | default({}, true)).retention_period
          | default(backup_telemetry_victoria_config.retention_period
          | default(telemetry_default_victoria_retention_period)) }}
     telemetry_additional_metric_remote_write_endpoints: >-
-      {{ (backup_telemetry_sinks.victoria_metrics | default({})).additional_metric_remote_write_endpoints
-         | default([]) }}
+      {{ (backup_telemetry_sinks.victoria_metrics | default({}, true)).additional_metric_remote_write_endpoints
+         | default([], true) }}
 
 - name: Normalize VictoriaLogs sink values from backup
   ansible.builtin.set_fact:
     telemetry_victoria_logs_storage_size: >-
-      {{ (backup_telemetry_sinks.victoria_logs | default({})).storage_size
+      {{ (backup_telemetry_sinks.victoria_logs | default({}, true)).storage_size
          | default(backup_telemetry_victoria_logs_config.storage_size
          | default(telemetry_default_victoria_logs_storage_size)) }}
     telemetry_victoria_logs_retention_period: >-
-      {{ (backup_telemetry_sinks.victoria_logs | default({})).retention_period
+      {{ (backup_telemetry_sinks.victoria_logs | default({}, true)).retention_period
          | default(backup_telemetry_victoria_logs_config.retention_period
          | default(telemetry_default_victoria_logs_retention_period)) }}
     telemetry_additional_log_write_endpoints: >-
-      {{ (backup_telemetry_sinks.victoria_logs | default({})).additional_log_write_endpoints
-         | default([]) }}
+      {{ (backup_telemetry_sinks.victoria_logs | default({}, true)).additional_log_write_endpoints
+         | default([], true) }}
 
 - name: Normalize Kafka sink values from backup
   ansible.builtin.set_fact:
     telemetry_kafka_persistence_size: >-
-      {{ (backup_telemetry_sinks.kafka | default({})).persistence_size
+      {{ (backup_telemetry_sinks.kafka | default({}, true)).persistence_size
          | default(backup_telemetry_kafka_config.persistence_size
          | default(telemetry_default_kafka_persistence_size)) }}
     telemetry_kafka_log_retention_hours: >-
-      {{ (backup_telemetry_sinks.kafka | default({})).log_retention_hours
+      {{ (backup_telemetry_sinks.kafka | default({}, true)).log_retention_hours
          | default(backup_telemetry_kafka_config.log_retention_hours
          | default(telemetry_default_kafka_log_retention_hours)) }}
     telemetry_kafka_log_retention_bytes: >-
-      {{ (backup_telemetry_sinks.kafka | default({})).log_retention_bytes
+      {{ (backup_telemetry_sinks.kafka | default({}, true)).log_retention_bytes
          | default(backup_telemetry_kafka_config.log_retention_bytes
          | default(telemetry_default_kafka_log_retention_bytes)) }}
     telemetry_kafka_log_segment_bytes: >-
-      {{ (backup_telemetry_sinks.kafka | default({})).log_segment_bytes
+      {{ (backup_telemetry_sinks.kafka | default({}, true)).log_segment_bytes
          | default(backup_telemetry_kafka_config.log_segment_bytes
          | default(telemetry_default_kafka_log_segment_bytes)) }}
 
@@ -144,7 +144,7 @@
   ansible.builtin.set_fact:
     telemetry_kafka_topic_partitions_raw: >-
       {{
-        (backup_telemetry_sinks.kafka | default({})).topic_partitions
+        (backup_telemetry_sinks.kafka | default({}, true)).topic_partitions
         | default(backup_telemetry_kafka_config.topic_partitions
         | default(telemetry_default_kafka_topic_partitions))
       }}
@@ -204,7 +204,7 @@
   ansible.builtin.set_fact:
     ldms_present_in_software_config: >-
       {{
-        (backup_software_config.softwares | default([]))
+        (backup_software_config.softwares | default([], true))
         | selectattr('name', 'defined')
         | selectattr('name', 'equalto', 'ldms')
         | list
@@ -220,46 +220,46 @@
 - name: Normalize LDMS source metrics_enabled from backup
   ansible.builtin.set_fact:
     telemetry_ldms_metrics_enabled: >-
-      {{ (backup_telemetry_sources.ldms | default({})).metrics_enabled
+      {{ (backup_telemetry_sources.ldms | default({}, true)).metrics_enabled
          | default(true if ldms_present_in_software_config | bool else telemetry_default_ldms_metrics_enabled) }}
 
 - name: Normalize DCGM and PowerScale source values from backup
   ansible.builtin.set_fact:
     telemetry_dcgm_support: >-
-      {{ (backup_telemetry_sources.dcgm | default({})).metrics_enabled
+      {{ (backup_telemetry_sources.dcgm | default({}, true)).metrics_enabled
          | default(backup_telemetry_config.dcgm_support
          | default(telemetry_default_dcgm_support)) }}
     telemetry_powerscale_metrics_enabled: >-
-      {{ (backup_telemetry_sources.powerscale | default({})).metrics_enabled
+      {{ (backup_telemetry_sources.powerscale | default({}, true)).metrics_enabled
          | default(backup_telemetry_powerscale_config.powerscale_telemetry_support
          | default(telemetry_default_powerscale_support)) }}
     telemetry_powerscale_logs_enabled: >-
-      {{ (backup_telemetry_sources.powerscale | default({})).logs_enabled
+      {{ (backup_telemetry_sources.powerscale | default({}, true)).logs_enabled
          | default(backup_telemetry_powerscale_config.powerscale_log_enabled
          | default(telemetry_default_powerscale_log_enabled)) }}
 
 - name: Normalize OME source values from backup (new in 2.2)
   ansible.builtin.set_fact:
     telemetry_ome_metrics_enabled: >-
-      {{ (backup_telemetry_sources.ome | default({})).metrics_enabled
+      {{ (backup_telemetry_sources.ome | default({}, true)).metrics_enabled
          | default(telemetry_default_ome_metrics_enabled) }}
     telemetry_ome_logs_enabled: >-
-      {{ (backup_telemetry_sources.ome | default({})).logs_enabled
+      {{ (backup_telemetry_sources.ome | default({}, true)).logs_enabled
          | default(telemetry_default_ome_logs_enabled) }}
 
 - name: Normalize UFM source values from backup (new in 2.2)
   ansible.builtin.set_fact:
     telemetry_ufm_metrics_enabled: >-
-      {{ (backup_telemetry_sources.ufm | default({})).metrics_enabled
+      {{ (backup_telemetry_sources.ufm | default({}, true)).metrics_enabled
          | default(telemetry_default_ufm_metrics_enabled) }}
     telemetry_ufm_logs_enabled: >-
-      {{ (backup_telemetry_sources.ufm | default({})).logs_enabled
+      {{ (backup_telemetry_sources.ufm | default({}, true)).logs_enabled
          | default(telemetry_default_ufm_logs_enabled) }}
 
 - name: Normalize UFM configuration values from backup (new in 2.2)
   ansible.builtin.set_fact:
     backup_telemetry_ufm_config: >-
-      {{ backup_telemetry_config.ufm_configuration | default({}) }}
+      {{ backup_telemetry_config.ufm_configuration | default({}, true) }}
 
 - name: Extract UFM configuration fields
   ansible.builtin.set_fact:
@@ -288,16 +288,16 @@
 - name: Normalize VAST source values from backup (new in 2.2)
   ansible.builtin.set_fact:
     telemetry_vast_metrics_enabled: >-
-      {{ (backup_telemetry_sources.vast | default({})).metrics_enabled
+      {{ (backup_telemetry_sources.vast | default({}, true)).metrics_enabled
          | default(telemetry_default_vast_metrics_enabled) }}
     telemetry_vast_logs_enabled: >-
-      {{ (backup_telemetry_sources.vast | default({})).logs_enabled
+      {{ (backup_telemetry_sources.vast | default({}, true)).logs_enabled
          | default(telemetry_default_vast_logs_enabled) }}
 
 - name: Normalize VAST configuration values from backup (new in 2.2)
   ansible.builtin.set_fact:
     backup_telemetry_vast_config: >-
-      {{ backup_telemetry_config.vast_configuration | default({}) }}
+      {{ backup_telemetry_config.vast_configuration | default({}, true) }}
 
 - name: Extract VAST configuration fields
   ansible.builtin.set_fact:
@@ -329,16 +329,16 @@
 - name: Normalize bridge values from backup (2.2 format or defaults)
   ansible.builtin.set_fact:
     telemetry_vector_ldms_metrics_enabled: >-
-      {{ ((backup_telemetry_config.telemetry_bridges | default({})).vector_ldms | default({})).metrics_enabled
+      {{ ((backup_telemetry_config.telemetry_bridges | default({}, true)).vector_ldms | default({}, true)).metrics_enabled
          | default(telemetry_default_vector_ldms_metrics_enabled) }}
     telemetry_vector_ome_metrics_enabled: >-
-      {{ ((backup_telemetry_config.telemetry_bridges | default({})).vector_ome | default({})).metrics_enabled
+      {{ ((backup_telemetry_config.telemetry_bridges | default({}, true)).vector_ome | default({}, true)).metrics_enabled
          | default(telemetry_default_vector_ome_metrics_enabled) }}
     telemetry_vector_ome_logs_enabled: >-
-      {{ ((backup_telemetry_config.telemetry_bridges | default({})).vector_ome | default({})).logs_enabled
+      {{ ((backup_telemetry_config.telemetry_bridges | default({}, true)).vector_ome | default({}, true)).logs_enabled
          | default(telemetry_default_vector_ome_logs_enabled) }}
     telemetry_vector_ome_identifier: >-
-      {{ ((backup_telemetry_config.telemetry_bridges | default({})).vector_ome | default({})).ome_identifier
+      {{ ((backup_telemetry_config.telemetry_bridges | default({}, true)).vector_ome | default({}, true)).ome_identifier
          | default('ome') }}
 
 - name: Normalize PowerScale configuration values from backup
