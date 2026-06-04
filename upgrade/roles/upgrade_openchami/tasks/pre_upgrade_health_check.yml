@@ -101,7 +101,9 @@
         # backup directory created by omnia.sh --upgrade.
         - name: Find source openchami RPM filename from backup
           ansible.builtin.shell: |
-            RPM=$(ls -1 {{ openchami_backup_dir | default(openchami_backup_dir_default) }}/openchami/openchami_data/workdir/openchami*.rpm 2>/dev/null | head -1)
+            set -o pipefail
+            backup_dir="{{ openchami_backup_dir | default(openchami_backup_dir_default) }}"
+            RPM=$(ls -1 "${backup_dir}/openchami/openchami_data/workdir/openchami"*.rpm 2>/dev/null | head -1)
             if [ -n "$RPM" ]; then basename "$RPM"; else echo "not found"; fi
           register: source_openchami_rpm_result
           changed_when: false
@@ -109,7 +111,9 @@
 
         - name: Find source ochami CLI RPM filename from backup
           ansible.builtin.shell: |
-            RPM=$(ls -1 {{ openchami_backup_dir | default(openchami_backup_dir_default) }}/openchami/openchami_data/workdir/ochami*.rpm 2>/dev/null | head -1)
+            set -o pipefail
+            backup_dir="{{ openchami_backup_dir | default(openchami_backup_dir_default) }}"
+            RPM=$(ls -1 "${backup_dir}/openchami/openchami_data/workdir/ochami"*.rpm 2>/dev/null | head -1)
             if [ -n "$RPM" ]; then basename "$RPM"; else echo "not found"; fi
           register: source_ochami_rpm_result
           changed_when: false
