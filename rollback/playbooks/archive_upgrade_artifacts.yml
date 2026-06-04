@@ -24,6 +24,7 @@
 # Artifacts archived:
 #   - upgrade_status.yml, rollback_status.yml (per-node step tracking)
 #   - backup/ directory (etcd snapshot, K8s configs, addon backups)
+#   - telemetry/ directory (telemetry backups)
 #   - Upgrade execution logs from OIM container /tmp/
 #
 # Artifacts cleaned (not archived):
@@ -202,6 +203,17 @@
       when: _nfs_backup_dir.stat.exists
       changed_when: true
 
+    - name: Check for telemetry directory on NFS
+      ansible.builtin.stat:
+        path: "{{ archive_mount_path }}/upgrade/telemetry"
+      register: _nfs_telemetry_dir
+
+    - name: Archive telemetry directory
+      ansible.builtin.command:
+        cmd: "mv {{ archive_mount_path }}/upgrade/telemetry {{ nfs_archive_dir }}/telemetry"
+      when: _nfs_telemetry_dir.stat.exists
+      changed_when: true
+
     # ── Remove stale lock files from NFS ──
     - name: Remove lock files from NFS
       ansible.builtin.file:
@@ -303,6 +315,7 @@
           - "    - upgrade_status.yml      (per-node upgrade step tracking)"
           - "    - rollback_status.yml     (per-node rollback step tracking)"
           - "    - backup/                 (etcd snapshot, K8s configs, addon backups)"
+          - "    - telemetry/              (telemetry backups)"
           - "    - logs/                   (upgrade execution logs from OIM)"
           - ""
           - "  Cleaned:"
