@@ -48,18 +48,13 @@
 
 - name: Include oim_metadata.yml
   ansible.builtin.include_vars:
-    file: "{{ oim_metadata }}"
+    file: "{{ oim_metadata_path }}"
     name: oim_metadata
 
 - name: Set oim_shared_path fact
   ansible.builtin.set_fact:
     oim_shared_path: "{{ oim_metadata.oim_shared_path | trim }}"
     slurm_nfs_mounted_path: "{{ slurm_nfs[0].mount_point }}/slurm"
-
-- name: Remove ctld tracking file
-  ansible.builtin.file:
-    path: "{{ slurm_nfs_mounted_path }}/ctld_track"
-    state: absent
 
 - name: Read pxe_mapping_file from backup directory
   # TODO: pxe_mapping_file is an absolute path but assuming it's in project_default

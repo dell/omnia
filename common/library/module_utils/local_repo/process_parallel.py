@@ -142,7 +142,7 @@ def log_table_output(table_output, log_file):
         # Ensure the directory for the log file exists
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         # Write the table output to the log file
-        with open(log_file, "w") as file:
+        with open(log_file, "w", encoding="utf-8") as file:
             file.write("Command Execution Results Table:\n")  # Add a header to the table
             file.write(table_output)  # Write the actual table content
     except Exception as e:

@@ -23,36 +23,9 @@
           {{ upgrade_messages.troubleshooting.container_upgrade_diagnosis }}
       when: openchami_upgrade_failed | default(false) | bool
 
-    # ── Update version.yml with new metadata on success ──────────────
-    - name: Update version.yml with new OpenCHAMI version metadata
-      ansible.builtin.copy:
-        content: |
-          # OpenCHAMI version metadata — updated by upgrade_openchami role
-          openchami_version: "{{ backup_manifest.target_version | default('2.2.0.0') }}"
-          omnia_version: "{{ backup_manifest.target_version | default('2.2.0.0') }}"
-          upgrade_timestamp: "{{ ansible_date_time.iso8601 }}"
-          upgraded_from: "{{ backup_manifest.source_version | default('2.1.0.0') }}"
-          component_versions:
-            smd: "{{ openchami_smd_tag }}"
-            bss: "{{ openchami_bss_tag }}"
-            cloud_init: "{{ openchami_cloud_init_tag }}"
-            local_ca: "{{ openchami_local_ca_tag }}"
-            opaal: "{{ openchami_opaal_tag }}"
-            coresmd: "{{ openchami_coresmd_tag }}"
-            postgres: "{{ postgres_tag }}"
-            hydra: "{{ hydra_tag }}"
-            haproxy: "{{ haproxy_tag }}"
-            registry: "{{ registry_tag }}"
-            minio: "{{ minio_release_tag }}"
-        dest: "/opt/omnia/.data/version.yml"
-        mode: "{{ file_permissions_644 }}"
-      when:
-        - not (openchami_upgrade_failed | default(false) | bool)
-        - openchami_deployed | default(false) | bool
-
     - name: Report upgrade success
       ansible.builtin.debug:
-        msg: "OpenCHAMI upgrade completed successfully. version.yml updated."
+        msg: "OpenCHAMI upgrade completed successfully."
       when:
         - not (openchami_upgrade_failed | default(false) | bool)
         - openchami_deployed | default(false) | bool

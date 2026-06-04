@@ -21,6 +21,14 @@
          | map(attribute='key')
          | first }}
 
+- name: Remove ctld tracking file
+  ansible.builtin.file:
+    path: "{{ slurm_nfs_mounted_path }}/ctld_track"
+    state: absent
+  when:
+    - slurm_ctld_host is defined
+    - slurm_ctld_host not in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
+
 - name: Check for running jobs on slurm cluster
   ansible.builtin.shell:
     cmd: |
@@ -74,7 +82,7 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      sinfo -h -N -o "%n" -t idle
+      sinfo -h -N -o "%n %t" | awk '$2 == "idle" {print $1}'
   register: sinfo_idle_nodes
   changed_when: false
   failed_when: false
@@ -122,29 +130,32 @@
       delegate_to: "{{ slurm_ctld_host }}"
 
     - name: Show non-idle node details and remediation steps
-      ansible.builtin.debug:
-        msg: "{{ non_idle_report }}"
+      ansible.builtin.pause:
+        prompt: "{{ non_idle_report }}"
+        seconds: 5
       vars:
-        non_idle_report:
-          - "Pre-upgrade node state check FAILED."
-          - "{{ slurm_non_idle_nodes | length }} compute node(s) are NOT in idle state."
-          - ""
-          - "Non-idle nodes:"
-          - "{{ slurm_non_idle_nodes | join(', ') }}"
-          - ""
-          - "Current state (node / state / reason):"
-          - "{{ sinfo_non_idle_detail.stdout_lines | default(['(unable to retrieve)']) }}"
-          - ""
-          - "All slurm_node_* compute nodes must be idle before upgrade can proceed."
-          - ""
-          - "Remediation — run the following on '{{ slurm_ctld_host }}':"
-          - "  1. Cancel running jobs on affected nodes:"
-          - "       scancel --nodelist={{ slurm_non_idle_nodes | join(',') }}"
-          - "  2. Drain nodes to prevent new job scheduling:"
-          - "       scontrol update NodeName={{ slurm_non_idle_nodes | join(',') }} State=drain Reason='upgrade'"
-          - "  3. Wait for nodes to reach idle/drained state:"
-          - "       watch -n5 'sinfo -N -o \"%n %T\" --nodes={{ slurm_non_idle_nodes | join(',') }}'"
-          - "  4. Re-run the upgrade playbook once all nodes are idle."
+        non_idle_report: |
+          ------------------------------------------------
+          Pre-upgrade node state check FAILED.
+          ------------------------------------------------
+          {{ slurm_non_idle_nodes | length }} compute node(s) are NOT in idle state.
+          ------------------------------------------------
+          Non-idle nodes:
+          {{ slurm_non_idle_nodes | join(', ') }}
+          ------------------------------------------------
+          Current state (node / state / reason):
+          {{ sinfo_non_idle_detail.stdout_lines | default(['(unable to retrieve)']) }}
+          ------------------------------------------------
+          All slurm_node_* compute nodes must be idle before upgrade can proceed.
+          ------------------------------------------------
+          Remediation — run the following on '{{ slurm_ctld_host }}':
+          1. Cancel running jobs on affected nodes:
+             scancel --nodelist={{ slurm_non_idle_nodes | join(',') }}
+          2. Drain nodes to prevent new job scheduling:
+             scontrol update NodeName={{ slurm_non_idle_nodes | join(',') }} State=drain Reason='upgrade'
+          3. Wait for nodes to reach idle/drained state:
+             watch -n5 'sinfo -N -o "%n %T" --nodes={{ slurm_non_idle_nodes | join(',') }}'
+          4. Re-run the upgrade playbook once all nodes are idle.
 
     - name: Abort upgrade — compute nodes not in idle state
       ansible.builtin.fail:

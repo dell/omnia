@@ -17,7 +17,7 @@
     apply_config: "{{ apply_config | default({})
      | combine({'slurm': (apply_config['slurm']
      | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + (node_params | default([]))}))}) }}"
-  when: node_params is defined and node_params
+  when: node_params is defined and (node_params | length > 0)
   no_log: "{{ _no_log }}"
 
 - name: Append login nodes to NodeName list
@@ -26,7 +26,7 @@
      | combine({'slurm': (apply_config['slurm']
      | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [{'NodeName': item}]}))}) }}"
   loop: "{{ login_list }}"
-  when: login_list is defined and login_list
+  when: login_list is defined and (login_list | length > 0)
   no_log: "{{ _no_log }}"
 
 - name: Append compiler login nodes to NodeName list
@@ -35,7 +35,7 @@
      | combine({'slurm': (apply_config['slurm']
      | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [{'NodeName': item}]}))}) }}"
   loop: "{{ compiler_login_list }}"
-  when: compiler_login_list is defined and compiler_login_list
+  when: compiler_login_list is defined and (compiler_login_list | length > 0)
   no_log: "{{ _no_log }}"
 
 - name: Append Partition
@@ -43,11 +43,11 @@
     apply_config: "{{ apply_config | default({})
      | combine({'slurm': (apply_config['slurm']
      | combine({'PartitionName': (apply_config['slurm'].PartitionName | default([])) + [partition_params]}))}) }}"
-  when: node_params is defined and node_params
+  when: node_params is defined and (node_params | length > 0)
   no_log: "{{ _no_log }}"
 
 - name: Add dbd parameters to slurm conf
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(dbd_slurm_conf))}) }}"
-  when: dbd_list is defined and dbd_list
+  when: dbd_list is defined and (dbd_list | length > 0)
   no_log: "{{ _no_log }}"

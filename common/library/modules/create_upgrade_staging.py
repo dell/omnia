@@ -93,7 +93,7 @@ def create_staging(
         else:
             print(f"Preserved unchanged: {name}")
 
-    with open(os.path.join(staging_dir, 'software_config.json'), 'w') as f:
+    with open(os.path.join(staging_dir, 'software_config.json'), 'w', encoding='utf-8') as f:
         json.dump(sw_config, f, indent=4)
     print(f"software_config.json written to staging ({sw_delta_count} version(s) updated)")
 
@@ -102,7 +102,7 @@ def create_staging(
     local_repo_config_path = os.path.join(input_dir, 'local_repo_config.yml')
     base_config = {}
     if os.path.exists(local_repo_config_path):
-        with open(local_repo_config_path) as f:
+        with open(local_repo_config_path, encoding='utf-8') as f:
             base_config = yaml.safe_load(f) or {}
         print(f"Loaded base local_repo_config.yml from {local_repo_config_path}")
     else:
@@ -123,7 +123,7 @@ def create_staging(
     repos_added = 0
 
     if os.path.exists(repos_file):
-        with open(repos_file) as f:
+        with open(repos_file, encoding='utf-8') as f:
             repos = yaml.safe_load(f) or {}
 
         # Collect Omnia versions whose repos need to be merged.
@@ -186,7 +186,7 @@ def create_staging(
 
     print(f"local_repo_config.yml: {repos_added} repo(s) added from repos.yml to base config")
 
-    with open(os.path.join(staging_dir, 'local_repo_config.yml'), 'w') as f:
+    with open(os.path.join(staging_dir, 'local_repo_config.yml'), 'w', encoding='utf-8') as f:
         yaml.dump(base_config, f, default_flow_style=False, sort_keys=False)
 
     # --- 4. Copy vault credentials files if they exist ---

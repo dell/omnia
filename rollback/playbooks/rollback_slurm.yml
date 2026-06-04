@@ -44,7 +44,7 @@
 
     - name: Read software_config.json
       ansible.builtin.include_vars:
-        file: "{{ rollback_manifest.backup_dir }}/input/project_default/software_config.json"
+        file: "{{ manifest.backup_dir }}/input/project_default/software_config.json"
         name: software_config
 
     - name: Determine slurm_skip status
@@ -70,7 +70,6 @@
                  }) | to_nice_yaml }}
             dest: "{{ rollback_manifest_path }}"
             mode: '0644'
-          delegate_to: localhost
           when: not slurm_skip
 
         - name: "Set slurm_skip — BuildStream terminal gate active"
@@ -259,7 +258,7 @@
             update_ci_defaults: true
             update_ci_common: true
             update_hostname: true
-          loop: "{{ slurm_host_group_map.values() | list }}"
+          loop: "{{ slurm_host_group_map.values() | list | unique }}"
 
     - name: Include slurm rollback role
       ansible.builtin.include_role:
@@ -272,7 +271,7 @@
   serial: 100%
   strategy: host_pinned
   vars:
-    reboot_timeout: 600
+    reboot_timeout: 1200
     ssh_timeout: 60
   tasks:
     - name: Skip if slurm upgrade not needed
@@ -329,7 +328,7 @@
     - name: Reboot node
       ansible.builtin.reboot:
         reboot_timeout: "{{ reboot_timeout }}"
-        test_command: "sinfo"
+        # test_command: "sinfo"
       register: reboot_result
       ignore_errors: true
       ignore_unreachable: true
@@ -356,7 +355,21 @@
       ansible.builtin.set_fact:
         node_status: "{{ node_status | combine({'ssh': (ssh_result is succeeded)}) }}"
 
-    # TODO: check if cloud-init status ??
+    # ---- WAIT FOR CLOUD-INIT ----
+    - name: Wait for cloud-init
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: ci_wait
+      failed_when: false
+      changed_when: ci_wait.rc in [0, 2]
+      timeout: "{{ reboot_timeout }}"
+      ignore_errors: true
+      when: node_status.ssh
+
+    - name: Print cloud-init status
+      ansible.builtin.debug:
+        var: ci_wait
+      when: node_status.ssh and ci_wait is defined
 
     # ---- CHECK SLURM ----
     - name: Check slurm services

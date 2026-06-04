@@ -267,7 +267,7 @@
             update_ci_defaults: true
             update_ci_common: true
             update_hostname: true
-          loop: "{{ slurm_host_group_map.values() | list }}"
+          loop: "{{ slurm_host_group_map.values() | list | unique }}"
 
 - name: Reboot Slurm nodes and validate services
   hosts: slurm_*, login_*
@@ -275,7 +275,7 @@
   serial: 100%
   strategy: host_pinned
   vars:
-    reboot_timeout: 600
+    reboot_timeout: 1200
     ssh_timeout: 60
   tasks:
     - name: Skip if slurm upgrade not needed
@@ -332,7 +332,7 @@
     - name: Reboot node
       ansible.builtin.reboot:
         reboot_timeout: "{{ reboot_timeout }}"
-        test_command: "sinfo"
+        # test_command: "sinfo"
       register: reboot_result
       ignore_errors: true
       ignore_unreachable: true
@@ -359,9 +359,26 @@
       ansible.builtin.set_fact:
         node_status: "{{ node_status | combine({'ssh': (ssh_result is succeeded)}) }}"
 
+    # ---- WAIT FOR CLOUD-INIT ----
+    - name: Wait for cloud-init
+      ansible.builtin.command:
+        cmd: cloud-init status --wait
+      register: ci_wait
+      failed_when: false
+      changed_when: ci_wait.rc in [0, 2]
+      timeout: "{{ reboot_timeout }}"
+      ignore_errors: true
+      when: node_status.ssh
+
+    - name: Print cloud-init status
+      ansible.builtin.debug:
+        var: ci_wait
+      when: node_status.ssh and ci_wait is defined
+
     # ---- CHECK SLURM ----
     - name: Check slurm services
-      ansible.builtin.command: sinfo
+      ansible.builtin.command:
+        cmd: sinfo
       register: svc
       changed_when: false
       failed_when: false

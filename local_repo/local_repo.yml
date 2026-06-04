@@ -26,7 +26,7 @@
 
     - name: Set dynamic run tags including 'local_repo'
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['local_repo']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['local_repo']) | unique }}"
         cacheable: true
 
     - name: Include metadata vars

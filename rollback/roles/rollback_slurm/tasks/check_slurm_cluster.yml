@@ -17,9 +17,17 @@
     slurm_ctld_host: >-
       {{ slurm_host_group_map
          | dict2items
-         | selectattr('value', 'equalto', 'slurm_control_node_x86_64')
+         | selectattr('value', 'match', '^slurm_control_node_')
          | map(attribute='key')
          | first }}
+
+- name: Remove ctld tracking file
+  ansible.builtin.file:
+    path: "{{ slurm_nfs_mounted_path }}/ctld_track"
+    state: absent
+  when:
+    - slurm_ctld_host is defined
+    - slurm_ctld_host not in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
 
 - name: Check for running jobs on slurm cluster
   ansible.builtin.shell:
@@ -39,18 +47,21 @@
   when: running_jobs.unreachable | default(false)
   block:
     - name: Notify that OpenCHAMI changes are already applied
-      ansible.builtin.debug:
-        msg: "{{ ctld_unreachable_msg }}"
-      vars:
-        ctld_unreachable_msg:
-          - "ERROR: Slurm control node '{{ slurm_ctld_host }}' is unreachable."
-          - ""
-          - "NOTE: OpenCHAMI cloud-init and BSS changes have already been applied."
-          - "      The cluster nodes are ready to be rebooted into the rollback image."
-          - ""
-          - "ACTION REQUIRED: Reboot the nodes using the iDRAC PXE boot playbook:"
-          - "  ansible-playbook utils/set_pxe_boot.yml"
-          - ""
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: |
+          ================================================================
+          ERROR: Slurm control node '{{ slurm_ctld_host }}' is unreachable.
+          ================================================================
+
+          NOTE: OpenCHAMI cloud-init and BSS changes have already been applied.
+                The cluster nodes are ready to be rebooted into the rollback image.
+
+          ACTION REQUIRED: Reboot the nodes using the iDRAC PXE boot playbook:
+            ansible-playbook utils/set_pxe_boot.yml
+
+          After nodes reboot, re-run the rollback playbook.
+          ================================================================
 
     - name: Abort — control node unreachable, manual PXE reboot required
       ansible.builtin.fail:
@@ -63,14 +74,15 @@
   when: running_jobs.stdout | trim | int > 0
   block:
     - name: Show rollback completion message
-      ansible.builtin.debug:
-        msg: "{{ slurm_rollback_message }}"
-      vars:
-        slurm_rollback_message:
-          - "Slurm rollback will be halted. as there are active jobs running."
-          - "Note: {{ running_jobs.stdout | trim }} running job(s) detected."
-          - "Please drain and stop jobs before proceeding with node reboot."
-          - "Then, rerun the rollback playbook to complete the process."
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: |
+          ================================================================
+          Slurm rollback will be halted. as there are active jobs running.
+          Note: {{ running_jobs.stdout | trim }} running job(s) detected.
+          Please drain and stop jobs before proceeding with node reboot.
+          Then, rerun the rollback playbook to complete the process.
+          ================================================================
 
     - name: Abort rollback if jobs are running
       ansible.builtin.fail:
@@ -80,17 +92,14 @@
   when: running_jobs.rc != 0
   block:
     - name: Warn that slurmctld is not responding
-      ansible.builtin.debug:
-        msg: "{{ ctld_warn_msg }}"
-      vars:
-        ctld_warn_msg:
-          - "WARNING: Slurm controller '{{ slurm_ctld_host }}' is not responding to squeue."
-          - "Error: {{ running_jobs.stderr | default('(no error output)') }}"
-          - "Proceeding with rollback may be unsafe if the cluster is in an unknown state."
-
-    - name: Ask user whether to proceed despite unresponsive controller
       ansible.builtin.pause:
-        prompt: >
+        prompt: |
+          ================================================================
+          WARNING: Slurm controller '{{ slurm_ctld_host }}' is not responding to squeue.
+          Error: {{ running_jobs.stderr | default('(no error output)') }}
+          Proceeding with rollback may be unsafe if the cluster is in an unknown state.
+          ================================================================
+
           slurmctld on '{{ slurm_ctld_host }}' is not responding.
           Type 'yes/y' to proceed with rollback anyway, or press Enter to abort
       register: ctld_proceed_choice
