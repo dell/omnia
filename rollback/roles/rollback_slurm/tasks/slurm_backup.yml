@@ -43,7 +43,7 @@
 
 - name: Include oim_metadata.yml
   ansible.builtin.include_vars:
-    file: "{{ oim_metadata }}"
+    file: "{{ oim_metadata_path }}"
     name: oim_metadata
 
 - name: Set oim_shared_path fact

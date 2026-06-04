@@ -333,24 +333,34 @@
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
 
-    # Build cleaned component_status: preserve 'skipped' for BuildStream-gated
-    # components; mark everything else as 'completed'.
-    - name: Build cleaned component_status (preserve failed; mark pending as completed)
+    # ── Identify tags skipped by BuildStream terminal gate ──
+    - name: Identify BuildStream-skipped components (rollback)
+      ansible.builtin.set_fact:
+        bs_skipped_tags: "{{ bs_rollback_skipped | default([]) }}"
+
+    - name: Resolve requested tags for finalize
+      ansible.builtin.set_fact:
+        finalize_requested_tags: >-
+          {{ all_rollback_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags | intersect(all_rollback_components) }}
+
+    # Build cleaned component_status: only update components that were
+    # actually requested via --tags; leave unrequested components as-is.
+    - name: Build cleaned component_status (only update requested tags)
       ansible.builtin.set_fact:
         cleaned_component_status: >-
           {%- set result = {} -%}
           {%- for key, val in rollback_manifest.component_status.items() -%}
-          {%-   if val in ['completed', 'skipped', 'failed'] -%}
-          {%-     set _ = result.update({key: val}) -%}
+          {%-   if key in bs_skipped_tags and val == 'pending' -%}
+          {%-     set _ = result.update({key: 'skipped'}) -%}
+          {%-   elif key in finalize_requested_tags -%}
+          {%-     set _ = result.update({key: val if val in ['completed', 'skipped'] else 'completed'}) -%}
           {%-   else -%}
-          {%-     set _ = result.update({key: 'completed'}) -%}
+          {%-     set _ = result.update({key: val}) -%}
           {%-   endif -%}
           {%- endfor -%}
-          {{ result | to_json }}
-
-    - name: Coerce cleaned_component_status to a real dict
-      ansible.builtin.set_fact:
-        cleaned_component_status: "{{ cleaned_component_status | from_json }}"
+          {{ result }}
 
     - name: Determine rollback_status (failed if any failed, partial if pending, else completed)
       ansible.builtin.set_fact:
