@@ -28,6 +28,7 @@
 #   2b. Clean up stale MetalLB IPs on all nodes
 #   3.  Restore etcd snapshot on all CPs
 #   4.  Restore /etc/kubernetes/ configs on all CPs
+#   4b. Remove kubelet feature gates (for rollback to older versions)
 #   5.  Downgrade packages on all CPs + start kubelet
 #   6.  Fix kube-vip split-brain
 #   7.  Downgrade packages on workers + start kubelet
@@ -167,6 +168,10 @@
     # ── Stage 4: Restore K8s configs on all CPs ───────────────────
     - name: "Stage 4 — Restore K8s configs"
       ansible.builtin.include_tasks: restore_k8s_configs.yml
+
+    # ── Stage 4b: Remove kubelet feature gates ────────────────────
+    - name: "Stage 4b — Remove kubelet feature gates"
+      ansible.builtin.include_tasks: remove_kubelet_feature_gates.yml
 
     # ── Stage 5: Downgrade packages on CPs and start kubelet ──────
     - name: "Stage 5 — Downgrade and start control planes"
