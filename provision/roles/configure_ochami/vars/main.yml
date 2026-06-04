@@ -88,6 +88,10 @@ file_mode_600: "0600"
 ip_timeout: 10
 ip_wait_loop: 60
 
+# DNS-related variables (set on localhost by provision_validations, needed by cloud-init templates)
+admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+
 # Hostname lists for stack-specific SSH configs (populated by passwordless_ssh role)
 k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | default([]) }}"
 slurm_cluster_hostnames: "{{ hostvars['localhost']['slurm_cluster_hostnames'] | default([]) }}"

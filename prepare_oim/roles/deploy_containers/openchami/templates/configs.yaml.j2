@@ -11,6 +11,7 @@ data_s3_dir: "{{ data_s3_dir }}"
 s3_work_dir: "{{ s3_work_dir }}"
 cluster_shortname: "nid"
 cluster_nidlength: 3
+dns_enabled: {{ dns_enabled | default(false) | bool }}
 
 {% set additional = network_data.admin_network.additional_subnets | default([]) %}
 {% if additional | length > 0 %}

@@ -143,6 +143,11 @@
       ansible.builtin.command: nmcli device reapply {{ admin_nic }}
       changed_when: true
 
+- name: Override DNS forwarders from network_spec if configured
+  ansible.builtin.set_fact:
+    dns_forwarders: "{{ network_data.admin_network.dns }}"
+  when: (network_data.admin_network.dns | default([])) | length > 0
+
 - name: Set s3_access_id and s3_secret_key
   ansible.builtin.set_fact:
     s3_access_id: "{{ hostvars['localhost']['s3_access_id'] | default('admin', true) }}"
