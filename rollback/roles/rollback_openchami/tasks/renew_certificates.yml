@@ -36,7 +36,11 @@
     - name: Renew OpenCHAMI certificates
       ansible.builtin.command: openchami-certificate-update update {{ rollback_cluster_fqdn }}
       become: true
-      changed_when: true
+      register: cert_renew_result
+      changed_when: cert_renew_result.rc == 0
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+      until: cert_renew_result.rc == 0
       delegate_to: oim
       delegate_facts: true
       connection: ssh

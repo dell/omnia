@@ -86,40 +86,6 @@
               upgrade_needed={{ upgrade_needed | default(true) }},
               failed={{ openchami_upgrade_failed | default(false) }}
 
-        # Only update version tracking when an upgrade actually took place.
-        # Skipped when OpenCHAMI was not deployed or was already at target.
-        - name: Read current version.yml (if exists)
-          ansible.builtin.slurp:
-            src: "/opt/omnia/.data/version.yml"
-          register: raw_version_yml
-          failed_when: false
-          when:
-            - openchami_deployed | default(false) | bool
-            - upgrade_needed | default(true) | bool
-
-        - name: Parse current version.yml
-          ansible.builtin.set_fact:
-            current_version_data: "{{ raw_version_yml.content | b64decode | from_yaml }}"
-          when:
-            - openchami_deployed | default(false) | bool
-            - upgrade_needed | default(true) | bool
-            - raw_version_yml is defined
-            - raw_version_yml.content is defined
-
-        - name: Update version.yml with OpenCHAMI target version
-          ansible.builtin.copy:
-            content: >-
-              {{ (current_version_data | default({})) | combine({
-                   'openchami_version': manifest.target_version | default('2.2.0.0'),
-                   'openchami_previous_version': manifest.source_version | default('2.1.0.0'),
-                   'openchami_upgrade_timestamp': lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ')
-                 }) | to_nice_yaml }}
-            dest: "/opt/omnia/.data/version.yml"
-            mode: '0644'
-          when:
-            - openchami_deployed | default(false) | bool
-            - upgrade_needed | default(true) | bool
-
       rescue:
         # Re-read the manifest file to capture any intermediate writes
         # (e.g., the in-progress status set earlier in this play).

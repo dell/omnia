@@ -59,13 +59,13 @@
   ansible.builtin.set_fact:
     slurm_nfs_client_params: "{{ (backup_storage_config.nfs_client_params | selectattr('nfs_name', 'equalto', slurm_nfs_storage_name) | first | default({})) }}"
     k8s_nfs_client_params: "{{ (backup_storage_config.nfs_client_params | selectattr('nfs_name', 'equalto', k8s_nfs_storage_name) | first | default({})) }}"
-    storage_nfs_client_params: "{{ backup_storage_config.nfs_client_params | default([]) }}"
-    storage_powervault_config: "{{ backup_storage_config.powervault_config | default({}) }}"
+    storage_nfs_client_params: "{{ backup_storage_config.nfs_client_params | default([], true) }}"
+    storage_powervault_config: "{{ backup_storage_config.powervault_config | default({}, true) }}"
 
 - name: Fail if nfs_client_params is missing
   ansible.builtin.fail:
     msg: "{{ msg_nfs_client_params_missing }}"
-  when: (storage_nfs_client_params | default([]) | length) == 0
+  when: (storage_nfs_client_params | default([], true) | length) == 0
 
 - name: Fail if any NFS client entry is missing required keys
   ansible.builtin.fail:

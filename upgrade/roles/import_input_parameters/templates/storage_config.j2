@@ -189,12 +189,12 @@ mount_params:
 #   # This mounts the whole powervault volume with <volume_id> to /mnt/slurm
 #   # followed by bind creation of dir <node_key> under /mnt/slurm
 #   # node_key is the key in cloud-init so that its unique per host
-{% set pv = storage_powervault_config | default({}) %}
+{% set pv = storage_powervault_config | default({}, true) %}
 {% if pv %}
 powervault_config:
   - name: powervault_slurm_ctld
     ip:
-    {% for _ip in pv.ip | default([]) %}
+    {% for _ip in pv.ip | default([], true) %}
       - {{ _ip }}
     {% endfor %}
     port: {{ pv.port | default('') }}

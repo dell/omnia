@@ -45,7 +45,7 @@ def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
         if is_file_encrypted(yaml_file):
             data = process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, module)
             return data
-        with open(yaml_file, "r") as f:
+        with open(yaml_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
             return data
     except FileNotFoundError:
@@ -167,7 +167,7 @@ def load_json(file_path):
         ValueError: If the JSON parsing fails.
     """
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Error: File '{file_path}' not found.") from exc
@@ -221,7 +221,7 @@ def is_file_encrypted(file_path):
         bool: True if the file is encrypted, False otherwise.
     """
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             first_line = file.readline().strip()
             return first_line.startswith('$ANSIBLE_VAULT')
     except (IOError, OSError):
@@ -245,7 +245,7 @@ def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, modu
     decrypted_file = decrypt_file(omnia_base_dir, project_name, yaml_file, vault_password_file)
     if decrypted_file:
         try:
-            with open(yaml_file, "r") as f:
+            with open(yaml_file, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
                 encrypt_file(omnia_base_dir, project_name, yaml_file, vault_password_file)
                 return data

@@ -24,7 +24,7 @@ from ansible.module_utils.basic import AnsibleModule
 def load_functional_groups_yaml(path, module):
     """Load functional group names from YAML."""
     try:
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
         return data.get("groups", {})
     except ValueError as e:

@@ -24,13 +24,9 @@
 #                  Click exactly one to run that pipeline independently.
 #   API trigger  : Set PIPELINE_TYPE to "build", "deploy", or "cleanup".
 #
-# Constraint: no two child pipelines run in the same parent execution.
-# Serial execution: all trigger jobs share a single resource_group (pipeline)
-# so that only ONE pipeline of any type (build, deploy, or cleanup) runs at a
-# time.  If a new commit triggers a pipeline while a previous one is still
-# running, the new pipeline will wait (queued) until the running one completes.
-# This prevents status mismatches, race conditions, and configuration
-# corruption from concurrent access to the shared backend.
+# Note: Multiple pipelines can now run concurrently as resource_group has been removed.
+# This allows parallel execution of build, deploy, and cleanup pipelines.
+# Be aware of potential race conditions when accessing shared resources concurrently.
 # ---------------------------------------------------------------------------
 
 workflow:
@@ -49,7 +45,6 @@ stages:
 # ---------------------------------------------------------------------------
 build_pipeline:
   stage: pipeline_selection
-  resource_group: pipeline
   trigger:
     include: .gitlab-ci-build.yml
     strategy: depend
@@ -78,7 +73,6 @@ build_pipeline:
 # ---------------------------------------------------------------------------
 deploy_pipeline:
   stage: pipeline_selection
-  resource_group: pipeline
   trigger:
     include: .gitlab-ci-deploy.yml
     strategy: depend
@@ -107,7 +101,6 @@ deploy_pipeline:
 # ---------------------------------------------------------------------------
 cleanup_pipeline:
   stage: pipeline_selection
-  resource_group: pipeline
   trigger:
     include: .gitlab-ci-cleanup.yml
     strategy: depend

@@ -1321,6 +1321,35 @@ validate_nfs_server() {
     fi
 }
 
+# Wait for the SSH daemon inside omnia_core to start accepting connections
+# on port 2222.  After a container swap (upgrade / rollback) the container
+# process is "Up" but sshd may still be initialising.  Without this wait,
+# ssh-keyscan and the subsequent `ssh omnia_core` fail with
+# "Connection refused".
+wait_for_ssh_ready() {
+    local ssh_port=2222
+    local max_wait=30
+    local waited=0
+
+    echo -n "[INFO] Waiting for SSH daemon inside omnia_core to be ready"
+    while [ $waited -lt $max_wait ]; do
+        # Use ssh-keyscan as a lightweight probe — it exits 0 when it
+        # receives at least one host key line.
+        if ssh-keyscan -p "$ssh_port" localhost 2>/dev/null | grep -q .; then
+            echo " ready (${waited}s)"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        echo -n "."
+    done
+
+    echo ""
+    echo "[WARN] SSH daemon did not become ready within ${max_wait}s."
+    echo "[WARN] You can connect manually later with: ssh omnia_core"
+    return 1
+}
+
 init_ssh_config() {
     local ssh_port=2222
 
@@ -2280,6 +2309,8 @@ upgrade_omnia_core() {
     echo ""
 
     show_post_upgrade_instructions "$TARGET_OMNIA_VERSION"
+    # Wait for sshd inside the new container before configuring keys / connecting
+    wait_for_ssh_ready
     # Initialize SSH config and start container session
     init_ssh_config
     remove_container_omnia_sh
@@ -2648,6 +2679,8 @@ rollback_omnia_core() {
         # Fetch config from restored metadata (populates omnia_path, domain_name, etc.)
         fetch_config
 
+        # Wait for sshd inside the restarted container before configuring keys / connecting
+        wait_for_ssh_ready
         # Initialize SSH config and start container session
         init_ssh_config
         remove_container_omnia_sh
@@ -2793,6 +2826,8 @@ rollback_omnia_core() {
     # Fetch config from restored metadata (populates omnia_path, domain_name, etc.)
     fetch_config
 
+    # Wait for sshd inside the restored container before configuring keys / connecting
+    wait_for_ssh_ready
     # Initialize SSH config and start container session
     init_ssh_config
     remove_container_omnia_sh

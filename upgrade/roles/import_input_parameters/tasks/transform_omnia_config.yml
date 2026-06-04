@@ -44,8 +44,8 @@
 
 - name: Normalize omnia_config.yml values
   ansible.builtin.set_fact:
-    omnia_slurm_cluster_raw: "{{ backup_omnia_config.slurm_cluster | default([]) }}"
-    omnia_service_k8s_cluster_raw: "{{ backup_omnia_config.service_k8s_cluster | default([]) }}"
+    omnia_slurm_cluster_raw: "{{ backup_omnia_config.slurm_cluster | default([], true) }}"
+    omnia_service_k8s_cluster_raw: "{{ backup_omnia_config.service_k8s_cluster | default([], true) }}"
 
 - name: Ensure slurm_cluster and service_k8s_cluster are lists
   ansible.builtin.set_fact:
@@ -65,12 +65,12 @@
 - name: Fail if slurm_cluster is missing
   ansible.builtin.fail:
     msg: "{{ msg_slurm_cluster_missing }}"
-  when: (omnia_slurm_cluster | default([]) | length) == 0
+  when: (omnia_slurm_cluster | default([], true) | length) == 0
 
 - name: Fail if service_k8s_cluster is missing
   ansible.builtin.fail:
     msg: "{{ msg_service_k8s_cluster_missing }}"
-  when: (omnia_service_k8s_cluster | default([]) | length) == 0
+  when: (omnia_service_k8s_cluster | default([], true) | length) == 0
 
 - name: Write omnia_config.yml in Omnia 2.2 format
   ansible.builtin.template:

@@ -49,7 +49,7 @@
         (
           [backup_ha_config.service_k8s_cluster_ha]
           if (backup_ha_config.service_k8s_cluster_ha is mapping)
-          else (backup_ha_config.service_k8s_cluster_ha | default([]))
+          else (backup_ha_config.service_k8s_cluster_ha | default([], true))
         )
       }}
 
@@ -57,7 +57,7 @@
   ansible.builtin.set_fact:
     ha_entries_missing_vip: >-
       {{
-        (ha_service_k8s_cluster_ha | default([]))
+        (ha_service_k8s_cluster_ha | default([], true))
         | select('mapping')
         | selectattr('virtual_ip_address', 'undefined')
         | map(attribute='cluster_name')
@@ -68,7 +68,7 @@
   ansible.builtin.set_fact:
     ha_entries_empty_vip: >-
       {{
-        (ha_service_k8s_cluster_ha | default([]))
+        (ha_service_k8s_cluster_ha | default([], true))
         | select('mapping')
         | selectattr('virtual_ip_address', 'defined')
         | selectattr('virtual_ip_address', 'match', '^\\s*$')
@@ -80,9 +80,9 @@
   ansible.builtin.fail:
     msg: "{{ msg_ha_virtual_ip_missing }}"
   when:
-    - (ha_service_k8s_cluster_ha | default([]) | length) == 0
-      or ((ha_entries_missing_vip | default([]) | length) > 0)
-      or ((ha_entries_empty_vip | default([]) | length) > 0)
+    - (ha_service_k8s_cluster_ha | default([], true) | length) == 0
+      or ((ha_entries_missing_vip | default([], true) | length) > 0)
+      or ((ha_entries_empty_vip | default([], true) | length) > 0)
 
 - name: Write high_availability_config.yml in Omnia 2.2 format
   ansible.builtin.template:
