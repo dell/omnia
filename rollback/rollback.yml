@@ -445,6 +445,17 @@
           - "This will rollback the omnia_core container image to the previous version."
 
 # ──────────────────────────────────────────────────────────────────────
+# Archive upgrade/rollback artifacts on NFS share.
+# Only runs when k8s-telemetry rollback completed successfully.
+# Archives status files, backups, and OIM logs into a timestamped
+# directory on the NFS share for root cause analysis, then cleans up
+# staging artifacts, temp files, and lock files.
+# ──────────────────────────────────────────────────────────────────────
+- name: Archive upgrade artifacts on NFS
+  ansible.builtin.import_playbook: playbooks/archive_upgrade_artifacts.yml
+  tags: always
+
+# ──────────────────────────────────────────────────────────────────────
 # Guaranteed terminal cleanup (C-30) — defense-in-depth against
 # sub-playbook fatal errors that skip the finalize play above.
 # ──────────────────────────────────────────────────────────────────────
