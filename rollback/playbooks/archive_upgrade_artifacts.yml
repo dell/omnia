@@ -126,6 +126,8 @@
           - "upgrade_*.log"
           - "reboot_*.log"
           - "update_bss_*.log"
+          - "rollback_bss_*.log"
+          - "rollback_*.log"
           - "k8s_upgrade_inventory.ini"
           - "k8s_vars.yml"
       register: _tmp_log_files
