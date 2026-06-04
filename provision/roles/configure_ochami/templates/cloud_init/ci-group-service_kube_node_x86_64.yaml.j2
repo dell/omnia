@@ -339,7 +339,8 @@
             echo "Adding kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
             echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
 
-            # Restart kubelet to apply changes
+            # Reload systemd and restart kubelet to apply changes
+            systemctl daemon-reload
             systemctl restart kubelet
             # Mark initialization complete so all of above is skipped on reboot!
             touch "$MARKER"
@@ -354,6 +355,7 @@
             echo "Reapplying kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
             echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
             systemctl daemon-reload
+            systemctl restart kubelet
             
             # CRI and kubelet already enabled above
             systemctl status kubelet

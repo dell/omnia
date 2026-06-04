@@ -879,6 +879,7 @@ PYEOF
             echo "Reapplying kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
             echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
             systemctl daemon-reload
+            systemctl restart kubelet
             
             # CRI and kubelet already enabled above
             # You can log health status etc if you wish:
