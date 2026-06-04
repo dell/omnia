@@ -91,10 +91,27 @@
       changed_when: true
       failed_when: false
 
+    # ── Restart kubelet on all nodes to clear stale pod state ──────
+    # After force-deleting calico-node pods, the kubelet may retain
+    # stale references to the old pods (projected volume mounts,
+    # service account tokens). This prevents new replacement pods
+    # from starting — they stay Pending indefinitely. Restarting
+    # kubelet clears the stale pod cache and allows the DaemonSet
+    # controller's new pods to be started cleanly.
+    - name: Restart kubelet on all nodes to clear stale pod state
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: restarted
+      delegate_to: "{{ item }}"
+      changed_when: true
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
     # ── Brief wait for DaemonSet controller to recreate pods ───────
     - name: Wait for DaemonSet controller to schedule new pods
       ansible.builtin.pause:
-        seconds: 15
+        seconds: 30
 
     # ── Delete any non-Running kube-system pods to unblock the poll ──
     # This runs BEFORE the strict poll so stuck/Pending pods from
