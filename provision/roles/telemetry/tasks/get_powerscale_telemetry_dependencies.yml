@@ -89,13 +89,13 @@
     - name: Check if cert-manager is disabled in values file
       ansible.builtin.set_fact:
         cert_manager_disabled: >-
-          {%- if csm_observability_values_file_path | default('') != '' -%}
-          {%- set values_content = lookup('file', csm_observability_values_file_path, errors='ignore') -%}
-          {%- if values_content is not none and 'cert-manager:' in values_content and 'enabled: false' in values_content -%}
-          true{%- else -%}
-          false{%- endif -%}
-          {%- else -%}
-          false{%- endif -%}
+          {{-
+            (csm_observability_values_file_path | default('') != '') and
+            (lookup('file', csm_observability_values_file_path, errors='ignore') is not none) and
+            ('cert-manager:' in lookup('file', csm_observability_values_file_path, errors='ignore')) and
+            ('enabled: false' in lookup('file', csm_observability_values_file_path, errors='ignore'))
+            | bool
+          -}}
 
     - name: Display cert-manager dependency status
       ansible.builtin.debug:
