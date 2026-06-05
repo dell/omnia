@@ -65,12 +65,12 @@
     label: "{{ item.name }}"
 
 # ── Query actual cluster nodes ───────────────────────────────────────
+# Cluster nodes are typically named by their IP addresses (e.g., 10.60.0.101)
 - name: Get actual cluster nodes with roles
   ansible.builtin.command:
     cmd: >-
       kubectl get nodes
-      -o jsonpath='{range .items[*]}{.metadata.name}|{.metadata.labels.node-role\.kubernetes\.io/control-plane}|
-      {.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
+      -o jsonpath='{range .items[*]}{.metadata.name}|{.metadata.labels.node-role\.kubernetes\.io/control-plane}{"\n"}{end}'
   delegate_to: "{{ kube_vip }}"
   register: cluster_nodes_raw
   changed_when: false
@@ -80,8 +80,7 @@
     cluster_nodes_parsed: >-
       {{ cluster_nodes_parsed | default([]) + [{
            'name': item.split('|')[0],
-           'is_control_plane': (item.split('|')[1] | default('') | length > 0),
-           'ip': item.split('|')[2] | default('')
+           'is_control_plane': (item.split('|')[1] | default('') | length > 0)
          }] }}
   loop: "{{ cluster_nodes_raw.stdout_lines | select('match', '.+') | list }}"
   loop_control:
@@ -96,46 +95,54 @@
     cluster_all_nodes: >-
       {{ cluster_nodes_parsed | map(attribute='name') | list }}
 
-- name: Build cluster node IP map
-  ansible.builtin.set_fact:
-    cluster_node_ips: >-
-      {{ cluster_node_ips | default({}) | combine({
-           item.name: item.ip
-         }) }}
-  loop: "{{ cluster_nodes_parsed }}"
-  loop_control:
-    label: "{{ item.name }}"
+# ══════════════════════════════════════════════════════════════════════════════
+# Compare nodes.yaml with cluster nodes
+# ══════════════════════════════════════════════════════════════════════════════
+# nodes.yaml has: hostname -> IP mapping (e.g., kcp1 -> 10.60.0.102)
+# Cluster has: node names which ARE the IPs (e.g., 10.60.0.102)
+# So we compare nodes_yaml IPs against cluster node names (which are IPs)
 
-# ── Compare nodes.yaml with cluster by IP address ────────────────────
-# Cluster nodes may be named by IP or hostname, so compare using IPs
 - name: Build IP list from nodes.yaml
   ansible.builtin.set_fact:
     nodes_yaml_ip_list: "{{ nodes_yaml_ips.values() | list }}"
 
-- name: Build IP list from cluster
+# cluster_all_nodes contains IPs (since nodes are named by IP)
+- name: Build IP list from cluster (node names are IPs)
   ansible.builtin.set_fact:
-    cluster_ip_list: "{{ cluster_node_ips.values() | list }}"
+    cluster_ip_list: "{{ cluster_all_nodes }}"
 
+# Find nodes.yaml entries whose IP is NOT in the cluster
 - name: Find nodes in nodes.yaml but NOT in cluster (by IP)
   ansible.builtin.set_fact:
     nodes_only_in_yaml: >-
-      {{ all_expected_nodes | select('in',
-           (nodes_yaml_ips | dict2items | rejectattr('value', 'in', cluster_ip_list) | map(attribute='key') | list)
-         ) | list }}
+      {{ nodes_yaml_ips | dict2items
+         | rejectattr('value', 'in', cluster_ip_list)
+         | map(attribute='key') | list }}
 
+# Find cluster nodes (IPs) that are NOT in nodes.yaml
 - name: Find nodes in cluster but NOT in nodes.yaml (by IP)
   ansible.builtin.set_fact:
     nodes_only_in_cluster: >-
-      {{ cluster_all_nodes | select('in',
-           (cluster_node_ips | dict2items | rejectattr('value', 'in', nodes_yaml_ip_list) | map(attribute='key') | list)
-         ) | list }}
+      {{ cluster_all_nodes | reject('in', nodes_yaml_ip_list) | list }}
 
+# Find nodes.yaml entries whose IP IS in the cluster
 - name: Find nodes present in both (by IP) - get nodes.yaml names
   ansible.builtin.set_fact:
     nodes_in_both: >-
-      {{ all_expected_nodes | select('in',
-           (nodes_yaml_ips | dict2items | selectattr('value', 'in', cluster_ip_list) | map(attribute='key') | list)
-         ) | list }}
+      {{ nodes_yaml_ips | dict2items
+         | selectattr('value', 'in', cluster_ip_list)
+         | map(attribute='key') | list }}
+
+# Build reverse mapping: cluster IP -> nodes.yaml hostname (for display)
+- name: Build IP to hostname mapping
+  ansible.builtin.set_fact:
+    ip_to_hostname: >-
+      {{ ip_to_hostname | default({}) | combine({
+           item.value: item.key
+         }) }}
+  loop: "{{ nodes_yaml_ips | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
 - name: Determine if there are discrepancies
   ansible.builtin.set_fact:
@@ -156,9 +163,14 @@
       - "  - Control plane (additional): {{ expected_cp | join(', ') | default('none') }}"
       - "  - Workers: {{ expected_workers | join(', ') | default('none') }}"
       - ""
-      - "Actual nodes in cluster: {{ cluster_all_nodes | length }}"
-      - "  - Control planes: {{ cluster_control_planes | join(', ') | default('none') }}"
-      - "  - Workers: {{ cluster_workers | join(', ') | default('none') }}"
+      - "nodes.yaml IP mappings:"
+      - "{% for node in all_expected_nodes %}  - {{ node }}: {{ nodes_yaml_ips[node] }}\n{% endfor %}"
+      - ""
+      - "Actual nodes in cluster (by IP): {{ cluster_all_nodes | length }}"
+      - "  - Cluster IPs: {{ cluster_all_nodes | join(', ') | default('none') }}"
+      - ""
+      - "Matched nodes (nodes.yaml hostname -> cluster IP): {{ nodes_in_both | length }}"
+      - "{% for node in nodes_in_both %}  - {{ node }} -> {{ nodes_yaml_ips[node] }}\n{% endfor %}"
       - ""
       - "════════════════════════════════════════════════════════════════════════════════"
 
