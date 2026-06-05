@@ -153,13 +153,13 @@
 
     - name: Include required input to resolve kube_vip
       ansible.builtin.include_role:
-        name: ../roles/upgrade_telemetry
+        name: "{{ playbook_dir }}/../roles/upgrade_telemetry"
         tasks_from: include_required_input.yml
       when: k8s_configured | default(false) | bool
 
     - name: Backup telemetry scripts before provisioning target version
       ansible.builtin.include_role:
-        name: ../roles/upgrade_telemetry
+        name: "{{ playbook_dir }}/../roles/upgrade_telemetry"
         tasks_from: backup_telemetry.yml
       when: k8s_configured | default(false) | bool
 

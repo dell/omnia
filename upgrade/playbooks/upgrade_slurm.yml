@@ -246,7 +246,7 @@
 
     - name: Include slurm upgrade role
       ansible.builtin.include_role:
-        name: ../roles/upgrade_slurm
+        name: "{{ playbook_dir }}/../roles/upgrade_slurm"
       tags: slurm
 
     - name: Update cloud-init and BSS for slurm

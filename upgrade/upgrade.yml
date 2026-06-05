@@ -19,11 +19,12 @@
 # Supports --tags for selective execution of upgrade sub-flows.
 #
 # Usage:
-#   ansible-playbook upgrade/upgrade.yml                     # Full upgrade
-#   ansible-playbook upgrade/upgrade.yml --tags oim          # OIM only
-#   ansible-playbook upgrade/upgrade.yml --tags k8s          # K8s only
-#   ansible-playbook upgrade/upgrade.yml --tags provision
-#   ansible-playbook upgrade/upgrade.yml --tags "k8s,telemetry"
+#   cd /omnia/upgrade
+#   ansible-playbook upgrade.yml                     # Full upgrade
+#   ansible-playbook upgrade.yml --tags oim          # OIM only
+#   ansible-playbook upgrade.yml --tags k8s          # K8s only
+#   ansible-playbook upgrade.yml --tags provision
+#   ansible-playbook upgrade.yml --tags "k8s,telemetry"
 #
 # IMPORTANT: Must be invoked from the parent directory containing upgrade/,
 # rollback/, and playbooks/ folders. Internal playbooks are imported via
@@ -122,7 +123,8 @@
           Source: {{ existing_manifest.source_version | default('N/A') }} → Target: {{ existing_manifest.target_version | default('N/A') }}
           Re-running upgrade after successful completion is not allowed.
           If you need to force a new upgrade cycle:
-            ansible-playbook upgrade/upgrade.yml -e force_upgrade=true
+            cd /omnia/upgrade
+            ansible-playbook upgrade.yml -e force_upgrade=true
       when:
         - manifest_stat.stat.exists
         - existing_manifest.upgrade_status | default('') == 'completed'
@@ -558,7 +560,8 @@
               Please re-run the upgrade playbook and type 'yes' at the
               confirmation prompt:
 
-                ansible-playbook upgrade/upgrade.yml
+                cd /omnia/upgrade
+                ansible-playbook upgrade.yml
 
               ══════════════════════════════════════════════════════════════
 
