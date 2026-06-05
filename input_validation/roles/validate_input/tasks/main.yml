@@ -36,7 +36,7 @@
 - name: Validation passed
   ansible.builtin.debug:
     msg: "{{ validation_success_msg }}"
-  when: not (validation_status.failed | default(false))
+  when: validation_status.validation_passed | default(false)
 
 - name: Failed due to validation failure
   ansible.builtin.fail:
@@ -45,4 +45,4 @@
       Errors: {{ validation_status.errors | default([]) }}
       Invalid files: {{ validation_status.invalid_files | default([]) }}
       Log file: {{ validation_status.log_file | default('Check logs for details') }}
-  when: validation_status.failed | default(false)
+  when: not (validation_status.validation_passed | default(true))
