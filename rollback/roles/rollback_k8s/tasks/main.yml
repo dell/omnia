@@ -232,8 +232,9 @@
             completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: Display rollback success
-      ansible.builtin.debug:
-        msg: "{{ msg_rollback_complete }}"
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ msg_rollback_complete }}"
 
   rescue:
     - name: Mark rollback as failed
@@ -252,8 +253,9 @@
             msg: "Could not update rollback failed status file."
 
     - name: Display rollback failure
-      ansible.builtin.debug:
-        msg: "{{ msg_rollback_failed }}"
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ msg_rollback_failed }}"
 
     - name: Fail the playbook
       ansible.builtin.fail:
