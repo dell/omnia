@@ -56,7 +56,7 @@ def extract_host_ips_from_pxe_mapping(pxe_mapping_file_path):
                 admin_ip_value = row.get(admin_ip_col, "").strip() \
                     if row.get(admin_ip_col) else ""
                 if admin_ip_value and \
-                        validation_utils.is_valid_ipv4(admin_ip_value):
+                        validation_utils.validate_ipv4(admin_ip_value):
                     host_ips.append(admin_ip_value)
 
     except (OSError, csv.Error):
