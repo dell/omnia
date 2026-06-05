@@ -68,7 +68,9 @@
 - name: Get actual cluster nodes with roles
   ansible.builtin.command:
     cmd: >-
-      kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}|{.metadata.labels.node-role\.kubernetes\.io/control-plane}|{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
+      kubectl get nodes
+      -o jsonpath='{range .items[*]}{.metadata.name}|{.metadata.labels.node-role\.kubernetes\.io/control-plane}|
+      {.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
   delegate_to: "{{ kube_vip }}"
   register: cluster_nodes_raw
   changed_when: false
@@ -117,7 +119,7 @@
 - name: Find nodes in nodes.yaml but NOT in cluster (by IP)
   ansible.builtin.set_fact:
     nodes_only_in_yaml: >-
-      {{ all_expected_nodes | select('in', 
+      {{ all_expected_nodes | select('in',
            (nodes_yaml_ips | dict2items | rejectattr('value', 'in', cluster_ip_list) | map(attribute='key') | list)
          ) | list }}
 
@@ -243,11 +245,11 @@
       ════════════════════════════════════════════════════════════════════════════════
       [SSH] CONNECTIVITY CHECK RESULTS
       ════════════════════════════════════════════════════════════════════════════════
-      
+
       Nodes with SSH accessible: {{ all_validated_nodes | difference(ssh_failed_nodes) | length }}
       Nodes with SSH failed: {{ ssh_failed_nodes | length }}
       {% if ssh_failed_nodes | length > 0 %}  Failed nodes: {{ ssh_failed_nodes | join(', ') }}{% else %}  (none){% endif %}
-      
+
       ════════════════════════════════════════════════════════════════════════════════
 
 - name: Fail if any node has SSH connectivity failure
@@ -312,11 +314,11 @@
       ════════════════════════════════════════════════════════════════════════════════
       [NODE STATUS] READY CHECK RESULTS
       ════════════════════════════════════════════════════════════════════════════════
-      
+
       Nodes in Ready state: {{ all_validated_nodes | difference(validated_nodes_not_ready) | length }}
       Nodes NOT Ready: {{ validated_nodes_not_ready | length }}
       {% if validated_nodes_not_ready | length > 0 %}  Not Ready nodes: {{ validated_nodes_not_ready | join(', ') }}{% else %}  (none){% endif %}
-      
+
       ════════════════════════════════════════════════════════════════════════════════
 
 - name: Fail if any validated node is not Ready
@@ -359,7 +361,10 @@
 - name: Get all pods status across all namespaces
   ansible.builtin.shell:
     cmd: |
-      kubectl get pods --all-namespaces --no-headers -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' 2>/dev/null | \
+      set -o pipefail
+      kubectl get pods --all-namespaces --no-headers \
+        -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' \
+        2>/dev/null | \
       while read ns name phase ready; do
         # Healthy: Running with all containers ready, or Succeeded (completed)
         if [[ "$phase" == "Running" && "$ready" == *"false"* ]]; then
@@ -368,13 +373,20 @@
           echo "$ns|$name|$phase"
         fi
       done
+  args:
+    executable: /bin/bash
   delegate_to: "{{ kube_vip }}"
   register: unhealthy_pods_check
   changed_when: false
+  failed_when: false
 
 - name: Get total pod count
   ansible.builtin.shell:
-    cmd: kubectl get pods --all-namespaces --no-headers | wc -l
+    cmd: |
+      set -o pipefail
+      kubectl get pods --all-namespaces --no-headers | wc -l
+  args:
+    executable: /bin/bash
   delegate_to: "{{ kube_vip }}"
   register: total_pods_count
   changed_when: false
@@ -382,7 +394,7 @@
 - name: Build unhealthy pods list
   ansible.builtin.set_fact:
     all_unhealthy_pods: >-
-      {{ unhealthy_pods_check.stdout_lines | default([]) | select('match', '.+') | 
+      {{ unhealthy_pods_check.stdout_lines | default([]) | select('match', '.+') |
          map('regex_replace', '(.+)\\|(.+)\\|(.+)', '\\1/\\2 (\\3)') | list }}
     total_pods: "{{ total_pods_count.stdout | trim }}"
 
@@ -398,11 +410,11 @@
       ════════════════════════════════════════════════════════════════════════════════
       [POD STATUS] CLUSTER-WIDE HEALTH CHECK
       ════════════════════════════════════════════════════════════════════════════════
-      
+
       Total pods in cluster: {{ total_pods }}
       Healthy pods: {{ healthy_pods }}
       Unhealthy pods: {{ all_unhealthy_pods | length }}
-      
+
       {% if all_unhealthy_pods | length > 0 %}Problem pods (namespace/name):
       {% for pod in all_unhealthy_pods %}  - {{ pod }}
       {% endfor %}{% else %}  (none){% endif %}

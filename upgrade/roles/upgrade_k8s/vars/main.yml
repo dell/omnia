@@ -89,7 +89,7 @@ worker_parallel_count: 1
 # Cluster validation settings
 # ---------------------------------------------------------------------------
 # When cluster nodes don't match nodes.yaml, the playbook pauses to allow review.
-# 
+#
 # cluster_validation_pause_seconds: How long to pause (default: 10 seconds)
 #   Override via --extra-vars cluster_validation_pause_seconds=30
 #
