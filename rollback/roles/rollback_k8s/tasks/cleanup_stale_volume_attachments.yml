@@ -235,23 +235,7 @@
       until: _csi_pods_check.stdout | trim | length == 0
       when: "'csi-isilon.dellemc.com' in (_csi_drivers.stdout | default(''))"
 
-    # ── Clean up old terminated NFS provisioner pods ───────────────
-    - name: Delete old terminated NFS provisioner pods
-      ansible.builtin.shell:
-        cmd: >-
-          kubectl --server=https://{{ first_cp_ip }}:6443
-          delete pods -A
-          -l app=nfs-subdir-external-provisioner
-          --field-selector=status.phase=Failed
-          --ignore-not-found=true;
-          kubectl --server=https://{{ first_cp_ip }}:6443
-          delete pods -A
-          -l app=nfs-subdir-external-provisioner
-          --field-selector=status.phase=Succeeded
-          --ignore-not-found=true
-      delegate_to: "{{ groups_cp_first | first }}"
-      changed_when: true
-      failed_when: false
+    
 
     # ── Verify NFS client provisioner pod is Running ──────────────
     - name: Check if NFS client provisioner exists
