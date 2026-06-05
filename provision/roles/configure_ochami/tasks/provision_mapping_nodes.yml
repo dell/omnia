@@ -77,20 +77,43 @@
       delay: "{{ service_retry_interval }}"
       until: cloud_init_server_status is success
 
-    - name: Wait for cloud-init-server to be ready
-      ansible.builtin.command: /usr/bin/ochami cloud-init service status
-      register: cloud_init_status
-      retries: "{{ service_retries }}"
-      delay: "{{ service_retry_interval }}"
-      until: cloud_init_status.rc == 0
-      failed_when: false
-      changed_when: false
+    - name: Verify cloud-init-server is reachable
+      block:
+        - name: Wait for cloud-init-server to be ready
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: cloud_init_status
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: cloud_init_status.rc == 0
+          changed_when: false
+      rescue:
+        - name: Restart openchami.target to recover container networking
+          ansible.builtin.service:
+            name: openchami.target
+            state: restarted
 
-    - name: Fail if cloud-init-server is not running
-      ansible.builtin.fail:
-        msg: "{{ cloud_init_failed_msg }}"
-      when:
-        - cloud_init_status.rc != 0
+        - name: Wait for openchami.target to be ready after restart
+          ansible.builtin.service:
+            name: openchami.target
+            state: started
+          register: openchami_target_recovery
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: openchami_target_recovery is success
+
+        - name: Retry cloud-init-server readiness check after openchami restart
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: cloud_init_status
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: cloud_init_status.rc == 0
+          failed_when: false
+          changed_when: false
+
+        - name: Fail if cloud-init-server is still not reachable
+          ansible.builtin.fail:
+            msg: "{{ cloud_init_failed_msg }}"
+          when: cloud_init_status.rc != 0
 
     - name: Check whether openchami.target is up
       ansible.builtin.service:

@@ -36,7 +36,10 @@
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
     grep "{{ image_search_pattern }}{{ compute_image_suffix }}" | \
-    grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
+    {% if hostvars['localhost']['kernel_version_override'] | default('') | length > 0 %}
+    grep "{{ hostvars['localhost']['kernel_version_override'] }}" | \
+    {% endif %}
+    grep {{ hostvars['localhost']['cluster_os_version'] }} | sort -k1,2r | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
   register: verify_s3_image_build_stream
@@ -49,7 +52,10 @@
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
     grep "{{ image_search_pattern }}" | \
-    grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
+    {% if hostvars['localhost']['kernel_version_override'] | default('') | length > 0 %}
+    grep "{{ hostvars['localhost']['kernel_version_override'] }}" | \
+    {% endif %}
+    grep {{ hostvars['localhost']['cluster_os_version'] }} | sort -k1,2r | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
   register: verify_s3_image

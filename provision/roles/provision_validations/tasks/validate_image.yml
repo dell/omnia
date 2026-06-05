@@ -53,6 +53,9 @@
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
     grep "{{ image_search_pattern }}" | \
+    {% if hostvars['localhost']['kernel_version_override'] | default('') | length > 0 %}
+    grep "{{ hostvars['localhost']['kernel_version_override'] }}" | \
+    {% endif %}
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
@@ -73,6 +76,17 @@
     kernel: "{{ verify_s3_image.stdout_lines | select('search', 'vmlinuz') | list | first }}"
     initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initramfs') | list | first }}"
   when: verify_s3_image.stdout_lines | length > 1
+
+- name: Fail if kernel override did not match any S3 image
+  ansible.builtin.fail:
+    msg: >-
+      {{ kernel_override_no_match_msg }}
+      Specified: '{{ hostvars['localhost']['kernel_version_override'] }}'.
+      Pattern: '{{ image_search_pattern }}'.
+      Verify the kernel version exists in s3://boot-images.
+  when:
+    - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
+    - kernel | length < 1 or initrd | length < 1
 
 - name: Fail if kernel or initrd length less than 1
   ansible.builtin.fail:

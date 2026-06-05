@@ -1111,6 +1111,18 @@ def validate_provision_config(
                 en_us_validation_msg.DEFAULT_LEASE_TIME_FAIL_MSG,
             )
         )
+
+    kernel_version_override = data.get("kernel_version_override", "")
+    if kernel_version_override:
+        if not re.match(r"^[0-9]+\.[0-9]+\.[0-9]+-.+$", kernel_version_override):
+            errors.append(
+                create_error_msg(
+                    "kernel_version_override",
+                    kernel_version_override,
+                    en_us_validation_msg.KERNEL_VERSION_OVERRIDE_FAIL_MSG,
+                )
+            )
+
     return errors
 
 def validate_network_spec(
