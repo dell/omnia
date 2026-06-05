@@ -15,7 +15,7 @@
 ## Mount an entry on the OIM node.
 - name: Resolve mount_params profile if specified
   ansible.builtin.set_fact:
-    resolved_mount_profile: "{{ storage_config.mount_params[item.mount_params] | default({}) }}"
+    resolved_mount_profile: "{{ storage_config.mount_params[item.mount_params] | default({}, true) }}"
   when: item.mount_params is defined and item.mount_params in storage_config.mount_params
 
 - name: Initialize client mount path (new schema)

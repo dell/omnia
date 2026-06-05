@@ -63,7 +63,7 @@ def load_yaml_file(path, required=True):
         else:
             logging.warning(f"Optional YAML file missing: {path}")
             return None
-    with open(path, 'r') as fh:
+    with open(path, 'r', encoding='utf-8') as fh:
         return yaml.safe_load(fh)
 
 def load_json_file(path, required=True):
@@ -75,7 +75,7 @@ def load_json_file(path, required=True):
         else:
             logging.warning(f"Optional JSON file missing: {path}")
             return None
-    with open(path, 'r') as fh:
+    with open(path, 'r', encoding='utf-8') as fh:
         return json.load(fh)
 
 def harvest_cluster_info(cluster_file):
@@ -303,7 +303,7 @@ def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, 
 def write_yaml_file(path, data, description=None):
     """Write YAML data to file."""
     try:
-        with open(path, 'w') as fh:
+        with open(path, 'w', encoding='utf-8') as fh:
             yaml.dump(data, fh, indent=2)
         if description:
             logging.info(f"Wrote {description} to {path}")

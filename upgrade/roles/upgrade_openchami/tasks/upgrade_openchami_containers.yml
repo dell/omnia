@@ -283,6 +283,7 @@
               coredhcp_lease_duration: "{{ default_lease_time | default('86400') }}s"
               cluster_shortname: "nid"
               cluster_nidlength: 3
+              dns_enabled: {{ dns_enabled | default(false) | bool }}
             dest: "{{ openchami_config_vars_path }}"
             mode: "{{ file_permissions_644 }}"
           when: oim_metadata_stat.stat.exists or network_spec_stat.stat.exists

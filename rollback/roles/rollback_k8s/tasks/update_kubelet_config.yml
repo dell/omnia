@@ -1,0 +1,152 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_kubelet_config.yml — Update kubelet config.yaml after rollback
+# ============================================================================
+# Applies kubelet configuration parameters to /var/lib/kubelet/config.yaml
+# on all nodes after rollback to match cloud-init provisioned settings.
+#
+# /var/lib/kubelet/config.yaml is NOT backed up during upgrade, so after
+# rollback it may be missing these performance tunings. This task ensures
+# consistency between provisioned and rolled-back nodes.
+#
+# Parameters applied:
+#   All nodes:
+#     - shutdownGracePeriod: 30s
+#     - shutdownGracePeriodCriticalPods: 10s
+#   All control planes (first + additional):
+#     - nodeStatusUpdateFrequency: 10s
+#     - nodeStatusReportFrequency: 60s
+#     - syncFrequency: 60s
+#   Workers:
+#     - nodeStatusUpdateFrequency: 5s
+#     - nodeStatusReportFrequency: 10s
+#     - syncFrequency: 10s
+# ============================================================================
+
+- name: Skip update_kubelet_config if already completed
+  ansible.builtin.debug:
+    msg: "update_kubelet_config already completed — skipping."
+  when: (rollback_status.stages.update_kubelet_config.status | default('pending')) == 'completed'
+
+- name: Update kubelet config on all nodes
+  when: (rollback_status.stages.update_kubelet_config.status | default('pending')) != 'completed'
+  block:
+    - name: Mark update_kubelet_config in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            update_kubelet_config:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Shutdown grace period settings (all nodes) ──────────────────
+    - name: Update shutdownGracePeriod on all nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^shutdownGracePeriod:'
+        line: 'shutdownGracePeriod: 30s'
+      delegate_to: "{{ item }}"
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Update shutdownGracePeriodCriticalPods on all nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^shutdownGracePeriodCriticalPods:'
+        line: 'shutdownGracePeriodCriticalPods: 10s'
+      delegate_to: "{{ item }}"
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── All control plane settings (first + additional) ─────────────
+    - name: Set nodeStatusUpdateFrequency on all control planes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusUpdateFrequency:'
+        line: 'nodeStatusUpdateFrequency: 10s'
+      delegate_to: "{{ item }}"
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Set nodeStatusReportFrequency on all control planes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusReportFrequency:'
+        line: 'nodeStatusReportFrequency: 60s'
+      delegate_to: "{{ item }}"
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Set syncFrequency on all control planes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^syncFrequency:'
+        line: 'syncFrequency: 60s'
+      delegate_to: "{{ item }}"
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # ── Worker settings ─────────────────────────────────────────────
+    - name: Set nodeStatusUpdateFrequency on workers
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusUpdateFrequency:'
+        line: 'nodeStatusUpdateFrequency: 5s'
+      delegate_to: "{{ item }}"
+      loop: "{{ groups_worker }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Set nodeStatusReportFrequency on workers
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusReportFrequency:'
+        line: 'nodeStatusReportFrequency: 10s'
+      delegate_to: "{{ item }}"
+      loop: "{{ groups_worker }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Set syncFrequency on workers
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^syncFrequency:'
+        line: 'syncFrequency: 10s'
+      delegate_to: "{{ item }}"
+      loop: "{{ groups_worker }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Mark update_kubelet_config completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            update_kubelet_config:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display update_kubelet_config completion
+      ansible.builtin.debug:
+        msg: "Kubelet config.yaml updated on all {{ all_rollback_nodes | length }} nodes."

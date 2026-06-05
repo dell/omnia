@@ -354,28 +354,8 @@
                       status: in_progress
                       timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
-            - name: Reload systemd
-              ansible.builtin.systemd:
-                daemon_reload: true
-
-            - name: Restart kubelet
-              ansible.builtin.systemd:
-                name: kubelet
-                state: restarted
-                enabled: true
-
-            - name: Wait for node to become Ready with target version
-              ansible.builtin.command: >-
-                kubectl get node {{ node_ip }}
-                -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
-              delegate_to: "{{ kube_vip }}"
-              register: node_ready
-              until:
-                - node_ready.rc == 0
-                - "'v' + k8s_target_version + ':True' in node_ready.stdout"
-              retries: "{{ kubelet_ready_retries }}"
-              delay: "{{ kubelet_ready_delay }}"
-              changed_when: false
+            - name: Execute kubelet restart (includes feature gate update)
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubelet_restart.yml"
 
             - name: Mark kubelet_restart completed
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"

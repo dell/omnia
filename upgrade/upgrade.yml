@@ -66,7 +66,7 @@
       provision: [oim, build_image]
       k8s: [oim, provision, local_repo, build_image]
       telemetry: [oim, k8s]
-      slurm: [provision, local_repo]
+      slurm: [oim, local_repo, build_image, provision]
   tasks:
     # ═══════════════════════════════════════════════════════════════
     # PHASE 1: READ-ONLY GUARDS (no state mutation allowed here)
@@ -245,8 +245,8 @@
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list }}
 
     - name: Validate tag dependency order
       ansible.builtin.fail:
@@ -257,8 +257,11 @@
       when:
         - item in tag_dependencies
         - tag_dependencies[item] | difference(requested_tags) | length > 0
-        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'in', ['completed', 'skipped']) |
-          map(attribute='key') | list ) | list | length > 0
+        - >-
+          tag_dependencies[item] | reject('in',
+          (manifest.component_status | default({}, true))
+          | dict2items | selectattr('value', 'in', ['completed', 'skipped'])
+          | map(attribute='key') | list) | list | length > 0
 
     - name: Report already-upgraded components (will be skipped)
       ansible.builtin.debug:
@@ -312,7 +315,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['build_stream', 'gitlab']
             ) | unique
           }}
@@ -532,29 +535,36 @@
         - not (build_stream_terminal | default(false) | bool)
 
     - name: Validate operator confirmation
-      ansible.builtin.fail:
-        msg: |
-          ══════════════════════════════════════════════════════════════
-                    UPGRADE ABORTED — CONFIRMATION REQUIRED
-          ══════════════════════════════════════════════════════════════
-
-          You did not type 'yes' to confirm that all pre-flight checks
-          have been completed.
-
-          To proceed with the upgrade, you MUST explicitly confirm by
-          typing 'yes' when prompted.
-
-          Please re-run the upgrade playbook and type 'yes' at the
-          confirmation prompt:
-
-            ansible-playbook upgrade/upgrade.yml
-
-          ══════════════════════════════════════════════════════════════
       when:
         - not (skip_approval | default(false) | bool)
         - approval_manifest.approval_status | default('pending') != 'approved'
         - not (build_stream_terminal | default(false) | bool)
         - operator_confirmation.user_input | default('') | lower != 'yes'
+      block:
+        - name: Display abort message
+          ansible.builtin.pause:
+            seconds: 1
+            prompt: |2
+              ══════════════════════════════════════════════════════════════
+                        UPGRADE ABORTED — CONFIRMATION REQUIRED
+              ══════════════════════════════════════════════════════════════
+
+              You did not type 'yes' to confirm that all pre-flight checks
+              have been completed.
+
+              To proceed with the upgrade, you MUST explicitly confirm by
+              typing 'yes' when prompted.
+
+              Please re-run the upgrade playbook and type 'yes' at the
+              confirmation prompt:
+
+                ansible-playbook upgrade/upgrade.yml
+
+              ══════════════════════════════════════════════════════════════
+
+        - name: Fail the playbook
+          ansible.builtin.fail:
+            msg: "Upgrade aborted: operator did not confirm pre-flight checks"
 
     - name: Update approval_status to approved in manifest
       ansible.builtin.copy:
@@ -593,7 +603,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['prepare_oim', 'local_repo', 'ufm_telemetry', 'vast_telemetry', 'ldms', 'idrac_telemetry']
             ) | unique
           }}
@@ -692,8 +702,8 @@
       ansible.builtin.set_fact:
         finalize_requested_tags: >-
           {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags | intersect(all_components) }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list | intersect(all_components) }}
 
     - name: Build cleaned component_status (only update requested tags)
       ansible.builtin.set_fact:

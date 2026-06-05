@@ -43,12 +43,6 @@
         - name: Renew OpenCHAMI certificates
           ansible.builtin.include_tasks: renew_certificates.yml
 
-        # Re-resolve HAProxy-based endpoints after cert renewal restart.
-        # HAProxy port 8443 is stable, but re-reading the ochami config
-        # ensures we pick up any config changes from cert renewal.
-        - name: Resolve SMD/BSS endpoints after certificate renewal
-          ansible.builtin.include_tasks: resolve_admin_ip.yml
-
         - name: Reload cloud-init data into cloud-init-server
           ansible.builtin.include_tasks: reload_cloud_init_data.yml
 

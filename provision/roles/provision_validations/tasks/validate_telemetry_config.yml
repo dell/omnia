@@ -28,7 +28,7 @@
 - name: Get k8s cluster details
   ansible.builtin.set_fact:
     service_cluster_info: >-
-      {{ vars[k8s_cluster_name]
+      {{ lookup('vars', k8s_cluster_name)
           | selectattr('deployment', 'equalto', true)
           | list
           | first }}

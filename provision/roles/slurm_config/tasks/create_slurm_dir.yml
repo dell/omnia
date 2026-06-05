@@ -85,11 +85,11 @@
   ansible.builtin.file:
     path: "{{ slurm_config_path }}/{{ slurm_item }}"
     state: absent
-  loop: "{{ (ctld_list | default([])
-   + cmpt_list | default([])
-   + login_list | default([])
-   + compiler_login_list | default([])
-   + dbd_list | default([])
+  loop: "{{ ((ctld_list | default([]))
+   + (cmpt_list | default([]))
+   + (login_list | default([]))
+   + (compiler_login_list | default([]))
+   + (dbd_list | default([]))
    + ['munge.key']) | flatten }}"
   loop_control:
     loop_var: slurm_item
@@ -180,7 +180,7 @@
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "{{ conf_file_mode }}"
-  when: ctld_list
+  when: ctld_list | length > 0
   loop: "{{ ctld_list }}"
 
 - name: Generate slurmd opts for Configless
@@ -194,7 +194,7 @@
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "{{ common_mode }}"
-  when: cmpt_list
+  when: cmpt_list | length > 0
   loop: "{{ cmpt_list | product(['logout_user.sh']) }}"
 
 - name: Get the slurm NFS path

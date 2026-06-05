@@ -100,7 +100,7 @@
     - "'is unhealthy' in etcd_health.stdout or etcd_health.rc != 0"
 
 # ── Calico pods check (Engineering Spec §4.7.5 Check 5) ───────────
-- name: Check Calico pods
+- name: Wait for Calico pods to be Running
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
@@ -113,16 +113,19 @@
   register: unhealthy_calico_pods
   changed_when: false
   failed_when: false
+  retries: 30
+  delay: 10
+  until: unhealthy_calico_pods.stdout | length == 0
 
 - name: Fail if Calico pods are not Running
   ansible.builtin.fail:
     msg: >-
-      Post-validation failed: Some Calico pods are not Running.
+      Post-validation failed: Some Calico pods are not Running after waiting 5 minutes.
       {{ unhealthy_calico_pods.stdout }}
   when: unhealthy_calico_pods.stdout | length > 0
 
 # ── MetalLB pods check (Engineering Spec §4.7.5 Check 6) ─────────
-- name: Check MetalLB pods
+- name: Wait for MetalLB pods to be Running
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
@@ -135,11 +138,14 @@
   register: unhealthy_metallb_pods
   changed_when: false
   failed_when: false
+  retries: 30
+  delay: 10
+  until: unhealthy_metallb_pods.stdout | length == 0
 
 - name: Fail if MetalLB pods are not Running
   ansible.builtin.fail:
     msg: >-
-      Post-validation failed: Some MetalLB pods are not Running.
+      Post-validation failed: Some MetalLB pods are not Running after waiting 5 minutes.
       {{ unhealthy_metallb_pods.stdout }}
   when: unhealthy_metallb_pods.stdout | length > 0
 

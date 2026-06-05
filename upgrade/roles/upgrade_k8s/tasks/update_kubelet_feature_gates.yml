@@ -1,0 +1,72 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_kubelet_feature_gates.yml — Update kubelet feature gates
+# ============================================================================
+# This task file updates kubelet feature gates to enable old K8s behavior
+# where pod status is reset on kubelet restart.
+#
+# This should be called after kubelet is upgraded to ensure the feature gate
+# is present on all nodes.
+# ============================================================================
+
+- name: Check if /etc/sysconfig/kubelet exists
+  ansible.builtin.stat:
+    path: /etc/sysconfig/kubelet
+  register: _kubelet_sysconfig_stat
+
+- name: Read current KUBELET_EXTRA_ARGS
+  ansible.builtin.slurp:
+    path: /etc/sysconfig/kubelet
+  register: _kubelet_extra_args_content
+  when: _kubelet_sysconfig_stat.stat.exists
+
+- name: Decode and check current KUBELET_EXTRA_ARGS
+  ansible.builtin.set_fact:
+    _current_extra_args: "{{ (_kubelet_extra_args_content.content | b64decode).strip() }}"
+    _feature_gate_present: "{{ 'ChangeContainerStatusOnKubeletRestart' in (_kubelet_extra_args_content.content | b64decode) }}"
+  when: _kubelet_sysconfig_stat.stat.exists
+
+- name: Set default if file doesn't exist
+  ansible.builtin.set_fact:
+    _current_extra_args: ""
+    _feature_gate_present: false
+  when: not _kubelet_sysconfig_stat.stat.exists
+
+- name: Display current status
+  ansible.builtin.debug:
+    msg: "Feature gate ChangeContainerStatusOnKubeletRestart already present on {{ inventory_hostname }}"
+  when: _feature_gate_present | bool
+
+- name: Update /etc/sysconfig/kubelet with feature gate
+  ansible.builtin.copy:
+    content: |
+      KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"
+    dest: /etc/sysconfig/kubelet
+    owner: root
+    group: root
+    mode: '0644'
+  when: not (_feature_gate_present | bool)
+  register: _kubelet_config_updated
+
+# Note: daemon-reload and kubelet restart are handled by the caller
+# (step_kubelet_restart.yml). No restart here to avoid double restart.
+
+- name: Display update status
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Updated /etc/sysconfig/kubelet with ChangeContainerStatusOnKubeletRestart feature gate'
+         if _kubelet_config_updated is changed
+         else 'Feature gate already present, no changes needed' }}

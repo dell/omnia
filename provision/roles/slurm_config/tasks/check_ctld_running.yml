@@ -81,7 +81,7 @@
       register: scontrol_reconfig
       delegate_to: "{{ ctld }}"
       when:
-        - ctld_state[ctld] is true
+        - ctld_state[ctld] | bool
 
     - name: Undrain if any nodes are drain
       ansible.builtin.command:
@@ -94,7 +94,7 @@
       register: scontrol_node_resume
       delegate_to: "{{ ctld }}"
       when:
-        - ctld_state[ctld] is true
+        - ctld_state[ctld] | bool
 
   rescue:
     - name: Fail if slurmctld is not running on any host

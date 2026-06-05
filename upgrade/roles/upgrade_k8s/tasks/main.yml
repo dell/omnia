@@ -174,7 +174,16 @@
           - "Kubernetes upgrade failed!"
           - "Status file: {{ status_file }}"
           - "Backup location: {{ backup_dir }}"
-          - "For rollback, run: ansible-playbook rollback/rollback.yml --tags k8s"
+          - ""
+          - "RECOMMENDED STEPS:"
+          - "  1. Check the upgrade status file for failed steps"
+          - "  2. Verify cluster health: kubectl get nodes, kubectl get pods -A"
+          - "  3. Fix any issues with the failed nodes"
+          - "  4. Re-run the upgrade: ansible-playbook upgrade/upgrade.yml"
+          - "     (completed steps will be skipped automatically)"
+          - ""
+          - "  If the issue persists after retry, proceed with rollback:"
+          - "     ansible-playbook rollback/rollback.yml --tags k8s"
 
     - name: Fail the playbook
       ansible.builtin.fail:

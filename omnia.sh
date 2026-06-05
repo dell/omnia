@@ -30,6 +30,7 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 YELLOW='\033[0;33m'
+WHITE='\033[0;37m'
 
 # Function to get version from git tag
 get_version_from_git_tag() {
@@ -1298,8 +1299,6 @@ post_setup_config() {
     cp -r /omnia/input/* /opt/omnia/input/project_default
     rm -rf /omnia/input
     rm -rf /omnia/omnia.sh"
-
-    init_ssh_config
 }
 
 validate_nfs_server() {
@@ -1318,6 +1317,35 @@ validate_nfs_server() {
             exit 1
         fi
     fi
+}
+
+# Wait for the SSH daemon inside omnia_core to start accepting connections
+# on port 2222.  After a container swap (upgrade / rollback) the container
+# process is "Up" but sshd may still be initialising.  Without this wait,
+# ssh-keyscan and the subsequent `ssh omnia_core` fail with
+# "Connection refused".
+wait_for_ssh_ready() {
+    local ssh_port=2222
+    local max_wait=30
+    local waited=0
+
+    echo -n "[INFO] Waiting for SSH daemon inside omnia_core to be ready"
+    while [ $waited -lt $max_wait ]; do
+        # Use ssh-keyscan as a lightweight probe — it exits 0 when it
+        # receives at least one host key line.
+        if ssh-keyscan -p "$ssh_port" localhost 2>/dev/null | grep -q .; then
+            echo " ready (${waited}s)"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        echo -n "."
+    done
+
+    echo ""
+    echo "[WARN] SSH daemon did not become ready within ${max_wait}s."
+    echo "[WARN] You can connect manually later with: ssh omnia_core"
+    return 1
 }
 
 init_ssh_config() {
@@ -1657,6 +1685,123 @@ phase2_approval() {
     return 0
 }
 
+# ═══════════════════════════════════════════════════════════════════════════
+# validate_backup_disk_space: Pre-upgrade disk space validation
+# Ensures sufficient space exists before backup creation to prevent partial
+# backups due to disk full conditions.
+# ═══════════════════════════════════════════════════════════════════════════
+validate_backup_disk_space() {
+    local backup_base="$1"
+    local safety_multiplier=2  # Require 2× the estimated backup size
+
+    echo "[INFO] [ORCHESTRATOR] Validating disk space for backup..."
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Cannot validate disk space: omnia_core container not running"
+        return 1
+    fi
+
+    # Calculate size of data to be backed up (in KB)
+    local input_size=0
+    local openchami_size=0
+    local metadata_size=0
+
+    # Get input directory size
+    input_size=$(podman exec -u root omnia_core bash -c "
+        if [ -d '$CONTAINER_INPUT_DIR' ]; then
+            du -sk '$CONTAINER_INPUT_DIR' 2>/dev/null | cut -f1
+        else
+            echo 0
+        fi
+    " 2>/dev/null || echo 0)
+
+    # Get OpenCHAMI directory size
+    openchami_size=$(podman exec -u root omnia_core bash -c "
+        if [ -d '/opt/omnia/openchami' ]; then
+            du -sk '/opt/omnia/openchami' 2>/dev/null | cut -f1
+        else
+            echo 0
+        fi
+    " 2>/dev/null || echo 0)
+
+    # Get metadata file size (small, but include for completeness)
+    metadata_size=$(podman exec -u root omnia_core bash -c "
+        if [ -f '$CONTAINER_METADATA_FILE' ]; then
+            du -sk '$CONTAINER_METADATA_FILE' 2>/dev/null | cut -f1
+        else
+            echo 0
+        fi
+    " 2>/dev/null || echo 0)
+
+    # Ensure values are numeric
+    input_size=${input_size:-0}
+    openchami_size=${openchami_size:-0}
+    metadata_size=${metadata_size:-0}
+
+    # Calculate total estimated backup size
+    local total_backup_size_kb=$((input_size + openchami_size + metadata_size))
+    
+    # Add buffer for quadlet files from host (~100KB typical)
+    total_backup_size_kb=$((total_backup_size_kb + 100))
+
+    # Calculate required space with safety multiplier
+    local required_space_kb=$((total_backup_size_kb * safety_multiplier))
+
+    # Convert to human-readable for display
+    local total_backup_size_mb=$((total_backup_size_kb / 1024))
+    local required_space_mb=$((required_space_kb / 1024))
+
+    echo "[INFO] [ORCHESTRATOR] Estimated backup size: ${total_backup_size_mb}MB"
+    echo "[INFO] [ORCHESTRATOR] Required space (${safety_multiplier}× safety margin): ${required_space_mb}MB"
+
+    # Get available space on backup destination filesystem
+    # The backup path is inside the container, which maps to the omnia share
+    local backup_parent_dir
+    backup_parent_dir=$(dirname "$backup_base")
+
+    local available_space_kb
+    available_space_kb=$(podman exec -u root omnia_core bash -c "
+        # Ensure parent directory exists for df check
+        mkdir -p '$backup_parent_dir' 2>/dev/null || true
+        df -k '$backup_parent_dir' 2>/dev/null | tail -1 | awk '{print \$4}'
+    " 2>/dev/null)
+
+    if [ -z "$available_space_kb" ] || ! [[ "$available_space_kb" =~ ^[0-9]+$ ]]; then
+        echo "[WARN] [ORCHESTRATOR] Could not determine available disk space; proceeding with backup"
+        return 0
+    fi
+
+    local available_space_mb=$((available_space_kb / 1024))
+    echo "[INFO] [ORCHESTRATOR] Available space on backup filesystem: ${available_space_mb}MB"
+
+    # Check if sufficient space is available
+    if [ "$available_space_kb" -lt "$required_space_kb" ]; then
+        echo ""
+        echo -e "${RED}═══════════════════════════════════════════════════════════════════════════${NC}"
+        echo -e "${RED}                    INSUFFICIENT DISK SPACE FOR BACKUP${NC}"
+        echo -e "${RED}═══════════════════════════════════════════════════════════════════════════${NC}"
+        echo ""
+        echo -e "${RED}ERROR: Not enough disk space to safely create upgrade backup.${NC}"
+        echo ""
+        echo -e "${YELLOW}Disk Space Summary:${NC}"
+        echo -e "${YELLOW}  - Estimated backup size:  ${total_backup_size_mb}MB${NC}"
+        echo -e "${YELLOW}  - Required space (${safety_multiplier}×):    ${required_space_mb}MB${NC}"
+        echo -e "${YELLOW}  - Available space:        ${available_space_mb}MB${NC}"
+        echo -e "${YELLOW}  - Shortfall:              $((required_space_mb - available_space_mb))MB${NC}"
+        echo ""
+        echo -e "${YELLOW}Backup destination: $backup_base${NC}"
+        echo ""
+        echo -e "${GREEN}Required Action:${NC}"
+        echo -e "${GREEN}  1. Free up at least $((required_space_mb - available_space_mb))MB on the Omnia share${NC}"
+        echo -e "${GREEN}  2. Re-run 'omnia.sh --upgrade' after freeing space${NC}"
+        echo ""
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Disk space validation passed"
+    return 0
+}
+
 backup_openchami_data() {
     local backup_base="$1"
 
@@ -1702,6 +1847,17 @@ backup_openchami_data() {
         echo "[INFO] [ORCHESTRATOR] Quadlet .container files backed up"
     fi
 
+    # Backup quadlet .network files from host (if they exist)
+    # These define Podman networks that enable DNS resolution between containers
+    if ls /etc/containers/systemd/*.network >/dev/null 2>&1; then
+        podman exec -u root omnia_core mkdir -p "${backup_base%/}/openchami/quadlets" 2>/dev/null || true
+        for nfile in /etc/containers/systemd/*.network; do
+            podman cp "$nfile" \
+                "omnia_core:${backup_base%/}/openchami/quadlets/$(basename "$nfile")" >/dev/null 2>&1 || true
+        done
+        echo "[INFO] [ORCHESTRATOR] Quadlet .network files backed up"
+    fi
+
     echo "[INFO] [ORCHESTRATOR] OpenCHAMI data backup completed: ${backup_base}/openchami/"
     return 0
 }
@@ -1725,13 +1881,17 @@ phase3_backup_creation() {
         set -e
         rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
         mkdir -p '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
+        chmod 0700 '${backup_base%/}' '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
 
         if [ -f '$CONTAINER_INPUT_DIR/default.yml' ]; then
             cp -a '$CONTAINER_INPUT_DIR/default.yml' '${backup_base%/}/input/'
+            chmod 0600 '${backup_base%/}/input/default.yml'
         fi
 
         if [ -d '$CONTAINER_INPUT_DIR/project_default' ]; then
             cp -a '$CONTAINER_INPUT_DIR/project_default' '${backup_base%/}/input/'
+            chmod -R 0600 '${backup_base%/}/input/project_default'/*
+            find '${backup_base%/}/input/project_default' -type d -exec chmod 0700 {} \;
         fi
 
         if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
@@ -1739,6 +1899,7 @@ phase3_backup_creation() {
             exit 1
         fi
         cp -a '$CONTAINER_METADATA_FILE' '${backup_base%/}/metadata/oim_metadata.yml'
+        chmod 0600 '${backup_base%/}/metadata/oim_metadata.yml'
     "; then
         echo "[ERROR] [ORCHESTRATOR] Backup failed; cleaning up partial backup"
         podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
@@ -1751,6 +1912,7 @@ phase3_backup_creation() {
             podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
             return 1
         fi
+        podman exec -u root omnia_core chmod 0600 "${backup_base%/}/configs/omnia_core.container" 2>/dev/null || true
     fi
 
     echo "[INFO] [ORCHESTRATOR] Backup created at: $backup_base"
@@ -2104,6 +2266,12 @@ upgrade_omnia_core() {
         exit 1
     fi
 
+    # Validate disk space before backup creation
+    if ! validate_backup_disk_space "$backup_base"; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade aborted: Insufficient disk space for backup"
+        exit 1
+    fi
+
     if ! phase3_backup_creation "$backup_base"; then
         echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 3"
         exit 1
@@ -2139,6 +2307,8 @@ upgrade_omnia_core() {
     echo ""
 
     show_post_upgrade_instructions "$TARGET_OMNIA_VERSION"
+    # Wait for sshd inside the new container before configuring keys / connecting
+    wait_for_ssh_ready
     # Initialize SSH config and start container session
     init_ssh_config
     remove_container_omnia_sh
@@ -2302,6 +2472,94 @@ rollback_omnia_core() {
         echo -e "${RED}ERROR: Omnia core container is not running.${NC}"
         exit 1
     fi
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SAFETY CHECK: Prevent core container rollback if upgrade.yml was run but
+    # rollback.yml has not completed successfully inside the container.
+    # This prevents inconsistent state where core is 2.1 but other components are 2.2.
+    # ═══════════════════════════════════════════════════════════════════════════
+    local upgrade_manifest_path="/opt/omnia/.data/upgrade_manifest.yml"
+    local rollback_manifest_path="/opt/omnia/.data/rollback_manifest.yml"
+
+    # Check if upgrade_manifest.yml exists (indicates upgrade process was started)
+    if podman exec -u root omnia_core test -f "$upgrade_manifest_path" 2>/dev/null; then
+        echo "[INFO] [ROLLBACK] Checking upgrade state before proceeding..."
+
+        # Read component statuses from upgrade_manifest.yml
+        local component_statuses
+        component_statuses=$(podman exec -u root omnia_core grep -A20 'component_status:' "$upgrade_manifest_path" 2>/dev/null | grep -E '^\s+\w+:' | head -8)
+
+        # Check if any component has been upgraded (status is not "pending")
+        local has_upgraded_components=false
+        if echo "$component_statuses" | grep -qvE ':\s*"?pending"?\s*$'; then
+            has_upgraded_components=true
+        fi
+
+        if [ "$has_upgraded_components" = true ]; then
+            echo "[INFO] [ROLLBACK] Detected upgraded components. Checking rollback.yml completion status..."
+
+            # Components have been upgraded - check if rollback.yml completed successfully
+            if podman exec -u root omnia_core test -f "$rollback_manifest_path" 2>/dev/null; then
+                local rollback_status
+                rollback_status=$(podman exec -u root omnia_core grep '^rollback_status:' "$rollback_manifest_path" 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r"')
+
+                if [ "$rollback_status" != "completed" ]; then
+                    echo ""
+                    echo -e "${RED}═══════════════════════════════════════════════════════════════════════════${NC}"
+                    echo -e "${RED}                    CORE CONTAINER ROLLBACK BLOCKED${NC}"
+                    echo -e "${RED}═══════════════════════════════════════════════════════════════════════════${NC}"
+                    echo ""
+                    echo -e "${RED}ERROR: Cannot rollback core container at this time.${NC}"
+                    echo ""
+                    echo -e "${YELLOW}Reason: upgrade.yml has upgraded components, but rollback.yml has not${NC}"
+                    echo -e "${YELLOW}        completed successfully inside the container.${NC}"
+                    echo ""
+                    echo -e "${YELLOW}Current rollback status: ${rollback_status:-'unknown'}${NC}"
+                    echo ""
+                    echo -e "${YELLOW}Rolling back the core container now would leave your cluster in an${NC}"
+                    echo -e "${YELLOW}inconsistent state where:${NC}"
+                    echo -e "${YELLOW}  - Core container: 2.1 (rolled back)${NC}"
+                    echo -e "${YELLOW}  - Other components: 2.2 (not rolled back)${NC}"
+                    echo ""
+                    echo -e "${GREEN}Required Action:${NC}"
+                    echo -e "${GREEN}  1. First run rollback.yml inside the container to rollback all components${NC}"
+                    echo -e "${GREEN}  2. Wait for rollback.yml to complete successfully${NC}"
+                    echo -e "${GREEN}  3. Then run 'omnia.sh --rollback' to rollback the core container${NC}"
+                    echo ""
+                    exit 1
+                fi
+                echo "[INFO] [ROLLBACK] Rollback playbook completed successfully. Proceeding with core container rollback."
+            else
+                # Rollback manifest doesn't exist but components were upgraded
+                echo ""
+                echo -e "${RED}═══════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${RED}                    CORE CONTAINER ROLLBACK BLOCKED${NC}"
+                echo -e "${RED}═══════════════════════════════════════════════════════════════════════════${NC}"
+                echo ""
+                echo -e "${RED}ERROR: Cannot rollback core container at this time.${NC}"
+                echo ""
+                echo -e "${YELLOW}Reason: upgrade.yml has upgraded components, but rollback.yml has not${NC}"
+                echo -e "${YELLOW}        been executed inside the container.${NC}"
+                echo ""
+                echo -e "${YELLOW}Rolling back the core container now would leave your cluster in an${NC}"
+                echo -e "${YELLOW}inconsistent state where:${NC}"
+                echo -e "${YELLOW}  - Core container: 2.1 (rolled back)${NC}"
+                echo -e "${YELLOW}  - Other components: 2.2 (not rolled back)${NC}"
+                echo ""
+                echo -e "${GREEN}Required Action:${NC}"
+                echo -e "${GREEN}  1. First run rollback.yml inside the container to rollback all components${NC}"
+                echo -e "${GREEN}  2. Wait for rollback.yml to complete successfully${NC}"
+                echo -e "${GREEN}  3. Then run 'omnia.sh --rollback' to rollback the core container${NC}"
+                echo ""
+                exit 1
+            fi
+        else
+            echo "[INFO] [ROLLBACK] No components upgraded yet. Core container rollback is safe to proceed."
+        fi
+    else
+        echo -e "${WHITE}[INFO] [ROLLBACK] No upgrade manifest found. Core container rollback is safe to proceed.${NC}"
+    fi
+    # ═══════════════════════════════════════════════════════════════════════════
     
     # Create lock file to prevent concurrent rollbacks
     local lock_file="/tmp/omnia_rollback.lock"
@@ -2408,9 +2666,19 @@ rollback_omnia_core() {
         rm -f "$upgrade_guard_lock_path" >/dev/null 2>&1 || true
         echo "[INFO] [ROLLBACK] Cleared upgrade guard lock: $upgrade_guard_lock_path"
 
+        # Remove upgrade_backup_dir and previous_omnia_version from metadata
+        # These are upgrade-only fields that should not persist after rollback
+        podman exec -u root omnia_core bash -c "
+            sed -i '/^upgrade_backup_dir:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+            sed -i '/^previous_omnia_version:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+        " 2>/dev/null || true
+        echo "[INFO] [ROLLBACK] Cleaned upgrade_backup_dir and previous_omnia_version from metadata"
+
         # Fetch config from restored metadata (populates omnia_path, domain_name, etc.)
         fetch_config
 
+        # Wait for sshd inside the restarted container before configuring keys / connecting
+        wait_for_ssh_ready
         # Initialize SSH config and start container session
         init_ssh_config
         remove_container_omnia_sh
@@ -2545,9 +2813,19 @@ rollback_omnia_core() {
     rm -f "$upgrade_guard_lock_path" >/dev/null 2>&1 || true
     echo "[INFO] [ROLLBACK] Cleared upgrade guard lock: $upgrade_guard_lock_path"
 
+    # Remove upgrade_backup_dir and previous_omnia_version from metadata
+    # These are upgrade-only fields that should not persist after rollback
+    podman exec -u root omnia_core bash -c "
+        sed -i '/^upgrade_backup_dir:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+        sed -i '/^previous_omnia_version:/d' '$CONTAINER_METADATA_FILE' 2>/dev/null || true
+    " 2>/dev/null || true
+    echo "[INFO] [ROLLBACK] Cleaned upgrade_backup_dir and previous_omnia_version from metadata"
+
     # Fetch config from restored metadata (populates omnia_path, domain_name, etc.)
     fetch_config
 
+    # Wait for sshd inside the restored container before configuring keys / connecting
+    wait_for_ssh_ready
     # Initialize SSH config and start container session
     init_ssh_config
     remove_container_omnia_sh

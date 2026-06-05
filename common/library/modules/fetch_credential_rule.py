@@ -24,7 +24,7 @@ from ansible.module_utils.basic import AnsibleModule
 
 def load_rules(file_path):
     """Loads validation rules from JSON file."""
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
 def fetch_rule(field, rules):

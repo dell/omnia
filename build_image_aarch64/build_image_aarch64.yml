@@ -24,7 +24,7 @@
     - name: Set dynamic run tags including 'build_aarch_image'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['build_aarch_image']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['build_aarch_image']) | unique }}"
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations with build_image tag

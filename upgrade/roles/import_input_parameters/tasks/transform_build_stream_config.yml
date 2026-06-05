@@ -64,7 +64,7 @@
 - name: Validate build_stream_host_ip format if provided
   ansible.builtin.assert:
     that:
-      - build_stream_host_ip == "" or build_stream_host_ip | ansible.utils.ipaddr
+      - build_stream_host_ip == "" or (build_stream_host_ip | ansible.utils.ipaddr != false)
     fail_msg: "build_stream_host_ip '{{ build_stream_host_ip }}' is not a valid IP address"
     success_msg: "build_stream_host_ip is valid"
   when: build_stream_host_ip != ""
@@ -72,7 +72,7 @@
 - name: Validate build_stream_aarch64_ip format if provided
   ansible.builtin.assert:
     that:
-      - build_stream_aarch64_ip == "" or build_stream_aarch64_ip | ansible.utils.ipaddr
+      - build_stream_aarch64_ip == "" or (build_stream_aarch64_ip | ansible.utils.ipaddr != false)
     fail_msg: "build_stream_aarch64_ip '{{ build_stream_aarch64_ip }}' is not a valid IP address"
     success_msg: "build_stream_aarch64_ip is valid"
   when: build_stream_aarch64_ip != ""
