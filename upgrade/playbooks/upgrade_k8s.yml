@@ -711,55 +711,16 @@
         parsed_nodes: "{{ hostvars['localhost']['validated_parsed_nodes'] }}"
       when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: "Fallback - Read nodes.yaml if validation was skipped"
+    - name: "Run cluster validation if not already done"
       when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
       block:
-        - name: Read nodes.yaml
-          ansible.builtin.slurp:
-            src: "{{ nodes_yaml_path }}"
-          register: nodes_slurp
-          changed_when: false
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
-        - name: Parse nodes.yaml
-          ansible.builtin.set_fact:
-            parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
-
-        - name: Build node lists by role
-          ansible.builtin.set_fact:
-            groups_cp_first: >-
-              {{ parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_cp_first)
-                 | map(attribute='name') | list }}
-            groups_cp: >-
-              {{ parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_cp)
-                 | map(attribute='name') | list }}
-            groups_worker: >-
-              {{ parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_worker)
-                 | map(attribute='name') | list }}
-            all_upgrade_nodes: >-
-              {{ (parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_cp_first)
-                 | map(attribute='name') | list) +
-                 (parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_cp)
-                 | map(attribute='name') | list) +
-                 (parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_worker)
-                 | map(attribute='name') | list) }}
-
-        - name: Build node IP map
-          ansible.builtin.set_fact:
-            node_ips: >-
-              {{ node_ips | default({}) | combine({
-                   item.name: (item.interfaces | first).ip_addrs
-                              | selectattr('name', 'equalto', 'management')
-                              | map(attribute='ip_addr') | first
-                 }) }}
-          loop: "{{ parsed_nodes.nodes }}"
-          loop_control:
-            label: "{{ item.name }}"
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
 
     - name: Load variables from file
       ansible.builtin.include_vars:
@@ -977,39 +938,16 @@
         node_ips: "{{ hostvars['localhost']['validated_node_ips'] }}"
       when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: "Fallback - Read nodes.yaml if validation was skipped"
+    - name: "Run cluster validation if not already done"
       when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
       block:
-        - name: Read nodes.yaml
-          ansible.builtin.slurp:
-            src: "{{ nodes_yaml_path }}"
-          register: nodes_slurp
-          changed_when: false
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
-        - name: Parse nodes.yaml
-          ansible.builtin.set_fact:
-            parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
-
-        - name: Build first control plane list
-          ansible.builtin.set_fact:
-            groups_cp_first: >-
-              {{ parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_cp_first)
-                 | map(attribute='name') | list }}
-
-        - name: Build additional control plane list
-          ansible.builtin.set_fact:
-            groups_cp: >-
-              {{ parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_cp)
-                 | map(attribute='name') | list }}
-
-        - name: Build worker list
-          ansible.builtin.set_fact:
-            groups_worker: >-
-              {{ parsed_nodes.nodes
-                 | selectattr('group', 'equalto', group_worker)
-                 | map(attribute='name') | list }}
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
 
     - name: Add first control plane to inventory
       ansible.builtin.add_host:
@@ -1566,30 +1504,20 @@
         all_upgrade_nodes: "{{ hostvars['localhost']['validated_all_upgrade_nodes'] }}"
       when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: "Fallback - Read nodes.yaml for all_upgrade_nodes if validation was skipped"
+    - name: "Run cluster validation if not already done"
       when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
       block:
-        - name: Read nodes.yaml for all_upgrade_nodes
-          ansible.builtin.slurp:
-            src: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
-          register: nodes_slurp
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
-        - name: Parse nodes.yaml
-          ansible.builtin.set_fact:
-            parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
 
-        - name: Build all_upgrade_nodes list
+        - name: "Set all_upgrade_nodes from validation"
           ansible.builtin.set_fact:
-            all_upgrade_nodes: >-
-              {{ (parsed_nodes.nodes
-                 | selectattr('group', 'equalto', 'service_kube_control_plane_first_x86_64')
-                 | map(attribute='name') | list) +
-                 (parsed_nodes.nodes
-                 | selectattr('group', 'equalto', 'service_kube_control_plane_x86_64')
-                 | map(attribute='name') | list) +
-                 (parsed_nodes.nodes
-                 | selectattr('group', 'equalto', 'service_kube_node_x86_64')
-                 | map(attribute='name') | list) }}
+            all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
 
     - name: Get k8s_from_version from status file
       ansible.builtin.slurp:

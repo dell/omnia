@@ -43,25 +43,22 @@
     groups: kube_vip_group
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Validated nodes from validate_cluster_nodes.yml are used
-# The following variables should already be set:
-#   - groups_cp_first, groups_cp, groups_worker
-#   - all_upgrade_nodes
-#   - node_ips
+# Use validated nodes if available, otherwise run validation
 # ══════════════════════════════════════════════════════════════════════════════
 
-- name: Verify cluster validation was completed
-  ansible.builtin.assert:
-    that:
-      - cluster_validation_completed | default(false)
-      - all_upgrade_nodes is defined
-      - all_upgrade_nodes | length > 0
-      - node_ips is defined
-    fail_msg: |
-      Cluster validation was not completed or no validated nodes found.
-      Please ensure validate_cluster_nodes.yml runs before load_status.yml.
-      Variables required: cluster_validation_completed, all_upgrade_nodes, node_ips
-    success_msg: "Using {{ all_upgrade_nodes | length }} validated nodes from cluster validation"
+- name: Check if validated nodes are available
+  ansible.builtin.debug:
+    msg: "Using {{ all_upgrade_nodes | length }} validated nodes"
+  when:
+    - all_upgrade_nodes is defined
+    - all_upgrade_nodes | length > 0
+    - node_ips is defined
+
+- name: Run cluster validation if nodes not available
+  when: all_upgrade_nodes is not defined or (all_upgrade_nodes | length == 0) or node_ips is not defined
+  block:
+    - name: "Run cluster node validation"
+      ansible.builtin.include_tasks: validate_cluster_nodes.yml
 
 # ── Add all nodes to Ansible inventory ──────────────────────────────
 - name: Add K8s nodes to inventory
