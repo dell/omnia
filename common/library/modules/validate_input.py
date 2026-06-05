@@ -299,16 +299,16 @@ def main():
                f"Tag(s) run: {tag_names}. ",
                f"Look at the logs for more details: filename={log_file_name}"]
 
-    module.exit_json(changed=False,
-        validation_passed=status_bool,
-        msg=" ".join(message),
+    module.exit_json(
+        changed=False,
+        validation_failed=not status_bool,
         error_msg=message,
         log_file=log_file_name,
         errors=error_bucket,
         valid_files=list(set(validation_status['Passed'])),
         invalid_files=list(set(validation_status['Failed'])),
         tags=tag_names
-        )
+    )
 
 
 if __name__ == "__main__":

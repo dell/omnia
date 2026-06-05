@@ -30,19 +30,24 @@
     module_utils_path: "{{ (role_path + '/../../../common/library/module_utils/') | ansible.builtin.realpath }}"
     csv_file_path: "{{ csv_file_path }}"
   register: validation_status
-  failed_when: false
   when: (input_validate_tags | length) > 0 or csv_file_path is defined
 
 - name: Validation passed
   ansible.builtin.debug:
     msg: "{{ validation_success_msg }}"
-  when: validation_status.validation_passed | default(false)
+  when: validation_status.validation_failed is defined and not validation_status.validation_failed
 
 - name: Failed due to validation failure
   ansible.builtin.fail:
     msg: >-
       {{ validation_error_msg }}
-      Errors: {{ validation_status.errors | default([]) }}
-      Invalid files: {{ validation_status.invalid_files | default([]) }}
-      Log file: {{ validation_status.log_file | default('Check logs for details') }}
-  when: not (validation_status.validation_passed | default(true))
+      {% if validation_status.errors is defined and validation_status.errors | length > 0 %}
+      Errors: {{ validation_status.errors | join('; ') }}
+      {% endif %}
+      {% if validation_status.invalid_files is defined and validation_status.invalid_files | length > 0 %}
+      Invalid files: {{ validation_status.invalid_files | join(', ') }}
+      {% endif %}
+      {% if validation_status.log_file is defined %}
+      Log file: {{ validation_status.log_file }}
+      {% endif %}
+  when: validation_status.validation_failed is defined and validation_status.validation_failed
