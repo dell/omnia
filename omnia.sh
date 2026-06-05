@@ -1299,8 +1299,6 @@ post_setup_config() {
     cp -r /omnia/input/* /opt/omnia/input/project_default
     rm -rf /omnia/input
     rm -rf /omnia/omnia.sh"
-
-    init_ssh_config
 }
 
 validate_nfs_server() {
