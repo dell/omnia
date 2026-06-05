@@ -632,7 +632,6 @@
   connection: local
   gather_facts: false
   vars:
-    input_project_dir: "/opt/omnia/input/project_default"
     nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
     group_cp_first: "service_kube_control_plane_first_x86_64"
     group_cp: "service_kube_control_plane_x86_64"
