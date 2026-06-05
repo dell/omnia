@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments,import-error
+# pylint: disable=too-many-arguments,import-error,no-name-in-module
+# pylint: disable=too-many-locals,too-many-positional-arguments
 """
 This module contains functions for validating VIP against PXE mapping file.
 """
 import csv
 import os
 from ansible.module_utils.input_validation.common_utils import validation_utils
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 
 create_error_msg = validation_utils.create_error_msg
 
@@ -26,45 +26,51 @@ create_error_msg = validation_utils.create_error_msg
 def extract_host_ips_from_pxe_mapping(pxe_mapping_file_path):
     """
     Extract all ADMIN_IP values from PXE mapping file.
-    
+
     Parameters:
         pxe_mapping_file_path (str): Path to the PXE mapping file
-        
+
     Returns:
         list: List of ADMIN_IP values (node admin IPs)
     """
     host_ips = []
-    
+
     if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
         return host_ips
-    
+
     try:
         with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
             raw_lines = fh.readlines()
-        
-        non_comment_lines = [ln for ln in raw_lines if ln.strip() and not ln.strip().startswith('#')]
+
+        non_comment_lines = [
+            ln for ln in raw_lines
+            if ln.strip() and not ln.strip().startswith('#')
+        ]
         reader = csv.DictReader(non_comment_lines)
-        
+
         fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
         admin_ip_col = fieldname_map.get("ADMIN_IP")
-        
+
         if admin_ip_col:
             for row in reader:
-                admin_ip = row.get(admin_ip_col, "").strip() if row.get(admin_ip_col) else ""
-                if admin_ip and validation_utils.is_valid_ipv4(admin_ip):
-                    host_ips.append(admin_ip)
-                    
-    except Exception:
+                admin_ip_value = row.get(admin_ip_col, "").strip() \
+                    if row.get(admin_ip_col) else ""
+                if admin_ip_value and \
+                        validation_utils.is_valid_ipv4(admin_ip_value):
+                    host_ips.append(admin_ip_value)
+
+    except (OSError, csv.Error):
         # If file can't be read, return empty list
         pass
-    
+
     return host_ips
 
 
-def validate_vip_vs_pxe_mapping_host_ips(errors, config_type, vip_address, pxe_mapping_file_path):
+def validate_vip_vs_pxe_mapping_host_ips(
+        errors, config_type, vip_address, pxe_mapping_file_path):
     """
     Validate that VIP doesn't conflict with any ADMIN_IP in PXE mapping file.
-    
+
     Parameters:
         errors (list): List to append error messages
         config_type (str): Configuration type for error reporting
@@ -72,25 +78,27 @@ def validate_vip_vs_pxe_mapping_host_ips(errors, config_type, vip_address, pxe_m
         pxe_mapping_file_path (str): Path to PXE mapping file
     """
     host_ips = extract_host_ips_from_pxe_mapping(pxe_mapping_file_path)
-    
+
     for host_ip in host_ips:
         if vip_address == host_ip:
             errors.append(
                 create_error_msg(
                     f"{config_type} virtual_ip_address",
                     vip_address,
-                    "VIP cannot be the same as any ADMIN_IP in PXE mapping file. "
-                    f"VIP {vip_address} conflicts with node ADMIN_IP {host_ip}. "
+                    "VIP cannot be the same as any ADMIN_IP in PXE "
+                    f"mapping file. VIP {vip_address} conflicts with "
+                    f"node ADMIN_IP {host_ip}. "
                     "Please use a different VIP address."
                 )
             )
             break  # Only need to report once
 
 
-def validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_file_path, admin_netmaskbits):
+def validate_all_host_ips_same_subnet_as_vip(
+        errors, vip_address, pxe_mapping_file_path, admin_netmaskbits):
     """
-    Validate that all ADMIN_IPs in PXE mapping are in the same subnet as VIP.
-    
+    Validate that all ADMIN_IPs in PXE mapping are in same subnet as VIP.
+
     Parameters:
         errors (list): List to append error messages
         vip_address (str): VIP address to validate against
@@ -98,14 +106,17 @@ def validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_fi
         admin_netmaskbits (str): Netmask bits for subnet validation
     """
     host_ips = extract_host_ips_from_pxe_mapping(pxe_mapping_file_path)
-    
+
     for host_ip in host_ips:
-        if not validation_utils.is_ip_in_subnet(vip_address, admin_netmaskbits, host_ip):
+        if not validation_utils.is_ip_in_subnet(
+                vip_address, admin_netmaskbits, host_ip):
             errors.append(
                 create_error_msg(
                     "ADMIN_IP subnet consistency",
                     host_ip,
-                    f"Node ADMIN_IP {host_ip} must be in the same subnet as VIP {vip_address}. "
-                    f"Please ensure all ADMIN_IPs in PXE mapping file are in the same subnet as the VIP."
+                    f"Node ADMIN_IP {host_ip} must be in the same "
+                    f"subnet as VIP {vip_address}. "
+                    "Please ensure all ADMIN_IPs in PXE mapping file "
+                    "are in the same subnet as the VIP."
                 )
             )
