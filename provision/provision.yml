@@ -139,12 +139,13 @@
   hosts: oim
   connection: ssh
   pre_tasks:
-    - name: Load provision_config.yml on OIM
+    - name: Load dns_enabled from provision_config.yml on OIM
       ansible.builtin.include_vars:
         file: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
+        name: _provision_config_oim
 
     - name: Configure OIM DNS resolution for CoreDNS (when dns_enabled)
-      when: dns_enabled | default(false) | bool
+      when: _provision_config_oim.dns_enabled | default(false) | bool
       block:
         - name: Remove immutable flag from /etc/resolv.conf if present
           ansible.builtin.command: chattr -i /etc/resolv.conf
