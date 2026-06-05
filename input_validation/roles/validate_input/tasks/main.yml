@@ -42,5 +42,4 @@
       ansible.builtin.fail:
         msg: >-
           {{ validation_error_msg }}
-          Errors: {{ validation_status.errors | default([]) }}
-          Invalid files: {{ validation_status.invalid_files | default([]) }}
+          Log file: {{ validation_status.log_file | default('Check logs for details') }}
