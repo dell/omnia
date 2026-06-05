@@ -153,26 +153,26 @@
   ansible.builtin.debug:
     msg: "{{ validation_banner }}"
   vars:
-    validation_banner:
-      - "════════════════════════════════════════════════════════════════════════════════"
-      - "[UPGRADE] CLUSTER NODE VALIDATION"
-      - "════════════════════════════════════════════════════════════════════════════════"
-      - ""
-      - "Expected nodes from nodes.yaml: {{ all_expected_nodes | length }}"
-      - "  - Control plane (first): {{ expected_cp_first | join(', ') | default('none') }}"
-      - "  - Control plane (additional): {{ expected_cp | join(', ') | default('none') }}"
-      - "  - Workers: {{ expected_workers | join(', ') | default('none') }}"
-      - ""
-      - "nodes.yaml IP mappings:"
-      - "{% for node in all_expected_nodes %}  - {{ node }}: {{ nodes_yaml_ips[node] }}\n{% endfor %}"
-      - ""
-      - "Actual nodes in cluster (by IP): {{ cluster_all_nodes | length }}"
-      - "  - Cluster IPs: {{ cluster_all_nodes | join(', ') | default('none') }}"
-      - ""
-      - "Matched nodes (nodes.yaml hostname -> cluster IP): {{ nodes_in_both | length }}"
-      - "{% for node in nodes_in_both %}  - {{ node }} -> {{ nodes_yaml_ips[node] }}\n{% endfor %}"
-      - ""
-      - "════════════════════════════════════════════════════════════════════════════════"
+    validation_banner: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [UPGRADE] CLUSTER NODE VALIDATION
+      ════════════════════════════════════════════════════════════════════════════════
+
+      Expected nodes from nodes.yaml: {{ all_expected_nodes | length }}
+        - Control plane (first): {{ expected_cp_first | join(', ') | default('none', true) }}
+        - Control plane (additional): {{ expected_cp | join(', ') | default('none', true) }}
+        - Workers: {{ expected_workers | join(', ') | default('none', true) }}
+
+      nodes.yaml IP mappings:
+      {% for node in all_expected_nodes %}  - {{ node }}: {{ nodes_yaml_ips[node] }}
+      {% endfor %}
+      Actual nodes in cluster (by IP): {{ cluster_all_nodes | length }}
+        - Cluster IPs: {{ cluster_all_nodes | join(', ') | default('none', true) }}
+
+      Matched nodes (nodes.yaml hostname -> cluster IP): {{ nodes_in_both | length }}
+      {% for node in nodes_in_both %}  - {{ node }} -> {{ nodes_yaml_ips[node] }}
+      {% endfor %}
+      ════════════════════════════════════════════════════════════════════════════════
 
 - name: Display discrepancy warning
   ansible.builtin.debug:
@@ -481,23 +481,23 @@
   ansible.builtin.debug:
     msg: "{{ inventory_banner }}"
   vars:
-    inventory_banner:
-      - "════════════════════════════════════════════════════════════════════════════════"
-      - "[UPGRADE] PROCEEDING WITH THE FOLLOWING NODES"
-      - "════════════════════════════════════════════════════════════════════════════════"
-      - ""
-      - "Total nodes for upgrade: {{ all_validated_nodes | length }}"
-      - ""
-      - "Control plane (first): {{ validated_cp_first | length }} node(s)"
-      - "{% for node in validated_cp_first %}  - {{ node }} ({{ nodes_yaml_ips[node] }})\n{% endfor %}"
-      - ""
-      - "Control plane (additional): {{ validated_cp | length }} node(s)"
-      - "{% for node in validated_cp %}  - {{ node }} ({{ nodes_yaml_ips[node] }})\n{% endfor %}"
-      - ""
-      - "Workers: {{ validated_workers | length }} node(s)"
-      - "{% for node in validated_workers %}  - {{ node }} ({{ nodes_yaml_ips[node] }})\n{% endfor %}"
-      - ""
-      - "════════════════════════════════════════════════════════════════════════════════"
+    inventory_banner: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [UPGRADE] PROCEEDING WITH THE FOLLOWING NODES
+      ════════════════════════════════════════════════════════════════════════════════
+
+      Total nodes for upgrade: {{ all_validated_nodes | length }}
+
+      Control plane (first): {{ validated_cp_first | length }} node(s)
+      {% for node in validated_cp_first %}  - {{ node }} ({{ nodes_yaml_ips[node] }})
+      {% endfor %}
+      Control plane (additional): {{ validated_cp | length }} node(s)
+      {% for node in validated_cp %}  - {{ node }} ({{ nodes_yaml_ips[node] }})
+      {% endfor %}
+      Workers: {{ validated_workers | length }} node(s)
+      {% for node in validated_workers %}  - {{ node }} ({{ nodes_yaml_ips[node] }})
+      {% endfor %}
+      ════════════════════════════════════════════════════════════════════════════════
 
 # ── Pause to allow user to review discrepancies ──────────────────────
 - name: Display proceeding message with discrepancies
