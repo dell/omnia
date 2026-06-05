@@ -260,8 +260,11 @@
 
       Nodes with SSH accessible: {{ all_validated_nodes | difference(ssh_failed_nodes) | length }}
       Nodes with SSH failed: {{ ssh_failed_nodes | length }}
-      {% if ssh_failed_nodes | length > 0 %}  Failed nodes: {{ ssh_failed_nodes | join(', ') }}{% else %}  (none){% endif %}
-
+      {% if ssh_failed_nodes | length > 0 %}
+      Failed nodes: {{ ssh_failed_nodes | join(', ') }}
+      {% else %}
+        (all nodes accessible)
+      {% endif %}
       ════════════════════════════════════════════════════════════════════════════════
 
 - name: Fail if any node has SSH connectivity failure
@@ -329,8 +332,11 @@
 
       Nodes in Ready state: {{ all_validated_nodes | difference(validated_nodes_not_ready) | length }}
       Nodes NOT Ready: {{ validated_nodes_not_ready | length }}
-      {% if validated_nodes_not_ready | length > 0 %}  Not Ready nodes: {{ validated_nodes_not_ready | join(', ') }}{% else %}  (none){% endif %}
-
+      {% if validated_nodes_not_ready | length > 0 %}
+      Not Ready nodes: {{ validated_nodes_not_ready | join(', ') }}
+      {% else %}
+        (all nodes ready)
+      {% endif %}
       ════════════════════════════════════════════════════════════════════════════════
 
 - name: Fail if any validated node is not Ready
@@ -426,10 +432,13 @@
       Total pods in cluster: {{ total_pods }}
       Healthy pods: {{ healthy_pods }}
       Unhealthy pods: {{ all_unhealthy_pods | length }}
-
-      {% if all_unhealthy_pods | length > 0 %}Problem pods (namespace/name):
+      {% if all_unhealthy_pods | length > 0 %}
+      Problem pods (namespace/name):
       {% for pod in all_unhealthy_pods %}  - {{ pod }}
-      {% endfor %}{% else %}  (none){% endif %}
+      {% endfor %}
+      {% else %}
+        (all pods healthy)
+      {% endif %}
       ════════════════════════════════════════════════════════════════════════════════
 
 - name: Fail if any pods are not healthy
