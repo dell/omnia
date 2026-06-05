@@ -299,6 +299,7 @@ def main():
                f"Look at the logs for more details: filename={log_file_name}"]
 
     module.exit_json(failed=not status_bool,
+        msg=" ".join(message),
         error_msg=message,
         log_file=log_file_name,
         errors=error_bucket,
