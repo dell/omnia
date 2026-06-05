@@ -56,7 +56,7 @@
       }}
 
 
-- name: Manage /etc/hosts entries on OIM for Omnia cluster nodes (skipped when CoreDNS is enabled)
+- name: Manage /etc/hosts entries on OIM for Omnia cluster nodes
   ansible.builtin.blockinfile:
     path: /etc/hosts
     create: true
@@ -68,7 +68,6 @@
       {% endfor %}
   when:
     - omnia_hosts_map | default({}) | length > 0
-    - not (hostvars['localhost']['dns_enabled'] | default(false) | bool)
 
 # - name: DEBUG configure_oim_ssh facts
  # ansible.builtin.debug:
