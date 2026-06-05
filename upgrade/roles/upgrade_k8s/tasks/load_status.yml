@@ -42,55 +42,26 @@
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     groups: kube_vip_group
 
-# ── Read nodes.yaml for inventory ──────────────────────────────────
-- name: Read nodes.yaml
-  ansible.builtin.slurp:
-    src: "{{ nodes_yaml_path }}"
-  register: nodes_slurp
-  changed_when: false
+# ══════════════════════════════════════════════════════════════════════════════
+# Validated nodes from validate_cluster_nodes.yml are used
+# The following variables should already be set:
+#   - groups_cp_first, groups_cp, groups_worker
+#   - all_upgrade_nodes
+#   - node_ips
+# ══════════════════════════════════════════════════════════════════════════════
 
-- name: Parse nodes.yaml
-  ansible.builtin.set_fact:
-    parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
-
-# ── Build node lists by role ────────────────────────────────────────
-- name: Build first control plane list
-  ansible.builtin.set_fact:
-    groups_cp_first: >-
-      {{ parsed_nodes.nodes
-         | selectattr('group', 'equalto', group_cp_first)
-         | map(attribute='name') | list }}
-
-- name: Build additional control plane list
-  ansible.builtin.set_fact:
-    groups_cp: >-
-      {{ parsed_nodes.nodes
-         | selectattr('group', 'equalto', group_cp)
-         | map(attribute='name') | list }}
-
-- name: Build worker list
-  ansible.builtin.set_fact:
-    groups_worker: >-
-      {{ parsed_nodes.nodes
-         | selectattr('group', 'equalto', group_worker)
-         | map(attribute='name') | list }}
-
-- name: Build all nodes list
-  ansible.builtin.set_fact:
-    all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
-
-# ── Build node IP map ───────────────────────────────────────────────
-- name: Build node name-to-IP mapping
-  ansible.builtin.set_fact:
-    node_ips: >-
-      {{ node_ips | default({}) | combine({
-           item.name: (item.interfaces | first).ip_addrs
-                      | selectattr('name', 'equalto', 'management')
-                      | map(attribute='ip_addr') | first
-         }) }}
-  loop: "{{ parsed_nodes.nodes }}"
-  loop_control:
-    label: "{{ item.name }}"
+- name: Verify cluster validation was completed
+  ansible.builtin.assert:
+    that:
+      - cluster_validation_completed | default(false)
+      - all_upgrade_nodes is defined
+      - all_upgrade_nodes | length > 0
+      - node_ips is defined
+    fail_msg: |
+      Cluster validation was not completed or no validated nodes found.
+      Please ensure validate_cluster_nodes.yml runs before load_status.yml.
+      Variables required: cluster_validation_completed, all_upgrade_nodes, node_ips
+    success_msg: "Using {{ all_upgrade_nodes | length }} validated nodes from cluster validation"
 
 # ── Add all nodes to Ansible inventory ──────────────────────────────
 - name: Add K8s nodes to inventory
