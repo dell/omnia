@@ -95,13 +95,14 @@
 
     - name: Abort rollback if upgrade completed successfully
       ansible.builtin.fail:
-        msg: |
-          The previous upgrade completed successfully (upgrade_status: completed).
-          Rollback after a successful upgrade is not recommended because all
-          components were upgraded consistently.
-          If you need to rollback despite successful completion:
-            cd /omnia/rollback
-            ansible-playbook rollback.yml -e force_rollback=true
+        msg:
+          - "The previous upgrade completed successfully (upgrade_status: completed)."
+          - "Rollback after a successful upgrade is not recommended because all"
+          - "components were upgraded consistently."
+          - ""
+          - "If you need to rollback despite successful completion:"
+          - "  cd /omnia/rollback"
+          - "  ansible-playbook rollback.yml -e force_rollback=true"
       when:
         - upgrade_manifest is defined
         - upgrade_manifest.upgrade_status | default('') == 'completed'

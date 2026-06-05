@@ -148,31 +148,50 @@
   ansible.builtin.set_fact:
     has_discrepancies: "{{ (nodes_only_in_yaml | length > 0) or (nodes_only_in_cluster | length > 0) }}"
 
+# ── Build validation display lines ───────────────────────────────────
+- name: Build IP mapping display lines
+  ansible.builtin.set_fact:
+    ip_mapping_lines: []
+
+- name: Add IP mapping lines
+  ansible.builtin.set_fact:
+    ip_mapping_lines: "{{ ip_mapping_lines + ['  - ' + item + ': ' + nodes_yaml_ips[item]] }}"
+  loop: "{{ all_expected_nodes }}"
+
+- name: Build matched nodes display lines
+  ansible.builtin.set_fact:
+    matched_nodes_lines: []
+
+- name: Add matched nodes lines
+  ansible.builtin.set_fact:
+    matched_nodes_lines: "{{ matched_nodes_lines + ['  - ' + item + ' -> ' + nodes_yaml_ips[item]] }}"
+  loop: "{{ nodes_in_both }}"
+
 # ── Display validation results ───────────────────────────────────────
 - name: Display cluster node validation results
   ansible.builtin.debug:
     msg: "{{ validation_banner }}"
   vars:
-    validation_banner: |
-      ════════════════════════════════════════════════════════════════════════════════
-      [UPGRADE] CLUSTER NODE VALIDATION
-      ════════════════════════════════════════════════════════════════════════════════
-
-      Expected nodes from nodes.yaml: {{ all_expected_nodes | length }}
-        - Control plane (first): {{ expected_cp_first | join(', ') | default('none', true) }}
-        - Control plane (additional): {{ expected_cp | join(', ') | default('none', true) }}
-        - Workers: {{ expected_workers | join(', ') | default('none', true) }}
-
-      nodes.yaml IP mappings:
-      {% for node in all_expected_nodes %}  - {{ node }}: {{ nodes_yaml_ips[node] }}
-      {% endfor %}
-      Actual nodes in cluster (by IP): {{ cluster_all_nodes | length }}
-        - Cluster IPs: {{ cluster_all_nodes | join(', ') | default('none', true) }}
-
-      Matched nodes (nodes.yaml hostname -> cluster IP): {{ nodes_in_both | length }}
-      {% for node in nodes_in_both %}  - {{ node }} -> {{ nodes_yaml_ips[node] }}
-      {% endfor %}
-      ════════════════════════════════════════════════════════════════════════════════
+    validation_banner: >-
+      {{
+        ['════════════════════════════════════════════════════════════════════════════════',
+         '[UPGRADE] CLUSTER NODE VALIDATION',
+         '════════════════════════════════════════════════════════════════════════════════',
+         '',
+         'Expected nodes from nodes.yaml: ' ~ (all_expected_nodes | length),
+         '  - Control plane (first): ' ~ (expected_cp_first | join(', ') | default('none', true)),
+         '  - Control plane (additional): ' ~ (expected_cp | join(', ') | default('none', true)),
+         '  - Workers: ' ~ (expected_workers | join(', ') | default('none', true)),
+         '',
+         'nodes.yaml IP mappings:']
+        + ip_mapping_lines
+        + ['Actual nodes in cluster (by IP): ' ~ (cluster_all_nodes | length),
+           '  - Cluster IPs: ' ~ (cluster_all_nodes | join(', ') | default('none', true)),
+           '',
+           'Matched nodes (nodes.yaml hostname -> cluster IP): ' ~ (nodes_in_both | length)]
+        + matched_nodes_lines
+        + ['════════════════════════════════════════════════════════════════════════════════']
+      }}
 
 - name: Display discrepancy warning
   ansible.builtin.debug:
@@ -251,21 +270,15 @@
 
 - name: Display SSH check results
   ansible.builtin.debug:
-    msg: "{{ ssh_results_banner }}"
-  vars:
-    ssh_results_banner: |
-      ════════════════════════════════════════════════════════════════════════════════
-      [SSH] CONNECTIVITY CHECK RESULTS
-      ════════════════════════════════════════════════════════════════════════════════
-
-      Nodes with SSH accessible: {{ all_validated_nodes | difference(ssh_failed_nodes) | length }}
-      Nodes with SSH failed: {{ ssh_failed_nodes | length }}
-      {% if ssh_failed_nodes | length > 0 %}
-      Failed nodes: {{ ssh_failed_nodes | join(', ') }}
-      {% else %}
-        (all nodes accessible)
-      {% endif %}
-      ════════════════════════════════════════════════════════════════════════════════
+    msg:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[SSH] CONNECTIVITY CHECK RESULTS"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Nodes with SSH accessible: {{ all_validated_nodes | difference(ssh_failed_nodes) | length }}"
+      - "Nodes with SSH failed: {{ ssh_failed_nodes | length }}"
+      - "{{ 'Failed nodes: ' + (ssh_failed_nodes | join(', ')) if ssh_failed_nodes | length > 0 else '  (all nodes accessible)' }}"
+      - "════════════════════════════════════════════════════════════════════════════════"
 
 - name: Fail if any node has SSH connectivity failure
   ansible.builtin.fail:
@@ -323,21 +336,15 @@
 
 - name: Display node Ready status results
   ansible.builtin.debug:
-    msg: "{{ ready_status_banner }}"
-  vars:
-    ready_status_banner: |
-      ════════════════════════════════════════════════════════════════════════════════
-      [NODE STATUS] READY CHECK RESULTS
-      ════════════════════════════════════════════════════════════════════════════════
-
-      Nodes in Ready state: {{ all_validated_nodes | difference(validated_nodes_not_ready) | length }}
-      Nodes NOT Ready: {{ validated_nodes_not_ready | length }}
-      {% if validated_nodes_not_ready | length > 0 %}
-      Not Ready nodes: {{ validated_nodes_not_ready | join(', ') }}
-      {% else %}
-        (all nodes ready)
-      {% endif %}
-      ════════════════════════════════════════════════════════════════════════════════
+    msg:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[NODE STATUS] READY CHECK RESULTS"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Nodes in Ready state: {{ all_validated_nodes | difference(validated_nodes_not_ready) | length }}"
+      - "Nodes NOT Ready: {{ validated_nodes_not_ready | length }}"
+      - "{{ 'Not Ready nodes: ' + (validated_nodes_not_ready | join(', ')) if validated_nodes_not_ready | length > 0 else '  (all nodes ready)' }}"
+      - "════════════════════════════════════════════════════════════════════════════════"
 
 - name: Fail if any validated node is not Ready
   ansible.builtin.fail:
@@ -409,11 +416,19 @@
   register: total_pods_count
   changed_when: false
 
+- name: Parse unhealthy pods from output
+  ansible.builtin.set_fact:
+    all_unhealthy_pods: []
+
 - name: Build unhealthy pods list
   ansible.builtin.set_fact:
     all_unhealthy_pods: >-
-      {{ unhealthy_pods_check.stdout_lines | default([]) | select('match', '.+') |
-         map('regex_replace', '(.+)\\|(.+)\\|(.+)', '\\1/\\2 (\\3)') | list }}
+      {{ all_unhealthy_pods + [item.split('|')[0] + '/' + item.split('|')[1] + ' (' + item.split('|')[2] + ')'] }}
+  loop: "{{ unhealthy_pods_check.stdout_lines | default([]) | select('match', '.+') | list }}"
+  when: "'|' in item"
+
+- name: Set total pods count
+  ansible.builtin.set_fact:
     total_pods: "{{ total_pods_count.stdout | trim }}"
 
 - name: Count healthy pods
@@ -424,22 +439,20 @@
   ansible.builtin.debug:
     msg: "{{ pod_health_banner }}"
   vars:
-    pod_health_banner: |
-      ════════════════════════════════════════════════════════════════════════════════
-      [POD STATUS] CLUSTER-WIDE HEALTH CHECK
-      ════════════════════════════════════════════════════════════════════════════════
-
-      Total pods in cluster: {{ total_pods }}
-      Healthy pods: {{ healthy_pods }}
-      Unhealthy pods: {{ all_unhealthy_pods | length }}
-      {% if all_unhealthy_pods | length > 0 %}
-      Problem pods (namespace/name):
-      {% for pod in all_unhealthy_pods %}  - {{ pod }}
-      {% endfor %}
-      {% else %}
-        (all pods healthy)
-      {% endif %}
-      ════════════════════════════════════════════════════════════════════════════════
+    pod_health_banner: >-
+      {{
+        ['════════════════════════════════════════════════════════════════════════════════',
+         '[POD STATUS] CLUSTER-WIDE HEALTH CHECK',
+         '════════════════════════════════════════════════════════════════════════════════',
+         '',
+         'Total pods in cluster: ' + (total_pods | string),
+         'Healthy pods: ' + (healthy_pods | string),
+         'Unhealthy pods: ' + (all_unhealthy_pods | length | string)]
+        + (['Problem pods (namespace/name):'] + (all_unhealthy_pods | map('regex_replace', '^', '  - ') | list)
+           if all_unhealthy_pods | length > 0
+           else ['  (all pods healthy)'])
+        + ['════════════════════════════════════════════════════════════════════════════════']
+      }}
 
 - name: Fail if any pods are not healthy
   ansible.builtin.fail:
@@ -485,28 +498,52 @@
       ════════════════════════════════════════════════════════════════════════════════
   when: validated_cp_first | length == 0
 
+# ── Build inventory summary node lines ────────────────────────────────
+- name: Build inventory node display lines
+  ansible.builtin.set_fact:
+    inv_cp_first_lines: "{{ validated_cp_first | map('regex_replace', '^(.*)$', '  - \\1') | list }}"
+    inv_cp_lines: "{{ validated_cp | map('regex_replace', '^(.*)$', '  - \\1') | list }}"
+    inv_worker_lines: "{{ validated_workers | map('regex_replace', '^(.*)$', '  - \\1') | list }}"
+
+- name: Add IPs to control plane first lines
+  ansible.builtin.set_fact:
+    inv_cp_first_display: >-
+      {{ inv_cp_first_display | default([]) + ['  - ' + item + ' (' + nodes_yaml_ips[item] + ')'] }}
+  loop: "{{ validated_cp_first }}"
+
+- name: Add IPs to control plane additional lines
+  ansible.builtin.set_fact:
+    inv_cp_display: >-
+      {{ inv_cp_display | default([]) + ['  - ' + item + ' (' + nodes_yaml_ips[item] + ')'] }}
+  loop: "{{ validated_cp }}"
+
+- name: Add IPs to worker lines
+  ansible.builtin.set_fact:
+    inv_worker_display: >-
+      {{ inv_worker_display | default([]) + ['  - ' + item + ' (' + nodes_yaml_ips[item] + ')'] }}
+  loop: "{{ validated_workers }}"
+
 # ── Display upgrade inventory summary ────────────────────────────────
 - name: Display upgrade inventory summary
   ansible.builtin.debug:
-    msg: "{{ inventory_banner }}"
+    msg: "{{ inventory_summary }}"
   vars:
-    inventory_banner: |
-      ════════════════════════════════════════════════════════════════════════════════
-      [UPGRADE] PROCEEDING WITH THE FOLLOWING NODES
-      ════════════════════════════════════════════════════════════════════════════════
-
-      Total nodes for upgrade: {{ all_validated_nodes | length }}
-
-      Control plane (first): {{ validated_cp_first | length }} node(s)
-      {% for node in validated_cp_first %}  - {{ node }} ({{ nodes_yaml_ips[node] }})
-      {% endfor %}
-      Control plane (additional): {{ validated_cp | length }} node(s)
-      {% for node in validated_cp %}  - {{ node }} ({{ nodes_yaml_ips[node] }})
-      {% endfor %}
-      Workers: {{ validated_workers | length }} node(s)
-      {% for node in validated_workers %}  - {{ node }} ({{ nodes_yaml_ips[node] }})
-      {% endfor %}
-      ════════════════════════════════════════════════════════════════════════════════
+    inventory_summary: >-
+      {{
+        ['════════════════════════════════════════════════════════════════════════════════',
+         '[UPGRADE] PROCEEDING WITH THE FOLLOWING NODES',
+         '════════════════════════════════════════════════════════════════════════════════',
+         '',
+         'Total nodes for upgrade: ' ~ (all_validated_nodes | length),
+         '',
+         'Control plane (first): ' ~ (validated_cp_first | length) ~ ' node(s)']
+        + (inv_cp_first_display | default([]))
+        + ['Control plane (additional): ' ~ (validated_cp | length) ~ ' node(s)']
+        + (inv_cp_display | default(['  (none)']) if validated_cp | length > 0 else ['  (none)'])
+        + ['Workers: ' ~ (validated_workers | length) ~ ' node(s)']
+        + (inv_worker_display | default(['  (none)']) if validated_workers | length > 0 else ['  (none)'])
+        + ['════════════════════════════════════════════════════════════════════════════════']
+      }}
 
 # ── Pause to allow user to review discrepancies ──────────────────────
 - name: Display proceeding message with discrepancies
