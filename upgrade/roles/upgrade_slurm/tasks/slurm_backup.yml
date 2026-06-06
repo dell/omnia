@@ -127,3 +127,11 @@
   ansible.builtin.fail:
     msg: "SLURM: MySQL datadir not found in nfs"
   when: not is_mysql_datadir
+
+- name: Remove hpc_tools tracking files if present
+  ansible.builtin.file:
+    path: "{{ slurm_nfs_mounted_path }}{{ item }}"
+    state: absent
+    force: true
+  loop: "{{ hpc_tools_tracking_files }}"
+  failed_when: false

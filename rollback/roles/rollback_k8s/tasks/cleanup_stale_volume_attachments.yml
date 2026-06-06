@@ -235,6 +235,7 @@
       until: _csi_pods_check.stdout | trim | length == 0
       when: "'csi-isilon.dellemc.com' in (_csi_drivers.stdout | default(''))"
 
+
     # ── Verify NFS client provisioner pod is Running ──────────────
     - name: Check if NFS client provisioner exists
       ansible.builtin.command:

@@ -86,6 +86,20 @@ reboot_connect_timeout: 300
 worker_parallel_count: 1
 
 # ---------------------------------------------------------------------------
+# Cluster validation settings
+# ---------------------------------------------------------------------------
+# When cluster nodes don't match nodes.yaml, the playbook pauses to allow review.
+#
+# cluster_validation_pause_seconds: How long to pause (default: 10 seconds)
+#   Override via --extra-vars cluster_validation_pause_seconds=30
+#
+# skip_cluster_validation_pause: Skip the pause entirely (default: false)
+#   Set to true for automated/CI pipelines.
+#   Override via --extra-vars skip_cluster_validation_pause=true
+cluster_validation_pause_seconds: 10
+skip_cluster_validation_pause: false
+
+# ---------------------------------------------------------------------------
 # Step definitions per role
 # ---------------------------------------------------------------------------
 cp_first_steps:

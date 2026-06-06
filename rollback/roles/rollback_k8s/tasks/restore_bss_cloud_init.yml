@@ -141,7 +141,7 @@
              + ([] if (groups_cp | length == 0) else [group_cp])
              + [group_worker] }}
 
-    - name: "Restore BSS and cloud-init for {{ item }}"
+    - name: Restore BSS and cloud-init for functional groups
       ansible.builtin.shell:
         cmd: >
           set -o pipefail && ansible-playbook
