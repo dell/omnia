@@ -66,15 +66,18 @@
     - hostvars['localhost']['kernel_version_override'] | default('') | length == 0
 
 - name: Set kernel and initrd variables (build stream - kernel override)
+  vars:
+    _kvo: "{{ hostvars['localhost']['kernel_version_override'] }}"
+    _bs_lines: "{{ verify_s3_image_build_stream.stdout_lines }}"
   ansible.builtin.set_fact:
-    kernel: "{{ verify_s3_image_build_stream.stdout_lines | select('search', 'vmlinuz') | select('search', hostvars['localhost']['kernel_version_override']) | list | first }}"
-    initrd: "{{ verify_s3_image_build_stream.stdout_lines | select('search', 'initramfs') | select('search', hostvars['localhost']['kernel_version_override']) | list | first }}"
+    kernel: "{{ _bs_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | first }}"
+    initrd: "{{ _bs_lines | select('search', 'initramfs') | select('search', _kvo) | list | first }}"
   when:
     - enable_build_stream
     - (compute_image_suffix | default('')) != ''
     - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - verify_s3_image_build_stream.stdout_lines | select('search', 'vmlinuz') | select('search', hostvars['localhost']['kernel_version_override']) | list | length > 0
-    - verify_s3_image_build_stream.stdout_lines | select('search', 'initramfs') | select('search', hostvars['localhost']['kernel_version_override']) | list | length > 0
+    - _bs_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | length > 0
+    - _bs_lines | select('search', 'initramfs') | select('search', _kvo) | list | length > 0
 
 - name: Set kernel and initrd variables (default)
   ansible.builtin.set_fact:
@@ -85,14 +88,17 @@
     - hostvars['localhost']['kernel_version_override'] | default('') | length == 0
 
 - name: Set kernel and initrd variables (default - kernel override)
+  vars:
+    _kvo: "{{ hostvars['localhost']['kernel_version_override'] }}"
+    _s3_lines: "{{ verify_s3_image.stdout_lines }}"
   ansible.builtin.set_fact:
-    kernel: "{{ verify_s3_image.stdout_lines | select('search', 'vmlinuz') | select('search', hostvars['localhost']['kernel_version_override']) | list | first }}"
-    initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initramfs') | select('search', hostvars['localhost']['kernel_version_override']) | list | first }}"
+    kernel: "{{ _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | first }}"
+    initrd: "{{ _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | first }}"
   when:
     - not enable_build_stream
     - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - verify_s3_image.stdout_lines | select('search', 'vmlinuz') | select('search', hostvars['localhost']['kernel_version_override']) | list | length > 0
-    - verify_s3_image.stdout_lines | select('search', 'initramfs') | select('search', hostvars['localhost']['kernel_version_override']) | list | length > 0
+    - _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | length > 0
+    - _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | length > 0
 
 - name: Load bss template - {{ functional_group_name }}
   ansible.builtin.template:

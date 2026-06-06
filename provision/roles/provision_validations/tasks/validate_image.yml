@@ -77,14 +77,17 @@
     - hostvars['localhost']['kernel_version_override'] | default('') | length == 0
 
 - name: Set kernel and initrd variables (kernel override)
+  vars:
+    _kvo: "{{ hostvars['localhost']['kernel_version_override'] }}"
+    _s3_lines: "{{ verify_s3_image.stdout_lines }}"
   ansible.builtin.set_fact:
-    kernel: "{{ verify_s3_image.stdout_lines | select('search', 'vmlinuz') | select('search', hostvars['localhost']['kernel_version_override']) | list | first }}"
-    initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initramfs') | select('search', hostvars['localhost']['kernel_version_override']) | list | first }}"
+    kernel: "{{ _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | first }}"
+    initrd: "{{ _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | first }}"
   when:
     - verify_s3_image.stdout_lines | length > 1
     - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - verify_s3_image.stdout_lines | select('search', 'vmlinuz') | select('search', hostvars['localhost']['kernel_version_override']) | list | length > 0
-    - verify_s3_image.stdout_lines | select('search', 'initramfs') | select('search', hostvars['localhost']['kernel_version_override']) | list | length > 0
+    - _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | length > 0
+    - _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | length > 0
 
 - name: Fail if kernel override did not match any S3 image
   ansible.builtin.fail:

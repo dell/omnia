@@ -64,12 +64,13 @@
       ansible.builtin.include_tasks: delete_smd_config.yml
 
     - name: Restart the cloud-init service to refresh node instance data
-      ansible.builtin.service:
+      ansible.builtin.systemd:
         name: cloud-init-server
         state: restarted
+        daemon_reload: true
 
     - name: Check if cloud-init-server is running
-      ansible.builtin.service:
+      ansible.builtin.systemd:
         name: cloud-init-server
         state: started
       register: cloud_init_server_status
@@ -88,12 +89,13 @@
           changed_when: false
       rescue:
         - name: Restart openchami.target to recover container networking
-          ansible.builtin.service:
+          ansible.builtin.systemd:
             name: openchami.target
             state: restarted
+            daemon_reload: true
 
         - name: Wait for openchami.target to be ready after restart
-          ansible.builtin.service:
+          ansible.builtin.systemd:
             name: openchami.target
             state: started
           register: openchami_target_recovery
@@ -116,7 +118,7 @@
           when: cloud_init_status.rc != 0
 
     - name: Check whether openchami.target is up
-      ansible.builtin.service:
+      ansible.builtin.systemd:
         name: openchami.target
         state: started
       register: openchami_target_status
