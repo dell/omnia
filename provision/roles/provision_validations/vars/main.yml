@@ -65,8 +65,14 @@ image_missing_fail_msg: |
 kernel_override_no_match_msg: >-
   Error: kernel_version_override did not match any image in S3
   for functional group '{{ functional_group_name }}'.
-  Either set kernel_version_override to "" in provision_config.yml to auto-select the latest,
-  or provide a valid kernel version that exists in s3://boot-images.
+  Before running provision.yml, ensure the following steps are completed in order:
+  (1) Run local_repo.yml to sync the latest BaseOS repository so the desired
+  kernel packages are available locally.
+  (2) Run build_image_x86_64.yml to build and upload the new kernel image
+  to s3://boot-images.
+  (3) Re-run provision.yml.
+  Alternatively, set kernel_version_override to "" in provision_config.yml
+  to auto-select the latest available image.
 
 # Usage: validate_telemetry.yml
 warning_idrac_telemetry_support_false: |
