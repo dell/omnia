@@ -79,7 +79,7 @@ POLICY_CACHING_MAP = {
     ("never", True): "streamed"
 }
 DNF_COMMANDS = {
-    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64,noarch", "--disablerepo=*", "--enablerepo=x86_64_*"],
+    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64", "--arch=noarch", "--disablerepo=*", "--enablerepo=x86_64_*"],
     "aarch64": ["dnf", "download", "--forcearch", "aarch64", "--resolve", "--alldeps", "--exclude=*.x86_64", "--disablerepo=*", "--enablerepo=aarch64_*"]
 }
 DNF_INFO_COMMANDS = {
