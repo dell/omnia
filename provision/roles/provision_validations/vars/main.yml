@@ -68,7 +68,7 @@ kernel_override_no_match_msg: >-
   Before running provision.yml, ensure the following steps are completed in order:
   (1) Run local_repo.yml to sync the latest BaseOS repository so the desired
   kernel packages are available locally.
-  (2) Run build_image_x86_64.yml to build and upload the new kernel image
+  (2) Run build_image_x86_64.yml/build_image_aarch64.yml to build and upload the new kernel image
   to s3://boot-images.
   (3) Re-run provision.yml.
   Alternatively, set kernel_version_override to "" in provision_config.yml
