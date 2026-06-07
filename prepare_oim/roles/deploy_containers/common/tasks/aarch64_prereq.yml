@@ -24,3 +24,8 @@
     url: "{{ regctl_aarch64_url }}"
     dest: "{{ ochami_aarch64_dir }}/regctl"
     mode: "{{ dir_permissions_755 }}"
+    timeout: 120
+  register: regctl_aarch64_download
+  retries: 5
+  delay: 10
+  until: regctl_aarch64_download is succeeded

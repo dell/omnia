@@ -18,6 +18,11 @@
     url: "{{ regctl_url }}"
     dest: "{{ regctl_dest }}"
     mode: "{{ file_perm_rwx }}"
+    timeout: 120
+  register: regctl_download
+  retries: 5
+  delay: 10
+  until: regctl_download is succeeded
 
 - name: Configure regctl  # noqa: command-instead-of-shell
   ansible.builtin.shell: |

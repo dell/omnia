@@ -119,6 +119,10 @@
       {{ (admin_nic_ip + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('netmask') }}
     coredhcp_lease_duration: "{{ default_lease_time }}s"
 
+- name: Set multi-subnet coredhcp facts
+  ansible.builtin.set_fact:
+    additional_subnets: "{{ network_data.admin_network.additional_subnets | default([]) }}"
+
 - name: Configure static routes for additional subnets
   when: network_data.admin_network.additional_subnets | default([]) | length > 0
   block:
