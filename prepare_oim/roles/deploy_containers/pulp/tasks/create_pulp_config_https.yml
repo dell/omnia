@@ -121,6 +121,12 @@
         ca_trust_path: "{{ ca_trust_anchors_dir }}/pulp_webserver.crt"
       when: ca_trust_path is not defined
 
+    - name: Ensure CA trust directory exists
+      ansible.builtin.file:
+        path: "{{ ca_trust_anchors_dir }}"
+        state: directory
+        mode: '0755'
+
     - name: Copy Pulp crt to container trust
       ansible.builtin.copy:
         src: "{{ pulp_cert_src }}"
