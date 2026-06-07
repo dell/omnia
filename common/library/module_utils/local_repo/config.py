@@ -134,7 +134,18 @@ FILE_TIMEOUT_MIN = 1    # minutes
 ISO_TIMEOUT_MIN = 45    # minutes
 TASK_POLL_INTERVAL = 10  # seconds
 FILE_URI = "/pulp/api/v3/content/file/files/"
-PULP_SSL_CA_CERT = "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
+
+import os
+
+def _get_ca_cert_path():
+    """Return CA cert path based on OS. Fedora/RHEL vs Wolfi/Debian."""
+    rhel_path = "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
+    wolfi_path = "/usr/local/share/ca-certificates/pulp_webserver.crt"
+    if os.path.exists("/etc/pki/ca-trust/source/anchors"):
+        return rhel_path
+    return wolfi_path
+
+PULP_SSL_CA_CERT = _get_ca_cert_path()
 # ----------------------------
 # Used by download_image.py
 # ----------------------------

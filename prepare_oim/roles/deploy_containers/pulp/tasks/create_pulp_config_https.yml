@@ -108,15 +108,36 @@
         state: file
       loop: "{{ cert_items.values() }}"
 
+    - name: Detect CA trust anchors directory
+      ansible.builtin.set_fact:
+        ca_trust_anchors_dir: >-
+          {{ '/etc/pki/ca-trust/source/anchors'
+             if ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+             else '/usr/local/share/ca-certificates' }}
+      when: ca_trust_anchors_dir is not defined
+
+    - name: Set anchors path
+      ansible.builtin.set_fact:
+        ca_trust_path: "{{ ca_trust_anchors_dir }}/pulp_webserver.crt"
+      when: ca_trust_path is not defined
+
     - name: Copy Pulp crt to container trust
       ansible.builtin.copy:
         src: "{{ pulp_cert_src }}"
         dest: "{{ ca_trust_path }}"
         mode: "{{ logs_dir_permission }}"
 
+    - name: Detect CA trust update command
+      ansible.builtin.set_fact:
+        ca_trust_cmd: >-
+          {{ 'update-ca-trust extract'
+             if ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+             else 'update-ca-certificates' }}
+      when: ca_trust_cmd is not defined
+
     - name: Add Pulp Certificate to TrustStore
       ansible.builtin.command:
-        cmd: update-ca-trust extract
+        cmd: "{{ ca_trust_cmd }}"
       changed_when: false
 
     - name: Create a track file
