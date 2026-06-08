@@ -843,7 +843,6 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
 )
 
-
 # CSM Observability - Unsupported metrics validation messages
 def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
     """Returns error message when unsupported CSM metrics components are enabled."""
