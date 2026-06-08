@@ -848,10 +848,9 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
 def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
     """Returns error message when unsupported CSM metrics components are enabled."""
     return (
-        f"{component_name} metrics collection not supported. "
-        f"Set {section_name}.enabled to false in {values_file_path} and rerun the playbook."
-    )
-
+POWERSCALE_CSM_UNSUPPORTED_METRICS_MSG = (
+    "Only karaviMetricsPowerscale should be enabled in the CSM Observability values file. "
+    "Unsupported metrics are not enabled in the telemetry deployment."
 
 POWERSCALE_CSM_UNSUPPORTED_METRICS_MSG = (
     "Only karaviMetricsPowerscale should be enabled in the CSM Observability values file. "
