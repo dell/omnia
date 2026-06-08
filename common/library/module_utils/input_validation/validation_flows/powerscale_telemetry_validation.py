@@ -320,6 +320,29 @@ def validate_powerscale_telemetry_config(
                             f"skipping image version validation"
                         )
 
+                    # Validate unsupported metrics are not enabled
+                    # Only PowerScale metrics should be enabled; PowerFlex, PowerStore, PowerMax
+                    # require their own CSI drivers which are not part of this deployment
+                    unsupported_metrics = {
+                        "karaviMetricsPowerflex": ("PowerFlex", "karaviMetricsPowerflex"),
+                        "karaviMetricsPowerstore": ("PowerStore", "karaviMetricsPowerstore"),
+                        "karaviMetricsPowermax": ("PowerMax", "karaviMetricsPowermax"),
+                    }
+                    for section_key, (component_name, section_name) in unsupported_metrics.items():
+                        section = csm_values.get(section_key, {})
+                        if isinstance(section, dict) and section.get("enabled", False):
+                            errors.append(create_error_msg(
+                                f"{section_name}.enabled",
+                                "true",
+                                en_us_validation_msg.powerscale_unsupported_metrics_enabled_msg(
+                                    component_name, section_name, csm_values_path
+                                )
+                            ))
+                            logger.error(
+                                f"Unsupported metrics component {section_name} is enabled "
+                                f"in CSM Observability values file"
+                            )
+
                     logger.info("CSM Observability values.yaml validation passed")
             except (yaml.YAMLError, IOError) as e:
                 errors.append(create_error_msg(
