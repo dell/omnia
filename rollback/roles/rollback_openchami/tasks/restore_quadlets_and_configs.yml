@@ -54,7 +54,7 @@
         rollback_oim_host_quadlets: >-
           {{ rollback_oim_host_backup_dir }}/{{ backup_quadlets_subpath }}
 
-    - name: List backed-up quadlet files
+    - name: List backed-up quadlet container files
       ansible.builtin.find:
         paths: "{{ rollback_oim_host_quadlets }}"
         patterns: "*.container"
@@ -63,14 +63,43 @@
       delegate_facts: true
       connection: ssh
 
+    - name: List backed-up quadlet network files
+      ansible.builtin.find:
+        paths: "{{ rollback_oim_host_quadlets }}"
+        patterns: "*.network"
+      register: rollback_network_files
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
     - name: Display backed-up quadlet files found
       ansible.builtin.debug:
         verbosity: 1
         msg: >-
-          Found {{ rollback_quadlet_files.files | length }} quadlet files in backup:
-          {{ rollback_quadlet_files.files | map(attribute='path') | map('basename') | list }}
+          Found {{ rollback_quadlet_files.files | length }} container files and
+          {{ rollback_network_files.files | default([]) | length }} network files in backup:
+          Containers: {{ rollback_quadlet_files.files | map(attribute='path') | map('basename') | list }}
+          Networks: {{ rollback_network_files.files | default([]) | map(attribute='path') | map('basename') | list }}
 
-    - name: Restore each v2.1 quadlet file to systemd quadlet directory
+    # Restore network files FIRST - these must exist before containers can use them
+    - name: Restore each v2.1 network quadlet file to systemd quadlet directory
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ systemd_quadlet_dir }}/{{ item.path | basename }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "{{ file_permissions_644 }}"
+      loop: "{{ rollback_network_files.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: rollback_network_files.files | default([]) | length > 0
+
+    - name: Restore each v2.1 container quadlet file to systemd quadlet directory
       ansible.builtin.copy:
         src: "{{ item.path }}"
         dest: "{{ systemd_quadlet_dir }}/{{ item.path | basename }}"
@@ -216,7 +245,8 @@
       ansible.builtin.debug:
         msg:
           - "{{ rollback_messages.restore.quadlets_success }}"
-          - "Quadlet files restored: {{ rollback_quadlet_files.files | length }}"
+          - "Container quadlet files restored: {{ rollback_quadlet_files.files | length }}"
+          - "Network quadlet files restored: {{ rollback_network_files.files | default([]) | length }}"
           - "v2.2-only quadlets removed: {{ rollback_v22_only_quadlets | join(', ') }}"
           - "openchami.target: restored from backup (references coresmd.service)"
           - "/etc/openchami: {{ 'restored from backup' if rollback_etc_openchami_backup_stat.stat.exists | default(false) else 'backup NOT found' }}"

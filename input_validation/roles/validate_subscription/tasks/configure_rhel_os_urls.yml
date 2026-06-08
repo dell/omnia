@@ -191,9 +191,13 @@
           {%- endfor -%}
           {{ result }}
 
-    - name: Identify non-matching aarch64 override repos
+    - name: Create name mapping for aarch64 dynamic repos
       ansible.builtin.set_fact:
         aarch64_dynamic_names: "{{ sub_rhel_aarch64_urls | map(attribute='name') | list }}"
+      when: "'aarch64' in archs"
+
+    - name: Identify non-matching aarch64 override repos
+      ansible.builtin.set_fact:
         additional_aarch64_repos: >-
           {{
             sub_aarch64_override_config | rejectattr('name', 'in', aarch64_dynamic_names) | list
@@ -248,7 +252,7 @@
           Expected: {{ required_repos | join(', ') }}.
           Found: {{ present_repos | join(', ') }}
       vars:
-        present_repos: "{{ vars['rhel_url_' ~ arch_item] | map(attribute='name') | list }}"
+        present_repos: "{{ lookup('vars', 'rhel_url_' ~ arch_item) | map(attribute='name') | list }}"
       when: present_repos is not superset(required_repos)
       loop: "{{ archs }}"
       loop_control:

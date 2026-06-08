@@ -148,13 +148,13 @@
     apply_config: "{{ apply_config | default({})
      | combine({'slurmdbd': (apply_config['slurmdbd']
      | combine({'DbdHost': ctld_list[0], 'StorageHost': ctld_list[0]}))}) }}"
-  when: ctld_list
+  when: ctld_list | length > 0
   no_log: "{{ _no_log }}"
 
 - name: Check .conf files existence
   ansible.builtin.stat:
     path: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/{{ item.1 }}.conf"
-  when: ctld_list
+  when: ctld_list | length > 0
   loop: "{{ ctld_list | product(conf_files | default([])) }}"
   register: ctld_conf_files
 
@@ -169,7 +169,7 @@
   no_log: "{{ _no_log }}"
   when:
     - configs_input is defined
-    - configs_input
+    - configs_input | length > 0
     - item.value is string
     - item.key in conf_files
 
@@ -189,7 +189,7 @@
   no_log: "{{ _no_log }}"
   when:
     - configs_input is defined
-    - configs_input
+    - configs_input | length > 0
     - item.value is mapping
 
 - name: Create lists for conf_merge
@@ -367,7 +367,7 @@
   register: ctld_conf_files
   no_log: "{{ _no_log }}"
   when:
-    - item.ini_lines
+    - item.ini_lines | length > 0
 
 - name: Add extra confs which are not handled
   ansible.builtin.include_tasks: handle_extra_confs.yml
@@ -384,7 +384,7 @@
 - name: Check if cluster running
   ansible.builtin.include_tasks: check_ctld_running.yml
   when:
-    - ctld_list
+    - ctld_list | length > 0
     - ctld_conf_files is changed
   loop: "{{ ctld_list }}"
   loop_control:

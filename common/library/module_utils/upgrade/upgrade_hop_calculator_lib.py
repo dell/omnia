@@ -253,7 +253,7 @@ def update_software_config(
             - total_hops: Total number of hops
     """
     # Load current config
-    with open(input_file) as f:
+    with open(input_file, encoding='utf-8') as f:
         config = json.load(f)
 
     # Find final version for each software (last hop in chain)
@@ -293,7 +293,7 @@ def update_software_config(
             })
 
     # Write updated config
-    with open(input_file, 'w') as f:
+    with open(input_file, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4)
 
     # Output result
@@ -372,7 +372,7 @@ def update_component_json_repos(
 
             # Read JSON file
             try:
-                with open(json_path, 'r') as f:
+                with open(json_path, 'r', encoding='utf-8') as f:
                     json_data = json.load(f)
             except Exception as e:
                 msg = f"  Error reading {json_path}: {e}"
@@ -396,7 +396,7 @@ def update_component_json_repos(
             # Write updated JSON file
             if updated:
                 try:
-                    with open(json_path, 'w') as f:
+                    with open(json_path, 'w', encoding='utf-8') as f:
                         json.dump(json_data, f, indent=4)
                     msg = f"  Success: Updated {json_path}"
                     messages.append(msg)

@@ -47,6 +47,12 @@
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
       changed_when: false
+      failed_when: false
+
+    - name: Fail if ochami bss status check failed
+      ansible.builtin.fail:
+        msg: "ochami bss service is not running after {{ max_retries }} retries. {{ openchami_bss_status.stderr | default('') }}"
+      when: openchami_bss_status.rc != 0
 
     - name: Openchami bss status output
       ansible.builtin.debug:
@@ -60,6 +66,12 @@
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
       changed_when: false
+      failed_when: false
+
+    - name: Fail if ochami smd status check failed
+      ansible.builtin.fail:
+        msg: "ochami smd service is not running after {{ max_retries }} retries. {{ openchami_smd_status.stderr | default('') }}"
+      when: openchami_smd_status.rc != 0
 
     - name: Openchami smd status output
       ansible.builtin.debug:

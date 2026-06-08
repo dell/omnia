@@ -11,5 +11,5 @@ httpx>=0.25.0
 
 # Code quality
 pylint>=3.0.0
-black>=23.0.0
+black>=26.5.0
 isort>=5.12.0

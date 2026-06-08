@@ -22,38 +22,46 @@
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     groups: kube_vip_group
 
-# ── Read nodes.yaml for inventory ──────────────────────────────────
-- name: Read nodes.yaml
-  ansible.builtin.slurp:
-    src: "{{ nodes_yaml_path }}"
-  register: nodes_slurp
-  changed_when: false
+# ══════════════════════════════════════════════════════════════════════════════
+# Build node inventory from upgrade_status.nodes (nodes that were actually upgraded)
+# This ensures rollback targets the same nodes that were part of the upgrade
+# ══════════════════════════════════════════════════════════════════════════════
 
-- name: Parse nodes.yaml
-  ansible.builtin.set_fact:
-    parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+- name: Display upgrade status nodes info
+  ansible.builtin.debug:
+    msg: "{{ nodes_info_banner }}"
+  vars:
+    nodes_info_banner:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[ROLLBACK] BUILDING NODE INVENTORY FROM UPGRADE STATUS"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Using nodes from upgrade_status.yml (nodes that were part of the upgrade)"
+      - "Total nodes in upgrade status: {{ upgrade_status.nodes | length }}"
+      - ""
+      - "════════════════════════════════════════════════════════════════════════════════"
 
-# ── Build node lists by role ────────────────────────────────────────
-- name: Build first control plane list
+# ── Build node lists from upgrade_status.nodes ───────────────────────
+- name: Build first control plane list from upgrade_status
   ansible.builtin.set_fact:
     groups_cp_first: >-
-      {{ parsed_nodes.nodes
-         | selectattr('group', 'equalto', group_cp_first)
-         | map(attribute='name') | list }}
+      {{ upgrade_status.nodes | dict2items
+         | selectattr('value.role', 'equalto', 'control_plane_first')
+         | map(attribute='key') | list }}
 
-- name: Build additional control plane list
+- name: Build additional control plane list from upgrade_status
   ansible.builtin.set_fact:
     groups_cp: >-
-      {{ parsed_nodes.nodes
-         | selectattr('group', 'equalto', group_cp)
-         | map(attribute='name') | list }}
+      {{ upgrade_status.nodes | dict2items
+         | selectattr('value.role', 'equalto', 'control_plane')
+         | map(attribute='key') | list }}
 
-- name: Build worker list
+- name: Build worker list from upgrade_status
   ansible.builtin.set_fact:
     groups_worker: >-
-      {{ parsed_nodes.nodes
-         | selectattr('group', 'equalto', group_worker)
-         | map(attribute='name') | list }}
+      {{ upgrade_status.nodes | dict2items
+         | selectattr('value.role', 'equalto', 'worker')
+         | map(attribute='key') | list }}
 
 - name: Build all nodes list
   ansible.builtin.set_fact:
@@ -61,18 +69,105 @@
     all_worker_nodes: "{{ groups_worker }}"
     all_rollback_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
 
-# ── Build node IP map ───────────────────────────────────────────────
-- name: Build node name-to-IP mapping
+# ── Build node IP map from upgrade_status.nodes ──────────────────────
+- name: Build node name-to-IP mapping from upgrade_status
   ansible.builtin.set_fact:
     node_ips: >-
       {{ node_ips | default({}) | combine({
-           item.name: (item.interfaces | first).ip_addrs
-                      | selectattr('name', 'equalto', 'management')
-                      | map(attribute='ip_addr') | first
+           item.key: item.value.ip
          }) }}
-  loop: "{{ parsed_nodes.nodes }}"
+  loop: "{{ upgrade_status.nodes | dict2items }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.key }}"
+
+# ── Display rollback node inventory ──────────────────────────────────
+- name: Display rollback node inventory
+  ansible.builtin.debug:
+    msg: "{{ inventory_banner }}"
+  vars:
+    inventory_banner:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[ROLLBACK] NODE INVENTORY"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Total nodes for rollback: {{ all_rollback_nodes | length }}"
+      - ""
+      - "Control plane (first): {{ groups_cp_first | length }} node(s)"
+      - "{% for node in groups_cp_first %}  - {{ node }} ({{ node_ips[node] }})\n{% endfor %}"
+      - ""
+      - "Control plane (additional): {{ groups_cp | length }} node(s)"
+      - "{% for node in groups_cp %}  - {{ node }} ({{ node_ips[node] }})\n{% endfor %}"
+      - ""
+      - "Workers: {{ groups_worker | length }} node(s)"
+      - "{% for node in groups_worker %}  - {{ node }} ({{ node_ips[node] }})\n{% endfor %}"
+      - ""
+      - "════════════════════════════════════════════════════════════════════════════════"
+
+# ── Validate SSH connectivity to all rollback nodes ──────────────────
+- name: Display SSH connectivity check message
+  ansible.builtin.debug:
+    msg: "Checking SSH connectivity to {{ all_rollback_nodes | length }} rollback nodes..."
+
+- name: Check SSH connectivity to all rollback nodes
+  ansible.builtin.wait_for:
+    host: "{{ node_ips[item] }}"
+    port: 22
+    timeout: 10
+    state: started
+  loop: "{{ all_rollback_nodes }}"
+  loop_control:
+    label: "{{ item }} ({{ node_ips[item] }})"
+  register: ssh_check_results
+  ignore_errors: true
+
+- name: Build list of nodes with SSH failures
+  ansible.builtin.set_fact:
+    ssh_failed_nodes: >-
+      {{ ssh_check_results.results
+         | selectattr('failed', 'defined')
+         | selectattr('failed', 'equalto', true)
+         | map(attribute='item')
+         | list }}
+
+- name: Display SSH check results
+  ansible.builtin.debug:
+    msg: "{{ ssh_results_banner }}"
+  vars:
+    ssh_results_banner:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[SSH] CONNECTIVITY CHECK RESULTS"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Nodes with SSH accessible: {{ all_rollback_nodes | difference(ssh_failed_nodes) | length }}"
+      - "Nodes with SSH failed: {{ ssh_failed_nodes | length }}"
+      - "{% if ssh_failed_nodes | length > 0 %}  Failed nodes: {{ ssh_failed_nodes | join(', ') }}{% endif %}"
+      - ""
+      - "════════════════════════════════════════════════════════════════════════════════"
+
+- name: Fail if any node has SSH connectivity failure
+  ansible.builtin.fail:
+    msg: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [ERROR] SSH CONNECTIVITY FAILURE
+      ════════════════════════════════════════════════════════════════════════════════
+      The following nodes failed SSH connectivity check:
+      {% for node in ssh_failed_nodes %}
+        - {{ node }} ({{ node_ips[node] }})
+      {% endfor %}
+
+      Cannot proceed with rollback. Please ensure:
+        1. All nodes are powered on and accessible
+        2. SSH service is running on all nodes
+        3. Network connectivity exists between control node and target nodes
+        4. SSH keys are properly configured
+
+      Fix the connectivity issues and re-run the rollback.
+      ════════════════════════════════════════════════════════════════════════════════
+  when: ssh_failed_nodes | length > 0
+
+- name: Display all nodes SSH accessible
+  ansible.builtin.debug:
+    msg: "[OK] SSH connectivity verified for all {{ all_rollback_nodes | length }} rollback nodes"
 
 # ── Add all nodes to Ansible inventory ──────────────────────────────
 - name: Add K8s nodes to inventory
@@ -133,7 +228,7 @@
              | combine({
                  'steps': (
                    rollback_status.nodes[item].steps
-                   | default({})
+                   | default({}, true)
                    | combine({
                        'crio_restart': (
                          rollback_status.nodes[item].steps.crio_restart

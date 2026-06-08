@@ -29,7 +29,7 @@ def load_omnia_config(omnia_config_path, module):
         module.fail_json(msg=f"omnia_config.yml not found: {omnia_config_path}")
 
     try:
-        with open(omnia_config_path) as f:
+        with open(omnia_config_path, encoding='utf-8') as f:
             config = yaml.safe_load(f) or {}
 
         kube_name = None
@@ -61,7 +61,7 @@ def parse_csv(filename, module):
     kube_control_seen = False
 
     try:
-        with open(filename, newline="") as f:
+        with open(filename, newline="", encoding="utf-8") as f:
             cleaned_lines = [line.strip() for line in f if line.strip()]
             header = cleaned_lines[0].split(",")
             expected_columns = len(header)
@@ -131,7 +131,7 @@ def build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_nam
 
 def dump_yaml_with_comments(data, filename):
     """Write YAML data to file with custom formatting and comments."""
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write("# ---------------------------------------------------------------------------\n")
         f.write("# Groups definition\n")
         f.write("# ---------------------------------------------------------------------------\n")

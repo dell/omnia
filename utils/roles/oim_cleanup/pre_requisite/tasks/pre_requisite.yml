@@ -18,6 +18,53 @@
   register: include_metadata
   no_log: true
 
+- name: Include omnia_config_credentials.yml for postgres_user
+  block:
+    - name: Check if credentials file exists
+      ansible.builtin.stat:
+        path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+      register: credentials_file_status
+
+    - name: Load credentials if file exists
+      when: credentials_file_status.stat.exists
+      block:
+        - name: Check if credentials file is encrypted
+          ansible.builtin.command: head -1 "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+          changed_when: false
+          register: credentials_file_content
+          no_log: true
+
+        - name: Decrypt credentials if encrypted
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+            --vault-password-file "{{ hostvars['localhost']['input_project_dir'] }}/.omnia_config_credentials_key"
+          changed_when: false
+          when: "'$ANSIBLE_VAULT' in credentials_file_content.stdout"
+          no_log: true
+
+        - name: Include credentials
+          ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+          no_log: true
+
+        - name: Set postgres_user as a fact for all hosts
+          ansible.builtin.set_fact:
+            postgres_user: "{{ postgres_user | default('admin') }}"
+          delegate_to: localhost
+          delegate_facts: true
+
+        - name: Re-encrypt credentials if it was encrypted
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+            --vault-password-file "{{ hostvars['localhost']['input_project_dir'] }}/.omnia_config_credentials_key"
+          changed_when: false
+          when: "'$ANSIBLE_VAULT' in credentials_file_content.stdout"
+          no_log: true
+  rescue:
+    - name: Set default postgres_user if credentials not available
+      ansible.builtin.set_fact:
+        postgres_user: "admin"
+      no_log: true
+
 - name: Load software_config.json as software_config
   block:
     - name: Load software_config.json as user_config

@@ -62,7 +62,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['provision', 'slurm', 'slurm_custom', 'security', 'csi_driver_powerscale', 'ldms', 'telemetry'] +
               (
                 ['service_k8s']
@@ -135,10 +135,87 @@
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
 
+- name: Configure omnia_core DNS resolution for CoreDNS
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Configure omnia_core resolv.conf for CoreDNS (when dns_enabled)
+      when: dns_enabled | default(false) | bool
+      block:
+        - name: Prepend CoreDNS as primary nameserver in omnia_core /etc/resolv.conf
+          ansible.builtin.shell: |
+            set -o pipefail
+            tmpfile=$(mktemp)
+
+            # Merge cluster domain into existing search line (preserve existing domains)
+            existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
+            if echo " ${existing_search} " | grep -qw '{{ domain_name }}'; then
+              echo "search ${existing_search}" > "$tmpfile"
+            else
+              echo "search {{ domain_name }} ${existing_search}" > "$tmpfile"
+            fi
+
+            # Prepend CoreDNS as primary nameserver
+            echo "nameserver {{ admin_nic_ip }}" >> "$tmpfile"
+
+            # Keep existing nameservers and options (skip search lines and CoreDNS duplicate)
+            grep -v '^search' /etc/resolv.conf 2>/dev/null | \
+              grep -Fxv "nameserver {{ admin_nic_ip }}" | \
+              grep -v '^$' >> "$tmpfile" || true
+
+            # Deduplicate while preserving order
+            awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
+            rm -f "$tmpfile"
+          changed_when: true
+
 - name: Provision nodes, configure bss and cloud-init
   hosts: oim
   connection: ssh
   pre_tasks:
+    - name: Load dns_enabled from provision_config.yml on OIM
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
+        name: _provision_config_oim
+
+    - name: Configure OIM DNS resolution for CoreDNS (when dns_enabled)
+      when: _provision_config_oim.dns_enabled | default(false) | bool
+      block:
+        - name: Remove immutable flag from /etc/resolv.conf if present
+          ansible.builtin.command: chattr -i /etc/resolv.conf
+          changed_when: true
+          failed_when: false
+
+        - name: Prepend coresmd as primary nameserver in OIM /etc/resolv.conf
+          ansible.builtin.shell: |
+            set -o pipefail
+            tmpfile=$(mktemp)
+
+            # Merge cluster domain into existing search line (preserve existing domains)
+            existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
+            if echo " ${existing_search} " | grep -qw '{{ hostvars["localhost"]["domain_name"] }}'; then
+              echo "search ${existing_search}" > "$tmpfile"
+            else
+              echo "search {{ hostvars['localhost']['domain_name'] }} ${existing_search}" > "$tmpfile"
+            fi
+
+            # Prepend coresmd as primary nameserver
+            echo "nameserver {{ hostvars['localhost']['admin_nic_ip'] }}" >> "$tmpfile"
+
+            # Keep existing nameservers and options (skip search lines and coresmd duplicate)
+            grep -v '^search' /etc/resolv.conf 2>/dev/null | \
+              grep -Fxv "nameserver {{ hostvars['localhost']['admin_nic_ip'] }}" | \
+              grep -v '^$' >> "$tmpfile" || true
+
+            # Deduplicate while preserving order
+            awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
+            rm -f "$tmpfile"
+          changed_when: true
+
+        - name: Prevent NetworkManager from overwriting resolv.conf
+          ansible.builtin.command: chattr +i /etc/resolv.conf
+          changed_when: true
+          failed_when: false
+
     - name: Provision nodes
       ansible.builtin.include_role:
         name: configure_ochami

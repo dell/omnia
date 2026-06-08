@@ -48,7 +48,7 @@
     msg: "idrac-telemetry current replica count: {{ idrac_replica_count.stdout }}"
   when: idrac_sts_check.rc == 0
 
-- name: Patch terminationGracePeriodSeconds to 120s for graceful MySQL shutdown
+- name: Patch terminationGracePeriodSeconds for graceful MySQL shutdown
   ansible.builtin.command:
     cmd: >
       kubectl patch statefulset idrac-telemetry -n {{ telemetry_namespace }}

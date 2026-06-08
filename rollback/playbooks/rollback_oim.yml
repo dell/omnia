@@ -71,7 +71,7 @@
       block:
         - name: Rollback OpenCHAMI containers and services
           ansible.builtin.include_role:
-            name: ../roles/rollback_openchami
+            name: "{{ playbook_dir }}/../roles/rollback_openchami"
 
         - name: Display OpenCHAMI rollback outcome
           ansible.builtin.debug:

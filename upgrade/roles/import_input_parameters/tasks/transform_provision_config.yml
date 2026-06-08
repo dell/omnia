@@ -47,6 +47,7 @@
     provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default(provision_default_pxe_mapping_file_path) }}"
     provision_language: "{{ backup_provision_config.language | default(provision_default_language) }}"
     provision_default_lease_time: "{{ backup_provision_config.default_lease_time | default(provision_default_lease_time) }}"
+    provision_kernel_version_override: "{{ backup_provision_config.kernel_version_override | default(provision_default_kernel_version_override) }}"
 
 - name: Fail if pxe_mapping_file_path is missing
   ansible.builtin.fail:
@@ -62,6 +63,7 @@
     provision_pxe_mapping_file_path: "{{ provision_pxe_mapping_file_path }}"
     provision_language: "{{ provision_language }}"
     provision_default_lease_time: "{{ provision_default_lease_time }}"
+    provision_kernel_version_override: "{{ provision_kernel_version_override }}"
 
 - name: Validate YAML syntax of transformed provision_config.yml
   ansible.builtin.command:

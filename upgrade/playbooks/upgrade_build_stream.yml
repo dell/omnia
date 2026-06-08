@@ -246,6 +246,7 @@
           - "Detected: {{ 'Upgrade existing installation' if upgrade_path == 'upgrade_existing' else 'Fresh install' }}"
           - "BuildStream: installed={{ buildstream_service_exists }}, active={{ buildstream_service_active }}"
           - "Postgres: installed={{ postgres_service_exists }}, active={{ postgres_service_active }}"
+          - "============================================================"
 
     # ── Set manifest to in-progress ──
     - name: Read manifest

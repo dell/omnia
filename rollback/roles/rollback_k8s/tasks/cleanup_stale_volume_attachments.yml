@@ -196,6 +196,25 @@
       loop_control:
         label: "{{ item }}"
 
+    # ── Clean up old terminated CSI pods (Failed/Succeeded) ────────
+    - name: Delete old terminated PowerScale CSI pods
+      ansible.builtin.shell:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete pods -A
+          -l 'app in (isilon-controller,isilon-node)'
+          --field-selector=status.phase=Failed
+          --ignore-not-found=true;
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete pods -A
+          -l 'app in (isilon-controller,isilon-node)'
+          --field-selector=status.phase=Succeeded
+          --ignore-not-found=true
+      delegate_to: "{{ groups_cp_first | first }}"
+      changed_when: true
+      failed_when: false
+      when: "'csi-isilon.dellemc.com' in (_csi_drivers.stdout | default(''))"
+
     # ── Wait for CSI driver pods to be ready (PowerScale) ─────────
     - name: Verify PowerScale CSI driver pods are Running
       ansible.builtin.shell:
@@ -216,6 +235,7 @@
       until: _csi_pods_check.stdout | trim | length == 0
       when: "'csi-isilon.dellemc.com' in (_csi_drivers.stdout | default(''))"
 
+
     # ── Verify NFS client provisioner pod is Running ──────────────
     - name: Check if NFS client provisioner exists
       ansible.builtin.command:
@@ -228,6 +248,25 @@
       register: _nfs_provisioner_deploy
       changed_when: false
       failed_when: false
+
+    # ── Clean up old terminated NFS provisioner pods ─────────────
+    - name: Delete old terminated NFS provisioner pods
+      ansible.builtin.shell:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete pods -A
+          -l app=nfs-subdir-external-provisioner
+          --field-selector=status.phase=Failed
+          --ignore-not-found=true;
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete pods -A
+          -l app=nfs-subdir-external-provisioner
+          --field-selector=status.phase=Succeeded
+          --ignore-not-found=true
+      delegate_to: "{{ groups_cp_first | first }}"
+      changed_when: true
+      failed_when: false
+      when: _nfs_provisioner_deploy.stdout_lines | default([]) | length > 0
 
     - name: Verify NFS client provisioner pod is Running
       ansible.builtin.shell:
