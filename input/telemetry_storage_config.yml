@@ -171,7 +171,7 @@ idrac_telemetry_storage:
         memory: "512Mi"
       limits:
         cpu: "500m"
-        memory: "1.5Gi"
+        memory: "1536Mi"
   receiver:
     resources:
       requests:
