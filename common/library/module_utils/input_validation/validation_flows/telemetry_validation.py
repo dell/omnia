@@ -620,21 +620,13 @@ def validate_telemetry_config(
             f"ldms_source.metrics_enabled={ldms_source_enabled}"
         )
 
-    # Validation 2: If LDMS source is enabled, Vector-LDMS bridge must also be enabled
-    # (LDMS only supports Kafka collection, requires Vector bridge to reach VictoriaMetrics)
-    if ldms_source_enabled and not vector_ldms_enabled:
-        errors.append(create_error_msg(
-            "telemetry_sources.ldms.metrics_enabled",
-            "true",
-            "LDMS source is enabled but Vector-LDMS bridge is disabled. "
-            "LDMS metrics can only reach VictoriaMetrics via the Vector-LDMS bridge. "
-            "If you want to check LDMS Metrics on VicotriaMetircs then:"
-            "Set telemetry_bridges.vector_ldms.metrics_enabled to true in telemetry_config.yml"
-        ))
-        logger.error(
-            "LDMS source enabled without Vector-LDMS bridge: "
+    elif ldms_source_enabled and not vector_ldms_enabled:
+        logger.info(
+            "LDMS source is enabled without Vector-LDMS bridge: "
             f"ldms_source.metrics_enabled={ldms_source_enabled}, "
-            f"vector_ldms.metrics_enabled={vector_ldms_enabled}"
+            f"vector_ldms.metrics_enabled={vector_ldms_enabled}. "
+            "LDMS metrics will flow to Kafka only. "
+            "To also route metrics to VictoriaMetrics, set telemetry_bridges.vector_ldms.metrics_enabled to true."
         )
 
     # # Validation 3: Verify Kafka collection target for LDMS
