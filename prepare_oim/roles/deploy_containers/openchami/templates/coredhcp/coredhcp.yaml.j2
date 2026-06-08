@@ -7,7 +7,9 @@ server4:
     - router: {{ coredhcp_router }}
     - netmask: {{ coredhcp_netmask }}
 {% if coredhcp_subnets | default([]) | length > 0 %}
-    # Multi-subnet mode: uses key=value config format (requires coresmd with multi-subnet support)
+    # Multi-subnet mode: uses key=value config format (requires coresmd v0.5+ rich rules)
+    # Subnet-specific rules use subnet: match keys with routers:/cidr: action keys
+    # to override DHCP options 3 (router) and 1 (netmask) per relay subnet.
     - coresmd: |
         svc_base_uri=https://{{ cluster_name }}.{{ cluster_domain }}:8443
         ipxe_base_uri=http://{{ cluster_boot_ip }}:8081
@@ -16,10 +18,11 @@ server4:
         lease_time={{ coredhcp_lease_duration }}
         single_port={{ coredhcp_tftp_single_port_mode | lower }}
 {% for s in coredhcp_subnets %}
-        subnet={{ s.cidr }},{{ s.router }}
+        rule=subnet:{{ s.cidr }},type:Node,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
+        rule=subnet:{{ s.cidr }},type:NodeBMC,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
 {% endfor %}
-        rule=type:Node,hostname:{{ cluster_shortname }}{{'{'}}0{{ coredhcp_nidlength | default(cluster_nidlength | default(3)) }}d{{'}'}}
-        rule=type:NodeBMC,hostname:bmc{{'{'}}0{{ coredhcp_nidlength | default(cluster_nidlength | default(3)) }}d{{'}'}}
+        rule=type:Node
+        rule=type:NodeBMC
         rule=hostname:unknown-{{'{'}}04d{{'}'}}
     - bootloop: |
         lease_file=/tmp/coredhcp.db

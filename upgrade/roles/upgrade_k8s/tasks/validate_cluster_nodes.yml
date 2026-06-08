@@ -1,0 +1,600 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Validate nodes.yaml against actual cluster nodes and build validated inventory
+# This task file:
+# 1. Reads nodes.yaml to get expected nodes
+# 2. Queries the cluster to get actual nodes
+# 3. Compares and shows discrepancies
+# 4. Prompts user for confirmation
+# 5. Builds inventory from actual cluster nodes only
+
+# ── Read nodes.yaml for expected nodes ──────────────────────────────
+- name: Read nodes.yaml
+  ansible.builtin.slurp:
+    src: "{{ nodes_yaml_path }}"
+  register: nodes_slurp
+  changed_when: false
+
+- name: Parse nodes.yaml
+  ansible.builtin.set_fact:
+    parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+
+# ── Build expected node lists from nodes.yaml ────────────────────────
+- name: Build expected node lists from nodes.yaml
+  ansible.builtin.set_fact:
+    expected_cp_first: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_cp_first)
+         | map(attribute='name') | list }}
+    expected_cp: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_cp)
+         | map(attribute='name') | list }}
+    expected_workers: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_worker)
+         | map(attribute='name') | list }}
+
+- name: Build all expected nodes list
+  ansible.builtin.set_fact:
+    all_expected_nodes: "{{ expected_cp_first + expected_cp + expected_workers }}"
+
+# ── Build node IP map from nodes.yaml ────────────────────────────────
+- name: Build node name-to-IP mapping from nodes.yaml
+  ansible.builtin.set_fact:
+    nodes_yaml_ips: >-
+      {{ nodes_yaml_ips | default({}) | combine({
+           item.name: (item.interfaces | first).ip_addrs
+                      | selectattr('name', 'equalto', 'management')
+                      | map(attribute='ip_addr') | first
+         }) }}
+  loop: "{{ parsed_nodes.nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# ── Query actual cluster nodes ───────────────────────────────────────
+# Cluster nodes are typically named by their IP addresses (e.g., 10.60.0.101)
+- name: Get actual cluster nodes with roles
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get nodes
+      -o jsonpath='{range .items[*]}{.metadata.name}|{.metadata.labels.node-role\.kubernetes\.io/control-plane}{"\n"}{end}'
+  delegate_to: "{{ kube_vip }}"
+  register: cluster_nodes_raw
+  changed_when: false
+
+- name: Parse cluster nodes
+  ansible.builtin.set_fact:
+    cluster_nodes_parsed: >-
+      {{ cluster_nodes_parsed | default([]) + [{
+           'name': item.split('|')[0],
+           'is_control_plane': (item.split('|')[1] | default('') | length > 0)
+         }] }}
+  loop: "{{ cluster_nodes_raw.stdout_lines | select('match', '.+') | list }}"
+  loop_control:
+    label: "{{ item.split('|')[0] }}"
+
+- name: Build cluster node lists by role
+  ansible.builtin.set_fact:
+    cluster_control_planes: >-
+      {{ cluster_nodes_parsed | selectattr('is_control_plane', 'equalto', true) | map(attribute='name') | list }}
+    cluster_workers: >-
+      {{ cluster_nodes_parsed | selectattr('is_control_plane', 'equalto', false) | map(attribute='name') | list }}
+    cluster_all_nodes: >-
+      {{ cluster_nodes_parsed | map(attribute='name') | list }}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Compare nodes.yaml with cluster nodes
+# ══════════════════════════════════════════════════════════════════════════════
+# nodes.yaml has: hostname -> IP mapping (e.g., kcp1 -> 10.60.0.102)
+# Cluster has: node names which ARE the IPs (e.g., 10.60.0.102)
+# So we compare nodes_yaml IPs against cluster node names (which are IPs)
+
+- name: Build IP list from nodes.yaml
+  ansible.builtin.set_fact:
+    nodes_yaml_ip_list: "{{ nodes_yaml_ips.values() | list }}"
+
+# cluster_all_nodes contains IPs (since nodes are named by IP)
+- name: Build IP list from cluster (node names are IPs)
+  ansible.builtin.set_fact:
+    cluster_ip_list: "{{ cluster_all_nodes }}"
+
+# Find nodes.yaml entries whose IP is NOT in the cluster
+- name: Find nodes in nodes.yaml but NOT in cluster (by IP)
+  ansible.builtin.set_fact:
+    nodes_only_in_yaml: >-
+      {{ nodes_yaml_ips | dict2items
+         | rejectattr('value', 'in', cluster_ip_list)
+         | map(attribute='key') | list }}
+
+# Find cluster nodes (IPs) that are NOT in nodes.yaml
+- name: Find nodes in cluster but NOT in nodes.yaml (by IP)
+  ansible.builtin.set_fact:
+    nodes_only_in_cluster: >-
+      {{ cluster_all_nodes | reject('in', nodes_yaml_ip_list) | list }}
+
+# Find nodes.yaml entries whose IP IS in the cluster
+- name: Find nodes present in both (by IP) - get nodes.yaml names
+  ansible.builtin.set_fact:
+    nodes_in_both: >-
+      {{ nodes_yaml_ips | dict2items
+         | selectattr('value', 'in', cluster_ip_list)
+         | map(attribute='key') | list }}
+
+# Build reverse mapping: cluster IP -> nodes.yaml hostname (for display)
+- name: Build IP to hostname mapping
+  ansible.builtin.set_fact:
+    ip_to_hostname: >-
+      {{ ip_to_hostname | default({}) | combine({
+           item.value: item.key
+         }) }}
+  loop: "{{ nodes_yaml_ips | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Determine if there are discrepancies
+  ansible.builtin.set_fact:
+    has_discrepancies: "{{ (nodes_only_in_yaml | length > 0) or (nodes_only_in_cluster | length > 0) }}"
+
+# ── Build validation display lines ───────────────────────────────────
+- name: Build IP mapping display lines
+  ansible.builtin.set_fact:
+    ip_mapping_lines: []
+
+- name: Add IP mapping lines
+  ansible.builtin.set_fact:
+    ip_mapping_lines: "{{ ip_mapping_lines + ['  - ' + item + ': ' + nodes_yaml_ips[item]] }}"
+  loop: "{{ all_expected_nodes }}"
+
+- name: Build matched nodes display lines
+  ansible.builtin.set_fact:
+    matched_nodes_lines: []
+
+- name: Add matched nodes lines
+  ansible.builtin.set_fact:
+    matched_nodes_lines: "{{ matched_nodes_lines + ['  - ' + item + ' -> ' + nodes_yaml_ips[item]] }}"
+  loop: "{{ nodes_in_both }}"
+
+# ── Display validation results ───────────────────────────────────────
+- name: Display cluster node validation results
+  ansible.builtin.debug:
+    msg: "{{ validation_banner }}"
+  vars:
+    validation_banner: >-
+      {{
+        ['════════════════════════════════════════════════════════════════════════════════',
+         '[UPGRADE] CLUSTER NODE VALIDATION',
+         '════════════════════════════════════════════════════════════════════════════════',
+         '',
+         'Expected nodes from nodes.yaml: ' ~ (all_expected_nodes | length),
+         '  - Control plane (first): ' ~ (expected_cp_first | join(', ') | default('none', true)),
+         '  - Control plane (additional): ' ~ (expected_cp | join(', ') | default('none', true)),
+         '  - Workers: ' ~ (expected_workers | join(', ') | default('none', true)),
+         '',
+         'nodes.yaml IP mappings:']
+        + ip_mapping_lines
+        + ['Actual nodes in cluster (by IP): ' ~ (cluster_all_nodes | length),
+           '  - Cluster IPs: ' ~ (cluster_all_nodes | join(', ') | default('none', true)),
+           '',
+           'Matched nodes (nodes.yaml hostname -> cluster IP): ' ~ (nodes_in_both | length)]
+        + matched_nodes_lines
+        + ['════════════════════════════════════════════════════════════════════════════════']
+      }}
+
+- name: Display discrepancy warning
+  ansible.builtin.debug:
+    msg: "{{ discrepancy_banner }}"
+  vars:
+    discrepancy_banner:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[WARNING] NODE DISCREPANCIES DETECTED"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Nodes in nodes.yaml but NOT in cluster (will be SKIPPED):"
+      - "  {{ nodes_only_in_yaml | join(', ') | default('none') }}"
+      - ""
+      - "Nodes in cluster but NOT in nodes.yaml (will be SKIPPED - no IP mapping):"
+      - "  {{ nodes_only_in_cluster | join(', ') | default('none') }}"
+      - ""
+      - "Nodes that will be upgraded (present in both):"
+      - "  {{ nodes_in_both | join(', ') }}"
+      - ""
+      - "════════════════════════════════════════════════════════════════════════════════"
+  when: has_discrepancies
+
+- name: Display no discrepancies message
+  ansible.builtin.debug:
+    msg:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[OK] All nodes in nodes.yaml are present in the cluster"
+      - "════════════════════════════════════════════════════════════════════════════════"
+  when: not has_discrepancies
+
+# ── Build validated inventory (only nodes whose IP is in cluster) ────
+- name: Build validated control plane first list
+  ansible.builtin.set_fact:
+    validated_cp_first: >-
+      {{ expected_cp_first | select('in', nodes_in_both) | list }}
+
+- name: Build validated additional control plane list
+  ansible.builtin.set_fact:
+    validated_cp: >-
+      {{ expected_cp | select('in', nodes_in_both) | list }}
+
+- name: Build validated worker list
+  ansible.builtin.set_fact:
+    validated_workers: >-
+      {{ expected_workers | select('in', nodes_in_both) | list }}
+
+- name: Build all validated nodes list
+  ansible.builtin.set_fact:
+    all_validated_nodes: "{{ validated_cp_first + validated_cp + validated_workers }}"
+
+# ── Validate SSH connectivity to all validated nodes ─────────────────
+- name: Display SSH connectivity check message
+  ansible.builtin.debug:
+    msg: "Checking SSH connectivity to {{ all_validated_nodes | length }} validated nodes..."
+
+- name: Check SSH connectivity to all validated nodes
+  ansible.builtin.wait_for:
+    host: "{{ nodes_yaml_ips[item] }}"
+    port: 22
+    timeout: 10
+    state: started
+  loop: "{{ all_validated_nodes }}"
+  loop_control:
+    label: "{{ item }} ({{ nodes_yaml_ips[item] }})"
+  register: ssh_check_results
+  ignore_errors: true
+
+- name: Build list of nodes with SSH failures
+  ansible.builtin.set_fact:
+    ssh_failed_nodes: >-
+      {{ ssh_check_results.results
+         | selectattr('failed', 'defined')
+         | selectattr('failed', 'equalto', true)
+         | map(attribute='item')
+         | list }}
+
+- name: Display SSH check results
+  ansible.builtin.debug:
+    msg:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[SSH] CONNECTIVITY CHECK RESULTS"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Nodes with SSH accessible: {{ all_validated_nodes | difference(ssh_failed_nodes) | length }}"
+      - "Nodes with SSH failed: {{ ssh_failed_nodes | length }}"
+      - "{{ 'Failed nodes: ' + (ssh_failed_nodes | join(', ')) if ssh_failed_nodes | length > 0 else '  (all nodes accessible)' }}"
+      - "════════════════════════════════════════════════════════════════════════════════"
+
+- name: Fail if any node has SSH connectivity failure
+  ansible.builtin.fail:
+    msg: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [ERROR] SSH CONNECTIVITY FAILURE
+      ════════════════════════════════════════════════════════════════════════════════
+      The following nodes failed SSH connectivity check:
+      {% for node in ssh_failed_nodes %}
+        - {{ node }} ({{ nodes_yaml_ips[node] }})
+      {% endfor %}
+
+      Cannot proceed with upgrade. Please ensure:
+        1. All nodes are powered on and accessible
+        2. SSH service is running on all nodes
+        3. Network connectivity exists between control node and target nodes
+        4. SSH keys are properly configured
+
+      Fix the connectivity issues and re-run the upgrade.
+      ════════════════════════════════════════════════════════════════════════════════
+  when: ssh_failed_nodes | length > 0
+
+- name: Display all nodes SSH accessible
+  ansible.builtin.debug:
+    msg: "[OK] SSH connectivity verified for all {{ all_validated_nodes | length }} validated nodes"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Validate all nodes are in Ready state
+# ══════════════════════════════════════════════════════════════════════════════
+- name: Display node Ready status check message
+  ansible.builtin.debug:
+    msg: "Checking all nodes are in Ready state..."
+
+- name: Get node Ready status from cluster
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}|{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}'
+  delegate_to: "{{ kube_vip }}"
+  register: node_ready_status
+  changed_when: false
+
+- name: Parse node Ready status
+  ansible.builtin.set_fact:
+    nodes_not_ready: >-
+      {{ nodes_not_ready | default([]) + (
+           [item.split('|')[0]] if (item.split('|')[1] | default('False')) != 'True' else []
+         ) }}
+  loop: "{{ node_ready_status.stdout_lines | select('match', '.+') | list }}"
+  loop_control:
+    label: "{{ item.split('|')[0] }}"
+
+- name: Filter not-ready nodes to only validated nodes
+  ansible.builtin.set_fact:
+    validated_nodes_not_ready: "{{ nodes_not_ready | default([]) | intersect(all_validated_nodes) }}"
+
+- name: Display node Ready status results
+  ansible.builtin.debug:
+    msg:
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[NODE STATUS] READY CHECK RESULTS"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "Nodes in Ready state: {{ all_validated_nodes | difference(validated_nodes_not_ready) | length }}"
+      - "Nodes NOT Ready: {{ validated_nodes_not_ready | length }}"
+      - "{{ 'Not Ready nodes: ' + (validated_nodes_not_ready | join(', ')) if validated_nodes_not_ready | length > 0 else '  (all nodes ready)' }}"
+      - "════════════════════════════════════════════════════════════════════════════════"
+
+- name: Fail if any validated node is not Ready
+  ansible.builtin.fail:
+    msg: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [ERROR] NODES NOT IN READY STATE
+      ════════════════════════════════════════════════════════════════════════════════
+      The following nodes are not in Ready state:
+      {% for node in validated_nodes_not_ready %}
+        - {{ node }}
+      {% endfor %}
+
+      Cannot proceed with upgrade. Please ensure:
+        1. All nodes are healthy and running
+        2. Kubelet is running on all nodes
+        3. Network connectivity between nodes is working
+        4. Check node conditions: kubectl describe node <node-name>
+
+      Fix the node issues and re-run the upgrade.
+      ════════════════════════════════════════════════════════════════════════════════
+  when: validated_nodes_not_ready | length > 0
+
+- name: Display all nodes Ready
+  ansible.builtin.debug:
+    msg: "[OK] All {{ all_validated_nodes | length }} validated nodes are in Ready state"
+  when: validated_nodes_not_ready | length == 0
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Validate all pods in the cluster are healthy
+# Healthy STATUS values: Running, Completed, Succeeded
+# Unhealthy: CrashLoopBackOff, Error, ImagePullBackOff, Pending, Failed, etc.
+# ══════════════════════════════════════════════════════════════════════════════
+- name: Display pod health check message
+  ansible.builtin.debug:
+    msg: "Checking all pods in the cluster are healthy..."
+
+# Get all pods with their STATUS (same as kubectl get pods output)
+# Healthy phases: Running, Succeeded (Completed jobs show as Succeeded)
+- name: Get all pods status across all namespaces
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get pods --all-namespaces --no-headers \
+        -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' \
+        2>/dev/null | \
+      while read ns name phase ready; do
+        # Healthy: Running with all containers ready, or Succeeded (completed)
+        if [[ "$phase" == "Running" && "$ready" == *"false"* ]]; then
+          echo "$ns|$name|ContainersNotReady"
+        elif [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
+          echo "$ns|$name|$phase"
+        fi
+      done
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ kube_vip }}"
+  register: unhealthy_pods_check
+  changed_when: false
+  failed_when: false
+
+- name: Get total pod count
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get pods --all-namespaces --no-headers | wc -l
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ kube_vip }}"
+  register: total_pods_count
+  changed_when: false
+
+- name: Parse unhealthy pods from output
+  ansible.builtin.set_fact:
+    all_unhealthy_pods: []
+
+- name: Build unhealthy pods list
+  ansible.builtin.set_fact:
+    all_unhealthy_pods: >-
+      {{ all_unhealthy_pods + [item.split('|')[0] + '/' + item.split('|')[1] + ' (' + item.split('|')[2] + ')'] }}
+  loop: "{{ unhealthy_pods_check.stdout_lines | default([]) | select('match', '.+') | list }}"
+  when: "'|' in item"
+
+- name: Set total pods count
+  ansible.builtin.set_fact:
+    total_pods: "{{ total_pods_count.stdout | trim }}"
+
+- name: Count healthy pods
+  ansible.builtin.set_fact:
+    healthy_pods: "{{ (total_pods | int) - (all_unhealthy_pods | length) }}"
+
+- name: Display pod health check results
+  ansible.builtin.debug:
+    msg: "{{ pod_health_banner }}"
+  vars:
+    pod_health_banner: >-
+      {{
+        ['════════════════════════════════════════════════════════════════════════════════',
+         '[POD STATUS] CLUSTER-WIDE HEALTH CHECK',
+         '════════════════════════════════════════════════════════════════════════════════',
+         '',
+         'Total pods in cluster: ' + (total_pods | string),
+         'Healthy pods: ' + (healthy_pods | string),
+         'Unhealthy pods: ' + (all_unhealthy_pods | length | string)]
+        + (['Problem pods (namespace/name):'] + (all_unhealthy_pods | map('regex_replace', '^', '  - ') | list)
+           if all_unhealthy_pods | length > 0
+           else ['  (all pods healthy)'])
+        + ['════════════════════════════════════════════════════════════════════════════════']
+      }}
+
+- name: Fail if any pods are not healthy
+  ansible.builtin.fail:
+    msg: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [ERROR] UNHEALTHY PODS DETECTED
+      ════════════════════════════════════════════════════════════════════════════════
+      The following pods are not healthy:
+      {% for pod in all_unhealthy_pods %}
+        - {{ pod }}
+      {% endfor %}
+
+      Healthy pods must have STATUS: Running or Succeeded
+      with all containers in Ready state.
+
+      Cannot proceed with upgrade. Please fix these issues:
+        1. Check pod status: kubectl get pods --all-namespaces
+        2. Check pod logs: kubectl logs -n <namespace> <pod-name>
+        3. Check pod events: kubectl describe pod -n <namespace> <pod-name>
+
+      Re-run the upgrade after fixing the pod issues.
+      ════════════════════════════════════════════════════════════════════════════════
+  when: all_unhealthy_pods | length > 0
+
+- name: Display all pods healthy
+  ansible.builtin.debug:
+    msg: "[OK] All {{ total_pods }} pods in the cluster are healthy"
+  when: all_unhealthy_pods | length == 0
+
+# ── Fail if no control plane first node is available ─────────────────
+- name: Fail if no first control plane node is available for upgrade
+  ansible.builtin.fail:
+    msg: |
+      ════════════════════════════════════════════════════════════════════════════════
+      [ERROR] NO FIRST CONTROL PLANE NODE AVAILABLE
+      ════════════════════════════════════════════════════════════════════════════════
+      The first control plane node(s) from nodes.yaml are not present in the cluster:
+        Expected: {{ expected_cp_first | join(', ') }}
+        In cluster: {{ cluster_control_planes | join(', ') }}
+
+      Cannot proceed with upgrade without a first control plane node.
+      Please verify your cluster state and nodes.yaml configuration.
+      ════════════════════════════════════════════════════════════════════════════════
+  when: validated_cp_first | length == 0
+
+# ── Build inventory summary node lines ────────────────────────────────
+- name: Build inventory node display lines
+  ansible.builtin.set_fact:
+    inv_cp_first_lines: "{{ validated_cp_first | map('regex_replace', '^(.*)$', '  - \\1') | list }}"
+    inv_cp_lines: "{{ validated_cp | map('regex_replace', '^(.*)$', '  - \\1') | list }}"
+    inv_worker_lines: "{{ validated_workers | map('regex_replace', '^(.*)$', '  - \\1') | list }}"
+
+- name: Add IPs to control plane first lines
+  ansible.builtin.set_fact:
+    inv_cp_first_display: >-
+      {{ inv_cp_first_display | default([]) + ['  - ' + item + ' (' + nodes_yaml_ips[item] + ')'] }}
+  loop: "{{ validated_cp_first }}"
+
+- name: Add IPs to control plane additional lines
+  ansible.builtin.set_fact:
+    inv_cp_display: >-
+      {{ inv_cp_display | default([]) + ['  - ' + item + ' (' + nodes_yaml_ips[item] + ')'] }}
+  loop: "{{ validated_cp }}"
+
+- name: Add IPs to worker lines
+  ansible.builtin.set_fact:
+    inv_worker_display: >-
+      {{ inv_worker_display | default([]) + ['  - ' + item + ' (' + nodes_yaml_ips[item] + ')'] }}
+  loop: "{{ validated_workers }}"
+
+# ── Display upgrade inventory summary ────────────────────────────────
+- name: Display upgrade inventory summary
+  ansible.builtin.debug:
+    msg: "{{ inventory_summary }}"
+  vars:
+    inventory_summary: >-
+      {{
+        ['════════════════════════════════════════════════════════════════════════════════',
+         '[UPGRADE] PROCEEDING WITH THE FOLLOWING NODES',
+         '════════════════════════════════════════════════════════════════════════════════',
+         '',
+         'Total nodes for upgrade: ' ~ (all_validated_nodes | length),
+         '',
+         'Control plane (first): ' ~ (validated_cp_first | length) ~ ' node(s)']
+        + (inv_cp_first_display | default([]))
+        + ['Control plane (additional): ' ~ (validated_cp | length) ~ ' node(s)']
+        + (inv_cp_display | default(['  (none)']) if validated_cp | length > 0 else ['  (none)'])
+        + ['Workers: ' ~ (validated_workers | length) ~ ' node(s)']
+        + (inv_worker_display | default(['  (none)']) if validated_workers | length > 0 else ['  (none)'])
+        + ['════════════════════════════════════════════════════════════════════════════════']
+      }}
+
+# ── Pause to allow user to review discrepancies ──────────────────────
+- name: Display proceeding message with discrepancies
+  ansible.builtin.debug:
+    msg: "{{ proceed_banner }}"
+  vars:
+    proceed_banner:
+      - ""
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - "[NOTICE] PROCEEDING WITH CLUSTER NODES ONLY"
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+      - "The following nodes from nodes.yaml are NOT in the cluster (will be SKIPPED):"
+      - "  {{ nodes_only_in_yaml | join(', ') | default('none') }}"
+      - ""
+      - "The following nodes are in cluster but NOT in nodes.yaml (will be SKIPPED):"
+      - "  {{ nodes_only_in_cluster | join(', ') | default('none') }}"
+      - ""
+      - "Upgrade will proceed with {{ all_validated_nodes | length }} nodes:"
+      - "  - Control plane (first): {{ validated_cp_first | join(', ') }}"
+      - "  - Control plane (additional): {{ validated_cp | join(', ') | default('none') }}"
+      - "  - Workers: {{ validated_workers | join(', ') | default('none') }}"
+      - ""
+      - "Pausing for {{ cluster_validation_pause_seconds | default(10) }} seconds..."
+      - "Press Ctrl+C then 'A' to abort if this is not correct."
+      - "════════════════════════════════════════════════════════════════════════════════"
+      - ""
+  when:
+    - has_discrepancies
+    - not (skip_cluster_validation_pause | default(false))
+
+- name: Pause to allow review of discrepancies
+  ansible.builtin.pause:
+    seconds: "{{ cluster_validation_pause_seconds | default(10) }}"
+  when:
+    - has_discrepancies
+    - not (skip_cluster_validation_pause | default(false))
+
+- name: Log proceeding with validated nodes
+  ansible.builtin.debug:
+    msg: "[OK] Proceeding with upgrade on {{ all_validated_nodes | length }} validated cluster nodes"
+  when: has_discrepancies
+
+# ── Set validated groups for use by other tasks ──────────────────────
+- name: Set validated node groups for inventory
+  ansible.builtin.set_fact:
+    groups_cp_first: "{{ validated_cp_first }}"
+    groups_cp: "{{ validated_cp }}"
+    groups_worker: "{{ validated_workers }}"
+    all_upgrade_nodes: "{{ all_validated_nodes }}"
+    node_ips: "{{ nodes_yaml_ips }}"
+    cluster_validation_completed: true
+    nodes_only_in_yaml_final: "{{ nodes_only_in_yaml }}"
+    nodes_only_in_cluster_final: "{{ nodes_only_in_cluster }}"

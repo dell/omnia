@@ -21,6 +21,12 @@
       "type": "boolean",
       "description": "Enable DNS-based hostname resolution via coresmd.",
       "default": false
+    },
+    "kernel_version_override": {
+      "type": "string",
+      "description": "Optional kernel version to pin for boot image selection. Leave empty to auto-select latest.",
+      "pattern": "^(|[0-9]+\\.[0-9]+\\.[0-9]+-.+)$",
+      "default": ""
     }
   },
   "required": [

@@ -151,7 +151,7 @@
 
     - name: Compare node counts
       ansible.builtin.debug:
-        verbosity: 1
+        verbosity: 2
         msg: >-
           Node count — Pre-upgrade: {{ pre_upgrade_node_count | default('0') | trim }},
           Post-upgrade: {{ post_upgrade_node_count.stdout | default('0') | trim }}.
@@ -161,6 +161,7 @@
 
     - name: Warn if node count decreased
       ansible.builtin.debug:
+        verbosity: 2
         msg: >-
           WARNING: Node count decreased from {{ pre_upgrade_node_count | default('0') | trim }}
           to {{ post_upgrade_node_count.stdout | default('0') | trim }}.
@@ -386,11 +387,6 @@
           - "Legacy coresmd: removed"
           - "SMD API: reachable at {{ openchami_smd_endpoint }}"
           - "BSS API: reachable at {{ openchami_bss_endpoint }}"
-          - >-
-            Node count — Pre: {{ pre_upgrade_node_count | default('0') | trim }},
-            Post: {{ post_upgrade_node_count.stdout | default('0') | trim }}{{
-            ' (prepare_oim-only)' if (pre_upgrade_node_count | default('0') | trim | int) == 0
-            and (post_upgrade_node_count.stdout | default('0') | trim | int) == 0 else '' }}
           - "Systemd deps: {{ 'verified' if openchami_deps.rc | default(1) == 0 else 'check skipped' }}"
           - "ochami CLI: {{ 'v' ~ ochami_version_check.stdout | default('unknown') | trim if ochami_version_check.rc | default(1) == 0 else 'not installed' }}"
           - "S3 buckets: {{ 'verified' if s3cfg_stat.stat.exists | default(false) else 'not configured (non-fatal)' }}"

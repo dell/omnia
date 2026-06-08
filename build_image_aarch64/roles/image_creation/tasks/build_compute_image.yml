@@ -102,7 +102,7 @@
 
     - name: Verify aarch64 compute osimages in registry
       ansible.builtin.command:
-        cmd: "regctl repo ls {{ oim_node_name }}.{{ domain_name }}:5000"
+        cmd: "/usr/local/bin/regctl repo ls {{ oim_node_name }}.{{ domain_name }}:5000"
       delegate_to: "{{ aarch64_build_host }}"
       connection: ssh
       changed_when: false

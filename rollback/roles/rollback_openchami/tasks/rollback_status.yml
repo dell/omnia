@@ -23,13 +23,15 @@
 - name: Report rollback result
   block:
     - name: Report rollback failure
-      ansible.builtin.debug:
-        msg: "{{ rollback_messages.status.failure }}"
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ rollback_messages.status.failure }}"
       when: openchami_rollback_failed | default(false) | bool
 
     - name: Report rollback success
-      ansible.builtin.debug:
-        msg: "{{ rollback_messages.status.success }}"
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ rollback_messages.status.success }}"
       when:
         - not (openchami_rollback_failed | default(false) | bool)
 

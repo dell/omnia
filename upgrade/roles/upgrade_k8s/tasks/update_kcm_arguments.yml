@@ -1,0 +1,146 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_kcm_arguments.yml — Update kube-controller-manager arguments
+# ============================================================================
+# This task file updates kube-controller-manager manifest to ensure all
+# required node monitoring and eviction arguments are present.
+#
+# This should be called on control plane nodes after kubeadm upgrade apply.
+# ============================================================================
+
+- name: Check if kube-controller-manager manifest exists
+  ansible.builtin.stat:
+    path: /etc/kubernetes/manifests/kube-controller-manager.yaml
+  register: _kcm_manifest_stat
+
+- name: Backup kube-controller-manager manifest
+  ansible.builtin.copy:
+    src: /etc/kubernetes/manifests/kube-controller-manager.yaml
+    dest: "/tmp/kube-controller-manager-backup-{{ now(utc=true).strftime('%Y%m%d%H%M%S') }}.yaml"
+    remote_src: true
+    mode: '0644'
+  when: _kcm_manifest_stat.stat.exists
+
+- name: Read current kube-controller-manager manifest
+  ansible.builtin.slurp:
+    path: /etc/kubernetes/manifests/kube-controller-manager.yaml
+  register: _kcm_manifest_content
+  when: _kcm_manifest_stat.stat.exists
+
+- name: Decode kube-controller-manager manifest
+  ansible.builtin.set_fact:
+    _kcm_manifest: "{{ _kcm_manifest_content.content | b64decode }}"
+  when: _kcm_manifest_stat.stat.exists
+
+- name: Define required kube-controller-manager arguments
+  ansible.builtin.set_fact:
+    _required_kcm_args:
+      - "--node-monitor-period=5s"
+      - "--node-monitor-grace-period=40s"
+      - "--node-eviction-rate=1"
+      - "--secondary-node-eviction-rate=1"
+      - "--terminated-pod-gc-threshold=50"
+      - "--controllers=*,nodeipam,nodelifecycle,bootstrapsigner,tokencleaner"
+
+- name: Initialize update flag
+  ansible.builtin.set_fact:
+    _needs_update: false
+
+- name: Check each required argument
+  ansible.builtin.set_fact:
+    _needs_update: true
+  when:
+    - _kcm_manifest_stat.stat.exists
+    - item not in _kcm_manifest
+  loop: "{{ _required_kcm_args }}"
+
+- name: Update kube-controller-manager manifest with required arguments
+  ansible.builtin.shell: |
+    set -eo pipefail
+    MANIFEST="/etc/kubernetes/manifests/kube-controller-manager.yaml"
+
+    # Function to add or update argument
+    add_or_update_arg() {
+      local arg_name="$1"
+      local arg_value="$2"
+      local full_arg="--${arg_name}=${arg_value}"
+
+      # Check if argument exists
+      if grep -q "^\s*- --${arg_name}=" "$MANIFEST"; then
+        # Update existing argument
+        sed -i "s|^\(\s*\)- --${arg_name}=.*|\1- ${full_arg}|" "$MANIFEST"
+        echo "Updated: ${full_arg}"
+      else
+        # Add new argument after the command line
+        sed -i "/^\s*- kube-controller-manager$/a\    - ${full_arg}" "$MANIFEST"
+        echo "Added: ${full_arg}"
+      fi
+    }
+
+    # Update/add each argument
+    add_or_update_arg "node-monitor-period" "5s"
+    add_or_update_arg "node-monitor-grace-period" "40s"
+    add_or_update_arg "node-eviction-rate" "1"
+    add_or_update_arg "secondary-node-eviction-rate" "1"
+    add_or_update_arg "terminated-pod-gc-threshold" "50"
+    add_or_update_arg "controllers" "*,nodeipam,nodelifecycle,bootstrapsigner,tokencleaner"
+
+    echo "kube-controller-manager manifest updated successfully"
+  args:
+    executable: /bin/bash
+  changed_when: _kcm_update_result.rc == 0
+  when:
+    - _kcm_manifest_stat.stat.exists
+    - _needs_update | bool
+  register: _kcm_update_result
+
+- name: Display update result
+  ansible.builtin.debug:
+    msg: "{{ _kcm_update_result.stdout_lines }}"
+  when:
+    - _kcm_update_result is defined
+    - _kcm_update_result is changed
+
+- name: Wait for kube-controller-manager to restart (kubelet auto-restarts static pods)
+  ansible.builtin.pause:
+    seconds: 30
+  when:
+    - _kcm_update_result is defined
+    - _kcm_update_result is changed
+
+- name: Get node IP for pod name
+  ansible.builtin.set_fact:
+    _node_ip: "{{ node_ip | default(current_node_name) | default(inventory_hostname) }}"
+
+- name: Verify kube-controller-manager is running
+  ansible.builtin.shell: |
+    kubectl get pod kube-controller-manager-{{ _node_ip }} -n kube-system -o jsonpath='{.status.phase}'
+  changed_when: false
+  register: _kcm_status
+  retries: 10
+  delay: 5
+  until: _kcm_status.stdout == "Running"
+  delegate_to: "{{ kube_vip }}"
+  when:
+    - _kcm_update_result is defined
+    - _kcm_update_result is changed
+
+- name: Display success message
+  ansible.builtin.debug:
+    msg: "kube-controller-manager arguments successfully updated on {{ _node_ip }}"
+  when:
+    - _kcm_update_result is defined
+    - _kcm_update_result is changed

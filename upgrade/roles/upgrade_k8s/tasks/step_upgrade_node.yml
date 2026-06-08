@@ -17,3 +17,6 @@
   delegate_to: "{{ current_node_name }}"
   register: upgrade_node_result
   changed_when: true
+
+- name: Update kube-controller-manager arguments on {{ current_node_name }}
+  ansible.builtin.include_tasks: update_kcm_arguments.yml

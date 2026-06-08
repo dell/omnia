@@ -620,6 +620,11 @@
             echo "Updating the kubelet arguments."
             sed -i 's/^shutdownGracePeriod:.*/shutdownGracePeriod: 30s/' /var/lib/kubelet/config.yaml
             sed -i 's/^shutdownGracePeriodCriticalPods:.*/shutdownGracePeriodCriticalPods: 10s/' /var/lib/kubelet/config.yaml
+            
+            # Enable old Kubernetes behavior: reset pod status on kubelet restart
+            echo "Adding kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+            
             systemctl daemon-reload
             systemctl restart kubelet
 
@@ -869,6 +874,13 @@ PYEOF
             # SUBSEQUENT BOOT - SKIP INIT
             echo "service_kube_control_plane_first_x86_64 is already part of cluster."
             echo "Cluster already initialized. Performing node reboot procedures."
+            
+            # Reapply kubelet feature gate (ephemeral overlay filesystem)
+            echo "Reapplying kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+            systemctl daemon-reload
+            systemctl restart kubelet
+            
             # CRI and kubelet already enabled above
             # You can log health status etc if you wish:
 {% if etcd_on_local_disk | default(false) %}

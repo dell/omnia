@@ -46,3 +46,9 @@ default_lease_time: "{{ provision_default_lease_time }}"
 # The cluster domain is read from OIM metadata (domain_name).
 # Default: false
 dns_enabled: false
+
+#### Optional
+# Pin a specific kernel version for boot image selection.
+# Leave empty ("") to auto-select the latest available image from S3.
+# Example: kernel_version_override: "6.12.0-55.76.1.el10_0.x86_64"
+kernel_version_override: "{{ provision_kernel_version_override }}"

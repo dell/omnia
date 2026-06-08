@@ -262,7 +262,7 @@
 
     - name: Include slurm rollback role
       ansible.builtin.include_role:
-        name: ../roles/rollback_slurm
+        name: "{{ playbook_dir }}/../roles/rollback_slurm"
       tags: slurm
 
 - name: Reboot Slurm nodes and validate services

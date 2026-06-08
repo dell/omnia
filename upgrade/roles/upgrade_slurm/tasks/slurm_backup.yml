@@ -36,10 +36,10 @@
   ansible.builtin.set_fact:
     slurm_nfs: "{{ storage_config.mounts | selectattr('name', 'in', filter_slurm_nfs) | list }}"
 
-- name: Vast storage not supported during upgrade
-  ansible.builtin.fail:
-    msg: "Vast storage is not supported during upgrade. Please remove the 'vast_storage_name' from the slurm_cluster configuration in omnia_config.yml."
-  when: "'vast_storage_name' in omnia_config.slurm_cluster[0]"
+# - name: Vast storage not supported during upgrade
+#   ansible.builtin.fail:
+#     msg: "Vast storage is not supported during upgrade. Please remove the 'vast_storage_name' from the slurm_cluster configuration in omnia_config.yml."
+#   when: "'vast_storage_name' in omnia_config.slurm_cluster[0]"
 
 # MOUNTED and READY
 - name: Install NFS client with bolt-on support
@@ -49,11 +49,11 @@
 - name: Include oim_metadata.yml
   ansible.builtin.include_vars:
     file: "{{ oim_metadata_path }}"
-    name: oim_metadata
+    name: _slurm_oim_metadata
 
 - name: Set oim_shared_path fact
   ansible.builtin.set_fact:
-    oim_shared_path: "{{ oim_metadata.oim_shared_path | trim }}"
+    oim_shared_path: "{{ _slurm_oim_metadata.oim_shared_path | trim }}"
     slurm_nfs_mounted_path: "{{ slurm_nfs[0].mount_point }}/slurm"
 
 - name: Read pxe_mapping_file from backup directory
@@ -79,11 +79,6 @@
           )
         )
       }}
-
-- name: Debug backup_functional_group_hosts
-  ansible.builtin.debug:
-    var: backup_functional_group_hosts
-  # debugger: always
 
 - name: Check for slurm_control_node_x86_64 host dir in nfs
   ansible.builtin.stat:
@@ -132,3 +127,11 @@
   ansible.builtin.fail:
     msg: "SLURM: MySQL datadir not found in nfs"
   when: not is_mysql_datadir
+
+- name: Remove hpc_tools tracking files if present
+  ansible.builtin.file:
+    path: "{{ slurm_nfs_mounted_path }}{{ item }}"
+    state: absent
+    force: true
+  loop: "{{ hpc_tools_tracking_files }}"
+  failed_when: false

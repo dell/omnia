@@ -160,9 +160,12 @@
     - name: Abort upgrade — compute nodes not in idle state
       ansible.builtin.fail:
         msg: >-
-          Upgrade aborted: {{ slurm_non_idle_nodes | length }} compute node(s) not idle:
-          {{ slurm_non_idle_nodes | join(', ') }}.
-          Drain nodes and cancel jobs, then re-run the upgrade playbook.
+          Upgrade aborted: One or more compute nodes are not in the IDLE state
+          (e.g. allocated, mixed, draining, drained, or down).
+          Upgrade can only proceed when all compute nodes are IDLE.
+          Please resolve the node states — complete or cancel running jobs, and
+          bring any DOWN nodes back online — so all nodes return to IDLE,
+          then re-run the upgrade playbook.
 
 - name: Create groups for slurm nodes reboot play
   ansible.builtin.add_host:
