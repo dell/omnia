@@ -573,7 +573,7 @@
               "--node-monitor-grace-period=40s"
               "--node-eviction-rate=1"
               "--secondary-node-eviction-rate=1"
-              "--terminated-pod-gc-threshold=50"
+              "--terminated-pod-gc-threshold=5"
             )
 
             echo "Backing up kube-controller-manager manifest..."
@@ -784,6 +784,7 @@ PYEOF
             grep -q "^syncFrequency:" $CONFIG_FILE || echo "syncFrequency: 60s" >> $CONFIG_FILE
 
             # Restart kubelet to apply changes
+            systemctl daemon-reload
             systemctl restart kubelet
 
             echo "Installing plugins"

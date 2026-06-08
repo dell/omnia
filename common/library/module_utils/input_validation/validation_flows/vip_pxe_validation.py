@@ -95,28 +95,50 @@ def validate_vip_vs_pxe_mapping_host_ips(
 
 
 def validate_all_host_ips_same_subnet_as_vip(
-        errors, vip_address, pxe_mapping_file_path, admin_netmaskbits):
+        errors, vip_address, pxe_mapping_file_path, admin_netmaskbits,
+        additional_subnets=None):
     """
-    Validate that all ADMIN_IPs in PXE mapping are in same subnet as VIP.
+    Validate that all ADMIN_IPs in PXE mapping are in a known subnet
+    (primary admin subnet or any additional subnet).
 
     Parameters:
         errors (list): List to append error messages
         vip_address (str): VIP address to validate against
         pxe_mapping_file_path (str): Path to PXE mapping file
         admin_netmaskbits (str): Netmask bits for subnet validation
+        additional_subnets (list, optional): List of additional subnet
+            dicts with 'subnet' and 'netmask_bits' keys.
     """
     host_ips = extract_host_ips_from_pxe_mapping(pxe_mapping_file_path)
+    if additional_subnets is None:
+        additional_subnets = []
 
     for host_ip in host_ips:
-        if not validation_utils.is_ip_in_subnet(
+        # Check if host_ip is in the primary admin subnet (VIP subnet)
+        if validation_utils.is_ip_in_subnet(
                 vip_address, admin_netmaskbits, host_ip):
+            continue
+
+        # Check if host_ip is in any additional subnet
+        in_additional = False
+        for subnet_entry in additional_subnets:
+            subnet_addr = subnet_entry.get("subnet", "")
+            subnet_bits = subnet_entry.get("netmask_bits", "")
+            if subnet_addr and subnet_bits:
+                if validation_utils.is_ip_in_subnet(
+                        subnet_addr, subnet_bits, host_ip):
+                    in_additional = True
+                    break
+
+        if not in_additional:
             errors.append(
                 create_error_msg(
                     "ADMIN_IP subnet consistency",
                     host_ip,
                     f"Node ADMIN_IP {host_ip} must be in the same "
-                    f"subnet as VIP {vip_address}. "
+                    f"subnet as VIP {vip_address} or in one of the "
+                    "configured additional_subnets. "
                     "Please ensure all ADMIN_IPs in PXE mapping file "
-                    "are in the same subnet as the VIP."
+                    "are in a known subnet."
                 )
             )

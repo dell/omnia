@@ -40,6 +40,13 @@ dump_fstab_entry() {
 
 echo ""
 echo "$(ts) [INFO] ===== START etcd-disk-setup ====="
+echo "Loading Drivers"
+modprobe nvme
+modprobe ahci
+modprobe sd_mod
+modprobe megaraid_sas
+echo "Drivers Loaded"
+sleep 20
 
 # ── Detect root disk ─────────────────────────────────────────────────────────
 

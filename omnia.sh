@@ -1858,6 +1858,14 @@ backup_openchami_data() {
         echo "[INFO] [ORCHESTRATOR] Quadlet .network files backed up"
     fi
 
+    # Normalize permissions on the openchami backup tree so rollback can
+    # read it even under NFS root_squash.  cp -a preserves the source
+    # permissions which may be restrictive (container-created files).
+    podman exec -u root omnia_core bash -c "
+        find '${backup_base%/}/openchami' -type d -exec chmod 0755 {} + 2>/dev/null || true
+        find '${backup_base%/}/openchami' -type f -exec chmod 0644 {} + 2>/dev/null || true
+    " 2>/dev/null || true
+
     echo "[INFO] [ORCHESTRATOR] OpenCHAMI data backup completed: ${backup_base}/openchami/"
     return 0
 }
@@ -1881,17 +1889,18 @@ phase3_backup_creation() {
         set -e
         rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
         mkdir -p '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
-        chmod 0700 '${backup_base%/}' '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
+        chmod 0755 '${backup_base%/}'
+        chmod 0755 '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
 
         if [ -f '$CONTAINER_INPUT_DIR/default.yml' ]; then
             cp -a '$CONTAINER_INPUT_DIR/default.yml' '${backup_base%/}/input/'
-            chmod 0600 '${backup_base%/}/input/default.yml'
+            chmod 0644 '${backup_base%/}/input/default.yml'
         fi
 
         if [ -d '$CONTAINER_INPUT_DIR/project_default' ]; then
             cp -a '$CONTAINER_INPUT_DIR/project_default' '${backup_base%/}/input/'
-            chmod -R 0600 '${backup_base%/}/input/project_default'/*
-            find '${backup_base%/}/input/project_default' -type d -exec chmod 0700 {} \;
+            chmod -R 0644 '${backup_base%/}/input/project_default'/*
+            find '${backup_base%/}/input/project_default' -type d -exec chmod 0755 {} \;
         fi
 
         if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
@@ -1899,7 +1908,7 @@ phase3_backup_creation() {
             exit 1
         fi
         cp -a '$CONTAINER_METADATA_FILE' '${backup_base%/}/metadata/oim_metadata.yml'
-        chmod 0600 '${backup_base%/}/metadata/oim_metadata.yml'
+        chmod 0644 '${backup_base%/}/metadata/oim_metadata.yml'
     "; then
         echo "[ERROR] [ORCHESTRATOR] Backup failed; cleaning up partial backup"
         podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
@@ -1912,7 +1921,7 @@ phase3_backup_creation() {
             podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
             return 1
         fi
-        podman exec -u root omnia_core chmod 0600 "${backup_base%/}/configs/omnia_core.container" 2>/dev/null || true
+        podman exec -u root omnia_core chmod 0644 "${backup_base%/}/configs/omnia_core.container" 2>/dev/null || true
     fi
 
     echo "[INFO] [ORCHESTRATOR] Backup created at: $backup_base"

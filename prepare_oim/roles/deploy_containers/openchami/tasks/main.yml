@@ -22,3 +22,7 @@
 - name: Deploy openchami
   ansible.builtin.include_tasks: deploy_openchami.yml
   when: not hostvars['oim']['openchami_install_status']
+
+- name: Refresh openchami network configs
+  ansible.builtin.include_tasks: refresh_openchami_configs.yml
+  when: hostvars['oim']['openchami_install_status']

@@ -256,6 +256,18 @@
       delegate_facts: true
       connection: ssh
 
+    - name: Normalize permissions on /etc/openchami backup (dirs 0755, files 0644)
+      ansible.builtin.shell: |
+        set -o pipefail
+        find "{{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}" -type d -exec chmod {{ dir_permissions_755 }} {} + 2>/dev/null || true
+        find "{{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}" -type f -exec chmod {{ file_permissions_644 }} {} + 2>/dev/null || true
+      changed_when: true
+      failed_when: false
+      when: etc_openchami_backup_result is defined and etc_openchami_backup_result.rc | default(1) == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
     - name: Verify /etc/openchami backup was created
       ansible.builtin.stat:
         path: "{{ oim_host_backup_dir }}/{{ backup_etc_openchami_subpath }}"

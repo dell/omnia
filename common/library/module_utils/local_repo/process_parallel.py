@@ -23,8 +23,9 @@ import threading
 import traceback
 import json
 import yaml
-import json
 import requests
+from pathlib import Path
+from cryptography.fernet import Fernet
 from jinja2 import Template
 from ansible.module_utils.local_repo.common_functions import (
     load_yaml_file,
@@ -39,6 +40,7 @@ from ansible.module_utils.local_repo.config import (
 )
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
+docker_password_cipher = Fernet(Fernet.generate_key())
 
 def load_docker_credentials(vault_yml_path, vault_password_file):
     """
@@ -83,18 +85,24 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
             )
             data = yaml.safe_load(result.stdout)
         else:
-            with open(vault_yml_path, "r", encoding="utf-8") as fh:
-                data = yaml.safe_load(fh)
+            data = yaml.safe_load(Path(vault_yml_path).read_text(encoding="utf-8"))
         docker_username = data.get("docker_username")
-        docker_password = data.get("docker_password")
+        docker_secret_token = None
+        if data.get("docker_password"):
+            docker_secret_token = docker_password_cipher.encrypt(
+                data.get("docker_password").encode("utf-8")
+            ).decode("utf-8")
 
         # If either credential is missing, skip validation
-        if not docker_username or not docker_password:
+        if not docker_username or not docker_secret_token:
             return None, None
 
         # Validate credentials using Docker Hub API
         try:
-            payload = json.dumps({"username": docker_username, "password": docker_password})
+            validation_secret = docker_password_cipher.decrypt(
+                docker_secret_token.encode("utf-8")
+            ).decode("utf-8")
+            payload = json.dumps({"username": docker_username, "password": validation_secret})
             response = requests.post(
                 "https://hub.docker.com/v2/users/login/",
                 data=payload,
@@ -106,7 +114,7 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
             )
 
             if response.status_code == 200:
-                return docker_username, docker_password
+                return docker_username, docker_secret_token
 
             if response.status_code == 429:
                 raise RuntimeError("Docker Hub rate limit exceeded. Please try again later.")
@@ -186,7 +194,7 @@ def setup_logger(log_dir,log_file_path):
 
 def execute_task(task, determine_function, user_data, version_variables, arc,
                 repo_store_path, csv_file_path,logger, user_registries,
-                docker_username, docker_password, timeout=None):
+                docker_username, docker_secret_token, timeout=None):
     """
     Executes a task by determining the appropriate function to call, managing execution time, 
     handling timeouts, and logging the results.
@@ -221,7 +229,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
 
         # Determine the function and its arguments using the provided `determine_function`
         function, args = determine_function(task, repo_store_path, csv_file_path, user_data,
-                         version_variables, arc, user_registries, docker_username, docker_password)
+                         version_variables, arc, user_registries, docker_username, docker_secret_token)
 
         while True:
             elapsed_time = time.time() - start_time  # Calculate elapsed time
@@ -276,7 +284,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
         }
 def worker_process(task, determine_function, user_data, version_variables, arc, repo_store_path,
                   csv_file_path, log_dir, result_queue, user_registries,
-                  docker_username, docker_password, timeout):
+                  omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout):
     """
     Executes a task in a separate worker process, logs the process execution,
     and puts the result in a result queue.
@@ -293,7 +301,8 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         result_queue (multiprocessing.Queue): Queue for putting the result of the 
         task execution (used for inter-process communication).
         docker_username: Docker username provided by the user
-        docker_password: Docker password for the provided username
+        omnia_credentials_yaml_path: Path to the Omnia credentials YAML file
+        omnia_credentials_vault_path: Path to the Omnia credentials vault password file
         user_registries (str): List of user registries
         timeout (float): The maximum allowed time for the task execution.
     Returns:
@@ -307,10 +316,12 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         # Log the start of the worker process execution
         with log_lock:
             logger.info(f"Worker process {os.getpid()} started  execution.")
+        docker_username, docker_secret_token = load_docker_credentials(omnia_credentials_yaml_path,
+                                                                      omnia_credentials_vault_path)
         # Execute the task by calling the `execute_task` function and passing necessary arguments
         result = execute_task(task, determine_function, user_data, version_variables, arc,
                              repo_store_path, csv_file_path, logger, user_registries,
-                             docker_username, docker_password, timeout)
+                             docker_username, docker_secret_token, timeout)
         result["logname"] = f"package_status_{os.getpid()}.log"
         # Put the result of the task execution into the result_queue for further processing
         result_queue.put(result)
@@ -389,12 +400,6 @@ def execute_parallel(
     #                 registry["username"] = creds.get("username")
     #                 registry["password"] = creds.get("password")
 
-
-    try:
-        docker_username, docker_password = load_docker_credentials(omnia_credentials_yaml_path,
-                                                                  omnia_credentials_vault_path)
-    except RuntimeError as e:
-        raise
     # Create a pool of worker processes to handle the tasks
     with multiprocessing.Pool(processes=nthreads) as pool:
         task_results = []  # List to hold references to the async results of the tasks
@@ -406,7 +411,7 @@ def execute_parallel(
             task['package'] = package_name
             task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data,
                                version_variables, arc, repo_store_path, csv_file_path, log_dir, result_queue,
-                               user_registries,docker_username, docker_password, timeout)))
+                               user_registries, omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout)))
 
         pool.close()  # Close the pool to new tasks once all have been submitted
         start_time = time.time()  # Start time for overall task execution

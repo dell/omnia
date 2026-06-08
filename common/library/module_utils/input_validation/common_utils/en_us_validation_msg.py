@@ -842,3 +842,11 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "To fix: Either set telemetry_sources.ldms.metrics_enabled=true to enable LDMS data collection, "
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
 )
+
+# CSM Observability - Unsupported metrics validation messages
+def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
+    """Returns error message when unsupported CSM metrics components are enabled."""
+    return (
+        f"{component_name} metrics collection not supported. "
+        f"Set {section_name}.enabled to false in {values_file_path} and rerun the playbook."
+    )

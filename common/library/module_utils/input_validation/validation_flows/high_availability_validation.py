@@ -231,6 +231,24 @@ def get_primary_oim_admin_ip(network_spec_json):
     return oim_admin_ip
 
 
+def get_additional_subnets(network_spec_json):
+    """
+    Retrieves the additional_subnets list from the admin_network configuration.
+
+    Args:
+        network_spec_json (dict): The JSON object containing the network specifications.
+
+    Returns:
+        list: The additional_subnets list, or an empty list if not configured.
+    """
+    for network in network_spec_json["Networks"]:
+        for key, value in network.items():
+            if key == "admin_network":
+                additional = value.get("additional_subnets", [])
+                return additional if additional else []
+    return []
+
+
 def is_service_tag_present(service_tags_list, input_service_tag):
     """
     Checks if a service tag is present in a given list of service tags.
@@ -296,7 +314,8 @@ def validate_vip_address(
     pod_external_ip_list,
     admin_netmaskbits,
     oim_admin_ip,
-    pxe_mapping_file_path=None
+    pxe_mapping_file_path=None,
+    additional_subnets=None
 ):
     """
         Validate a virtual IP address against a list of existing service node VIPs,
@@ -371,7 +390,7 @@ def validate_vip_address(
         validate_vip_vs_pxe_mapping_host_ips(errors, config_type, vip_address, pxe_mapping_file_path)
         
         # Check all HOST_IPs are in same subnet as VIP
-        validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_file_path, admin_netmaskbits)
+        validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_file_path, admin_netmaskbits, additional_subnets)
 
 def validate_service_k8s_cluster_ha(
     errors,
@@ -458,7 +477,8 @@ def validate_service_k8s_cluster_ha(
                 pod_external_ip_list,
                 admin_netmaskbits,
                 oim_admin_ip,
-                prov_cfg.get('pxe_mapping_file_path')
+                prov_cfg.get('pxe_mapping_file_path'),
+                network_spec_data.get("additional_subnets", [])
             )
 
 
@@ -483,7 +503,8 @@ def load_network_spec(input_file_path):
         "admin_uncorrelated_node_start_ip": get_admin_uncorrelated_node_start_ip(
             network_spec_json
         ),
-        "oim_admin_ip": get_primary_oim_admin_ip(network_spec_json)
+        "oim_admin_ip": get_primary_oim_admin_ip(network_spec_json),
+        "additional_subnets": get_additional_subnets(network_spec_json)
     }
     return network_spec_info
 
