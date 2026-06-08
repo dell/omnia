@@ -187,6 +187,11 @@ ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true o
 LANGUAGE_FAIL_MSG = "Only en_US.UTF-8 language supported"
 LANGUAGE_EMPTY_MSG = "Language setting cannot be empty"
 PUBLIC_NIC_FAIL_MSG = "public_nic is empty. Please provide a public_nic value."
+KERNEL_VERSION_OVERRIDE_FAIL_MSG = (
+    "kernel_version_override must be either empty or a valid kernel version "
+    "string (e.g. '6.12.0-55.76.1.el10_0.x86_64'). "
+    "The format must be: <major>.<minor>.<patch>-<release>."
+)
 PXE_MAPPING_FILE_PATH_FAIL_MSG = (
     "File path is invalid. Please ensure the file path specified in "
     "pxe_mapping_file_path exists and points to a valid file, "
