@@ -82,10 +82,10 @@ idrac_telemetry_resources:
   activemq:
     requests:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.cpu | default('100m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.memory | default('256Mi') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.memory | default('512Mi') }}"
     limits:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.cpu | default('500m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.memory | default('512Mi') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.memory | default('1.5Gi') }}"
   receiver:
     requests:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.requests.cpu | default('100m') }}"
@@ -96,17 +96,17 @@ idrac_telemetry_resources:
   kafka_pump:
     requests:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.cpu | default('50m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.memory | default('64Mi') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.memory | default('128Mi') }}"
     limits:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.cpu | default('200m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.memory | default('256Mi') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.memory | default('512Mi') }}"
   victoria_pump:
     requests:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.cpu | default('50m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.memory | default('64Mi') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.memory | default('128Mi') }}"
     limits:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.cpu | default('200m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.memory | default('256Mi') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.memory | default('512Mi') }}"
 
 # Usage: kafka_deployment.yml
 kafka:
