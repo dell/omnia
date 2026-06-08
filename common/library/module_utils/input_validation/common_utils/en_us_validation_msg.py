@@ -855,7 +855,7 @@ def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, val
 
 POWERSCALE_CSM_UNSUPPORTED_METRICS_MSG = (
     "Only karaviMetricsPowerscale should be enabled in the CSM Observability values file. "
-    "PowerFlex, PowerStore, and PowerMax metrics require their respective CSI drivers "
-    "which are not supported in this deployment. "
+    "PowerFlex, PowerStore, and PowerMax metrics are not supported in the telemetry deployment."
+    "These metrics are not supported in the telemetry deployment."
     "Enabling unsupported metrics causes pods to get stuck in ContainerCreating state."
 )
