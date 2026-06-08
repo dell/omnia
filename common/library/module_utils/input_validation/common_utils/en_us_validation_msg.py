@@ -847,13 +847,13 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
 # CSM Observability - Unsupported metrics validation messages
 def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
     """Returns error message when unsupported CSM metrics components are enabled."""
-    return (
-POWERSCALE_CSM_UNSUPPORTED_METRICS_MSG = (
-    "Only karaviMetricsPowerscale should be enabled in the CSM Observability values file. "
-    "Unsupported metrics are not enabled in the telemetry deployment."
+    return POWERSCALE_CSM_UNSUPPORTED_METRICS_MSG
+
 
 POWERSCALE_CSM_UNSUPPORTED_METRICS_MSG = (
     "Only karaviMetricsPowerscale should be enabled in the CSM Observability values file. "
+    "Unsupported metrics are not enabled in the telemetry deployment."
+)
     "PowerFlex, PowerStore, and PowerMax metrics are not supported in the telemetry deployment."
     "These metrics are not supported in the telemetry deployment."
     "Enabling unsupported metrics causes pods to get stuck in ContainerCreating state."
