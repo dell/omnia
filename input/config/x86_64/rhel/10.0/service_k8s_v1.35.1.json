@@ -29,10 +29,9 @@
       { "package": "docker.io/dellhpcomniaaisolution/victoriapump", "type": "image", "tag": "1.3" },
       { "package": "cryptography==45.0.7", "type": "pip_module" },
       { "package": "omsdk==1.2.518", "type": "pip_module" },
-      { "package": "cffi==2.0.0", "type": "pip_module" },
-      { "package": "prometheus_client==0.25.0", "type": "pip_module" },
+      { "package": "cffi==1.17.1", "type": "pip_module" },
+      { "package": "prometheus_client==0.20.0", "type": "pip_module" },
       { "package": "kubernetes==33.1.0", "type": "pip_module" },
-      { "package": "pyyaml==6.0.3", "type": "pip_module" },
       { "package": "quay.io/strimzi/operator", "tag": "0.48.0", "type": "image" },
       { "package": "quay.io/strimzi/kafka", "tag": "0.48.0-kafka-4.1.0", "type": "image" },
       { "package": "docker.io/dellhpcomniaaisolution/ubuntu-ldms", "tag": "1.1", "type": "image" },
@@ -76,12 +75,11 @@
       { "package": "docker.io/calico/node", "tag": "v3.31.4", "type": "image" },
       { "package": "quay.io/metallb/speaker", "tag": "v0.15.3", "type": "image" },
       { "package": "kubectl-1.35.1", "type": "rpm", "repo_name": "kubernetes-v1-35"},
-      { "package": "prettytable==3.17.0", "type": "pip_module" },
+      { "package": "prettytable==3.14.0", "type": "pip_module" },
       { "package": "python3-3.12.9", "type": "rpm", "repo_name": "baseos" },
       { "package": "git", "type": "rpm", "repo_name": "appstream"},
       { "package": "kubernetes==33.1.0", "type": "pip_module" },
-      { "package": "pyyaml==6.0.3", "type": "pip_module" },
-      { "package": "PyMySQL==1.2.0", "type": "pip_module" }
+      { "package": "PyMySQL==1.1.2", "type": "pip_module" }
 
     ]
   },
@@ -105,12 +103,11 @@
       { "package": "helm-v3.20.1-amd64", "type": "tarball", "url": "https://get.helm.sh/helm-v3.20.1-linux-amd64.tar.gz" },
       { "package": "nfs-subdir-external-provisioner-4.0.18", "type": "tarball", "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz" },
       { "package": "kubectl-1.35.1", "type": "rpm", "repo_name": "kubernetes-v1-35"},
-      { "package": "prettytable==3.17.0", "type": "pip_module" },
+      { "package": "prettytable==3.14.0", "type": "pip_module" },
       { "package": "python3-3.12.9", "type": "rpm", "repo_name": "baseos" },
       { "package": "git", "type": "rpm", "repo_name": "appstream"},
       { "package": "kubernetes==33.1.0", "type": "pip_module" },
-      { "package": "pyyaml==6.0.3", "type": "pip_module" },
-      { "package": "PyMySQL==1.2.0", "type": "pip_module" }
+      { "package": "PyMySQL==1.1.2", "type": "pip_module" }
     ]
   },
 
