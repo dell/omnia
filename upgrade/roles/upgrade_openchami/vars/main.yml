@@ -41,6 +41,14 @@ openchami_haproxy_fallback: "https://localhost:8443"
 # Default backup directory (used when manifest.backup_dir is not available)
 openchami_backup_dir_default: "/opt/omnia/backups/upgrade/version_2.1.0.0"
 
+# PostgreSQL backup lock file — prevents pg_dump from being overwritten on
+# upgrade re-runs. If the upgrade fails AFTER db migration (schema is now v2.2)
+# and the user re-runs the upgrade, a second pg_dump would capture v2.2 schema
+# and overwrite the original v2.1 backup, making rollback impossible.
+# The lock is created after the first successful pg_dump and cleared only when
+# the upgrade succeeds fully or a rollback completes.
+pgdump_backup_lock: "openchami/postgresql_backup/pgdump_v21_backup.lock"
+
 # PostgreSQL database settings
 # These are fallback defaults only — actual credentials are dynamically
 # retrieved from the postgres container's POSTGRES_MULTIPLE_DATABASES env var

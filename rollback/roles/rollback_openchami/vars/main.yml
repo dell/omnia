@@ -94,6 +94,10 @@ rollback_v21_critical_containers:
   - registry
   - minio-server
 
+# PostgreSQL backup lock file — cleared after successful rollback to allow
+# fresh pg_dump on next upgrade cycle. See upgrade_openchami vars for details.
+pgdump_backup_lock: "openchami/postgresql_backup/pgdump_v21_backup.lock"
+
 # Backup sub-paths (relative to rollback_backup_dir)
 # Created by omnia.sh --upgrade (backup_openchami_data function)
 backup_quadlets_subpath: "openchami/quadlets"
