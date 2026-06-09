@@ -640,27 +640,22 @@
 {% if dns_enabled | default(false) | bool %}
             # Forward cluster-internal DNS domain to OIM CoreDNS
             # This allows K8s pods to resolve Slurm/MPI hostnames via CoreDNS
-            python3 - "$cfg" << 'PYEOF'
-import sys, yaml
-cfg_path = sys.argv[1]
-with open(cfg_path) as f:
-    doc = yaml.safe_load(f)
-corefile = doc['data']['Corefile']
-fwd_block = """{{ domain_name }}:53 {
-    errors
-    cache 30
-    forward . {{ admin_nic_ip }}
-}
-"""
-if '{{ domain_name }}:53' not in corefile:
-    corefile = fwd_block + corefile
-    doc['data']['Corefile'] = corefile
-    with open(cfg_path, 'w') as f:
-        yaml.dump(doc, f, default_flow_style=False)
-    print("Added {{ domain_name }} forward zone to K8s CoreDNS")
-else:
-    print("{{ domain_name }} forward zone already present in K8s CoreDNS")
-PYEOF
+            python3 -c '
+            import sys, yaml
+            cfg_path = sys.argv[1]
+            with open(cfg_path) as f:
+                doc = yaml.safe_load(f)
+            corefile = doc["data"]["Corefile"]
+            fwd_block = "{{ domain_name }}:53 {\n    errors\n    cache 30\n    forward . {{ admin_nic_ip }}\n}\n"
+            if "{{ domain_name }}:53" not in corefile:
+                corefile = fwd_block + corefile
+                doc["data"]["Corefile"] = corefile
+                with open(cfg_path, "w") as f:
+                    yaml.dump(doc, f, default_flow_style=False)
+                print("Added {{ domain_name }} forward zone to K8s CoreDNS")
+            else:
+                print("{{ domain_name }} forward zone already present in K8s CoreDNS")
+            ' "$cfg"
 {% endif %}
 
             # Apply the patched ConfigMap
