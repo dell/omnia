@@ -86,6 +86,7 @@ DNF_INFO_COMMANDS = {
     "x86_64": ["dnf", "info", "--quiet"],
     "aarch64": ["dnf", "info", "--quiet", "--forcearch=aarch64"]
 }
+PULP_RPM_PACKAGES_API = "/pulp/api/v3/content/rpm/packages/"
 
 # ----------------------------
 # Cleanup File Types

@@ -43,3 +43,10 @@
   ansible.builtin.dnf:
     update_cache: true
   changed_when: false
+  when: ansible_facts['pkg_mgr'] | default('') in ['dnf', 'dnf4', 'dnf5', 'yum']
+
+- name: Regenerate apk package index
+  community.general.apk:
+    update_cache: true
+  changed_when: false
+  when: ansible_facts['pkg_mgr'] | default('') == 'apk'
