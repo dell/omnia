@@ -17,7 +17,7 @@
 #   _aci_section_name - name of the section being validated (for error messages)
 #   _aci_section_data - the dict to validate
 
-- name: "Validate {{ _aci_section_name }} - check for prohibited keys"
+- name: "Check for prohibited keys in {{ _aci_section_name }}"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
@@ -31,7 +31,7 @@
   loop_control:
     loop_var: _aci_key
 
-- name: "Validate {{ _aci_section_name }} - check for unknown keys"
+- name: "Check for unknown keys in {{ _aci_section_name }}"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
@@ -44,7 +44,7 @@
   loop_control:
     loop_var: _aci_key
 
-- name: "Validate {{ _aci_section_name }} - write_files entries have path"
+- name: "Check write_files entries have path in {{ _aci_section_name }}"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
@@ -58,7 +58,7 @@
     loop_var: _aci_entry
     index_var: idx
 
-- name: "Validate {{ _aci_section_name }} - runcmd entries are strings"
+- name: "Check runcmd entries are strings in {{ _aci_section_name }}"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
@@ -72,7 +72,7 @@
     loop_var: _aci_entry
     index_var: idx
 
-- name: "Validate {{ _aci_section_name }} - packages entries are strings"
+- name: "Check packages entries are strings in {{ _aci_section_name }}"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
