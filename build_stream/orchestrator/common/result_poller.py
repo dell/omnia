@@ -66,10 +66,13 @@ def _discover_s3_image_paths(
     job_id: str,
     role_names: list,
 ) -> dict:
-    """Query S3 using s3cmd ls to discover actual image paths.
+    """Query S3 using the MinIO REST API to discover actual image paths.
 
-    Instead of constructing paths based on conventions, this queries
-    S3 directly and greps for the job_id to find actual paths.
+    Lists all objects in the bucket whose key contains *job_id* and
+    groups the resulting directory prefixes by role name.
+
+    This implementation uses Python stdlib only (``urllib`` + ``xml``)
+    so it works inside the build-stream container without ``s3cmd``.
 
     Args:
         bucket_uri: S3 bucket URI (e.g., s3://boot-images)
@@ -78,71 +81,120 @@ def _discover_s3_image_paths(
 
     Returns:
         Dict mapping role_name -> list of S3 directory paths
-        Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
+        Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...",
                                   "s3://boot-images/slurm_node/..."]}
     """
-    import subprocess  # pylint: disable=import-outside-toplevel
+    import base64  # pylint: disable=import-outside-toplevel
+    import hashlib  # pylint: disable=import-outside-toplevel
+    import hmac  # pylint: disable=import-outside-toplevel
+    import urllib.request  # pylint: disable=import-outside-toplevel
+    import xml.etree.ElementTree as ET  # pylint: disable=import-outside-toplevel
 
     bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
     role_to_paths = {role: [] for role in role_names}
 
-    try:
-        # Run s3cmd ls -Hr and grep for job_id in one command
-        # This filters at subprocess level instead of in Python
-        cmd = f"s3cmd ls -Hr {bucket} | grep {job_id}"
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
+    # Extract bucket name from URI (e.g., "s3://boot-images" -> "boot-images")
+    bucket_name = bucket.replace("s3://", "")
+
+    # Read MinIO credentials from environment
+    minio_host = os.environ.get("MINIO_HOST", "")
+    access_key = os.environ.get("MINIO_ACCESS_KEY", "")
+    secret_key = os.environ.get("MINIO_SECRET_KEY", "")
+    use_https = os.environ.get("MINIO_USE_HTTPS", "False").lower() == "true"
+
+    if not minio_host or not access_key or not secret_key:
+        log_secure_info(
+            "warning",
+            "MinIO credentials not fully configured "
+            f"(MINIO_HOST={'set' if minio_host else 'empty'}, "
+            f"MINIO_ACCESS_KEY={'set' if access_key else 'empty'}, "
+            f"MINIO_SECRET_KEY={'set' if secret_key else 'empty'}). "
+            "Cannot discover S3 image paths.",
         )
+        return role_to_paths
 
-        if result.returncode not in [0, 1]:  # 0=found, 1=not found (grep exit code)
-            log_secure_info(
-                "warning",
-                f"s3cmd ls failed for bucket {bucket}: {result.stderr}",
+    scheme = "https" if use_https else "http"
+
+    try:
+        # List all objects in the bucket using S3 ListObjectsV2.
+        # We paginate via continuation-token if there are many objects.
+        all_keys: list = []
+        continuation_token = None
+
+        while True:
+            url = f"{scheme}://{minio_host}/{bucket_name}/?list-type=2&max-keys=1000"
+            if continuation_token:
+                url += f"&continuation-token={urllib.request.quote(continuation_token)}"
+
+            # AWS Signature V2 (simple, supported by MinIO)
+            date_str = datetime.now(timezone.utc).strftime(
+                "%a, %d %b %Y %H:%M:%S GMT"
             )
-            return role_to_paths
+            string_to_sign = f"GET\n\n\n{date_str}\n/{bucket_name}/"
+            sig = base64.b64encode(
+                hmac.new(
+                    secret_key.encode(),
+                    string_to_sign.encode(),
+                    hashlib.sha1,
+                ).digest()
+            ).decode()
 
-        # Parse grep output
-        # s3cmd ls output format: "DATE SIZE s3://bucket/role/path/file.img"
-        # Extract directory paths from file paths
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "Date": date_str,
+                    "Authorization": f"AWS {access_key}:{sig}",
+                },
+            )
+
+            resp = urllib.request.urlopen(req, timeout=30)  # nosec
+            data = resp.read().decode()
+
+            root = ET.fromstring(data)
+            ns = root.tag.split("}")[0] + "}" if "}" in root.tag else ""
+
+            for key_elem in root.findall(f".//{ns}Key"):
+                key_text = key_elem.text or ""
+                if job_id in key_text:
+                    all_keys.append(key_text)
+
+            # Check for pagination
+            is_truncated_elem = root.find(f"{ns}IsTruncated")
+            if (
+                is_truncated_elem is not None
+                and is_truncated_elem.text == "true"
+            ):
+                next_token_elem = root.find(f"{ns}NextContinuationToken")
+                if next_token_elem is not None and next_token_elem.text:
+                    continuation_token = next_token_elem.text
+                else:
+                    break
+            else:
+                break
+
+        # Extract directory paths from file keys and group by role
         discovered_paths = set()
-        for line in result.stdout.splitlines():
-            line = line.strip()
-            if not line:
-                continue
+        for key in all_keys:
+            # key: "efi-images/role/path/file.img"
+            # -> dir: "s3://boot-images/efi-images/role/path/"
+            s3_dir_path = bucket + "/" + key.rsplit("/", 1)[0] + "/"
 
-            # Extract S3 file path from line (last column)
-            parts = line.split()
-            if len(parts) < 4:
-                continue
-
-            s3_file_path = parts[-1]  # Last part is the S3 file path
-
-            # Extract directory path from file path
-            # s3://boot-images/role/path/file.img -> s3://boot-images/role/path/
-            s3_dir_path = s3_file_path.rsplit("/", 1)[0] + "/"
-
-            # Determine which role this path belongs to
             for role in role_names:
                 if f"/{role}/" in s3_dir_path:
-                    # Store all unique directory paths per role
                     if s3_dir_path not in discovered_paths:
                         discovered_paths.add(s3_dir_path)
                         role_to_paths[role].append(s3_dir_path)
                     break
 
+        log_secure_info(
+            "info",
+            f"S3 discovery for job_id={job_id}: found {len(all_keys)} objects, "
+            f"{len(discovered_paths)} unique directories across "
+            f"{sum(1 for v in role_to_paths.values() if v)} roles",
+        )
+
         return role_to_paths
 
-    except subprocess.TimeoutExpired:
-        log_secure_info(
-            "error",
-            f"s3cmd ls timed out for bucket {bucket}",
-        )
-        return role_to_paths
     except Exception as exc:  # pylint: disable=broad-except
         log_secure_info(
             "error",
