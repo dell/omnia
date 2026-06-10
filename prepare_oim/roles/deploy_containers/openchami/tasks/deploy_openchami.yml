@@ -119,6 +119,39 @@
       {{ (admin_nic_ip + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('netmask') }}
     coredhcp_lease_duration: "{{ default_lease_time }}s"
 
+- name: Set multi-subnet coredhcp facts
+  ansible.builtin.set_fact:
+    additional_subnets: "{{ network_data.admin_network.additional_subnets | default([]) }}"
+
+- name: Configure static routes for additional subnets
+  when: network_data.admin_network.additional_subnets | default([]) | length > 0
+  block:
+    - name: Determine admin network gateway
+      ansible.builtin.set_fact:
+        admin_gateway: "{{ network_data.admin_network.subnet | ansible.utils.ipmath(1) }}"
+
+    - name: Check existing routes on admin NIC
+      ansible.builtin.command: nmcli -g ipv4.routes connection show {{ admin_nic }}
+      register: existing_routes
+      changed_when: false
+
+    - name: Add persistent routes for additional subnets via NetworkManager
+      ansible.builtin.command: >-
+        nmcli connection modify {{ admin_nic }}
+        +ipv4.routes "{{ item.subnet }}/{{ item.netmask_bits }} {{ admin_gateway }}"
+      loop: "{{ network_data.admin_network.additional_subnets }}"
+      when: (item.subnet + '/' + item.netmask_bits) not in existing_routes.stdout
+      changed_when: true
+
+    - name: Apply route changes to admin NIC
+      ansible.builtin.command: nmcli device reapply {{ admin_nic }}
+      changed_when: true
+
+- name: Override DNS forwarders from network_spec if configured
+  ansible.builtin.set_fact:
+    dns_forwarders: "{{ network_data.admin_network.dns }}"
+  when: (network_data.admin_network.dns | default([])) | length > 0
+
 - name: Set s3_access_id and s3_secret_key
   ansible.builtin.set_fact:
     s3_access_id: "{{ hostvars['localhost']['s3_access_id'] | default('admin', true) }}"

@@ -60,6 +60,28 @@ SOFTWARES_KEY = "softwares"
 USER_REPO_URL = "user_repo_url"
 ARCH_SUFFIXES = {"x86_64", "aarch64"}
 
+# Target OS → Python version mapping for pip cross-version downloads.
+# The omnia_core container (Fedora 42) runs Python 3.13, but target nodes
+# run a different Python. pip must download wheels for the TARGET version.
+OS_TARGET_PYTHON = {
+    "rhel": {"10": "3.12"},
+}
+
+# Architecture → manylinux platform tags for pip --platform flag.
+# Multiple tags are listed most-specific-first; pip matches any of them.
+ARCH_PIP_PLATFORMS = {
+    "x86_64": [
+        "manylinux_2_34_x86_64",
+        "manylinux_2_28_x86_64",
+        "manylinux_2_17_x86_64",
+    ],
+    "aarch64": [
+        "manylinux_2_34_aarch64",
+        "manylinux_2_28_aarch64",
+        "manylinux_2_17_aarch64",
+    ],
+}
+
 # ----------------------------
 # Repo Naming Format
 # Controls the naming convention for Pulp repositories, remotes, and distributions.
@@ -79,7 +101,7 @@ POLICY_CACHING_MAP = {
     ("never", True): "streamed"
 }
 DNF_COMMANDS = {
-    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64,noarch", "--disablerepo=*", "--enablerepo=x86_64_*"],
+    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64", "--arch=noarch", "--disablerepo=*", "--enablerepo=x86_64_*"],
     "aarch64": ["dnf", "download", "--forcearch", "aarch64", "--resolve", "--alldeps", "--exclude=*.x86_64", "--disablerepo=*", "--enablerepo=aarch64_*"]
 }
 DNF_INFO_COMMANDS = {

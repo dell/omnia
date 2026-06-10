@@ -20,6 +20,7 @@
 #   1. No PersistentVolumes in Failed state
 #   2. No PersistentVolumeClaims in Lost state
 #   3. NFS storage mount is accessible on kube_vip
+#   4. All control planes (first + additional) have .cluster_initialized marker
 
 # ── Check 1: PersistentVolumes must not be in Failed state ─────────
 - name: "Preflight storage — Check for PersistentVolumes in Failed state"
@@ -74,29 +75,63 @@
   when: not (preflight_nfs_stat.stat.exists | default(false))
 
 # ── Check 4: All control planes must have .cluster_initialized marker ──
+- name: "Preflight storage — Build list of all control plane nodes"
+  ansible.builtin.set_fact:
+    all_control_plane_nodes: "{{ (groups['k8s_control_plane_first'] | default([])) + (groups['k8s_control_plane'] | default([])) }}"
+
 - name: "Preflight storage — Check .cluster_initialized marker on all control planes"
   ansible.builtin.stat:
     path: "/etc/kubernetes/.cluster_initialized"
   delegate_to: "{{ item }}"
   register: preflight_cluster_init_check
-  loop: "{{ groups[group_cp] | default([]) }}"
+  loop: "{{ all_control_plane_nodes }}"
   loop_control:
     label: "{{ item }}"
+  when: all_control_plane_nodes | length > 0
+
+- name: "Preflight storage — Collect nodes missing .cluster_initialized"
+  ansible.builtin.set_fact:
+    missing_cluster_init_nodes: >-
+      {{ preflight_cluster_init_check.results
+         | selectattr('stat.exists', 'defined')
+         | rejectattr('stat.exists')
+         | map(attribute='item')
+         | list }}
+  when: preflight_cluster_init_check.results is defined
+
+- name: "Preflight storage — Display missing nodes warning"
+  ansible.builtin.debug:
+    msg:
+      - ""
+      - "╔════════════════════════════════════════════════════════════════════════════════╗"
+      - "║  PREFLIGHT CHECK FAILED: Missing .cluster_initialized marker                   ║"
+      - "╚════════════════════════════════════════════════════════════════════════════════╝"
+      - ""
+      - "The following control plane node(s) are missing /etc/kubernetes/.cluster_initialized:"
+      - "  {{ missing_cluster_init_nodes | join(', ') }}"
+      - ""
+      - "This indicates that cloud-init provisioning did not complete successfully."
+      - ""
+      - "── Troubleshooting Steps ──────────────────────────────────────────────────────"
+      - ""
+      - "Check cloud-init logs on the affected node(s):"
+      - "{% for node in missing_cluster_init_nodes %}  ssh {{ node }}{% endfor %}"
+      - "{% for node in missing_cluster_init_nodes %}  cat /var/log/cloud-init-output.log{% endfor %}"
+      - ""
+      - "── Action Required ────────────────────────────────────────────────────────────"
+      - ""
+      - "Fix the provisioning issues on the affected nodes before retrying the upgrade."
+      - ""
+  when:
+    - missing_cluster_init_nodes is defined
+    - missing_cluster_init_nodes | length > 0
 
 - name: "Preflight storage — Fail if any control plane is missing .cluster_initialized"
   ansible.builtin.fail:
-    msg: |
-      Control plane node {{ item.item }} is missing /etc/kubernetes/.cluster_initialized marker file.
-      This indicates that the node's cloud-init provisioning did not complete successfully.
-
-      Please check the cloud-init logs on {{ item.item }}:
-        ssh {{ item.item }} cat /var/log/cloud-init-output.log
-
-      The node must be successfully provisioned before upgrade can proceed.
-  loop: "{{ preflight_cluster_init_check.results }}"
-  loop_control:
-    label: "{{ item.item }}"
-  when: not (item.stat.exists | default(false))
+    msg: "Control plane nodes missing .cluster_initialized marker: {{ missing_cluster_init_nodes | join(', ') }}"
+  when:
+    - missing_cluster_init_nodes is defined
+    - missing_cluster_init_nodes | length > 0
 
 - name: "Preflight storage — All storage checks passed"
   ansible.builtin.debug:

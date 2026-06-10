@@ -40,6 +40,13 @@
 
 - name: OpenCHAMI rollback workflow
   block:
+    # Normalize backup + /etc/openchami permissions BEFORE any checks or
+    # restores. The backup is created with `cp -a` which preserves restrictive
+    # source modes; on the shared NFS path those bits cause permission-denied
+    # when the rollback reads/restores configs, pg-init, and the pg_dump.
+    - name: Normalize backup and config permissions
+      ansible.builtin.include_tasks: normalize_permissions.yml
+
     - name: Pre-rollback validation checks
       ansible.builtin.include_tasks: pre_rollback_checks.yml
 

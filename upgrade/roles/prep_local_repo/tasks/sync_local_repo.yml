@@ -30,7 +30,7 @@
 # Initialise sub_final_repo_urls (normally set by validate_subscription role)
 - name: "Sync — Initialise subscription repo URLs"
   ansible.builtin.set_fact:
-    sub_final_repo_urls: "{{ sub_final_repo_urls | default({}) }}"
+    sub_final_repo_urls: "{{ sub_final_repo_urls | default({}, true) }}"
 
 # Get actual Pulp URL from pulp status command (same as pulp_validation role)
 - name: "Sync — Get Pulp status"
@@ -54,7 +54,9 @@
     name: oim
     pulp_protocol: "{{ pulp_protocol }}"
     pulp_server_port: "{{ pulp_server_port }}"
-    ansible_connection: local
+    ansible_connection: ssh
+    ansible_host: "localhost"
+    ansible_port: "{{ oim_host_port }}"
 
 - name: "Sync — Display sync configuration"
   ansible.builtin.debug:

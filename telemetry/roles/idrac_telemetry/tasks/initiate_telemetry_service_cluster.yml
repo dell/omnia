@@ -50,7 +50,7 @@
       "iDRAC IPs for pod '{{ item.key }}': {{ item.value | join(', ') }}"
     verbosity: 2
   loop: "{{ idrac_podname_idracips.idrac_podname_ips | dict2items }}"
-  when: idrac_podname_idracips.idrac_podname_ips is defined and idrac_podname_idracips.idrac_podname_ips
+  when: idrac_podname_idracips.idrac_podname_ips is defined and (idrac_podname_idracips.idrac_podname_ips | length > 0)
 
 - name: Read the existing BMC IP's from mysqlDB of the idrac telemetry pods
   block:

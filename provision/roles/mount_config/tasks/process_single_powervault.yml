@@ -30,7 +30,7 @@
         cloud_init_groups_dict: >-
           {{ cloud_init_groups_dict | combine({
             item: (cloud_init_groups_dict[item] | default({}) | combine({
-              'powervault_scripts': (cloud_init_groups_dict[item].powervault_scripts | default([])) + [{
+              'powervault_scripts': (cloud_init_groups_dict[item].powervault_scripts | default([], true)) + [{
                 'name': pv_item.name,
                 'content': pv_rendered_script
               }]

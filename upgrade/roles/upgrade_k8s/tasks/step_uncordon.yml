@@ -12,8 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Wait for API server to be reachable before uncordon
+  ansible.builtin.command: kubectl get --raw /healthz
+  delegate_to: "{{ kube_vip }}"
+  register: api_health
+  changed_when: false
+  retries: 30
+  delay: 10
+  until: api_health.rc == 0
+
 - name: Uncordon node {{ current_node_name }}
   ansible.builtin.command: kubectl uncordon {{ node_ip }}
   delegate_to: "{{ kube_vip }}"
   register: uncordon_result
   changed_when: true
+  retries: 5
+  delay: 10
+  until: uncordon_result.rc == 0

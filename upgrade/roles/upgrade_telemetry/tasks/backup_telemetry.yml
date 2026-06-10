@@ -72,10 +72,11 @@
       failed_when: false
 
     - name: Backup telemetry.sh from control plane
-      ansible.builtin.fetch:
+      ansible.builtin.copy:
         src: /root/telemetry.sh
         dest: "{{ tel_backup_dir }}/telemetry.sh"
-        flat: true
+        mode: "{{ executable_mode }}"
+        remote_src: true
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       when:

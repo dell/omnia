@@ -34,9 +34,7 @@
 
     - name: Fail if telemetry.sh is missing
       ansible.builtin.fail:
-        msg: >-
-          telemetry.sh not found at {{ telemetry_script_path }} on kube_vip.
-          Ensure the provision playbook has generated the telemetry deployment script.
+        msg: "{{ telemetry_sh_missing_msg }}"
       when: not (telemetry_sh_stat.stat.exists | default(false))
 
     - name: Verify kustomization.yaml exists in deployments directory
@@ -48,9 +46,7 @@
 
     - name: Fail if kustomization.yaml is missing
       ansible.builtin.fail:
-        msg: >-
-          kustomization.yaml not found at {{ telemetry_kustomization_dir }}/kustomization.yaml on kube_vip.
-          Ensure the provision playbook has generated the kustomize deployment files.
+        msg: "{{ kustomization_missing_msg }}"
       when: not (kustomization_stat.stat.exists | default(false))
 
 - name: Execute telemetry.sh and validate deployment
@@ -81,6 +77,12 @@
       changed_when: true
       timeout: 900
       failed_when: false
+      retries: 2
+      delay: 30
+      until: >
+        telemetry_sh_result.rc == 0 or
+        (telemetry_sh_result.stderr is not search('Failed to find required executable') and
+         telemetry_sh_result.stderr is not search('podman.*not found'))
 
     - name: Check if telemetry.sh failed due to Helm errors
       ansible.builtin.set_fact:
@@ -98,7 +100,7 @@
 
     - name: Fail telemetry.sh for non-Helm errors
       ansible.builtin.fail:
-        msg: "telemetry.sh failed with non-Helm error: {{ telemetry_sh_result.stderr }}"
+        msg: "{{ telemetry_sh_non_helm_error_msg }}"
       when:
         - telemetry_sh_result.rc != 0
         - not (telemetry_sh_helm_error | default(false))
@@ -125,10 +127,22 @@
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       changed_when: false
+      failed_when: false
+      register: rollout_scale_result
+      retries: "{{ idrac_rollout_retries }}"
+      delay: "{{ idrac_rollout_delay }}"
+      until: rollout_scale_result.rc == 0
       when:
         - idrac_sts_check.rc == 0
         - idrac_replica_count.stdout | int > 0
         - restore_replicas_result.changed | default(false)
+
+    - name: Fail if idrac-telemetry rollout did not complete after retries
+      ansible.builtin.fail:
+        msg: "{{ idrac_rollout_fail_msg }}"
+      when:
+        - rollout_scale_result is defined
+        - rollout_scale_result.rc | default(0) != 0
 
     - name: Display replica restore status
       ansible.builtin.debug:
@@ -156,11 +170,14 @@
       failed_when: false
 
     # ── Post-deployment validation: Check for MySQL issues ──
-    - name: Check idrac-telemetry pod status after deployment
+    - name: Check idrac-telemetry pod container status after deployment
       ansible.builtin.shell:
-        cmd: >
-          kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry
-          --no-headers -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,READY:.status.containerStatuses[*].ready
+        cmd: |
+          set -o pipefail
+          kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
+            --no-headers \
+            -o custom-columns=NAME:.metadata.name,PHASE:.status.phase,CONTAINER_STATUSES:.status.containerStatuses[*].state.waiting.reason \
+            2>/dev/null || true
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       register: idrac_pod_status_check
@@ -170,14 +187,14 @@
     - name: Display idrac-telemetry pod status
       ansible.builtin.debug:
         msg: "idrac-telemetry pod status: {{ idrac_pod_status_check.stdout }}"
-      when: idrac_pod_status_check.stdout != ""
+      when: idrac_pod_status_check.stdout | default('') != ""
 
     - name: Fail if idrac-telemetry MySQL container is in CrashLoopBackOff
       ansible.builtin.fail:
         msg: "{{ mysql_crash_error_msg }}"
       when:
-        - idrac_pod_status_check.stdout != ""
-        - "'CrashLoopBackOff' in idrac_pod_status_check.stdout or 'Error' in idrac_pod_status_check.stdout"
+        - idrac_pod_status_check.stdout | default('') != ""
+        - "'CrashLoopBackOff' in idrac_pod_status_check.stdout"
 
     - name: Generate telemetry pod status report
       ansible.builtin.command:
@@ -205,10 +222,7 @@
 
     - name: Fail if some pods are not ready
       ansible.builtin.fail:
-        msg: >-
-          {{ pods_not_ready_msg }}
-          Review the pod status report above and check pod logs for errors:
-            kubectl logs -n {{ telemetry_namespace }} <pod-name>
+        msg: "{{ pods_not_ready_detailed_msg }}"
       when: pods_not_ready.stdout | int > 0
 
     - name: Display telemetry.sh success
@@ -216,14 +230,16 @@
         msg: "{{ telemetry_sh_success_msg }}"
 
   rescue:
-    - name: Display telemetry.sh failure details
+    - name: Display actual failing task details
       ansible.builtin.debug:
         msg:
-          - "{{ telemetry_sh_fail_msg }}"
-          - "stdout: {{ telemetry_sh_result.stdout | default('N/A') }}"
-          - "stderr: {{ telemetry_sh_result.stderr | default('N/A') }}"
-          - "rc: {{ telemetry_sh_result.rc | default('N/A') }}"
+          - "Telemetry deployment failed during post-deployment validation."
+          - "Failed task: {{ ansible_failed_task.name | default('unknown') }}"
+          - "Failure reason: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown')) }}"
+          - "telemetry.sh rc: {{ telemetry_sh_result.rc | default('N/A') }}"
 
     - name: Fail the telemetry upgrade
       ansible.builtin.fail:
-        msg: "Telemetry deployment failed. See error details above."
+        msg: >-
+          Telemetry deployment failed at task '{{ ansible_failed_task.name | default('unknown') }}':
+          {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('See error details above.')) }}

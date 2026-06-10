@@ -1,0 +1,132 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# preflight.yml — Phase 0: Pre-flight Checks
+# ============================================================================
+# Reads rollback manifest, resolves backup_dir, reads upgrade_path from the
+# metadata file written during upgrade (validate.yml), determines Restore or Uninstall path.
+# Runs on localhost (omnia_core container).
+# ============================================================================
+
+- name: "Phase 0 | Read rollback manifest"
+  ansible.builtin.slurp:
+    src: "{{ buildstream_orchestrator_rollback_manifest }}"
+  register: _raw_rollback_manifest
+
+- name: "Phase 0 | Parse rollback manifest"
+  ansible.builtin.set_fact:
+    _rollback_manifest: "{{ _raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+- name: "Phase 0 | Check if already completed"
+  when: (_rollback_manifest.component_status[buildstream_orchestrator_component_name] | default('pending')) == 'completed'
+  block:
+    - name: "Phase 0 | Already completed — skip"
+      ansible.builtin.debug:
+        msg: "BuildStream rollback already completed. Skipping."
+    - name: "Phase 0 | End play"
+      ansible.builtin.meta: end_play
+
+- name: "Phase 0 | Set backup_dir fact"
+  ansible.builtin.set_fact:
+    backup_dir: "{{ _rollback_manifest.backup_dir }}"
+
+- name: "Phase 0 | Set backup path for OIM host perspective"
+  ansible.builtin.set_fact:
+    backup_path_from_oim: "{{ backup_dir | regex_replace('^/opt/omnia', omnia_nfs_share) }}"
+
+- name: "Phase 0 | Check for upgrade path metadata file"
+  ansible.builtin.stat:
+    path: "{{ backup_dir }}/{{ buildstream_upgrade_metadata_subpath }}"
+  register: _upgrade_path_metadata_stat
+
+- name: "Phase 0 | Skip if metadata file does not exist (BuildStream was never upgraded)"
+  when: not _upgrade_path_metadata_stat.stat.exists
+  block:
+    - name: "Phase 0 | Mark as skipped in manifest"
+      ansible.builtin.copy:
+        content: >-
+          {{ _rollback_manifest | combine({
+               'component_status': _rollback_manifest.component_status | combine({
+                 buildstream_orchestrator_component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ buildstream_orchestrator_rollback_manifest }}"
+        mode: '0644'
+    - name: "Phase 0 | End play — nothing to rollback"
+      ansible.builtin.debug:
+        msg: "No buildstream_upgrade_metadata.yml found at {{ backup_dir }}. BuildStream was never upgraded. Marking as skipped."
+    - name: "Phase 0 | End play"
+      ansible.builtin.meta: end_play
+
+- name: "Phase 0 | Read upgrade path metadata"
+  ansible.builtin.include_vars:
+    file: "{{ backup_dir }}/{{ buildstream_upgrade_metadata_subpath }}"
+    name: _upgrade_path_metadata
+
+- name: "Phase 0 | Set upgrade path fact"
+  ansible.builtin.set_fact:
+    build_stream_upgrade_path: "{{ _upgrade_path_metadata.upgrade_path }}"
+
+- name: "Phase 0 | Set status to in-progress"
+  ansible.builtin.copy:
+    content: >-
+      {{ _rollback_manifest | combine({
+           'component_status': _rollback_manifest.component_status | combine({
+             buildstream_orchestrator_component_name: 'in-progress'
+           })
+         }) | to_nice_yaml }}
+    dest: "{{ buildstream_orchestrator_rollback_manifest }}"
+    mode: '0644'
+
+- name: "Phase 0 | Display rollback path"
+  ansible.builtin.debug:
+    msg:
+      - >-
+        Rollback path: {{ 'Restore to 2.1 from backup (during upgrade, buildstream had taken upgrade_existing path)'
+        if build_stream_upgrade_path == 'upgrade_existing' else
+        'Remove fresh installation (during upgrade, buildstream had taken fresh_install path)' }}
+      - "Backup dir: {{ backup_dir }}"
+
+- name: "Phase 0 | Load build_stream_config.yml for gitlab_host"
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+    name: _build_stream_config
+  failed_when: false
+
+- name: "Phase 0 | Read HOST from backup quadlet file (Restore only)"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && grep '^Environment=HOST=' {{ backup_dir }}/{{ buildstream_backup_quadlet_subpath }} | cut -d'=' -f3"
+    executable: /bin/bash
+  register: _bs_host_from_backup
+  changed_when: false
+  failed_when: false
+  when: build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "Phase 0 | Set BuildStream actual IP fact"
+  ansible.builtin.set_fact:
+    _bs_actual_host_ip: "{{ _bs_host_from_backup.stdout | trim }}"
+  when:
+    - build_stream_upgrade_path == 'upgrade_existing'
+    - _bs_host_from_backup.stdout is defined
+    - _bs_host_from_backup.stdout | trim != ''
+
+- name: "Phase 0 | Load gitlab_config.yml for gitlab_host and project details"
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+  failed_when: false
+
+# Note: Credentials (provision_password etc.) are loaded at the top level
+# by rollback.yml → playbooks/load_rollback_credentials.yml
+# (mirrors upgrade pattern: utils/credential_utility/get_config_credentials.yml)

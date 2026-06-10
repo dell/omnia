@@ -32,6 +32,7 @@ rollback_backup_dir_default: "/opt/omnia/backups/upgrade/version_2.1.0.0"
 
 # OpenCHAMI configuration paths
 openchami_config_dir: "/etc/openchami/configs"
+openchami_etc_dir: "/etc/openchami"
 openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_work_dir: "/opt/omnia/openchami/workdir"
 ochami_dir: "/etc/ochami"
@@ -93,6 +94,10 @@ rollback_v21_critical_containers:
   - registry
   - minio-server
 
+# PostgreSQL backup lock file — cleared after successful rollback to allow
+# fresh pg_dump on next upgrade cycle. See upgrade_openchami vars for details.
+pgdump_backup_lock: "openchami/postgresql_backup/pgdump_v21_backup.lock"
+
 # Backup sub-paths (relative to rollback_backup_dir)
 # Created by omnia.sh --upgrade (backup_openchami_data function)
 backup_quadlets_subpath: "openchami/quadlets"
@@ -127,6 +132,35 @@ rollback_messages:
       OpenCHAMI containers are already running v2.1 images.
       Rollback is not needed. Skipping.
     backup_found: "Backup directory found. Proceeding with rollback."
+  permissions:
+    normalized: "Backup and /etc/openchami permissions verified (directories 0755, files 0644)."
+    unfixable: |
+      ════════════════════════════════════════════
+        OPENCHAMI ROLLBACK BLOCKED — PERMISSION ISSUE
+      ════════════════════════════════════════════
+      One or more files/directories in the backup or /etc/openchami could not
+      be made readable. The rollback cannot read these to restore them.
+
+      This usually happens on the shared NFS backup path (root_squash) when
+      container-created files carry restrictive ownership/permissions.
+
+      Fix the permissions MANUALLY, then re-run ONLY the OpenCHAMI/OIM rollback:
+
+        On the OIM host (as a user that owns the files, e.g. the NFS owner):
+          chmod -R u+rwX,go+rX /etc/openchami
+          chmod -R u+rwX,go+rX {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami
+
+        Ensure all directories are 0755 and all files are 0644, and that none
+        are in a permission-denied / immutable state. Then retry:
+
+          cd /opt/omnia/... && ansible-playbook rollback/rollback.yml --tags oim
+
+      Relevant directories that must be readable:
+        /etc/openchami, /etc/openchami/configs, /etc/openchami/pg-init
+        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/etc_openchami
+        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/etc_openchami/configs
+        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/etc_openchami/pg-init
+        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/postgresql_backup
   restore:
     quadlets_success: "Restored v2.1 quadlet files from backup."
     quadlets_failure: "Failed to restore v2.1 quadlet files."

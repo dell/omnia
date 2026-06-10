@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-CLIENT_MOUNT="{{ client_mount_path }}"
-UCX_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
-UCX_BUILD="{{ client_mount_path }}/slurm/hpc_tools/compile/ucx"
+CLIENT_MOUNT="/hpc_tools"
+UCX_PREFIX="/hpc_tools/benchmarks/ucx"
+UCX_BUILD="/hpc_tools/compile/ucx"
 
 # Comprehensive logging
 LOGFILE="/var/log/ucx_installation.log"
@@ -70,7 +70,7 @@ UCX_ENV_FILE="/etc/profile.d/ucx.sh"
 echo "[INFO] Setting up UCX environment variables in $UCX_ENV_FILE..."
 cat > "$UCX_ENV_FILE" <<EOF
 # UCX environment
-export UCX_HOME="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+export UCX_HOME="/hpc_tools/benchmarks/ucx"
 export PATH="\$UCX_HOME/bin:\$PATH"
 export LD_LIBRARY_PATH="\$UCX_HOME/lib:\$LD_LIBRARY_PATH"
 EOF
@@ -90,7 +90,7 @@ fi
 echo "Log File Created:"
 echo "  - Installation Log: $LOGFILE" | tee -a "$LOGFILE"
 
-echo "[INFO] UCX installed under {{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx" | tee -a "$LOGFILE"
+echo "[INFO] UCX installed under /hpc_tools/benchmarks/ucx" | tee -a "$LOGFILE"
 echo "[INFO] UCX environment configured in $UCX_ENV_FILE" | tee -a "$LOGFILE"
 echo "[INFO] Run 'source $UCX_ENV_FILE' or re-login to use ucx_info" | tee -a "$LOGFILE"
 

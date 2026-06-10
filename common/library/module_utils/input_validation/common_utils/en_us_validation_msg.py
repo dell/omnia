@@ -102,6 +102,18 @@ SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = ("The 'service_node' role defined 
     " is not currently supported and is reserved for future use. Please remove or update this role"
     " to avoid configuration errors.")
 
+# Mapping file and software_config.json consistency validation messages
+SERVICE_K8S_FUNCTIONAL_GROUP_WITHOUT_SOFTWARE_MSG = (
+    "Service Kubernetes functional groups (service_kube_node_* or service_kube_control_plane_*) "
+    "are defined in the PXE mapping file, but 'service_k8s' is not configured in software_config.json. "
+    "Please add 'service_k8s' to the 'softwares' list in software_config.json to deploy the service cluster."
+)
+SLURM_FUNCTIONAL_GROUP_WITHOUT_SOFTWARE_MSG = (
+    "Slurm functional groups (slurm_control_node_* or slurm_node_*) "
+    "are defined in the PXE mapping file, but 'slurm_custom' is not configured in software_config.json. "
+    "Please add 'slurm_custom' to the 'softwares' list in software_config.json to deploy the Slurm cluster."
+)
+
 # Functional Groups Config Validation Messages
 
 EMPTY_OR_SYNTAX_ERROR_FUNCTIONAL_GROUPS_CONFIG_MSG = (
@@ -174,6 +186,11 @@ DEFAULT_LEASE_TIME_FAIL_MSG = "Please provide a valid default_lease_time."
 ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true or false."
 LANGUAGE_FAIL_MSG = "Only en_US.UTF-8 language supported"
 LANGUAGE_EMPTY_MSG = "Language setting cannot be empty"
+KERNEL_VERSION_OVERRIDE_FAIL_MSG = (
+    "kernel_version_override must be either empty or a valid kernel version "
+    "string (e.g. '6.12.0-55.76.1.el10_0.x86_64'). "
+    "The format must be: <major>.<minor>.<patch>-<release>."
+)
 PUBLIC_NIC_FAIL_MSG = "public_nic is empty. Please provide a public_nic value."
 PXE_MAPPING_FILE_PATH_FAIL_MSG = (
     "File path is invalid. Please ensure the file path specified in "
@@ -825,3 +842,11 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "To fix: Either set telemetry_sources.ldms.metrics_enabled=true to enable LDMS data collection, "
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
 )
+
+# CSM Observability - Unsupported metrics validation messages
+def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
+    """Returns error message when unsupported CSM metrics components are enabled."""
+    return (
+        f"{component_name} metrics collection not supported. "
+        f"Set {section_name}.enabled to false in {values_file_path} and rerun the playbook."
+    )

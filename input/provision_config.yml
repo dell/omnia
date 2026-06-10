@@ -48,6 +48,11 @@ default_lease_time: "86400"
 dns_enabled: false
 
 #### Optional
+# Pin a specific kernel version for boot image selection.
+# Leave empty ("") to auto-select the latest available image from S3.
+# Example: kernel_version_override: "6.12.0-55.76.1.el10_0.x86_64"
+kernel_version_override: ""
+
 # Additional cloud-init configuration to merge into stateless node provisioning.
 # This content is applied to ALL nodes as a common cloud-init group.
 #

@@ -29,14 +29,14 @@
 
 - name: Create BuildStream backup directory
   ansible.builtin.file:
-    path: "{{ hostvars['localhost']['backup_dir'] }}/buildstream"
+    path: "{{ hostvars['localhost']['backup_path_from_oim'] }}/buildstream"
     state: directory
     mode: '0755'
 
 - name: Backup BuildStream quadlet
   ansible.builtin.copy:
     src: "{{ quadlet_dir }}/omnia_build_stream.container"
-    dest: "{{ hostvars['localhost']['backup_dir'] }}/buildstream/omnia_build_stream.container.bak"
+    dest: "{{ hostvars['localhost']['backup_path_from_oim'] }}/buildstream/omnia_build_stream.container.bak"
     remote_src: true
     mode: '0644'
   failed_when: false
@@ -44,7 +44,7 @@
 - name: Backup Postgres quadlet
   ansible.builtin.copy:
     src: "{{ quadlet_dir }}/omnia_postgres.container"
-    dest: "{{ hostvars['localhost']['backup_dir'] }}/buildstream/omnia_postgres.container.bak"
+    dest: "{{ hostvars['localhost']['backup_path_from_oim'] }}/buildstream/omnia_postgres.container.bak"
     remote_src: true
     mode: '0644'
   failed_when: false
@@ -53,10 +53,18 @@
   ansible.builtin.shell: |
     set -o pipefail
     podman exec omnia_postgres pg_dump -U {{ hostvars['localhost']['postgres_user'] }} \
-      {{ postgres_db_name }} > {{ hostvars['localhost']['backup_dir'] }}/buildstream/buildstream_db_backup.sql
+      {{ postgres_db_name }} > {{ hostvars['localhost']['backup_path_from_oim'] }}/buildstream/buildstream_db_backup.sql
   register: pg_backup
   failed_when: false
   changed_when: pg_backup.rc == 0
+
+- name: Backup BuildStream source directory
+  ansible.builtin.copy:
+    src: "{{ oim_shared_path | default('/opt') }}/omnia/build_stream"
+    dest: "{{ hostvars['localhost']['backup_path_from_oim'] }}/buildstream/"
+    remote_src: true
+    mode: preserve
+  failed_when: false
 
 # ══════════════════════════════════════════════════════════════════
 # Step 2: Re-deploy Postgres via prepare_oim role (idempotent)

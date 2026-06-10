@@ -1,4 +1,4 @@
-#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -76,14 +76,10 @@
     kind: StatefulSet
     name: idrac-telemetry
     namespace: telemetry
-    patch: |
-      [
-        {
-          "op": "replace",
-          "path": "/spec/replicas",
-          "value": {{ (idrac_telemetry_replicas | int) + 1 }}
-        }
-      ]
+    patch:
+      - op: replace
+        path: /spec/replicas
+        value: "{{ (idrac_telemetry_replicas | int) + 1 }}"
 
 - name: Generating iDRAC telemetry pods names
   ansible.builtin.set_fact:

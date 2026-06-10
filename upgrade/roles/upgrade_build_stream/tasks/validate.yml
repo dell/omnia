@@ -104,7 +104,9 @@
       upgrade_timestamp: {{ current_timestamp.stdout }}
       buildstream_service_exists_before: {{ hostvars['localhost']['buildstream_service_exists'] }}
       postgres_service_exists_before: {{ hostvars['localhost']['postgres_service_exists'] }}
-    dest: "{{ hostvars['localhost']['backup_dir'] }}/upgrade_path_metadata.yml"
+      upgrade_gitlab_commit_sha: {{ hostvars['localhost']['_upgrade_gitlab_commit_sha'] | default('') }}
+      upgrade_gitlab_pre_tag: {{ hostvars['localhost']['_upgrade_pre_tag'] | default('') }}
+    dest: "{{ hostvars['localhost']['backup_dir'] }}/buildstream_upgrade_metadata.yml"
     mode: '0644'
   delegate_to: localhost
   connection: local
@@ -119,5 +121,5 @@
       - "Postgres: Active and ready"
       - ""
       - "Upgrade path metadata stored for rollback:"
-      - "  {{ hostvars['localhost']['backup_dir'] }}/upgrade_path_metadata.yml"
+      - "  {{ hostvars['localhost']['backup_dir'] }}/buildstream_upgrade_metadata.yml"
       - "============================================================"

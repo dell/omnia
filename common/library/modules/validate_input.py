@@ -76,7 +76,7 @@ def validate_csv_structure(csv_file_path, logger=None):
             for row in reader:
                 if len(row) != expected_columns:
                     error_msg = (
-                        f"CSV ERROR: Line {line_num} has {len(row)} columns, expected {expected_columns}. "
+                        f"CSV ERROR: {csv_file_path}: Line {line_num} has {len(row)} columns, expected {expected_columns}. "
                         f"Missing values in CSV row. Ensure each row has the correct number of values separated by commas."
                     )
                     if logger:
@@ -279,6 +279,7 @@ def main():
             vstatus.append(True)
         except ValueError as csv_error:
             error_bucket = error_bucket + [str(csv_error)]
+            validation_status["Failed"].append(csv_file_path)
             vstatus.append(False)
 
     if not validation_status:
@@ -298,14 +299,16 @@ def main():
                f"Tag(s) run: {tag_names}. ",
                f"Look at the logs for more details: filename={log_file_name}"]
 
-    module.exit_json(failed=not status_bool,
+    module.exit_json(
+        changed=False,
+        validation_failed=not status_bool,
         error_msg=message,
         log_file=log_file_name,
         errors=error_bucket,
         valid_files=list(set(validation_status['Passed'])),
         invalid_files=list(set(validation_status['Failed'])),
         tags=tag_names
-        )
+    )
 
 
 if __name__ == "__main__":

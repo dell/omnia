@@ -244,12 +244,12 @@ def create_rpm_remote(repo,log):
             repo_name = f"{repo_name}_{version}"
 
         remote_name = repo_name
-    
+
         # Check if remote already exists - skip if it does
         if show_rpm_remote(remote_name, log):
             log.info("Remote '%s' already exists. Skipping.", remote_name)
             return True, repo_name
-        
+
         # Remote doesn't exist - create it
         repo_keys = repo.keys()
         if "ca_cert" in repo_keys and repo["ca_cert"]:
@@ -326,7 +326,7 @@ def sync_rpm_repository(repo,log, resync_repos=None):
         log.info("Starting synchronization for RPM repository")
         # Determine if we should skip sync check
         force_sync = False
-        
+
         # Normalize resync_repos: convert comma-separated string to list
         resync_list = None
         if resync_repos == "all":
@@ -458,9 +458,25 @@ def check_publication_exists(repo_name, log):
     try:
         command = pulp_rpm_commands["check_publication"] % repo_name
         log.info("Checking if publication exists for repository '%s'", repo_name)
-        result = execute_command(command, log)
-        # The command returns a list - if empty, no publication exists
-        return bool(result)
+        cmd_list = shlex.split(command)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+        log.info("check_publication_exists command return code: %s", result.returncode)
+
+        if result.returncode != 0:
+            log.info("Publication check command failed for '%s'", repo_name)
+            return False
+
+        # Parse the JSON output - publication list returns [] when empty
+        publications = json.loads(result.stdout)
+        if publications:
+            log.info("Publication exists for '%s' (%d found)", repo_name, len(publications))
+            return True
+        else:
+            log.info("No publications found for '%s' (empty list)", repo_name)
+            return False
+    except (json.JSONDecodeError, ValueError) as e:
+        log.error("Error parsing publication list for '%s': %s", repo_name, str(e))
+        return False
     except Exception as e:
         log.error("Error checking publication for '%s': %s", repo_name, str(e))
         return False
@@ -484,6 +500,43 @@ def check_distribution_exists(repo_name, log):
     except Exception as e:
         log.error("Error checking distribution for '%s': %s", repo_name, str(e))
         return False
+
+
+def get_latest_publication_href(repo_name, log):
+    """
+    Get the pulp_href of the latest publication for a repository.
+
+    Args:
+        repo_name (str): The name of the repository.
+        log (logging.Logger): Logger instance for logging.
+
+    Returns:
+        str or None: The pulp_href of the latest publication, or None if not found.
+    """
+    try:
+        command = pulp_rpm_commands["check_publication"] % repo_name
+        cmd_list = shlex.split(command)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            log.info("No publications found for '%s'", repo_name)
+            return None
+
+        publications = json.loads(result.stdout)
+        if not publications:
+            log.info("Empty publication list for '%s'", repo_name)
+            return None
+
+        pub_href = publications[-1].get("pulp_href")
+        if pub_href:
+            validated_href = validate_pulp_href(pub_href)
+            log.info("Latest publication href for '%s': %s", repo_name, validated_href)
+            return validated_href
+
+        return None
+    except Exception as e:
+        log.error("Error getting latest publication for '%s': %s", repo_name, str(e))
+        return None
 
 
 def delete_old_publications(repo_name, log):
@@ -537,7 +590,7 @@ def delete_old_publications(repo_name, log):
                     log.warning("Failed to delete publication %s: %s", pub_href, delete_result.stderr)
                 else:
                     log.info("Successfully deleted publication: %s", pub_href)
-        
+
         return True
     except Exception as e:
         log.error("Error deleting publications for '%s': %s", repo_name, str(e))
@@ -564,10 +617,10 @@ def create_publication(repo,log, resync_repos=None):
             repo_name = f"{repo_name}_{version}"
 
         log.info("Processing publication for repository: '%s'", repo_name)
-        
+
         # Check if version changed during sync (passed via _version_changed flag)
         version_changed = repo.get("_version_changed", True)  # Default True for safety
-        
+
         # If publication exists and version didn't change, keep existing publication
         if check_publication_exists(repo_name, log):
             if not version_changed:
@@ -647,10 +700,27 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
         log.info("Checking if distribution exists for repository '%s'", repo_name)
         if execute_command(show_command, log):
             log.info(f"Distribution for {package_name} exists. Updating it.")
-            return execute_command(update_command, log), repo_name
+            result = execute_command(update_command, log)
         else:
             log.info(f"Distribution for {package_name} does not exist. Creating it.")
-            return execute_command(create_command, log), repo_name
+            result = execute_command(create_command, log)
+
+        if not result:
+            return False, repo_name
+
+        # Link distribution to the latest publication so that served package
+        # paths match the publication metadata (nested_alphabetically layout).
+        pub_href = get_latest_publication_href(repo_name, log)
+        if pub_href:
+            log.info("Linking distribution '%s' to publication '%s'", repo_name, pub_href)
+            update_pub_cmd = pulp_rpm_commands["update_distribution_publication"] % (repo_name, pub_href)
+            pub_result = execute_command(update_pub_cmd, log)
+            if not pub_result:
+                log.warning("Failed to link distribution '%s' to publication. Packages may not be served correctly.", repo_name)
+        else:
+            log.warning("No publication found for '%s'. Distribution linked to repository only.", repo_name)
+
+        return True, repo_name
 
     except Exception as e:
         log.error("Unexpected error during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))
@@ -811,7 +881,7 @@ def process_sync_results(sync_results, rpm_config, resync_repos, log):
     # Get list of repos where version changed (need new publication)
     version_changed_repos = [name for success, name, actually_synced, version_changed in sync_results if success and actually_synced and version_changed]
     log.info(f"Repos with version change: {len(version_changed_repos)} - {version_changed_repos}")
-    
+
     # If no versions changed, check for missing publication/distribution
     # This handles the crash recovery case: process failed after sync but before pub/dist
     if not version_changed_repos:
@@ -929,7 +999,7 @@ def delete_aggregated_repo(repo_name, log):
     """
     Delete the aggregated repository, its remotes, and distribution for a given architecture.
     This is called before recreating the aggregated repo to ensure a clean state.
-    
+
     Note: This only deletes the distribution with the exact repo_name. Old distributions
     with different naming conventions are preserved to allow coexistence during upgrades.
 
@@ -1343,7 +1413,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
 
     # Process sync results and get repos for publication/distribution
     repos_for_pub_dist, should_skip, skip_message  = process_sync_results(sync_results, rpm_config, resync_repos, log)
-    
+
     # Only run publication/distribution if repos need it
     if not should_skip:
         # Step 4: Concurrent publication creation
@@ -1378,7 +1448,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     if not base_urls:
         log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
         return False, "Base URLs fetch failed — repo file not created."
-    
+
     log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
     create_yum_repo_file(base_urls, log)
     log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
@@ -1386,7 +1456,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     # Return appropriate success message based on resync_repos and skip status
     if should_skip:
         return True, skip_message
-    
+
     if resync_repos == "all":
         return True, "Resync completed successfully for all repositories"
     elif resync_repos:
@@ -1395,7 +1465,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         else:
             repos_list = ", ".join(resync_repos)
         return True, f"Resync completed successfully for specified repositories: {repos_list}"
-    
+
     return True, "RPM repository sync and configuration completed successfully"
 
 def main():

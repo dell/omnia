@@ -1,3 +1,6 @@
+{% set coresmd_ver = openchami_coresmd_tag | regex_replace('^v', '') %}
+{% set multisubnet_native = coresmd_ver is version('0.6.0', '>=') %}
+{% set has_additional_subnets = additional_subnets | default([]) | length > 0 %}
 server4:
   listen:
     - "%{{ cluster_boot_interface }}"
@@ -6,8 +9,8 @@ server4:
     - dns: {{ coredhcp_dns_server }}
     - router: {{ coredhcp_router }}
     - netmask: {{ coredhcp_netmask }}
-{% if coredhcp_subnets | default([]) | length > 0 %}
-    # Multi-subnet mode: uses key=value config format (requires coresmd with multi-subnet support)
+{% if multisubnet_native and has_additional_subnets %}
+    # Multi-subnet mode: key=value config format (coresmd v0.6.x+)
     - coresmd: |
         svc_base_uri=https://{{ cluster_name }}.{{ cluster_domain }}:8443
         ipxe_base_uri=http://{{ cluster_boot_ip }}:8081
@@ -15,21 +18,57 @@ server4:
         cache_valid={{ coredhcp_cache_validity }}
         lease_time={{ coredhcp_lease_duration }}
         single_port={{ coredhcp_tftp_single_port_mode | lower }}
-{% for s in coredhcp_subnets %}
-        subnet={{ s.cidr }},{{ s.router }}
+{% for s in additional_subnets %}
+        rule=subnet:{{ s.subnet }}/{{ s.netmask_bits }},type:Node,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
+        rule=subnet:{{ s.subnet }}/{{ s.netmask_bits }},type:NodeBMC,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
 {% endfor %}
-        rule=type:Node,hostname:{{ cluster_shortname }}{{'{'}}0{{ coredhcp_nidlength | default(cluster_nidlength | default(3)) }}d{{'}'}}
-        rule=type:NodeBMC,hostname:bmc{{'{'}}0{{ coredhcp_nidlength | default(cluster_nidlength | default(3)) }}d{{'}'}}
+        rule=type:Node
+        rule=type:NodeBMC
         rule=hostname:unknown-{{'{'}}04d{{'}'}}
     - bootloop: |
         lease_file=/tmp/coredhcp.db
         script_path={{ coredhcp_custom_ipxe }}
         lease_time={{ coredhcp_tmp_lease_duration }}
-{% for sp in coredhcp_subnet_pools %}
-        subnet_pool={{ sp.cidr }},{{ sp.start }},{{ sp.end }}
+{% for s in additional_subnets %}
+{% set range_parts = s.dynamic_range | split('-') %}
+        subnet_pool={{ s.subnet }}/{{ s.netmask_bits }},{{ range_parts[0] }},{{ range_parts[1] }}
 {% endfor %}
 {% else %}
-    # Single-subnet mode: positional argument format compatible with coresmd v0.4.x
+    # Single-subnet mode: positional argument format (coresmd v0.4.x)
     - coresmd: https://{{ cluster_name }}.{{ cluster_domain }}:8443 http://{{ cluster_boot_ip }}:8081 /root_ca/root_ca.crt {{ coredhcp_cache_validity }} {{ coredhcp_lease_duration }} {{ coredhcp_tftp_single_port_mode | lower }}
     - bootloop: /tmp/coredhcp.db {{ coredhcp_custom_ipxe }} {{ coredhcp_tmp_lease_duration }} {{ coredhcp_dhcp_pool }}
+{% if has_additional_subnets %}
+    # -------------------------------------------------------------------
+    # Multi-subnet configuration (requires coresmd v0.6.x+)
+    # To enable multi-subnet DHCP:
+    #   1. Pull the new coresmd image: podman pull ghcr.io/openchami/coresmd:v0.6.x
+    #   2. Comment out the single-subnet coresmd and bootloop lines above
+    #   3. Uncomment the multi-subnet coresmd and bootloop blocks below
+    #   4. Replace the new coresmd image version in files: /etc/containers/systemd/coresmd-coredhcp.container /etc/containers/systemd/coresmd-coredns.container with the old version
+    #   5. Reload daemon: systemctl daemon-reload
+    #   6. Restart services: systemctl restart openchami.target
+    # -------------------------------------------------------------------
+    # - coresmd: |
+    #     svc_base_uri=https://{{ cluster_name }}.{{ cluster_domain }}:8443
+    #     ipxe_base_uri=http://{{ cluster_boot_ip }}:8081
+    #     ca_cert=/root_ca/root_ca.crt
+    #     cache_valid={{ coredhcp_cache_validity }}
+    #     lease_time={{ coredhcp_lease_duration }}
+    #     single_port={{ coredhcp_tftp_single_port_mode | lower }}
+{% for s in additional_subnets %}
+    #     rule=subnet:{{ s.subnet }}/{{ s.netmask_bits }},type:Node,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
+    #     rule=subnet:{{ s.subnet }}/{{ s.netmask_bits }},type:NodeBMC,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
+{% endfor %}
+    #     rule=type:Node
+    #     rule=type:NodeBMC
+    #     rule=hostname:unknown-{{'{'}}04d{{'}'}}
+    # - bootloop: |
+    #     lease_file=/tmp/coredhcp.db
+    #     script_path={{ coredhcp_custom_ipxe }}
+    #     lease_time={{ coredhcp_tmp_lease_duration }}
+{% for s in additional_subnets %}
+{% set range_parts = s.dynamic_range | split('-') %}
+    #     subnet_pool={{ s.subnet }}/{{ s.netmask_bits }},{{ range_parts[0] }},{{ range_parts[1] }}
+{% endfor %}
+{% endif %}
 {% endif %}

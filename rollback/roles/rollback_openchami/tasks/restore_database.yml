@@ -179,7 +179,6 @@
       ansible.builtin.debug:
         msg:
           - "{{ rollback_messages.restore.database_success }}"
-          - "Node count after restore: {{ rb_post_restore_node_count.stdout | default('0') | trim }}"
 
   rescue:
     - name: Database restore failed

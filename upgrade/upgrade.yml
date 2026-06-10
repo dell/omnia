@@ -19,11 +19,12 @@
 # Supports --tags for selective execution of upgrade sub-flows.
 #
 # Usage:
-#   ansible-playbook upgrade/upgrade.yml                     # Full upgrade
-#   ansible-playbook upgrade/upgrade.yml --tags oim          # OIM only
-#   ansible-playbook upgrade/upgrade.yml --tags k8s          # K8s only
-#   ansible-playbook upgrade/upgrade.yml --tags provision
-#   ansible-playbook upgrade/upgrade.yml --tags "k8s,telemetry"
+#   cd /omnia/upgrade
+#   ansible-playbook upgrade.yml                     # Full upgrade
+#   ansible-playbook upgrade.yml --tags oim          # OIM only
+#   ansible-playbook upgrade.yml --tags k8s          # K8s only
+#   ansible-playbook upgrade.yml --tags provision
+#   ansible-playbook upgrade.yml --tags "k8s,telemetry"
 #
 # IMPORTANT: Must be invoked from the parent directory containing upgrade/,
 # rollback/, and playbooks/ folders. Internal playbooks are imported via
@@ -66,7 +67,7 @@
       provision: [oim, build_image]
       k8s: [oim, provision, local_repo, build_image]
       telemetry: [oim, k8s]
-      slurm: [provision, local_repo]
+      slurm: [oim, local_repo, build_image, provision]
   tasks:
     # ═══════════════════════════════════════════════════════════════
     # PHASE 1: READ-ONLY GUARDS (no state mutation allowed here)
@@ -122,7 +123,8 @@
           Source: {{ existing_manifest.source_version | default('N/A') }} → Target: {{ existing_manifest.target_version | default('N/A') }}
           Re-running upgrade after successful completion is not allowed.
           If you need to force a new upgrade cycle:
-            ansible-playbook upgrade/upgrade.yml -e force_upgrade=true
+            cd /omnia/upgrade
+            ansible-playbook upgrade.yml -e force_upgrade=true
       when:
         - manifest_stat.stat.exists
         - existing_manifest.upgrade_status | default('') == 'completed'
@@ -245,8 +247,8 @@
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list }}
 
     - name: Validate tag dependency order
       ansible.builtin.fail:
@@ -257,8 +259,11 @@
       when:
         - item in tag_dependencies
         - tag_dependencies[item] | difference(requested_tags) | length > 0
-        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'equalto', 'completed') |
-          map(attribute='key') | list ) | list | length > 0
+        - >-
+          tag_dependencies[item] | reject('in',
+          (manifest.component_status | default({}, true))
+          | dict2items | selectattr('value', 'in', ['completed', 'skipped'])
+          | map(attribute='key') | list) | list | length > 0
 
     - name: Report already-upgraded components (will be skipped)
       ansible.builtin.debug:
@@ -284,44 +289,6 @@
   tags: always
   vars:
     oim_group: true
-
-# ──────────────────────────────────────────────────────────────────────
-# Load credentials via credential utility (for build_stream and gitlab)
-# Set upgrade_mode to bypass upgrade_checkup guard within credential utility
-# Set dynamic run tags based on enable_build_stream flag
-# ──────────────────────────────────────────────────────────────────────
-- name: Set upgrade mode flag and dynamic tags for credential utility
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  tasks:
-    - name: Read build_stream_config.yml to check enable_build_stream flag
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
-        name: _bs_config_check
-      failed_when: false
-
-    - name: Enable upgrade_mode to bypass credential utility guard
-      ansible.builtin.set_fact:
-        upgrade_mode: true
-        cacheable: true
-
-    - name: Set dynamic run tags including build_stream and gitlab
-      ansible.builtin.set_fact:
-        omnia_run_tags: >-
-          {{
-            (
-              ansible_run_tags | default([]) +
-              ['build_stream', 'gitlab']
-            ) | unique
-          }}
-        cacheable: true
-      when: _bs_config_check.enable_build_stream | default(false) | bool
-
-- name: Load Omnia credential utility
-  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
-  tags: [build_stream, gitlab]
 
 # ──────────────────────────────────────────────────────────────────────
 # BuildStream Terminal Gate (C-24): Read build_stream_config.yml and
@@ -356,6 +323,34 @@
           will be SKIPPED after build_stream completes. User must trigger
           GitLab pipeline manually post-upgrade.
       when: build_stream_terminal | bool
+
+# ──────────────────────────────────────────────────────────────────────
+# Detect K8s and Slurm configuration — check if services are enabled
+# ──────────────────────────────────────────────────────────────────────
+- name: Detect K8s and Slurm configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Read software_config.json
+      ansible.builtin.slurp:
+        src: "{{ input_project_dir }}/software_config.json"
+      register: _software_config_slurp
+
+    - name: Parse software_config.json
+      ansible.builtin.set_fact:
+        _software_config: "{{ _software_config_slurp.content | b64decode | from_json }}"
+
+    - name: Check if service_k8s is configured
+      ansible.builtin.set_fact:
+        k8s_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+        cacheable: true
+
+    - name: Check if slurm_custom is configured
+      ansible.builtin.set_fact:
+        slurm_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length > 0 }}"
+        cacheable: true
 
 # ──────────────────────────────────────────────────────────────────────
 # Operator Approval — shows upgrade plan and waits for confirmation.
@@ -466,34 +461,75 @@
                                the new Omnia 2.2 package set
             5. provision     → Refresh Cloud-Init data and BSS boot
                                configurations to point at 2.2 images
-            6. k8s           → Roll the Kubernetes cluster to the new
-                               Omnia-supported version (control plane + nodes)
+            6. k8s           → {% if k8s_upgrade_enabled | default(false) %}Roll the Kubernetes cluster to the new
+                               Omnia-supported version (control plane + nodes){% else %}SKIPPED (not configured in software_config.json){% endif %}
+
             7. telemetry     → Upgrade the Omnia telemetry stack
                                for kafka, victoria metrics, and other components
-            8. slurm         → Upgrade the Slurm controller, slurm nodes
+            8. slurm         → {% if slurm_upgrade_enabled | default(false) %}Upgrade the Slurm controller, slurm nodes
+                               {% else %}SKIPPED (not configured in software_config.json){% endif %}
 
           ── Impact & Risk ────────────────────────────────────────────
             • Running Omnia services will be modified and briefly restarted.
             • Do NOT reboot the OIM during the upgrade
             • Compute workloads should be drained or completed beforehand.
 
-          ── Pre-flight Checklist ─────────────────────────────────────
-            [ ] prepare_upgrade.yml completed without errors
-            [ ] Kubernetes cluster healthy (no failing pods, all PVCs
+          ── Pre-flight Checklist (REQUIRED) ──────────────────────────
+            BEFORE proceeding, verify ALL of the following:
+
+            • prepare_upgrade.yml completed without errors
+            {% if k8s_upgrade_enabled | default(false) %}• Kubernetes cluster healthy (no failing pods, all PVCs
                 bound, LoadBalancer services have external IPs)
-            [ ] Slurm cluster healthy (no failing jobs, all nodes ready)
-            [ ] Stable internet connectivity verified on the OIM
-            [ ] Maintenance window is active and stakeholders notified
-            [ ] Sufficient disk space available for new images & packages
+            {% endif %}{% if slurm_upgrade_enabled | default(false) %}• Slurm cluster healthy (no failing jobs, all nodes ready)
+            {% endif %}• Stable internet connectivity verified on the OIM
+            • Maintenance window is active and stakeholders notified
+            • Sufficient disk space available for new images & packages
 
           ──────────────────────────────────────────────────────────────
-            Press  ENTER       to PROCEED with the Omnia upgrade
-            Press  Ctrl+C, A   to ABORT and exit safely
+            CONFIRMATION REQUIRED:
+            Type 'yes' to confirm all pre-flight checks are complete
+            and PROCEED with the Omnia upgrade.
+
+            Type anything else or press Ctrl+C to ABORT.
           ══════════════════════════════════════════════════════════════
+      register: operator_confirmation
       when:
         - not (skip_approval | default(false) | bool)
         - approval_manifest.approval_status | default('pending') != 'approved'
         - not (build_stream_terminal | default(false) | bool)
+
+    - name: Validate operator confirmation
+      when:
+        - not (skip_approval | default(false) | bool)
+        - approval_manifest.approval_status | default('pending') != 'approved'
+        - not (build_stream_terminal | default(false) | bool)
+        - operator_confirmation.user_input | default('') | lower != 'yes'
+      block:
+        - name: Display abort message
+          ansible.builtin.pause:
+            seconds: 1
+            prompt: |2
+              ══════════════════════════════════════════════════════════════
+                        UPGRADE ABORTED — CONFIRMATION REQUIRED
+              ══════════════════════════════════════════════════════════════
+
+              You did not type 'yes' to confirm that all pre-flight checks
+              have been completed.
+
+              To proceed with the upgrade, you MUST explicitly confirm by
+              typing 'yes' when prompted.
+
+              Please re-run the upgrade playbook and type 'yes' at the
+              confirmation prompt:
+
+                cd /omnia/upgrade
+                ansible-playbook upgrade.yml
+
+              ══════════════════════════════════════════════════════════════
+
+        - name: Fail the playbook
+          ansible.builtin.fail:
+            msg: "Upgrade aborted: operator did not confirm pre-flight checks"
 
     - name: Update approval_status to approved in manifest
       ansible.builtin.copy:
@@ -532,7 +568,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['prepare_oim', 'local_repo', 'ufm_telemetry', 'vast_telemetry', 'ldms', 'idrac_telemetry']
             ) | unique
           }}
@@ -631,8 +667,8 @@
       ansible.builtin.set_fact:
         finalize_requested_tags: >-
           {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags | intersect(all_components) }}
+             if (ansible_run_tags is not defined or 'all' in (ansible_run_tags | list))
+             else ansible_run_tags | list | intersect(all_components) }}
 
     - name: Build cleaned component_status (only update requested tags)
       ansible.builtin.set_fact:
