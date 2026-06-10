@@ -35,9 +35,9 @@
 
 - name: Read the service_k8s mount point
   ansible.builtin.set_fact:
-    k8s_client_mount_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
-    k8s_nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
-    k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
+    k8s_client_mount_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).mount_point }}"
+    k8s_nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source.split(':')[0] }}"
+    k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
 
 - name: Ensure SSH key directory exists on K8s share
   ansible.builtin.file:
@@ -98,6 +98,7 @@
         - nfs-client-provisioner
         - helm
         - rke2
+        - rke2/images
 
     - name: Create subdirectories on NFS share for CSI
       ansible.builtin.file:
@@ -215,6 +216,19 @@
        | selectattr('package', 'search', 'nfs-subdir-external-provisioner')
        | map(attribute='package') | join }}
 
+- name: Extract RKE2 airgap image tarball package names # noqa: yaml[line-length]
+  vars:
+    rke2_cluster: "{{ k8s_packages_json['service_rke2']['cluster'] }}"
+  ansible.builtin.set_fact:
+    rke2_images_core_pkg: >-
+      {{ rke2_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'rke2-images-core')
+       | map(attribute='package') | join }}
+    rke2_images_cni_pkg: >-
+      {{ rke2_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'rke2-images-' ~ k8s_cni)
+       | map(attribute='package') | join }}
+
 - name: Copy pulp webserver certificate to target host
   ansible.builtin.copy:
     src: "{{ pulp_webserver_cert_path }}"
@@ -253,6 +267,18 @@
     url: "{{ nfs_client_provisioner_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
     mode: "{{ file_mode }}"
+
+# RKE2 airgap system images (core + selected CNI)
+# RKE2 auto-imports any *.tar.zst found in /var/lib/rancher/rke2/agent/images/
+# on the nodes; the cloud-init templates copy these from the NFS share.
+- name: Download RKE2 airgap image tarballs to NFS share
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.gz"
+    dest: "{{ k8s_client_mount_path }}/rke2/images/{{ item }}.tar.zst"
+    mode: "{{ file_mode }}"
+  loop:
+    - "{{ rke2_images_core_pkg }}"
+    - "{{ rke2_images_cni_pkg }}"
 
 - name: Copy pulp webserver certificate to client_share_path
   ansible.builtin.copy:

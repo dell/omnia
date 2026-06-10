@@ -91,9 +91,9 @@
           permissions: '0644'
         - path: /etc/fstab
           content: |
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
+            {{ k8s_nfs_server_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
+            {{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
+            {{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
           permissions: '0644'
 
         - path: /etc/rancher/rke2/registries.yaml
@@ -179,7 +179,7 @@
         - sudo modprobe nf_conntrack || true
         - sudo modprobe vxlan || true
         - sysctl --system
-        - mkdir -p {{ k8s_client_mount_path }} /var/log/pods /var/lib/packages /etc/rancher/rke2
+        - mkdir -p {{ k8s_client_mount_path }} /var/log/pods /var/lib/packages /etc/rancher/rke2 /var/lib/rancher/rke2/agent/images
         - |
           tmpfile=$(mktemp)
 
@@ -203,6 +203,8 @@
           fi
         - systemctl restart rpcbind
         - mount -a
+        # Stage RKE2 airgap system images (core + CNI); RKE2 auto-imports them on start
+        - cp {{ k8s_client_mount_path }}/rke2/images/*.tar.zst /var/lib/rancher/rke2/agent/images/
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf

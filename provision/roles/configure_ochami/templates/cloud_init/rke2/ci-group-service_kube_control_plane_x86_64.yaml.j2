@@ -91,9 +91,9 @@
           permissions: '0644'
         - path: /etc/fstab
           content: |
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
+            {{ k8s_nfs_server_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
+            {{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
+            {{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
           permissions: '0644'
 
         - path: /etc/rancher/rke2/registries.yaml
@@ -189,7 +189,7 @@
                         - NET_ADMIN
                         - NET_RAW
                   volumeMounts:
-                    - mountPath: /etc/rancher/rke2/rke2.yaml
+                    - mountPath: /etc/kubernetes/admin.conf
                       name: kubeconfig
               hostAliases:
                 - hostnames:
@@ -276,7 +276,7 @@
         - sudo modprobe nf_conntrack || true
         - sudo modprobe vxlan || true
         - sysctl --system
-        - mkdir -p {{ k8s_client_mount_path }} /var/log/pods /var/lib/packages /etc/rancher/rke2 /var/lib/rancher/rke2/server/manifests
+        - mkdir -p {{ k8s_client_mount_path }} /var/log/pods /var/lib/packages /etc/rancher/rke2 /var/lib/rancher/rke2/agent/pod-manifests /var/lib/rancher/rke2/agent/images
         - |
           tmpfile=$(mktemp)
 
@@ -299,6 +299,8 @@
             chattr +i /etc/resolv.conf || true
           fi
         - mount -a
+        # Stage RKE2 airgap system images (core + CNI); RKE2 auto-imports them on start
+        - cp {{ k8s_client_mount_path }}/rke2/images/*.tar.zst /var/lib/rancher/rke2/agent/images/
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
@@ -358,16 +360,17 @@
               - ${NODE_NAME}
             node-name: ${NODE_NAME}
             write-kubeconfig-mode: "0644"
+            cluster-cidr: {{ k8s_pod_network_cidr }}
+            service-cidr: {{ k8s_service_addresses }}
             cni: {{ k8s_cni }}
             disable:
               - rke2-ingress-nginx
           EOF
 
-            # Place kube-vip as a static pod for this server
+            # Prepare kube-vip manifest for this server (deployed after join)
             NODE_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
             VIP_IFACE=$(ip -o addr show | awk -v ip="$NODE_IP" '$4 ~ ip {print $2}')
             sed -i "s/value: vip_interface/value: ${VIP_IFACE}/" /tmp/kube-vip.yaml
-            cp /tmp/kube-vip.yaml /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
 
             # Start RKE2 server
             echo "Starting RKE2 server (joining cluster)..."
@@ -386,6 +389,12 @@
             mkdir -p /root/.kube
             cp -f /etc/rancher/rke2/rke2.yaml /root/.kube/config
             chmod 600 /root/.kube/config
+
+            # Place kube-vip as a kubelet static pod now that rke2.yaml exists.
+            # /var/lib/rancher/rke2/agent/pod-manifests is RKE2's kubelet
+            # staticPodPath; deploying after the kubeconfig is written avoids
+            # the hostPath mount creating a directory at the rke2.yaml path.
+            cp /tmp/kube-vip.yaml /var/lib/rancher/rke2/agent/pod-manifests/kube-vip.yaml
 
             # Update kubeconfig to use VIP
             KUBE_PORT="6443"
