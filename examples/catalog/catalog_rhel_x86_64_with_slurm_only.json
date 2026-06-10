@@ -1078,7 +1078,7 @@
         ],
         "Type": "image",
         "Tag": "1.1",
-        "Version": "1.1"
+        "Version": "1.2"
       },
       "dracut": {
         "Name": "dracut",
