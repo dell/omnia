@@ -524,7 +524,7 @@
             cp {{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml {{ k8s_client_mount_path }}/calico/updated-{{ calico_package }}.yml
 
             CALICO_YAML="{{ k8s_client_mount_path }}/calico/updated-{{ calico_package }}.yml"
-            ADMIN_NIC_CIDR="{{ admin_nic_cidr }}"
+            ADMIN_NIC_CIDR="{{ calico_cidr }}"
 
             # Only add if not already present
             if ! grep -q 'name: IP_AUTODETECTION_METHOD' "$CALICO_YAML"; then

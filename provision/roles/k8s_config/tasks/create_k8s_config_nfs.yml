@@ -66,6 +66,37 @@
   ansible.builtin.set_fact:
     admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
 
+- name: Read PXE mapping to find control plane node subnet
+  community.general.read_csv:
+    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+  register: pxe_data_for_cidr
+
+- name: Determine Calico CIDR from control plane nodes subnet
+  ansible.builtin.set_fact:
+    calico_cidr: >-
+      {%- set kcp_ips = pxe_data_for_cidr.list
+          | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^service_kube_control_plane')
+          | map(attribute='ADMIN_IP') | list -%}
+      {%- if kcp_ips | length > 0 -%}
+        {%- set ref_ip = kcp_ips[0] -%}
+        {%- set primary_net = (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
+        {%- if ref_ip | ansible.utils.ipaddr(primary_net) -%}
+          {{ primary_net }}
+        {%- else -%}
+          {%- set additional = hostvars['localhost']['network_data']['admin_network']['additional_subnets'] | default([]) -%}
+          {%- set ns = namespace(found='') -%}
+          {%- for s in additional if not ns.found -%}
+            {%- set subnet_cidr = (s.subnet + '/' + s.netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
+            {%- if ref_ip | ansible.utils.ipaddr(subnet_cidr) -%}
+              {%- set ns.found = subnet_cidr -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.found if ns.found else primary_net }}
+        {%- endif -%}
+      {%- else -%}
+        {{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}
+      {%- endif -%}
+
 - name: Fetch server_ip and server_share_path from list when nfs sever is localhost
   ansible.builtin.set_fact:
     nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
