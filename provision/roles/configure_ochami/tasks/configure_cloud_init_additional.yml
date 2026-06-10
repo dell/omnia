@@ -12,40 +12,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Renders and sets the user-provided additional cloud-init group.
-# This group is applied to ALL nodes (common group) and uses merge_how
-# with no_replace so platform defaults always take precedence.
+# Renders and sets additional cloud-init groups (common + per-functional-group).
+# Common group is applied to ALL nodes; per-FG groups target specific functional groups.
+# Uses merge_how with no_replace so platform defaults always take precedence.
 
-- name: Delete ci group configuration - {{ additional_cloud_init_group_name }}
+# --- Common additional cloud-init group ---
+- name: Delete ci group configuration - {{ additional_cloud_init_common_group_name }}
   ansible.builtin.command: >-
     /usr/bin/ochami cloud-init group delete --no-confirm
-    -f yaml -d @{{ ci_group_additional_dest }}
+    -f yaml -d @{{ cloud_init_dir }}/ci-group-{{ additional_cloud_init_common_group_name }}.yaml
   changed_when: true
   failed_when: false
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  when:
+    - additional_cloud_init_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-- name: Render ci group additional_cloud_init template
+- name: Render ci group template - {{ additional_cloud_init_common_group_name }}
   ansible.builtin.template:
     src: "{{ ci_group_additional_template }}"
-    dest: "{{ ci_group_additional_dest }}"
+    dest: "{{ cloud_init_dir }}/ci-group-{{ additional_cloud_init_common_group_name }}.yaml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  vars:
+    ci_additional_group_name: "{{ additional_cloud_init_common_group_name }}"
+    ci_additional_data: "{{ additional_cloud_init_common_data }}"
+  when: additional_cloud_init_common_enabled | default(false) | bool
 
-- name: Set ci group configuration - {{ additional_cloud_init_group_name }}
+- name: Set ci group configuration - {{ additional_cloud_init_common_group_name }}
   ansible.builtin.command: >-
     /usr/bin/ochami cloud-init group set
-    -f yaml -d @{{ ci_group_additional_dest }}
+    -f yaml -d @{{ cloud_init_dir }}/ci-group-{{ additional_cloud_init_common_group_name }}.yaml
   changed_when: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  when:
+    - additional_cloud_init_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-- name: Verify ci group configuration - {{ additional_cloud_init_group_name }}
+- name: Verify ci group - {{ additional_cloud_init_common_group_name }}
   ansible.builtin.command: >-
-    /usr/bin/ochami cloud-init group get config {{ additional_cloud_init_group_name }}
+    /usr/bin/ochami cloud-init group get config {{ additional_cloud_init_common_group_name }}
   changed_when: false
-  register: ci_group_additional_output
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  register: _ci_common_additional_output
+  when:
+    - additional_cloud_init_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-- name: Verify ci group additional output
+- name: Verify ci group output - {{ additional_cloud_init_common_group_name }}
   ansible.builtin.debug:
-    msg: "{{ ci_group_additional_output.stdout_lines }}"
+    msg: "{{ _ci_common_additional_output.stdout_lines }}"
     verbosity: 2
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  when:
+    - additional_cloud_init_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+# --- Per-functional-group additional cloud-init groups ---
+- name: Configure per-FG additional cloud-init groups
+  ansible.builtin.include_tasks: configure_cloud_init_additional_fg.yml
+  vars:
+    _ci_fg_name: "{{ item }}"
+  with_items: "{{ additional_cloud_init_fg_names | default([]) }}"
+  when: additional_cloud_init_groups_enabled | default(false) | bool

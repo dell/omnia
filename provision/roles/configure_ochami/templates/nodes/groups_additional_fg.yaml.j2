@@ -1,0 +1,8 @@
+- label: {{ additional_cloud_init_fg_smd_group_name }}
+  members:
+    ids:
+{% for item in nodes | sort(attribute='value.XNAME') %}
+{% if item.value.FUNCTIONAL_GROUP_NAME == functional_group_name %}
+      - {{ item.value.XNAME }}
+{% endif %}
+{% endfor %}

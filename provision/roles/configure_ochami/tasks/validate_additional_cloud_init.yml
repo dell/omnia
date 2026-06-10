@@ -12,100 +12,114 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Validates user-provided additional_cloud_init from provision_config.yml.
-# Ensures:
-#   - No prohibited keys (bootcmd, network, network-config) are present
-#   - Only allowed keys (write_files, packages, runcmd) are used
+# Validates user-provided additional cloud-init from an external YAML file.
+# The file path is specified in provision_config.yml as additional_cloud_init_config_file.
+# File structure: { common: {}, groups: { <fg_name>: {} } }
+# Validates:
+#   - File exists and is valid YAML
+#   - Top-level keys are only 'common' and 'groups'
+#   - Each section has no prohibited keys (bootcmd, network, network-config)
+#   - Each section has only allowed keys (write_files, packages, runcmd)
 #   - write_files entries have required 'path' field
-#   - runcmd entries are strings
-#   - packages entries are strings
-# Failures produce structured, actionable error messages.
+#   - runcmd and packages entries are strings
+#   - Group names match actual functional groups from pxe_mapping_file
+# Sets facts: additional_cloud_init_enabled, additional_cloud_init_common_enabled,
+#   additional_cloud_init_groups_enabled, additional_cloud_init_common_data,
+#   additional_cloud_init_groups_data, additional_cloud_init_fg_names
 
-- name: Load additional_cloud_init from provision_config
+- name: Read additional_cloud_init_config_file path
   ansible.builtin.set_fact:
-    additional_cloud_init_data: "{{ hostvars['localhost']['additional_cloud_init'] | default({}) }}"
+    additional_cloud_init_file_path: >-
+      {{ hostvars['localhost']['additional_cloud_init_config_file'] | default('') | trim }}
 
-- name: Skip validation if additional_cloud_init is empty
+- name: Set defaults when additional cloud-init is disabled
   ansible.builtin.set_fact:
-    additional_cloud_init_enabled: "{{ additional_cloud_init_data | length > 0 }}"
+    additional_cloud_init_enabled: false
+    additional_cloud_init_common_enabled: false
+    additional_cloud_init_groups_enabled: false
+    additional_cloud_init_common_data: {}
+    additional_cloud_init_groups_data: {}
+    additional_cloud_init_fg_names: []
+  when: additional_cloud_init_file_path == ''
 
-- name: Validate additional_cloud_init - check for prohibited keys
-  ansible.builtin.fail:
-    msg: >-
-      additional_cloud_init validation FAILED: Prohibited key '{{ item }}' found.
-      The keys 'bootcmd', 'network', and 'network-config' are platform-managed
-      and must NOT be overridden by user cloud-init. These affect early boot
-      and networking stages that are critical for node provisioning.
-      Remove '{{ item }}' from additional_cloud_init in provision_config.yml.
-  when:
-    - additional_cloud_init_enabled | bool
-    - item in additional_cloud_init_data
-  loop: "{{ additional_cloud_init_prohibited_keys }}"
+- name: Validate additional cloud-init config file
+  when: additional_cloud_init_file_path != ''
+  block:
+    - name: Check additional cloud-init config file exists
+      ansible.builtin.stat:
+        path: "{{ additional_cloud_init_file_path }}"
+      register: _aci_file_stat
 
-- name: Validate additional_cloud_init - check for unknown keys
-  ansible.builtin.fail:
-    msg: >-
-      additional_cloud_init validation FAILED: Unknown key '{{ item }}' found.
-      Only the following keys are allowed: {{ additional_cloud_init_allowed_keys | join(', ') }}.
-      These correspond to cloud-init config and final stage directives.
-      Remove '{{ item }}' from additional_cloud_init in provision_config.yml.
-  when:
-    - additional_cloud_init_enabled | bool
-    - item not in additional_cloud_init_allowed_keys
-  loop: "{{ additional_cloud_init_data.keys() | list }}"
+    - name: Fail if additional cloud-init config file not found
+      ansible.builtin.fail:
+        msg: >-
+          additional_cloud_init validation FAILED: File not found at
+          '{{ additional_cloud_init_file_path }}'.
+          Verify additional_cloud_init_config_file in provision_config.yml.
+      when: not _aci_file_stat.stat.exists
 
-- name: Validate additional_cloud_init - write_files entries have path
-  ansible.builtin.fail:
-    msg: >-
-      additional_cloud_init validation FAILED: write_files entry at index {{ idx }}
-      is missing the required 'path' field. Each write_files entry must specify
-      the target file path on the node.
-      Fix: Add 'path: /path/to/file' to the entry in additional_cloud_init.write_files.
-  when:
-    - additional_cloud_init_enabled | bool
-    - "'write_files' in additional_cloud_init_data"
-    - item.path is not defined or item.path | trim == ''
-  loop: "{{ additional_cloud_init_data.write_files | default([]) }}"
-  loop_control:
-    index_var: idx
+    - name: Load additional cloud-init config file
+      ansible.builtin.slurp:
+        src: "{{ additional_cloud_init_file_path }}"
+      register: _aci_file_content
 
-- name: Validate additional_cloud_init - runcmd entries are strings
-  ansible.builtin.fail:
-    msg: >-
-      additional_cloud_init validation FAILED: runcmd entry at index {{ idx }}
-      is not a string: '{{ item }}' (type: {{ item | type_debug }}).
-      Each runcmd entry must be a shell command string.
-      Fix: Ensure all entries in additional_cloud_init.runcmd are strings.
-  when:
-    - additional_cloud_init_enabled | bool
-    - "'runcmd' in additional_cloud_init_data"
-    - item is not string
-  loop: "{{ additional_cloud_init_data.runcmd | default([]) }}"
-  loop_control:
-    index_var: idx
+    - name: Parse additional cloud-init config YAML
+      ansible.builtin.set_fact:
+        _aci_config: "{{ _aci_file_content.content | b64decode | from_yaml | default({}) }}"
 
-- name: Validate additional_cloud_init - packages entries are strings
-  ansible.builtin.fail:
-    msg: >-
-      additional_cloud_init validation FAILED: packages entry at index {{ idx }}
-      is not a string: '{{ item }}' (type: {{ item | type_debug }}).
-      Each packages entry must be a package name string.
-      Fix: Ensure all entries in additional_cloud_init.packages are strings.
-  when:
-    - additional_cloud_init_enabled | bool
-    - "'packages' in additional_cloud_init_data"
-    - item is not string
-  loop: "{{ additional_cloud_init_data.packages | default([]) }}"
-  loop_control:
-    index_var: idx
+    - name: Validate top-level keys
+      ansible.builtin.fail:
+        msg: >-
+          additional_cloud_init validation FAILED: Unknown top-level key '{{ item }}'.
+          Only 'common' and 'groups' are allowed.
+          Fix: Remove '{{ item }}' from {{ additional_cloud_init_file_path }}.
+      when: item not in additional_cloud_init_top_level_keys
+      loop: "{{ _aci_config.keys() | list }}"
 
-- name: Log additional_cloud_init validation result
-  ansible.builtin.debug:
-    msg: >-
-      additional_cloud_init validation PASSED.
-      Enabled: {{ additional_cloud_init_enabled }}.
-      Keys: {{ additional_cloud_init_data.keys() | list | default([]) }}.
-      write_files: {{ additional_cloud_init_data.write_files | default([]) | length }} entries.
-      packages: {{ additional_cloud_init_data.packages | default([]) | length }} entries.
-      runcmd: {{ additional_cloud_init_data.runcmd | default([]) | length }} entries.
-  when: additional_cloud_init_enabled | bool
+    - name: Extract common and groups data
+      ansible.builtin.set_fact:
+        additional_cloud_init_common_data: "{{ _aci_config.common | default({}) }}"
+        additional_cloud_init_groups_data: "{{ _aci_config.groups | default({}) }}"
+
+    - name: Set enabled flags and FG name list
+      ansible.builtin.set_fact:
+        additional_cloud_init_common_enabled: "{{ additional_cloud_init_common_data | length > 0 }}"
+        additional_cloud_init_groups_enabled: "{{ additional_cloud_init_groups_data | length > 0 }}"
+        additional_cloud_init_fg_names: "{{ additional_cloud_init_groups_data.keys() | list }}"
+        additional_cloud_init_enabled: >-
+          {{ (additional_cloud_init_common_data | length > 0) or
+             (additional_cloud_init_groups_data | length > 0) }}
+
+    - name: Validate common section
+      ansible.builtin.include_tasks: validate_additional_cloud_init_section.yml
+      vars:
+        _aci_section_name: common
+        _aci_section_data: "{{ additional_cloud_init_common_data }}"
+      when: additional_cloud_init_common_enabled | bool
+
+    - name: Validate per-FG group names match functional groups
+      ansible.builtin.fail:
+        msg: >-
+          additional_cloud_init validation FAILED: Group '{{ item }}' is not a valid
+          functional group. Valid groups:
+          {{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list | join(', ') }}.
+          Fix: Use a valid functional group name in the 'groups' section.
+      when: item not in (hostvars['localhost']['functional_groups'] | map(attribute='name') | list)
+      loop: "{{ additional_cloud_init_fg_names }}"
+
+    - name: Validate per-FG sections
+      ansible.builtin.include_tasks: validate_additional_cloud_init_section.yml
+      vars:
+        _aci_section_name: "{{ item }}"
+        _aci_section_data: "{{ additional_cloud_init_groups_data[item] }}"
+      loop: "{{ additional_cloud_init_fg_names }}"
+      when: additional_cloud_init_groups_enabled | bool
+
+    - name: Log additional_cloud_init validation result
+      ansible.builtin.debug:
+        msg: >-
+          additional_cloud_init validation PASSED.
+          File: {{ additional_cloud_init_file_path }}.
+          Common enabled: {{ additional_cloud_init_common_enabled }}.
+          Groups enabled: {{ additional_cloud_init_groups_enabled }}.
+          FG names: {{ additional_cloud_init_fg_names }}.

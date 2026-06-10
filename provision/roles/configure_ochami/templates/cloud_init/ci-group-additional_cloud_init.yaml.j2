@@ -1,4 +1,4 @@
-- name: {{ additional_cloud_init_group_name }}
+- name: {{ ci_additional_group_name }}
   description: "User-provided additional cloud-init (config and final stages only)"
   file:
     encoding: plain
@@ -10,9 +10,9 @@
           settings: [append]
         - name: dict
           settings: [no_replace, recurse_list]
-{% if additional_cloud_init_data.write_files is defined and additional_cloud_init_data.write_files | length > 0 %}
+{% if ci_additional_data.write_files is defined and ci_additional_data.write_files | length > 0 %}
       write_files:
-{% for wf in additional_cloud_init_data.write_files %}
+{% for wf in ci_additional_data.write_files %}
         - path: {{ wf.path }}
 {% if wf.permissions is defined %}
           permissions: '{{ wf.permissions }}'
@@ -30,15 +30,15 @@
             {{ wf.content | indent(12) }}
 {% endfor %}
 {% endif %}
-{% if additional_cloud_init_data.packages is defined and additional_cloud_init_data.packages | length > 0 %}
+{% if ci_additional_data.packages is defined and ci_additional_data.packages | length > 0 %}
       packages:
-{% for pkg in additional_cloud_init_data.packages %}
+{% for pkg in ci_additional_data.packages %}
         - {{ pkg }}
 {% endfor %}
 {% endif %}
-{% if additional_cloud_init_data.runcmd is defined and additional_cloud_init_data.runcmd | length > 0 %}
+{% if ci_additional_data.runcmd is defined and ci_additional_data.runcmd | length > 0 %}
       runcmd:
-{% for cmd in additional_cloud_init_data.runcmd %}
+{% for cmd in ci_additional_data.runcmd %}
         - {{ cmd }}
 {% endfor %}
 {% endif %}
