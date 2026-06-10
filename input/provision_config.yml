@@ -52,3 +52,34 @@ dns_enabled: false
 # Leave empty ("") to auto-select the latest available image from S3.
 # Example: kernel_version_override: "6.12.0-55.76.1.el10_0.x86_64"
 kernel_version_override: ""
+
+# Additional cloud-init configuration to merge into stateless node provisioning.
+# This content is applied to ALL nodes as a common cloud-init group.
+#
+# ALLOWED keys (config and final stage only):
+#   write_files  - Write files to nodes (list of file entries)
+#   packages     - Install additional packages (list of package names)
+#   runcmd       - Run commands at final stage (list of commands)
+#
+# PROHIBITED keys (validation will fail if present):
+#   bootcmd, network, network-config
+#   These are platform-managed and must not be overridden by users.
+#
+# Merge behavior:
+#   Platform-defined defaults always take precedence (merge_how: no_replace).
+#   User entries are appended to platform lists (write_files, runcmd, packages).
+#
+# Example:
+#   additional_cloud_init:
+#     write_files:
+#       - path: /etc/motd
+#         content: "Welcome to the HPC cluster\n"
+#         permissions: '0644'
+#     packages:
+#       - htop
+#       - vim
+#     runcmd:
+#       - echo "Custom node setup complete" >> /var/log/custom_setup.log
+#
+# Default: {} (empty, no additional cloud-init)
+additional_cloud_init: {}
