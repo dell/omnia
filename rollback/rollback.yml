@@ -254,9 +254,10 @@
       ansible.builtin.set_fact:
         build_stream_terminal: >-
           {{ (build_stream_config.enable_build_stream | default(false) | bool)
-             and (upgrade_manifest is defined)
+             or ((upgrade_manifest is defined)
              and (upgrade_manifest.component_status is defined)
-             and (upgrade_manifest.component_status.build_stream | default('pending') in ['completed', 'skipped']) }}
+             and (upgrade_manifest.component_status.build_stream | default('pending') in ['completed', 'skipped'])) }}
+        cacheable: true
 
     - name: Identify components skipped by BuildStream terminal gate
       ansible.builtin.set_fact:

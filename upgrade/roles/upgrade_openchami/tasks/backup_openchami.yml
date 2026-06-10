@@ -107,6 +107,23 @@
     - name: Retrieve PostgreSQL credentials
       ansible.builtin.include_tasks: retrieve_postgres_credentials.yml
 
+    # ── Check if a valid pg_dump backup is already locked ──────────────
+    # If a previous upgrade run already captured the v2.1 pg_dump, a lock
+    # file prevents this run from overwriting it with a (possibly v2.2)
+    # schema dump. The lock is cleared on successful upgrade or rollback.
+    - name: Check if pg_dump backup lock exists
+      ansible.builtin.stat:
+        path: "{{ openchami_backup_dir }}/{{ pgdump_backup_lock }}"
+      register: pgdump_lock_stat
+
+    - name: Skip pg_dump — existing v2.1 backup is locked
+      ansible.builtin.debug:
+        msg: >-
+          PostgreSQL backup lock found — a valid pre-upgrade pg_dump already
+          exists from a previous run. Skipping pg_dump to preserve the
+          original v2.1 database backup for rollback safety.
+      when: pgdump_lock_stat.stat.exists | default(false)
+
     # ── Verify disk space for pg_dump (df on backup target) ────────────
     # /opt/omnia is bind-mounted — df works locally inside omnia_core.
     - name: Check available disk space on backup target
@@ -115,6 +132,7 @@
         df -BG "/opt/omnia" | tail -1 | awk '{print $4}' | sed 's/G//'
       register: backup_disk_space_gb
       changed_when: false
+      when: not (pgdump_lock_stat.stat.exists | default(false))
 
     - name: Get current PostgreSQL database size
       ansible.builtin.shell: |
@@ -127,6 +145,7 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+      when: not (pgdump_lock_stat.stat.exists | default(false))
 
     - name: Display disk space status
       ansible.builtin.debug:
@@ -135,6 +154,7 @@
           - "Backup target: {{ openchami_backup_dir }}"
           - "Available space: {{ backup_disk_space_gb.stdout | default('unknown') | trim }}GB"
           - "PostgreSQL database size: {{ postgres_db_size.stdout | default('unknown') | trim }}"
+      when: not (pgdump_lock_stat.stat.exists | default(false))
 
     - name: Verify sufficient disk space for backup
       ansible.builtin.assert:
@@ -146,8 +166,9 @@
           Minimum required: 5GB
           Please free up space on /opt/omnia before proceeding.
         success_msg: "Sufficient disk space available for backup ({{ backup_disk_space_gb.stdout | default('0') | trim }}GB)"
+      when: not (pgdump_lock_stat.stat.exists | default(false))
 
-    # ── PostgreSQL pg_dump ─────────────────────────────────────────────
+    # ── PostgreSQL pg_dump (skipped if lock exists) ────────────────────
     # Dump the hmsds database inside the postgres container, then copy
     # the SQL file to the OIM host-side shared backup path.
     # For prepare_oim-only scenarios the DB may be empty — pg_dump still
@@ -167,6 +188,7 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+      when: not (pgdump_lock_stat.stat.exists | default(false))
 
     - name: Copy pg_dump from postgres container to shared backup path
       ansible.builtin.shell: |
@@ -176,7 +198,9 @@
       register: pgdump_copy_result
       changed_when: pgdump_copy_result.rc == 0
       failed_when: false
-      when: pgdump_result.rc == 0
+      when:
+        - not (pgdump_lock_stat.stat.exists | default(false))
+        - pgdump_result.rc | default(1) == 0
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -189,7 +213,9 @@
           -- stderr: {{ pgdump_result.stderr | default('') | trim }}
         dest: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
         mode: "{{ file_permissions_644 }}"
-      when: pgdump_result.rc | default(1) != 0
+      when:
+        - not (pgdump_lock_stat.stat.exists | default(false))
+        - pgdump_result.rc | default(1) != 0
 
     - name: Display pg_dump warning if it failed
       ansible.builtin.debug:
@@ -197,7 +223,9 @@
           WARNING: pg_dump returned rc={{ pgdump_result.rc | default('unknown') }}.
           This is acceptable for prepare_oim-only setups with empty databases.
           stderr: {{ pgdump_result.stderr | default('none') | trim }}
-      when: pgdump_result.rc | default(1) != 0
+      when:
+        - not (pgdump_lock_stat.stat.exists | default(false))
+        - pgdump_result.rc | default(1) != 0
 
     - name: Clean up temporary pg_dump file inside postgres container
       ansible.builtin.shell: |
@@ -208,11 +236,30 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+      when: not (pgdump_lock_stat.stat.exists | default(false))
 
     - name: Verify pg_dump output exists locally
       ansible.builtin.stat:
         path: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
       register: pgdump_stat
+
+    # ── Create pg_dump backup lock after successful dump ────────────────
+    - name: Create pg_dump backup lock to protect v2.1 backup
+      ansible.builtin.copy:
+        content: |
+          # PostgreSQL backup lock — do not delete manually.
+          # This lock prevents upgrade re-runs from overwriting the
+          # original v2.1 pg_dump with a v2.2 schema dump.
+          # Cleared automatically on successful upgrade or rollback.
+          locked_at: "{{ ansible_date_time.iso8601 }}"
+          backup_file: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
+          backup_size_bytes: {{ pgdump_stat.stat.size | default(0) }}
+        dest: "{{ openchami_backup_dir }}/{{ pgdump_backup_lock }}"
+        mode: "{{ file_permissions_644 }}"
+      when:
+        - not (pgdump_lock_stat.stat.exists | default(false))
+        - pgdump_stat.stat.exists | default(false)
+        - pgdump_stat.stat.size | default(0) | int > 500
 
     - name: Display pg_dump backup status
       ansible.builtin.debug:
@@ -220,7 +267,8 @@
         msg: >-
           PostgreSQL backup: {{ 'created' if pgdump_stat.stat.exists | default(false) else 'MISSING' }}
           ({{ pgdump_stat.stat.size | default(0) }} bytes,
-          pg_dump rc={{ pgdump_result.rc | default('unknown') }})
+          pg_dump rc={{ pgdump_result.rc | default('skipped (locked)') }},
+          lock: {{ 'active' if pgdump_lock_stat.stat.exists | default(false) else 'created' }})
 
     # ── Backup entire /etc/openchami directory ──────────────────────────
     # Back up the complete /etc/openchami directory to the backup folder.

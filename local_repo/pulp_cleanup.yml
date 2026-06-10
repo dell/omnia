@@ -106,7 +106,8 @@
 
           WARNING: This will permanently delete the specified artifacts.
           This action cannot be undone.
-          Type 'yes' to continue or press Ctrl+C to abort
+          Type 'yes' to continue or 'no' to abort
+        echo: true
       register: user_input
       when: not force_skip_confirmation
 
@@ -114,9 +115,15 @@
       ansible.builtin.set_fact:
         user_confirmed: "{{ (user_input.user_input | default('') | lower) == 'yes' }}"
 
+    - name: Display cancellation message
+      ansible.builtin.debug:
+        msg: "Cleanup cancelled by user. Exiting."
+      when:
+        - not force_skip_confirmation
+        - not user_confirmed
+
     - name: Abort if not confirmed
-      ansible.builtin.fail:
-        msg: "Cleanup cancelled by user"
+      ansible.builtin.meta: end_play
       when:
         - not force_skip_confirmation
         - not user_confirmed
