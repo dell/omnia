@@ -111,19 +111,23 @@
     - name: Validate per-FG group names match functional groups
       ansible.builtin.fail:
         msg: >-
-          additional_cloud_init validation FAILED: Group '{{ item }}' is not a valid
+          additional_cloud_init validation FAILED: Group '{{ _aci_fg_name }}' is not a valid
           functional group. Valid groups:
           {{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list | join(', ') }}.
           Fix: Use a valid functional group name in the 'groups' section.
-      when: item not in (hostvars['localhost']['functional_groups'] | map(attribute='name') | list)
+      when: _aci_fg_name not in (hostvars['localhost']['functional_groups'] | map(attribute='name') | list)
       loop: "{{ additional_cloud_init_fg_names }}"
+      loop_control:
+        loop_var: _aci_fg_name
 
     - name: Validate per-FG sections
       ansible.builtin.include_tasks: validate_additional_cloud_init_section.yml
       vars:
-        _aci_section_name: "{{ item }}"
-        _aci_section_data: "{{ additional_cloud_init_groups_data[item] }}"
+        _aci_section_name: "{{ _aci_fg_name }}"
+        _aci_section_data: "{{ additional_cloud_init_groups_data[_aci_fg_name] }}"
       loop: "{{ additional_cloud_init_fg_names }}"
+      loop_control:
+        loop_var: _aci_fg_name
       when: additional_cloud_init_groups_enabled | bool
 
     - name: Log additional_cloud_init validation result

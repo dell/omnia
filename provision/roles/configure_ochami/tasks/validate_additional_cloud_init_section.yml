@@ -21,24 +21,28 @@
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
-      Prohibited key '{{ item }}' found.
+      Prohibited key '{{ _aci_key }}' found.
       The keys 'bootcmd', 'network', and 'network-config' are platform-managed
       and must NOT be overridden.
-      Fix: Remove '{{ item }}' from the '{{ _aci_section_name }}' section
-      in {{ additional_cloud_init_file_path }}.
-  when: item in _aci_section_data
+      Fix: Remove '{{ _aci_key }}' from the '{{ _aci_section_name }}' section
+      in {{ additional_cloud_init_oim_path }}.
+  when: _aci_key in (_aci_section_data.keys() | list)
   loop: "{{ additional_cloud_init_prohibited_keys }}"
+  loop_control:
+    loop_var: _aci_key
 
 - name: "Validate {{ _aci_section_name }} - check for unknown keys"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
-      Unknown key '{{ item }}' found.
+      Unknown key '{{ _aci_key }}' found.
       Only allowed: {{ additional_cloud_init_allowed_keys | join(', ') }}.
-      Fix: Remove '{{ item }}' from the '{{ _aci_section_name }}' section
-      in {{ additional_cloud_init_file_path }}.
-  when: item not in additional_cloud_init_allowed_keys
+      Fix: Remove '{{ _aci_key }}' from the '{{ _aci_section_name }}' section
+      in {{ additional_cloud_init_oim_path }}.
+  when: _aci_key not in additional_cloud_init_allowed_keys
   loop: "{{ _aci_section_data.keys() | list }}"
+  loop_control:
+    loop_var: _aci_key
 
 - name: "Validate {{ _aci_section_name }} - write_files entries have path"
   ansible.builtin.fail:
@@ -47,34 +51,37 @@
       write_files entry at index {{ idx }} is missing the required 'path' field.
       Each write_files entry must specify the target file path on the node.
   when:
-    - "'write_files' in _aci_section_data"
-    - item.path is not defined or item.path | trim == ''
+    - "'write_files' in (_aci_section_data.keys() | list)"
+    - _aci_entry.path is not defined or _aci_entry.path | trim == ''
   loop: "{{ _aci_section_data.write_files | default([]) }}"
   loop_control:
+    loop_var: _aci_entry
     index_var: idx
 
 - name: "Validate {{ _aci_section_name }} - runcmd entries are strings"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
-      runcmd entry at index {{ idx }} is not a string (type: {{ item | type_debug }}).
+      runcmd entry at index {{ idx }} is not a string (type: {{ _aci_entry | type_debug }}).
       Each runcmd entry must be a shell command string.
   when:
-    - "'runcmd' in _aci_section_data"
-    - item is not string
+    - "'runcmd' in (_aci_section_data.keys() | list)"
+    - _aci_entry is not string
   loop: "{{ _aci_section_data.runcmd | default([]) }}"
   loop_control:
+    loop_var: _aci_entry
     index_var: idx
 
 - name: "Validate {{ _aci_section_name }} - packages entries are strings"
   ansible.builtin.fail:
     msg: >-
       additional_cloud_init validation FAILED in '{{ _aci_section_name }}':
-      packages entry at index {{ idx }} is not a string (type: {{ item | type_debug }}).
+      packages entry at index {{ idx }} is not a string (type: {{ _aci_entry | type_debug }}).
       Each packages entry must be a package name string.
   when:
-    - "'packages' in _aci_section_data"
-    - item is not string
+    - "'packages' in (_aci_section_data.keys() | list)"
+    - _aci_entry is not string
   loop: "{{ _aci_section_data.packages | default([]) }}"
   loop_control:
+    loop_var: _aci_entry
     index_var: idx
