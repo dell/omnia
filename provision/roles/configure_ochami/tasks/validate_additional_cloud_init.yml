@@ -12,20 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Validates user-provided additional cloud-init from an external YAML file.
-# The file path is specified in provision_config.yml as additional_cloud_init_config_file.
-# File structure: { common: {}, groups: { <fg_name>: {} } }
-# Validates:
-#   - File exists and is valid YAML
-#   - Top-level keys are only 'common' and 'groups'
-#   - Each section has no prohibited keys (bootcmd, network, network-config)
-#   - Each section has only allowed keys (write_files, packages, runcmd)
-#   - write_files entries have required 'path' field
-#   - runcmd and packages entries are strings
-#   - Group names match actual functional groups from pxe_mapping_file
-# Sets facts: additional_cloud_init_enabled, additional_cloud_init_common_enabled,
-#   additional_cloud_init_groups_enabled, additional_cloud_init_common_data,
-#   additional_cloud_init_groups_data, additional_cloud_init_fg_names
+# Loads user-provided additional cloud-init config and sets facts for
+# configure_cloud_init_additional.yml and create_groups_additional_fg.yml.
+# Input validation (prohibited keys, allowed keys, types, FG names) is
+# performed earlier in the L2 validation flow (provision_validation.py).
+# This file only parses the YAML and sets enabled/data facts.
 
 - name: Read additional_cloud_init_config_file path
   ansible.builtin.set_fact:
@@ -42,23 +33,9 @@
     additional_cloud_init_fg_names: []
   when: additional_cloud_init_file_path == ''
 
-- name: Validate additional cloud-init config file
+- name: Load additional cloud-init config
   when: additional_cloud_init_file_path != ''
   block:
-    - name: Check additional cloud-init config file exists on localhost
-      ansible.builtin.stat:
-        path: "{{ additional_cloud_init_file_path }}"
-      register: _aci_file_stat
-      delegate_to: localhost
-
-    - name: Fail if additional cloud-init config file not found
-      ansible.builtin.fail:
-        msg: >-
-          additional_cloud_init validation FAILED: File not found at
-          '{{ additional_cloud_init_file_path }}'.
-          Verify additional_cloud_init_config_file in provision_config.yml.
-      when: not _aci_file_stat.stat.exists
-
     - name: Set OIM-local path for additional cloud-init config
       ansible.builtin.set_fact:
         additional_cloud_init_oim_path: "{{ cloud_init_dir }}/additional_cloud_init.yml"
@@ -78,15 +55,6 @@
       ansible.builtin.set_fact:
         _aci_config: "{{ _aci_file_content.content | b64decode | from_yaml | default({}) }}"
 
-    - name: Validate top-level keys
-      ansible.builtin.fail:
-        msg: >-
-          additional_cloud_init validation FAILED: Unknown top-level key '{{ item }}'.
-          Only 'common' and 'groups' are allowed.
-          Fix: Remove '{{ item }}' from {{ additional_cloud_init_oim_path }}.
-      when: item not in additional_cloud_init_top_level_keys
-      loop: "{{ _aci_config.keys() | list }}"
-
     - name: Extract common and groups data
       ansible.builtin.set_fact:
         additional_cloud_init_common_data: "{{ _aci_config.common | default({}) }}"
@@ -101,39 +69,10 @@
           {{ (additional_cloud_init_common_data | length > 0) or
              (additional_cloud_init_groups_data | length > 0) }}
 
-    - name: Validate common section
-      ansible.builtin.include_tasks: validate_additional_cloud_init_section.yml
-      vars:
-        _aci_section_name: common
-        _aci_section_data: "{{ additional_cloud_init_common_data }}"
-      when: additional_cloud_init_common_enabled | bool
-
-    - name: Validate per-FG group names match functional groups
-      ansible.builtin.fail:
-        msg: >-
-          additional_cloud_init validation FAILED: Group '{{ _aci_fg_name }}' is not a valid
-          functional group. Valid groups:
-          {{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list | join(', ') }}.
-          Fix: Use a valid functional group name in the 'groups' section.
-      when: _aci_fg_name not in (hostvars['localhost']['functional_groups'] | map(attribute='name') | list)
-      loop: "{{ additional_cloud_init_fg_names }}"
-      loop_control:
-        loop_var: _aci_fg_name
-
-    - name: Validate per-FG sections
-      ansible.builtin.include_tasks: validate_additional_cloud_init_section.yml
-      vars:
-        _aci_section_name: "{{ _aci_fg_name }}"
-        _aci_section_data: "{{ additional_cloud_init_groups_data[_aci_fg_name] }}"
-      loop: "{{ additional_cloud_init_fg_names }}"
-      loop_control:
-        loop_var: _aci_fg_name
-      when: additional_cloud_init_groups_enabled | bool
-
-    - name: Log additional_cloud_init validation result
+    - name: Log additional cloud-init load result
       ansible.builtin.debug:
         msg: >-
-          additional_cloud_init validation PASSED.
+          additional_cloud_init loaded.
           File: {{ additional_cloud_init_oim_path }}.
           Common enabled: {{ additional_cloud_init_common_enabled }}.
           Groups enabled: {{ additional_cloud_init_groups_enabled }}.
