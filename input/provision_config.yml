@@ -56,7 +56,7 @@ kernel_version_override: ""
 #### Optional
 # Path to additional cloud-init configuration file for stateless node provisioning.
 # The file supports both common (all nodes) and per-functional-group cloud-init sections.
-# An example file is provided at omnia/input/additional_cloud_init.yml
+# An example file is provided at omnia/examples/additional_cloud_init.yml
 # Leave empty ("") to disable additional cloud-init.
 # Default: "" (disabled)
 additional_cloud_init_config_file: ""
