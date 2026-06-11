@@ -20,3 +20,6 @@ oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
 backup_slurm_nfs_contents: true # To create a copy of all slurm contents on the nfs share
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
 oim_nfs_fail_msg: "Failed to mount NFS on oim"
+hpc_tools_tracking_files:
+  - /hpc_tools/.done_cuda
+  - /hpc_tools/cuda/bin/nvcc

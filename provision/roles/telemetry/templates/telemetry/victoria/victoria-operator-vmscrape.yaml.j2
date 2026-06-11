@@ -146,18 +146,12 @@ spec:
           name: ufm-telemetry-credentials
           key: password
 {% endif %}
-      relabelings:
-        - action: replace
-          sourceLabels: []
-          targetLabel: source
+      relabelConfigs:
+        - targetLabel: source
           replacement: ufm
-        - action: replace
-          sourceLabels: []
-          targetLabel: subsystem
+        - targetLabel: subsystem
           replacement: infiniband
-        - action: replace
-          sourceLabels: []
-          targetLabel: job
+        - targetLabel: job
           replacement: ufm-infiniband-metrics
 {% endif %}
 
@@ -201,17 +195,13 @@ spec:
           name: vast-telemetry-credentials
           key: password
 {% endif %}
-      relabelings:
-        - action: replace
-          sourceLabels: []
-          targetLabel: source
+      relabelConfigs:
+        - targetLabel: source_subsystem
           replacement: vast
-        - action: replace
-          sourceLabels: []
-          targetLabel: subsystem
-          replacement: vast
-        - action: replace
-          sourceLabels: []
-          targetLabel: job
+        - targetLabel: subsystem
+          replacement: storage
+        - sourceLabels: [__meta_kubernetes_service_label_app]
+          targetLabel: vast_domain
+        - targetLabel: job
           replacement: vast-storage-metrics
 {% endif %}

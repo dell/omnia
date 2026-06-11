@@ -70,11 +70,11 @@ Networks:
     primary_oim_admin_ip: "{{ admin_network.primary_oim_admin_ip | default('') }}"
     primary_oim_bmc_ip: "{{ admin_network.primary_oim_bmc_ip | default('') }}"
     dynamic_range: "{{ admin_network.dynamic_range | default('') }}"
-    dns: {{ admin_network.dns | default([]) }}
-    ntp_servers: {{ admin_network.ntp_servers | default([]) }}
-    additional_subnets: {{ admin_network.additional_subnets | default([]) }}
+    dns: {{ admin_network.dns | default([], true) }}
+    ntp_servers: {{ admin_network.ntp_servers | default([], true) }}
+    additional_subnets: {{ admin_network.additional_subnets | default([], true) }}
 
 - ib_network:
     subnet: "{{ ib_network.subnet | default('') }}"
     netmask_bits: "{{ ib_network.netmask_bits | default(admin_network_netmask_bits | default(network_default_netmask_bits)) }}"
-    dns: {{ ib_network.dns | default([]) }}
+    dns: {{ ib_network.dns | default([], true) }}

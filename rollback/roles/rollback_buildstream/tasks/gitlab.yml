@@ -146,7 +146,7 @@
           | first).id | string }}
   when:
     - _action == 'revert_commits'
-    - _gl_project_search.json | default([]) | length > 0
+    - _gl_project_search.json | default([], true) | length > 0
 
 - name: "GitLab | Restore — Read upgrade commit SHA from metadata"
   ansible.builtin.set_fact:
@@ -180,7 +180,7 @@
     - _gl_upgrade_commit_sha | default('') == ''
     - _gl_latest_commits is defined
     - _gl_latest_commits.status | default(0) == 200
-    - _gl_latest_commits.json | default([]) | selectattr('message', 'search', '\\[omnia-upgrade-2.1-to-2.2\\]') | list | length > 0
+    - _gl_latest_commits.json | default([], true) | selectattr('message', 'search', '\\[omnia-upgrade-2.1-to-2.2\\]') | list | length > 0
 
 - name: "GitLab | Restore — Skip if no upgrade commit SHA found"
   ansible.builtin.debug:
@@ -207,7 +207,7 @@
 - name: "GitLab | Restore — Analyze if already reverted"
   ansible.builtin.set_fact:
     _gl_already_reverted: >-
-      {{ _gl_revert_search.json | default([])
+      {{ _gl_revert_search.json | default([], true)
          | rejectattr('id', 'equalto', _gl_upgrade_commit_sha)
          | selectattr('message', 'search', _gl_upgrade_commit_sha)
          | list | length > 0 }}

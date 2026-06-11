@@ -186,6 +186,11 @@ DEFAULT_LEASE_TIME_FAIL_MSG = "Please provide a valid default_lease_time."
 ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true or false."
 LANGUAGE_FAIL_MSG = "Only en_US.UTF-8 language supported"
 LANGUAGE_EMPTY_MSG = "Language setting cannot be empty"
+KERNEL_VERSION_OVERRIDE_FAIL_MSG = (
+    "kernel_version_override must be either empty or a valid kernel version "
+    "string (e.g. '6.12.0-55.76.1.el10_0.x86_64'). "
+    "The format must be: <major>.<minor>.<patch>-<release>."
+)
 PUBLIC_NIC_FAIL_MSG = "public_nic is empty. Please provide a public_nic value."
 PXE_MAPPING_FILE_PATH_FAIL_MSG = (
     "File path is invalid. Please ensure the file path specified in "
@@ -614,7 +619,9 @@ TELEMETRY_IP_OVERLAP_FAIL_MSG = ("admin network, telemetry network and IP ranges
                                  "Check telemetry_config.yml and network_spec.yml")
 
 # high_availability
-VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin subnet. "
+VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in a valid subnet. "
+                                 "The VIP must be in either the admin subnet or the "
+                                 "additional subnet where the Kubernetes control plane nodes are configured. "
                                  "Check high_availability_config.yml and network_spec.yml")
 VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
                        "Check high_availability_config.yml and network_spec.yml")
@@ -837,3 +844,11 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "To fix: Either set telemetry_sources.ldms.metrics_enabled=true to enable LDMS data collection, "
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
 )
+
+# CSM Observability - Unsupported metrics validation messages
+def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
+    """Returns error message when unsupported CSM metrics components are enabled."""
+    return (
+        f"{component_name} metrics collection not supported. "
+        f"Set {section_name}.enabled to false in {values_file_path} and rerun the playbook."
+    )

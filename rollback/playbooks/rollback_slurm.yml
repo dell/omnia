@@ -54,11 +54,11 @@
             (manifest.component_status[component_name] | default('pending') == 'completed')
             or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
           }}
+        cacheable: true
 
     - name: "Handle BuildStream terminal gate (C-24)"
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
+      when: ((build_stream_terminal | default(false) | bool) or
+            (manifest.component_status.build_stream | default('pending') == 'completed'))
       block:
         - name: "Mark as skipped — BuildStream terminal gate active"
           ansible.builtin.copy:
@@ -75,6 +75,7 @@
         - name: "Set slurm_skip — BuildStream terminal gate active"
           ansible.builtin.set_fact:
             slurm_skip: true
+            cacheable: true
 
         - name: "Skip — BuildStream terminal gate active"
           ansible.builtin.meta: end_play
@@ -110,7 +111,7 @@
 
         - name: Set previously successful reboot list
           ansible.builtin.set_fact:
-            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([]) }}"
+            slurm_previously_rebooted: "{{ _reboot_state.successfully_rebooted | default([], true) }}"
           when: _reboot_state_stat.stat.exists | default(false)
 
         - name: Initialize previously rebooted list (no prior state)
@@ -201,7 +202,7 @@
 
     - name: End play if not slurm nodes in pxe_mapping
       ansible.builtin.meta: end_play
-      when: slurm_host_group_map | default({}) | length == 0
+      when: slurm_host_group_map | default({}, true) | length == 0
 
     - name: Get the backup directory
       ansible.builtin.set_fact:
@@ -220,8 +221,8 @@
           [ROLLBACK] SLURM CLUSTER — PRE-ROLLBACK NOTICE
           ==============================================
           1. NODE REBOOT    — All Slurm/login nodes will reboot.
-          2. NFS MOUNTS     — Omnia 2.1 mount points are preserved. Do not modify during rollback.
-          3. ROLLBACK SCOPE — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback.
+          2. NFS MOUNTS     — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback.
+          3. SLURM CONF     - Slurm configuration files will be restored to their original state.
 
     - name: Read oim_metadata for oim_node_name (standalone fallback)
       ansible.builtin.include_vars:
@@ -262,7 +263,7 @@
 
     - name: Include slurm rollback role
       ansible.builtin.include_role:
-        name: ../roles/rollback_slurm
+        name: "{{ playbook_dir }}/../roles/rollback_slurm"
       tags: slurm
 
 - name: Reboot Slurm nodes and validate services
@@ -271,12 +272,19 @@
   serial: 100%
   strategy: host_pinned
   vars:
-    reboot_timeout: 1200
+    default_reboot_timeout: 1200
     ssh_timeout: 60
+    reboot_time_map:
+      login_compiler_node_x86_64: 1800
+      login_compiler_node_aarch64: 1800
   tasks:
     - name: Skip if slurm upgrade not needed
       ansible.builtin.meta: end_play
       when: hostvars['localhost']['slurm_skip'] | default(false) | bool
+
+    - name: Set reboot timeout based on node type
+      ansible.builtin.set_fact:
+        reboot_timeout: "{{ reboot_time_map.get(group_names[0], default_reboot_timeout) }}"
 
     - name: Initialize state
       ansible.builtin.set_fact:
@@ -306,7 +314,7 @@
       when: ssh_check is failed
 
     - name: Skip reboot — node successfully rebooted in previous run
-      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([]))
+      when: inventory_hostname in (hostvars['localhost']['slurm_previously_rebooted'] | default([], true))
       block:
         - name: Mark node as previously completed
           ansible.builtin.set_fact:

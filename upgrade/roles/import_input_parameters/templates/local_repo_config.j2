@@ -51,6 +51,7 @@
 #   - Do not use Jinja variables in this configuration.
 #   - Omit SSL fields entirely if SSL is not in use.
 #   - Its a mandatory field in case of slurm_custom with name as 'slurm_custom'
+#   - Version-specific naming (e.g., 'kubernetes-v1-35', 'cri-o-v1-35') is used only for service_k8s
 #
 # 3. user_repo_url_aarch64
 #---------------------------
@@ -162,7 +163,7 @@
 # user_registry:
 #    - { host: "172.16.107.254:4000", cert_path: "/opt/omnia/domain.crt", key_path: "/opt/omnia/domain.key" }
 user_registry:
-{% set _user_registry = local_repo_user_registry | default([]) %}
+{% set _user_registry = local_repo_user_registry | default([], true) %}
 {% if (_user_registry | length) > 0 %}
 {% for _reg in _user_registry %}
   - { host: {{ (_reg.host | default('')) | to_json }}, cert_path: {{ (_reg.cert_path | default('')) | to_json }}, key_path: {{ (_reg.key_path | default('')) | to_json }} }
@@ -171,14 +172,14 @@ user_registry:
 # user_repo_url_x86_64:
 #  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
-{% set _user_repo_url_x86_64 = local_repo_user_repo_url_x86_64 | default([]) %}
+{% set _user_repo_url_x86_64 = local_repo_user_repo_url_x86_64 | default([], true) %}
 {% if (_user_repo_url_x86_64 | length) > 0 %}
 {% for _repo in _user_repo_url_x86_64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
 {% endfor %}
 {% endif %}
 user_repo_url_aarch64:
-{% set _user_repo_url_aarch64 = local_repo_user_repo_url_aarch64 | default([]) %}
+{% set _user_repo_url_aarch64 = local_repo_user_repo_url_aarch64 | default([], true) %}
 {% if (_user_repo_url_aarch64 | length) > 0 %}
 {% for _repo in _user_repo_url_aarch64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
@@ -190,14 +191,14 @@ user_repo_url_aarch64:
 #  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "baseos"}
 #  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }
 rhel_os_url_x86_64:
-{% set _rhel_os_url_x86_64 = local_repo_rhel_os_url_x86_64 | default([]) %}
+{% set _rhel_os_url_x86_64 = local_repo_rhel_os_url_x86_64 | default([], true) %}
 {% if (_rhel_os_url_x86_64 | length) > 0 %}
 {% for _repo in _rhel_os_url_x86_64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
 {% endfor %}
 {% endif %}
 rhel_os_url_aarch64:
-{% set _rhel_os_url_aarch64 = local_repo_rhel_os_url_aarch64 | default([]) %}
+{% set _rhel_os_url_aarch64 = local_repo_rhel_os_url_aarch64 | default([], true) %}
 {% if (_rhel_os_url_aarch64 | length) > 0 %}
 {% for _repo in _rhel_os_url_aarch64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }} }
@@ -210,6 +211,15 @@ rhel_os_url_aarch64:
 rhel_subscription_repo_config_x86_64:
 rhel_subscription_repo_config_aarch64:
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# ============================================================================
+# VERSIONED REPOSITORY NAMING CONVENTION (Omnia 2.2+)
+# ============================================================================
+# Starting from Omnia 2.2, repositories use versioned naming:
+#   - kubernetes-v<major>-<minor>  (e.g., kubernetes-v1-35)
+#   - cri-o-v<major>-<minor>       (e.g., cri-o-v1-35)
+# Version-specific naming is used only for service_k8s components (kubernetes, cri-o)
+# Other components (doca, cuda, slurm_custom) use non-versioned naming
+# ============================================================================
 omnia_repo_url_rhel_x86_64:
   - { url: "https://download.docker.com/linux/centos/10/x86_64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
@@ -217,24 +227,26 @@ omnia_repo_url_rhel_x86_64:
   - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "cri-o-v1-35"}
   - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key", name: "doca"}
   - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key", name: "cuda"}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
 omnia_repo_url_rhel_aarch64:
   - { url: "https://download.docker.com/linux/centos/10/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
   - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key", name: "doca"}
   - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key", name: "cuda"}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
 # Example:
 # additional_repos_x86_64:
 #  - { url: "https://rpm.grafana.com/", gpgkey: "", name: "grafana" }
 #  - { url: "https://repo.example.com/x86_64/", gpgkey: "", name: "custom-repo", sslcacert: "/path/ca.crt", sslclientkey: "/path/client.key", sslclientcert: "/path/client.crt" }
 additional_repos_x86_64:
-{% set _additional_repos_x86_64 = local_repo_additional_repos_x86_64 | default([]) %}
+{% set _additional_repos_x86_64 = local_repo_additional_repos_x86_64 | default([], true) %}
 {% if (_additional_repos_x86_64 | length) > 0 %}
 {% for _repo in _additional_repos_x86_64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }} }
 {% endfor %}
 {% endif %}
 additional_repos_aarch64:
-{% set _additional_repos_aarch64 = local_repo_additional_repos_aarch64 | default([]) %}
+{% set _additional_repos_aarch64 = local_repo_additional_repos_aarch64 | default([], true) %}
 {% if (_additional_repos_aarch64 | length) > 0 %}
 {% for _repo in _additional_repos_aarch64 %}
   - { url: {{ (_repo.url | default('')) | to_json }}, gpgkey: {{ (_repo.gpgkey | default('')) | to_json }}, name: {{ (_repo.name | default('')) | to_json }}, sslcacert: {{ (_repo.sslcacert | default('')) | to_json }}, sslclientkey: {{ (_repo.sslclientkey | default('')) | to_json }}, sslclientcert: {{ (_repo.sslclientcert | default('')) | to_json }} }

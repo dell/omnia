@@ -177,37 +177,43 @@ def _merge_package_entries(dst, src):
 def _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids):
     """Generate a human-readable package ID with collision handling.
     
-    Format: {sanitized_name}_{version}_{type}
+    Format: {name} (the version is stripped from the name)
     If collision occurs, append counter: {base_id}_{counter}
     """
     # Extract version from package name if present (e.g., PyMySQL==1.1.2)
     name_for_id = pkg_name
-    if '==' in pkg_name and pkg_type == 'pip_module':
-        # For pip modules, name==version format
+    if '==' in pkg_name:
         parts = pkg_name.split('==')
-        if len(parts) == 2:
-            name_for_id = parts[0]
-            if not pkg_version:
-                pkg_version = parts[1]
-    elif '-' in pkg_name and pkg_type == 'rpm' and not pkg_version:
-        # Some RPMs have version in name (e.g., python3-PyMySQL-1.1.2)
-        # Try to extract version if it looks like a version number
-        parts = pkg_name.rsplit('-', 1)
-        if len(parts) == 2 and re.match(r'^\d', parts[1]):
-            name_for_id = parts[0]
+        name_for_id = parts[0]
+        if not pkg_version:
             pkg_version = parts[1]
+
+    # Try exact match removal if version is known
+    if pkg_version and isinstance(pkg_version, str):
+        # match at the end with 'v' prefixed
+        if name_for_id.endswith('v' + pkg_version):
+            name_for_id = name_for_id[:-(len(pkg_version) + 1)]
+        # exact match at the end
+        elif name_for_id.endswith(pkg_version):
+            name_for_id = name_for_id[:-len(pkg_version)]
+        # match with dots replaced by hyphens
+        elif name_for_id.endswith(pkg_version.replace('.', '-')):
+            name_for_id = name_for_id[:-len(pkg_version)]
+            
+    # Use regex to strip version-like suffixes for remaining cases
+    # Matches:
+    # 1. -v followed by digits/dots/hyphens (e.g. -v1.2.3, -v2)
+    # 2. - followed by multi-part digits (e.g. -2-16-0, -1.1.2)
+    # 3. - followed by single digit at the end (e.g. -3$)
+    # Preserves trailing non-version suffixes (e.g. -amd64, -chart)
+    version_regex = r'[-_](?:v\d+(?:[-.]\d+)*|\d+(?:[-.]\d+)+|\d+$)(?=[-_]|$)'
+    name_for_id = re.sub(version_regex, '', name_for_id)
     
-    # Sanitize package name: replace special chars with hyphens
-    sanitized = re.sub(r'[/@:.]', '-', name_for_id)
-    sanitized = re.sub(r'-+', '-', sanitized).strip('-')
-    
-    # Truncate very long names to reasonable length
-    if len(sanitized) > 50:
-        sanitized = sanitized[:50]
+    # Clean up trailing separators
+    name_for_id = name_for_id.rstrip('-_')
     
     # Build base ID
-    version_part = pkg_version if pkg_version else 'na'
-    base_id = f"{sanitized}_{version_part}_{pkg_type}"
+    base_id = name_for_id
     
     # Handle collisions
     if base_id not in used_ids:

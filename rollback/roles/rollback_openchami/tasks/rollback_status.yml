@@ -23,15 +23,25 @@
 - name: Report rollback result
   block:
     - name: Report rollback failure
-      ansible.builtin.debug:
-        msg: "{{ rollback_messages.status.failure }}"
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ rollback_messages.status.failure }}"
       when: openchami_rollback_failed | default(false) | bool
 
     - name: Report rollback success
-      ansible.builtin.debug:
-        msg: "{{ rollback_messages.status.success }}"
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ rollback_messages.status.success }}"
       when:
         - not (openchami_rollback_failed | default(false) | bool)
+
+    - name: Clear pg_dump backup lock after successful rollback
+      ansible.builtin.file:
+        path: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ pgdump_backup_lock }}"
+        state: absent
+      when:
+        - not (openchami_rollback_failed | default(false) | bool)
+      failed_when: false
 
 - name: Fail the play if rollback failed
   ansible.builtin.fail:

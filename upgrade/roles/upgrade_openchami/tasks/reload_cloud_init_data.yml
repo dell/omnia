@@ -265,7 +265,7 @@
         - name: Verify each cloud-init group config was loaded
           ansible.builtin.shell: |
             set -o pipefail
-            /usr/bin/ochami cloud-init group get config {{ item }} 2>&1 | head -3
+            /usr/bin/ochami cloud-init group get config {{ item }} 2>&1
           environment: "{{ ci_reload_ochami_env }}"
           loop: "{{ reloaded_ci_group_names }}"
           changed_when: false

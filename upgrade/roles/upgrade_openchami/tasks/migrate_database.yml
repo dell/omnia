@@ -143,7 +143,7 @@
 
     - name: Verify node count preserved across migration
       ansible.builtin.debug:
-        verbosity: 1
+        verbosity: 2
         msg: >-
           Node count check —
           Pre-upgrade: {{ pre_upgrade_node_count | default('0') | trim }},
@@ -154,6 +154,7 @@
 
     - name: Warn if node count decreased after migration
       ansible.builtin.debug:
+        verbosity: 2
         msg: >-
           WARNING: Node count decreased from {{ pre_upgrade_node_count | default('0') | trim }}
           to {{ post_migration_node_count.stdout | default('0') | trim }}.
@@ -179,11 +180,6 @@
             SMD startup: {{ 'no migration failures detected' if smd_logs.stdout is not defined
             or ('FATAL' not in smd_logs.stdout | default('') and 'migration failed' not in
             (smd_logs.stdout | default('') | lower)) else 'WARNING — check podman logs smd' }}
-          - >-
-            Node count — Pre: {{ pre_upgrade_node_count | default('0') | trim }},
-            Post: {{ post_migration_node_count.stdout | default('0') | trim }}{{
-            ' (prepare_oim-only)' if (pre_upgrade_node_count | default('0') | trim | int) == 0
-            and (post_migration_node_count.stdout | default('0') | trim | int) == 0 else '' }}
           - "SMD/BSS API: checked in post-upgrade health check"
 
   rescue:

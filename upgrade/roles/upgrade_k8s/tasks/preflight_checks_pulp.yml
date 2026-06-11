@@ -66,13 +66,15 @@
 
 - name: Verify required tags exist for each image
   ansible.builtin.fail:
-    msg: "Required image {{ item.item.name }}:{{ item.item.tag }} not found in Pulp registry. Available tags: {{ item.json.tags | default([]) | join(', ') }}"
+    msg: >-
+      Required image {{ item.item.name }}:{{ item.item.tag }} not found in Pulp registry.
+      Available tags: {{ item.json.tags | default([], true) | join(', ') }}
   loop: "{{ image_checks.results }}"
   loop_control:
     label: "{{ item.item.name }}:{{ item.item.tag }}"
   when:
     - item.status == 200
-    - item.item.tag not in (item.json.tags | default([]))
+    - item.item.tag not in (item.json.tags | default([], true))
 
 - name: Warn if image check failed
   ansible.builtin.debug:

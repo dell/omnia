@@ -230,14 +230,14 @@ def is_remote_url_reachable(remote_url, timeout=10,
                     verify=ca_cert,
                     timeout=timeout
                 )
-            except requests.exceptions.SSLError as ssl_exc:
+            except requests.exceptions.SSLError:
                 # Python 3.13+ rejects CA certs with non-critical Basic
                 # Constraints (RFC 5280 strict mode). Retry against the
                 # SAME CA with VERIFY_X509_STRICT cleared — still validates
                 # the full chain and hostname, just relaxes the one check.
                 logger.warning(
-                    f"Strict SSL verification failed for {remote_url}: "
-                    f"{ssl_exc}. Retrying with VERIFY_X509_STRICT cleared.")
+                    f"Strict SSL verification failed for {remote_url}. "
+                    "Retrying with VERIFY_X509_STRICT cleared.")
                 session = requests.Session()
                 adapter = _RelaxedCAAdapter(
                     ca_cert, client_cert, client_key)
@@ -250,10 +250,9 @@ def is_remote_url_reachable(remote_url, timeout=10,
             logger.error(
                 f"URL {remote_url} returned HTTP {response.status_code}")
         return response.status_code == 200
-    except Exception as exc:
+    except Exception:
         logger.error(
-            f"URL reachability exception for {remote_url}: "
-            f"{type(exc).__name__}: {exc}")
+            f"URL reachability check failed for {remote_url}")
         return False
 
 def transform_package_dict(data, arch_val,logger):

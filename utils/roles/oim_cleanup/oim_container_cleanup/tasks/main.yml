@@ -22,6 +22,15 @@
   ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
   tags: always
 
+- name: Load software_config.json as software_config
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
+    name: cleanup_software_config
+
+- name: Check if slurm support is enabled
+  ansible.builtin.set_fact:
+    slurm_support: "{{ (cleanup_software_config.softwares | selectattr('name', 'in', ['slurm_custom']) | list | length) > 0 }}"
+
 - name: Ensure firewalld is installed and running
   ansible.builtin.dnf:
     name: firewalld
@@ -58,7 +67,8 @@
   tags: postgres
 
 - name: Cleanup slurm configuration
-  ansible.builtin.import_tasks: cleanup_slurm.yml
+  ansible.builtin.include_tasks: cleanup_slurm.yml
+  when: slurm_support | default(false) | bool
 
 - name: Cleanup k8s configuration
   ansible.builtin.import_tasks: cleanup_k8s.yml

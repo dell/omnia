@@ -198,7 +198,6 @@
           - "v2.2 coresmd-coredns: not running (confirmed removed)"
           - "SMD API: reachable at {{ openchami_smd_endpoint }}"
           - "BSS API: reachable at {{ openchami_bss_endpoint }}"
-          - "Node count: {{ rb_node_count.stdout | default('0') | trim }}"
           - "openchami.target: references coresmd.service (v2.1 pattern)"
           - >-
             Cloud-init-server: {{ rb_ci_container_status.stdout | default('unknown') }}

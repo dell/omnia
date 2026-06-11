@@ -76,7 +76,7 @@
       block:
         - name: Upgrade OpenCHAMI containers and services
           ansible.builtin.include_role:
-            name: ../roles/upgrade_openchami
+            name: "{{ playbook_dir }}/../roles/upgrade_openchami"
 
         - name: Display OpenCHAMI upgrade outcome
           ansible.builtin.debug:

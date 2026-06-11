@@ -44,11 +44,11 @@
 - name: Include oim_metadata.yml
   ansible.builtin.include_vars:
     file: "{{ oim_metadata_path }}"
-    name: oim_metadata
+    name: _slurm_oim_metadata
 
 - name: Set oim_shared_path fact
   ansible.builtin.set_fact:
-    oim_shared_path: "{{ oim_metadata.oim_shared_path | trim }}"
+    oim_shared_path: "{{ _slurm_oim_metadata.oim_shared_path | trim }}"
     slurm_nfs_mounted_path: "{{ slurm_nfs[0].client_share_path }}/slurm"
 
 - name: Read pxe_mapping_file from backup directory
@@ -74,11 +74,6 @@
           )
         )
       }}
-
-- name: Debug backup_functional_group_hosts
-  ansible.builtin.debug:
-    var: backup_functional_group_hosts
-  # debugger: always
 
 - name: Check for slurm_control_node_x86_64 host dir in nfs
   ansible.builtin.stat:
@@ -128,25 +123,17 @@
     msg: "SLURM: MySQL datadir not found in nfs"
   when: not is_mysql_datadir
 
-- name: Create backup directory
-  when: backup_slurm_nfs_contents
-  block:
-    - name: Create backup directory
-      ansible.builtin.file:
-        path: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
+- name: Set path for slurm backup
+  ansible.builtin.set_fact:
+    up_slurm_backup_path: "{{ slurm_nfs[0].client_share_path }}/slurm_backups/preupgrade_{{ rollback_manifest.target_version }}_backup"
 
-    - name: Copy slurm data
-      ansible.builtin.copy:
-        src: "{{ slurm_nfs_mounted_path }}"
-        dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups" # remove the /opt prefix with {{ oim_shared_path }}
-        remote_src: true
-        mode: preserve
-
-    # - name: Synchronize slurm data
-    #   ansible.builtin.synchronize:
-    #     src: "{{ slurm_nfs[0].client_share_path }}/slurm"
-    #     dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
+- name: Restore slurm etc/slurm directories
+  ansible.builtin.copy:
+    src: "{{ up_slurm_backup_path }}/{{ item }}/"
+    dest: "{{ ctld_dir_nfs }}/{{ item }}/"
+    remote_src: true
+    mode: preserve
+  register: conf_backup_result
+  loop:
+    - "etc/slurm"
+  ignore_errors: true

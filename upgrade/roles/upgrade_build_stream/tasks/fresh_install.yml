@@ -24,13 +24,6 @@
       - "BuildStream was NOT enabled in 2.1 — performing fresh installation"
       - "This will deploy Postgres, BuildStream, watcher service, and automation"
 
-- name: Prompt for NFS cleanup confirmation
-  ansible.builtin.pause:
-    prompt: "Have you cleaned/backed up the NFS share? Press Enter to continue or Ctrl+C to abort"
-  when: hostvars['localhost']['skip_approval'] is not defined or not hostvars['localhost']['skip_approval'] | bool
-  delegate_to: localhost
-  connection: local
-
 # ══════════════════════════════════════════════════════════════════
 # Step 1: Deploy Postgres via prepare_oim role
 # (handles: stop existing, image pull, quadlet, start, DB init)

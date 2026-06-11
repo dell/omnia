@@ -26,3 +26,6 @@
   ansible.builtin.command: kubeadm upgrade apply v{{ k8s_target_version }} --yes
   register: upgrade_apply_result
   changed_when: true
+
+- name: Update kube-controller-manager arguments
+  ansible.builtin.include_tasks: update_kcm_arguments.yml

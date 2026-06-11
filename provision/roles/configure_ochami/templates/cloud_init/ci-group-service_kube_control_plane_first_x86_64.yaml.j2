@@ -524,7 +524,7 @@
             cp {{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml {{ k8s_client_mount_path }}/calico/updated-{{ calico_package }}.yml
 
             CALICO_YAML="{{ k8s_client_mount_path }}/calico/updated-{{ calico_package }}.yml"
-            ADMIN_NIC_CIDR="{{ admin_nic_cidr }}"
+            ADMIN_NIC_CIDR="{{ calico_cidr }}"
 
             # Only add if not already present
             if ! grep -q 'name: IP_AUTODETECTION_METHOD' "$CALICO_YAML"; then
@@ -573,7 +573,7 @@
               "--node-monitor-grace-period=40s"
               "--node-eviction-rate=1"
               "--secondary-node-eviction-rate=1"
-              "--terminated-pod-gc-threshold=50"
+              "--terminated-pod-gc-threshold=5"
             )
 
             echo "Backing up kube-controller-manager manifest..."
@@ -620,6 +620,11 @@
             echo "Updating the kubelet arguments."
             sed -i 's/^shutdownGracePeriod:.*/shutdownGracePeriod: 30s/' /var/lib/kubelet/config.yaml
             sed -i 's/^shutdownGracePeriodCriticalPods:.*/shutdownGracePeriodCriticalPods: 10s/' /var/lib/kubelet/config.yaml
+            
+            # Enable old Kubernetes behavior: reset pod status on kubelet restart
+            echo "Adding kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+            
             systemctl daemon-reload
             systemctl restart kubelet
 
@@ -636,26 +641,21 @@
             # Forward cluster-internal DNS domain to OIM CoreDNS
             # This allows K8s pods to resolve Slurm/MPI hostnames via CoreDNS
             python3 - "$cfg" << 'PYEOF'
-import sys, yaml
-cfg_path = sys.argv[1]
-with open(cfg_path) as f:
-    doc = yaml.safe_load(f)
-corefile = doc['data']['Corefile']
-fwd_block = """{{ domain_name }}:53 {
-    errors
-    cache 30
-    forward . {{ admin_nic_ip }}
-}
-"""
-if '{{ domain_name }}:53' not in corefile:
-    corefile = fwd_block + corefile
-    doc['data']['Corefile'] = corefile
-    with open(cfg_path, 'w') as f:
-        yaml.dump(doc, f, default_flow_style=False)
-    print("Added {{ domain_name }} forward zone to K8s CoreDNS")
-else:
-    print("{{ domain_name }} forward zone already present in K8s CoreDNS")
-PYEOF
+          import sys, yaml
+          cfg_path = sys.argv[1]
+          with open(cfg_path) as f:
+              doc = yaml.safe_load(f)
+          corefile = doc["data"]["Corefile"]
+          fwd_block = "{{ domain_name }}:53 {\n    errors\n    cache 30\n    forward . {{ admin_nic_ip }}\n}\n"
+          if "{{ domain_name }}:53" not in corefile:
+              corefile = fwd_block + corefile
+              doc["data"]["Corefile"] = corefile
+              with open(cfg_path, "w") as f:
+                  yaml.dump(doc, f, default_flow_style=False)
+              print("Added {{ domain_name }} forward zone to K8s CoreDNS")
+          else:
+              print("{{ domain_name }} forward zone already present in K8s CoreDNS")
+          PYEOF
 {% endif %}
 
             # Apply the patched ConfigMap
@@ -779,6 +779,7 @@ PYEOF
             grep -q "^syncFrequency:" $CONFIG_FILE || echo "syncFrequency: 60s" >> $CONFIG_FILE
 
             # Restart kubelet to apply changes
+            systemctl daemon-reload
             systemctl restart kubelet
 
             echo "Installing plugins"
@@ -869,6 +870,13 @@ PYEOF
             # SUBSEQUENT BOOT - SKIP INIT
             echo "service_kube_control_plane_first_x86_64 is already part of cluster."
             echo "Cluster already initialized. Performing node reboot procedures."
+            
+            # Reapply kubelet feature gate (ephemeral overlay filesystem)
+            echo "Reapplying kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+            systemctl daemon-reload
+            systemctl restart kubelet
+            
             # CRI and kubelet already enabled above
             # You can log health status etc if you wish:
 {% if etcd_on_local_disk | default(false) %}

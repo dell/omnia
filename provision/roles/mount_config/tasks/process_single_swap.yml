@@ -22,8 +22,8 @@
         that:
           - swap_item.filename is defined
           - swap_item.size is defined
-          - swap_item.filename | regex_search('^/[a-zA-Z0-9/_.-]+$')
-          - swap_item.size | regex_search('^(auto|[0-9]+[BKMGT]?)$')
+          - swap_item.filename | regex_search('^/[a-zA-Z0-9/_.-]+$') is not none
+          - swap_item.size | regex_search('^(auto|[0-9]+[BKMGT]?)$') is not none
         fail_msg: "Invalid swap configuration for {{ swap_item.filename | default('unnamed') }}"
 
     - name: Determine target functional groups for swap

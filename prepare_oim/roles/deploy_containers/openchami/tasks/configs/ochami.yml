@@ -29,6 +29,26 @@
     state: present
     disable_gpg_check: true
 
+- name: Check if OpenCHAMI quadlet files exist
+  ansible.builtin.stat:
+    path: /etc/containers/systemd/opaal.container
+  register: openchami_quadlet_check
+  when: additional_subnets | default([]) | length > 0
+
+- name: Reinstall openchami RPM to restore missing quadlet files
+  ansible.builtin.command: >-
+    dnf reinstall -y
+    {{ openchami_work_dir }}/{{ openchami_rpm_name }}
+    --nogpgcheck
+  changed_when: true
+  when:
+    - additional_subnets | default([]) | length > 0
+    - not (openchami_quadlet_check.stat.exists | default(true))
+
+- name: Configure cluster FQDN for certificates
+  ansible.builtin.command: sudo openchami-certificate-update update {{ cluster_name }}.{{ cluster_domain }}
+  changed_when: true
+
 - name: Download the ochami client RPM file
   ansible.builtin.get_url:
     url: "{{ ochami_client_rpm_url }}"
@@ -66,7 +86,3 @@
     owner: root
     group: root
     mode: "{{ file_perm_rw }}"
-
-- name: Configure cluster FQDN for certificates
-  ansible.builtin.command: sudo openchami-certificate-update update {{ cluster_name }}.{{ cluster_domain }}
-  changed_when: true

@@ -284,6 +284,7 @@ msg_provision_config_transform_summary: |
   Backup preserved at: {{ backup_location }}/provision_config.yml
   Changes:
   - Ensured pxe_mapping_file_path, language, and default_lease_time are present
+  - Added kernel_version_override (default: empty, auto-selects latest kernel)
 
 # Restore summary message for storage config transformation
 msg_storage_config_transform_summary: |
@@ -387,6 +388,7 @@ gitlab_default_sidekiq_concurrency: 10
 provision_default_pxe_mapping_file_path: "pxe_mapping_file.csv"
 provision_default_language: "en_US.UTF-8"
 provision_default_lease_time: "86400"
+provision_default_kernel_version_override: ""
 
 # Network Config Defaults
 network_default_netmask_bits: "24"

@@ -266,7 +266,7 @@
 
         - name: Display baseline node count
           ansible.builtin.debug:
-            verbosity: 1
+            verbosity: 2
             msg: >-
               Pre-upgrade baseline node count: {{ pre_upgrade_node_count }}.
               {{ '(empty database — prepare_oim-only scenario, no nodes discovered yet)'
@@ -287,7 +287,6 @@
                 S3/MinIO: {{ 'accessible' if (pre_s3cfg_stat.stat.exists | default(false)
                 and 's3_unreachable' not in pre_s3_check.stdout | default('s3_unreachable'))
                 else 'not configured (non-fatal)' }}
-              - "Node count: {{ pre_upgrade_node_count }}{{ ' (prepare_oim-only)' if (pre_upgrade_node_count | int) == 0 else '' }}"
               - "OpenCHAMI RPM: {{ current_openchami_rpm | default('not installed') }}"
               - "ochami CLI RPM: {{ current_ochami_rpm | default('not installed') }}"
               - "════════════════════════════════════════════"

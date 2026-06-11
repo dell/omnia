@@ -436,15 +436,133 @@
     - name: "Detect upgrade hop chain from cluster"
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/detect_hop_chain_from_manifest.yml"
 
-- name: "Kubernetes Upgrade - Get cluster version for status"
-  hosts: kube_vip_group
+    - name: "Set hop_chain_empty flag for other plays"
+      ansible.builtin.set_fact:
+        hop_chain_empty: "{{ hop_chain | length == 0 }}"
+
+- name: "Kubernetes Upgrade - Handle already at target version"
+  hosts: localhost
+  connection: local
   gather_facts: false
+  vars:
+    oim_data_path: "/opt/omnia/.data"
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: k8s
+    input_project_dir: "/opt/omnia/input/project_default"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip if service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
         (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+
+    - name: Load variables from file
+      ansible.builtin.include_vars:
+        file: /tmp/k8s_vars.yml
+
+    - name: "Check if cluster is already at target version"
+      when: hop_chain | length == 0
+      block:
+        - name: Use cached storage_config
+          ansible.builtin.set_fact:
+            storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+        - name: Use cached omnia_config
+          ansible.builtin.set_fact:
+            omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+        - name: Set k8s_nfs_storage_name
+          ansible.builtin.set_fact:
+            k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+        - name: Set status_file path
+          ansible.builtin.set_fact:
+            status_file: >-
+              {{ (storage_config.mounts
+                  | selectattr('name', 'equalto', k8s_nfs_storage_name)
+                  | first).mount_point }}/upgrade/upgrade_status.yml
+
+        - name: "Check if upgrade_status.yml exists"
+          ansible.builtin.stat:
+            path: "{{ status_file }}"
+          delegate_to: "{{ hostvars['localhost']['kube_vip'] }}"
+          register: _upgrade_status_stat
+
+        - name: "Read existing upgrade_status.yml"
+          ansible.builtin.slurp:
+            src: "{{ status_file }}"
+          delegate_to: "{{ hostvars['localhost']['kube_vip'] }}"
+          register: _upgrade_status_slurp
+          when: _upgrade_status_stat.stat.exists | default(false)
+
+        - name: "Parse existing upgrade status"
+          ansible.builtin.set_fact:
+            _existing_upgrade_status: "{{ _upgrade_status_slurp.content | b64decode | from_yaml }}"
+          when: _upgrade_status_stat.stat.exists | default(false)
+
+        - name: "Check if previous upgrade is incomplete (failed or in_progress)"
+          ansible.builtin.set_fact:
+            _previous_upgrade_incomplete: >-
+              {{ _upgrade_status_stat.stat.exists | default(false) and
+                 (_existing_upgrade_status.upgrade.status | default('') in ['failed', 'in_progress']) }}
+
+        - name: "Display resuming upgrade message"
+          ansible.builtin.debug:
+            msg:
+              - "========================================================================"
+              - "[UPGRADE] Resuming previous upgrade to {{ k8s_target_version }}"
+              - "========================================================================"
+              - "Cluster is at target version but previous upgrade status: {{ _existing_upgrade_status.upgrade.status | default('unknown') }}"
+              - "Will re-run post-validation to verify cluster health."
+              - "========================================================================"
+          when: _previous_upgrade_incomplete | bool
+
+        - name: "Set resume_post_validation_only flag"
+          ansible.builtin.set_fact:
+            resume_post_validation_only: true
+          when: _previous_upgrade_incomplete | bool
+
+        - name: "Handle fresh run - cluster already at target"
+          when: not (_previous_upgrade_incomplete | bool)
+          block:
+            - name: "Display already at target message"
+              ansible.builtin.debug:
+                msg:
+                  - "========================================================================"
+                  - "[UPGRADE] Cluster already at target version {{ k8s_target_version }}"
+                  - "========================================================================"
+                  - "No upgrade needed. Marking K8s upgrade as completed."
+                  - "========================================================================"
+
+            - name: "Load upgrade manifest"
+              ansible.builtin.set_fact:
+                manifest: "{{ lookup('file', manifest_path) | from_yaml }}"
+
+            - name: "Mark K8s upgrade as completed"
+              ansible.builtin.copy:
+                content: >-
+                  {{ manifest | combine({
+                       'component_status': manifest.component_status | combine({
+                         component_name: 'completed'
+                       })
+                     }) | to_nice_yaml }}
+                dest: "{{ manifest_path }}"
+                mode: '0644'
+
+            - name: "Set skip flag for remaining plays"
+              ansible.builtin.set_fact:
+                k8s_upgrade_skip: true
+
+- name: "Kubernetes Upgrade - Get cluster version for status"
+  hosts: kube_vip_group
+  gather_facts: false
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
+      ansible.builtin.meta: end_play
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Get current cluster version
       ansible.builtin.command: >-
@@ -470,11 +588,12 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -505,6 +624,44 @@
       ansible.builtin.set_fact:
         k8s_client_mount_path_kube_vip: "{{ k8s_client_mount_path }}"
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Validate cluster nodes against nodes.yaml before proceeding
+# ══════════════════════════════════════════════════════════════════════════════
+- name: "Kubernetes Upgrade - Validate cluster nodes against nodes.yaml"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+    group_cp_first: "service_kube_control_plane_first_x86_64"
+    group_cp: "service_kube_control_plane_x86_64"
+    group_worker: "service_kube_node_x86_64"
+    kube_vip: "{{ hostvars['localhost']['kube_vip'] }}"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
+      ansible.builtin.meta: end_play
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
+
+    - name: "Load upgrade role variables"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
+
+    - name: "Validate cluster nodes against nodes.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
+
+    - name: "Cache validated node groups for subsequent plays"
+      ansible.builtin.set_fact:
+        validated_groups_cp_first: "{{ groups_cp_first }}"
+        validated_groups_cp: "{{ groups_cp }}"
+        validated_groups_worker: "{{ groups_worker }}"
+        validated_all_upgrade_nodes: "{{ all_upgrade_nodes }}"
+        validated_node_ips: "{{ node_ips }}"
+        validated_parsed_nodes: "{{ parsed_nodes }}"
+        cacheable: true
+
 - name: "Kubernetes Upgrade - Initialize upgrade status file"
   hosts: localhost
   connection: local
@@ -518,11 +675,12 @@
     status_file: "{{ hostvars[kube_vip]['k8s_client_mount_path_kube_vip'] }}/upgrade/upgrade_status.yml"
     kube_vip: "{{ hostvars[kube_vip]['ansible_host'] }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -543,52 +701,26 @@
               | selectattr('name', 'equalto', k8s_nfs_storage_name)
               | first).mount_point }}
 
-    - name: Read nodes.yaml
-      ansible.builtin.slurp:
-        src: "{{ nodes_yaml_path }}"
-      register: nodes_slurp
-      changed_when: false
-
-    - name: Parse nodes.yaml
+    - name: "Use validated node groups from cluster validation"
       ansible.builtin.set_fact:
-        parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+        groups_cp_first: "{{ hostvars['localhost']['validated_groups_cp_first'] }}"
+        groups_cp: "{{ hostvars['localhost']['validated_groups_cp'] }}"
+        groups_worker: "{{ hostvars['localhost']['validated_groups_worker'] }}"
+        all_upgrade_nodes: "{{ hostvars['localhost']['validated_all_upgrade_nodes'] }}"
+        node_ips: "{{ hostvars['localhost']['validated_node_ips'] }}"
+        parsed_nodes: "{{ hostvars['localhost']['validated_parsed_nodes'] }}"
+      when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: Build node lists by role
-      ansible.builtin.set_fact:
-        groups_cp_first: >-
-          {{ parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_cp_first)
-             | map(attribute='name') | list }}
-        groups_cp: >-
-          {{ parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_cp)
-             | map(attribute='name') | list }}
-        groups_worker: >-
-          {{ parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_worker)
-             | map(attribute='name') | list }}
-        all_upgrade_nodes: >-
-          {{ (parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_cp_first)
-             | map(attribute='name') | list) +
-             (parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_cp)
-             | map(attribute='name') | list) +
-             (parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_worker)
-             | map(attribute='name') | list) }}
+    - name: "Run cluster validation if not already done"
+      when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+      block:
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
-    - name: Build node IP map
-      ansible.builtin.set_fact:
-        node_ips: >-
-          {{ node_ips | default({}) | combine({
-               item.name: (item.interfaces | first).ip_addrs
-                          | selectattr('name', 'equalto', 'management')
-                          | map(attribute='ip_addr') | first
-             }) }}
-      loop: "{{ parsed_nodes.nodes }}"
-      loop_control:
-        label: "{{ item.name }}"
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
 
     - name: Load variables from file
       ansible.builtin.include_vars:
@@ -778,11 +910,12 @@
     group_cp: "service_kube_control_plane_x86_64"
     group_worker: "service_kube_node_x86_64"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -796,36 +929,25 @@
       ansible.builtin.set_fact:
         k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
 
-    - name: Read nodes.yaml
-      ansible.builtin.slurp:
-        src: "{{ nodes_yaml_path }}"
-      register: nodes_slurp
-      changed_when: false
-
-    - name: Parse nodes.yaml
+    - name: "Use validated node groups from cluster validation"
       ansible.builtin.set_fact:
-        parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+        groups_cp_first: "{{ hostvars['localhost']['validated_groups_cp_first'] }}"
+        groups_cp: "{{ hostvars['localhost']['validated_groups_cp'] }}"
+        groups_worker: "{{ hostvars['localhost']['validated_groups_worker'] }}"
+        parsed_nodes: "{{ hostvars['localhost']['validated_parsed_nodes'] }}"
+        node_ips: "{{ hostvars['localhost']['validated_node_ips'] }}"
+      when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: Build first control plane list
-      ansible.builtin.set_fact:
-        groups_cp_first: >-
-          {{ parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_cp_first)
-             | map(attribute='name') | list }}
+    - name: "Run cluster validation if not already done"
+      when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+      block:
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
-    - name: Build additional control plane list
-      ansible.builtin.set_fact:
-        groups_cp: >-
-          {{ parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_cp)
-             | map(attribute='name') | list }}
-
-    - name: Build worker list
-      ansible.builtin.set_fact:
-        groups_worker: >-
-          {{ parsed_nodes.nodes
-             | selectattr('group', 'equalto', group_worker)
-             | map(attribute='name') | list }}
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
 
     - name: Add first control plane to inventory
       ansible.builtin.add_host:
@@ -916,11 +1038,12 @@
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Load variables from file
       ansible.builtin.include_vars:
@@ -969,11 +1092,12 @@
     k8s_client_mount_path: "{{ hostvars[groups.kube_vip_group[0]]['k8s_client_mount_path_kube_vip'] }}"
     kube_vip: "{{ hostvars[groups.kube_vip_group[0]]['ansible_host'] }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Set backup paths from hostvars
       ansible.builtin.set_fact:
@@ -990,11 +1114,12 @@
     input_project_dir: "/opt/omnia/input/project_default"
     oim_provision_path: "/opt/omnia/provision"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Load software_config.json
       ansible.builtin.slurp:
@@ -1098,11 +1223,12 @@
   gather_facts: false
   strategy: linear
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Deploy upgrade repo file to node
       ansible.builtin.copy:
@@ -1297,11 +1423,12 @@
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured or already completed"
+    - name: "Skip all tasks — service_k8s not configured, already completed, or resuming post-validation"
       ansible.builtin.meta: end_play
       when: >
         not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
-        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false)) or
+        (hostvars['localhost']['resume_post_validation_only'] | default(false))
 
     - name: Load omnia_config.yml
       ansible.builtin.include_vars:
@@ -1314,7 +1441,7 @@
 
     - name: Call upgrade_k8s role
       ansible.builtin.include_role:
-        name: ../roles/upgrade_k8s
+        name: "{{ playbook_dir }}/../roles/upgrade_k8s"
 
 - name: "Kubernetes Upgrade - Post-Validation"
   hosts: localhost
@@ -1372,27 +1499,25 @@
       ansible.builtin.set_fact:
         status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
 
-    - name: Read nodes.yaml for all_upgrade_nodes
-      ansible.builtin.slurp:
-        src: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
-      register: nodes_slurp
-
-    - name: Parse nodes.yaml
+    - name: "Use validated node groups from cluster validation"
       ansible.builtin.set_fact:
-        parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+        all_upgrade_nodes: "{{ hostvars['localhost']['validated_all_upgrade_nodes'] }}"
+      when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: Build all_upgrade_nodes list
-      ansible.builtin.set_fact:
-        all_upgrade_nodes: >-
-          {{ (parsed_nodes.nodes
-             | selectattr('group', 'equalto', 'service_kube_control_plane_first_x86_64')
-             | map(attribute='name') | list) +
-             (parsed_nodes.nodes
-             | selectattr('group', 'equalto', 'service_kube_control_plane_x86_64')
-             | map(attribute='name') | list) +
-             (parsed_nodes.nodes
-             | selectattr('group', 'equalto', 'service_kube_node_x86_64')
-             | map(attribute='name') | list) }}
+    - name: "Run cluster validation if not already done"
+      when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+      block:
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
+
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
+
+        - name: "Set all_upgrade_nodes from validation"
+          ansible.builtin.set_fact:
+            all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
 
     - name: Get k8s_from_version from status file
       ansible.builtin.slurp:
@@ -1421,7 +1546,7 @@
           multi_hop:
             current_hop: "{{ upgrade_status.multi_hop.current_hop | default(0) }}"
             hops: >-
-              {{ (upgrade_status.multi_hop.hops | default([]))
+              {{ (upgrade_status.multi_hop.hops | default([], true))
                  | map('combine', {'status': 'completed', 'completed_at': now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ')})
                  | list }}
 

@@ -19,8 +19,7 @@
     grep -qxF '127.0.0.1 localhost.localdomain localhost' {{ hosts_file_path }} || echo '127.0.0.1 localhost.localdomain localhost' >> {{ hosts_file_path }}
   changed_when: true
 
-- name: Update OIM /etc/hosts (skipped when CoreDNS is enabled)
-  when: not (dns_enabled | default(false) | bool)
+- name: Update /etc/hosts with PXE mapping hostnames
   block:
     - name: Remove stale entries for IPs and hostnames that are being updated
       ansible.builtin.shell: |

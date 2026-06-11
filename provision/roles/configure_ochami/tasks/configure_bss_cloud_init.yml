@@ -111,6 +111,22 @@
   ansible.builtin.include_tasks: configure_cloud_init_group.yml
   with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
 
+# Re-apply per-node hostname data after all defaults and group configs are set.
+# The cloud-init-server stores data in-memory and the ordering matters:
+# defaults/groups must be loaded before per-node instance overrides.
+# This matches the reload order used in upgrade (reload_cloud_init_data.yml).
+- name: Check hostname.yaml exists
+  ansible.builtin.stat:
+    path: "{{ openchami_hostname_vars_path }}"
+  register: hostname_yaml_stat
+
+- name: Re-apply per-node hostname data into cloud-init-server
+  ansible.builtin.command: /usr/bin/ochami cloud-init node set -f yaml -d @"{{ openchami_hostname_vars_path }}"
+  changed_when: true
+  when:
+    - hostname_yaml_stat.stat.exists | default(false)
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Set openchami SELinux context for Local flow
   ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
   changed_when: true

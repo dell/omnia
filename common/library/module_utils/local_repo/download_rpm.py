@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 import subprocess
 import os
+import glob
 import shutil
 from pathlib import Path
 from ansible.module_utils.local_repo.config import (
@@ -27,6 +28,36 @@ from multiprocessing import Lock
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
 
 file_lock = Lock()
+
+def _check_rpm_downloaded(rpm_directory, pkg_name):
+    """
+    Check if an RPM file for the given package exists in the directory.
+    This is more reliable than parsing DNF output which varies between DNF4 and DNF5.
+
+    Args:
+        rpm_directory (str): Directory where RPMs are downloaded
+        pkg_name (str): Package name to check for
+
+    Returns:
+        bool: True if RPM file exists for the package
+    """
+    # Look for RPM files that start with the package name
+    # Pattern: pkg_name-version-release.arch.rpm
+    pattern = os.path.join(rpm_directory, f"{pkg_name}-[0-9]*.rpm")
+    matches = glob.glob(pattern)
+    if matches:
+        return True
+
+    # Also check for exact match pattern (some packages have numbers in name)
+    pattern2 = os.path.join(rpm_directory, f"{pkg_name}-*.rpm")
+    for match in glob.glob(pattern2):
+        # Extract just the filename
+        filename = os.path.basename(match)
+        # Check if filename starts with pkg_name followed by a dash and version
+        if filename.startswith(f"{pkg_name}-"):
+            return True
+
+    return False
 
 def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                cluster_os_version, repo_config_value, arc, logger):
@@ -93,21 +124,18 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             failed = []
 
             # Detect successes/failures from combined run
+            # Use filesystem check instead of parsing output (works with both DNF4 and DNF5)
             for pkg in rpm_list:
                 # Get repo_name for this specific RPM from mapping
                 pkg_repo_name = repo_mapping.get(pkg, "")
-                # Check if package was downloaded successfully
-                # Look for "Already downloaded" or actual .rpm file in output
-                pkg_downloaded = False
-                for line in stdout_lines + stderr_lines:
-                    if pkg in line and (".rpm" in line or "Already downloaded" in line):
-                        pkg_downloaded = True
-                        break
 
-                # Also check for "No match for argument" or "No package" errors
+                # Check if package was downloaded by looking for the RPM file
+                pkg_downloaded = _check_rpm_downloaded(rpm_directory, pkg)
+
+                # Also check for "No match for argument" or "No package" errors in stderr
                 pkg_not_found = False
                 for line in stderr_lines:
-                    if pkg in line and ("No match for argument" in line or 
+                    if pkg in line and ("No match for argument" in line or
                                        "No package" in line or
                                        "not found" in line.lower()):
                         pkg_not_found = True
@@ -116,6 +144,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                 if pkg_downloaded and not pkg_not_found:
                     downloaded.append(pkg)
                     write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
+                    logger.info(f"Package '{pkg}' downloaded successfully.")
                 else:
                     failed.append(pkg)
                     if pkg_not_found:
@@ -139,7 +168,8 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                         "unable to find a match"
                     ])
 
-                    if retry_res.returncode == 0 and ".rpm" in retry_res.stdout + retry_res.stderr:
+                    # Check if RPM file exists after retry (works with both DNF4 and DNF5)
+                    if retry_res.returncode == 0 and _check_rpm_downloaded(rpm_directory, pkg):
                         downloaded.append(pkg)
                         failed.remove(pkg)
                         write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
@@ -170,7 +200,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             for pkg in package["rpm_list"]:
                 # Get repo_name for this specific RPM from mapping
                 pkg_repo_name = repo_mapping.get(pkg, "")
-                
+
                 # Validate package using dnf info with specific repo only
                 if pkg_repo_name:
                     # Apply architecture prefixing if needed
@@ -193,7 +223,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     # Package exists and is available
                     valid_packages.append(pkg)
                     write_status_to_file(
-                        status_file_path, pkg, "rpm", "Success", 
+                        status_file_path, pkg, "rpm", "Success",
                         logger, file_lock, pkg_repo_name
                     )
                     logger.info(f"Package '{pkg}' validated successfully")
@@ -201,7 +231,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     # Package not found or invalid
                     invalid_packages.append(pkg)
                     write_status_to_file(
-                        status_file_path, pkg, "rpm", "Failed", 
+                        status_file_path, pkg, "rpm", "Failed",
                         logger, file_lock, pkg_repo_name
                     )
                     logger.error(

@@ -44,9 +44,11 @@
     mode: '0644'
 
 - name: "Phase 9 | Display rollback summary"
-  ansible.builtin.debug:
-    msg: "{{ lookup('template', 'rollback_summary.j2') }}"
+  ansible.builtin.pause:
+    seconds: 1
+    prompt: "{{ lookup('template', 'rollback_summary.j2') }}"
 
 - name: "Phase 9 | Display rollback status"
-  ansible.builtin.debug:
-    msg: "[ROLLBACK] Component '{{ buildstream_orchestrator_component_name }}' — status changed to: {{ _rollback_final_status }}"
+  ansible.builtin.pause:
+    seconds: 1
+    prompt: "[ROLLBACK] Component '{{ buildstream_orchestrator_component_name }}' — status changed to: {{ _rollback_final_status }}"

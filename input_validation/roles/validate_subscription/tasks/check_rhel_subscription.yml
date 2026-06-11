@@ -75,6 +75,17 @@
         state: directory
         mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
+    - name: Remove stale files from rhel_repo_cert_dir before fresh copy
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: absent
+
+    - name: Recreate rhel_repo_cert_dir after cleanup
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: directory
+        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
     - name: Find entitlement certs on oim
       ansible.builtin.shell: |
         set -o pipefail

@@ -1,0 +1,116 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_kubelet_config.yml — Update kubelet config.yaml parameters
+# ============================================================================
+# This task file updates kubelet configuration parameters in
+# /var/lib/kubelet/config.yaml to match the settings applied during
+# fresh provisioning via cloud-init templates.
+#
+# This should be called after kubelet is upgraded to ensure consistency
+# between provisioned and upgraded nodes.
+# ============================================================================
+
+- name: Check if /var/lib/kubelet/config.yaml exists
+  ansible.builtin.stat:
+    path: /var/lib/kubelet/config.yaml
+  register: _kubelet_config_stat
+
+- name: Determine node role from inventory groups
+  ansible.builtin.set_fact:
+    _is_cp_first: "{{ 'k8s_control_plane_first' in group_names }}"
+    _is_cp_additional: "{{ 'k8s_control_plane' in group_names }}"
+    _is_worker: "{{ 'k8s_workers' in group_names }}"
+
+- name: Update kubelet config.yaml parameters
+  when: _kubelet_config_stat.stat.exists
+  block:
+    # Shutdown grace period settings (all nodes)
+    - name: Update shutdownGracePeriod in kubelet config
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^shutdownGracePeriod:'
+        line: 'shutdownGracePeriod: 30s'
+
+    - name: Update shutdownGracePeriodCriticalPods in kubelet config
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^shutdownGracePeriodCriticalPods:'
+        line: 'shutdownGracePeriodCriticalPods: 10s'
+
+    # Node status and sync frequency settings
+    # All control planes (first + additional): 10s / 60s / 60s
+    # Workers: 5s / 10s / 10s
+
+    # ── Control plane nodes (first + additional) ──
+    - name: Set nodeStatusUpdateFrequency for control plane nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusUpdateFrequency:'
+        line: 'nodeStatusUpdateFrequency: 10s'
+      when: (_is_cp_first | bool) or (_is_cp_additional | bool)
+
+    - name: Set nodeStatusReportFrequency for control plane nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusReportFrequency:'
+        line: 'nodeStatusReportFrequency: 60s'
+      when: (_is_cp_first | bool) or (_is_cp_additional | bool)
+
+    - name: Set syncFrequency for control plane nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^syncFrequency:'
+        line: 'syncFrequency: 60s'
+      when: (_is_cp_first | bool) or (_is_cp_additional | bool)
+
+    # ── Worker nodes ──
+    - name: Set nodeStatusUpdateFrequency for worker nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusUpdateFrequency:'
+        line: 'nodeStatusUpdateFrequency: 5s'
+      when: _is_worker | bool
+
+    - name: Set nodeStatusReportFrequency for worker nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^nodeStatusReportFrequency:'
+        line: 'nodeStatusReportFrequency: 10s'
+      when: _is_worker | bool
+
+    - name: Set syncFrequency for worker nodes
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^syncFrequency:'
+        line: 'syncFrequency: 10s'
+      when: _is_worker | bool
+
+# Note: daemon-reload and kubelet restart are handled by the caller
+# (step_kubelet_restart.yml). No restart here to avoid double restart.
+
+- name: Determine node role label
+  ansible.builtin.set_fact:
+    _node_role: >-
+      {{ 'cp_first' if (_is_cp_first | bool)
+         else 'cp_additional' if (_is_cp_additional | bool)
+         else 'worker' }}
+
+- name: Display kubelet config update status
+  ansible.builtin.debug:
+    msg: >-
+      Updated /var/lib/kubelet/config.yaml
+      on {{ inventory_hostname }} (role: {{ _node_role }})
+  when: _kubelet_config_stat.stat.exists

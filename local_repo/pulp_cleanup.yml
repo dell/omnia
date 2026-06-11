@@ -49,10 +49,16 @@
         cluster_os_version: "{{ software_config.cluster_os_version }}"
 
     # Step 1: Input Validation
+    - name: Set cleanup input presence flag
+      ansible.builtin.set_fact:
+        has_cleanup_input: "{{ (cleanup_repos | default([]) | length > 0) or
+          (cleanup_containers | default([]) | length > 0) or
+          (cleanup_files | default([]) | length > 0) }}"
+
     - name: Validate input - at least one cleanup type must be specified
       ansible.builtin.assert:
         that:
-          - (cleanup_repos | default([]) | length > 0) or (cleanup_containers | default([]) | length > 0) or (cleanup_files | default([]) | length > 0)
+          - has_cleanup_input | bool
         fail_msg: |
           No cleanup items specified. Please provide at least one of:
             cleanup_repos: ['repo1', 'repo2']
@@ -60,20 +66,39 @@
             cleanup_files: ['file1', 'file2']
 
     # Step 2: User Confirmation
-    - name: Parse cleanup lists
+    - name: Parse cleanup lists - repos
       ansible.builtin.set_fact:
-        repo_list: "{{ cleanup_repos.split(',') | map('trim') | list if cleanup_repos is string else (cleanup_repos | default([])) }}"
-        container_list: "{{ cleanup_containers.split(',') | map('trim') | list if cleanup_containers is string else (cleanup_containers | default([])) }}"
-        file_list: "{{ cleanup_files.split(',') | map('trim') | list if cleanup_files is string else (cleanup_files | default([])) }}"
+        repo_list: >-
+          {{ cleanup_repos.split(',') | map('trim') | select | list
+          if (cleanup_repos is defined and cleanup_repos is string)
+          else (cleanup_repos | default([])) }}
+
+    - name: Parse cleanup lists - containers
+      ansible.builtin.set_fact:
+        container_list: >-
+          {{ cleanup_containers.split(',') | map('trim') | select | list
+          if (cleanup_containers is defined and cleanup_containers is string)
+          else (cleanup_containers | default([])) }}
+
+    - name: Parse cleanup lists - files
+      ansible.builtin.set_fact:
+        file_list: >-
+          {{ cleanup_files.split(',') | map('trim') | select | list
+          if (cleanup_files is defined and cleanup_files is string)
+          else (cleanup_files | default([])) }}
 
     - name: Display cleanup summary
       ansible.builtin.debug:
         msg:
           - "========== CLEANUP SUMMARY =========="
           - "Repositories : {{ (repo_list | default([]) | join(', ')) if repo_list | default([]) | length > 0 else 'None' }}"
-          - "Containers   : {{ (container_list | default([]) | join(', ')) if cleanup_containers | default([]) | length > 0 else 'None' }}"
-          - "Files        : {{ (file_list | default([]) | join(', ')) if cleanup_files | default([]) | length > 0 else 'None' }}"
+          - "Containers   : {{ (container_list | default([]) | join(', ')) if container_list | default([]) | length > 0 else 'None' }}"
+          - "Files        : {{ (file_list | default([]) | join(', ')) if file_list | default([]) | length > 0 else 'None' }}"
           - "====================================="
+
+    - name: Set force skip confirmation flag
+      ansible.builtin.set_fact:
+        force_skip_confirmation: "{{ force | default(false) | bool }}"
 
     - name: Get user confirmation
       ansible.builtin.pause:
@@ -81,16 +106,27 @@
 
           WARNING: This will permanently delete the specified artifacts.
           This action cannot be undone.
-          Type 'yes' to continue or press Ctrl+C to abort
+          Type 'yes' to continue or 'no' to abort
+        echo: true
       register: user_input
-      when: not (force | default(false)) | bool
+      when: not force_skip_confirmation
+
+    - name: Set user confirmed flag
+      ansible.builtin.set_fact:
+        user_confirmed: "{{ (user_input.user_input | default('') | lower) == 'yes' }}"
+
+    - name: Display cancellation message
+      ansible.builtin.debug:
+        msg: "Cleanup cancelled by user. Exiting."
+      when:
+        - not force_skip_confirmation
+        - not user_confirmed
 
     - name: Abort if not confirmed
-      ansible.builtin.fail:
-        msg: "Cleanup cancelled by user"
+      ansible.builtin.meta: end_play
       when:
-        - not (force | default(false)) | bool
-        - user_input.user_input | default('') | lower != 'yes'
+        - not force_skip_confirmation
+        - not user_confirmed
 
   tasks:
     # Step 3: Call Python Module

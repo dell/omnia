@@ -116,12 +116,20 @@ msg_etcd_quorum_lost: >-
 msg_rollback_backup_missing: >-
   Required backup not found: {{ _missing_backup }}.
   Cannot proceed with rollback. Ensure upgrade backups exist.
-msg_rollback_complete: >-
-  K8s rollback from {{ k8s_current_version }} to {{ k8s_rollback_version }}
-  completed successfully. All nodes Ready.
-msg_rollback_failed: >-
+msg_rollback_complete: |
+  ============================================================
+  [ROLLBACK] K8S ROLLBACK COMPLETED SUCCESSFULLY
+  ============================================================
+  Rolled back from {{ k8s_current_version }} to {{ k8s_rollback_version }}.
+  All nodes Ready.
+  ============================================================
+msg_rollback_failed: |
+  ============================================================
+  [ROLLBACK] K8S ROLLBACK FAILED
+  ============================================================
   K8s rollback failed. Check rollback_status.yml for details.
   Status file: {{ rollback_status_file }}
+  ============================================================
 msg_metallb_cleanup: >-
   Stale MetalLB IPs detected. Removing secondary IPs from node interfaces
   to prevent split-brain when speakers restart.

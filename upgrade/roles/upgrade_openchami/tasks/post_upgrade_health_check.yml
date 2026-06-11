@@ -151,7 +151,7 @@
 
     - name: Compare node counts
       ansible.builtin.debug:
-        verbosity: 1
+        verbosity: 2
         msg: >-
           Node count — Pre-upgrade: {{ pre_upgrade_node_count | default('0') | trim }},
           Post-upgrade: {{ post_upgrade_node_count.stdout | default('0') | trim }}.
@@ -161,6 +161,7 @@
 
     - name: Warn if node count decreased
       ansible.builtin.debug:
+        verbosity: 2
         msg: >-
           WARNING: Node count decreased from {{ pre_upgrade_node_count | default('0') | trim }}
           to {{ post_upgrade_node_count.stdout | default('0') | trim }}.
@@ -220,7 +221,7 @@
         set -o pipefail
         ochami smd --cacert {{ ca_cert_path | default('/root_ca/root_ca.crt') }} \
           component get 2>&1 | head -20 || echo "ochami_unavailable"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ochami_smd_check
       changed_when: false
       failed_when: false
@@ -267,7 +268,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami bss boot params get -F yaml 2>&1 | grep -c 'cloud-init' || echo "0"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: bss_ci_ds_check
       changed_when: false
       failed_when: false
@@ -303,7 +304,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami cloud-init service status 2>&1
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ci_http_health
       changed_when: false
       failed_when: false
@@ -328,7 +329,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami cloud-init group get 2>&1 || echo "ci_unavailable"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ci_group_list
       changed_when: false
       failed_when: false
@@ -354,7 +355,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         /usr/bin/ochami cloud-init node get 2>&1 || echo "ci_node_unavailable"
-      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      environment: "{{ ci_reload_ochami_env | default({}, true) }}"
       register: ci_node_list
       changed_when: false
       failed_when: false
@@ -386,11 +387,6 @@
           - "Legacy coresmd: removed"
           - "SMD API: reachable at {{ openchami_smd_endpoint }}"
           - "BSS API: reachable at {{ openchami_bss_endpoint }}"
-          - >-
-            Node count — Pre: {{ pre_upgrade_node_count | default('0') | trim }},
-            Post: {{ post_upgrade_node_count.stdout | default('0') | trim }}{{
-            ' (prepare_oim-only)' if (pre_upgrade_node_count | default('0') | trim | int) == 0
-            and (post_upgrade_node_count.stdout | default('0') | trim | int) == 0 else '' }}
           - "Systemd deps: {{ 'verified' if openchami_deps.rc | default(1) == 0 else 'check skipped' }}"
           - "ochami CLI: {{ 'v' ~ ochami_version_check.stdout | default('unknown') | trim if ochami_version_check.rc | default(1) == 0 else 'not installed' }}"
           - "S3 buckets: {{ 'verified' if s3cfg_stat.stat.exists | default(false) else 'not configured (non-fatal)' }}"
