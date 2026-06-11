@@ -619,7 +619,9 @@ TELEMETRY_IP_OVERLAP_FAIL_MSG = ("admin network, telemetry network and IP ranges
                                  "Check telemetry_config.yml and network_spec.yml")
 
 # high_availability
-VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin subnet. "
+VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in a valid subnet. "
+                                 "The VIP must be in either the admin subnet or the "
+                                 "additional subnet where the Kubernetes control plane nodes are configured. "
                                  "Check high_availability_config.yml and network_spec.yml")
 VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
                        "Check high_availability_config.yml and network_spec.yml")
