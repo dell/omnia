@@ -1077,8 +1077,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "1.1",
-        "Version": "1.1"
+        "Tag": "1.2",
+        "Version": "1.2"
       },
       "dracut": {
         "Name": "dracut",

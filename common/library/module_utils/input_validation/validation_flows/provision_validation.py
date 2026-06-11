@@ -998,6 +998,184 @@ def validate_functional_groups_software_consistency(pxe_mapping_file_path, softw
     if has_slurm_fg and "slurm_custom" in software_names:
         logger.info("✓ Slurm functional groups validated: slurm_custom found in software_config.json")
 
+def _get_fg_names_from_mapping_file(pxe_mapping_file_path):
+    """Extract unique functional group names from PXE mapping CSV.
+
+    Args:
+        pxe_mapping_file_path (str): Path to the PXE mapping CSV file.
+
+    Returns:
+        list: Sorted list of unique functional group names.
+    """
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        return []
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    fg_col = fieldname_map.get("FUNCTIONAL_GROUP_NAME")
+    if not fg_col:
+        return []
+    fg_names = set()
+    for row in reader:
+        fg = row.get(fg_col, "").strip() if row.get(fg_col) else ""
+        if fg:
+            fg_names.add(fg)
+    return sorted(fg_names)
+
+
+def _validate_cloud_init_section(section_name, section_data):
+    """Validate a single cloud-init section (common or per-FG).
+
+    Returns:
+        list: List of error dicts from create_error_msg.
+    """
+    errors = []
+    key_prefix = f"additional_cloud_init.{section_name}"
+
+    if not isinstance(section_data, dict):
+        errors.append(create_error_msg(
+            key_prefix, str(type(section_data).__name__),
+            en_us_validation_msg.ADDITIONAL_CLOUD_INIT_SECTION_NOT_DICT_MSG,
+        ))
+        return errors
+
+    prohibited_keys = ["bootcmd", "network", "network-config", "packages"]
+    allowed_keys = ["write_files", "runcmd"]
+
+    for key in section_data:
+        if key in prohibited_keys:
+            errors.append(create_error_msg(
+                f"{key_prefix}.{key}", key,
+                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_PROHIBITED_KEY_MSG,
+            ))
+        elif key not in allowed_keys:
+            errors.append(create_error_msg(
+                f"{key_prefix}.{key}", key,
+                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_UNKNOWN_KEY_MSG,
+            ))
+
+    # write_files
+    if "write_files" in section_data:
+        wf = section_data["write_files"]
+        if not isinstance(wf, list):
+            errors.append(create_error_msg(
+                f"{key_prefix}.write_files", str(type(wf).__name__),
+                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_WRITE_FILES_NOT_LIST_MSG,
+            ))
+        else:
+            for idx, entry in enumerate(wf):
+                if isinstance(entry, dict):
+                    path_val = entry.get("path", "")
+                    if not path_val or not str(path_val).strip():
+                        errors.append(create_error_msg(
+                            f"{key_prefix}.write_files[{idx}].path", "",
+                            en_us_validation_msg.ADDITIONAL_CLOUD_INIT_WRITE_FILES_MISSING_PATH_MSG,
+                        ))
+
+    # runcmd
+    if "runcmd" in section_data:
+        rc = section_data["runcmd"]
+        if not isinstance(rc, list):
+            errors.append(create_error_msg(
+                f"{key_prefix}.runcmd", str(type(rc).__name__),
+                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_LIST_MSG,
+            ))
+        else:
+            for idx, entry in enumerate(rc):
+                if not isinstance(entry, str):
+                    errors.append(create_error_msg(
+                        f"{key_prefix}.runcmd[{idx}]", str(type(entry).__name__),
+                        en_us_validation_msg.ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_STRING_MSG,
+                    ))
+
+    return errors
+
+
+def validate_additional_cloud_init_config(config_file_path, pxe_mapping_file_path):
+    """Validate the additional cloud-init configuration file.
+
+    Checks:
+      - File exists and is valid YAML
+      - Top-level keys are only 'common' and 'groups'
+      - Per-section: no prohibited keys, only allowed keys, type checks
+      - Group names match functional groups from pxe_mapping_file
+
+    Args:
+        config_file_path (str): Path to additional_cloud_init config file.
+        pxe_mapping_file_path (str): Path to PXE mapping CSV for FG name validation.
+
+    Returns:
+        list: List of error dicts (empty if valid).
+    """
+    errors = []
+    if not config_file_path or not config_file_path.strip():
+        return errors
+
+    config_file_path = config_file_path.strip()
+
+    if not os.path.isfile(config_file_path):
+        errors.append(create_error_msg(
+            "additional_cloud_init_config_file", config_file_path,
+            en_us_validation_msg.ADDITIONAL_CLOUD_INIT_FILE_NOT_FOUND_MSG,
+        ))
+        return errors
+
+    try:
+        with open(config_file_path, "r", encoding="utf-8") as fh:
+            config_data = yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        errors.append(create_error_msg(
+            "additional_cloud_init_config_file", config_file_path,
+            f"{en_us_validation_msg.ADDITIONAL_CLOUD_INIT_YAML_SYNTAX_MSG} {exc}",
+        ))
+        return errors
+
+    if config_data is None:
+        return errors
+
+    if not isinstance(config_data, dict):
+        errors.append(create_error_msg(
+            "additional_cloud_init_config_file", str(type(config_data).__name__),
+            en_us_validation_msg.ADDITIONAL_CLOUD_INIT_NOT_DICT_MSG,
+        ))
+        return errors
+
+    top_level_keys = ["common", "groups"]
+    for key in config_data:
+        if key not in top_level_keys:
+            errors.append(create_error_msg(
+                f"additional_cloud_init.{key}", key,
+                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_UNKNOWN_TOP_KEY_MSG,
+            ))
+
+    common_data = config_data.get("common") or {}
+    groups_data = config_data.get("groups") or {}
+
+    if common_data:
+        errors.extend(_validate_cloud_init_section("common", common_data))
+
+    if groups_data:
+        if not isinstance(groups_data, dict):
+            errors.append(create_error_msg(
+                "additional_cloud_init.groups", str(type(groups_data).__name__),
+                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_SECTION_NOT_DICT_MSG,
+            ))
+        else:
+            valid_fg_names = _get_fg_names_from_mapping_file(pxe_mapping_file_path)
+            for fg_name, section_data in groups_data.items():
+                if valid_fg_names and fg_name not in valid_fg_names:
+                    errors.append(create_error_msg(
+                        f"additional_cloud_init.groups.{fg_name}", fg_name,
+                        en_us_validation_msg.ADDITIONAL_CLOUD_INIT_INVALID_FG_MSG,
+                    ))
+                if section_data:
+                    errors.extend(_validate_cloud_init_section(fg_name, section_data))
+
+    return errors
+
+
 def validate_provision_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
 ):
@@ -1122,6 +1300,12 @@ def validate_provision_config(
                     en_us_validation_msg.KERNEL_VERSION_OVERRIDE_FAIL_MSG,
                 )
             )
+
+    # Validate additional cloud-init config file
+    aci_path = data.get("additional_cloud_init_config_file", "")
+    if aci_path:
+        aci_errors = validate_additional_cloud_init_config(aci_path, pxe_mapping_file_path)
+        errors.extend(aci_errors)
 
     return errors
 

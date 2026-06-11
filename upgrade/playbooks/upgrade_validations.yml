@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# upgrade_validations.yml — Global Pre-flight Validations
+# ============================================================================
+# Runs BEFORE any component upgrade sub-flow to enforce fail-fast semantics.
+# All topology and configuration validations that could leave the cluster in
+# a partially upgraded state if they fail late MUST be placed here.
+#
+# Current validations:
+#   1. BuildStream topology change detection (enabled→disabled is blocked)
+#
+# This playbook reads the upgrade manifest and backup configuration to
+# detect unsupported topology changes before any component is modified.
+# ============================================================================
+
+- name: "Global pre-flight validations — fail-fast topology checks"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+  tasks:
+    # ── Read manifest for backup_dir and current state ──
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: _val_raw_manifest
+
+    - name: Parse upgrade manifest
+      ansible.builtin.set_fact:
+        _val_manifest: "{{ _val_raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Set backup directory from manifest
+      ansible.builtin.set_fact:
+        _val_backup_dir: "{{ _val_manifest.backup_dir }}"
+
+    # ══════════════════════════════════════════════════════════════════
+    # Validation 1: BuildStream topology change detection
+    # ══════════════════════════════════════════════════════════════════
+    # Disabling BuildStream during upgrade (enabled in 2.1 → disabled
+    # in 2.2) is an unsupported topology change. This MUST be caught
+    # before OIM upgrade starts to prevent a partially upgraded cluster.
+
+    - name: Read current build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      failed_when: false
+
+    - name: Set current enable_build_stream fact
+      ansible.builtin.set_fact:
+        _val_current_bs: "{{ enable_build_stream | default(false) | bool }}"
+
+    - name: Read backup build_stream_config.yml (pre-upgrade state)
+      ansible.builtin.slurp:
+        src: "{{ _val_backup_dir }}/input/project_default/build_stream_config.yml"
+      register: _val_backup_bs_slurp
+      failed_when: false
+
+    - name: Parse backup build_stream_config.yml
+      ansible.builtin.set_fact:
+        _val_backup_bs: "{{ (_val_backup_bs_slurp.content | b64decode | from_yaml).enable_build_stream | default(false) | bool }}"
+      when: _val_backup_bs_slurp is not failed
+
+    - name: "Abort — disabling BuildStream during upgrade is not supported"
+      ansible.builtin.fail:
+        msg: |
+          ══════════════════════════════════════════════════════════════
+                UNSUPPORTED TOPOLOGY CHANGE DETECTED
+          ══════════════════════════════════════════════════════════════
+
+          BuildStream was ENABLED in the pre-upgrade (2.1) configuration
+          but is now DISABLED in the current build_stream_config.yml.
+
+          Disabling BuildStream during an upgrade is not a supported
+          topology. Once BuildStream is enabled, it cannot be disabled
+          through the upgrade process.
+
+          To proceed, restore enable_build_stream: true in:
+            {{ input_project_dir }}/build_stream_config.yml
+
+          Pre-upgrade config (backup):
+            enable_build_stream: {{ _val_backup_bs | default(false) }}
+          Current config:
+            enable_build_stream: {{ _val_current_bs }}
+
+          ══════════════════════════════════════════════════════════════
+      when:
+        - _val_backup_bs | default(false) | bool
+        - not _val_current_bs | bool
+
+    - name: "Pre-flight validations passed"
+      ansible.builtin.debug:
+        msg: "All global pre-flight topology validations passed."
