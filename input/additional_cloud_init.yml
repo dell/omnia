@@ -56,7 +56,7 @@ common: {}
 #         - slurm-extra-plugin
 #       runcmd:
 #         - echo "Slurm node setup" >> /var/log/custom.log
-#     login_node_x86_64:
+#     os_x86_64:
 #       write_files:
 #         - path: /etc/profile.d/cluster.sh
 #           content: |
