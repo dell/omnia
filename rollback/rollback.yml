@@ -262,9 +262,19 @@
     - name: Identify components skipped by BuildStream terminal gate
       ansible.builtin.set_fact:
         bs_rollback_skipped: >-
-          {{ ['slurm', 'k8s-telemetry']
-             if (build_stream_terminal | bool)
-             else [] }}
+          {%- set skipped = [] -%}
+          {%- if build_stream_terminal | bool -%}
+          {%-   if upgrade_manifest is defined and upgrade_manifest.component_status is defined -%}
+          {%-     if upgrade_manifest.component_status.slurm | default('pending') not in ['completed', 'in-progress', 'failed'] -%}
+          {%-       set _ = skipped.append('slurm') -%}
+          {%-     endif -%}
+          {%-     if (upgrade_manifest.component_status.k8s | default('pending') not in ['completed', 'in-progress', 'failed'])
+                    and (upgrade_manifest.component_status.telemetry | default('pending') not in ['completed', 'in-progress', 'failed']) -%}
+          {%-       set _ = skipped.append('k8s-telemetry') -%}
+          {%-     endif -%}
+          {%-   endif -%}
+          {%- endif -%}
+          {{ skipped }}
 
     - name: Report BuildStream terminal gate activation (rollback)
       ansible.builtin.debug:

@@ -57,8 +57,11 @@
         cacheable: true
 
     - name: "Handle BuildStream terminal gate (C-24)"
-      when: ((build_stream_terminal | default(false) | bool) or
-            (manifest.component_status.build_stream | default('pending') == 'completed'))
+      when:
+        - (build_stream_terminal | default(false) | bool) or (manifest.component_status.build_stream | default('pending') == 'completed')
+        - hostvars['localhost']['upgrade_manifest'] is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status.slurm | default('pending') not in ['completed', 'in-progress', 'failed']
       block:
         - name: "Mark as skipped — BuildStream terminal gate active"
           ansible.builtin.copy:

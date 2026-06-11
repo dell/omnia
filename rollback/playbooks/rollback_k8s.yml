@@ -48,11 +48,19 @@
         mode: '0644'
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - hostvars['localhost']['upgrade_manifest'] is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status.k8s | default('pending') not in ['completed', 'in-progress', 'failed']
+        - hostvars['localhost']['upgrade_manifest'].component_status.telemetry | default('pending') not in ['completed', 'in-progress', 'failed']
 
     - name: "Skip — BuildStream terminal gate active (C-24)"
       ansible.builtin.meta: end_play
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - hostvars['localhost']['upgrade_manifest'] is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status.k8s | default('pending') not in ['completed', 'in-progress', 'failed']
+        - hostvars['localhost']['upgrade_manifest'].component_status.telemetry | default('pending') not in ['completed', 'in-progress', 'failed']
 
     # ── Pre-check: Skip rollback if service_k8s is not in software_config.json ──
     - name: "Load software_config.json"
