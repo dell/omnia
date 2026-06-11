@@ -595,6 +595,15 @@
   tags: always
 
 # ──────────────────────────────────────────────────────────────────────
+# Global pre-flight validations — topology checks that MUST pass
+# before any component upgrade begins. Catches unsupported changes
+# (e.g., BuildStream enabled→disabled) to prevent partial upgrades.
+# ──────────────────────────────────────────────────────────────────────
+- name: Global pre-flight validations (fail-fast topology checks)
+  ansible.builtin.import_playbook: playbooks/upgrade_validations.yml
+  tags: always
+
+# ──────────────────────────────────────────────────────────────────────
 # Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
 # skips if its component_status is already 'completed')
 # ──────────────────────────────────────────────────────────────────────
