@@ -256,7 +256,7 @@
           {{ (build_stream_config.enable_build_stream | default(false) | bool)
              or ((upgrade_manifest is defined)
              and (upgrade_manifest.component_status is defined)
-             and (upgrade_manifest.component_status.build_stream | default('pending') == 'completed')) }}
+             and (upgrade_manifest.component_status.build_stream | default('pending') in ['completed'])) }}
         cacheable: true
 
     - name: Identify components skipped by BuildStream terminal gate
