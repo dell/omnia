@@ -49,6 +49,7 @@ dns_enabled: false
 
 #### Optional
 # Pin a specific kernel version for boot image selection.
+# The specified version applies to both x86_64 and aarch64 architectures.
 # Leave empty ("") to auto-select the latest available image from S3.
-# Example: kernel_version_override: "6.12.0-55.76.1.el10_0.x86_64"
+# Example: kernel_version_override: "6.12.0-55.76.1.el10_0"
 kernel_version_override: "{{ provision_kernel_version_override }}"
