@@ -315,7 +315,9 @@ def validate_vip_address(
     admin_netmaskbits,
     oim_admin_ip,
     pxe_mapping_file_path=None,
-    additional_subnets=None
+    additional_subnets=None,
+    kcp_subnet_ip=None,
+    kcp_subnet_bits=None
 ):
     """
         Validate a virtual IP address against a list of existing service node VIPs,
@@ -330,6 +332,9 @@ def validate_vip_address(
         - admin_netmaskbits (str): The netmask bits value of the admin network.
         - oim_admin_ip (str): The IP address of the OIM admin interface.
         - pxe_mapping_file_path (str, optional): Path to PXE mapping file for additional validation.
+        - additional_subnets (list, optional): List of additional subnet dicts from network_spec.yml.
+        - kcp_subnet_ip (str, optional): Reference IP of the control plane nodes' subnet.
+        - kcp_subnet_bits (str, optional): Netmask bits of the control plane nodes' subnet.
 
         Returns:
         - None: The function does not return any value, it only appends
@@ -359,8 +364,16 @@ def validate_vip_address(
             )
         )
 
-    # validate virtual_ip_address is in the admin subnet
-    if not validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, vip_address):
+    # validate virtual_ip_address is in the expected subnet
+    # VIP is valid if it is in the primary admin subnet OR the control plane
+    # nodes' subnet (which may be an additional subnet).
+    in_admin_subnet = validation_utils.is_ip_in_subnet(
+        oim_admin_ip, admin_netmaskbits, vip_address)
+    in_kcp_subnet = False
+    if kcp_subnet_ip and kcp_subnet_bits:
+        in_kcp_subnet = validation_utils.is_ip_in_subnet(
+            kcp_subnet_ip, kcp_subnet_bits, vip_address)
+    if not in_admin_subnet and not in_kcp_subnet:
         errors.append(
             create_error_msg(
                 f"{config_type} virtual_ip_address",
@@ -390,7 +403,7 @@ def validate_vip_address(
         validate_vip_vs_pxe_mapping_host_ips(errors, config_type, vip_address, pxe_mapping_file_path)
         
         # Check all HOST_IPs are in same subnet as VIP
-        validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_file_path, admin_netmaskbits, additional_subnets)
+        validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_file_path, admin_netmaskbits, additional_subnets, oim_admin_ip)
 
 def validate_service_k8s_cluster_ha(
     errors,
@@ -433,6 +446,26 @@ def validate_service_k8s_cluster_ha(
         pxe_list = list(csv.DictReader(csvfile, delimiter=","))
         pxe_admin_ips = [item["ADMIN_IP"] for item in pxe_list]
         pxe_bmc_ips   = [item["BMC_IP"]   for item in pxe_list]
+
+    # Determine control plane nodes' subnet for VIP validation
+    additional_subnets = network_spec_data.get("additional_subnets", [])
+    kcp_ips = [item["ADMIN_IP"] for item in pxe_list
+               if item.get("FUNCTIONAL_GROUP_NAME", "").startswith("service_kube_control_plane")]
+    kcp_subnet_ip = None
+    kcp_subnet_bits = None
+    if kcp_ips:
+        ref_ip = kcp_ips[0]
+        if validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, ref_ip):
+            kcp_subnet_ip = oim_admin_ip
+            kcp_subnet_bits = admin_netmaskbits
+        elif additional_subnets:
+            for subnet_entry in additional_subnets:
+                s_addr = subnet_entry.get("subnet", "")
+                s_bits = subnet_entry.get("netmask_bits", "")
+                if s_addr and s_bits and validation_utils.is_ip_in_subnet(s_addr, s_bits, ref_ip):
+                    kcp_subnet_ip = s_addr
+                    kcp_subnet_bits = s_bits
+                    break
 
     with open(os.path.join(input_file_path, "omnia_config.yml"), "r", encoding="utf-8") as omniacfg:
         omnia_config =  yaml.safe_load(omniacfg)
@@ -478,7 +511,9 @@ def validate_service_k8s_cluster_ha(
                 admin_netmaskbits,
                 oim_admin_ip,
                 prov_cfg.get('pxe_mapping_file_path'),
-                network_spec_data.get("additional_subnets", [])
+                additional_subnets,
+                kcp_subnet_ip,
+                kcp_subnet_bits
             )
 
 
