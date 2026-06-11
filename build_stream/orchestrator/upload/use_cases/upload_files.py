@@ -15,6 +15,7 @@
 """Upload files use case implementation."""
 
 import hashlib
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -22,7 +23,7 @@ from typing import List
 import yaml
 
 from api.logging_utils import log_secure_info
-from common.config import BuildStreamConfig
+from common.config import BuildStreamConfig, load_config
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.exceptions import ArtifactAlreadyExistsError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
@@ -166,6 +167,13 @@ class UploadFilesUseCase:
 
         # Always emit audit event with file details (for all uploads)
         self._emit_upload_files_audit_event(command, uploaded_files)
+
+        # Copy software_config.json from job artifacts to shared input directory.
+        # During build pipeline, generate-input-files has not run yet so the
+        # file won't exist — the copy is safely skipped.
+        # During deploy pipeline, the file was generated during the prior build
+        # and must be synced so the deploy uses the correct software config.
+        self._copy_software_config_from_artifacts(str(command.job_id))
 
         # Build result
         summary = UploadSummary(
@@ -573,6 +581,52 @@ class UploadFilesUseCase:
             'info',
             f"Files uploaded: job_id={command.job_id}, total={len(uploaded_files)}, changed={changed_count}, unchanged={unchanged_count}"
         )
+
+    def _copy_software_config_from_artifacts(self, job_id: str) -> None:
+        """Copy software_config.json from job artifacts to shared input directory.
+
+        The generate-input-files stage produces software_config.json in the
+        job-specific artifacts directory (artifacts/{job_id}/input/).
+        This method copies it to the shared playbook input directory so that
+        the deploy pipeline uses the software config matching the catalog
+        that was used to build the image.
+
+        If the file does not exist (e.g. upload called from the build pipeline
+        before generate-input-files has run), the copy is silently skipped.
+
+        Args:
+            job_id: Job identifier.
+        """
+        try:
+            config = load_config()
+            artifacts_base = Path(config.file_store.base_path)
+            source = artifacts_base / job_id / "software_config.json"
+
+            if not source.exists():
+                log_secure_info(
+                    'debug',
+                    "software_config.json not found in job artifacts, skipping copy",
+                    job_id=job_id,
+                )
+                return
+
+            shared_input_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
+            shared_input_dir.mkdir(parents=True, exist_ok=True)
+            dest = shared_input_dir / "software_config.json"
+
+            shutil.copy2(source, dest)
+            log_secure_info(
+                'info',
+                f"Copied software_config.json from {source} to {dest}",
+                job_id=job_id,
+            )
+        except Exception as exc:
+            log_secure_info(
+                'warning',
+                f"Failed to copy software_config.json from job artifacts: {exc}",
+                job_id=job_id,
+                exc_info=True,
+            )
 
     def _emit_audit_event(
         self,
