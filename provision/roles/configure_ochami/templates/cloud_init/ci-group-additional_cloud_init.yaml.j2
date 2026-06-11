@@ -30,12 +30,6 @@
             {{ wf.content | indent(12) }}
 {% endfor %}
 {% endif %}
-{% if ci_additional_data.packages is defined and ci_additional_data.packages | length > 0 %}
-      packages:
-{% for pkg in ci_additional_data.packages %}
-        - {{ pkg }}
-{% endfor %}
-{% endif %}
 {% if ci_additional_data.runcmd is defined and ci_additional_data.runcmd | length > 0 %}
       runcmd:
 {% for cmd in ci_additional_data.runcmd %}

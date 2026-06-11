@@ -225,11 +225,12 @@ ADDITIONAL_CLOUD_INIT_UNKNOWN_TOP_KEY_MSG = (
     "Unknown top-level key. Only 'common' and 'groups' are allowed."
 )
 ADDITIONAL_CLOUD_INIT_PROHIBITED_KEY_MSG = (
-    "Prohibited key found. The keys 'bootcmd', 'network', and "
-    "'network-config' are platform-managed and must NOT be overridden."
+    "Prohibited key found. The keys 'bootcmd', 'network', "
+    "'network-config', and 'packages' are platform-managed "
+    "and must NOT be overridden."
 )
 ADDITIONAL_CLOUD_INIT_UNKNOWN_KEY_MSG = (
-    "Unknown key found. Only 'write_files', 'packages', and 'runcmd' "
+    "Unknown key found. Only 'write_files' and 'runcmd' "
     "are allowed."
 )
 ADDITIONAL_CLOUD_INIT_WRITE_FILES_NOT_LIST_MSG = (
@@ -241,10 +242,6 @@ ADDITIONAL_CLOUD_INIT_WRITE_FILES_MISSING_PATH_MSG = (
 ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_LIST_MSG = "'runcmd' must be a list."
 ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_STRING_MSG = (
     "runcmd entry is not a string."
-)
-ADDITIONAL_CLOUD_INIT_PACKAGES_NOT_LIST_MSG = "'packages' must be a list."
-ADDITIONAL_CLOUD_INIT_PACKAGES_NOT_STRING_MSG = (
-    "packages entry is not a string."
 )
 ADDITIONAL_CLOUD_INIT_INVALID_FG_MSG = (
     "is not a valid functional group name in the 'groups' section."

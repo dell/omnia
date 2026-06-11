@@ -1041,8 +1041,8 @@ def _validate_cloud_init_section(section_name, section_data):
         ))
         return errors
 
-    prohibited_keys = ["bootcmd", "network", "network-config"]
-    allowed_keys = ["write_files", "packages", "runcmd"]
+    prohibited_keys = ["bootcmd", "network", "network-config", "packages"]
+    allowed_keys = ["write_files", "runcmd"]
 
     for key in section_data:
         if key in prohibited_keys:
@@ -1088,22 +1088,6 @@ def _validate_cloud_init_section(section_name, section_data):
                     errors.append(create_error_msg(
                         f"{key_prefix}.runcmd[{idx}]", str(type(entry).__name__),
                         en_us_validation_msg.ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_STRING_MSG,
-                    ))
-
-    # packages
-    if "packages" in section_data:
-        pkgs = section_data["packages"]
-        if not isinstance(pkgs, list):
-            errors.append(create_error_msg(
-                f"{key_prefix}.packages", str(type(pkgs).__name__),
-                en_us_validation_msg.ADDITIONAL_CLOUD_INIT_PACKAGES_NOT_LIST_MSG,
-            ))
-        else:
-            for idx, entry in enumerate(pkgs):
-                if not isinstance(entry, str):
-                    errors.append(create_error_msg(
-                        f"{key_prefix}.packages[{idx}]", str(type(entry).__name__),
-                        en_us_validation_msg.ADDITIONAL_CLOUD_INIT_PACKAGES_NOT_STRING_MSG,
                     ))
 
     return errors
