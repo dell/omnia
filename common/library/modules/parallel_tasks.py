@@ -206,7 +206,8 @@ def determine_function(
             ]
         if task_type == "pip_module":
             return process_pip, [
-                task, status_file, content_base_dir, repo_name
+                task, status_file, content_base_dir, repo_name,
+                cluster_os_type, cluster_os_version, arc
             ]
         if task_type == "image":
             return process_image, [

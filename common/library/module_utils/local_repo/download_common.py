@@ -42,7 +42,9 @@ from ansible.module_utils.local_repo.config import (
     FILE_TIMEOUT_MIN,
     TASK_POLL_INTERVAL,
     FILE_URI,
-    PULP_SSL_CA_CERT
+    PULP_SSL_CA_CERT,
+    OS_TARGET_PYTHON,
+    ARCH_PIP_PLATFORMS,
 )
 from ansible.module_utils.local_repo.software_utils import build_repo_name
 
@@ -996,7 +998,58 @@ def process_iso(package, status_file_path,
             logger.info("#" * 30 + f" {process_iso.__name__} end " + "#" * 30)  # End of function
         return status
 
-def process_pip(package, status_file_path, content_base_dir, repo_name, logger):
+def _get_target_python_version(cluster_os_type, cluster_os_version, logger):
+    """Resolve the target Python version from OS type and version.
+
+    Args:
+        cluster_os_type (str): e.g. 'rhel'.
+        cluster_os_version (str): e.g. '10.0'.
+        logger: Logger instance.
+
+    Returns:
+        str or None: Python version string (e.g. '3.12') or None.
+    """
+    os_map = OS_TARGET_PYTHON.get(cluster_os_type, {})
+    major = cluster_os_version.split(".")[0] if cluster_os_version else ""
+    py_ver = os_map.get(major)
+    if py_ver:
+        logger.info(f"Target Python resolved: {cluster_os_type} {cluster_os_version} -> Python {py_ver}")
+    return py_ver
+
+
+def _build_pip_platform_args(target_python, arc, logger):
+    """Build pip download flags for cross-version/cross-platform downloads.
+
+    Args:
+        target_python (str): e.g. '3.12'.
+        arc (str): e.g. 'x86_64'.
+        logger: Logger instance.
+
+    Returns:
+        str: Extra CLI flags for pip download, or empty string.
+    """
+    if not target_python:
+        return ""
+
+    abi = "cp" + target_python.replace(".", "")
+    platforms = ARCH_PIP_PLATFORMS.get(arc, [])
+    parts = [
+        f"--python-version {target_python}",
+        "--implementation cp",
+        f"--abi {abi}",
+        "--only-binary=:all:",
+    ]
+    for plat in platforms:
+        parts.append(f"--platform {plat}")
+
+    flags = " ".join(parts)
+    logger.info(f"Pip platform flags for {arc}/{target_python}: {flags}")
+    return flags
+
+
+def process_pip(package, status_file_path, content_base_dir, repo_name,
+                cluster_os_type="", cluster_os_version="", arc="",
+                logger=None):
     """
     Process a pip package using Pulp.
 
@@ -1005,11 +1058,17 @@ def process_pip(package, status_file_path, content_base_dir, repo_name, logger):
         status_file_path (str): Path to log processing status.
         content_base_dir (str): Pre-built base directory for offline content.
         repo_name (str): Pre-built Pulp repository name.
+        cluster_os_type (str): Target OS type (e.g. 'rhel').
+        cluster_os_version (str): Target OS version (e.g. '10.0').
+        arc (str): Target architecture (e.g. 'x86_64').
         logger (logging.Logger): The logger instance.
 
     Returns:
         str: "Success" if the process is successful, otherwise "Failed".
     """
+    if logger is None:
+        import logging
+        logger = logging.getLogger(__name__)
     logger.info("#" * 30 + f" {process_pip.__name__} start " + "#" * 30)
     status = "Success"  # Default status, updated if any step fails
 
@@ -1029,16 +1088,33 @@ def process_pip(package, status_file_path, content_base_dir, repo_name, logger):
 
         os.makedirs(pip_package_directory, exist_ok=True)  # Ensure directory exists
 
-        # Step 1: Download the package
+        # Step 1: Download the package with target-platform-aware flags.
+        # The container runs Python 3.13 (Fedora 42) but targets run Python 3.12
+        # (RHEL 10.0).  Without --python-version, pip downloads cp313 wheels that
+        # cannot be installed on cp312 nodes (e.g. cffi, cryptography).
         logger.info("Step 1: Downloading package...")
-        download_command = f"pip download -d {shlex.quote(pip_package_directory)} {package_name}"
-        if version:
-            download_command += f"=={version}"
+        target_python = _get_target_python_version(cluster_os_type, cluster_os_version, logger)
+        platform_flags = _build_pip_platform_args(target_python, arc, logger)
 
-        if not execute_command(download_command, logger):
-            status = "Failed"
-            logger.error(f"Failed to download {package_name}. Aborting process.")
-            return status  # Stop further steps
+        pkg_spec = f"{package_name}=={version}" if version else package_name
+        dest_flag = f"-d {shlex.quote(pip_package_directory)}"
+
+        download_ok = False
+        if platform_flags:
+            download_command = f"pip download {dest_flag} {platform_flags} {pkg_spec}"
+            download_ok = execute_command(download_command, logger)
+            if not download_ok:
+                logger.warning(
+                    f"Platform-aware download failed for {pkg_spec}; "
+                    "retrying without platform flags (source fallback)."
+                )
+
+        if not download_ok:
+            download_command = f"pip download {dest_flag} {pkg_spec}"
+            if not execute_command(download_command, logger):
+                status = "Failed"
+                logger.error(f"Failed to download {pkg_spec}. Aborting process.")
+                return status  # Stop further steps
 
         # Step 2: Create the Pulp repository if it does not exist
         logger.info("Step 2: Checking repository existence...")

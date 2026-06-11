@@ -52,7 +52,7 @@
       - "--node-monitor-grace-period=40s"
       - "--node-eviction-rate=1"
       - "--secondary-node-eviction-rate=1"
-      - "--terminated-pod-gc-threshold=50"
+      - "--terminated-pod-gc-threshold=5"
       - "--controllers=*,nodeipam,nodelifecycle,bootstrapsigner,tokencleaner"
 
 - name: Initialize update flag
@@ -95,7 +95,7 @@
     add_or_update_arg "node-monitor-grace-period" "40s"
     add_or_update_arg "node-eviction-rate" "1"
     add_or_update_arg "secondary-node-eviction-rate" "1"
-    add_or_update_arg "terminated-pod-gc-threshold" "50"
+    add_or_update_arg "terminated-pod-gc-threshold" "5"
     add_or_update_arg "controllers" "*,nodeipam,nodelifecycle,bootstrapsigner,tokencleaner"
 
     echo "kube-controller-manager manifest updated successfully"
@@ -110,6 +110,21 @@
 - name: Display update result
   ansible.builtin.debug:
     msg: "{{ _kcm_update_result.stdout_lines }}"
+  when:
+    - _kcm_update_result is defined
+    - _kcm_update_result is changed
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when:
+    - _kcm_update_result is defined
+    - _kcm_update_result is changed
+
+- name: Restart kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: restarted
   when:
     - _kcm_update_result is defined
     - _kcm_update_result is changed
