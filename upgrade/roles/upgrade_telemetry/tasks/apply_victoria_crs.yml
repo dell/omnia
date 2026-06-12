@@ -50,6 +50,79 @@
   delegate_to: "{{ kube_vip }}"
   connection: ssh
 
+# ── Inject preserved LoadBalancer IPs into VMCluster manifest before apply ──
+# When migrating from 2.1 StatefulSet to operator, old services are deleted
+# and the operator creates new ones. To preserve IPs, we inject loadBalancerIP
+# directly into the VMCluster CR's serviceSpec BEFORE applying, so the operator
+# creates services with the correct IPs from the start (no race condition).
+- name: Create LoadBalancer IP injection script
+  ansible.builtin.copy:
+    dest: /tmp/inject_vm_lb_ips.py
+    mode: "0755"
+    content: |
+      #!/usr/bin/env python3
+      import yaml
+      import sys
+      manifest_path = sys.argv[1]
+      vmselect_ip = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ""
+      vminsert_ip = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else ""
+      with open(manifest_path) as f:
+          doc = yaml.safe_load(f)
+      spec = doc.get("spec", {})
+      changed = False
+      if vmselect_ip and "vmselect" in spec:
+          svc = spec["vmselect"].setdefault("serviceSpec", {}).setdefault("spec", {})
+          if svc.get("loadBalancerIP") != vmselect_ip:
+              svc["loadBalancerIP"] = vmselect_ip
+              changed = True
+      if vminsert_ip and "vminsert" in spec:
+          svc = spec["vminsert"].setdefault("serviceSpec", {}).setdefault("spec", {})
+          if svc.get("loadBalancerIP") != vminsert_ip:
+              svc["loadBalancerIP"] = vminsert_ip
+              changed = True
+      if changed:
+          with open(manifest_path, "w") as f:
+              yaml.dump(doc, f, default_flow_style=False, sort_keys=False)
+          print("Injected vmselect=" + vmselect_ip + " vminsert=" + vminsert_ip)
+      else:
+          print("IPs already present - no change needed")
+      sys.exit(0 if changed else 2)
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  when:
+    - preserved_vmselect_ip | default('') | length > 0 or preserved_vminsert_ip | default('') | length > 0
+
+- name: Inject preserved LoadBalancer IPs into VMCluster manifest
+  ansible.builtin.command:
+    cmd: >-
+      python3 /tmp/inject_vm_lb_ips.py
+      "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmcluster.yaml"
+      "{{ preserved_vmselect_ip | default('') }}"
+      "{{ preserved_vminsert_ip | default('') }}"
+  register: ip_inject_result
+  changed_when: ip_inject_result.rc == 0
+  failed_when: ip_inject_result.rc not in [0, 2]
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  when:
+    - preserved_vmselect_ip | default('') | length > 0 or preserved_vminsert_ip | default('') | length > 0
+
+- name: Clean up LoadBalancer IP injection script
+  ansible.builtin.file:
+    path: /tmp/inject_vm_lb_ips.py
+    state: absent
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  changed_when: false
+
+- name: Display LoadBalancer IP injection status
+  ansible.builtin.debug:
+    msg: >-
+      {{ victoria_lb_ips_preserved
+         if (preserved_vminsert_ip | default('') | length > 0)
+            or (preserved_vmselect_ip | default('') | length > 0)
+         else victoria_lb_ips_not_preserved }}
+
 # ── Apply main CR (VMCluster only — 2.2 cluster mode only) ──
 - name: Apply VMCluster CR (cluster mode only) with retry
   ansible.builtin.command:
