@@ -160,7 +160,7 @@
     state: absent
   loop: "{{ config_dirs }}"
 
-- name: Stop and disable openchami services
+- name: Stop and disable openchami services # noqa: command-instead-of-module
   ansible.builtin.command: systemctl stop {{ item }}
   changed_when: false
   loop: "{{ openchami_services }}"
