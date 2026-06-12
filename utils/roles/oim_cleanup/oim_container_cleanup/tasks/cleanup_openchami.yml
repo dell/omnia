@@ -70,7 +70,10 @@
 
 - name: Display S3 cleanup result
   ansible.builtin.debug:
-    msg: "S3 cleanup: boot-images={{ 'deleted' if (s3_boot_bucket_delete.changed | default(false)) else 'skipped' }}, efi={{ 'deleted' if (s3_efi_bucket_delete.changed | default(false)) else 'skipped' }}"
+    msg: >-
+      S3 cleanup: boot-images={{ "deleted" if (s3_boot_bucket_delete.changed | default(false))
+      else "skipped" }}, efi={{ "deleted" if (s3_efi_bucket_delete.changed | default(false))
+      else "skipped" }}
   when: s3cmd_check.rc == 0
 
 # OPENCHAMI PACKAGE AND SERVICE CLEANUP
@@ -157,7 +160,7 @@
     state: absent
   loop: "{{ config_dirs }}"
 
-- name: Stop and disable openchami services # noqa: command-instead-of-module
+- name: Stop and disable openchami services
   ansible.builtin.command: systemctl stop {{ item }}
   changed_when: false
   loop: "{{ openchami_services }}"
