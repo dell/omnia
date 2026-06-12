@@ -3272,8 +3272,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "1.1",
-        "Version": "1.1"
+        "Tag": "1.2",
+        "Version": "1.2"
       },
       "os_package_id_45": {
         "Name": "which",

@@ -123,33 +123,6 @@
         _backup_enable_build_stream: "{{ (_backup_bs_config_slurp.content | b64decode | from_yaml).enable_build_stream | default(false) | bool }}"
       when: _backup_bs_config_slurp is not failed
 
-    - name: "Abort — disabling BuildStream during upgrade is not supported"
-      ansible.builtin.fail:
-        msg: |
-          ══════════════════════════════════════════════════════════════
-                UNSUPPORTED TOPOLOGY CHANGE DETECTED
-          ══════════════════════════════════════════════════════════════
-
-          BuildStream was ENABLED in the pre-upgrade (2.1) configuration
-          but is now DISABLED in the current build_stream_config.yml.
-
-          Disabling BuildStream during an upgrade is not a supported
-          topology. Once BuildStream is enabled, it cannot be disabled
-          through the upgrade process.
-
-          To proceed, restore enable_build_stream: true in:
-            {{ input_project_dir }}/build_stream_config.yml
-
-          Pre-upgrade config (backup):
-            enable_build_stream: {{ _backup_enable_build_stream }}
-          Current config:
-            enable_build_stream: {{ enable_build_stream }}
-
-          ══════════════════════════════════════════════════════════════
-      when:
-        - _backup_enable_build_stream | default(false) | bool
-        - not enable_build_stream | bool
-
     - name: Mark build_stream as skipped when not enabled
       ansible.builtin.copy:
         content: >-

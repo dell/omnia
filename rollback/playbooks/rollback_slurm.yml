@@ -22,6 +22,7 @@
   gather_facts: false
   vars:
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: slurm
   tasks:
     - name: Check if rollback manifest exists
@@ -40,42 +41,47 @@
     - name: Read rollback_manifest.yml
       ansible.builtin.include_vars:
         file: "{{ rollback_manifest_path }}"
-        name: manifest
+        name: rollback_manifest
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.include_vars:
+        file: "{{ upgrade_manifest_path }}"
+        name: upgrade_manifest
+      failed_when: false
+
+    - name: Set upgrade_manifest to empty dict if not found
+      ansible.builtin.set_fact:
+        slurm_skip: false
+        upgrade_manifest: "{{ hostvars['localhost']['upgrade_manifest'] }}"
 
     - name: Read software_config.json
       ansible.builtin.include_vars:
-        file: "{{ manifest.backup_dir }}/input/project_default/software_config.json"
+        file: "{{ rollback_manifest.backup_dir }}/input/project_default/software_config.json"
         name: software_config
 
     - name: Determine slurm_skip status
       ansible.builtin.set_fact:
-        slurm_skip: >-
-          {{
-            (manifest.component_status[component_name] | default('pending') == 'completed')
-            or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
-          }}
+        slurm_skip: true
         cacheable: true
+      when: >
+        (rollback_manifest.component_status.slurm | default('pending') == 'completed')
+        or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
+        or (build_stream_terminal | default(false) | bool)
+        or (upgrade_manifest.component_status.slurm | default('pending') not in ['completed', 'in-progress', 'failed'])
 
     - name: "Handle BuildStream terminal gate (C-24)"
-      when: ((build_stream_terminal | default(false) | bool) or
-            (manifest.component_status.build_stream | default('pending') == 'completed'))
+      when: slurm_skip
       block:
         - name: "Mark as skipped — BuildStream terminal gate active"
           ansible.builtin.copy:
             content: >-
-              {{ manifest | combine({
-                   'component_status': manifest.component_status | combine({
+              {{ rollback_manifest | combine({
+                   'component_status': rollback_manifest.component_status | combine({
                      component_name: 'skipped'
                    })
                  }) | to_nice_yaml }}
             dest: "{{ rollback_manifest_path }}"
             mode: '0644'
-          when: not slurm_skip
-
-        - name: "Set slurm_skip — BuildStream terminal gate active"
-          ansible.builtin.set_fact:
-            slurm_skip: true
-            cacheable: true
 
         - name: "Skip — BuildStream terminal gate active"
           ansible.builtin.meta: end_play
@@ -86,8 +92,8 @@
         - name: Set slurm rollback status to in-progress
           ansible.builtin.copy:
             content: >-
-              {{ manifest | combine({
-                  'component_status': manifest.component_status | combine({
+              {{ rollback_manifest | combine({
+                  'component_status': rollback_manifest.component_status | combine({
                     component_name: 'in-progress'
                   })
                 }) | to_nice_yaml }}
