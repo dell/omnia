@@ -102,7 +102,10 @@ victoria_unhealthy_pods_warning: >-
 victoria_pods_deleted: "Deleted {{ victoria_unhealthy_pods | length }} unhealthy pod(s). Upgrade will re-create them."
 victoria_backup_completed: "Victoria backup completed: {{ telemetry_backup_dir }}"
 victoria_crs_applied: "VictoriaMetrics CRs applied (mode: {{ victoria_deploy_mode }}"
-victoria_lb_ips_preserved: "LoadBalancer IPs injected into VMCluster manifest - vminsert: {{ preserved_vminsert_ip | default('N/A') }}, vmselect: {{ preserved_vmselect_ip | default('N/A') }}"
+victoria_lb_ips_preserved: >-
+  LoadBalancer IPs injected into VMCluster manifest -
+  vminsert: {{ preserved_vminsert_ip | default('N/A') }},
+  vmselect: {{ preserved_vmselect_ip | default('N/A') }}
 victoria_lb_ips_not_preserved: "No old LoadBalancer IPs found to preserve (fresh deploy or already operator-managed)"
 victoria_pods_not_ready: "Telemetry upgrade FAILED: Some pods are not ready. {{ pods_not_ready.stdout | int }} pod(s) not in Running state."
 victoria_pods_ready_after_wait: "All telemetry pods are ready after waiting"
@@ -145,3 +148,12 @@ idrac_patch_msg: >-
   MySQL will have enough time to flush on NFS during pod restart.
 idrac_skip_patch_msg: "idrac-telemetry StatefulSet not found (first deploy). Skipping patch."
 idrac_replica_restore_msg: "idrac-telemetry scaled back to {{ idrac_replica_count.stdout }} replicas"
+
+# Kafka patch messages
+kafka_broker_patch_msg: >-
+  kafka-broker patched: terminationGracePeriodSeconds=300s.
+  Kafka brokers will have sufficient time for graceful shutdown during rolling restarts.
+kafka_controller_patch_msg: >-
+  kafka-controller patched: terminationGracePeriodSeconds=300s.
+  Kafka controllers will have sufficient time for graceful shutdown during rolling restarts.
+kafka_skip_patch_msg: "Kafka StatefulSets not found (first deploy). Skipping patch."
