@@ -27,38 +27,34 @@
   when:
     - k8s_client_mount_path is defined
     - k8s_client_mount_path | length > 0
+    - kube_vip is defined
+    - kube_vip | length > 0
   block:
-    - name: Set telemetry backup directory
-      ansible.builtin.set_fact:
-        tel_backup_dir: "{{ k8s_client_mount_path }}/upgrade/telemetry/omnia_{{ manifest.source_version | default('unknown') }}"
-      delegate_to: oim
-      connection: ssh
-
     - name: Create telemetry backup directory
       ansible.builtin.file:
-        path: "{{ tel_backup_dir }}"
+        path: "{{ telemetry_backup_dir }}"
         state: directory
         mode: '0755'
-      delegate_to: oim
+      delegate_to: "{{ kube_vip }}"
       connection: ssh
 
     - name: Backup telemetry folder (pre-provision)
       ansible.builtin.copy:
         src: "{{ k8s_client_mount_path }}/telemetry"
-        dest: "{{ tel_backup_dir }}/telemetry"
+        dest: "{{ telemetry_backup_dir }}/telemetry"
         remote_src: true
         mode: preserve
-      delegate_to: oim
+      delegate_to: "{{ kube_vip }}"
       connection: ssh
       failed_when: false
 
     - name: Backup idrac_telemetry folder (pre-provision)
       ansible.builtin.copy:
         src: "{{ k8s_client_mount_path }}/idrac_telemetry"
-        dest: "{{ tel_backup_dir }}/idrac_telemetry"
+        dest: "{{ telemetry_backup_dir }}/idrac_telemetry"
         remote_src: true
         mode: preserve
-      delegate_to: oim
+      delegate_to: "{{ kube_vip }}"
       connection: ssh
       failed_when: false
 
@@ -74,7 +70,7 @@
     - name: Backup telemetry.sh from control plane
       ansible.builtin.copy:
         src: /root/telemetry.sh
-        dest: "{{ tel_backup_dir }}/telemetry.sh"
+        dest: "{{ telemetry_backup_dir }}/telemetry.sh"
         mode: "{{ executable_mode }}"
         remote_src: true
       delegate_to: "{{ kube_vip }}"

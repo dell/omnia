@@ -21,7 +21,7 @@
     path: "{{ telemetry_backup_dir }}"
     state: directory
     mode: "0755"
-  delegate_to: "{{ oim_host }}"
+  delegate_to: "{{ kube_vip }}"
   connection: ssh
 
 # ── Backup namespace-level resources ──
