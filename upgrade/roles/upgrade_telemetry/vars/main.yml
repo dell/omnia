@@ -101,7 +101,7 @@ victoria_unhealthy_pods_warning: >-
   proceeds. The upgrade will re-create them with the new version.
 victoria_pods_deleted: "Deleted {{ victoria_unhealthy_pods | length }} unhealthy pod(s). Upgrade will re-create them."
 victoria_backup_completed: "Victoria backup completed: {{ telemetry_backup_dir }}"
-victoria_crs_applied: "VictoriaMetrics CRs applied (mode: {{ victoria_deploy_mode }}"
+victoria_crs_applied: "VictoriaMetrics CRs applied (mode: {{ victoria_deploy_mode }})"
 victoria_lb_ips_preserved: >-
   LoadBalancer IPs injected into VMCluster manifest -
   vminsert: {{ preserved_vminsert_ip | default('N/A') }},
