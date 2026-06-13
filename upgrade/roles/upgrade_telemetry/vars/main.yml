@@ -142,6 +142,12 @@ mysql_crash_error_msg: |
     1. Check pod logs: kubectl logs -n telemetry <pod-name> -c mysqldb
     2. Check PVC status: kubectl get pvc -n telemetry | grep idrac
     3. Contact support if issue persists.
+
+# ============================================================================
+# PAUSE MESSAGES
+# ============================================================================
+vmstorage_merge_wait_msg: "Waiting 30s for vmstorage background merges to settle..."
+storage_cache_flush_msg: "Waiting 15s for storage cache flush..."
 idrac_patch_msg: >-
   idrac-telemetry patched: terminationGracePeriodSeconds=120s.
   MySQL will have enough time to flush on NFS during pod restart.

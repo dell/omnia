@@ -83,7 +83,7 @@
     - name: Wait for background merges to settle after writes stopped
       ansible.builtin.pause:
         seconds: 30
-        prompt: "Waiting 30s for vmstorage background merges to settle..."
+        prompt: "{{ vmstorage_merge_wait_msg }}"
 
     # ── Ensure sufficient graceful shutdown period ──
     # Old StatefulSet may have default 30s which is too short for indexdb flush
@@ -130,7 +130,7 @@
     - name: Wait for storage cache flush after pod termination
       ansible.builtin.pause:
         seconds: 15
-        prompt: "Waiting 15s for storage cache flush..."
+        prompt: "{{ storage_cache_flush_msg }}"
 
     # ── PVC relabeling (data preservation via PV rebind) ──
     - name: Get all old PVCs from StatefulSet (using specific StatefulSet label)
