@@ -64,6 +64,23 @@
       validate_certs: false
       resource_id: "System.Embedded.1"
   block:
+    - name: Read PXE mapping file
+      community.general.read_csv:
+        path: "{{ pxe_mapping_file_path }}"
+      register: pxe_mapping_data
+      run_once: true
+
+    - name: Build ip_mac_map from PXE mapping
+      ansible.builtin.set_fact:
+        ip_mac_map: "{{ ip_mac_map | default({}) | combine({item.BMC_IP: (item.ADMIN_MAC | lower)}) }}"
+      loop: "{{ pxe_mapping_data.list | default([]) }}"
+      run_once: true
+
+    # Set First PXE device in BIOS as the ADMIN_MAC from PXE mapping
+    # This will go create a BIOS config job which will reboot the server
+    - name: Set the PXE map in BIOS
+      ansible.builtin.include_tasks: pxe_bios_set.yml
+
     - name: Set boot option from pxe
       dellemc.openmanage.idrac_boot:
         idrac_ip: "{{ inventory_hostname }}"

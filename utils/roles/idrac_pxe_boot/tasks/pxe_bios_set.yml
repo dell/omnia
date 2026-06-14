@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Get Ethernet status of iDRAC
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces?$expand=*($levels=1)"
+    user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+    password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code: [200, 201, 202]
+  register: ethernet_status
+  until: ethernet_status.status in [200, 201, 202]
+  retries: 3
+  delay: 5
+  ignore_errors: true
+
+- name: MACaddress to ID map
+  ansible.builtin.set_fact:
+    mac_to_id: "{{ mac_to_id | default({}) | combine({(item.MACAddress | lower): item.Id}) }}"
+  loop: "{{ idrac_status.json.Members }}"
+  when: ethernet_status is success and item.MACAddress | length > 0
+
+- name: Display MAC to ID mapping
+  ansible.builtin.set_fact:
+    nic_id: "{{ mac_to_id[ip_mac_map[inventory_hostname]] | default('') }}"
+
+- name: Get idrac attributes
+  dellemc.openmanage.idrac_bios:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+    idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+    validate_certs: false
+    attributes:
+      "PxeDev1EnDis": "Enabled"
+      "PxeDev1Interface": "{{ nic_id }}"
+      "PxeDev1Protocol": "IPv4"
+  register: bios_set_pxe
+  ignore_errors: true
+  ignore_unreachable: true
+  when: ethernet_status is success
+
+- name: Set pxe boot message
+  when: bios_set_pxe is defined
+  block:
+    - name: When already nic is set to pxe
+      ansible.builtin.set_fact:
+        bios_pxe_message: "PXE already set for NIC: {{ nic_id }}."
+      when: bios_set_pxe is not failed
+
+    - name: When BIOS job reboot
+      ansible.builtin.set_fact:
+        bios_pxe_message: "PXE set for NIC: {{ nic_id }}. Rebooted to set first PXE device in BIOS."
+      when: bios_set_pxe is changed
+
+    - name: Failed to set PXE
+      ansible.builtin.set_fact:
+        bios_pxe_message: "Failed to set PXE for NIC: {{ nic_id }}. {{ bios_set_pxe.msg }}"
+      when: bios_set_pxe is failed or bios_set_pxe is unreachable
