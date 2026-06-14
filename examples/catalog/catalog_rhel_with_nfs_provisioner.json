@@ -392,11 +392,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "epel"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "epel"
           }
         ]
@@ -518,11 +518,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -542,11 +542,11 @@
         "Type": "rpm_repo",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "doca"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "doca"
           }
         ]
@@ -926,11 +926,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -969,11 +969,11 @@
         "Type": "tarball",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz"
           }
         ]
@@ -1005,8 +1005,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.143.1",
-        "Version": "0.143.1"
+        "Tag": "0.150.1",
+        "Version": "0.150.1"
       },
       "git": {
         "Name": "git",
@@ -1058,7 +1058,7 @@
           "x86_64"
         ],
         "Type": "git",
-        "Version": "container-storage-modules-1.9.2",
+        "Version": "container-storage-modules-1.10.0",
         "Sources": [
           {
             "Architecture": "x86_64",
@@ -1081,11 +1081,11 @@
         "Type": "tarball",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/IMB-v2021.8.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/IMB-v2021.8.tar.gz"
           }
         ]
@@ -1105,11 +1105,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -1126,7 +1126,7 @@
           "x86_64"
         ],
         "Type": "git",
-        "Version": "v1.12.0",
+        "Version": "v1.15.0",
         "Sources": [
           {
             "Architecture": "x86_64",
@@ -1149,11 +1149,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -1173,11 +1173,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -1267,11 +1267,11 @@
         "Type": "tarball",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://github.com/RRZE-HPC/likwid/archive/refs/tags/v5.4.1.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://github.com/RRZE-HPC/likwid/archive/refs/tags/v5.4.1.tar.gz"
           }
         ]
@@ -1291,11 +1291,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -1315,11 +1315,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -1377,11 +1377,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -1449,11 +1449,11 @@
         "Type": "tarball",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz"
           }
         ]
@@ -1473,11 +1473,11 @@
         "Type": "tarball",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz"
           }
         ]
@@ -1497,11 +1497,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -1585,11 +1585,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -1609,11 +1609,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -1630,8 +1630,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v1.11.0",
-        "Version": "v1.11.0"
+        "Tag": "v1.12.0",
+        "Version": "v1.12.0"
       },
       "quay.io/jetstack/cert-manager-acmesolver": {
         "Name": "quay.io/jetstack/cert-manager-acmesolver",
@@ -1903,11 +1903,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -1927,11 +1927,11 @@
         "Type": "tarball",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7"
           }
         ]
@@ -1951,11 +1951,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "slurm_custom"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "slurm_custom"
           }
         ]
@@ -1975,11 +1975,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "slurm_custom"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "slurm_custom"
           }
         ]
@@ -1999,11 +1999,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "slurm_custom"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "slurm_custom"
           }
         ]
@@ -2023,11 +2023,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "slurm_custom"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "slurm_custom"
           }
         ]
@@ -2047,11 +2047,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "slurm_custom"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "slurm_custom"
           }
         ]
@@ -2109,11 +2109,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2135,11 +2135,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2159,11 +2159,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2183,11 +2183,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2207,11 +2207,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2231,11 +2231,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2255,11 +2255,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2279,11 +2279,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2303,11 +2303,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2327,11 +2327,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2351,11 +2351,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2375,11 +2375,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2399,11 +2399,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "epel"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "epel"
           }
         ]
@@ -2423,11 +2423,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2447,11 +2447,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2471,11 +2471,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2495,11 +2495,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2519,11 +2519,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2543,11 +2543,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2564,8 +2564,8 @@
           "aarch64"
         ],
         "Type": "image",
-        "Tag": "1.1",
-        "Version": "1.1"
+        "Tag": "1.2",
+        "Version": "1.2"
       },
       "docker.io/dellhpcomniaaisolution/image-build-el10": {
         "Name": "docker.io/dellhpcomniaaisolution/image-build-el10",
@@ -2597,11 +2597,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2621,11 +2621,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2645,11 +2645,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2669,11 +2669,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2693,11 +2693,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2717,11 +2717,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2741,11 +2741,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "epel"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "epel"
           }
         ]
@@ -2765,11 +2765,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2789,11 +2789,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2813,11 +2813,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2837,11 +2837,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2861,11 +2861,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2885,11 +2885,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -2909,11 +2909,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "epel"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "epel"
           }
         ]
@@ -2933,11 +2933,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2957,11 +2957,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -2981,11 +2981,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3005,11 +3005,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3029,11 +3029,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3053,11 +3053,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3077,11 +3077,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3101,11 +3101,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3125,11 +3125,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3149,11 +3149,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3173,11 +3173,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3197,11 +3197,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3221,11 +3221,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3245,11 +3245,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3269,11 +3269,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3293,11 +3293,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3317,11 +3317,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3341,11 +3341,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3365,11 +3365,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3389,11 +3389,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3413,11 +3413,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3437,11 +3437,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3461,11 +3461,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3485,11 +3485,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3509,11 +3509,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "codeready-builder"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "codeready-builder"
           }
         ]
@@ -3533,11 +3533,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3557,11 +3557,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3581,11 +3581,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3605,11 +3605,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "epel"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "epel"
           }
         ]
@@ -3629,11 +3629,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3653,11 +3653,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3678,11 +3678,11 @@
         "Version": "5.0.8",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.8.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.8.tar.gz"
           }
         ]
@@ -3702,11 +3702,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3726,11 +3726,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3750,11 +3750,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3774,11 +3774,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3798,11 +3798,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3822,11 +3822,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "ldms"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "ldms"
           }
         ]
@@ -3846,11 +3846,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3870,11 +3870,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3894,11 +3894,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3918,11 +3918,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -3942,11 +3942,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3966,11 +3966,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -3990,11 +3990,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "codeready-builder"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "codeready-builder"
           }
         ]
@@ -4014,11 +4014,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4038,11 +4038,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4062,11 +4062,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4086,11 +4086,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4110,11 +4110,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4134,11 +4134,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4158,11 +4158,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4182,11 +4182,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4206,11 +4206,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4230,11 +4230,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4254,11 +4254,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4278,11 +4278,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4302,11 +4302,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4327,11 +4327,11 @@
         "Version": "1.19.0",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "Uri": "https://github.com/openucx/ucx/releases/download/v1.19.0/ucx-1.19.0.tar.gz"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "Uri": "https://github.com/openucx/ucx/releases/download/v1.19.0/ucx-1.19.0.tar.gz"
           }
         ]
@@ -4351,11 +4351,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4375,11 +4375,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4399,11 +4399,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4423,11 +4423,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4447,11 +4447,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "appstream"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "appstream"
           }
         ]
@@ -4471,11 +4471,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]
@@ -4495,11 +4495,11 @@
         "Type": "rpm",
         "Sources": [
           {
-            "Architecture": "x86_64",
+            "Architecture": "aarch64",
             "RepoName": "baseos"
           },
           {
-            "Architecture": "aarch64",
+            "Architecture": "x86_64",
             "RepoName": "baseos"
           }
         ]

@@ -73,9 +73,16 @@ sys.modules["ansible.module_utils.input_validation.validation_flows.common_valid
     types.ModuleType("ansible.module_utils.input_validation.validation_flows.common_validation")
 )
 
+# Register is_ip_in_subnet on the validation_utils stub so provision_validation can import it
+_vu_mod = sys.modules["ansible.module_utils.input_validation.common_utils.validation_utils"]
+if not hasattr(_vu_mod, "is_ip_in_subnet"):
+    import input_validation.common_utils.validation_utils as _real_vu
+    setattr(_vu_mod, "is_ip_in_subnet", _real_vu.is_ip_in_subnet)
+
 from input_validation.validation_flows.provision_validation import (  # noqa: E402
     _validate_additional_subnets,
     _ranges_overlap,
+    validate_pxe_admin_ips_subnet_consistency,
 )
 
 
@@ -252,6 +259,108 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
         errors = _validate_additional_subnets(additional, self._admin_net())
         # These have different CIDRs and non-overlapping ranges — should be clean
         self.assertEqual(errors, [])
+
+
+class TestPXEMappingSubnetValidation(unittest.TestCase):
+    """Tests for validate_pxe_admin_ips_subnet_consistency."""
+
+    def _create_temp_pxe_mapping(self, admin_ips):
+        """Create a temporary PXE mapping file with given ADMIN_IPs."""
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix=".csv")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP\n")
+            for i, admin_ip in enumerate(admin_ips):
+                f.write(f"slurm_node,grp0,SVCTAG{i},,node{i},00:11:22:33:44:55,{admin_ip},00:11:22:33:44:66,10.0.0.1\n")
+        return path
+
+    def test_admin_ip_in_admin_subnet(self):
+        """ADMIN_IP in primary admin subnet should pass validation."""
+        pxe_file = self._create_temp_pxe_mapping(["172.16.0.10"])
+        errors = []
+        try:
+            validate_pxe_admin_ips_subnet_consistency(
+                errors, pxe_file, TEST_ADMIN_IP, "24", []
+            )
+            self.assertEqual(errors, [])
+        finally:
+            os.unlink(pxe_file)
+
+    def test_admin_ip_in_additional_subnet(self):
+        """ADMIN_IP in additional subnet should pass validation."""
+        pxe_file = self._create_temp_pxe_mapping(["10.40.1.10"])
+        additional = [{
+            "subnet": TEST_SUBNET_1,
+            "netmask_bits": "24",
+            "router": TEST_ROUTER_1,
+            "dynamic_range": "10.40.1.100-10.40.1.200",
+        }]
+        errors = []
+        try:
+            validate_pxe_admin_ips_subnet_consistency(
+                errors, pxe_file, TEST_ADMIN_IP, "24", additional
+            )
+            self.assertEqual(errors, [])
+        finally:
+            os.unlink(pxe_file)
+
+    def test_admin_ip_in_undefined_subnet(self):
+        """ADMIN_IP in undefined subnet should fail validation."""
+        pxe_file = self._create_temp_pxe_mapping(["192.168.100.10"])
+        errors = []
+        try:
+            validate_pxe_admin_ips_subnet_consistency(
+                errors, pxe_file, TEST_ADMIN_IP, "24", []
+            )
+            self.assertTrue(len(errors) > 0)
+            self.assertTrue("192.168.100.10" in str(errors))
+        finally:
+            os.unlink(pxe_file)
+
+    def test_admin_ip_in_additional_subnet_undefined_in_network_spec(self):
+        """ADMIN_IP in subnet not defined in additional_subnets should fail validation."""
+        pxe_file = self._create_temp_pxe_mapping(["10.40.2.10"])
+        additional = [{
+            "subnet": TEST_SUBNET_1,
+            "netmask_bits": "24",
+            "router": TEST_ROUTER_1,
+            "dynamic_range": "10.40.1.100-10.40.1.200",
+        }]
+        errors = []
+        try:
+            validate_pxe_admin_ips_subnet_consistency(
+                errors, pxe_file, TEST_ADMIN_IP, "24", additional
+            )
+            self.assertTrue(len(errors) > 0)
+            self.assertTrue("10.40.2.10" in str(errors))
+        finally:
+            os.unlink(pxe_file)
+
+    def test_mixed_valid_and_invalid_admin_ips(self):
+        """Mix of valid (in admin subnet) and invalid (undefined subnet) ADMIN_IPs."""
+        pxe_file = self._create_temp_pxe_mapping(["172.16.0.10", "192.168.100.10"])
+        errors = []
+        try:
+            validate_pxe_admin_ips_subnet_consistency(
+                errors, pxe_file, TEST_ADMIN_IP, "24", []
+            )
+            self.assertEqual(len(errors), 1)
+            self.assertTrue("192.168.100.10" in str(errors))
+            self.assertFalse("172.16.0.10" in str(errors))
+        finally:
+            os.unlink(pxe_file)
+
+    def test_no_additional_subnets_defaults_to_empty(self):
+        """Passing None for additional_subnets should not crash."""
+        pxe_file = self._create_temp_pxe_mapping(["172.16.0.10"])
+        errors = []
+        try:
+            validate_pxe_admin_ips_subnet_consistency(
+                errors, pxe_file, TEST_ADMIN_IP, "24", None
+            )
+            self.assertEqual(errors, [])
+        finally:
+            os.unlink(pxe_file)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ import ipaddress
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+from ansible.module_utils.input_validation.common_utils.validation_utils import is_ip_in_subnet
 from ansible.module_utils.input_validation.validation_flows import common_validation
 
 file_names = config.files
@@ -861,6 +862,68 @@ def validate_parent_service_tag_hierarchy(pxe_mapping_file_path):
 #
 #     return errors
 
+
+def validate_pxe_admin_ips_subnet_consistency(
+        errors, pxe_mapping_file_path, oim_admin_ip, admin_netmaskbits,
+        additional_subnets=None):
+    """
+    Validate that every ADMIN_IP in the PXE mapping file belongs to a known
+    subnet: either the primary admin subnet or one of the additional_subnets
+    defined in network_spec.yml.
+
+    Args:
+        errors (list): List to append error messages to.
+        pxe_mapping_file_path (str): Path to the PXE mapping CSV file.
+        oim_admin_ip (str): Primary OIM admin IP address.
+        admin_netmaskbits (str): Netmask bits for the primary admin subnet.
+        additional_subnets (list, optional): List of additional subnet dicts
+            with 'subnet' and 'netmask_bits' keys.
+    """
+    if additional_subnets is None:
+        additional_subnets = []
+
+    pxe_admin_ips = []
+    try:
+        with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+            raw_lines = [ln for ln in fh.readlines()
+                         if ln.strip() and not ln.strip().startswith('#')]
+        reader = csv.DictReader(raw_lines)
+        fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+        admin_ip_col = fieldname_map.get("ADMIN_IP")
+        if admin_ip_col:
+            for row in reader:
+                val = (row.get(admin_ip_col) or "").strip()
+                if val and validation_utils.validate_ipv4(val):
+                    pxe_admin_ips.append(val)
+    except (OSError, csv.Error):
+        return
+
+    for host_ip in pxe_admin_ips:
+        if is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, host_ip):
+            continue
+        in_additional = any(
+            is_ip_in_subnet(
+                s.get("subnet", ""),
+                s.get("netmask_bits", ""),
+                host_ip
+            )
+            for s in additional_subnets
+            if s.get("subnet") and s.get("netmask_bits")
+        )
+        if not in_additional:
+            errors.append(
+                create_error_msg(
+                    "ADMIN_IP subnet consistency",
+                    host_ip,
+                    f"Node ADMIN_IP {host_ip} does not belong to the primary "
+                    f"admin subnet ({oim_admin_ip}/{admin_netmaskbits}) or any "
+                    "subnet defined in network_spec.yml additional_subnets. "
+                    "Please ensure all ADMIN_IPs in the PXE mapping file are "
+                    "covered by a subnet in network_spec.yml."
+                )
+            )
+
+
 def validate_aarch64_local_path_compatibility(pxe_mapping_file_path):
     """
     Validates that aarch64 nodes are not present when using local share path.
@@ -1256,13 +1319,40 @@ def validate_provision_config(
             validate_aarch64_local_path_compatibility(pxe_mapping_file_path)
             validate_functional_groups_software_consistency(pxe_mapping_file_path, software_config_json, logger)
 
-            # Validate ADMIN_IPs against network_spec.yml ranges
-            # network_spec_path = create_file_path(input_file_path, file_names["network_spec"])
-            # if os.path.isfile(network_spec_path):
-            #     admin_ip_errors = validate_admin_ips_against_network_spec(
-            #         pxe_mapping_file_path, network_spec_path
-            #     )
-            #     errors.extend(admin_ip_errors)
+            # Validate ADMIN_IPs against network_spec.yml subnets (including additional_subnets)
+            network_spec_path = create_file_path(input_file_path, file_names["network_spec"])
+            if os.path.isfile(network_spec_path):
+                try:
+                    with open(network_spec_path, "r", encoding="utf-8") as f:
+                        network_spec_json = yaml.safe_load(f)
+
+                    # Extract admin network configuration
+                    admin_netmaskbits = None
+                    oim_admin_ip = None
+                    additional_subnets = []
+
+                    for network in (network_spec_json or {}).get("Networks", []):
+                        if "admin_network" in network and isinstance(network["admin_network"], dict):
+                            admin_net = network["admin_network"]
+                            admin_netmaskbits = admin_net.get("netmask_bits")
+                            oim_admin_ip = admin_net.get("primary_oim_admin_ip")
+                            additional_subnets = admin_net.get("additional_subnets") or []
+                            break
+
+                    if admin_netmaskbits and oim_admin_ip:
+                        validate_pxe_admin_ips_subnet_consistency(
+                            errors, pxe_mapping_file_path,
+                            oim_admin_ip, admin_netmaskbits,
+                            additional_subnets
+                        )
+                except (yaml.YAMLError, IOError) as e:
+                    errors.append(
+                        create_error_msg(
+                            "network_spec.yml",
+                            network_spec_path,
+                            f"Failed to load or parse network_spec.yml: {str(e)}"
+                        )
+                    )
         except ValueError as e:
             errors.append(
                 create_error_msg(

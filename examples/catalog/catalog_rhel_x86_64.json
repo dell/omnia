@@ -1012,8 +1012,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.143.1",
-        "Version": "0.143.1"
+        "Tag": "0.150.1",
+        "Version": "0.150.1"
       },
       "git": {
         "Name": "git",
@@ -1065,7 +1065,7 @@
           "x86_64"
         ],
         "Type": "git",
-        "Version": "container-storage-modules-1.9.2",
+        "Version": "container-storage-modules-1.10.0",
         "Sources": [
           {
             "Architecture": "x86_64",
@@ -1123,7 +1123,7 @@
           "x86_64"
         ],
         "Type": "git",
-        "Version": "v1.12.0",
+        "Version": "v1.15.0",
         "Sources": [
           {
             "Architecture": "x86_64",
@@ -1647,8 +1647,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v1.11.0",
-        "Version": "v1.11.0"
+        "Tag": "v1.12.0",
+        "Version": "v1.12.0"
       },
       "quay.io/jetstack/cert-manager-acmesolver": {
         "Name": "quay.io/jetstack/cert-manager-acmesolver",
@@ -3980,9 +3980,9 @@
     "Miscellaneous": [],
     "InfrastructurePackages": {
       "csi-powerscale": {
-        "Name": "csi-powerscale-v2.16.0",
+        "Name": "csi-powerscale-v2.17.0",
         "Type": "git",
-        "Version": "v2.16.0",
+        "Version": "v2.17.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4013,9 +4013,9 @@
         "Tag": "v0.6.0"
       },
       "external-snapshotter": {
-        "Name": "external-snapshotter-v8.4.0",
+        "Name": "external-snapshotter-v8.5.0",
         "Type": "git",
-        "Version": "v8.4.0",
+        "Version": "v8.5.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4032,9 +4032,9 @@
         ]
       },
       "helm-charts_1": {
-        "Name": "helm-charts-2.16.0",
+        "Name": "helm-charts-2.17.0",
         "Type": "git",
-        "Version": "csi-isilon-2.16.0",
+        "Version": "csi-isilon-2.17.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4053,7 +4053,7 @@
       "quay.io/dell/container-storage-modules/csi-isilon": {
         "Name": "quay.io/dell/container-storage-modules/csi-isilon",
         "Type": "image",
-        "Version": "v2.16.0",
+        "Version": "v2.17.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4062,38 +4062,10 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v2.16.0"
+        "Tag": "v2.17.0"
       },
       "quay.io/dell/container-storage-modules/csi-metadata-retriever": {
         "Name": "quay.io/dell/container-storage-modules/csi-metadata-retriever",
-        "Type": "image",
-        "Version": "v1.13.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.13.0"
-      },
-      "quay.io/dell/container-storage-modules/csm-authorization-sidecar": {
-        "Name": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
-        "Type": "image",
-        "Version": "v2.4.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v2.4.0"
-      },
-      "quay.io/dell/container-storage-modules/dell-csi-replicator": {
-        "Name": "quay.io/dell/container-storage-modules/dell-csi-replicator",
         "Type": "image",
         "Version": "v1.14.0",
         "SupportedFunctions": [
@@ -4106,8 +4078,22 @@
         ],
         "Tag": "v1.14.0"
       },
-      "quay.io/dell/container-storage-modules/podmon": {
-        "Name": "quay.io/dell/container-storage-modules/podmon",
+      "quay.io/dell/container-storage-modules/csm-authorization-sidecar": {
+        "Name": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
+        "Type": "image",
+        "Version": "v2.5.0",
+        "SupportedFunctions": [
+          {
+            "Name": "csi"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Tag": "v2.5.0"
+      },
+      "quay.io/dell/container-storage-modules/dell-csi-replicator": {
+        "Name": "quay.io/dell/container-storage-modules/dell-csi-replicator",
         "Type": "image",
         "Version": "v1.15.0",
         "SupportedFunctions": [
@@ -4120,10 +4106,10 @@
         ],
         "Tag": "v1.15.0"
       },
-      "registry.k8s.io/sig-storage/csi-attacher": {
-        "Name": "registry.k8s.io/sig-storage/csi-attacher",
+      "quay.io/dell/container-storage-modules/podmon": {
+        "Name": "quay.io/dell/container-storage-modules/podmon",
         "Type": "image",
-        "Version": "v4.10.0",
+        "Version": "v1.16.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4132,12 +4118,26 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v4.10.0"
+        "Tag": "v1.16.0"
+      },
+      "registry.k8s.io/sig-storage/csi-attacher": {
+        "Name": "registry.k8s.io/sig-storage/csi-attacher",
+        "Type": "image",
+        "Version": "v4.11.0",
+        "SupportedFunctions": [
+          {
+            "Name": "csi"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Tag": "v4.11.0"
       },
       "registry.k8s.io/sig-storage/csi-external-health-monitor-controller": {
         "Name": "registry.k8s.io/sig-storage/csi-external-health-monitor-controller",
         "Type": "image",
-        "Version": "v0.16.0",
+        "Version": "v0.17.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4146,12 +4146,12 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v0.16.0"
+        "Tag": "v0.17.0"
       },
       "registry.k8s.io/sig-storage/csi-node-driver-registrar": {
         "Name": "registry.k8s.io/sig-storage/csi-node-driver-registrar",
         "Type": "image",
-        "Version": "v2.15.0",
+        "Version": "v2.16.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4160,12 +4160,12 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v2.15.0"
+        "Tag": "v2.16.0"
       },
       "registry.k8s.io/sig-storage/csi-provisioner": {
         "Name": "registry.k8s.io/sig-storage/csi-provisioner",
         "Type": "image",
-        "Version": "v6.1.0",
+        "Version": "v6.2.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4174,12 +4174,12 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v6.1.0"
+        "Tag": "v6.2.0"
       },
       "registry.k8s.io/sig-storage/csi-resizer": {
         "Name": "registry.k8s.io/sig-storage/csi-resizer",
         "Type": "image",
-        "Version": "v2.0.0",
+        "Version": "v2.1.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4188,12 +4188,12 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v2.0.0"
+        "Tag": "v2.1.0"
       },
       "registry.k8s.io/sig-storage/csi-snapshotter": {
         "Name": "registry.k8s.io/sig-storage/csi-snapshotter",
         "Type": "image",
-        "Version": "v8.4.0",
+        "Version": "v8.5.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4202,12 +4202,12 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v8.4.0"
+        "Tag": "v8.5.0"
       },
       "registry.k8s.io/sig-storage/snapshot-controller": {
         "Name": "registry.k8s.io/sig-storage/snapshot-controller",
         "Type": "image",
-        "Version": "v8.4.0",
+        "Version": "v8.5.0",
         "SupportedFunctions": [
           {
             "Name": "csi"
@@ -4216,7 +4216,7 @@
         "Architecture": [
           "x86_64"
         ],
-        "Tag": "v8.4.0"
+        "Tag": "v8.5.0"
       }
     }
   }
