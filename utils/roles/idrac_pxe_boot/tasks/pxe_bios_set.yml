@@ -69,7 +69,7 @@
     - name: When BIOS job reboot
       ansible.builtin.set_fact:
         bios_pxe_message: "PXE set for NIC: {{ nic_id }}. Rebooted to set first PXE device in BIOS."
-      when: bios_set_pxe is changed
+      when: bios_set_pxe is changed # noqa: no-handler
 
     - name: Failed to set PXE
       ansible.builtin.set_fact:
