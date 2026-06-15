@@ -16,14 +16,16 @@
 # buildstream.yml — All BuildStream Tasks (Action Dispatch)
 # ============================================================================
 # Available _action values:
-#   validate_backup   — stat check backup quadlet exists, fail if missing
-#   stop              — Restore: systemd stop; Uninstall: podman stop
+#   validate_backup   — stat check backup quadlet + source dir exist, fail if missing
+#   stop              — Restore: stop watcher THEN buildstream; Uninstall: podman stop
 #   restore_quadlet   — copy backup quadlet to /etc/containers/systemd/
 #   restore_config    — copy backup build_stream_config.yml
+#   restore_source    — delete 2.2 source dir, restore 2.1 from backup
 #   remove_quadlet    — file absent + set enable_build_stream: false
 #   start             — systemd start + URI health check retry loop
+#   restart_watcher   — Restore: restart playbook_watcher.service + verify active
 #   cleanup_full      — Uninstall: stop/remove watcher, remove dirs, images, omnia.target entries, automation
-#   validate_health   — Restore: URI health check; Uninstall: confirm no container
+#   validate_health   — Restore: URI health check + watcher active; Uninstall: confirm no container
 #
 # All OIM host operations use delegate_to: oim + connection: ssh
 # ============================================================================
@@ -62,6 +64,20 @@
     - not (_bs_source_backup_stat.stat.exists | default(false))
 
 # ── stop ─────────────────────────────────────────────────────────────────────
+# Restore path: stop watcher FIRST — it holds an open Python process inside
+# the build_stream source directory that restore_source will delete.
+- name: "BuildStream | Stop playbook_watcher service (Restore)"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_watcher_service }}"
+    state: stopped
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'stop'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
 - name: "BuildStream | Stop service (Restore)"
   ansible.builtin.systemd_service:
     name: "{{ buildstream_orchestrator_bs_service }}"
@@ -328,6 +344,29 @@
   connection: ssh
   when: _action == 'cleanup_full'
 
+# ── restart_watcher ──────────────────────────────────────────────────────────
+# Runs AFTER daemon_reload (Phase 5) and after buildstream is started (Phase 6).
+# The 2.1 Python script is now in place; a clean restart picks it up.
+- name: "BuildStream | Restart playbook_watcher service (Restore)"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_watcher_service }}"
+    state: restarted
+    enabled: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'restart_watcher'
+
+- name: "BuildStream | Verify playbook_watcher service is active"
+  ansible.builtin.command: "systemctl is-active {{ buildstream_orchestrator_watcher_service }}"
+  register: _watcher_restart_check
+  changed_when: false
+  failed_when: _watcher_restart_check.stdout | trim != 'active'
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'restart_watcher'
+
 # ── validate_health ──────────────────────────────────────────────────────────
 - name: "BuildStream | Validate API health (Restore)"
   ansible.builtin.uri:
@@ -335,6 +374,18 @@
     validate_certs: false
     status_code: 200
   register: _bs_validate_health
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when:
+    - _action == 'validate_health'
+    - build_stream_upgrade_path == 'upgrade_existing'
+
+- name: "BuildStream | Validate playbook_watcher service is active (Restore)"
+  ansible.builtin.command: "systemctl is-active {{ buildstream_orchestrator_watcher_service }}"
+  register: _watcher_health_check
+  changed_when: false
+  failed_when: _watcher_health_check.stdout | trim != 'active'
   delegate_to: oim
   delegate_facts: true
   connection: ssh
