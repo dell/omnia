@@ -47,8 +47,8 @@
     status_code: [200, 201, 202]
   register: idrac_status
   until: idrac_status.status in [200, 201, 202]
-  retries: 3
-  delay: 5
+  retries: "{{ idrac_retries | default(2) }}"
+  delay: "{{ idrac_delay | default(5) }}"
   ignore_errors: true
 
 - name: IDRAC ops when ready

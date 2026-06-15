@@ -11,6 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# This is a one time event to set PXE NIC for the node
+# (idempotent) If already set, it will be skipped
+# If this fails we still proceed with the rest of the playbook
+
 - name: Get Ethernet status of iDRAC
   ansible.builtin.uri:
     url: "https://{{ inventory_hostname }}/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces?$expand=*($levels=1)"
@@ -36,12 +40,46 @@
 - name: MACaddress to ID map
   ansible.builtin.set_fact:
     mac_to_id: "{{ mac_to_id | default({}) | combine({(item.MACAddress | lower): item.Id}) }}"
-  loop: "{{ idrac_status.json.Members }}"
+  loop: "{{ ethernet_status.json.Members }}"
   when: ethernet_status is success and item.MACAddress | length > 0
 
 - name: Display MAC to ID mapping
   ansible.builtin.set_fact:
     nic_id: "{{ mac_to_id[ip_mac_map[inventory_hostname]] | default('') }}"
+
+# Check if the NIC has PXE capability
+# /redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/NIC.Embedded.1/NetworkDeviceFunctions/NIC.Embedded.1-1-1/Oem/Dell/DellNICCapabilities/NIC.Embedded.1-1-1
+- name: Check if NIC has PXE capability
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/{{ nic_id | split('-') | first }}/NetworkDeviceFunctions/{{ nic_id }}/Oem/Dell/DellNICCapabilities/{{ nic_id }}" # TODO check if split logic is right
+    user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+    password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code: [200, 201, 202]
+  register: nic_capability
+  until: nic_capability.status in [200, 201, 202]
+  retries: "{{ idrac_retries | default(2) }}"
+  delay: "{{ idrac_delay | default(5) }}"
+  ignore_errors: true
+
+- name: Display NIC capability
+  ansible.builtin.set_fact:
+    nic_pxe_support: "{{ 'true' if (nic_capability.json.PXEBootSupport | default('UNKNOWN')) == 'Supported' else 'false' }}"
+    bios_pxe_message: "PXE Boot support is {{ nic_capability.json.PXEBootSupport | default('UNKNOWN') }}"
+
+- name: Fail if PXE is not supported
+  ansible.builtin.fail:
+    msg: "PXE Boot is not supported on this NIC {{ nic_id }} with MAC {{ ip_mac_map[inventory_hostname] }}"
+  when: (nic_capability.json.PXEBootSupport | default('UNKNOWN')) == "NotSupported"
 
 - name: Get idrac attributes
   dellemc.openmanage.idrac_bios:

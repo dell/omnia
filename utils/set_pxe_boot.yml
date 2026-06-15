@@ -78,6 +78,11 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: NIC does not support PXE boot
+      ansible.builtin.debug:
+        msg: "NIC {{ nic_id }} does not support PXE boot"
+      when: not nic_pxe_support | default(false) | bool
+
     - name: Report iDRAC reboot failure
       ansible.builtin.debug:
         msg: "[FAILED] {{ inventory_hostname }}: {{ reboot_status }}"

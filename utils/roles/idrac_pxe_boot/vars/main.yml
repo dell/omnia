@@ -33,6 +33,8 @@ provision_os_msg: "OS provisioning is initiated. Wait for installation to comple
 pxe_provisioning_fail_msg: "OS booting using PXE failed. This could be due to outdated NIC firmware. Re-run set_pxe_boot.yml after fixing the issue"
 bmc_validation_fail_msg: "Failed. bmc group in inventory must have atleast one bmc ip."
 unreachable_idrac_msg: "iDRAC is unreachable. pxe boot might be set. Please check the host reboot status manually"
+idrac_retries: 2
+idrac_delay: 5
 
 # Usage: pre_checks.yml
 bmc_inventory_path: "/opt/omnia/provision/bmc_inventory"
