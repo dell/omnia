@@ -358,10 +358,11 @@
   when: _action == 'restart_watcher'
 
 - name: "BuildStream | Verify playbook_watcher service is active"
-  ansible.builtin.command: "systemctl is-active {{ buildstream_orchestrator_watcher_service }}"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_watcher_service }}"
   register: _watcher_restart_check
   changed_when: false
-  failed_when: _watcher_restart_check.stdout | trim != 'active'
+  failed_when: not (_watcher_restart_check.status.ActiveState | default('') == 'active')
   delegate_to: oim
   delegate_facts: true
   connection: ssh
@@ -382,10 +383,11 @@
     - build_stream_upgrade_path == 'upgrade_existing'
 
 - name: "BuildStream | Validate playbook_watcher service is active (Restore)"
-  ansible.builtin.command: "systemctl is-active {{ buildstream_orchestrator_watcher_service }}"
+  ansible.builtin.systemd_service:
+    name: "{{ buildstream_orchestrator_watcher_service }}"
   register: _watcher_health_check
   changed_when: false
-  failed_when: _watcher_health_check.stdout | trim != 'active'
+  failed_when: not (_watcher_health_check.status.ActiveState | default('') == 'active')
   delegate_to: oim
   delegate_facts: true
   connection: ssh
