@@ -51,7 +51,9 @@
 # /redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/NIC.Embedded.1/NetworkDeviceFunctions/NIC.Embedded.1-1-1/Oem/Dell/DellNICCapabilities/NIC.Embedded.1-1-1
 - name: Check if NIC has PXE capability
   ansible.builtin.uri:
-    url: "https://{{ inventory_hostname }}/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/{{ nic_id | split('-') | first }}/NetworkDeviceFunctions/{{ nic_id }}/Oem/Dell/DellNICCapabilities/{{ nic_id }}" # TODO check if split logic is right
+    url: "https://{{ inventory_hostname }}/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters\
+      /{{ nic_id | split('-') | first }}/NetworkDeviceFunctions/{{ nic_id }}/Oem/Dell/DellNICCapabilities/{{ nic_id }}"
+    # TODO check if split logic is right
     user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
     password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
     method: GET
