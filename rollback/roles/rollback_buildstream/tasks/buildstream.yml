@@ -45,6 +45,22 @@
     - _action == 'validate_backup'
     - not (_bs_quadlet_backup_stat.stat.exists | default(false))
 
+- name: "BuildStream | Validate source directory backup exists"
+  ansible.builtin.stat:
+    path: "{{ backup_path_from_oim }}/buildstream/build_stream"
+  register: _bs_source_backup_stat
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'validate_backup'
+
+- name: "BuildStream | Fail if source directory backup missing"
+  ansible.builtin.fail:
+    msg: "BuildStream source directory backup not found: {{ backup_path_from_oim }}/buildstream/build_stream"
+  when:
+    - _action == 'validate_backup'
+    - not (_bs_source_backup_stat.stat.exists | default(false))
+
 # ── stop ─────────────────────────────────────────────────────────────────────
 - name: "BuildStream | Stop service (Restore)"
   ansible.builtin.systemd_service:
@@ -96,6 +112,15 @@
   when: _action == 'restore_config'
 
 # ── restore_source ───────────────────────────────────────────────────────────
+- name: "BuildStream | Remove existing 2.2 source directory completely"
+  ansible.builtin.file:
+    path: "{{ omnia_nfs_share }}/build_stream"
+    state: absent
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: _action == 'restore_source'
+
 - name: "BuildStream | Restore build_stream source directory from backup"
   ansible.builtin.copy:
     src: "{{ backup_path_from_oim }}/buildstream/build_stream"
@@ -105,7 +130,6 @@
   delegate_to: oim
   delegate_facts: true
   connection: ssh
-  failed_when: false
   when: _action == 'restore_source'
 
 # ── remove_quadlet ───────────────────────────────────────────────────────────
