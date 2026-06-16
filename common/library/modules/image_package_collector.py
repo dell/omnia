@@ -109,7 +109,6 @@ def collect_packages_from_json(sw_data, fg_name=None,
     elif service_k8s_defined:
         fg_name = fg_name.replace("_aarch64", "").replace("_x86_64", "")
 
-        # Determine the top-level key (service_k8s or service_rke2)
         k8s_top_key = "service_rke2" if "service_rke2" in sw_data else "service_k8s"
 
         if k8s_top_key in sw_data and "cluster" in sw_data[k8s_top_key]:
@@ -291,7 +290,6 @@ def run_module():
         ],
     }
 
-    # Add k8s functional groups to software_map if k8s json is available
     if k8s_json:
         software_map.update({
             "service_kube_node_x86_64": [k8s_json],

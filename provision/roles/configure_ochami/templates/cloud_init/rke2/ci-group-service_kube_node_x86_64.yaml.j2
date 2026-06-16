@@ -138,7 +138,7 @@
         - sudo setenforce 0 || true
         - sudo sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 
-         # Enable and start firewalld
+        # Enable and start firewalld
         - systemctl enable firewalld
         - systemctl start firewalld
 
@@ -159,19 +159,11 @@
         - firewall-cmd --permanent --add-port=7946/udp
         - firewall-cmd --permanent --add-port=9090/tcp
         - firewall-cmd --permanent --add-port=8080/tcp
-
-        # Enable services
         - firewall-cmd --permanent --add-service=http
         - firewall-cmd --permanent --add-service=https
-
-        # Add Kubernetes pod/service CIDRs
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_pod_network_cidr }}
-
-        # Set default zone to trusted
         - firewall-cmd --set-default-zone=trusted
-
-        # Reload rules
         - firewall-cmd --reload
 
         - sudo modprobe br_netfilter || true

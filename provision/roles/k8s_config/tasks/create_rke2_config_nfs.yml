@@ -64,7 +64,7 @@
   ansible.builtin.set_fact:
     admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
 
-- name: Fetch server_ip and server_share_path from list when nfs sever is localhost
+- name: Fetch server_ip and server_share_path from list when nfs server is localhost
   ansible.builtin.set_fact:
     nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
   when: k8s_nfs_server_ip == "localhost"
@@ -273,7 +273,7 @@
 # on the nodes; the cloud-init templates copy these from the NFS share.
 - name: Download RKE2 airgap image tarballs to NFS share
   ansible.builtin.get_url:
-    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.gz"
+    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.zst"
     dest: "{{ k8s_client_mount_path }}/rke2/images/{{ item }}.tar.zst"
     mode: "{{ file_mode }}"
   loop:

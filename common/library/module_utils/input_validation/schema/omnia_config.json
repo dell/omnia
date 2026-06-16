@@ -229,7 +229,9 @@
         "required": [
           "cluster_name",
           "k8s_cni",
-          "k8s_service_addresses"
+          "k8s_service_addresses",
+          "k8s_pod_network_cidr",
+          "pod_external_ip_range"
         ],
         "allOf": [
         {

@@ -224,6 +224,22 @@ def validate_software_config(
             )
         )
 
+    # RKE2 packages are only available for x86_64; reject any other arch explicitly
+    if "service_rke2" in software_names:
+        rke2_entry = next(
+            (s for s in data.get("softwares", []) if s.get("name") == "service_rke2"), {}
+        )
+        rke2_arch = rke2_entry.get("arch", ["x86_64"])
+        unsupported_archs = [a for a in rke2_arch if a != "x86_64"]
+        if unsupported_archs:
+            errors.append(
+                create_error_msg(
+                    "Validation Error: ",
+                    "service_rke2",
+                    f"is only supported on x86_64. Unsupported arch(es): {', '.join(unsupported_archs)}."
+                )
+            )
+
     # Ensure ldms is not configured without service_k8s or service_rke2 in softwares
     if "ldms" in software_names and "service_k8s" not in software_names and "service_rke2" not in software_names:
         errors.append(
@@ -1473,7 +1489,7 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
         cluster_set["service_k8s_cluster"] = data.get(
             "service_k8s_cluster", [])
 
-    if "service_rke2" in softwares and "service_k8s" in tag_names:
+    if "service_rke2" in softwares and "service_rke2" in tag_names:
         cluster_set["service_rke2_k8s_cluster"] = data.get(
             "service_rke2_k8s_cluster", [])
 

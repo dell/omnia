@@ -208,12 +208,9 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.19.0"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
-
-            # Optional: Set up bash completion
             /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
             chmod 0755 /etc/bash_completion.d/helm.sh
 
@@ -256,19 +253,11 @@
         - firewall-cmd --permanent --add-port=7946/udp
         - firewall-cmd --permanent --add-port=9090/tcp
         - firewall-cmd --permanent --add-port=8080/tcp
-        
-        # Enable services
         - firewall-cmd --permanent --add-service=http
         - firewall-cmd --permanent --add-service=https
-
-        # Add pod/service networks
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_pod_network_cidr }}
-        
-        # Set default zone to trusted
         - firewall-cmd --set-default-zone=trusted
-        
-        # Reload the firewall rules
         - firewall-cmd --reload
 
         - sudo modprobe br_netfilter || true
@@ -309,6 +298,7 @@
         - /usr/local/bin/install-helm.sh
 
         - |
+          set -e
           echo "Installing Necessary Python pip packages"
           python3 -m ensurepip
 
@@ -323,7 +313,6 @@
           done
           MARKER="/etc/rancher/rke2/.cluster_initialized"
           export PATH="$PATH:/var/lib/rancher/rke2/bin"
-          set -e
           if [ ! -f "$MARKER" ]; then
             # Join RKE2 cluster as additional server
             echo "Initial boot - joining RKE2 cluster as additional server for service_kube_control_plane_x86_64"
@@ -353,18 +342,18 @@
 
             # Write RKE2 config for joining as server
             cat > /etc/rancher/rke2/config.yaml <<EOF
-            server: https://${KUBE_VIP}:9345
-            token: ${RKE2_TOKEN}
-            tls-san:
-              - ${KUBE_VIP}
-              - ${NODE_NAME}
-            node-name: ${NODE_NAME}
-            write-kubeconfig-mode: "0644"
-            cluster-cidr: {{ k8s_pod_network_cidr }}
-            service-cidr: {{ k8s_service_addresses }}
-            cni: {{ k8s_cni }}
-            disable:
-              - rke2-ingress-nginx
+          server: https://${KUBE_VIP}:9345
+          token: ${RKE2_TOKEN}
+          tls-san:
+            - ${KUBE_VIP}
+            - ${NODE_NAME}
+          node-name: ${NODE_NAME}
+          write-kubeconfig-mode: "0644"
+          cluster-cidr: {{ k8s_pod_network_cidr }}
+          service-cidr: {{ k8s_service_addresses }}
+          cni: {{ k8s_cni }}
+          disable:
+            - rke2-ingress-nginx
           EOF
 
             # Prepare kube-vip manifest for this server (deployed after join)
@@ -409,7 +398,6 @@
 
             systemctl restart nfs-client.target
             systemctl restart rpcbind
-            # Mark initialization complete
             touch "$MARKER"
             echo "Cloud-Init has completed successfully."
           else

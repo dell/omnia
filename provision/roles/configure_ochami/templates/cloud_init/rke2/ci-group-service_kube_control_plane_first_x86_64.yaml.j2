@@ -236,12 +236,9 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.19.0"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
-
-            # Optional: Set up bash completion
             /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
             chmod 0755 /etc/bash_completion.d/helm.sh
 
@@ -318,19 +315,11 @@
         - firewall-cmd --permanent --add-port=7946/udp
         - firewall-cmd --permanent --add-port=9090/tcp
         - firewall-cmd --permanent --add-port=8080/tcp
-        
-        # Enable services
         - firewall-cmd --permanent --add-service=http
         - firewall-cmd --permanent --add-service=https
-
-        # Add pod/service networks
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_pod_network_cidr }}
-        
-        # Set default zone to trusted
         - firewall-cmd --set-default-zone=trusted
-        
-        # Reload the firewall rules
         - firewall-cmd --reload
 
         - sudo modprobe br_netfilter || true
@@ -637,7 +626,6 @@
             echo "Listing all Kubernetes pods in all namespaces:"
             kubectl get pods --all-namespaces -o wide
 
-            # Mark initialization complete so all of above is skipped on reboot!
             touch "$MARKER"
             echo "Cloud-Init has completed successfully."
           else
