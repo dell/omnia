@@ -53,6 +53,49 @@
       delegate_to: "{{ kube_vip }}"
       connection: ssh
 
+    # ── Flush vmstorage data before shutdown ──
+    # Create snapshots on each vmstorage pod to force pending data/indexdb flush.
+    # This prevents corrupted parts.json from in-flight merges during shutdown.
+    - name: Get old vmstorage pod names
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl -n {{ telemetry_namespace }} get pods -l {{ old_vm_pod_label }} --no-headers 2>/dev/null \
+          | grep -i "storage\|vmstorage" | awk '{print $1}'
+      register: old_vmstorage_pods
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Force snapshot on each vmstorage pod (flush pending writes)
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} exec {{ item }} -- \
+          wget -q -O- --no-check-certificate "https://localhost:8482/snapshot/create" 2>/dev/null || \
+        kubectl -n {{ telemetry_namespace }} exec {{ item }} -- \
+          wget -q -O- "http://localhost:8482/snapshot/create" 2>/dev/null || true
+      loop: "{{ old_vmstorage_pods.stdout_lines | default([]) }}"
+      changed_when: false
+      failed_when: false
+      when: old_vmstorage_pods.stdout_lines | default([]) | length > 0
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for background merges to settle after writes stopped
+      ansible.builtin.pause:
+        seconds: 30
+        prompt: "{{ vmstorage_merge_wait_msg }}"
+
+    # ── Ensure sufficient graceful shutdown period ──
+    # Old StatefulSet may have default 30s which is too short for indexdb flush
+    - name: Patch old StatefulSet terminationGracePeriodSeconds to 120s
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} patch statefulset {{ actual_old_statefulset }} \
+          -p '{"spec":{"template":{"spec":{"terminationGracePeriodSeconds":120}}}}'
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
     # ── Graceful shutdown of old StatefulSet ──
     - name: Scale down old StatefulSet
       ansible.builtin.command:
@@ -83,6 +126,11 @@
       changed_when: false
       delegate_to: "{{ kube_vip }}"
       connection: ssh
+
+    - name: Wait for storage cache flush after pod termination
+      ansible.builtin.pause:
+        seconds: 15
+        prompt: "{{ storage_cache_flush_msg }}"
 
     # ── PVC relabeling (data preservation via PV rebind) ──
     - name: Get all old PVCs from StatefulSet (using specific StatefulSet label)
@@ -168,6 +216,38 @@
       when: orphaned_pods.stdout_lines | default([]) | length > 0
       delegate_to: "{{ kube_vip }}"
       connection: ssh
+
+    # ── Capture LoadBalancer IPs before deletion ──
+    # Preserve existing IPs to prevent MetalLB from assigning new ones
+    # Only applicable for statefulset_to_operator migration path
+    - name: Get vminsert LoadBalancer IP
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get svc vminsert -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
+      register: old_vminsert_ip
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Get vmselect LoadBalancer IP
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get svc vmselect -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
+      register: old_vmselect_ip
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Set LoadBalancer IP facts for preservation
+      ansible.builtin.set_fact:
+        preserved_vminsert_ip: "{{ old_vminsert_ip.stdout | trim }}"
+        preserved_vmselect_ip: "{{ old_vmselect_ip.stdout | trim }}"
+
+    - name: Display preserved LoadBalancer IPs
+      ansible.builtin.debug:
+        msg:
+          - "Preserving vminsert IP: {{ preserved_vminsert_ip if preserved_vminsert_ip else 'None' }}"
+          - "Preserving vmselect IP: {{ preserved_vmselect_ip if preserved_vmselect_ip else 'None' }}"
 
     # ── Cleanup old pre-operator services and deployments ──
     # The operator creates new services with different names (e.g. vminsert-victoria-cluster),

@@ -590,6 +590,15 @@
   ansible.builtin.import_playbook: ../input_validation/validate_config.yml
   tags: always
 
+# ──────────────────────────────────────────────────────────────────────
+# Global pre-flight validations — topology checks that MUST pass
+# before any component upgrade begins. Catches unsupported changes
+# (e.g., BuildStream enabled→disabled) to prevent partial upgrades.
+# ──────────────────────────────────────────────────────────────────────
+- name: Global pre-flight validations (fail-fast topology checks)
+  ansible.builtin.import_playbook: playbooks/upgrade_validations.yml
+  tags: always
+
 - name: Load Omnia credential utility
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
   tags: always

@@ -1165,8 +1165,8 @@ def process_pip(package, status_file_path, content_base_dir, repo_name,
 
         logger.info(f"Package {package_name} processed successfully!")
 
-    except Exception as e:
-        logger.error(f"Unexpected error while processing {package_name}: {str(e)}")
+    except Exception:
+        logger.error(f"Unexpected error while processing {package_name}")
         status = "Failed"
 
     finally:
