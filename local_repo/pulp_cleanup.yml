@@ -98,7 +98,7 @@
 
     - name: Set force skip confirmation flag
       ansible.builtin.set_fact:
-        force_skip_confirmation: "{{ force | default(false) | bool }}"
+        force_skip_confirmation: "{{ force | default(false) | bool or skip_approval | default(false) | bool }}"
 
     - name: Get user confirmation
       ansible.builtin.pause:
@@ -109,7 +109,7 @@
           Type 'yes' to continue or 'no' to abort
         echo: true
       register: user_input
-      when: not force_skip_confirmation
+      when: not force_skip_confirmation | bool
 
     - name: Set user confirmed flag
       ansible.builtin.set_fact:
@@ -119,13 +119,13 @@
       ansible.builtin.debug:
         msg: "Cleanup cancelled by user. Exiting."
       when:
-        - not force_skip_confirmation
+        - not force_skip_confirmation | bool
         - not user_confirmed
 
     - name: Abort if not confirmed
       ansible.builtin.meta: end_play
       when:
-        - not force_skip_confirmation
+        - not force_skip_confirmation | bool
         - not user_confirmed
 
   tasks:
