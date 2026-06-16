@@ -362,6 +362,13 @@ class ParseCatalogUseCase:  # pylint: disable=too-few-public-methods
                 role_images[role_name] = f"{role_name}.img"
         roles.sort()
 
+        # Add synthetic service_kube_control_plane_first_x86_64 role if base role exists
+        # This ensures Image records are created for the _first variant during build-image completion
+        if "service_kube_control_plane_x86_64" in roles and "service_kube_control_plane_first_x86_64" not in roles:
+            roles.append("service_kube_control_plane_first_x86_64")
+            role_images["service_kube_control_plane_first_x86_64"] = "service_kube_control_plane_first_x86_64.img"
+            roles.sort()
+
         return {
             "image_group_id": str(image_group_id),
             "roles": roles,
