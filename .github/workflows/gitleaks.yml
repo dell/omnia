@@ -10,7 +10,7 @@ on:
       - pub/q2_upgrade
       - gitleaks
 
-  pull_request:
+  pull_request_target:
   workflow_dispatch:
 
 permissions:
