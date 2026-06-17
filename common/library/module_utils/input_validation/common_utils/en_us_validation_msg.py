@@ -210,6 +210,46 @@ PXE_MAPPING_AARCH64_LOCAL_PATH_MSG = (
 )
 CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
 
+# additional_cloud_init
+ADDITIONAL_CLOUD_INIT_FILE_NOT_FOUND_MSG = (
+    "File not found. Verify additional_cloud_init_config_file "
+    "in provision_config.yml points to a valid file."
+)
+ADDITIONAL_CLOUD_INIT_YAML_SYNTAX_MSG = (
+    "YAML syntax error in additional cloud-init config file."
+)
+ADDITIONAL_CLOUD_INIT_NOT_DICT_MSG = (
+    "additional cloud-init config file must contain a YAML mapping."
+)
+ADDITIONAL_CLOUD_INIT_UNKNOWN_TOP_KEY_MSG = (
+    "Unknown top-level key. Only 'common' and 'groups' are allowed."
+)
+ADDITIONAL_CLOUD_INIT_PROHIBITED_KEY_MSG = (
+    "Prohibited key found. The keys 'bootcmd', 'network', "
+    "'network-config', and 'packages' are platform-managed "
+    "and must NOT be overridden."
+)
+ADDITIONAL_CLOUD_INIT_UNKNOWN_KEY_MSG = (
+    "Unknown key found. Only 'write_files' and 'runcmd' "
+    "are allowed."
+)
+ADDITIONAL_CLOUD_INIT_WRITE_FILES_NOT_LIST_MSG = (
+    "'write_files' must be a list."
+)
+ADDITIONAL_CLOUD_INIT_WRITE_FILES_MISSING_PATH_MSG = (
+    "write_files entry is missing the required 'path' field."
+)
+ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_LIST_MSG = "'runcmd' must be a list."
+ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_STRING_MSG = (
+    "runcmd entry is not a string."
+)
+ADDITIONAL_CLOUD_INIT_INVALID_FG_MSG = (
+    "is not a valid functional group name in the 'groups' section."
+)
+ADDITIONAL_CLOUD_INIT_SECTION_NOT_DICT_MSG = (
+    "Section must be a mapping/dict."
+)
+
 # local_repo.yml
 REPO_STORE_PATH_MSG = "Please provide a valid repo_store_path value."
 OMNIA_REPO_URL_MSG = "Repo urls are empty. Please provide a url and corresponding key."
@@ -619,7 +659,9 @@ TELEMETRY_IP_OVERLAP_FAIL_MSG = ("admin network, telemetry network and IP ranges
                                  "Check telemetry_config.yml and network_spec.yml")
 
 # high_availability
-VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin subnet. "
+VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in a valid subnet. "
+                                 "The VIP must be in either the admin subnet or the "
+                                 "additional subnet where the Kubernetes control plane nodes are configured. "
                                  "Check high_availability_config.yml and network_spec.yml")
 VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
                        "Check high_availability_config.yml and network_spec.yml")

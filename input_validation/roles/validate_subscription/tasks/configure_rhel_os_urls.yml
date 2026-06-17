@@ -133,18 +133,22 @@
       ansible.builtin.set_fact:
         x86_64_dynamic_names: "{{ sub_rhel_x86_64_urls | map(attribute='name') | list }}"
 
-    - name: Apply x86_64 overrides to matching repos
+    - name: Apply x86_64 overrides to matching repos (only URL overridden, certs always from defaults)
       ansible.builtin.set_fact:
         sub_rhel_x86_64_urls: >-
           {%- set result = [] -%}
           {%- for repo in sub_rhel_x86_64_urls -%}
             {%- set override = (sub_x86_64_override_config | selectattr('name', 'equalto', repo.name) | first | default({})) -%}
-            {%- set updated_repo = repo | combine({
-              'policy': override.policy | default(repo.policy),
-              'caching': override.caching | default(repo.caching),
-              'url': override.url | default(repo.url),
-              'gpgkey': override.gpgkey | default(repo.gpgkey)
-            }) -%}
+            {%- if override -%}
+              {%- set updated_repo = repo | combine({
+                'url': override.url | default(repo.url),
+                'gpgkey': override.gpgkey | default(repo.gpgkey),
+                'policy': override.policy | default(repo.policy),
+                'caching': override.caching | default(repo.caching)
+              }) -%}
+            {%- else -%}
+              {%- set updated_repo = repo -%}
+            {%- endif -%}
             {%- set _ = result.append(updated_repo) -%}
           {%- endfor -%}
           {{ result }}
@@ -156,7 +160,7 @@
             sub_x86_64_override_config | rejectattr('name', 'in', x86_64_dynamic_names) | list
           }}
 
-    - name: Add non-matching x86_64 override repos as additional
+    - name: Add non-matching x86_64 override repos as additional (certs always from defaults)
       ansible.builtin.set_fact:
         sub_rhel_x86_64_urls: >-
           {%- set result = sub_rhel_x86_64_urls -%}
@@ -175,18 +179,22 @@
           {%- endfor -%}
           {{ result }}
 
-    - name: Apply aarch64 overrides to matching repos
+    - name: Apply aarch64 overrides to matching repos (only URL overridden, certs always from defaults)
       ansible.builtin.set_fact:
         sub_rhel_aarch64_urls: >-
           {%- set result = [] -%}
           {%- for repo in sub_rhel_aarch64_urls -%}
             {%- set override = (sub_aarch64_override_config | selectattr('name', 'equalto', repo.name) | first | default({})) -%}
-            {%- set updated_repo = repo | combine({
-              'policy': override.policy | default(repo.policy),
-              'caching': override.caching | default(repo.caching),
-              'url': override.url | default(repo.url),
-              'gpgkey': override.gpgkey | default(repo.gpgkey)
-            }) -%}
+            {%- if override -%}
+              {%- set updated_repo = repo | combine({
+                'url': override.url | default(repo.url),
+                'gpgkey': override.gpgkey | default(repo.gpgkey),
+                'policy': override.policy | default(repo.policy),
+                'caching': override.caching | default(repo.caching)
+              }) -%}
+            {%- else -%}
+              {%- set updated_repo = repo -%}
+            {%- endif -%}
             {%- set _ = result.append(updated_repo) -%}
           {%- endfor -%}
           {{ result }}
@@ -204,7 +212,7 @@
           }}
       when: "'aarch64' in archs"
 
-    - name: Add non-matching aarch64 override repos as additional
+    - name: Add non-matching aarch64 override repos as additional (certs always from defaults)
       ansible.builtin.set_fact:
         sub_rhel_aarch64_urls: >-
           {%- set result = sub_rhel_aarch64_urls -%}

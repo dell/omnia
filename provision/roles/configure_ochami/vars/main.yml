@@ -56,6 +56,12 @@ ssh_private_key_path: /root/.ssh/oim_rsa
 ci_group_common_template: cloud_init/ci-group-common.yaml.j2
 ci_group_common_dest: "{{ cloud_init_dir }}/ci-group-common.yaml"
 
+# Usage: configure_cloud_init_additional.yml
+ci_group_additional_template: cloud_init/ci-group-additional_cloud_init.yaml.j2
+additional_cloud_init_common_group_name: additional_cloud_init
+additional_cloud_init_fg_group_prefix: "additional_cloud_init_"
+additional_cloud_init_fg_groups_template: "{{ role_path }}/templates/nodes/groups_additional_fg.yaml.j2"
+
 # Usage: provision_completion.yml
 provision_completion_msg: |
   The provision.yml playbook has completed successfully.

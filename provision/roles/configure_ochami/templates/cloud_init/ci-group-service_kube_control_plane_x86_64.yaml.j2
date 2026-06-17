@@ -535,7 +535,22 @@
             systemctl daemon-reload
             systemctl restart kubelet
 
-            kubectl -n kube-system wait pod/kube-controller-manager-{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %} --for=condition=Ready --timeout=300s
+            # Wait for kube-controller-manager pod to exist before checking readiness
+            echo "Waiting for kube-controller-manager pod to be created..."
+            KCM_POD="kube-controller-manager-{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            TIMEOUT=120
+            ELAPSED=0
+            while ! kubectl -n kube-system get pod "$KCM_POD" >/dev/null 2>&1; do
+              if [ $ELAPSED -ge $TIMEOUT ]; then
+                echo "ERROR: Timed out waiting for $KCM_POD to be created"
+                exit 1
+              fi
+              echo "Pod $KCM_POD not found yet, waiting 5s... ($ELAPSED/$TIMEOUT seconds)"
+              sleep 5
+              ELAPSED=$((ELAPSED + 5))
+            done
+            echo "Pod $KCM_POD found, waiting for it to be Ready..."
+            kubectl -n kube-system wait pod/"$KCM_POD" --for=condition=Ready --timeout=300s
             systemctl restart nfs-client.target
             systemctl restart rpcbind
               # Mark initialization complete so all of above is skipped on reboot!

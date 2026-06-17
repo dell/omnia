@@ -36,23 +36,49 @@
       when:
         - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
 
-    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
-      ansible.builtin.copy:
-        content: >-
-          {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ rollback_manifest_path }}"
-        mode: '0644'
+    - name: "BuildStream terminal gate active (C-24)"
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - hostvars['localhost']['upgrade_manifest'] is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status.k8s | default('pending') not in ['completed', 'in-progress', 'failed']
+        - hostvars['localhost']['upgrade_manifest'].component_status.telemetry | default('pending') not in ['completed', 'in-progress', 'failed']
+      block:
+        - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+          ansible.builtin.copy:
+            content: >-
+              {{ rollback_manifest | combine({
+                   'component_status': rollback_manifest.component_status | combine({
+                     component_name: 'skipped'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
 
-    - name: "Skip — BuildStream terminal gate active (C-24)"
-      ansible.builtin.meta: end_play
+        - name: "Skip — BuildStream terminal gate active (C-24)"
+          ansible.builtin.meta: end_play
+
+    # ── Gate 3: Skip rollback if k8s/telemetry were never started during upgrade ──
+    - name: "K8s/telemetry never started during upgrade"
       when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - hostvars['localhost']['upgrade_manifest'] is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status is defined
+        - hostvars['localhost']['upgrade_manifest'].component_status.k8s | default('pending') not in ['completed', 'in-progress', 'failed']
+        - hostvars['localhost']['upgrade_manifest'].component_status.telemetry | default('pending') not in ['completed', 'in-progress', 'failed']
+      block:
+        - name: "Mark as skipped — k8s/telemetry never started during upgrade"
+          ansible.builtin.copy:
+            content: >-
+              {{ rollback_manifest | combine({
+                   'component_status': rollback_manifest.component_status | combine({
+                     component_name: 'skipped'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+
+        - name: "Skip — k8s/telemetry never started during upgrade"
+          ansible.builtin.meta: end_play
 
     # ── Pre-check: Skip rollback if service_k8s is not in software_config.json ──
     - name: "Load software_config.json"

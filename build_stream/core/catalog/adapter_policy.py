@@ -39,7 +39,7 @@ _DEFAULT_POLICY_PATH = os.path.join(_BASE_DIR, "resources", "adapter_policy_defa
 _DEFAULT_SCHEMA_PATH = os.path.join(_BASE_DIR, "resources", "AdapterPolicySchema.json")
 
 _K8S_VERSION = "1.35.1"
-_CSI_VERSION = "v2.16.0"
+_CSI_VERSION = "v2.17.0"
 
 
 def _validate_input_policy_and_schema_paths(

@@ -22,6 +22,7 @@
   gather_facts: false
   vars:
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: slurm
   tasks:
     - name: Check if rollback manifest exists
@@ -40,41 +41,47 @@
     - name: Read rollback_manifest.yml
       ansible.builtin.include_vars:
         file: "{{ rollback_manifest_path }}"
-        name: manifest
+        name: rollback_manifest
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.include_vars:
+        file: "{{ upgrade_manifest_path }}"
+        name: upgrade_manifest
+      failed_when: false
+
+    - name: Set upgrade_manifest to empty dict if not found
+      ansible.builtin.set_fact:
+        slurm_skip: false
+        upgrade_manifest: "{{ hostvars['localhost']['upgrade_manifest'] }}"
 
     - name: Read software_config.json
       ansible.builtin.include_vars:
-        file: "{{ manifest.backup_dir }}/input/project_default/software_config.json"
+        file: "{{ rollback_manifest.backup_dir }}/input/project_default/software_config.json"
         name: software_config
 
     - name: Determine slurm_skip status
       ansible.builtin.set_fact:
-        slurm_skip: >-
-          {{
-            (manifest.component_status[component_name] | default('pending') == 'completed')
-            or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
-          }}
+        slurm_skip: true
+        cacheable: true
+      when: >
+        (rollback_manifest.component_status.slurm | default('pending') == 'completed')
+        or (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length == 0)
+        or (build_stream_terminal | default(false) | bool)
+        or (upgrade_manifest.component_status.slurm | default('pending') not in ['completed', 'in-progress', 'failed'])
 
     - name: "Handle BuildStream terminal gate (C-24)"
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-        - manifest.component_status.build_stream | default('pending') == 'completed'
+      when: slurm_skip
       block:
         - name: "Mark as skipped — BuildStream terminal gate active"
           ansible.builtin.copy:
             content: >-
-              {{ manifest | combine({
-                   'component_status': manifest.component_status | combine({
+              {{ rollback_manifest | combine({
+                   'component_status': rollback_manifest.component_status | combine({
                      component_name: 'skipped'
                    })
                  }) | to_nice_yaml }}
             dest: "{{ rollback_manifest_path }}"
             mode: '0644'
-          when: not slurm_skip
-
-        - name: "Set slurm_skip — BuildStream terminal gate active"
-          ansible.builtin.set_fact:
-            slurm_skip: true
 
         - name: "Skip — BuildStream terminal gate active"
           ansible.builtin.meta: end_play
@@ -85,8 +92,8 @@
         - name: Set slurm rollback status to in-progress
           ansible.builtin.copy:
             content: >-
-              {{ manifest | combine({
-                  'component_status': manifest.component_status | combine({
+              {{ rollback_manifest | combine({
+                  'component_status': rollback_manifest.component_status | combine({
                     component_name: 'in-progress'
                   })
                 }) | to_nice_yaml }}
@@ -220,8 +227,8 @@
           [ROLLBACK] SLURM CLUSTER — PRE-ROLLBACK NOTICE
           ==============================================
           1. NODE REBOOT    — All Slurm/login nodes will reboot.
-          2. NFS MOUNTS     — Omnia 2.1 mount points are preserved. Do not modify during rollback.
-          3. ROLLBACK SCOPE — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback.
+          2. NFS MOUNTS     — New NFS mounts(Ex: VAST) added during upgrade will NOT be retained on rollback.
+          3. SLURM CONF     - Slurm configuration files will be restored to their original state.
 
     - name: Read oim_metadata for oim_node_name (standalone fallback)
       ansible.builtin.include_vars:
@@ -271,12 +278,19 @@
   serial: 100%
   strategy: host_pinned
   vars:
-    reboot_timeout: 1200
+    default_reboot_timeout: 1200
     ssh_timeout: 60
+    reboot_time_map:
+      login_compiler_node_x86_64: 1800
+      login_compiler_node_aarch64: 1800
   tasks:
     - name: Skip if slurm upgrade not needed
       ansible.builtin.meta: end_play
       when: hostvars['localhost']['slurm_skip'] | default(false) | bool
+
+    - name: Set reboot timeout based on node type
+      ansible.builtin.set_fact:
+        reboot_timeout: "{{ reboot_time_map.get(group_names[0], default_reboot_timeout) }}"
 
     - name: Initialize state
       ansible.builtin.set_fact:

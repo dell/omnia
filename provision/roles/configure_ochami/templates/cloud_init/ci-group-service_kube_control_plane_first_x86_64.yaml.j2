@@ -524,7 +524,7 @@
             cp {{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml {{ k8s_client_mount_path }}/calico/updated-{{ calico_package }}.yml
 
             CALICO_YAML="{{ k8s_client_mount_path }}/calico/updated-{{ calico_package }}.yml"
-            ADMIN_NIC_CIDR="{{ admin_nic_cidr }}"
+            ADMIN_NIC_CIDR="{{ calico_cidr }}"
 
             # Only add if not already present
             if ! grep -q 'name: IP_AUTODETECTION_METHOD' "$CALICO_YAML"; then
@@ -641,26 +641,21 @@
             # Forward cluster-internal DNS domain to OIM CoreDNS
             # This allows K8s pods to resolve Slurm/MPI hostnames via CoreDNS
             python3 - "$cfg" << 'PYEOF'
-import sys, yaml
-cfg_path = sys.argv[1]
-with open(cfg_path) as f:
-    doc = yaml.safe_load(f)
-corefile = doc['data']['Corefile']
-fwd_block = """{{ domain_name }}:53 {
-    errors
-    cache 30
-    forward . {{ admin_nic_ip }}
-}
-"""
-if '{{ domain_name }}:53' not in corefile:
-    corefile = fwd_block + corefile
-    doc['data']['Corefile'] = corefile
-    with open(cfg_path, 'w') as f:
-        yaml.dump(doc, f, default_flow_style=False)
-    print("Added {{ domain_name }} forward zone to K8s CoreDNS")
-else:
-    print("{{ domain_name }} forward zone already present in K8s CoreDNS")
-PYEOF
+          import sys, yaml
+          cfg_path = sys.argv[1]
+          with open(cfg_path) as f:
+              doc = yaml.safe_load(f)
+          corefile = doc["data"]["Corefile"]
+          fwd_block = "{{ domain_name }}:53 {\n    errors\n    cache 30\n    forward . {{ admin_nic_ip }}\n}\n"
+          if "{{ domain_name }}:53" not in corefile:
+              corefile = fwd_block + corefile
+              doc["data"]["Corefile"] = corefile
+              with open(cfg_path, "w") as f:
+                  yaml.dump(doc, f, default_flow_style=False)
+              print("Added {{ domain_name }} forward zone to K8s CoreDNS")
+          else:
+              print("{{ domain_name }} forward zone already present in K8s CoreDNS")
+          PYEOF
 {% endif %}
 
             # Apply the patched ConfigMap

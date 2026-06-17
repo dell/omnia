@@ -254,16 +254,27 @@
       ansible.builtin.set_fact:
         build_stream_terminal: >-
           {{ (build_stream_config.enable_build_stream | default(false) | bool)
-             and (upgrade_manifest is defined)
+             or ((upgrade_manifest is defined)
              and (upgrade_manifest.component_status is defined)
-             and (upgrade_manifest.component_status.build_stream | default('pending') in ['completed', 'skipped']) }}
+             and (upgrade_manifest.component_status.build_stream | default('pending') in ['completed'])) }}
+        cacheable: true
 
     - name: Identify components skipped by BuildStream terminal gate
       ansible.builtin.set_fact:
         bs_rollback_skipped: >-
-          {{ ['slurm', 'k8s-telemetry']
-             if (build_stream_terminal | bool)
-             else [] }}
+          {%- set skipped = [] -%}
+          {%- if build_stream_terminal | bool -%}
+          {%-   if upgrade_manifest is defined and upgrade_manifest.component_status is defined -%}
+          {%-     if upgrade_manifest.component_status.slurm | default('pending') not in ['completed', 'in-progress', 'failed'] -%}
+          {%-       set _ = skipped.append('slurm') -%}
+          {%-     endif -%}
+          {%-     if (upgrade_manifest.component_status.k8s | default('pending') not in ['completed', 'in-progress', 'failed'])
+                    and (upgrade_manifest.component_status.telemetry | default('pending') not in ['completed', 'in-progress', 'failed']) -%}
+          {%-       set _ = skipped.append('k8s-telemetry') -%}
+          {%-     endif -%}
+          {%-   endif -%}
+          {%- endif -%}
+          {{ skipped }}
 
     - name: Report BuildStream terminal gate activation (rollback)
       ansible.builtin.debug:
@@ -274,19 +285,46 @@
           Only build_stream and oim will be rolled back.
       when: build_stream_terminal | bool
 
-    - name: Report already-rolled-back components (will be skipped)
+    - name: Report component rollback actions based on upgrade manifest
       ansible.builtin.debug:
-        msg: "Component '{{ item }}' already rolled back — will be skipped."
+        msg: >-
+          {%- if rollback_manifest.component_status[item] is defined and rollback_manifest.component_status[item] == 'completed' -%}
+            Component '{{ item }}' already rolled back — will be skipped.
+          {%- elif rollback_manifest.component_status[item] is defined and rollback_manifest.component_status[item] == 'skipped' -%}
+            Component '{{ item }}' was skipped during rollback — will be skipped.
+          {%- elif upgrade_manifest is defined and upgrade_manifest.component_status is defined -%}
+            {%-   if item == 'k8s-telemetry' -%}
+              {%-     set k8s_status = upgrade_manifest.component_status.k8s | default('pending') -%}
+              {%-     set telemetry_status = upgrade_manifest.component_status.telemetry | default('pending') -%}
+              {%-     if k8s_status == 'skipped' and telemetry_status == 'skipped' -%}
+                Component '{{ item }}' was skipped during upgrade — will be skipped during rollback.
+          {%-     elif k8s_status in ['completed', 'in-progress', 'failed'] or telemetry_status in ['completed', 'in-progress', 'failed'] -%}
+                Component '{{ item }}' will be rolled back (upgrade status: k8s={{ k8s_status }}, telemetry={{ telemetry_status }}).
+          {%-     else -%}
+                Component '{{ item }}' was not upgraded — will be skipped during rollback.
+          {%-     endif -%}
+            {%-   elif upgrade_manifest.component_status[item] is defined -%}
+              {%-     set upgrade_status = upgrade_manifest.component_status[item] -%}
+              {%-     if upgrade_status == 'skipped' -%}
+                Component '{{ item }}' was skipped during upgrade — will be skipped during rollback.
+          {%-     elif upgrade_status in ['completed', 'in-progress', 'failed'] -%}
+                Component '{{ item }}' will be rolled back (upgrade status: {{ upgrade_status }}).
+          {%-     else -%}
+                Component '{{ item }}' was not upgraded — will be skipped during rollback.
+          {%-     endif -%}
+            {%-   endif -%}
+          {%- endif -%}
       loop: "{{ requested_tags }}"
       when:
-        - rollback_manifest.component_status[item] is defined
-        - rollback_manifest.component_status[item] in ['completed', 'skipped']
+        - (rollback_manifest.component_status[item] is defined and rollback_manifest.component_status[item] in ['completed', 'skipped'])
+          or (upgrade_manifest is defined and upgrade_manifest.component_status is defined)
 
 # ──────────────────────────────────────────────────────────────────────
 # Load credentials (provision_password etc.) from omnia_config_credentials.yml
 # Mirrors upgrade pattern: ../utils/credential_utility/get_config_credentials.yml
 # Read-only — no interactive prompts, no re-encryption.
 # ──────────────────────────────────────────────────────────────────────
+
 - name: Load rollback credentials
   ansible.builtin.import_playbook: playbooks/load_rollback_credentials.yml
   tags: [build_stream, buildstream, oim]

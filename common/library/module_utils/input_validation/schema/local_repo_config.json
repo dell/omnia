@@ -1190,91 +1190,10 @@
         },
         "required": [
           "url",
-          "gpgkey",
           "name"
-        ],
-        "allOf": [
-          {
-            "if": {
-              "required": [
-                "sslcacert"
-              ],
-              "properties": {
-                "sslcacert": {
-                  "minLength": 1
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "sslclientkey",
-                "sslclientcert"
-              ],
-              "properties": {
-                "sslclientkey": {
-                  "minLength": 1
-                },
-                "sslclientcert": {
-                  "minLength": 1
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "required": [
-                "sslclientkey"
-              ],
-              "properties": {
-                "sslclientkey": {
-                  "minLength": 1
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "sslcacert",
-                "sslclientcert"
-              ],
-              "properties": {
-                "sslcacert": {
-                  "minLength": 1
-                },
-                "sslclientcert": {
-                  "minLength": 1
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "required": [
-                "sslclientcert"
-              ],
-              "properties": {
-                "sslclientcert": {
-                  "minLength": 1
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "sslcacert",
-                "sslclientkey"
-              ],
-              "properties": {
-                "sslcacert": {
-                  "minLength": 1
-                },
-                "sslclientkey": {
-                  "minLength": 1
-                }
-              }
-            }
-          }
         ]
       },
-      "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on x86_64 architecture."
+      "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on x86_64 architecture. Only url and name are required. Certificates are auto-populated from subscription defaults if not provided."
     },
     "rhel_subscription_repo_config_aarch64": {
       "type": [
@@ -1329,91 +1248,10 @@
         },
         "required": [
           "url",
-          "gpgkey",
           "name"
-        ],
-        "allOf": [
-          {
-            "if": {
-              "required": [
-                "sslcacert"
-              ],
-              "properties": {
-                "sslcacert": {
-                  "minLength": 1
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "sslclientkey",
-                "sslclientcert"
-              ],
-              "properties": {
-                "sslclientkey": {
-                  "minLength": 1
-                },
-                "sslclientcert": {
-                  "minLength": 1
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "required": [
-                "sslclientkey"
-              ],
-              "properties": {
-                "sslclientkey": {
-                  "minLength": 1
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "sslcacert",
-                "sslclientcert"
-              ],
-              "properties": {
-                "sslcacert": {
-                  "minLength": 1
-                },
-                "sslclientcert": {
-                  "minLength": 1
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "required": [
-                "sslclientcert"
-              ],
-              "properties": {
-                "sslclientcert": {
-                  "minLength": 1
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "sslcacert",
-                "sslclientkey"
-              ],
-              "properties": {
-                "sslcacert": {
-                  "minLength": 1
-                },
-                "sslclientkey": {
-                  "minLength": 1
-                }
-              }
-            }
-          }
         ]
       },
-      "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on aarch64 architecture."
+      "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on aarch64 architecture. Only url and name are required. Certificates are auto-populated from subscription defaults if not provided."
     }
   },
   "required": [

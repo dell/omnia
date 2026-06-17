@@ -414,6 +414,12 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
+{% if dns_enabled | default(false) | bool %}
+        - |
+          # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
+          printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > /etc/resolv.conf
+          chattr +i /etc/resolv.conf || true
+{% endif %}
         - /usr/local/bin/configure_vast_installation.sh
         # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
         - /usr/local/bin/configure_dirs_and_mounts.sh
