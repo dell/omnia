@@ -17,26 +17,26 @@ title = "Gitleaks config for Omnia"
     '''password:\s*"?\{\{.*\}\}"?'''
   ]
 
-# ✅ 1. Generic password detection
 [[rules]]
+id = "generic-password"
 description = "Generic Password Detection"
-regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*["']?[A-Za-z0-9!@#$%^&*()_+=-]{8,}["']?'''
+regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*["']?[A-Za-z0-9!@#$%^&*()_+=\-]{8,}["']?'''
 tags = ["password"]
 
-# ✅ 2. Connection string with credentials
 [[rules]]
+id = "credentials-in-url"
 description = "Credentials in URL"
 regex = '''(?i)\b\w+:\/\/[^:\s]+:[^@\s]+@[^:\s]+'''
 tags = ["credentials", "url"]
 
-# ✅ 3. Generic secret/token detection
 [[rules]]
+id = "generic-token"
 description = "Generic Token/Secret"
 regex = '''(?i)(secret|token|api[_-]?key)\s*[:=]\s*["']?[A-Za-z0-9_\-]{16,}["']?'''
 tags = ["token", "secret"]
 
-# ✅ 4. Hardcoded Ansible sensitive vars
 [[rules]]
+id = "ansible-secret"
 description = "Ansible hardcoded secret"
 regex = '''(?i)(ansible_.*password|vault_password)\s*[:=]\s*["'][^"']{6,}["']'''
 tags = ["ansible", "secret"]
