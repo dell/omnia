@@ -31,7 +31,8 @@ jobs:
 
       - name: Install Gitleaks
         run: |
-          wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -O gitleaks
+          wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_*_linux_x64.tar.gz
+          tar -xzf gitleaks_*_linux_x64.tar.gz
           chmod +x gitleaks
 
       - name: Run Gitleaks scan
