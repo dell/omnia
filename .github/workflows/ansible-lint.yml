@@ -8,6 +8,7 @@ on:
       - pub/build_stream
       - pub/telemetry
       - pub/q2_upgrade
+      - gitleaks
 
 jobs:
   build:
