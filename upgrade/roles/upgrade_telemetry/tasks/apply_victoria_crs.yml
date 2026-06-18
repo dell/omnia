@@ -131,7 +131,7 @@
   delegate_to: "{{ kube_vip }}"
   connection: ssh
 
-# ── Wait for VMCluster LoadBalancer IPs and reclaim if stolen ──
+# ── Wait for VMCluster LoadBalancer IPs and reclaim if reassigned ──
 # The operator creates vminsert/vmselect services asynchronously after the CR is applied.
 # We MUST wait for these services to get their LoadBalancer IPs BEFORE Phase 3
 # (telemetry.sh) runs, because telemetry.sh also creates VictoriaLogs services via
@@ -140,8 +140,8 @@
 #
 # If the preserved IPs got assigned to wrong services, we reclaim them:
 #   1. Find services holding the preserved IPs that are NOT vminsert/vmselect
-#   2. Delete those services to free the IPs
-#   3. Wait for vminsert/vmselect to claim the preserved IPs
+#   2. Delete those conflicting services to free the IPs
+#   3. Wait for vminsert/vmselect to reclaim the preserved IPs
 
 - name: Initial wait for vminsert LoadBalancer IP
   ansible.builtin.shell: |
@@ -149,8 +149,8 @@
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
   register: vminsert_lb_ip
   until: vminsert_lb_ip.stdout | trim | length > 0
-  retries: 24
-  delay: 5
+  retries: "{{ lb_ip_wait_retries }}"
+  delay: "{{ lb_ip_wait_delay }}"
   changed_when: false
   failed_when: false
   delegate_to: "{{ kube_vip }}"
@@ -162,42 +162,22 @@
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
   register: vmselect_lb_ip
   until: vmselect_lb_ip.stdout | trim | length > 0
-  retries: 24
-  delay: 5
+  retries: "{{ lb_ip_wait_retries }}"
+  delay: "{{ lb_ip_wait_delay }}"
   changed_when: false
   failed_when: false
   delegate_to: "{{ kube_vip }}"
   connection: ssh
 
-# ── Reclaim stolen IPs if VMCluster services are still pending ──
-- name: Reclaim preserved IPs from wrong services
+# ── Reclaim reassigned IPs if VMCluster services are still pending ──
+- name: Reclaim preserved IPs from conflicting services
   when:
     - preserved_vminsert_ip | default('') | length > 0 or preserved_vmselect_ip | default('') | length > 0
     - vminsert_lb_ip.stdout | trim | length == 0 or vmselect_lb_ip.stdout | trim | length == 0
   block:
     - name: Find services holding preserved IPs that are not VMCluster services
-      ansible.builtin.shell: |
-        set -o pipefail
-        PRESERVED_IPS="{{ preserved_vminsert_ip | default('') }} {{ preserved_vmselect_ip | default('') }}"
-        VMCLUSTER_SVCS="vminsert-{{ new_vmcluster_name }} vmselect-{{ new_vmcluster_name }}"
-        kubectl -n {{ telemetry_namespace }} get svc -o json 2>/dev/null | \
-          python3 -c "
-        import json, sys
-        data = json.load(sys.stdin)
-        preserved = set('${PRESERVED_IPS}'.split())
-        vmcluster = set('${VMCLUSTER_SVCS}'.split())
-        for svc in data.get('items', []):
-            name = svc['metadata']['name']
-            if name in vmcluster:
-                continue
-            ingress = svc.get('status', {}).get('loadBalancer', {}).get('ingress', [])
-            for ing in ingress:
-                ip = ing.get('ip', '')
-                if ip in preserved:
-                    print(name)
-                    break
-        " || true
-      register: ip_thieves
+      ansible.builtin.shell: "{{ lookup('template', 'find_ip_conflict_svcs.sh.j2') }}"
+      register: ip_conflict_svcs
       changed_when: false
       failed_when: false
       delegate_to: "{{ kube_vip }}"
@@ -205,16 +185,16 @@
 
     - name: Display services holding preserved IPs
       ansible.builtin.debug:
-        msg: "{{ victoria_lb_ip_thieves_found }}"
-      when: ip_thieves.stdout_lines | default([]) | select() | list | length > 0
+        msg: "{{ victoria_lb_ip_conflict_svcs_found }}"
+      when: ip_conflict_svcs.stdout_lines | default([]) | select() | list | length > 0
 
-    - name: Delete services that stole preserved IPs
+    - name: Delete conflicting services holding preserved IPs
       ansible.builtin.command:
         cmd: kubectl -n {{ telemetry_namespace }} delete svc {{ item }} --timeout=30s
-      loop: "{{ ip_thieves.stdout_lines | default([]) | select() | list }}"
+      loop: "{{ ip_conflict_svcs.stdout_lines | default([]) | select() | list }}"
       changed_when: true
       failed_when: false
-      when: ip_thieves.stdout_lines | default([]) | select() | list | length > 0
+      when: ip_conflict_svcs.stdout_lines | default([]) | select() | list | length > 0
       delegate_to: "{{ kube_vip }}"
       connection: ssh
 
@@ -224,8 +204,8 @@
           -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
       register: vminsert_lb_ip
       until: vminsert_lb_ip.stdout | trim | length > 0
-      retries: 30
-      delay: 5
+      retries: "{{ lb_ip_wait_retries }}"
+      delay: "{{ lb_ip_wait_delay }}"
       changed_when: false
       failed_when: false
       delegate_to: "{{ kube_vip }}"
@@ -237,8 +217,8 @@
           -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
       register: vmselect_lb_ip
       until: vmselect_lb_ip.stdout | trim | length > 0
-      retries: 30
-      delay: 5
+      retries: "{{ lb_ip_wait_retries }}"
+      delay: "{{ lb_ip_wait_delay }}"
       changed_when: false
       failed_when: false
       delegate_to: "{{ kube_vip }}"

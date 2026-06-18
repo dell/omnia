@@ -45,6 +45,10 @@ pod_wait_delay: 15
 idrac_rollout_retries: 3
 idrac_rollout_delay: 30
 
+# LoadBalancer IP wait configuration
+lb_ip_wait_retries: 30
+lb_ip_wait_delay: 5
+
 # Victoria operator configuration
 # victoria_operator_pkg is loaded dynamically from service_k8s JSON in include_required_input.yml
 victoria_operator_release_name: victoria-metrics-operator
@@ -118,9 +122,9 @@ victoria_lb_ip_confirmed: >-
 victoria_lb_ip_reclaim_needed: >-
   VMCluster services still pending after initial wait.
   Checking if preserved IPs were assigned to wrong services...
-victoria_lb_ip_thieves_found: >-
+victoria_lb_ip_conflict_svcs_found: >-
   Services holding preserved IPs (will be deleted and re-created by telemetry.sh):
-  {{ ip_thieves.stdout_lines | default([]) | select() | list }}
+  {{ ip_conflict_svcs.stdout_lines | default([]) | select() | list }}
 victoria_lb_ip_reclaim_success: >-
   Successfully reclaimed preserved IPs for VMCluster services -
   vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
