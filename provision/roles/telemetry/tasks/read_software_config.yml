@@ -37,10 +37,3 @@
         | map(attribute='package')
         | list)
         | unique }}
-
-- name: Extract individual pip module versions from service_k8s.json
-  ansible.builtin.set_fact:
-    kubernetes_pip_version: "{{ (telemetry_packages['service_k8s']['cluster'] | selectattr('type', 'equalto', 'pip_module') | selectattr('package', 'search', '^kubernetes==') | map(attribute='package') | first).split('==')[1] }}" # noqa: yaml[line-length]
-    prometheus_client_pip_version: "{{ (telemetry_packages['service_k8s']['cluster'] | selectattr('type', 'equalto', 'pip_module') | selectattr('package', 'search', '^prometheus_client==') | map(attribute='package') | first).split('==')[1] }}" # noqa: yaml[line-length]
-    pyyaml_pip_version: "{{ (telemetry_packages['service_k8s']['cluster'] | selectattr('type', 'equalto', 'pip_module') | selectattr('package', 'search', '^pyyaml==') | map(attribute='package') | first).split('==')[1] }}" # noqa: yaml[line-length]
-    cffi_pip_version: "{{ (telemetry_packages['service_k8s']['cluster'] | selectattr('type', 'equalto', 'pip_module') | selectattr('package', 'search', '^cffi==') | map(attribute='package') | first).split('==')[1] }}" # noqa: yaml[line-length]

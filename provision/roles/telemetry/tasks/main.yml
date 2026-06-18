@@ -65,7 +65,18 @@
 
     - name: Configure of k8s telemetry service prerequisites
       when:
-        - telemetry_enabled | default(false) | bool
+        - >-
+          (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.vast.logs_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool) or
+          ldms_support | default(false) | bool
       block:
         - name: Set NFS info fact
           ansible.builtin.set_fact:
