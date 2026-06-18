@@ -105,7 +105,34 @@ victoria_lb_ips_preserved: >-
   LoadBalancer IPs injected into VMCluster manifest -
   vminsert: {{ preserved_vminsert_ip | default('N/A') }},
   vmselect: {{ preserved_vmselect_ip | default('N/A') }}
+victoria_lb_ip_injection_status: >-
+  {{ victoria_lb_ips_preserved
+     if (preserved_vminsert_ip | default('') | length > 0)
+        or (preserved_vmselect_ip | default('') | length > 0)
+     else victoria_lb_ips_not_preserved }}
 victoria_lb_ips_not_preserved: "No old LoadBalancer IPs found to preserve (fresh deploy or already operator-managed)"
+victoria_lb_ip_confirmed: >-
+  VMCluster LoadBalancer IPs confirmed -
+  vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
+  vmselect-{{ new_vmcluster_name }}: {{ vmselect_lb_ip.stdout | default('PENDING') | trim }}
+victoria_lb_ip_reclaim_needed: >-
+  VMCluster services still pending after initial wait.
+  Checking if preserved IPs were assigned to wrong services...
+victoria_lb_ip_thieves_found: >-
+  Services holding preserved IPs (will be deleted and re-created by telemetry.sh):
+  {{ ip_thieves.stdout_lines | default([]) | select() | list }}
+victoria_lb_ip_reclaim_success: >-
+  Successfully reclaimed preserved IPs for VMCluster services -
+  vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
+  vmselect-{{ new_vmcluster_name }}: {{ vmselect_lb_ip.stdout | default('PENDING') | trim }}
+victoria_lb_ip_reclaim_failed: >-
+  WARNING: VMCluster services still do not have LoadBalancer IPs after reclaim attempt.
+  vminsert: {{ vminsert_lb_ip.stdout | default('NONE') | trim }},
+  vmselect: {{ vmselect_lb_ip.stdout | default('NONE') | trim }}.
+  Please use new assigned IPs.
+victoria_old_svc_cleanup_summary: >-
+  Old services deleted: {{ old_services.stdout_lines | default([]) | select() | list }}.
+  Old vmagent deployment cleanup attempted: {{ old_vmagent_deployment }}
 victoria_pods_not_ready: "Telemetry upgrade FAILED: Some pods are not ready. {{ pods_not_ready.stdout | int }} pod(s) not in Running state."
 victoria_pods_ready_after_wait: "All telemetry pods are ready after waiting"
 telemetry_upgrade_success: "Telemetry upgrade COMPLETED: All telemetry pods are running and ready."
