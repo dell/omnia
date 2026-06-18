@@ -55,38 +55,11 @@
 # and the operator creates new ones. To preserve IPs, we inject loadBalancerIP
 # directly into the VMCluster CR's serviceSpec BEFORE applying, so the operator
 # creates services with the correct IPs from the start (no race condition).
-- name: Create LoadBalancer IP injection script
-  ansible.builtin.copy:
-    dest: /tmp/inject_vm_lb_ips.py
-    mode: "0755"
-    content: |
-      #!/usr/bin/env python3
-      import yaml
-      import sys
-      manifest_path = sys.argv[1]
-      vmselect_ip = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ""
-      vminsert_ip = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else ""
-      with open(manifest_path) as f:
-          doc = yaml.safe_load(f)
-      spec = doc.get("spec", {})
-      changed = False
-      if vmselect_ip and "vmselect" in spec:
-          svc = spec["vmselect"].setdefault("serviceSpec", {}).setdefault("spec", {})
-          if svc.get("loadBalancerIP") != vmselect_ip:
-              svc["loadBalancerIP"] = vmselect_ip
-              changed = True
-      if vminsert_ip and "vminsert" in spec:
-          svc = spec["vminsert"].setdefault("serviceSpec", {}).setdefault("spec", {})
-          if svc.get("loadBalancerIP") != vminsert_ip:
-              svc["loadBalancerIP"] = vminsert_ip
-              changed = True
-      if changed:
-          with open(manifest_path, "w") as f:
-              yaml.dump(doc, f, default_flow_style=False, sort_keys=False)
-          print("Injected vmselect=" + vmselect_ip + " vminsert=" + vminsert_ip)
-      else:
-          print("IPs already present - no change needed")
-      sys.exit(0 if changed else 2)
+- name: Stage LoadBalancer IP injection script
+  ansible.builtin.template:
+    src: inject_vm_lb_ips.py.j2
+    dest: "{{ ip_inject_script_path }}"
+    mode: "{{ executable_mode }}"
   delegate_to: "{{ kube_vip }}"
   connection: ssh
   when:
@@ -95,7 +68,7 @@
 - name: Inject preserved LoadBalancer IPs into VMCluster manifest
   ansible.builtin.command:
     cmd: >-
-      python3 /tmp/inject_vm_lb_ips.py
+      python3 {{ ip_inject_script_path }}
       "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmcluster.yaml"
       "{{ preserved_vmselect_ip | default('') }}"
       "{{ preserved_vminsert_ip | default('') }}"
@@ -109,7 +82,7 @@
 
 - name: Clean up LoadBalancer IP injection script
   ansible.builtin.file:
-    path: /tmp/inject_vm_lb_ips.py
+    path: "{{ ip_inject_script_path }}"
     state: absent
   delegate_to: "{{ kube_vip }}"
   connection: ssh
@@ -148,7 +121,9 @@
     kubectl -n {{ telemetry_namespace }} get svc vminsert-{{ new_vmcluster_name }} \
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
   register: vminsert_lb_ip
-  until: vminsert_lb_ip.stdout | trim | length > 0
+  until: >
+    (vminsert_lb_ip is defined) and
+    ((vminsert_lb_ip.stdout | default('') | trim | length) > 0)
   retries: "{{ lb_ip_wait_retries }}"
   delay: "{{ lb_ip_wait_delay }}"
   changed_when: false
@@ -161,7 +136,9 @@
     kubectl -n {{ telemetry_namespace }} get svc vmselect-{{ new_vmcluster_name }} \
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
   register: vmselect_lb_ip
-  until: vmselect_lb_ip.stdout | trim | length > 0
+  until: >
+    (vmselect_lb_ip is defined) and
+    ((vmselect_lb_ip.stdout | default('') | trim | length) > 0)
   retries: "{{ lb_ip_wait_retries }}"
   delay: "{{ lb_ip_wait_delay }}"
   changed_when: false
@@ -218,7 +195,9 @@
         kubectl -n {{ telemetry_namespace }} get svc vminsert-{{ new_vmcluster_name }} \
           -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
       register: vminsert_lb_ip
-      until: vminsert_lb_ip.stdout | trim | length > 0
+      until: >
+        (vminsert_lb_ip is defined) and
+        ((vminsert_lb_ip.stdout | default('') | trim | length) > 0)
       retries: "{{ lb_ip_wait_retries }}"
       delay: "{{ lb_ip_wait_delay }}"
       changed_when: false
@@ -231,7 +210,9 @@
         kubectl -n {{ telemetry_namespace }} get svc vmselect-{{ new_vmcluster_name }} \
           -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
       register: vmselect_lb_ip
-      until: vmselect_lb_ip.stdout | trim | length > 0
+      until: >
+        (vmselect_lb_ip is defined) and
+        ((vmselect_lb_ip.stdout | default('') | trim | length) > 0)
       retries: "{{ lb_ip_wait_retries }}"
       delay: "{{ lb_ip_wait_delay }}"
       changed_when: false
@@ -247,8 +228,8 @@
   ansible.builtin.debug:
     msg: "{{ victoria_lb_ip_reclaim_failed }}"
   when: >-
-    (vminsert_lb_ip is defined and vminsert_lb_ip.stdout is defined and vminsert_lb_ip.stdout | trim | length == 0) or
-    (vmselect_lb_ip is defined and vmselect_lb_ip.stdout is defined and vmselect_lb_ip.stdout | trim | length == 0)
+    (vminsert_lb_ip is defined and vminsert_lb_ip.stdout | default('') | trim | length == 0) or
+    (vmselect_lb_ip is defined and vmselect_lb_ip.stdout | default('') | trim | length == 0)
 
 # ── Apply scrape and agent CRs ──
 - name: Check for VMScrape manifest
