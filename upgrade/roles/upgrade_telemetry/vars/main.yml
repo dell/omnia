@@ -48,6 +48,7 @@ idrac_rollout_delay: 30
 # LoadBalancer IP wait configuration
 lb_ip_wait_retries: 30
 lb_ip_wait_delay: 5
+ip_conflict_script_path: /tmp/find_ip_conflict_svcs.sh
 
 # Victoria operator configuration
 # victoria_operator_pkg is loaded dynamically from service_k8s JSON in include_required_input.yml

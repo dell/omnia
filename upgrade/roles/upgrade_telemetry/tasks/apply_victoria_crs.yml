@@ -175,11 +175,26 @@
     - preserved_vminsert_ip | default('') | length > 0 or preserved_vmselect_ip | default('') | length > 0
     - vminsert_lb_ip.stdout | trim | length == 0 or vmselect_lb_ip.stdout | trim | length == 0
   block:
+    - name: Stage IP conflict detection script
+      ansible.builtin.template:
+        src: find_ip_conflict_svcs.sh.j2
+        dest: "{{ ip_conflict_script_path }}"
+        mode: "{{ executable_mode }}"
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
     - name: Find services holding preserved IPs that are not VMCluster services
-      ansible.builtin.shell: "{{ lookup('template', 'find_ip_conflict_svcs.sh.j2') }}"
+      ansible.builtin.command: "{{ ip_conflict_script_path }}"
       register: ip_conflict_svcs
       changed_when: false
       failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Remove IP conflict detection script
+      ansible.builtin.file:
+        path: "{{ ip_conflict_script_path }}"
+        state: absent
       delegate_to: "{{ kube_vip }}"
       connection: ssh
 
