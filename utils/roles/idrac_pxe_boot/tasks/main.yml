@@ -28,26 +28,41 @@
     - name: End play for this host
       ansible.builtin.meta: end_host
 
-- name: Show status of the Lifecycle Controller
-  dellemc.openmanage.idrac_lifecycle_controller_status_info:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-    idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+- name: Get LC status of iDRAC
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus"
+    user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+    password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+    method: POST
+    force_basic_auth: true
     validate_certs: false
-  register: lc_check_status
-  until:
-    - lc_check_status.lc_status_info is defined
-    - lc_check_status.lc_status_info.LCReady is defined
-    - lc_check_status.lc_status_info.LCReady
+    return_content: true
+    body_format: json
+    body: {}
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code: [200, 201, 202]
+  register: idrac_status
+  until: idrac_status.status in [200, 201, 202]
   retries: 3
   delay: 5
   ignore_errors: true
-  ignore_unreachable: true
 
 - name: IDRAC ops when ready
   when:
-    - lc_check_status is success
-    - lc_check_status.lc_status_info.LCReady
+    - idrac_status is success
+    - idrac_status.json is defined
+    - idrac_status.json.LCStatus | lower == "ready"
+  module_defaults:
+    dellemc.openmanage.redfish_powerstate:
+      baseuri: "{{ inventory_hostname }}"
+      username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+      password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+      validate_certs: false
+      resource_id: "System.Embedded.1"
   block:
     - name: Set boot option from pxe
       dellemc.openmanage.idrac_boot:
@@ -59,16 +74,13 @@
         boot_source_override_target: "{{ boot_source_override_target }}"
         boot_source_override_enabled: "{{ boot_source_override_enabled }}"
         reset_type: "none" # Dont Restart here as to Handle poweroff case
+        resource_id: "System.Embedded.1"
       register: pxe_provisioning
       ignore_errors: true
       ignore_unreachable: true
 
     - name: Try ForceRestart
       dellemc.openmanage.redfish_powerstate:
-        baseuri: "{{ inventory_hostname }}"
-        username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-        password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
-        validate_certs: false
         reset_type: "{{ 'ForceRestart' if force_restart else 'GracefulRestart' }}"
       when: restart_host
       register: restart_op
@@ -76,10 +88,6 @@
 
     - name: Try On if ForceRestart did not change
       dellemc.openmanage.redfish_powerstate:
-        baseuri: "{{ inventory_hostname }}"
-        username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-        password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
-        validate_certs: false
         reset_type: "On"
       register: power_on_op
       failed_when: false
@@ -91,7 +99,7 @@
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "{{ lc_check_fail_msg }}"
-  when: lc_check_status is unreachable or lc_check_status is failed or not (lc_check_status.lc_status_info.LCReady | default(false))
+  when: idrac_status is failed or not (idrac_status.json.LCStatus | lower == "ready")
 
 - name: Fail if PXE provisioning failed
   ansible.builtin.set_fact:

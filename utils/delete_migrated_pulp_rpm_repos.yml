@@ -38,6 +38,7 @@
 #
 #   # Skip user confirmation prompt:
 #   ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=old" -e "force=true"
+#   ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=old" -e "skip_approval=true"
 
 - name: Delete Migrated Pulp RPM Repositories by Format
   hosts: localhost
@@ -121,13 +122,13 @@
           This action cannot be undone.
           Type 'yes' to continue or press Ctrl+C to abort
       register: user_input
-      when: not (force | default(false)) | bool
+      when: not (force | default(false) | bool or skip_approval | default(false) | bool)
 
     - name: Abort if not confirmed
       ansible.builtin.fail:
         msg: "Deletion cancelled by user"
       when:
-        - not (force | default(false)) | bool
+        - not (force | default(false) | bool or skip_approval | default(false) | bool)
         - user_input.user_input | default('') | lower != 'yes'
 
   tasks:

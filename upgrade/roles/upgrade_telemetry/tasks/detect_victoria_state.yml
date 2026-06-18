@@ -187,7 +187,9 @@
       {{ victoria_unhealthy_pods | length }} unhealthy Victoria pod(s) found.
       They will be deleted and re-created during upgrade.
       Press ENTER to continue or Ctrl+C to abort.
-  when: victoria_unhealthy_pods | length > 0
+  when:
+    - not (skip_approval | default(false) | bool)
+    - victoria_unhealthy_pods | length > 0
 
 - name: Delete unhealthy Victoria pods
   ansible.builtin.command:

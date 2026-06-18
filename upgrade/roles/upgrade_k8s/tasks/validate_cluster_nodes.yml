@@ -312,10 +312,13 @@
   ansible.builtin.debug:
     msg: "Checking all nodes are in Ready state..."
 
-- name: Get node Ready status from cluster
-  ansible.builtin.command:
-    cmd: >-
-      kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}|{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}'
+- name: Get node status from cluster
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get nodes --no-headers | awk '{print $1"|"$2}'
+  args:
+    executable: /bin/bash
   delegate_to: "{{ kube_vip }}"
   register: node_ready_status
   changed_when: false
@@ -324,15 +327,20 @@
   ansible.builtin.set_fact:
     nodes_not_ready: >-
       {{ nodes_not_ready | default([]) + (
-           [item.split('|')[0]] if (item.split('|')[1] | default('False')) != 'True' else []
+           [item.split('|')[0]] if item.split('|')[1] != 'Ready' else []
          ) }}
   loop: "{{ node_ready_status.stdout_lines | select('match', '.+') | list }}"
   loop_control:
     label: "{{ item.split('|')[0] }}"
 
+- name: Convert not-ready IPs to hostnames
+  ansible.builtin.set_fact:
+    nodes_not_ready_hostnames: >-
+      {{ nodes_not_ready | default([]) | map('extract', ip_to_hostname) | select('defined') | list }}
+
 - name: Filter not-ready nodes to only validated nodes
   ansible.builtin.set_fact:
-    validated_nodes_not_ready: "{{ nodes_not_ready | default([]) | intersect(all_validated_nodes) }}"
+    validated_nodes_not_ready: "{{ nodes_not_ready_hostnames | intersect(all_validated_nodes) }}"
 
 - name: Display node Ready status results
   ansible.builtin.debug:

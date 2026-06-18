@@ -227,7 +227,7 @@ spec:
               memory: {{ idrac_telemetry_resources.kafka_pump.limits.memory }}
 {% endif %}
 
-{% if 'victoria' in types %}
+{% if 'victoria_metrics' in types %}
         - name: victoria-pump
           image: {{ victoriapump_image }}
           imagePullPolicy: IfNotPresent

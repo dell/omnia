@@ -20,11 +20,20 @@
   hosts: localhost
   connection: local
   tags: always
+  vars:
+    build_tags:
+      - "build_aarch_image"
+  pre_tasks:
+    - name: Check if config file exists
+      ansible.builtin.set_fact:
+        build_tags:
+          - "software_config"
+      when: functional_groups is defined
   tasks:
     - name: Set dynamic run tags including 'build_aarch_image'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['build_aarch_image']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + build_tags | default([]) | list) | unique }}"
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations with build_image tag

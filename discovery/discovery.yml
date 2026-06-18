@@ -30,10 +30,6 @@
         omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['discovery']) | unique }}"
         cacheable: true
 
-- name: Invoke validate_config.yml to perform L1 and L2 validations with discovery tag
-  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
-  tags: always
-
 - name: Load discovery configuration
   hosts: localhost
   connection: local
@@ -42,6 +38,18 @@
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/discovery_config.yml"
       failed_when: false
+
+    - name: Set enable_bmc_discovery for credential utility
+      ansible.builtin.set_fact:
+        enable_bmc_discovery: "{{ true if (discovery_mechanism | default('')) == 'ome' else (enable_bmc_discovery | default(false) | bool) }}"
+        cacheable: true
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations with discovery tag
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  tags: always
+
+- name: Invoke get_config_credentials.yml
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
 
 - name: BMC Discovery Playbook
   hosts: localhost

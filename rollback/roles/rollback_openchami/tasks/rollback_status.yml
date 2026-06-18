@@ -35,6 +35,14 @@
       when:
         - not (openchami_rollback_failed | default(false) | bool)
 
+    - name: Clear pg_dump backup lock after successful rollback
+      ansible.builtin.file:
+        path: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ pgdump_backup_lock }}"
+        state: absent
+      when:
+        - not (openchami_rollback_failed | default(false) | bool)
+      failed_when: false
+
 - name: Fail the play if rollback failed
   ansible.builtin.fail:
     msg: "OpenCHAMI rollback failed. See above for details."

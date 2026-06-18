@@ -127,6 +127,10 @@
     - hostname_yaml_stat.stat.exists | default(false)
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Configure additional cloud-init group
+  ansible.builtin.include_tasks: configure_cloud_init_additional.yml
+  when: additional_cloud_init_enabled | default(false) | bool
+
 - name: Set openchami SELinux context for Local flow
   ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
   changed_when: true

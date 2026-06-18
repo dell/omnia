@@ -1,0 +1,60 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Renders and sets a single per-functional-group additional cloud-init group.
+# Variables expected:
+#   _ci_fg_name - the functional group name (e.g. slurm_node_x86_64)
+
+- name: Set per-FG cloud-init group variables
+  ansible.builtin.set_fact:
+    _ci_fg_group_name: "{{ additional_cloud_init_fg_group_prefix }}{{ _ci_fg_name }}"
+    _ci_fg_data: "{{ additional_cloud_init_groups_data[_ci_fg_name] }}"
+    _ci_fg_dest: "{{ cloud_init_dir }}/ci-group-{{ additional_cloud_init_fg_group_prefix }}{{ _ci_fg_name }}.yaml"
+
+- name: Delete ci group configuration - {{ _ci_fg_group_name }}
+  ansible.builtin.command: >-
+    /usr/bin/ochami cloud-init group delete --no-confirm
+    -f yaml -d @{{ _ci_fg_dest }}
+  changed_when: true
+  failed_when: false
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Render ci group template - {{ _ci_fg_group_name }}
+  ansible.builtin.template:
+    src: "{{ ci_group_additional_template }}"
+    dest: "{{ _ci_fg_dest }}"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  vars:
+    ci_additional_group_name: "{{ _ci_fg_group_name }}"
+    ci_additional_data: "{{ _ci_fg_data }}"
+
+- name: Set ci group configuration - {{ _ci_fg_group_name }}
+  ansible.builtin.command: >-
+    /usr/bin/ochami cloud-init group set
+    -f yaml -d @{{ _ci_fg_dest }}
+  changed_when: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Verify ci group configuration - {{ _ci_fg_group_name }}
+  ansible.builtin.command: >-
+    /usr/bin/ochami cloud-init group get config {{ _ci_fg_group_name }}
+  changed_when: false
+  register: _ci_fg_additional_output
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Verify ci group output - {{ _ci_fg_group_name }}
+  ansible.builtin.debug:
+    msg: "{{ _ci_fg_additional_output.stdout_lines }}"
+    verbosity: 2
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

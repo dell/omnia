@@ -123,25 +123,17 @@
     msg: "SLURM: MySQL datadir not found in nfs"
   when: not is_mysql_datadir
 
-- name: Create backup directory
-  when: backup_slurm_nfs_contents
-  block:
-    - name: Create backup directory
-      ansible.builtin.file:
-        path: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
+- name: Set path for slurm backup
+  ansible.builtin.set_fact:
+    up_slurm_backup_path: "{{ slurm_nfs[0].client_share_path }}/slurm_backups/preupgrade_{{ rollback_manifest.target_version }}_backup"
 
-    - name: Copy slurm data
-      ansible.builtin.copy:
-        src: "{{ slurm_nfs_mounted_path }}"
-        dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups" # remove the /opt prefix with {{ oim_shared_path }}
-        remote_src: true
-        mode: preserve
-
-    # - name: Synchronize slurm data
-    #   ansible.builtin.synchronize:
-    #     src: "{{ slurm_nfs[0].client_share_path }}/slurm"
-    #     dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
+- name: Restore slurm etc/slurm directories
+  ansible.builtin.copy:
+    src: "{{ up_slurm_backup_path }}/{{ item }}/"
+    dest: "{{ ctld_dir_nfs }}/{{ item }}/"
+    remote_src: true
+    mode: preserve
+  register: conf_backup_result
+  loop:
+    - "etc/slurm"
+  ignore_errors: true

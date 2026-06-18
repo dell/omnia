@@ -96,10 +96,10 @@ def validate_vip_vs_pxe_mapping_host_ips(
 
 def validate_all_host_ips_same_subnet_as_vip(
         errors, vip_address, pxe_mapping_file_path, admin_netmaskbits,
-        additional_subnets=None):
+        additional_subnets=None, oim_admin_ip=None):
     """
     Validate that all ADMIN_IPs in PXE mapping are in a known subnet
-    (primary admin subnet or any additional subnet).
+    (primary admin subnet, VIP subnet, or any additional subnet).
 
     Parameters:
         errors (list): List to append error messages
@@ -108,15 +108,22 @@ def validate_all_host_ips_same_subnet_as_vip(
         admin_netmaskbits (str): Netmask bits for subnet validation
         additional_subnets (list, optional): List of additional subnet
             dicts with 'subnet' and 'netmask_bits' keys.
+        oim_admin_ip (str, optional): Primary OIM admin IP address for
+            checking the primary admin subnet.
     """
     host_ips = extract_host_ips_from_pxe_mapping(pxe_mapping_file_path)
     if additional_subnets is None:
         additional_subnets = []
 
     for host_ip in host_ips:
-        # Check if host_ip is in the primary admin subnet (VIP subnet)
+        # Check if host_ip is in the VIP subnet
         if validation_utils.is_ip_in_subnet(
                 vip_address, admin_netmaskbits, host_ip):
+            continue
+
+        # Check if host_ip is in the primary admin subnet
+        if oim_admin_ip and validation_utils.is_ip_in_subnet(
+                oim_admin_ip, admin_netmaskbits, host_ip):
             continue
 
         # Check if host_ip is in any additional subnet
