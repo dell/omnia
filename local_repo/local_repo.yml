@@ -29,6 +29,10 @@
         omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['local_repo']) | unique }}"
         cacheable: true
 
+    - name: Enable subscription check for local_repo
+      ansible.builtin.set_fact:
+        run_subscription_check: true
+
     - name: Include metadata vars
       ansible.builtin.include_vars: "/opt/omnia/.data/oim_metadata.yml"
       register: include_metadata
