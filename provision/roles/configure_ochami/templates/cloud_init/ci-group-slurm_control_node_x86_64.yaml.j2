@@ -24,17 +24,7 @@
       disable_root: false
 
       write_files:
-        - path: /usr/local/bin/doca-install.sh
-          owner: root:root
-          permissions: '{{ file_mode_755 }}'
-          content: |
-            {{ lookup('template', 'templates/doca-ofed/doca-install.sh.j2') | indent(12) }}
-
-        - path: /usr/local/bin/configure-ib-network.sh
-          owner: root:root
-          permissions: '{{ file_mode_755 }}'
-          content: |
-            {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
+{% include 'ci_include_doca_write_files.j2' %}
 
         - path: /usr/local/bin/set-ssh.sh
           permissions: '{{ file_mode_755 }}'
@@ -70,59 +60,15 @@
                 done
             fi
 
-        - path: /root/.ssh/config
-          permissions: '0600'
-          content: |
-            Host {{ slurm_control_ssh_patterns }}
-                IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
-                IdentitiesOnly yes
-{% if cloud_init_groups_dict[functional_group_name].powervault_scripts is defined %}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
-        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
-          permissions: '{{ file_mode_755 }}'
-          content: |
-            {{ pv_entry.content | indent(12) }}
-{% endfor %}
-{% endif %}
+{% include 'ci_include_ssh_config_write_files.j2' %}
 
-{% if hostvars['localhost']['openldap_support'] %}
-        - path: /etc/sssd/sssd.conf
-          owner: root:root
-          permissions: '0600'
-          content: |
-            {{ lookup('template', 'templates/openldap/sssd.conf.j2') | indent(6) }}
+{% include 'ci_include_powervault_write_files.j2' %}
 
-        - path: /usr/local/bin/update_ldap_conf.sh
-          owner: root:root
-          permissions: '0755'
-          content: |
-            {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
-{% endif %}
+{% include 'ci_include_openldap_write_files.j2' %}
 
-{% if ldms_support %}
-        - path: /root/ldms_sampler.sh
-          owner: root:root
-          permissions: '0755'
-          content: |
-            {{ lookup('template', 'templates/ldms/ldms_sampler.sh.j2') | indent(12) }}
-{% endif %}
+{% include 'ci_include_ldms_write_files.j2' %}
 
-{% if dns_enabled | default(false) | bool %}
-        - path: /etc/resolv.conf
-          owner: root:root
-          permissions: '0644'
-          content: |
-            search {{ domain_name }}
-            nameserver {{ admin_nic_ip }}
-            options timeout:1 attempts:2
-{% else %}
-        - path: /etc/hosts
-          append: true
-          content: |
-{% for key in ip_name_map | sort %}
-            {{ ip_name_map[key] }} {{ key }}
-{% endfor %}
-{% endif %}
+{% include 'ci_include_dns_write_files.j2' %}
 
         - path: /root/init_slurm_db.sql
           permissions: '{{ file_mode_600 }}'
@@ -286,12 +232,7 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% if dns_enabled | default(false) | bool %}
-        - |
-          # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
-          printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > /etc/resolv.conf
-          chattr +i /etc/resolv.conf || true
-{% endif %}
+{% include 'ci_include_dns_restore_runcmd.j2' %}
         # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
         - mkdir -p {{ client_mount_path }}/slurm/ssh
         - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages
@@ -302,35 +243,8 @@
         # DOCA and IB configuration - now ready before vendor_data mounts
         - bash /usr/local/bin/doca-install.sh || true
         - bash /usr/local/bin/configure-ib-network.sh
-{# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
-{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
-{% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
-        - {{ cmd }}
-{% endfor %}
-{% endif %}
-{% raw %}
-      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
-      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
-      {% if mymounts %}
-      {% for mount in mymounts.get("mounts", []) %}
-        - mkdir -pv {{ mount[1] }}
-        - echo "{{ mount | join(' ') }}" >> /etc/fstab
-      {% endfor %}
-        - mount -av
-      {% for decoded_cmd in mymounts.get("runcmd", []) %}
-        - {{ decoded_cmd }}
-      {% endfor %}
-      {% else %}
-        - echo "No mount entries found for this host"
-      {% endif %}
-      {% endif %}
-{% endraw %}
-{% set fg_swap = cloud_init_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
-{% include 'configure_swap.yaml.j2' %}
-        - mount -av
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %} 
-        - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
-{% endfor %}
+{% include 'ci_include_vendor_data_runcmd.j2' %}
+{% include 'ci_include_swap_powervault_runcmd.j2' %}
          # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -pv {{ client_mount_path }}/slurm/ssh
          # Create directories for nfs and mount all
@@ -373,40 +287,16 @@
         - mkdir -p /etc/containers/registries.conf.d
         - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
-{% if hostvars['localhost']['openldap_support'] %}
-        - /usr/local/bin/update_ldap_conf.sh
-        - mkdir /ldapcerts
-        - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
-        # TODO: This mount may be redundant, remove this
-        - echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab
-        - chmod {{ file_mode }} /etc/fstab
-        - mount -a
-        - yes | cp /ldapcerts/* /etc/openldap/certs
-        - umount /ldapcerts
-
-        - firewall-cmd --permanent --add-port={{ ldap_starttls_port }}/tcp
-        - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp
-        - firewall-cmd --reload
-
-        - authselect select sssd with-mkhomedir --force
-        - sudo systemctl enable --now oddjobd.service
-        - sudo systemctl enable --now sssd
-        - setsebool -P authlogin_nsswitch_use_ldap on
-        - setsebool -P authlogin_yubikey on
-        - sudo systemctl restart sssd
-        - systemctl restart sshd
-{% endif %}
+{% set ci_openldap_home_mount_type = 'nfs' %}
+{% include 'ci_include_openldap_runcmd.j2' %}
 
 {% if ldms_support %}
-         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
-
         # Add NFS entry and mount
         - mkdir -p {{ client_mount_path }}
         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
-        - mount -a
-
-        - /root/ldms_sampler.sh
+        - mount -av
 {% endif %}
+{% include 'ci_include_ldms_runcmd.j2' %}
         - systemctl restart slurmdbd
         - systemctl restart slurmctld
         - echo "Cloud-Init has completed successfully."

@@ -1,0 +1,11 @@
+        - path: /usr/local/bin/doca-install.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/doca-install.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/configure-ib-network.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}

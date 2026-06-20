@@ -1,0 +1,7 @@
+{% if ldms_support %}
+        - path: /root/ldms_sampler.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/ldms/ldms_sampler.sh.j2') | indent(12) }}
+{% endif %}

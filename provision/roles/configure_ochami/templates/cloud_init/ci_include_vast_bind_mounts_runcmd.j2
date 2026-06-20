@@ -1,0 +1,11 @@
+        # VAST storage: create subdirectory structure
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/slurm/hpc_tools {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
+        - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
+        - mkdir -pv /hpc_tools /apps /scratch /projects
+        - echo "{{ vast_mount_point }}/slurm/hpc_tools  /hpc_tools  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
+        - mount -av
+        - chmod 1777 {{ ci_vast_chmod_paths | default('/tmp /scratch') }}

@@ -1,0 +1,13 @@
+{% if hostvars['localhost']['openldap_support'] %}
+        - path: /etc/sssd/sssd.conf
+          owner: root:root
+          permissions: '{{ file_mode_600 }}'
+          content: |
+            {{ lookup('template', 'templates/openldap/sssd.conf.j2') | indent(6) }}
+
+        - path: /usr/local/bin/update_ldap_conf.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
+{% endif %}

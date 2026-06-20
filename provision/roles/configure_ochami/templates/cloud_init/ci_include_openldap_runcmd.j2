@@ -1,0 +1,28 @@
+{% if hostvars['localhost']['openldap_support'] %}
+        - /usr/local/bin/update_ldap_conf.sh
+        - mkdir -p /ldapcerts
+        - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
+{% if ci_openldap_home_mount_type | default('vast') == 'nfs' %}
+        - echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab
+{% else %}
+        - mkdir -pv {{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home
+        - echo "{{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home  none  bind  0  0" >> /etc/fstab
+{% endif %}
+        - chmod {{ file_mode }} /etc/fstab
+        - mount -av
+        - yes | cp /ldapcerts/* /etc/openldap/certs
+        - umount /ldapcerts
+
+        - firewall-cmd --permanent --add-port={{ ldap_starttls_port }}/tcp
+        - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp
+        - firewall-cmd --reload
+
+        - authselect select sssd with-mkhomedir --force
+        - sudo systemctl enable --now oddjobd.service
+        - sudo systemctl enable --now sssd
+        - setsebool -P authlogin_nsswitch_use_ldap on
+        - setsebool -P authlogin_yubikey on
+        - sudo systemctl restart sssd
+        - systemctl restart sshd
+
+{% endif %}

@@ -1,0 +1,4 @@
+{% if ldms_support %}
+        - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
+        - /root/ldms_sampler.sh
+{% endif %}

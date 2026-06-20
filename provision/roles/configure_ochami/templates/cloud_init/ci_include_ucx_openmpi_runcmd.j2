@@ -1,0 +1,19 @@
+{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or ldms_support %}
+        # Add NFS entry and mount
+        - mkdir -pv {{ client_mount_path }}
+        - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mount -av
+{% endif %}
+        # UCX and OpenMPI auto-compilation disabled
+        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 used by default
+{% if hostvars['localhost']['ucx_support'] %}
+        - echo "===== UCX Configuration ====="
+        - echo "UCX version specified in software_config.json (available for manual compilation)"
+        - echo "Default stack - DOCA UCX 1.20.0 (system default)"
+{% endif %}
+{% if hostvars['localhost']['openmpi_support'] %}
+        - echo "===== OpenMPI Configuration ====="
+        - echo "OpenMPI version specified in software_config.json (available for manual compilation)"
+        - echo "Default stack - DOCA OpenMPI 4.1.9a1 (system default)"
+        - bash /usr/local/bin/setup_doca_mpi_env.sh || echo "DOCA MPI environment setup failed (non-critical)"
+{% endif %}
