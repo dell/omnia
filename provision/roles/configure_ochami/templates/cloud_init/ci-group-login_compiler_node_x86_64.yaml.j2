@@ -22,7 +22,7 @@
           shell: /sbin/nologin
       disable_root: false
       write_files:
-{% include 'ci_include_doca_write_files.j2' %}
+{% include 'ci_include/doca_write_files.j2' %}
 
         - path: /usr/local/bin/set-ssh.sh
           permissions: '0755'
@@ -59,7 +59,7 @@
                 done
             fi
         
-{% include 'ci_include_ssh_config_write_files.j2' %}
+{% include 'ci_include/ssh_config_write_files.j2' %}
 
 {% if login_compiler_node_present %}
         - path: /usr/local/bin/generate_install_uuid.sh
@@ -81,9 +81,9 @@
             {{ lookup('template', 'templates/hpc_tools/install_cuda_toolkit.sh.j2') | indent(12) }}
 {% endif %}
 
-{% include 'ci_include_openldap_write_files.j2' %}
+{% include 'ci_include/openldap_write_files.j2' %}
 
-{% include 'ci_include_ldms_write_files.j2' %}
+{% include 'ci_include/ldms_write_files.j2' %}
 
         - path: /usr/local/bin/install_openmpi.sh
           owner: root:root
@@ -104,7 +104,7 @@
             {{ lookup('template', 'templates/hpc_tools/setup_doca_mpi_env.sh.j2') | indent(12) }}
 
 
-{% include 'ci_include_dns_write_files.j2' %}
+{% include 'ci_include/dns_write_files.j2' %}
         - path: /etc/profile.d/create_scratch.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -141,11 +141,11 @@
           content: |
             {{ lookup('template', 'templates/hpc_tools/setup_nvhpc_sdk.sh.j2') | indent(12) }}
 
-{% include 'ci_include_powervault_write_files.j2' %}
+{% include 'ci_include/powervault_write_files.j2' %}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% include 'ci_include_dns_restore_runcmd.j2' %}
+{% include 'ci_include/dns_restore_runcmd.j2' %}
         - /usr/local/bin/configure_vast_installation.sh
         # DOCA prerequisites - mount /cert and prepare for DOCA installation
         - mkdir -p {{ client_mount_path }}/slurm/ssh
@@ -157,10 +157,10 @@
         # DOCA and IB configuration - now ready before vendor_data mounts
         - bash /usr/local/bin/doca-install.sh || true
         - bash /usr/local/bin/configure-ib-network.sh
-{% include 'ci_include_vendor_data_runcmd.j2' %}
-{% include 'ci_include_swap_powervault_runcmd.j2' %}
+{% include 'ci_include/vendor_data_runcmd.j2' %}
+{% include 'ci_include/swap_powervault_runcmd.j2' %}
 {% set ci_vast_chmod_paths = '/tmp /scratch' %}
-{% include 'ci_include_vast_bind_mounts_runcmd.j2' %}
+{% include 'ci_include/vast_bind_mounts_runcmd.j2' %}
         - /usr/local/bin/install_cuda_toolkit.sh
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh 
@@ -180,9 +180,9 @@
         - /usr/local/bin/install_cuda_toolkit.sh
 {% endif %}
 
-{% include 'ci_include_ucx_openmpi_runcmd.j2' %}
+{% include 'ci_include/ucx_openmpi_runcmd.j2' %}
 
-{% include 'ci_include_ldms_runcmd.j2' %}
+{% include 'ci_include/ldms_runcmd.j2' %}
 
         - echo "DOCA stack configured - UCX 1.20.0 + OpenMPI 4.1.9a1 (system default)"
         - /usr/local/bin/check_slurm_controller_status.sh
@@ -255,7 +255,7 @@
         - mkdir -p /etc/containers/registries.conf.d
         - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
-{% include 'ci_include_openldap_runcmd.j2' %}
+{% include 'ci_include/openldap_runcmd.j2' %}
         # NVIDIA HPC SDK: Script deployed to /usr/local/bin/setup_nvhpc_sdk.sh
         # User must run manually after cloud-init completes
         - echo "Run /usr/local/bin/setup_nvhpc_sdk.sh --install to install NVIDIA HPC SDK"

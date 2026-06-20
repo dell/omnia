@@ -25,7 +25,7 @@
       disable_root: false
 
       write_files:
-{% include 'ci_include_doca_write_files.j2' %}
+{% include 'ci_include/doca_write_files.j2' %}
 
         - path: /usr/local/bin/set-ssh.sh
           permissions: '{{ file_mode_755 }}'
@@ -62,11 +62,11 @@
                 done
             fi
         
-{% include 'ci_include_ssh_config_write_files.j2' %}
+{% include 'ci_include/ssh_config_write_files.j2' %}
 
-{% include 'ci_include_openldap_write_files.j2' %}
+{% include 'ci_include/openldap_write_files.j2' %}
 
-{% include 'ci_include_ldms_write_files.j2' %}
+{% include 'ci_include/ldms_write_files.j2' %}
 
 {% if slurm_node_present %}
         - path: /usr/local/bin/slurm_cuda_coordinator.sh
@@ -114,7 +114,7 @@
 {% endif %}
 {% endif %}
 
-{% include 'ci_include_dns_write_files.j2' %}
+{% include 'ci_include/dns_write_files.j2' %}
         - path: /etc/profile.d/create_scratch.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -355,11 +355,11 @@
           content: |
             {{ lookup('template', 'templates/hpc_tools/setup_nvhpc_sdk.sh.j2') | indent(12) }}
 
-{% include 'ci_include_powervault_write_files.j2' %}
+{% include 'ci_include/powervault_write_files.j2' %}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% include 'ci_include_dns_restore_runcmd.j2' %}
+{% include 'ci_include/dns_restore_runcmd.j2' %}
         - /usr/local/bin/configure_vast_installation.sh
         # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
         - /usr/local/bin/configure_dirs_and_mounts.sh
@@ -372,10 +372,10 @@
         - bash /usr/local/bin/setup_doca_mpi_env.sh || echo "DOCA MPI environment setup failed (non-critical)"
 {% endif %}
         
-{% include 'ci_include_vendor_data_runcmd.j2' %}
-{% include 'ci_include_swap_powervault_runcmd.j2' %}
+{% include 'ci_include/vendor_data_runcmd.j2' %}
+{% include 'ci_include/swap_powervault_runcmd.j2' %}
 {% set ci_vast_chmod_paths = '/tmp /scratch' %}
-{% include 'ci_include_vast_bind_mounts_runcmd.j2' %}
+{% include 'ci_include/vast_bind_mounts_runcmd.j2' %}
 {% if slurm_node_present %}
         - /usr/local/bin/slurm_cuda_coordinator.sh || echo "CUDA coordinator setup failed (non-critical)"
         - timeout 900 /usr/local/bin/install_cuda_driver.sh || echo "CUDA driver install failed or timed out (non-critical)"
@@ -389,11 +389,11 @@
         - /usr/local/bin/configure_munge_and_pam.sh
 
         - /usr/local/bin/configure_firewall_and_services.sh
-{% include 'ci_include_openldap_runcmd.j2' %}
+{% include 'ci_include/openldap_runcmd.j2' %}
 
-{% include 'ci_include_ucx_openmpi_runcmd.j2' %}
+{% include 'ci_include/ucx_openmpi_runcmd.j2' %}
 
-{% include 'ci_include_ldms_runcmd.j2' %}
+{% include 'ci_include/ldms_runcmd.j2' %}
         # NVIDIA HPC SDK: Script deployed to /usr/local/bin/setup_nvhpc_sdk.sh
         # User must run manually after NVHPC is installed on compiler node
         - echo "Run /usr/local/bin/setup_nvhpc_sdk.sh to setup NVIDIA HPC SDK"

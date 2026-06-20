@@ -24,7 +24,7 @@
       disable_root: false
 
       write_files:
-{% include 'ci_include_doca_write_files.j2' %}
+{% include 'ci_include/doca_write_files.j2' %}
 
         - path: /usr/local/bin/set-ssh.sh
           permissions: '{{ file_mode_755 }}'
@@ -62,13 +62,13 @@
                 done
             fi
         
-{% include 'ci_include_ssh_config_write_files.j2' %}
+{% include 'ci_include/ssh_config_write_files.j2' %}
 
-{% include 'ci_include_openldap_write_files.j2' %}
+{% include 'ci_include/openldap_write_files.j2' %}
 
-{% include 'ci_include_ldms_write_files.j2' %}
+{% include 'ci_include/ldms_write_files.j2' %}
 
-{% include 'ci_include_dns_write_files.j2' %}
+{% include 'ci_include/dns_write_files.j2' %}
         - path: /etc/profile.d/create_scratch.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -97,11 +97,11 @@
           permissions: '0644'
           content: |
             {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
-{% include 'ci_include_powervault_write_files.j2' %}
+{% include 'ci_include/powervault_write_files.j2' %}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% include 'ci_include_dns_restore_runcmd.j2' %}
+{% include 'ci_include/dns_restore_runcmd.j2' %}
         - /usr/local/bin/configure_vast_installation.sh
         # DOCA prerequisites - mount /cert and prepare for DOCA installation
         - mkdir -p {{ client_mount_path }}/slurm/ssh
@@ -113,10 +113,10 @@
         # DOCA and IB configuration - now ready before vendor_data mounts
         - bash /usr/local/bin/doca-install.sh || true
         - bash /usr/local/bin/configure-ib-network.sh
-{% include 'ci_include_vendor_data_runcmd.j2' %}
-{% include 'ci_include_swap_powervault_runcmd.j2' %}
+{% include 'ci_include/vendor_data_runcmd.j2' %}
+{% include 'ci_include/swap_powervault_runcmd.j2' %}
 {% set ci_vast_chmod_paths = '/scratch' %}
-{% include 'ci_include_vast_bind_mounts_runcmd.j2' %}
+{% include 'ci_include/vast_bind_mounts_runcmd.j2' %}
         # Additional Slurm login node mounts (excluding cert which was mounted earlier)
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -195,7 +195,7 @@
         - mkdir -p /etc/containers/registries.conf.d
         - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
-{% include 'ci_include_openldap_runcmd.j2' %}
+{% include 'ci_include/openldap_runcmd.j2' %}
 
 {% if ldms_support %}
         # Add NFS entry and mount
@@ -203,5 +203,5 @@
         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -av
 {% endif %}
-{% include 'ci_include_ldms_runcmd.j2' %}
+{% include 'ci_include/ldms_runcmd.j2' %}
         - echo "Cloud-Init has completed successfully."
