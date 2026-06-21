@@ -1,0 +1,40 @@
+#!/bin/bash
+SLURM_CONF="/etc/slurm/slurm.conf"
+SLURM_USER="{{ slurm_user }}"
+SLURM_GROUP="{{ slurm_user }}"
+# Function to extract value from slurm.conf 
+get_value_slurm_conf() {
+    local key="$1"
+    local default="$2"
+    local value
+    value=$(grep -iE "^\s*$key\s*=" "$SLURM_CONF" | sed -E 's/^\s*[^=]+=//; s/#.*//; s/\s+$//')
+    echo "${value:-$default}"
+}
+#dir StateSaveLocation
+StateSaveLocation=$(get_value_slurm_conf "StateSaveLocation" "/var/spool/slurmctld")
+mkdir -pv $StateSaveLocation
+chown -v "$SLURM_USER:$SLURM_GROUP" $StateSaveLocation
+chmod -v 0744 $StateSaveLocation
+#file SlurmctldPidFile
+SlurmctldPidFile=$(get_value_slurm_conf "SlurmctldPidFile" "/var/run/slurmctld.pid")
+mkdir -pv $(dirname "$SlurmctldPidFile")
+touch $SlurmctldPidFile
+chown -v "$SLURM_USER:$SLURM_GROUP" "$SlurmctldPidFile"
+chmod -v 0755 $SlurmctldPidFile
+#file SlurmctldLogFile
+SlurmctldLogFile=$(get_value_slurm_conf "SlurmctldLogFile" "/var/log/slurmctld.log")
+mkdir -pv $(dirname "$SlurmctldLogFile")
+touch $SlurmctldLogFile
+chown -v "$SLURM_USER:$SLURM_GROUP" "$SlurmctldLogFile"
+chmod -v 0755 $SlurmctldLogFile
+#firewall
+systemctl enable firewalld
+systemctl start firewalld
+SlurmctldPort=$(get_value_slurm_conf "SlurmctldPort" "6817")
+firewall-cmd --permanent --add-port="$SlurmctldPort"/tcp
+SrunPortRange=$(get_value_slurm_conf "SrunPortRange" "60001-63000")
+firewall-cmd --permanent --add-port="$SrunPortRange"/tcp
+firewall-cmd --reload
+systemctl enable slurmctld
+systemctl start slurmctld
+systemctl restart slurmctld

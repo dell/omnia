@@ -1,0 +1,38 @@
+#!/bin/bash
+LOGFILE="/var/log/configure_slurmd_setup.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "[INFO] ===== Starting slurmd setup (service file, directories, epilog) ====="
+
+bash /usr/local/bin/check_slurm_controller_status.sh
+
+echo "[INFO] Setting ownership for Slurm directories"
+chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_log_dir_effective }}
+chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_pid_dir_effective }}
+chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
+
+echo "[INFO] Setting permissions for Slurm directories"
+chmod {{ file_mode_755 }} {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }}
+
+echo "[INFO] Ensuring Slurm epilog directory and logout script permissions"
+chmod {{ file_mode_755 }} /etc/slurm/epilog.d/
+chmod {{ file_mode_755 }} /etc/slurm/epilog.d/logout_user.sh
+{% for epath in slurm_epilog_custom_paths %}
+
+echo "[INFO] Checking custom epilog script: {{ epath }}"
+if [ ! -f "{{ epath }}" ]; then
+  echo "[INFO] Creating stub epilog script at {{ epath }}"
+  mkdir -p "$(dirname '{{ epath }}')"
+  printf '#!/bin/bash\n# Custom epilog script placeholder\n# Add your epilog commands here\n' > "{{ epath }}"
+  chown {{ slurm_user }}:{{ slurm_user }} "{{ epath }}"
+  chmod {{ file_mode_755 }} "{{ epath }}"
+fi
+{% endfor %}
+
+
+echo "[INFO] Creating and configuring slurmd spool directory"
+mkdir -p {{ slurm_slurmd_spool_dir_effective }}
+chmod {{ file_mode_755 }} {{ slurm_slurmd_spool_dir_effective }}
+chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
+
+echo "[INFO] ===== Completed slurmd setup ====="
