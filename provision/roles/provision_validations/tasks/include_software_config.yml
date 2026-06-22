@@ -54,6 +54,7 @@
   ansible.builtin.set_fact:
     service_k8s_support: false
     service_rke2_support: false
+    compute_rke2_support: false
 
 - name: Check if service k8s support is true
   ansible.builtin.set_fact:
@@ -62,6 +63,10 @@
 - name: Check if service rke2 support is true
   ansible.builtin.set_fact:
     service_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_rke2') | list | length > 0 }}"
+
+- name: Check if compute rke2 support is true
+  ansible.builtin.set_fact:
+    compute_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'compute_rke2') | list | length > 0 }}"
 
 - name: Set service_k8s_support true when rke2 is selected
   ansible.builtin.set_fact:

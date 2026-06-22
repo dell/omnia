@@ -109,7 +109,11 @@ def collect_packages_from_json(sw_data, fg_name=None,
     elif service_k8s_defined:
         fg_name = fg_name.replace("_aarch64", "").replace("_x86_64", "")
 
-        k8s_top_key = "service_rke2" if "service_rke2" in sw_data else "service_k8s"
+        k8s_top_key = (
+            "compute_rke2" if "compute_rke2" in sw_data
+            else "service_rke2" if "service_rke2" in sw_data
+            else "service_k8s"
+        )
 
         if k8s_top_key in sw_data and "cluster" in sw_data[k8s_top_key]:
             for entry in sw_data[k8s_top_key]["cluster"]:
@@ -159,6 +163,7 @@ def process_functional_group(fg_name, arch, os_version, input_project_dir,
         # Remove version suffix for versioned files (e.g., service_k8s_v1.35.1 -> service_k8s)
         if sw_name.startswith("service_k8s_v"):
             sw_name = "service_k8s"
+        # compute_rke2.json -> compute_rke2 (already handled by replace above)
         if sw_name not in allowed_softwares:
             continue
 
@@ -177,7 +182,7 @@ def process_functional_group(fg_name, arch, os_version, input_project_dir,
                     sw_data, fg_name=fg_name, slurm_defined=True
                 )
             )
-        elif json_file.startswith("service_k8s_v") or json_file == "service_rke2.json":
+        elif json_file.startswith("service_k8s_v") or json_file == "service_rke2.json" or json_file == "compute_rke2.json":
             # Handle versioned service_k8s_v<version>.json or service_rke2.json
             packages.extend(
                 collect_packages_from_json(
@@ -253,8 +258,16 @@ def run_module():
         "service_kube_control_plane_x86_64"
     }
 
+    # Compute RKE2 functional groups
+    compute_k8s_functional_groups = {
+        "compute_kube_node_x86_64",
+        "compute_kube_control_plane_first_x86_64",
+        "compute_kube_control_plane_x86_64"
+    }
+
     # Check if any k8s functional groups are being processed
     needs_service_k8s = any(fg in k8s_functional_groups for fg in functional_groups)
+    needs_compute_rke2 = any(fg in compute_k8s_functional_groups for fg in functional_groups)
 
     # Only validate service_k8s version if k8s functional groups are present
     service_k8s_json = None
@@ -271,6 +284,9 @@ def run_module():
         k8s_json = service_k8s_json
     else:
         k8s_json = None
+
+    # Determine compute RKE2 package JSON
+    compute_rke2_json = "compute_rke2.json" if "compute_rke2" in allowed_softwares else None
 
     # Functional group → json files mapping
     software_map = {
@@ -295,6 +311,13 @@ def run_module():
             "service_kube_node_x86_64": [k8s_json],
             "service_kube_control_plane_first_x86_64": [k8s_json],
             "service_kube_control_plane_x86_64": [k8s_json],
+        })
+
+    if compute_rke2_json:
+        software_map.update({
+            "compute_kube_node_x86_64": [compute_rke2_json],
+            "compute_kube_control_plane_first_x86_64": [compute_rke2_json],
+            "compute_kube_control_plane_x86_64": [compute_rke2_json],
         })
 
     compute_images_dict = {}

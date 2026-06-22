@@ -32,6 +32,7 @@
   ansible.builtin.set_fact:
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
     service_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_rke2') | list | length > 0 }}"
+    compute_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'compute_rke2') | list | length > 0 }}"
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
 
 - name: Build software JSON file list

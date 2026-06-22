@@ -250,6 +250,53 @@
         }
       ]
       }
+    },
+    "compute_rke2_k8s_cluster": {
+      "type": "array",
+      "description": "List of RKE2-based compute Kubernetes cluster configurations.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cluster_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique name for the RKE2 compute cluster."
+          },
+          "deployment": {
+            "type": "boolean"
+          },
+          "k8s_cni": {
+            "enum": ["calico", "canal", "cilium", "flannel"],
+            "description": "K8s CNI plugin for the compute RKE2 cluster."
+          },
+          "pod_external_ip_range": {
+            "description": "IP range for LoadBalancer external IPs.",
+            "type": "string",
+            "pattern": "^(?:(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$|^$"
+          },
+          "k8s_service_addresses": {
+            "type": "string",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$",
+            "description": "CIDR for K8s service IPs."
+          },
+          "k8s_pod_network_cidr": {
+            "type": "string",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$",
+            "description": "CIDR for K8s pod network."
+          },
+          "nfs_storage_name": {
+            "type": "string",
+            "description": "The NFS client server name mentioned in storage_config.yml"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "k8s_cni",
+          "k8s_service_addresses",
+          "k8s_pod_network_cidr",
+          "pod_external_ip_range"
+        ]
+      }
     }
 },
   "required": [

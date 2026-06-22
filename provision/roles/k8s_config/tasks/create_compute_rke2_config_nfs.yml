@@ -1,0 +1,197 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Include variable file omnia_config.yml
+  ansible.builtin.include_vars: "{{ input_project_dir }}/omnia_config.yml"
+
+- name: Include storage vars
+  ansible.builtin.include_vars: "{{ input_project_dir }}/storage_config.yml"
+
+- name: Include include_high_availability_config vars
+  ansible.builtin.include_vars: "{{ ha_config_file }}"
+
+- name: Set facts for compute_rke2_k8s_cluster
+  ansible.builtin.set_fact:
+    compute_cluster_name: "{{ compute_rke2_k8s_cluster[0].cluster_name }}"
+    compute_k8s_cni: "{{ compute_rke2_k8s_cluster[0].k8s_cni }}"
+    compute_pod_external_ip_range: "{{ compute_rke2_k8s_cluster[0].pod_external_ip_range }}"
+    compute_k8s_service_addresses: "{{ compute_rke2_k8s_cluster[0].k8s_service_addresses }}"
+    compute_k8s_pod_network_cidr: "{{ compute_rke2_k8s_cluster[0].k8s_pod_network_cidr }}"
+    compute_nfs_storage_name: "{{ compute_rke2_k8s_cluster[0].nfs_storage_name }}"
+
+- name: Read the compute_rke2 mount point
+  ansible.builtin.set_fact:
+    compute_k8s_client_mount_path: "{{ (mounts | selectattr('name', 'equalto', compute_nfs_storage_name) | first).mount_point }}"
+    compute_k8s_nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', compute_nfs_storage_name) | first).source.split(':')[0] }}"
+    compute_k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', compute_nfs_storage_name) | first).source }}"
+
+- name: Ensure SSH key directory exists on compute K8s share
+  ansible.builtin.file:
+    path: "{{ compute_k8s_client_mount_path }}/ssh"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Copy OIM private key to compute K8s share for node-to-node SSH
+  ansible.builtin.copy:
+    src: "{{ ssh_private_key_path }}"
+    dest: "{{ compute_k8s_client_mount_path }}/ssh/oim_rsa"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Set admin network nic and ip
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+    admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
+
+- name: Set admin network CIDR
+  ansible.builtin.set_fact:
+    admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
+
+- name: Set HA-related facts for compute cluster
+  ansible.builtin.set_fact:
+    compute_enable_k8s_ha: "{{ compute_rke2_k8s_cluster_ha[0].enable_k8s_ha | default(false) }}"
+    compute_kube_vip: "{{ compute_rke2_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+  when: compute_rke2_k8s_cluster_ha is defined
+  ignore_errors: true
+
+- name: Set default HA facts when compute_rke2_k8s_cluster_ha is not defined
+  ansible.builtin.set_fact:
+    compute_enable_k8s_ha: false
+    compute_kube_vip: ""
+  when: compute_rke2_k8s_cluster_ha is not defined
+
+- name: Set fact for pulp mirror
+  ansible.builtin.set_fact:
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+
+- name: Set fact for dns
+  ansible.builtin.set_fact:
+    dns: "{{ hostvars['localhost']['dns'] }}"
+
+- name: Create required share directories on NFS for compute RKE2
+  block:
+    - name: Create subdirectories on NFS share
+      ansible.builtin.file:
+        path: "{{ compute_k8s_client_mount_path }}/{{ item }}"
+        state: directory
+        mode: "{{ folder_mode }}"
+        owner: root
+        group: root
+      loop:
+        - metallb
+        - nfs-client-provisioner
+        - helm
+        - rke2
+        - rke2/images
+
+  rescue:
+    - name: Fail with NFS export advice
+      ansible.builtin.fail:
+        msg: "{{ nfs_export_help_msg }}"
+
+- name: Include local repo access variable file
+  ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
+
+- name: Load compute_rke2.json
+  ansible.builtin.set_fact:
+    compute_k8s_packages_json: "{{ lookup('file', compute_rke2_packages_file) | from_json }}"
+
+- name: Extract and set facts for tarball URLs (compute RKE2) # noqa: yaml[line-length]
+  vars:
+    cp_first_cluster: "{{ compute_k8s_packages_json['compute_kube_control_plane_first']['cluster'] }}"
+  ansible.builtin.set_fact:
+    compute_metallb_package: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'manifest')
+       | selectattr('package', 'search', 'metallb-native')
+       | map(attribute='package') | join }}
+    compute_helm_package: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'helm')
+       | map(attribute='package') | join }}
+    compute_nfs_subdir_external_provisioner_pkg: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'nfs-subdir-external-provisioner')
+       | map(attribute='package') | join }}
+
+- name: Extract compute RKE2 airgap image tarball package names # noqa: yaml[line-length]
+  vars:
+    rke2_cluster: "{{ compute_k8s_packages_json['compute_rke2']['cluster'] }}"
+  ansible.builtin.set_fact:
+    compute_rke2_images_core_pkg: >-
+      {{ rke2_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'rke2-images-core')
+       | map(attribute='package') | join }}
+    compute_rke2_images_cni_pkg: >-
+      {{ rke2_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'rke2-images-' ~ compute_k8s_cni)
+       | map(attribute='package') | join }}
+
+- name: Copy pulp webserver certificate to target host
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ anchors_path }}"
+    mode: "{{ file_mode }}"
+  become: true
+
+- name: Update CA trust on target host
+  ansible.builtin.command: update-ca-trust
+  register: update_ca
+  changed_when: false
+
+# metallb
+- name: Download metallb-native manifest for compute cluster
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/{{ compute_metallb_package }}/{{ compute_metallb_package }}.yml"
+    dest: "{{ compute_k8s_client_mount_path }}/metallb/{{ compute_metallb_package }}.yml"
+    mode: "{{ file_mode }}"
+
+# helm
+- name: Download helm tarball for compute cluster
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ compute_helm_package }}/{{ compute_helm_package }}.tar.gz"
+    dest: "{{ compute_k8s_client_mount_path }}/helm/{{ compute_helm_package }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+- name: Untar helm tarball repo for compute cluster
+  ansible.builtin.unarchive:
+    src: "{{ compute_k8s_client_mount_path }}/helm/{{ compute_helm_package }}.tar.gz"
+    dest: "{{ compute_k8s_client_mount_path }}/helm/"
+    remote_src: true
+
+# nfs client provisioner
+- name: Download nfs-client-provisioner tarball for compute cluster
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ compute_nfs_subdir_external_provisioner_pkg }}/{{ compute_nfs_subdir_external_provisioner_pkg }}.tar.gz"
+    dest: "{{ compute_k8s_client_mount_path }}/nfs-client-provisioner/{{ compute_nfs_subdir_external_provisioner_pkg }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+# RKE2 airgap system images (core + selected CNI)
+- name: Download RKE2 airgap image tarballs to compute NFS share
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.zst"
+    dest: "{{ compute_k8s_client_mount_path }}/rke2/images/{{ item }}.tar.zst"
+    mode: "{{ file_mode }}"
+  loop:
+    - "{{ compute_rke2_images_core_pkg }}"
+    - "{{ compute_rke2_images_cni_pkg }}"
+
+- name: Copy pulp webserver certificate to compute client_share_path
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ compute_k8s_client_mount_path }}"
+    mode: "{{ file_mode }}"
+  become: true

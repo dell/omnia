@@ -73,6 +73,13 @@
                     lookup('file', hostvars['localhost']['input_project_dir'] ~ '/software_config.json')
                     | from_json).softwares | map(attribute='name') | list )
                 else []
+              ) +
+              (
+                ['compute_rke2']
+                if 'compute_rke2' in (
+                    lookup('file', hostvars['localhost']['input_project_dir'] ~ '/software_config.json')
+                    | from_json).softwares | map(attribute='name') | list
+                else []
               )
             ) | unique
           }}

@@ -209,3 +209,21 @@ service_k8s_cluster:
 #     nfs_storage_name: "nfs_k8s"
 #     csi_powerscale_driver_secret_file_path: ""
 #     csi_powerscale_driver_values_file_path: ""
+
+# ----------------------------COMPUTE RKE2 K8S-------------------------------------------------
+# To deploy a separate RKE2-based compute Kubernetes cluster, configure this block
+# and add "compute_rke2" to software_config.json softwares list.
+# The compute RKE2 cluster is independent of the service cluster and can coexist
+# with service_k8s (kubeadm), service_rke2, and slurm clusters.
+# k8s_cni supports "calico", "canal", "cilium", and "flannel".
+# Please ensure a corresponding cluster entry is added to high_availability_config.yml.
+# CIDRs must not overlap with the service cluster CIDRs.
+
+# compute_rke2_k8s_cluster:
+#   - cluster_name: compute_cluster
+#     deployment: false
+#     k8s_cni: "calico"
+#     pod_external_ip_range: ""
+#     k8s_service_addresses: "10.234.0.0/18"
+#     k8s_pod_network_cidr: "10.234.64.0/18"
+#     nfs_storage_name: "nfs_compute_k8s"

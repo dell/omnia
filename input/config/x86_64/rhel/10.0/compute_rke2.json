@@ -1,0 +1,56 @@
+{
+  "compute_rke2": {
+    "cluster": [
+      { "package": "docker.io/library/busybox", "type": "image", "tag": "1.36" },
+      { "package": "firewalld", "type": "rpm", "repo_name": "x86_64_baseos" },
+      { "package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos" },
+      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "vim", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "rke2-server", "type": "rpm", "repo_name": "rke2" },
+      { "package": "rke2-agent", "type": "rpm", "repo_name": "rke2" },
+      { "package": "rke2-common", "type": "rpm", "repo_name": "rke2" },
+      { "package": "rke2-selinux", "type": "rpm", "repo_name": "rke2-common" },
+      { "package": "rke2-images-core.linux-amd64", "type": "tarball", "url": "https://github.com/rancher/rke2/releases/download/v1.35.1+rke2r1/rke2-images-core.linux-amd64.tar.zst" },
+      { "package": "rke2-images-calico.linux-amd64", "type": "tarball", "url": "https://github.com/rancher/rke2/releases/download/v1.35.1+rke2r1/rke2-images-calico.linux-amd64.tar.zst" },
+      { "package": "rke2-images-canal.linux-amd64", "type": "tarball", "url": "https://github.com/rancher/rke2/releases/download/v1.35.1+rke2r1/rke2-images-canal.linux-amd64.tar.zst" },
+      { "package": "rke2-images-cilium.linux-amd64", "type": "tarball", "url": "https://github.com/rancher/rke2/releases/download/v1.35.1+rke2r1/rke2-images-cilium.linux-amd64.tar.zst" },
+      { "package": "rke2-images-flannel.linux-amd64", "type": "tarball", "url": "https://github.com/rancher/rke2/releases/download/v1.35.1+rke2r1/rke2-images-flannel.linux-amd64.tar.zst" },
+      { "package": "apptainer", "type": "rpm", "repo_name": "epel" },
+      { "package": "doca-ofed", "type": "iso", "url": "https://www.mellanox.com/downloads/DOCA/DOCA_v3.2.1/host/doca-host-3.2.1-044000_25.10_rhel10.x86_64.rpm"}
+    ]
+  },
+  "compute_kube_control_plane": {
+    "cluster": [
+      { "package": "ghcr.io/kube-vip/kube-vip", "tag": "v0.8.9", "type": "image" },
+      { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
+      { "package": "prettytable==3.14.0", "type": "pip_module" },
+      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
+      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "kubernetes==33.1.0", "type": "pip_module" }
+    ]
+  },
+  "compute_kube_control_plane_first": {
+    "cluster": [
+      { "package": "ghcr.io/kube-vip/kube-vip", "tag": "v0.8.9", "type": "image" },
+      { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
+      {
+        "package": "metallb-native-v0.15.2",
+        "type": "manifest",
+        "url": "https://raw.githubusercontent.com/metallb/metallb/v0.15.2/config/manifests/metallb-native.yaml"
+      },
+      { "package": "helm-v3.19.0-amd64", "type": "tarball", "url": "https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz" },
+      { "package": "nfs-subdir-external-provisioner-4.0.18", "type": "tarball", "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz" },
+      { "package": "prettytable==3.14.0", "type": "pip_module" },
+      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
+      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "kubernetes==33.1.0", "type": "pip_module" }
+    ]
+  },
+  "compute_kube_node": {
+    "cluster": [
+      { "package": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner", "tag": "v4.0.2", "type": "image" },
+      { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
+      { "package": "quay.io/metallb/controller", "tag": "v0.15.2", "type": "image" }
+    ]
+  }
+}

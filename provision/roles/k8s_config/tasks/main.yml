@@ -29,3 +29,8 @@
   when:
     - hostvars['localhost']['service_k8s_support']
     - k8s_distro | default('kubeadm') == 'rke2'
+
+- name: Creating the configuration files required for compute RKE2 cluster in nfs share
+  ansible.builtin.include_tasks: create_compute_rke2_config_nfs.yml
+  when:
+    - hostvars['localhost']['compute_rke2_support'] | default(false) | bool

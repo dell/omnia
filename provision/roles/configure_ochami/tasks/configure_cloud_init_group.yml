@@ -32,6 +32,8 @@
       {%- if k8s_distro | default('kubeadm') == 'rke2' and
           'service_kube' in functional_group_name -%}
         cloud_init/rke2/ci-group-{{ functional_group_name }}.yaml.j2
+      {%- elif 'compute_kube' in functional_group_name -%}
+        cloud_init/rke2/ci-group-{{ functional_group_name }}.yaml.j2
       {%- else -%}
         cloud_init/ci-group-{{ functional_group_name }}.yaml.j2
       {%- endif -%}

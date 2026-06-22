@@ -225,20 +225,21 @@ def validate_software_config(
         )
 
     # RKE2 packages are only available for x86_64; reject any other arch explicitly
-    if "service_rke2" in software_names:
-        rke2_entry = next(
-            (s for s in data.get("softwares", []) if s.get("name") == "service_rke2"), {}
-        )
-        rke2_arch = rke2_entry.get("arch", ["x86_64"])
-        unsupported_archs = [a for a in rke2_arch if a != "x86_64"]
-        if unsupported_archs:
-            errors.append(
-                create_error_msg(
-                    "Validation Error: ",
-                    "service_rke2",
-                    f"is only supported on x86_64. Unsupported arch(es): {', '.join(unsupported_archs)}."
-                )
+    for rke2_sw_name in ["service_rke2", "compute_rke2"]:
+        if rke2_sw_name in software_names:
+            rke2_entry = next(
+                (s for s in data.get("softwares", []) if s.get("name") == rke2_sw_name), {}
             )
+            rke2_arch = rke2_entry.get("arch", ["x86_64"])
+            unsupported_archs = [a for a in rke2_arch if a != "x86_64"]
+            if unsupported_archs:
+                errors.append(
+                    create_error_msg(
+                        "Validation Error: ",
+                        rke2_sw_name,
+                        f"is only supported on x86_64. Unsupported arch(es): {', '.join(unsupported_archs)}."
+                    )
+                )
 
     # Ensure ldms is not configured without service_k8s or service_rke2 in softwares
     if "ldms" in software_names and "service_k8s" not in software_names and "service_rke2" not in software_names:
@@ -260,7 +261,7 @@ def validate_software_config(
         )
 
     # Check for required subgroups when specific software names are present
-    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s", "service_rke2"]
+    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s", "service_rke2", "compute_rke2"]
     for software_name in software_requiring_subgroups:
         if software_name in software_names:
             if software_name not in data or not data[software_name]:
@@ -578,6 +579,22 @@ def get_matching_clusters_for_nfs(nfs_name, omnia_config):
             and svc.get("deployment") is True
         ):
             matching_clusters["service_k8s_cluster"] = svc
+
+    # Service RKE2
+    for svc in omnia_config.get("service_rke2_k8s_cluster", []):
+        if (
+            svc.get("nfs_storage_name") == nfs_name
+            and svc.get("deployment") is True
+        ):
+            matching_clusters["service_rke2_k8s_cluster"] = svc
+
+    # Compute RKE2
+    for compute in omnia_config.get("compute_rke2_k8s_cluster", []):
+        if (
+            compute.get("nfs_storage_name") == nfs_name
+            and compute.get("deployment") is True
+        ):
+            matching_clusters["compute_rke2_k8s_cluster"] = compute
 
     # Slurm
     for slurm in omnia_config.get("slurm_cluster", []):
@@ -1492,6 +1509,10 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
     if "service_rke2" in softwares and "service_rke2" in tag_names:
         cluster_set["service_rke2_k8s_cluster"] = data.get(
             "service_rke2_k8s_cluster", [])
+
+    if "compute_rke2" in softwares and "compute_rke2" in tag_names:
+        cluster_set["compute_rke2_k8s_cluster"] = data.get(
+            "compute_rke2_k8s_cluster", [])
 
     for k8s_cluster_type, k8s_clusters in cluster_set.items():
         deployments_list = [k.get('deployment', False) for k in k8s_clusters]

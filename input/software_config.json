@@ -23,10 +23,18 @@
         {"name": "service_kube_control_plane"},
         {"name": "service_kube_node"}
     ],
+    "compute_rke2": [
+        {"name": "compute_kube_control_plane_first"},
+        {"name": "compute_kube_control_plane"},
+        {"name": "compute_kube_node"}
+    ],
     "additional_packages":[
         {"name": "service_kube_control_plane_first"},
         {"name": "service_kube_control_plane"},
         {"name": "service_kube_node"},
+        {"name": "compute_kube_control_plane_first"},
+        {"name": "compute_kube_control_plane"},
+        {"name": "compute_kube_node"},
         {"name": "slurm_control_node"},
         {"name": "slurm_node"},
         {"name": "login_node"},
