@@ -9,7 +9,7 @@
 #       OME is an external producer with a different security domain, so it gets a
 #       dedicated, least-privilege KafkaUser.
 
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaUser
 metadata:
   name: {{ vector.ome.kafka_user }}

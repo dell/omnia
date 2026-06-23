@@ -1,12 +1,11 @@
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaBridge
 metadata:
   name: bridge
   namespace: telemetry
 spec:
   bootstrapServers: kafka-kafka-bootstrap:9093
-  enableMetrics: true
   http:
     port: 8080
   # Enable TLS for Kafka connection
