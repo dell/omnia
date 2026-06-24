@@ -160,6 +160,16 @@
         - build_stream_rollback
         - start
 
+    # Restore: Restart watcher with 2.1 source now in place.
+    - name: "Phase 6 | Restart playbook_watcher (Restore)"
+      ansible.builtin.include_tasks: buildstream.yml
+      vars:
+        _action: restart_watcher
+      when: build_stream_upgrade_path == 'upgrade_existing'
+      tags:
+        - build_stream_rollback
+        - start
+
     # Uninstall: Full cleanup (containers, dirs, images, watcher, automation, omnia.target)
     - name: "Phase 6 | Full BuildStream cleanup (Uninstall)"
       ansible.builtin.include_tasks: buildstream.yml

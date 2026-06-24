@@ -23,7 +23,6 @@ from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 from ansible.module_utils.input_validation.validation_flows.vip_pxe_validation import (
     validate_vip_vs_pxe_mapping_host_ips,
-    validate_all_host_ips_same_subnet_as_vip
 )
 
 file_names = config.files
@@ -401,9 +400,6 @@ def validate_vip_address(
     if pxe_mapping_file_path:
         # Check VIP doesn't conflict with any HOST_IP in PXE mapping
         validate_vip_vs_pxe_mapping_host_ips(errors, config_type, vip_address, pxe_mapping_file_path)
-        
-        # Check all HOST_IPs are in same subnet as VIP
-        validate_all_host_ips_same_subnet_as_vip(errors, vip_address, pxe_mapping_file_path, admin_netmaskbits, additional_subnets, oim_admin_ip)
 
 def validate_service_k8s_cluster_ha(
     errors,

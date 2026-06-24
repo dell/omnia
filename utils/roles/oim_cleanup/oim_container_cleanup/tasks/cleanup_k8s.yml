@@ -156,11 +156,14 @@
       ansible.builtin.pause:
         prompt: "I understand this will delete NFS data affecting all nodes. Type {{ k8s_cleanup_confirm_token }} to continue"
       register: k8s_cleanup_confirm
+      when: not (skip_approval | default(false) | bool)
 
     - name: Fail if cleanup not confirmed
       ansible.builtin.fail:
         msg: "K8s cleanup aborted"
-      when: k8s_cleanup_confirm.user_input | lower != k8s_cleanup_confirm_token | lower
+      when:
+        - not (skip_approval | default(false) | bool)
+        - k8s_cleanup_confirm.user_input | lower != k8s_cleanup_confirm_token | lower
 
     - name: Delete all k8s directories
       ansible.builtin.file:

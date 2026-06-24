@@ -156,11 +156,14 @@
       ansible.builtin.pause:
         prompt: "I understand this will delete NFS data affecting all nodes. Type {{ slurm_cleanup_confirm_token }} to continue"
       register: cleanup_confirm
+      when: not (skip_approval | default(false) | bool)
 
     - name: Fail if cleanup not confirmed
       ansible.builtin.fail:
         msg: "Slurm cleanup aborted"
-      when: cleanup_confirm.user_input | lower != slurm_cleanup_confirm_token | lower
+      when:
+        - not (skip_approval | default(false) | bool)
+        - cleanup_confirm.user_input | lower != slurm_cleanup_confirm_token | lower
 
     - name: Delete slurm directories (excluding slurm_backups)
       ansible.builtin.file:

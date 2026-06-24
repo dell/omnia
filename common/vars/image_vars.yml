@@ -16,7 +16,7 @@
 # Usage: get_container_image_list.yml
 container_tag: "latest"
 squid_tag: "6.6-24.04_beta"
-pulp_tag: "3.80"
+pulp_tag: "3.113"
 mysql_tag: "9.3.0"
 prometheus_tag: "v3.4.1"
 activemq_tag: "5.15.9"
