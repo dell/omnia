@@ -76,7 +76,7 @@
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       register: strimzi_migration_result
-      changed_when: "'Starting Strimzi CRD migration' in strimzi_migration_result.stdout"
+      changed_when: "'starting strimzi crd migration' in strimzi_migration_result.stdout | lower"
       failed_when: strimzi_migration_result.rc != 0
 
     - name: Display Strimzi migration result
