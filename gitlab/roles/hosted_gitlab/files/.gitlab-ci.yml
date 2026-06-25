@@ -24,7 +24,9 @@
 #                  Click exactly one to run that pipeline independently.
 #   API trigger  : Set PIPELINE_TYPE to "build", "deploy", or "cleanup".
 #
-# Constraint: no two child pipelines run in the same parent execution.
+# Note: Multiple pipelines can now run concurrently as resource_group has been removed.
+# This allows parallel execution of build, deploy, and cleanup pipelines.
+# Be aware of potential race conditions when accessing shared resources concurrently.
 # ---------------------------------------------------------------------------
 
 workflow:

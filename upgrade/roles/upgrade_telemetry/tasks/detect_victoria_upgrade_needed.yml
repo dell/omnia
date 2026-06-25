@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Detect Victoria Upgrade Requirement
+# ============================================================================
+# Includes required input variables and checks Victoria pods deployment status
+# to set the victoria_upgrade_needed flag.
+# ============================================================================
+
+# ── Include required input variables ──
+- name: Include required input variables
+  ansible.builtin.include_tasks: include_required_input.yml
+
+# ── Check Victoria pods deployment status ──
+- name: Check if Victoria pods exist in telemetry namespace
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get pods --no-headers 2>/dev/null | grep -iE "victoria|vmstorage|vmselect|vminsert|vmagent|vmsingle" | wc -l
+  register: victoria_pod_count
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  when:
+    - victoria_in_targets | default(false) | bool
+    - kube_vip is defined
+    - kube_vip | length > 0
+
+- name: Set Victoria pods deployed flag
+  ansible.builtin.set_fact:
+    victoria_pods_deployed: "{{ (victoria_pod_count.stdout | default('0') | int) > 0 }}"
+  when:
+    - victoria_in_targets | default(false) | bool
+    - victoria_pod_count is defined
+
+- name: Set victoria_upgrade_needed flag
+  ansible.builtin.set_fact:
+    victoria_upgrade_needed: "{{ victoria_pods_deployed | default(false) }}"
+    cacheable: true
+
+- name: Display Victoria upgrade decision
+  ansible.builtin.debug:
+    msg: "{{ victoria_upgrade_needed }}"
+  when: victoria_in_targets | default(false) | bool

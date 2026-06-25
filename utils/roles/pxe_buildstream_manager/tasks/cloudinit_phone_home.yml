@@ -16,8 +16,10 @@
 # Task: cloudinit_phone_home.yml
 # Purpose: Wait for all PXE-booted nodes to complete cloud-init
 #          and send phone-home callback to cloud-init-server.
-# Called from: set_pxe_boot.yml (Play 7)
+# Called from: set_pxe_boot.yml (Play 8)
 # Condition: Only runs when enable_build_stream is true
+# Non-fatal: Phone-home failures are recorded and reported but do NOT
+#            abort the playbook — BSM post-processing must always run.
 # ─────────────────────────────────────────────────────────────────────────
 
 # Step 1: Assert required facts are available
@@ -38,11 +40,14 @@
     prompt: "{{ phone_home_pause_prompt }}"
 
 # Step 3: Poll journalctl for phone-home from ALL nodes in single bash loop
+# Uses ignore_errors so that phone-home timeout does NOT abort the playbook.
+# The final stdout is parsed in Step 4 to identify which nodes failed.
 - name: "[Phone-Home] Wait for cloud-init phone-home from all nodes"
   ansible.builtin.shell: |
     set -o pipefail
     MISSING_NODES=0
     OUTPUT=""
+    FAILED_IPS=""
 
     # Pull ALL phone-home journal entries ONCE per retry cycle
     JOURNAL_OUT=$(journalctl -u cloud-init-server \
@@ -56,10 +61,13 @@
       else
         OUTPUT="${OUTPUT}{{ phone_home_status_wait }} $ip\n"
         MISSING_NODES=1
+        FAILED_IPS="${FAILED_IPS}${ip} "
       fi
     done
 
     echo -e "$OUTPUT"
+    # Print failed IPs on a dedicated line so Ansible can parse it
+    echo "PHONE_HOME_FAILED_IPS=${FAILED_IPS}"
     # Exit 1 if any node is missing — triggers Ansible until retry
     exit $MISSING_NODES
   args:
@@ -70,13 +78,47 @@
   delay: "{{ phone_home_delay }}"
   changed_when: false
   become: true
+  ignore_errors: true
 
-# Step 4: Print per-node phone-home status from final successful poll
+# Step 4: Print per-node phone-home status from final poll
 - name: "[Phone-Home] Display phone-home status per node"
   ansible.builtin.debug:
-    msg: "{{ phone_home_poll_result.stdout_lines }}"
+    msg: "{{ phone_home_poll_result.stdout_lines | default([]) }}"
 
-# Step 5: Final success message
+# Step 5: Extract phone-home failed IPs from the poll output
+- name: "[Phone-Home] Parse failed IPs from poll output"
+  ansible.builtin.set_fact:
+    phone_home_failed_ips: >-
+      {{ (phone_home_poll_result.stdout_lines | default([])
+          | select('match', '^PHONE_HOME_FAILED_IPS=')
+          | first | default('PHONE_HOME_FAILED_IPS='))
+          .split('=', 1)[1] | trim | split() | reject('equalto', '') | list }}
+  when: phone_home_poll_result.rc | default(0) != 0
+
+- name: "[Phone-Home] Default phone_home_failed_ips to empty when all succeeded"
+  ansible.builtin.set_fact:
+    phone_home_failed_ips: []
+  when: phone_home_poll_result.rc | default(0) == 0
+
+# Step 6: Cache phone-home results on localhost so Play 9 (BSM) can use them
+- name: "[Phone-Home] Store phone-home failure list on localhost"
+  ansible.builtin.set_fact:
+    phone_home_failed_ips: "{{ phone_home_failed_ips | default([]) }}"
+    phone_home_completed: true
+    cacheable: true
+  delegate_to: localhost
+  delegate_facts: true
+
+# Step 7: Report outcome
 - name: "[Phone-Home] All nodes completed cloud-init successfully"
   ansible.builtin.debug:
     msg: "{{ phone_home_final_success_msg }}"
+  when: phone_home_failed_ips | default([]) | length == 0
+
+- name: "[Phone-Home] WARNING — some nodes failed phone-home"
+  ansible.builtin.debug:
+    msg: >-
+      [Phone-Home] WARNING: {{ phone_home_failed_ips | length }} node(s) did NOT phone home:
+      {{ phone_home_failed_ips | join(', ') }}.
+      These will be marked as FAILED in node_results.json and failed_nodes.json.
+  when: phone_home_failed_ips | default([]) | length > 0

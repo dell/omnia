@@ -131,7 +131,7 @@ def update_status_csv(csv_dir, software, overall_status,slogger):
 
 def determine_function(
     task, repo_store_path, csv_file_path, user_data, version_variables, arc,
-    user_registries, docker_username, docker_password
+    user_registries, docker_username, docker_secret_token
 ):
     """
     Determines the appropriate function and its arguments to process a given task.
@@ -160,9 +160,19 @@ def determine_function(
 
         # Construct the status file path using DEFAULT_STATUS_FILENAME.
         status_file = os.path.join(csv_file_path, DEFAULT_STATUS_FILENAME)
+
+        # Ensure file exists with valid header
         if not os.path.exists(status_file) or os.stat(status_file).st_size == 0:
             with open(status_file, 'w', encoding="utf-8") as file:
                 file.write(STATUS_CSV_HEADER)
+        else:
+            with open(status_file, 'r', encoding="utf-8") as file:
+                lines = file.readlines()
+                if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
+                    # Header missing or invalid - prepend header to existing data
+                    with open(status_file, 'w', encoding="utf-8") as wfile:
+                        wfile.write(STATUS_CSV_HEADER)
+                        wfile.writelines(lines)
 
 
         task_type = task.get("type")
@@ -206,12 +216,13 @@ def determine_function(
             ]
         if task_type == "pip_module":
             return process_pip, [
-                task, status_file, content_base_dir, repo_name
+                task, status_file, content_base_dir, repo_name,
+                cluster_os_type, cluster_os_version, arc
             ]
         if task_type == "image":
             return process_image, [
                 task, status_file, version_variables, user_registries,
-                docker_username, docker_password
+                docker_username, docker_secret_token
             ]
         if task_type == "rpm_file":
             return process_rpm_file, [

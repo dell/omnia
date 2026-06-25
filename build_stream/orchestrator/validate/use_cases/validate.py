@@ -15,6 +15,7 @@
 """Validate use case implementation."""
 
 import logging
+import os
 from datetime import datetime, timezone
 
 from api.logging_utils import log_secure_info
@@ -49,9 +50,11 @@ from orchestrator.validate.dtos import ValidateResponse
 
 logger = logging.getLogger(__name__)
 
-ARTIFACTS_BASE = "/opt/omnia/build_stream_root/artifacts"
+ARTIFACTS_BASE = os.environ.get(
+    "NFS_ARTIFACT_BASE", "/opt/omnia/build_stream_root"
+) + "/artifacts"
 CONFIG_PATH = "/opt/omnia/automation/omnia_test_config.yml"
-DEFAULT_TIMEOUT_MINUTES = 120
+DEFAULT_TIMEOUT_MINUTES = 150
 
 
 class ValidateUseCase:
@@ -212,6 +215,7 @@ class ValidateUseCase:
             existing_stage.error_code = None  # Clear error fields from previous attempt
             existing_stage.error_summary = None
             existing_stage.ended_at = None  # Clear ended_at from previous attempt
+            existing_stage.log_file_path = None  # Clear log_file_path from previous attempt
             existing_stage.result_detail = None  # Clear result_detail from previous attempt
             self._stage_repo.save(existing_stage)
             if hasattr(self._stage_repo, 'session'):

@@ -32,6 +32,20 @@
       ansible.builtin.include_tasks: create_groups_common.yml
       loop: "{{ common_cloud_init_groups }}"
 
+    - name: Validate additional cloud-init configuration
+      ansible.builtin.include_tasks: validate_additional_cloud_init.yml
+
+    - name: Create SMD group for additional_cloud_init common
+      ansible.builtin.include_tasks: create_groups_common.yml
+      loop:
+        - "{{ additional_cloud_init_common_group_name }}"
+      when: additional_cloud_init_common_enabled | default(false) | bool
+
+    - name: Create SMD groups for per-FG additional cloud-init
+      ansible.builtin.include_tasks: create_groups_additional_fg.yml
+      with_items: "{{ additional_cloud_init_fg_names | default([]) }}"
+      when: additional_cloud_init_groups_enabled | default(false) | bool
+
     - name: Configure bss and cloud-init
       ansible.builtin.include_tasks: configure_bss_cloud_init.yml
 

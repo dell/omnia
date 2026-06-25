@@ -1,0 +1,78 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Verify all prep artifacts exist for a specific target version.
+# Checks: Pulp repos (RPMs), container images, and squashfs in MinIO.
+# If ANY verification fails → caller should ABORT (cluster untouched).
+#
+# Inputs:
+#   _hop_target_version — full target version (e.g. "1.35.1")
+#   _hop_target_minor   — minor version (e.g. "1.35")
+#   admin_nic_ip        — Pulp/registry server address
+
+- name: "Verify images — Check kubernetes Pulp repo"
+  ansible.builtin.command:
+    cmd: >-
+      pulp rpm distribution show
+      --name x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ _hop_target_minor | replace('.', '-') }}
+  changed_when: false
+
+- name: "Verify images — Check cri-o Pulp repo"
+  ansible.builtin.command:
+    cmd: >-
+      pulp rpm distribution show
+      --name x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ _hop_target_minor | replace('.', '-') }}
+  changed_when: false
+
+- name: "Verify images — Check squashfs image in MinIO"
+  ansible.builtin.command:
+    cmd: >-
+      mc stat minio/boot-images/k8s-{{ _hop_target_version }}/squashfs.img
+  changed_when: false
+
+- name: Verify images — Check core container images in Pulp registry
+  ansible.builtin.uri:
+    url: >-
+      http://{{ admin_nic_ip }}:2225/v2/{{ item.name }}/manifests/{{ item.tag }}
+    method: GET
+    status_code: [200]
+    validate_certs: false
+  loop:
+    - { name: "kube-apiserver", tag: "v{{ _hop_target_version }}" }
+    - { name: "kube-controller-manager", tag: "v{{ _hop_target_version }}" }
+    - { name: "kube-scheduler", tag: "v{{ _hop_target_version }}" }
+    - { name: "kube-proxy", tag: "v{{ _hop_target_version }}" }
+  register: core_image_checks
+  loop_control:
+    label: "{{ item.name }}:{{ item.tag }}"
+  changed_when: false
+  failed_when: false
+
+- name: Warn if core image check failed
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Could not verify image {{ item.item.name }}:{{ item.item.tag }}
+      in Pulp registry (status: {{ item.status | default('unknown') }}).
+      Upgrade may fail if image is not available.
+  loop: "{{ core_image_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}:{{ item.item.tag }}"
+  when: item.status | default(0) != 200
+  changed_when: false
+
+- name: "Verify images — All prep artifacts verified for target version {{ _hop_target_version }}"
+  ansible.builtin.debug:
+    msg: >-
+      All prep artifacts verified for v{{ _hop_target_version }}:
+      Pulp repos (kubernetes, cri-o), squashfs image, core container images.

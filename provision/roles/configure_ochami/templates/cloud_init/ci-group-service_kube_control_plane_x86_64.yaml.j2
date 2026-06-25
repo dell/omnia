@@ -20,6 +20,18 @@
       disable_root: false
 
       write_files:
+        - path: /usr/local/bin/etcd-disk-setup.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/k8s-scripts/etcd-disk-setup.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/etcd-fstab-update.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/k8s-scripts/etcd-fstab-update.sh.j2') | indent(12) }}
+
         - path: /usr/local/bin/doca-install.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -137,8 +149,8 @@
             location = "gcr.io"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
-{% if user_registry | default([]) | length > 0 %}
-{% for registry in user_registry %}
+{% if user_registry | default([], true) | length > 0 %}
+{% for registry in user_registry | default([], true) %}
 
             [[registry]]
             prefix = "{{ registry.host }}"
@@ -228,15 +240,15 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.19.0"
+            HELM_VERSION="v3.20.1"
             ARCH="amd64"
-            cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
+            cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}-helm-$HELM_VERSION/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
 
             # Optional: Set up bash completion
             /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
             chmod 0755 /etc/bash_completion.d/helm.sh
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
         - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
           permissions: '{{ file_mode_755 }}'
           content: |
@@ -250,7 +262,7 @@
         - "chronyc sources"
         - "chronyc -a makestep"
 {# Mount-specific runcmd entries #}
-{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
         - {{ cmd }}
 {% endfor %}
@@ -272,12 +284,16 @@
       {% endif %}
       {% endif %}
 {% endraw %}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %} 
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %} 
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # K8s NFS mount entries
         - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
+{% if etcd_on_local_disk | default(false) %}
+        - /usr/local/bin/etcd-fstab-update.sh
+{% else %}
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
+{% endif %}
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
@@ -344,7 +360,7 @@
           [ -n "$search_line" ] && echo "$search_line" > "$tmpfile"
 
           # Add your new nameserver entries
-          {% for ns in dns %}
+          {% for ns in dns | default([], true) %}
           echo "nameserver {{ ns }}" >> "$tmpfile"
           {% endfor %}
 
@@ -378,7 +394,7 @@
           echo "Installing Necessary Python pip packages"
           python3 -m ensurepip
 
-          PACKAGES=({% for pkg in k8s_pip_packages %}"{{ pkg }}"{% if not loop.last %} {% endif %}{% endfor %})
+          PACKAGES=({% for pkg in k8s_pip_packages | default([], true) %}"{{ pkg }}"{% if not loop.last %} {% endif %}{% endfor %})
 
           for pkg in "${PACKAGES[@]}"; do
               echo "Installing $pkg from offline repo..."
@@ -393,6 +409,9 @@
           if [ ! -f "$MARKER" ]; then
             # Join Kubernetes cluster
             echo "Initial boot - initializing and setting up service_kube_control_plane_x86_64"
+{% if etcd_on_local_disk | default(false) %}
+            /usr/local/bin/etcd-disk-setup.sh
+{% endif %}
             rm -rf /var/lib/etcd/*  /var/lib/kubelet/* /etc/kubernetes/*
             rm -rf /var/lib/etcd/.*  /var/lib/kubelet/.* /etc/kubernetes/.*
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
@@ -448,7 +467,7 @@
               "--node-monitor-grace-period=40s"
               "--node-eviction-rate=1"
               "--secondary-node-eviction-rate=1"
-              "--terminated-pod-gc-threshold=50"
+              "--terminated-pod-gc-threshold=5"
             )
 
             echo "Backing up kube-controller-manager manifest..."
@@ -509,10 +528,29 @@
             grep -q "^nodeStatusReportFrequency:" $CONFIG_FILE || echo "nodeStatusReportFrequency: 60s" >> $CONFIG_FILE
             grep -q "^syncFrequency:" $CONFIG_FILE || echo "syncFrequency: 60s" >> $CONFIG_FILE
 
+            # Enable old Kubernetes behavior: reset pod status on kubelet restart
+            echo "Adding kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+
             systemctl daemon-reload
             systemctl restart kubelet
 
-            kubectl -n kube-system wait pod/kube-controller-manager-{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %} --for=condition=Ready --timeout=300s
+            # Wait for kube-controller-manager pod to exist before checking readiness
+            echo "Waiting for kube-controller-manager pod to be created..."
+            KCM_POD="kube-controller-manager-{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            TIMEOUT=120
+            ELAPSED=0
+            while ! kubectl -n kube-system get pod "$KCM_POD" >/dev/null 2>&1; do
+              if [ $ELAPSED -ge $TIMEOUT ]; then
+                echo "ERROR: Timed out waiting for $KCM_POD to be created"
+                exit 1
+              fi
+              echo "Pod $KCM_POD not found yet, waiting 5s... ($ELAPSED/$TIMEOUT seconds)"
+              sleep 5
+              ELAPSED=$((ELAPSED + 5))
+            done
+            echo "Pod $KCM_POD found, waiting for it to be Ready..."
+            kubectl -n kube-system wait pod/"$KCM_POD" --for=condition=Ready --timeout=300s
             systemctl restart nfs-client.target
             systemctl restart rpcbind
               # Mark initialization complete so all of above is skipped on reboot!
@@ -522,8 +560,18 @@
             # SUBSEQUENT BOOT - SKIP JOIN
             echo "service_kube_control_plane_x86_64 is already part of cluster."
             echo "Cluster already initialized. Performing node reboot procedures."
+            
+            # Reapply kubelet feature gate (ephemeral overlay filesystem)
+            echo "Reapplying kubelet feature gate: ChangeContainerStatusOnKubeletRestart=true"
+            echo 'KUBELET_EXTRA_ARGS="--feature-gates=ChangeContainerStatusOnKubeletRestart=true"' > /etc/sysconfig/kubelet
+            systemctl daemon-reload
+            systemctl restart kubelet
+            
             # CRI and kubelet already enabled above
             # You can log health status etc if you wish:
+{% if etcd_on_local_disk | default(false) %}
+            /usr/local/bin/etcd-fstab-update.sh
+{% endif %}
             mkdir -p $HOME/.kube /root/.kube
             cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
             chown $(id -u):$(id -g) $HOME/.kube/config

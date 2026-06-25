@@ -1,49 +1,193 @@
 #!/bin/bash
-LOGFILE="/var/log/setup_nvhpc_sdk.log"
+# NVIDIA HPC SDK Installation/Setup Script
+# 
+# Usage:
+#   Compiler Node (install + copy to NFS):
+#     /usr/local/bin/setup_nvhpc_sdk.sh --install
+#
+#   Slurm/Compute Nodes (mount from NFS):
+#     /usr/local/bin/setup_nvhpc_sdk.sh
+#
+set -e
+
+LOGFILE="/var/log/nvhpc_sdk_setup.log"
 exec > >(tee -a "$LOGFILE") 2>&1
 
-echo "===== NVHPC SDK setup (mount + wait) ====="
-
-PARENT_NFS="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk"
-PARENT_MOUNT="/shared-nvhpc-sdk"
-
-NVHPC_NFS_SHARE="$PARENT_MOUNT/nvhpc"
+# Paths
+NVHPC_DNF_INSTALL_DIR="/opt/nvidia/hpc_sdk"
+NVHPC_NFS_DIR="/hpc_tools/nvidia_sdk/nvhpc"
 NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
+PROFILE_FILE="/etc/profile.d/nvhpc.sh"
 
-mkdir -p "$PARENT_MOUNT"
+# Architecture detection
+ARCH="$(uname -m)"
+case "$ARCH" in
+    x86_64|amd64) ARCH="x86_64" ;;
+    aarch64|arm64) ARCH="aarch64" ;;
+    *) echo "[ERROR] Unsupported architecture: $ARCH"; exit 1 ;;
+esac
 
+setup_environment() {
+    echo "[INFO] Configuring environment at $PROFILE_FILE..."
+    
+    # Detect version from installed SDK (runs once at setup time)
+    local NVARCH="Linux_$ARCH"
+    local VERSION=$(ls -1 "$NVHPC_LOCAL_MOUNT/$NVARCH" 2>/dev/null | head -1)
+    
+    if [ -z "$VERSION" ]; then
+        echo "[WARN] Could not detect NVHPC version, skipping environment setup"
+        return 1
+    fi
+    
+    # Write static exports (no dynamic commands on login)
+    cat > "$PROFILE_FILE" <<EOF
+# NVIDIA HPC SDK Environment
+export NVCOMPILERS=$NVHPC_LOCAL_MOUNT
+export NVARCH=$NVARCH
+export NVHPC_VERSION=$VERSION
 
-if ! mountpoint -q "$PARENT_MOUNT"; then
-    mount -t nfs "$PARENT_NFS" "$PARENT_MOUNT"
+# Compilers
+export PATH=\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/compilers/bin:\$PATH
+export MANPATH=\${MANPATH:-}:\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/compilers/man
+
+# MPI support
+export PATH=\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/comm_libs/mpi/bin:\$PATH
+export MANPATH=\${MANPATH:-}:\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/comm_libs/mpi/man
+
+# Modules
+export MODULEPATH=\$NVCOMPILERS/modulefiles:\${MODULEPATH:-}
+EOF
+    chmod 644 "$PROFILE_FILE"
+}
+
+setup_mount() {
+    echo "[INFO] Setting up bind mount..."
+    mkdir -p "$NVHPC_LOCAL_MOUNT"
+    FSTAB_ENTRY="$NVHPC_NFS_DIR $NVHPC_LOCAL_MOUNT none bind 0 0"
+    if ! grep -qF "$NVHPC_NFS_DIR $NVHPC_LOCAL_MOUNT" /etc/fstab; then
+        echo "$FSTAB_ENTRY" >> /etc/fstab
+    fi
+    if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
+        mount "$NVHPC_LOCAL_MOUNT"
+    fi
+}
+
+# ============================================================
+# INSTALL MODE (Compiler Node)
+# ============================================================
+if [ "$1" = "--install" ] || [ "$1" = "-i" ]; then
+    echo "===== NVIDIA HPC SDK Installation (Compiler Node) ====="
+    echo "[INFO] Started at $(date)"
+
+    # Check if NFS is available
+    if [ ! -d /hpc_tools/nvidia_sdk ]; then
+        echo "[ERROR] /hpc_tools/nvidia_sdk not found. Please ensure NFS is mounted."
+        exit 1
+    fi
+
+    # Check if already installed on NFS
+    if [ -d "$NVHPC_NFS_DIR/Linux_$ARCH" ] && [ -x "$NVHPC_NFS_DIR/Linux_$ARCH"/*/compilers/bin/nvc ]; then
+        echo "[INFO] NVHPC already installed on NFS at $NVHPC_NFS_DIR"
+        if [ "$2" != "--force" ]; then
+            echo "[INFO] Skipping installation. Use '--install --force' to reinstall."
+            # Still setup mount and environment
+            setup_mount
+            setup_environment
+            NVHPC_VERSION=$(ls -1 "$NVHPC_LOCAL_MOUNT/Linux_$ARCH" 2>/dev/null | head -1)
+            echo "[INFO] Version: $NVHPC_VERSION"
+            echo "[INFO] Run 'source $PROFILE_FILE' or re-login to use NVHPC"
+            exit 0
+        fi
+        echo "[INFO] --force specified, proceeding with reinstall..."
+    fi
+
+    # Install NVHPC via DNF (repos already configured on node via cloud-init)
+    echo "[INFO] Installing NVIDIA HPC SDK via DNF..."
+    if ! rpm -q nvhpc &>/dev/null; then
+        dnf install -y nvhpc
+    else
+        echo "[INFO] NVHPC package already installed locally"
+    fi
+
+    # Verify DNF installation
+    if [ ! -d "$NVHPC_DNF_INSTALL_DIR" ]; then
+        echo "[ERROR] NVHPC not found at $NVHPC_DNF_INSTALL_DIR after DNF install"
+        exit 1
+    fi
+
+    # Detect installed version
+    NVHPC_VERSION=$(ls -1 "$NVHPC_DNF_INSTALL_DIR/Linux_$ARCH" 2>/dev/null | head -1)
+    if [ -z "$NVHPC_VERSION" ]; then
+        echo "[ERROR] Could not detect NVHPC version"
+        exit 1
+    fi
+    echo "[INFO] Detected NVHPC version: $NVHPC_VERSION"
+
+    # Copy to NFS for cluster-wide access
+    echo "[INFO] Copying NVHPC to NFS at $NVHPC_NFS_DIR (this may take a while)..."
+    mkdir -p "$NVHPC_NFS_DIR"
+    cp -a "$NVHPC_DNF_INSTALL_DIR/." "$NVHPC_NFS_DIR/"
+
+    # Verify NFS copy
+    if [ ! -x "$NVHPC_NFS_DIR/Linux_$ARCH/$NVHPC_VERSION/compilers/bin/nvc" ]; then
+        echo "[ERROR] NVHPC copy to NFS failed - nvc not found"
+        exit 1
+    fi
+    echo "[INFO] NVHPC copied to NFS successfully"
+
+    # Setup mount and environment
+    setup_mount
+    setup_environment
+
+    echo ""
+    echo "===== NVIDIA HPC SDK Installation Complete ====="
+    echo "[INFO] Version: $NVHPC_VERSION"
+    echo "[INFO] NFS location: $NVHPC_NFS_DIR"
+    echo "[INFO] Local mount: $NVHPC_LOCAL_MOUNT"
+    echo "[INFO] Environment: $PROFILE_FILE"
+    echo ""
+    echo "[INFO] Other nodes can now run: /usr/local/bin/setup_nvhpc_sdk.sh"
+    echo "[INFO] Completed at $(date)"
+    exit 0
 fi
 
-if ! mountpoint -q "$PARENT_MOUNT"; then
-    echo "[ERROR] Failed to mount NVHPC parent export"
+# ============================================================
+# SETUP MODE (Slurm/Compute Nodes) - Default
+# ============================================================
+echo "===== NVIDIA HPC SDK Setup (Compute Node) ====="
+echo "[INFO] Started at $(date)"
+
+# Check if NFS path exists
+if [ ! -d "$NVHPC_NFS_DIR" ]; then
+    echo "[ERROR] NVHPC not found on NFS at $NVHPC_NFS_DIR"
+    echo "[ERROR] Please run 'setup_nvhpc_sdk.sh --install' on compiler node first."
     exit 1
 fi
 
-echo "[INFO] Parent NVHPC export mounted"
-
-mkdir -p "$NVHPC_NFS_SHARE"
-# 3. Ensure fstab entry exists (bind mount, NOT NFS)
-if ! grep -qF "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT" /etc/fstab; then
-    echo "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT none bind,_netdev 0 0" >> /etc/fstab
-    echo "[INFO] NVHPC bind-mount fstab entry added"
-else
-    echo "[INFO] NVHPC fstab entry already present"
+# Check if NVHPC is actually installed on NFS
+if [ ! -d "$NVHPC_NFS_DIR/Linux_$ARCH" ]; then
+    echo "[ERROR] NVHPC for $ARCH not found on NFS"
+    echo "[ERROR] Please run 'setup_nvhpc_sdk.sh --install' on compiler node first."
+    exit 1
 fi
 
-# 4. Mount NVHPC SDK
-mkdir -p "$NVHPC_LOCAL_MOUNT"
+# Setup mount and environment
+setup_mount
+setup_environment
 
-if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
-    mount --bind "$NVHPC_NFS_SHARE" "$NVHPC_LOCAL_MOUNT"
-fi
-
+# Verify mount
 if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
     echo "[ERROR] Failed to mount NVHPC SDK"
     exit 1
 fi
 
-echo "[SUCCESS] NVHPC SDK mounted at $NVHPC_LOCAL_MOUNT"
-echo "===== NVHPC setup completed ====="
+# Detect version for display
+NVHPC_VERSION=$(ls -1 "$NVHPC_LOCAL_MOUNT/Linux_$ARCH" 2>/dev/null | head -1)
+
+echo ""
+echo "===== NVIDIA HPC SDK Setup Complete ====="
+echo "[INFO] Version: $NVHPC_VERSION"
+echo "[INFO] Mounted: $NVHPC_LOCAL_MOUNT"
+echo "[INFO] Environment: $PROFILE_FILE"
+echo "[INFO] Run 'source $PROFILE_FILE' or re-login to use NVHPC"
+echo "[INFO] Completed at $(date)"

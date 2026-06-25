@@ -234,8 +234,8 @@ default:
         _REFRESH_FAILED=0
         for _RF_FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
                pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
-               security_config.yml high_availability_config.yml omnia_config.yml \
-               build_stream_config.yml; do
+               telemetry_storage_config.yml security_config.yml high_availability_config.yml \
+               omnia_config.yml build_stream_config.yml; do
 
           # URL-encode the file path (input/<filename>)
           _RF_ENCODED_PATH=$(printf '%s' "input/${_RF_FNAME}" | sed 's|/|%2F|g')
@@ -524,8 +524,8 @@ initialization:
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
              pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml \
-             build_stream_config.yml; do
+             telemetry_storage_config.yml security_config.yml high_availability_config.yml \
+             omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -589,8 +589,8 @@ parse-catalog:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -678,8 +678,8 @@ generate-input-files:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -753,8 +753,8 @@ configure-local-repository:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -893,8 +893,8 @@ build-images:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -1224,11 +1224,10 @@ summary:
       BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|generate-input-files|create-local-repository|build-image-.*)$")) | \
                            select(.stage_state == "FAILED")'
       ERRORS=$(jq -r "${BUILD_FAILED_FILTER} | \"  |    X \(.stage_name): \" + (.error_summary // \"no details\")" \
-        final_status.json 2>/dev/null)
+        final_status.json 2>/dev/null || true)
       if [ -n "${ERRORS}" ]; then
         echo "  |  Errors:                                                |"
         echo "${ERRORS}"
-        echo "  +-----------------------------------------------------------+"
       fi
 
       echo "  +-----------------------------------------------------------+"
@@ -1240,6 +1239,7 @@ summary:
       fi
 
       echo "  RESULT: SUCCESS -- all stages completed"
+      exit 0
   artifacts:
     paths:
       - final_status.json

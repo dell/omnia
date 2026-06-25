@@ -1,0 +1,267 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Apply VictoriaMetrics operator CRs
+# ============================================================================
+# All manifests were pre-staged by upgrade_provision at:
+#   {{ telemetry_deploy_dir }}/deployments/
+#
+# IMPORTANT: 2.2 supports ONLY cluster mode (HA)
+# Regardless of current deployment mode, upgrade always uses VMCluster CR
+# ============================================================================
+
+- name: "Cluster mode upgrade — Omnia 2.2 supports only cluster mode"
+  ansible.builtin.debug:
+    msg: "{{ victoria_cluster_mode_forced }}"
+
+# ── Apply TLS secret (if present) ──
+- name: Check for TLS secret manifest
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/victoria-tls-secret.yaml"
+  register: tls_secret_stat
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Apply TLS secret
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-tls-secret.yaml"
+  when: tls_secret_stat.stat.exists
+  changed_when: true
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Apply RBAC ──
+- name: Apply vmagent RBAC
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-vmagent-rbac.yaml"
+  changed_when: true
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Inject preserved LoadBalancer IPs into VMCluster manifest before apply ──
+# When migrating from 2.1 StatefulSet to operator, old services are deleted
+# and the operator creates new ones. To preserve IPs, we inject loadBalancerIP
+# directly into the VMCluster CR's serviceSpec BEFORE applying, so the operator
+# creates services with the correct IPs from the start (no race condition).
+- name: Stage LoadBalancer IP injection script
+  ansible.builtin.template:
+    src: inject_vm_lb_ips.py.j2
+    dest: "{{ ip_inject_script_path }}"
+    mode: "{{ executable_mode }}"
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  when:
+    - preserved_vmselect_ip | default('') | length > 0 or preserved_vminsert_ip | default('') | length > 0
+
+- name: Inject preserved LoadBalancer IPs into VMCluster manifest
+  ansible.builtin.command:
+    cmd: >-
+      python3 {{ ip_inject_script_path }}
+      "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmcluster.yaml"
+      "{{ preserved_vmselect_ip | default('') }}"
+      "{{ preserved_vminsert_ip | default('') }}"
+  register: ip_inject_result
+  changed_when: ip_inject_result.rc == 0
+  failed_when: ip_inject_result.rc not in [0, 2]
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  when:
+    - preserved_vmselect_ip | default('') | length > 0 or preserved_vminsert_ip | default('') | length > 0
+
+- name: Clean up LoadBalancer IP injection script
+  ansible.builtin.file:
+    path: "{{ ip_inject_script_path }}"
+    state: absent
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  changed_when: false
+
+- name: Display LoadBalancer IP injection status
+  ansible.builtin.debug:
+    msg: "{{ victoria_lb_ip_injection_status }}"
+
+# ── Apply main CR (VMCluster only — 2.2 cluster mode only) ──
+- name: Apply VMCluster CR (cluster mode only) with retry
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmcluster.yaml" --request-timeout=60s
+  register: vmcluster_apply
+  changed_when: true
+  until: vmcluster_apply.rc == 0
+  retries: 5
+  delay: 10
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Wait for VMCluster LoadBalancer IPs and reclaim if reassigned ──
+# The operator creates vminsert/vmselect services asynchronously after the CR is applied.
+# We MUST wait for these services to get their LoadBalancer IPs BEFORE Phase 3
+# (telemetry.sh) runs, because telemetry.sh also creates VictoriaLogs services via
+# kubectl apply -k. If VL services are created before VM services exist, MetalLB
+# assigns the freed IPs to VL services, leaving VM services in <pending> state.
+#
+# If the preserved IPs got assigned to wrong services, we reclaim them:
+#   1. Find services holding the preserved IPs that are NOT vminsert/vmselect
+#   2. Delete those conflicting services to free the IPs
+#   3. Wait for vminsert/vmselect to reclaim the preserved IPs
+
+- name: Initial wait for vminsert LoadBalancer IP
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get svc vminsert-{{ new_vmcluster_name }} \
+      -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
+  register: vminsert_lb_ip
+  until: >
+    (vminsert_lb_ip is defined) and
+    ((vminsert_lb_ip.stdout | default('') | trim | length) > 0)
+  retries: "{{ lb_ip_wait_retries }}"
+  delay: "{{ lb_ip_wait_delay }}"
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Initial wait for vmselect LoadBalancer IP
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get svc vmselect-{{ new_vmcluster_name }} \
+      -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
+  register: vmselect_lb_ip
+  until: >
+    (vmselect_lb_ip is defined) and
+    ((vmselect_lb_ip.stdout | default('') | trim | length) > 0)
+  retries: "{{ lb_ip_wait_retries }}"
+  delay: "{{ lb_ip_wait_delay }}"
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Reclaim reassigned IPs if VMCluster services are still pending ──
+- name: Reclaim preserved IPs from conflicting services
+  when:
+    - preserved_vminsert_ip | default('') | length > 0 or preserved_vmselect_ip | default('') | length > 0
+    - vminsert_lb_ip.stdout | trim | length == 0 or vmselect_lb_ip.stdout | trim | length == 0
+  block:
+    - name: Stage IP conflict detection script
+      ansible.builtin.template:
+        src: find_ip_conflict_svcs.sh.j2
+        dest: "{{ ip_conflict_script_path }}"
+        mode: "{{ executable_mode }}"
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Find services holding preserved IPs that are not VMCluster services
+      ansible.builtin.command: "{{ ip_conflict_script_path }}"
+      register: ip_conflict_svcs
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Remove IP conflict detection script
+      ansible.builtin.file:
+        path: "{{ ip_conflict_script_path }}"
+        state: absent
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Display services holding preserved IPs
+      ansible.builtin.debug:
+        msg: "{{ victoria_lb_ip_conflict_svcs_found }}"
+      when: ip_conflict_svcs.stdout_lines | default([]) | select() | list | length > 0
+
+    - name: Delete conflicting services holding preserved IPs
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} delete svc {{ item }} --timeout=30s
+      loop: "{{ ip_conflict_svcs.stdout_lines | default([]) | select() | list }}"
+      changed_when: true
+      failed_when: false
+      when: ip_conflict_svcs.stdout_lines | default([]) | select() | list | length > 0
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for vminsert to reclaim preserved IP
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get svc vminsert-{{ new_vmcluster_name }} \
+          -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
+      register: vminsert_lb_ip
+      until: >
+        (vminsert_lb_ip is defined) and
+        ((vminsert_lb_ip.stdout | default('') | trim | length) > 0)
+      retries: "{{ lb_ip_wait_retries }}"
+      delay: "{{ lb_ip_wait_delay }}"
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for vmselect to reclaim preserved IP
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get svc vmselect-{{ new_vmcluster_name }} \
+          -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo ""
+      register: vmselect_lb_ip
+      until: >
+        (vmselect_lb_ip is defined) and
+        ((vmselect_lb_ip.stdout | default('') | trim | length) > 0)
+      retries: "{{ lb_ip_wait_retries }}"
+      delay: "{{ lb_ip_wait_delay }}"
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+- name: Display confirmed LoadBalancer IPs
+  ansible.builtin.debug:
+    msg: "{{ victoria_lb_ip_confirmed }}"
+
+- name: Warn if LoadBalancer IPs still not assigned after reclaim
+  ansible.builtin.debug:
+    msg: "{{ victoria_lb_ip_reclaim_failed }}"
+  when: >-
+    (vminsert_lb_ip is defined and vminsert_lb_ip.stdout | default('') | trim | length == 0) or
+    (vmselect_lb_ip is defined and vmselect_lb_ip.stdout | default('') | trim | length == 0)
+
+# ── Apply scrape and agent CRs ──
+- name: Check for VMScrape manifest
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmscrape.yaml"
+  register: vmscrape_stat
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Apply VMScrape CR with retry
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmscrape.yaml" --request-timeout=60s
+  register: vmscrape_apply
+  changed_when: true
+  until: vmscrape_apply.rc == 0
+  retries: 5
+  delay: 10
+  when: vmscrape_stat.stat.exists
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Apply VMAgent CR with retry
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmagent.yaml" --request-timeout=60s
+  register: vmagent_apply
+  changed_when: true
+  until: vmagent_apply.rc == 0
+  retries: 5
+  delay: 10
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display apply summary
+  ansible.builtin.debug:
+    msg: "{{ victoria_crs_applied }}"

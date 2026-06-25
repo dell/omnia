@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 # Usage: validate_telemetry_config.yml
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
-fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
+fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist in {{ input_project_dir }} directory."
+fail_msg_telemetry_storage_config_file: "telemetry_storage_config.yml file doesn't exist in {{ input_project_dir }} directory."
 pause_time_15: 15
 bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
 warning_telemetry_support_false: |

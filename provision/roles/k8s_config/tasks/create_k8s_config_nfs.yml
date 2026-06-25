@@ -32,6 +32,7 @@
     csi_powerscale_driver_values_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
     nfs_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
     k8s_crio_storage_size: "{{ service_k8s_cluster[0].k8s_crio_storage_size }}"
+    etcd_on_local_disk: "{{ service_k8s_cluster[0].etcd_on_local_disk | default(false) }}"
 
 - name: Read the service_k8s mount point
   ansible.builtin.set_fact:
@@ -64,6 +65,40 @@
 - name: Set admin network CIDR
   ansible.builtin.set_fact:
     admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
+
+- name: Read PXE mapping to find control plane node subnet
+  community.general.read_csv:
+    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+  register: pxe_data_for_cidr
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Determine Calico CIDR from control plane nodes subnet
+  ansible.builtin.set_fact:
+    calico_cidr: >-
+      {%- set kcp_ips = pxe_data_for_cidr.list
+          | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^service_kube_control_plane')
+          | map(attribute='ADMIN_IP') | list -%}
+      {%- if kcp_ips | length > 0 -%}
+        {%- set ref_ip = kcp_ips[0] -%}
+        {%- set primary_net = (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
+        {%- if ref_ip | ansible.utils.ipaddr(primary_net) -%}
+          {{ primary_net }}
+        {%- else -%}
+          {%- set additional = hostvars['localhost']['network_data']['admin_network']['additional_subnets'] | default([]) -%}
+          {%- set ns = namespace(found='') -%}
+          {%- for s in additional if not ns.found -%}
+            {%- set subnet_cidr = (s.subnet + '/' + s.netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
+            {%- if ref_ip | ansible.utils.ipaddr(subnet_cidr) -%}
+              {%- set ns.found = subnet_cidr -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.found if ns.found else primary_net }}
+        {%- endif -%}
+      {%- else -%}
+        {{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}
+      {%- endif -%}
 
 - name: Fetch server_ip and server_share_path from list when nfs sever is localhost
   ansible.builtin.set_fact:
@@ -101,17 +136,6 @@
         - nfs-client-provisioner
         - helm
         # - whereabouts
-
-    - name: Create subdirectories on NFS share
-      ansible.builtin.file:
-        path: "{{ k8s_client_mount_path }}/{{ item }}"
-        state: directory
-        mode: "{{ folder_mode }}"
-        owner: root
-        group: root
-      loop:
-        - csi-driver-powerscale
-      when: hostvars['localhost']['csi_driver_powerscale_support']
 
   rescue:
     - name: Fail with NFS export advice
@@ -197,7 +221,7 @@
 - name: Include local repo access variable file
   ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
 
-- name: Load service_k8s.json
+- name: Load service_k8s_v<version>.json
   ansible.builtin.set_fact:
     k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
 
@@ -250,11 +274,24 @@
     dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     mode: "{{ file_mode }}"
 
-- name: Untar helm tarball repo
+- name: Extract helm version from package name
+  ansible.builtin.set_fact:
+    helm_version: "{{ helm_package | regex_replace('^helm-v', '') | regex_replace('-amd64$', '') }}"
+
+- name: Ensure helm version directory exists
+  ansible.builtin.file:
+    path: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}"
+    state: directory
+    mode: '0755'
+
+- name: Untar helm tarball to version-specific directory
   ansible.builtin.unarchive:
     src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     dest: "{{ k8s_client_mount_path }}/helm/"
     remote_src: true
+    extra_opts:
+      - "--transform"
+      - "s|^linux-amd64|linux-amd64-helm-v{{ helm_version }}|"
 
 # nfs client provisioner
 - name: Download nfs-client-provisioner tarball

@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Update cloud-init group configuration for a functional group
+# ============================================================================
+# Uses the ochami CLI to delete existing cloud-init group config and set
+# new config from the provided cloud-init YAML file.
+#
+# Required variables:
+#   cloud_init_file_path   — Path to pre-rendered cloud-init group YAML (on target host)
+#   functional_group_name  — Name of the functional group
+#
+# The cloud-init YAML file should follow the ci-group format.
+# See provision/roles/configure_ochami/templates/cloud_init/ci-group-*.yaml.j2
+# ============================================================================
+
+- name: Verify cloud-init file exists - {{ functional_group_name }}
+  ansible.builtin.stat:
+    path: "{{ cloud_init_file_path }}"
+  register: ci_file_stat
+
+- name: Fail if cloud-init file not found - {{ functional_group_name }}
+  ansible.builtin.fail:
+    msg: "{{ cloud_init_file_missing_msg }}"
+  when: not ci_file_stat.stat.exists
+
+- name: Delete existing cloud-init group config - {{ functional_group_name }}
+  ansible.builtin.command: >
+    /usr/bin/ochami cloud-init group delete --no-confirm -f yaml -d @{{ cloud_init_file_path }}
+  changed_when: true
+  failed_when: false
+
+- name: Set cloud-init group config - {{ functional_group_name }}
+  ansible.builtin.command: >
+    /usr/bin/ochami cloud-init group set -f yaml -d @{{ cloud_init_file_path }}
+  changed_when: true
+  register: ci_set_result
+
+- name: Fail if cloud-init update failed - {{ functional_group_name }}
+  ansible.builtin.fail:
+    msg: "{{ cloud_init_update_fail_msg }}"
+  when: ci_set_result.rc != 0
+
+- name: Verify cloud-init group config - {{ functional_group_name }}
+  ansible.builtin.command: /usr/bin/ochami cloud-init group get config {{ functional_group_name }}
+  changed_when: false
+  register: ci_verify_output
+
+- name: Display cloud-init verification - {{ functional_group_name }}
+  ansible.builtin.debug:
+    msg: "{{ ci_verify_output.stdout_lines }}"
+    verbosity: 1

@@ -31,18 +31,12 @@ echo "====================================================="
 # Detect CUDA major version for DCGM package selection
 echo "[INFO] Detecting CUDA version for DCGM package compatibility..."
 # Try to get CUDA version from nvidia-smi
-CUDA_VERSION=$(nvidia-smi | grep "CUDA Version" | awk '{print $9}' | cut -d'.' -f1)
+CUDA_VERSION=$(nvidia-smi | sed -nE 's/.*CUDA( UMD)? Version: *([0-9]+).*/\2/p')
 
-# Fallback: Try to get CUDA version from nvcc if available
 if [ -z "$CUDA_VERSION" ]; then
-    if command -v nvcc &>/dev/null; then
-        CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $5}' | cut -d',' -f1 | cut -d'.' -f1)
-        echo "[INFO] CUDA version detected from nvcc: $CUDA_VERSION"
-    else
-        echo "[ERROR] Could not detect CUDA version from nvidia-smi or nvcc."
-        echo "[ERROR] CUDA toolkit is required for DCGM package version detection. Skipping DCGM setup."
+        echo "[ERROR] Could not detect CUDA version from nvidia-smi"
+        echo "[ERROR] CUDA driver is required for DCGM package version detection. Skipping DCGM setup."
         exit 1
-    fi
 else
     echo "[INFO] CUDA major version detected from nvidia-smi: $CUDA_VERSION"
 fi

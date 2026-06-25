@@ -19,6 +19,11 @@
             "minLength": 1,
             "description": "Name of the nfs storage in storage_config.yml" 
           },
+          "vast_storage_name": { 
+            "type": "string", 
+            "minLength": 1,
+            "description": "Name of the vast storage in storage_config.yml" 
+          },
           "skip_merge": { 
             "type": "boolean", 
             "description": "Variable indicates whether a specific configuration file path under config_sources should be used as-is without merging" 
@@ -106,6 +111,9 @@
           "deployment": {
             "type": "boolean"
           },
+          "etcd_on_local_disk": {
+            "type": "boolean"
+          },
           "k8s_cni": {
             "enum": ["calico"],
             "description": "K8s CNI plugin to use for this cluster."
@@ -148,6 +156,7 @@
         "required": [
           "cluster_name",
           "k8s_cni",
+          "etcd_on_local_disk",
           "k8s_service_addresses",
           "k8s_crio_storage_size"
         ],

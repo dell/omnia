@@ -21,6 +21,9 @@ import yaml
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+from ansible.module_utils.input_validation.validation_flows.vip_pxe_validation import (
+    validate_vip_vs_pxe_mapping_host_ips,
+)
 
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
@@ -227,6 +230,24 @@ def get_primary_oim_admin_ip(network_spec_json):
     return oim_admin_ip
 
 
+def get_additional_subnets(network_spec_json):
+    """
+    Retrieves the additional_subnets list from the admin_network configuration.
+
+    Args:
+        network_spec_json (dict): The JSON object containing the network specifications.
+
+    Returns:
+        list: The additional_subnets list, or an empty list if not configured.
+    """
+    for network in network_spec_json["Networks"]:
+        for key, value in network.items():
+            if key == "admin_network":
+                additional = value.get("additional_subnets", [])
+                return additional if additional else []
+    return []
+
+
 def is_service_tag_present(service_tags_list, input_service_tag):
     """
     Checks if a service tag is present in a given list of service tags.
@@ -291,11 +312,15 @@ def validate_vip_address(
     admin_network,
     pod_external_ip_list,
     admin_netmaskbits,
-    oim_admin_ip
+    oim_admin_ip,
+    pxe_mapping_file_path=None,
+    additional_subnets=None,
+    kcp_subnet_ip=None,
+    kcp_subnet_bits=None
 ):
     """
         Validate a virtual IP address against a list of existing service node VIPs,
-    admin network static and dynamic ranges, and admin subnet.
+    admin network static and dynamic ranges, admin subnet, and PXE mapping file.
 
         Parameters:
         - errors (list): A list to store error messages.
@@ -305,6 +330,10 @@ def validate_vip_address(
         - admin_network (dict): A dictionary containing admin network configuration.
         - admin_netmaskbits (str): The netmask bits value of the admin network.
         - oim_admin_ip (str): The IP address of the OIM admin interface.
+        - pxe_mapping_file_path (str, optional): Path to PXE mapping file for additional validation.
+        - additional_subnets (list, optional): List of additional subnet dicts from network_spec.yml.
+        - kcp_subnet_ip (str, optional): Reference IP of the control plane nodes' subnet.
+        - kcp_subnet_bits (str, optional): Netmask bits of the control plane nodes' subnet.
 
         Returns:
         - None: The function does not return any value, it only appends
@@ -334,8 +363,16 @@ def validate_vip_address(
             )
         )
 
-    # validate virtual_ip_address is in the admin subnet
-    if not validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, vip_address):
+    # validate virtual_ip_address is in the expected subnet
+    # VIP is valid if it is in the primary admin subnet OR the control plane
+    # nodes' subnet (which may be an additional subnet).
+    in_admin_subnet = validation_utils.is_ip_in_subnet(
+        oim_admin_ip, admin_netmaskbits, vip_address)
+    in_kcp_subnet = False
+    if kcp_subnet_ip and kcp_subnet_bits:
+        in_kcp_subnet = validation_utils.is_ip_in_subnet(
+            kcp_subnet_ip, kcp_subnet_bits, vip_address)
+    if not in_admin_subnet and not in_kcp_subnet:
         errors.append(
             create_error_msg(
                 f"{config_type} virtual_ip_address",
@@ -358,6 +395,11 @@ def validate_vip_address(
                     en_us_validation_msg.VIRTUAL_IP_NOT_POD_EXT,
                 )
             )
+
+    # Validate VIP against PXE mapping file (if provided)
+    if pxe_mapping_file_path:
+        # Check VIP doesn't conflict with any HOST_IP in PXE mapping
+        validate_vip_vs_pxe_mapping_host_ips(errors, config_type, vip_address, pxe_mapping_file_path)
 
 def validate_service_k8s_cluster_ha(
     errors,
@@ -401,6 +443,26 @@ def validate_service_k8s_cluster_ha(
         pxe_admin_ips = [item["ADMIN_IP"] for item in pxe_list]
         pxe_bmc_ips   = [item["BMC_IP"]   for item in pxe_list]
 
+    # Determine control plane nodes' subnet for VIP validation
+    additional_subnets = network_spec_data.get("additional_subnets", [])
+    kcp_ips = [item["ADMIN_IP"] for item in pxe_list
+               if item.get("FUNCTIONAL_GROUP_NAME", "").startswith("service_kube_control_plane")]
+    kcp_subnet_ip = None
+    kcp_subnet_bits = None
+    if kcp_ips:
+        ref_ip = kcp_ips[0]
+        if validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, ref_ip):
+            kcp_subnet_ip = oim_admin_ip
+            kcp_subnet_bits = admin_netmaskbits
+        elif additional_subnets:
+            for subnet_entry in additional_subnets:
+                s_addr = subnet_entry.get("subnet", "")
+                s_bits = subnet_entry.get("netmask_bits", "")
+                if s_addr and s_bits and validation_utils.is_ip_in_subnet(s_addr, s_bits, ref_ip):
+                    kcp_subnet_ip = s_addr
+                    kcp_subnet_bits = s_bits
+                    break
+
     with open(os.path.join(input_file_path, "omnia_config.yml"), "r", encoding="utf-8") as omniacfg:
         omnia_config =  yaml.safe_load(omniacfg)
         pod_external_ip_list = [item.get("pod_external_ip_range")
@@ -414,13 +476,28 @@ def validate_service_k8s_cluster_ha(
         vip_address = hdata.get("virtual_ip_address")
         # Find the intersection
         if vip_address:
-            for ip_list in (ha_node_vip_list, pxe_admin_ips, pxe_bmc_ips):
-                if vip_address in ip_list:
-                    errors.append(
-                        create_error_msg(
-                            f"{config_type} virtual_ip_duplicate",
-                            vip_address,
-                            en_us_validation_msg.DUPLICATE_VIRTUAL_IP))
+            if vip_address in ha_node_vip_list:
+                errors.append(
+                    create_error_msg(
+                        f"{config_type} virtual_ip_duplicate",
+                        vip_address,
+                        en_us_validation_msg.DUPLICATE_VIRTUAL_IP))
+            if vip_address in pxe_admin_ips:
+                errors.append(
+                    create_error_msg(
+                        f"{config_type} virtual_ip_duplicate",
+                        vip_address,
+                        f"virtual_ip_address '{vip_address}' conflicts with an ADMIN_IP "
+                        "in pxe_mapping_file.csv. The VIP must not match any node's "
+                        "ADMIN_IP. Please use a different virtual IP address."))
+            if vip_address in pxe_bmc_ips:
+                errors.append(
+                    create_error_msg(
+                        f"{config_type} virtual_ip_duplicate",
+                        vip_address,
+                        f"virtual_ip_address '{vip_address}' conflicts with a BMC_IP "
+                        "in pxe_mapping_file.csv. The VIP must not match any node's "
+                        "BMC_IP. Please use a different virtual IP address."))
             validate_vip_address(
                 errors,
                 config_type,
@@ -428,7 +505,11 @@ def validate_service_k8s_cluster_ha(
                 admin_network,
                 pod_external_ip_list,
                 admin_netmaskbits,
-                oim_admin_ip
+                oim_admin_ip,
+                prov_cfg.get('pxe_mapping_file_path'),
+                additional_subnets,
+                kcp_subnet_ip,
+                kcp_subnet_bits
             )
 
 
@@ -453,7 +534,8 @@ def load_network_spec(input_file_path):
         "admin_uncorrelated_node_start_ip": get_admin_uncorrelated_node_start_ip(
             network_spec_json
         ),
-        "oim_admin_ip": get_primary_oim_admin_ip(network_spec_json)
+        "oim_admin_ip": get_primary_oim_admin_ip(network_spec_json),
+        "additional_subnets": get_additional_subnets(network_spec_json)
     }
     return network_spec_info
 

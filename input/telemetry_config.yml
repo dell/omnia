@@ -27,10 +27,10 @@
 #   SOURCES (Collectors) → BRIDGES (Vector) → SINKS (Storage)
 #
 # SECTIONS:
-#   1. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale)
+#   1. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST)
 #   2. Telemetry Bridges    : Data routers (Vector pipelines)
 #   3. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
-#   4. Source Configurations: Detailed settings per source (PowerScale, LDMS)
+#   4. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
 #
 # ============================================================================
 # STORAGE REQUIREMENTS SUMMARY
@@ -76,7 +76,7 @@
 # Each source can be independently enabled/disabled.
 # Sources produce telemetry data that flows through bridges to sinks.
 #
-# Supported sources: idrac, ldms, dcgm, powerscale
+# Supported sources: idrac, ldms, dcgm, powerscale, ufm, vast, ome
 
 telemetry_sources:
 
@@ -145,6 +145,76 @@ telemetry_sources:
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
+
+  # --------------------------------------------------------------------------
+  # UFM — NVIDIA UFM InfiniBand Fabric Telemetry
+  # --------------------------------------------------------------------------
+  # Collects: IB port state, transmit/receive data, error counters, fabric topology
+  # Requires: NVIDIA UFM appliance with Prometheus exporter enabled (port 9090)
+  # Data path: UFM Prometheus Exporter → vmagent(shared) → victoria_metrics
+  #
+  # NOTE: Omnia does NOT deploy UFM itself. Omnia configures the existing
+  # vmagent to scrape the UFM Prometheus endpoint for IB fabric metrics.
+  ufm:
+    # Enable or disable UFM InfiniBand metrics collection
+    # Default: false
+    metrics_enabled: false
+
+    # Enable or disable UFM syslog logs collection
+    # Default: false
+    logs_enabled: false
+
+    # UFM uses vmagent(shared) for metrics and VLAgent for logs
+    collection_targets:
+      - "victoria_metrics"
+      - "victoria_logs"
+
+  # --------------------------------------------------------------------------
+  # VAST — VAST Data Storage Telemetry
+  # --------------------------------------------------------------------------
+  # Collects: Storage performance metrics from VAST Data clusters via Prometheus API
+  # Requires: VAST Data cluster with Prometheus metrics endpoint enabled
+  # Data path: VAST Prometheus API → vmagent(shared) → victoria_metrics
+  #
+  # NOTE: Omnia does NOT deploy VAST itself. Omnia configures the existing
+  # vmagent to scrape the VAST Prometheus endpoint for storage metrics.
+  vast:
+    # Enable or disable VAST storage metrics collection
+    # Default: false
+    metrics_enabled: false
+
+    # Enable or disable VAST syslog logs collection
+    # Default: false
+    logs_enabled: false
+
+    # VAST uses vmagent(shared) for metrics and VLAgent for logs
+    collection_targets:
+      - "victoria_metrics"
+      - "victoria_logs"
+
+  # --------------------------------------------------------------------------
+  # OME — Dell OpenManage Enterprise Telemetry
+  # --------------------------------------------------------------------------
+  # Collects: Server inventory, health, alerts, and firmware metrics from OME
+  # Requires: Dell OpenManage Enterprise configured to publish to Kafka
+  # Data path: OME → Kafka 'ome.*' topics → Vector-OME → victoria_metrics/victoria_logs
+  #
+  # NOTE: OME does NOT push directly to VictoriaMetrics. OME publishes data to
+  # Kafka topics, and the Vector-OME bridge consumes from Kafka and routes to
+  # Victoria sinks. If OME source is disabled, Vector-OME bridge must also be disabled.
+  ome:
+    # Enable or disable OME metrics collection
+    # Default: true
+    metrics_enabled: true
+
+    # Enable or disable OME logs collection
+    # Default: true
+    logs_enabled: true
+
+    # OME only supports Kafka collection (no direct victoria_metrics/victoria_logs path)
+    # Vector-OME bridge consumes from Kafka and routes to victoria_metrics/victoria_logs
+    collection_targets:
+      - "kafka"
 
 
 # ============================================================================
@@ -288,6 +358,13 @@ telemetry_sinks:
 # Only relevant when the corresponding source is enabled above.
 
 # --------------------------------------------------------------------------
+# iDRAC Telemetry Storage Configuration
+# --------------------------------------------------------------------------
+# Storage configuration for iDRAC telemetry MySQL database
+idrac_telemetry_configurations:
+  mysqldb_storage: "1Gi"  # MySQL database storage for iDRAC telemetry
+
+# --------------------------------------------------------------------------
 # LDMS Configuration
 # --------------------------------------------------------------------------
 ldms_configurations:
@@ -347,5 +424,111 @@ powerscale_configurations:
 
   # Path to the CSM Observability (Karavi Observability) values.yaml file
   # Required when powerscale_configurations.powerscale_telemetry_support: true
-  # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.16.3/charts/karavi-observability/values.yaml
+  # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.17.1/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
+
+# --------------------------------------------------------------------------
+# UFM Telemetry Configuration
+# --------------------------------------------------------------------------
+# UFM telemetry collects InfiniBand fabric metrics from NVIDIA UFM appliances
+# using Prometheus scraping.
+#
+# DATA PIPELINE:
+#   UFM Prometheus Exporter → vmagent(shared) → victoria_metrics
+#
+# NOTE: UFM does NOT use Vector bridges. It uses the shared vmagent instance
+#       for metrics collection.
+ufm_configuration:
+  # UFM appliance IP address or hostname
+  # Required when telemetry_sources.ufm.metrics_enabled is true
+  # Example: "172.20.44.180" or "ufm.example.com"
+  ufm_endpoint: ""
+
+  # UFM Prometheus exporter port
+  # Default: 9001 (UFM default Prometheus port)
+  ufm_metrics_port: 9001
+
+  # Prometheus scrape interval for UFM metrics
+  # Accepted values: Prometheus duration format (e.g., "15s", "30s", "1m")
+  # Default: "30s"
+  scrape_interval: "30s"
+
+  # Prometheus scrape timeout (must be <= scrape_interval)
+  # Accepted values: Prometheus duration format (e.g., "10s", "15s")
+  # Default: "15s"
+  scrape_timeout: "15s"
+
+  # TLS mode for connecting to UFM Prometheus endpoint
+  # Accepted values: "self_signed", "ca_signed"
+  # - self_signed: Skip TLS verification (insecure_skip_verify=true)
+  # - ca_signed: Use CA certificate for TLS verification
+  # Default: "self_signed"
+  tls_mode: "self_signed"
+
+  # Path to CA certificate file for UFM TLS verification
+  # Required when tls_mode is "ca_signed"
+  # Must be a valid PEM-format certificate file
+  # Default: "" (empty — not used when tls_mode is "self_signed")
+  ufm_ca_cert_path: ""
+
+  # Authentication mode for UFM Prometheus endpoint
+  # Accepted values: "basic", "none"
+  # - basic: Use ufm_username/ufm_password from omnia_config_credentials.yml
+  # - none: No authentication (UFM endpoint is open)
+  # Default: "basic"
+  auth_mode: "basic"
+
+# --------------------------------------------------------------------------
+# VAST Telemetry Configuration
+# --------------------------------------------------------------------------
+# VAST telemetry collects storage metrics from VAST Data clusters
+# using Prometheus scraping via the VAST Prometheus metrics API.
+#
+# DATA PIPELINE:
+#   VAST Prometheus API (HTTPS) → vmagent(shared) → victoria_metrics
+#
+# NOTE: VAST does NOT use Vector bridges. It uses the shared vmagent instance
+#       for metrics collection.
+vast_configuration:
+  # VAST cluster IP address or hostname
+  # Required when telemetry_sources.vast.metrics_enabled is true
+  # Example: "172.18.44.171" or "vast.example.com"
+  vast_endpoint: ""
+
+  # VAST Prometheus metrics port
+  # Default: 443 (VAST default HTTPS port)
+  vast_metrics_port: 443
+
+  # Prometheus metrics path for VAST API
+  # Default: "/api/prometheusmetrics/all"
+  metrics_path: "/api/prometheusmetrics/all"
+
+  # Prometheus scrape interval for VAST metrics
+  # Accepted values: Prometheus duration format (e.g., "15s", "30s", "1m")
+  # Default: "30s"
+  scrape_interval: "30s"
+
+  # Prometheus scrape timeout (must be <= scrape_interval)
+  # Accepted values: Prometheus duration format (e.g., "10s", "15s")
+  # Default: "15s"
+  scrape_timeout: "15s"
+
+  # TLS mode for connecting to VAST Prometheus endpoint
+  # Accepted values: "self_signed", "ca_signed"
+  # - self_signed: Skip TLS verification (insecure_skip_verify=true)
+  # - ca_signed: Use CA certificate for TLS verification
+  # Default: "self_signed"
+  tls_mode: "self_signed"
+
+  # Path to CA certificate file for VAST TLS verification
+  # Required when tls_mode is "ca_signed"
+  # Must be a valid PEM-format certificate file
+  # Default: "" (empty — not used when tls_mode is "self_signed")
+  vast_ca_cert_path: ""
+
+  # Authentication mode for VAST Prometheus endpoint
+  # Accepted values: "basic", "none"
+  # - basic: Use vast_username/vast_password from omnia_config_credentials.yml
+  # - none: No authentication (VAST endpoint is open)
+  # Default: "basic"
+  auth_mode: "basic"

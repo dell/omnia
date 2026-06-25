@@ -23,10 +23,10 @@
 # (installer/cert-manager.crds.yaml) -- no separate download needed.
 #
 # cert-manager Helm chart (from Jetstack) is pre-downloaded to Pulp via
-# service_k8s.json tarball entry. The package name and version are read
-# dynamically from service_k8s.json -- not hardcoded.
+# service_k8s (versioned) tarball entry. The package name and version are read
+# dynamically from service_k8s (versioned) -- not hardcoded.
 
-- name: Extract cert-manager package name from service_k8s.json
+- name: Extract cert-manager package name from service_k8s (versioned)
   ansible.builtin.set_fact:
     cert_manager_package: >-
       {{ telemetry_packages['service_k8s']['cluster']
@@ -39,7 +39,7 @@
   ansible.builtin.set_fact:
     cert_manager_chart_tgz: "{{ cert_manager_package }}.tar.gz"
 
-- name: Display cert-manager package read from service_k8s.json
+- name: Display cert-manager package read from service_k8s (versioned)
   ansible.builtin.debug:
     msg: "{{ ps_cert_manager_pkg_msg }}"
     verbosity: 2
@@ -89,13 +89,13 @@
     - name: Check if cert-manager is disabled in values file
       ansible.builtin.set_fact:
         cert_manager_disabled: >-
-          {%- if csm_observability_values_file_path | default('') != '' -%}
-          {%- set values_content = lookup('file', csm_observability_values_file_path, errors='ignore') -%}
-          {%- if values_content is not none and 'cert-manager:' in values_content and 'enabled: false' in values_content -%}
-          true{%- else -%}
-          false{%- endif -%}
-          {%- else -%}
-          false{%- endif -%}
+          {{-
+            (csm_observability_values_file_path | default('') != '') and
+            (lookup('file', csm_observability_values_file_path, errors='ignore') is not none) and
+            ('cert-manager:' in lookup('file', csm_observability_values_file_path, errors='ignore')) and
+            ('enabled: false' in lookup('file', csm_observability_values_file_path, errors='ignore'))
+            | bool
+          -}}
 
     - name: Display cert-manager dependency status
       ansible.builtin.debug:

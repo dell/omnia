@@ -56,6 +56,7 @@ files = {
     "software_config": "software_config.json",
     "storage_config": "storage_config.yml",
     "telemetry_config": "telemetry_config.yml",
+    "telemetry_storage_config": "telemetry_storage_config.yml",
     "high_availability_config": "high_availability_config.yml",
     "build_stream_config": "build_stream_config.yml",
     "gitlab_config": "gitlab_config.yml",
@@ -83,7 +84,7 @@ input_file_inventory = {
     "security": [
         files["security_config"]
     ],
-    "telemetry": [files["telemetry_config"]],
+    "telemetry": [files["telemetry_config"], files["telemetry_storage_config"]],
     "local_repo": [files["local_repo_config"], files["software_config"]],
     "slurm": [
         files["omnia_config"],
@@ -113,6 +114,7 @@ input_file_inventory = {
         files["omnia_config"],
         files["security_config"],
         files["telemetry_config"],
+        files["telemetry_storage_config"],
         files["provision_config"],
         files["software_config"],
         files["storage_config"],
@@ -130,9 +132,9 @@ expected_versions = {
     "intel_benchmarks": "2024.1.0",
     "ucx": "1.19.0",
     "openmpi": "5.0.8",
-    "csi_driver_powerscale": "v2.15.0",
+    "csi_driver_powerscale": "v2.17.0",
     "rocm": "6.3.1",
-    "service_k8s": "1.34.1"
+    "service_k8s": "1.35.1"
 }
 
 # All of the passwords fields

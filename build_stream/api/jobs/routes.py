@@ -354,6 +354,7 @@ async def get_job(
                 error_code=s.error_code,
                 error_summary=s.error_summary,
                 log_file_path=s.log_file_path,
+                result_detail=s.result_detail,
             )
             for s in filtered_stages
         ]

@@ -19,6 +19,7 @@ import re
 import json
 from multiprocessing import Lock
 from jinja2 import Template
+from ansible.module_utils.local_repo.process_parallel import docker_password_cipher
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.parse_and_download import execute_command,write_status_to_file
 from ansible.module_utils.local_repo.user_image_utility import handle_user_image_registry
@@ -40,7 +41,7 @@ import yaml
 file_lock = Lock()
 
 def create_container_remote_with_auth(remote_name, remote_url, package, policy_type,
-                                     tag, logger, docker_username, docker_password):
+                                     tag, logger, docker_username, docker_secret_token):
     """
     Create a container remote with authentication.
 
@@ -61,6 +62,9 @@ def create_container_remote_with_auth(remote_name, remote_url, package, policy_t
         bool: True if the container remote was created or updated successfully, False otherwise.
     """
     try:
+        docker_password = docker_password_cipher.decrypt(
+            docker_secret_token.encode("utf-8")
+        ).decode("utf-8")
         remote_exists = execute_command(pulp_container_commands["show_container_remote"] % remote_name, logger)
         if not remote_exists:
             tags_json = json.dumps([tag])  # --> '["1.25.2-alpine"]'
@@ -263,7 +267,7 @@ def get_repo_url_and_content(package):
 #     raise ValueError(f"Unsupported package prefix for package: {package}")
 
 def process_image(package, status_file_path, version_variables,
-                 user_registries,docker_username, docker_password, logger):
+                 user_registries,docker_username, docker_secret_token, logger):
     """
     Process an image.
     Args:
@@ -331,10 +335,10 @@ def process_image(package, status_file_path, version_variables,
             package_identifier += f":{package['tag']}"
 
             with remote_creation_lock:
-                if package['package'].startswith('docker.io/') and docker_username and docker_password:
+                if package['package'].startswith('docker.io/') and docker_username and docker_secret_token:
                     result = create_container_remote_with_auth(
                         remote_name, base_url, package_content, policy_type,
-                        tag_val, logger, docker_username, docker_password
+                        tag_val, logger, docker_username, docker_secret_token
                     )
                 else:
                     result = create_container_remote(

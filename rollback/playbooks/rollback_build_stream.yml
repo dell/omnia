@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# rollback_build_stream.yml — BuildStream Rollback
+# ============================================================================
+# Per ESpec §4.6.4 Rollback:
+#   PATH A Rollback (upgrade_existing → restore): Restore quadlets, Postgres
+#          migration downgrade (007→005), GitLab config restore + commit revert.
+#   PATH B Rollback (fresh_install → remove): Full cleanup — stop/remove
+#          containers, quadlets, watcher, automation, GitLab uninstall.
+#
+# The rollback path is determined from metadata stored during upgrade at:
+#   {backup_dir}/buildstream_upgrade_metadata.yml
+# (Written by upgrade/roles/upgrade_build_stream/tasks/validate.yml)
+#
+# The rollback_buildstream role handles all phases (0–9) including:
+#   - Pre-flight, manifest read, path determination
+#   - Backup validation (PATH A)
+#   - Alembic downgrade BEFORE quadlet swap (2.2 image required for downgrade code)
+#   - Stop services, restore/remove quadlets, reload systemd
+#   - Start services (PATH A) / full cleanup (PATH B)
+#   - GitLab rollback (revert commits or full uninstall)
+#   - End-to-end validation and status update
+# ============================================================================
+
+- name: Rollback BuildStream upgrade / enablement
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: BuildStream Rollback Banner
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  BuildStream Rollback (started)"
+          - "============================================================"
+
+    - name: Execute BuildStream rollback role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../roles/rollback_buildstream"
+      tags: [buildstream]

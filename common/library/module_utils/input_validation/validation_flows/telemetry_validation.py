@@ -13,7 +13,7 @@
 # limitations under the License.
 # pylint: disable=import-error,no-name-in-module,too-many-arguments,unused-argument
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-lines
-# pylint: disable=too-many-positional-arguments
+# pylint: disable=too-many-positional-arguments,line-too-long
 """
 This module contains functions for validating telemetry configuration.
 """
@@ -252,12 +252,13 @@ def get_config_file_paths(input_dir, data, software_config_file_path):
 
     Returns:
         dict: Dictionary containing resolved file paths:
-              - service_k8s_json_path: Path to service_k8s.json
+              - service_k8s_json_path: Path to service_k8s (versioned)
               - csi_driver_powerscale_json_path: Path to csi_driver_powerscale.json
     """
     # Try reading cluster_os_type/version from data first, then from software_config.json
     cluster_os_type = data.get("cluster_os_type", "rhel")
     cluster_os_version = data.get("cluster_os_version", "10.0")
+    service_k8s_version = None
 
     if os.path.exists(software_config_file_path):
         try:
@@ -265,11 +266,23 @@ def get_config_file_paths(input_dir, data, software_config_file_path):
                 sc_data = json.load(scf)
                 cluster_os_type = sc_data.get("cluster_os_type", cluster_os_type)
                 cluster_os_version = sc_data.get("cluster_os_version", cluster_os_version)
+                # Extract service_k8s version from software_config.json
+                for sw in sc_data.get("softwares", []):
+                    if sw.get("name") == "service_k8s" and sw.get("version"):
+                        service_k8s_version = sw["version"]
+                        break
         except (json.JSONDecodeError, IOError):
             pass
 
     config_base_path = os.path.join(input_dir, "config", "x86_64", cluster_os_type, cluster_os_version)
-    service_k8s_json_path = os.path.join(config_base_path, "service_k8s.json")
+
+    # Use versioned service_k8s file if version is available
+    # Return None paths if service_k8s is not configured (e.g., slurm-only clusters)
+    service_k8s_json_path = None
+    if service_k8s_version:
+        service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
+        service_k8s_json_path = os.path.join(config_base_path, service_k8s_json)
+
     csi_driver_powerscale_json_path = os.path.join(config_base_path, "csi_driver_powerscale.json")
 
     return {
@@ -283,12 +296,12 @@ def validate_telemetry_config(
 ):
     """
     Validates the telemetry configuration from telemetry_config.yml.
-    
+
     This function validates the new three-layer telemetry configuration structure:
-    - telemetry_sources (idrac, ldms, dcgm, powerscale)
+    - telemetry_sources (idrac, ldms, dcgm, powerscale, ufm, vast)
     - telemetry_bridges (vector_ldms, vector_ome)
     - telemetry_sinks (victoria_metrics, victoria_logs, kafka)
-    
+
     Args:
         input_file_path: Path to telemetry_config.yml
         data: Parsed YAML data from telemetry_config.yml
@@ -297,7 +310,7 @@ def validate_telemetry_config(
         omnia_base_dir: Base directory of Omnia installation
         module_utils_base: Base directory of module_utils
         project_name: Name of the project
-    
+
     Returns:
         List of error messages (empty if validation passes)
     """
@@ -315,6 +328,10 @@ def validate_telemetry_config(
     idrac_source = telemetry_sources.get("idrac", {})
     ldms_source = telemetry_sources.get("ldms", {})
     powerscale_source = telemetry_sources.get("powerscale", {})
+    ufm_source = telemetry_sources.get("ufm", {})
+    vast_source = telemetry_sources.get("vast", {})
+
+    ome_source = telemetry_sources.get("ome", {})
 
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
@@ -326,7 +343,7 @@ def validate_telemetry_config(
     # Sink configurations
     kafka_sink = telemetry_sinks.get("kafka", {})
     topic_partitions = kafka_sink.get("topic_partitions", {})
-    
+
     dcgm_source = telemetry_sources.get("dcgm", {})
 
     # =========================================================================
@@ -342,7 +359,7 @@ def validate_telemetry_config(
             list(invalid_idrac_targets),
             f"Invalid collection targets for iDRAC. Only 'kafka' and 'victoria_metrics' are supported. Found: {invalid_idrac_targets}"
         ))
-    
+
     # LDMS: only supports kafka
     ldms_targets = set(ldms_source.get("collection_targets", []))
     if ldms_targets and ldms_targets != {"kafka"}:
@@ -351,7 +368,7 @@ def validate_telemetry_config(
             list(ldms_targets),
             "LDMS only supports 'kafka' as collection target. Use Vector-LDMS bridge to route to victoria_metrics."
         ))
-    
+
     # DCGM: should NOT have collection_targets
     if "collection_targets" in dcgm_source:
         errors.append(create_error_msg(
@@ -359,7 +376,7 @@ def validate_telemetry_config(
             dcgm_source.get("collection_targets"),
             "DCGM does not support collection_targets. DCGM metrics are collected via LDMS samplers and routed through LDMS flow."
         ))
-    
+
     # PowerScale: supports victoria_metrics and victoria_logs
     powerscale_targets = set(powerscale_source.get("collection_targets", []))
     allowed_powerscale_targets = {"victoria_metrics", "victoria_logs"}
@@ -369,6 +386,27 @@ def validate_telemetry_config(
             "telemetry_sources.powerscale.collection_targets",
             list(invalid_powerscale_targets),
             f"Invalid collection targets for PowerScale. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_powerscale_targets}"
+        ))
+
+    # UFM: supports victoria_metrics and victoria_logs
+    ufm_targets = set(ufm_source.get("collection_targets", []))
+    allowed_ufm_targets = {"victoria_metrics", "victoria_logs"}
+    invalid_ufm_targets = ufm_targets - allowed_ufm_targets
+    if invalid_ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(invalid_ufm_targets),
+            f"Invalid collection targets for UFM. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_ufm_targets}"
+        ))
+
+    # OME: only supports kafka (OME does NOT push directly to VictoriaMetrics)
+    ome_targets = set(ome_source.get("collection_targets", []))
+    if ome_targets and ome_targets != {"kafka"}:
+        errors.append(create_error_msg(
+            "telemetry_sources.ome.collection_targets",
+            list(ome_targets),
+            "OME only supports 'kafka' as collection target. OME publishes to Kafka; "
+            "Vector-OME bridge routes to victoria_metrics/victoria_logs."
         ))
 
     # =========================================================================
@@ -562,7 +600,7 @@ def validate_telemetry_config(
     vector_ome_metrics_enabled = vector_ome.get("metrics_enabled", False)
     vector_ome_logs_enabled = vector_ome.get("logs_enabled", False)
     ldms_source_enabled = ldms_source.get("metrics_enabled", False)
-    
+
     # Validation 1: Vector-LDMS requires LDMS source to be enabled
     if vector_ldms_enabled and not ldms_source_enabled:
         errors.append(create_error_msg(
@@ -581,24 +619,16 @@ def validate_telemetry_config(
             f"vector_ldms.metrics_enabled={vector_ldms_enabled}, "
             f"ldms_source.metrics_enabled={ldms_source_enabled}"
         )
-    
-    # Validation 2: If LDMS source is enabled, Vector-LDMS bridge must also be enabled
-    # (LDMS only supports Kafka collection, requires Vector bridge to reach VictoriaMetrics)
-    if ldms_source_enabled and not vector_ldms_enabled:
-        errors.append(create_error_msg(
-            "telemetry_sources.ldms.metrics_enabled",
-            "true",
-            "LDMS source is enabled but Vector-LDMS bridge is disabled. "
-            "LDMS metrics can only reach VictoriaMetrics via the Vector-LDMS bridge. "
-            "If you want to check LDMS Metrics on VicotriaMetircs then:"
-            "Set telemetry_bridges.vector_ldms.metrics_enabled to true in telemetry_config.yml"
-        ))
-        logger.error(
-            "LDMS source enabled without Vector-LDMS bridge: "
+
+    elif ldms_source_enabled and not vector_ldms_enabled:
+        logger.info(
+            "LDMS source is enabled without Vector-LDMS bridge: "
             f"ldms_source.metrics_enabled={ldms_source_enabled}, "
-            f"vector_ldms.metrics_enabled={vector_ldms_enabled}"
+            f"vector_ldms.metrics_enabled={vector_ldms_enabled}. "
+            "LDMS metrics will flow to Kafka only. "
+            "To also route metrics to VictoriaMetrics, set telemetry_bridges.vector_ldms.metrics_enabled to true."
         )
-    
+
     # # Validation 3: Verify Kafka collection target for LDMS
     # ldms_collection_targets = ldms_source.get("collection_targets", [])
     # if ldms_source_enabled and 'kafka' not in ldms_collection_targets:
@@ -611,15 +641,56 @@ def validate_telemetry_config(
     #     logger.error(
     #         f"LDMS collection_targets missing 'kafka': {ldms_collection_targets}"
     #     )
-    
-    # Validation 3: Log Vector-OME bridge status
+
+    # =========================================================================
+    # OME source ↔ Vector-OME bridge independent validation
+    # =========================================================================
+    # Metrics and logs channels are validated independently:
+    #   - vector_ome.metrics_enabled requires ome.metrics_enabled
+    #   - vector_ome.logs_enabled requires ome.logs_enabled
+    ome_metrics_enabled = ome_source.get("metrics_enabled", False)
+    ome_logs_enabled = ome_source.get("logs_enabled", False)
+
+    # Validation: Vector-OME metrics bridge requires OME metrics source
+    if vector_ome_metrics_enabled and not ome_metrics_enabled:
+        errors.append(create_error_msg(
+            "telemetry_bridges.vector_ome.metrics_enabled",
+            "true",
+            "Vector-OME metrics bridge is enabled but telemetry_sources.ome.metrics_enabled is false. "
+            "Either enable telemetry_sources.ome.metrics_enabled or disable "
+            "telemetry_bridges.vector_ome.metrics_enabled."
+        ))
+        logger.error(
+            "OME-VectorOME metrics dependency validation FAILED: "
+            f"ome.metrics_enabled={ome_metrics_enabled}, "
+            f"vector_ome.metrics_enabled={vector_ome_metrics_enabled}"
+        )
+
+    # Validation: Vector-OME logs bridge requires OME logs source
+    if vector_ome_logs_enabled and not ome_logs_enabled:
+        errors.append(create_error_msg(
+            "telemetry_bridges.vector_ome.logs_enabled",
+            "true",
+            "Vector-OME logs bridge is enabled but telemetry_sources.ome.logs_enabled is false. "
+            "Either enable telemetry_sources.ome.logs_enabled or disable "
+            "telemetry_bridges.vector_ome.logs_enabled."
+        ))
+        logger.error(
+            "OME-VectorOME logs dependency validation FAILED: "
+            f"ome.logs_enabled={ome_logs_enabled}, "
+            f"vector_ome.logs_enabled={vector_ome_logs_enabled}"
+        )
+
+    # Log Vector-OME bridge status
     if vector_ome_metrics_enabled or vector_ome_logs_enabled:
         logger.info(
-            "Vector-OME bridge validation: "
+            "Vector-OME bridge validation PASSED: "
             f"metrics_enabled={vector_ome_metrics_enabled}, "
-            f"logs_enabled={vector_ome_logs_enabled}"
+            f"logs_enabled={vector_ome_logs_enabled}, "
+            f"ome_source.metrics_enabled={ome_metrics_enabled}, "
+            f"ome_source.logs_enabled={ome_logs_enabled}"
         )
-    
+
     # =========================================================================
     # Validate additional_metric_remote_write_endpoints (victoria_metrics)
     # =========================================================================
@@ -754,7 +825,7 @@ def validate_telemetry_config(
     powerscale_enabled = powerscale_source.get("metrics_enabled", False)
     powerscale_logs_enabled = powerscale_source.get("logs_enabled", False)
     powerscale_configs = data.get("powerscale_configurations", {})
-    
+
     # Build data dict with powerscale flags merged for validation
     powerscale_validation_data = dict(data)
     powerscale_validation_data["powerscale_configurations"] = {
@@ -762,7 +833,7 @@ def validate_telemetry_config(
         "powerscale_log_enabled": powerscale_logs_enabled,
         **powerscale_configs
     }
-    
+
     powerscale_collection_targets = powerscale_source.get("collection_targets", [])
 
     config_paths = get_config_file_paths(input_dir, powerscale_validation_data, software_config_file_path)
@@ -770,5 +841,292 @@ def validate_telemetry_config(
         powerscale_validation_data, powerscale_collection_targets, software_config_file_path,
         is_service_cluster_defined, config_paths, logger, errors
     )
+
+    # =========================================================================
+    # Validate UFM telemetry configuration
+    # =========================================================================
+    ufm_metrics_enabled = ufm_source.get("metrics_enabled", False)
+    ufm_logs_enabled = ufm_source.get("logs_enabled", False)
+    ufm_detailed_config = data.get("ufm_configuration", {})
+
+    if ufm_metrics_enabled or ufm_logs_enabled:
+        # Check required UFM endpoint
+        ufm_endpoint = ufm_detailed_config.get("ufm_endpoint", "")
+        if not ufm_endpoint or (isinstance(ufm_endpoint, str) and ufm_endpoint.strip() == ""):
+            errors.append(create_error_msg(
+                "ufm_configuration.ufm_endpoint",
+                ufm_endpoint,
+                "ufm_endpoint is required when UFM telemetry is enabled. Provide the UFM appliance IP address or hostname."
+            ))
+
+        # Validate UFM metrics port if metrics enabled
+        if ufm_metrics_enabled:
+            ufm_metrics_port = ufm_detailed_config.get("ufm_metrics_port", 9001)
+            if not isinstance(ufm_metrics_port, int) or ufm_metrics_port < 1 or ufm_metrics_port > 65535:
+                errors.append(create_error_msg(
+                    "ufm_configuration.ufm_metrics_port",
+                    ufm_metrics_port,
+                    "ufm_metrics_port must be an integer between 1 and 65535."
+                ))
+
+        # Validate TLS mode
+        tls_mode = ufm_detailed_config.get("tls_mode", "self_signed")
+        if tls_mode not in ["self_signed", "ca_signed"]:
+            errors.append(create_error_msg(
+                "ufm_configuration.tls_mode",
+                tls_mode,
+                "tls_mode must be 'self_signed' or 'ca_signed'."
+            ))
+
+        # Validate CA certificate path when tls_mode is ca_signed
+        if tls_mode == "ca_signed":
+            ca_cert_path = ufm_detailed_config.get("ufm_ca_cert_path", "")
+            if not ca_cert_path or (isinstance(ca_cert_path, str) and ca_cert_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "ufm_configuration.ufm_ca_cert_path",
+                    ca_cert_path,
+                    "ufm_ca_cert_path is required when tls_mode is 'ca_signed'. Provide path to CA certificate file."
+                ))
+
+        # Validate auth mode
+        auth_mode = ufm_detailed_config.get("auth_mode", "basic")
+        if auth_mode not in ["basic", "none"]:
+            errors.append(create_error_msg(
+                "ufm_configuration.auth_mode",
+                auth_mode,
+                "auth_mode must be 'basic' or 'none'."
+            ))
+
+    # =========================================================================
+    # Validate VAST telemetry configuration
+    # =========================================================================
+    vast_metrics_enabled = vast_source.get("metrics_enabled", False)
+    vast_logs_enabled = vast_source.get("logs_enabled", False)
+    vast_detailed_config = data.get("vast_configuration", {})
+    
+    if vast_metrics_enabled or vast_logs_enabled:
+        # Check required VAST endpoint
+        vast_endpoint = vast_detailed_config.get("vast_endpoint", "")
+        if not vast_endpoint or (isinstance(vast_endpoint, str) and vast_endpoint.strip() == ""):
+            errors.append(create_error_msg(
+                "vast_configuration.vast_endpoint",
+                vast_endpoint,
+                "vast_endpoint is required when VAST telemetry is enabled. Provide the VAST cluster IP address or hostname."
+            ))
+        
+        # Validate VAST metrics port if metrics enabled
+        if vast_metrics_enabled:
+            vast_metrics_port = vast_detailed_config.get("vast_metrics_port", 443)
+            if not isinstance(vast_metrics_port, int) or vast_metrics_port < 1 or vast_metrics_port > 65535:
+                errors.append(create_error_msg(
+                    "vast_configuration.vast_metrics_port",
+                    vast_metrics_port,
+                    "vast_metrics_port must be an integer between 1 and 65535."
+                ))
+        
+        # Validate TLS mode
+        tls_mode = vast_detailed_config.get("tls_mode", "self_signed")
+        if tls_mode not in ["self_signed", "ca_signed"]:
+            errors.append(create_error_msg(
+                "vast_configuration.tls_mode",
+                tls_mode,
+                "tls_mode must be 'self_signed' or 'ca_signed'."
+            ))
+        
+        # Validate CA certificate path when tls_mode is ca_signed
+        if tls_mode == "ca_signed":
+            ca_cert_path = vast_detailed_config.get("vast_ca_cert_path", "")
+            if not ca_cert_path or (isinstance(ca_cert_path, str) and ca_cert_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "vast_configuration.vast_ca_cert_path",
+                    ca_cert_path,
+                    "vast_ca_cert_path is required when tls_mode is 'ca_signed'. Provide path to CA certificate file."
+                ))
+        
+        # Validate auth mode
+        auth_mode = vast_detailed_config.get("auth_mode", "basic")
+        if auth_mode not in ["basic", "none"]:
+            errors.append(create_error_msg(
+                "vast_configuration.auth_mode",
+                auth_mode,
+                "auth_mode must be 'basic' or 'none'."
+            ))
+
+    return errors
+
+
+def validate_telemetry_storage_config(
+    input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+):
+    """
+    Validates the telemetry storage configuration from telemetry_storage_config.yml.
+
+    This function performs L2 logic validation by checking if required storage sections
+    exist based on what's enabled in telemetry_config.yml.
+
+    Args:
+        input_file_path: Path to telemetry_storage_config.yml
+        data: Parsed YAML data from telemetry_storage_config.yml
+        logger: Logger instance
+        module: Ansible module instance
+        omnia_base_dir: Base directory of Omnia installation
+        module_utils_base: Base directory of module_utils
+        project_name: Name of the project
+
+    Returns:
+        List of error messages (empty if validation passes)
+    """
+    errors = []
+
+    # Load telemetry_config.yml to determine what storage sections are required
+    input_dir = os.path.dirname(input_file_path)
+    telemetry_config_path = os.path.join(input_dir, "telemetry_config.yml")
+
+    if not os.path.exists(telemetry_config_path):
+        logger.info("telemetry_config.yml not found, skipping cross-file validation")
+        return errors
+
+    try:
+        with open(telemetry_config_path, 'r', encoding='utf-8') as f:
+            telemetry_config = yaml.safe_load(f)
+    except (yaml.YAMLError, IOError) as e:
+        errors.append(create_error_msg(
+            "telemetry_config.yml",
+            "error reading file",
+            f"Error reading telemetry_config.yml for cross-validation: {str(e)}"
+        ))
+        return errors
+
+    if not telemetry_config:
+        logger.info("telemetry_config.yml is empty, skipping cross-file validation")
+        return errors
+
+    # Extract sections from telemetry_config.yml
+    telemetry_sources = telemetry_config.get("telemetry_sources", {})
+    telemetry_bridges = telemetry_config.get("telemetry_bridges", {})
+    powerscale_source = telemetry_sources.get("powerscale", {})
+
+    # Determine which storage sections are required
+    kafka_required = False
+    victoria_metrics_required = False
+    victoria_logs_required = False
+    vector_required = False
+    powerscale_metrics_required = False
+
+    # Check collection targets for all sources
+    for source_name, source_config in telemetry_sources.items():
+        collection_targets = source_config.get("collection_targets", [])
+        metrics_enabled = source_config.get("metrics_enabled", False)
+        logs_enabled = source_config.get("logs_enabled", False)
+
+        if metrics_enabled or logs_enabled:
+            if "kafka" in collection_targets:
+                kafka_required = True
+                logger.info(f"Kafka required for {source_name} (metrics={metrics_enabled}, logs={logs_enabled})")
+
+            if "victoria_metrics" in collection_targets:
+                victoria_metrics_required = True
+                logger.info(f"VictoriaMetrics required for {source_name} (metrics={metrics_enabled})")
+
+            if "victoria_logs" in collection_targets:
+                victoria_logs_required = True
+                logger.info(f"VictoriaLogs required for {source_name} (logs={logs_enabled})")
+
+    # Check Vector bridges
+    vector_ldms_enabled = telemetry_bridges.get("vector_ldms", {}).get("metrics_enabled", False)
+    vector_ome_metrics_enabled = telemetry_bridges.get("vector_ome", {}).get("metrics_enabled", False)
+    vector_ome_logs_enabled = telemetry_bridges.get("vector_ome", {}).get("logs_enabled", False)
+    if vector_ldms_enabled or vector_ome_metrics_enabled or vector_ome_logs_enabled:
+        vector_required = True
+        logger.info(f"Vector required (vector_ldms={vector_ldms_enabled}, vector_ome_metrics={vector_ome_metrics_enabled}, vector_ome_logs={vector_ome_logs_enabled})")
+
+    # Check PowerScale metrics
+    powerscale_metrics_enabled = powerscale_source.get("metrics_enabled", False)
+    if powerscale_metrics_enabled:
+        powerscale_metrics_required = True
+        logger.info("PowerScale metrics required")
+
+    # Validate required sections exist in telemetry_storage_config.yml (data parameter)
+    storage_config = data
+
+    if not storage_config:
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml",
+            "empty or invalid",
+            "telemetry_storage_config.yml is empty or invalid"
+        ))
+        return errors
+
+    # Validate kafka_storage
+    if kafka_required and not storage_config.get("kafka_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.kafka_storage",
+            "not defined",
+            en_us_validation_msg.KAFKA_STORAGE_REQUIRED_MSG
+        ))
+    elif kafka_required:
+        logger.info("kafka_storage validation passed")
+
+    # Validate victoria_cluster_storage
+    if victoria_metrics_required and not storage_config.get("victoria_cluster_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.victoria_cluster_storage",
+            "not defined",
+            en_us_validation_msg.VICTORIA_METRICS_STORAGE_REQUIRED_MSG
+        ))
+    elif victoria_metrics_required:
+        logger.info("victoria_cluster_storage validation passed")
+
+    # Validate victoria_logs_cluster_storage
+    if victoria_logs_required and not storage_config.get("victoria_logs_cluster_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.victoria_logs_cluster_storage",
+            "not defined",
+            en_us_validation_msg.VICTORIA_LOGS_STORAGE_REQUIRED_MSG
+        ))
+    elif victoria_logs_required:
+        logger.info("victoria_logs_cluster_storage validation passed")
+
+    # Validate vector_storage
+    if vector_required and not storage_config.get("vector_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.vector_storage",
+            "not defined",
+            en_us_validation_msg.VECTOR_STORAGE_REQUIRED_MSG
+        ))
+    elif vector_required:
+        logger.info("vector_storage validation passed")
+
+    # Validate csm_metrics_powerscale_storage
+    if powerscale_metrics_required and not storage_config.get("csm_metrics_powerscale_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.csm_metrics_powerscale_storage",
+            "not defined",
+            en_us_validation_msg.CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG
+        ))
+    elif powerscale_metrics_required:
+        logger.info("csm_metrics_powerscale_storage validation passed")
+
+    # csi_volume_exporter_storage is always required (always deployed)
+    if not storage_config.get("csi_volume_exporter_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.csi_volume_exporter_storage",
+            "not defined",
+            en_us_validation_msg.CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG
+        ))
+    else:
+        logger.info("csi_volume_exporter_storage validation passed")
+
+    # Validate idrac_telemetry_storage when iDRAC metrics are enabled
+    idrac_source = telemetry_sources.get("idrac", {})
+    idrac_metrics_enabled = idrac_source.get("metrics_enabled", False)
+    if idrac_metrics_enabled and not storage_config.get("idrac_telemetry_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.idrac_telemetry_storage",
+            "not defined",
+            en_us_validation_msg.IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG
+        ))
+    elif idrac_metrics_enabled:
+        logger.info("idrac_telemetry_storage validation passed")
 
     return errors

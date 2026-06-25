@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Update BSS boot parameters for a functional group
+# ============================================================================
+# Uses the ochami CLI to delete existing boot params and set new ones
+# from the provided BSS YAML file.
+#
+# Required variables:
+#   bss_file_path          — Path to pre-rendered BSS YAML file (on target host)
+#   functional_group_name  — Name of the functional group
+#
+# The BSS YAML file should contain kernel, initrd, params, and macs fields.
+# See provision/roles/configure_ochami/templates/bss/bss.yaml.j2 for format.
+# ============================================================================
+
+- name: Verify BSS file exists - {{ functional_group_name }}
+  ansible.builtin.stat:
+    path: "{{ bss_file_path }}"
+  register: bss_file_stat
+
+- name: Fail if BSS file not found - {{ functional_group_name }}
+  ansible.builtin.fail:
+    msg: "{{ bss_file_missing_msg }}"
+  when: not bss_file_stat.stat.exists
+
+- name: Delete existing BSS boot params - {{ functional_group_name }}
+  ansible.builtin.command: >
+    /usr/bin/ochami bss boot params delete --no-confirm -f yaml -d @{{ bss_file_path }}
+  changed_when: true
+  failed_when: false
+
+- name: Set BSS boot params - {{ functional_group_name }}
+  ansible.builtin.command: >
+    /usr/bin/ochami bss boot params set -f yaml -d @{{ bss_file_path }}
+  changed_when: true
+  register: bss_set_result
+
+- name: Fail if BSS update failed - {{ functional_group_name }}
+  ansible.builtin.fail:
+    msg: "{{ bss_update_fail_msg }}"
+  when: bss_set_result.rc != 0
+
+- name: Verify BSS boot params updated - {{ functional_group_name }}
+  ansible.builtin.command: ochami bss boot params get -F yaml
+  changed_when: false
+  register: bss_verify_output
+
+- name: Display BSS verification - {{ functional_group_name }}
+  ansible.builtin.debug:
+    msg: "{{ bss_verify_output.stdout_lines }}"
+    verbosity: 1

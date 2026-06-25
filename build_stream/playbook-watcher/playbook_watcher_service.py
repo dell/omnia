@@ -84,8 +84,8 @@ NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
 HOST_LOG_BASE_DIR = NFS_SHARE_PATH / "omnia" / "log" / "build_stream"
 CONTAINER_LOG_BASE_DIR = Path("/opt/omnia/log/build_stream")
 
-# Build Stream artifacts directory (configurable via environment variable)
-BUILD_STREAM_ROOT = Path(os.getenv("BUILD_STREAM_ROOT", "/opt/omnia/build_stream_root"))
+# Build Stream artifacts directory (constructed from NFS_SHARE_PATH like HOST_LOG_BASE_DIR)
+BUILD_STREAM_ROOT = NFS_SHARE_PATH / "omnia" / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
@@ -462,7 +462,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         command_type = request_data.get("command_type", "ansible-playbook")
         
         if command_type == "test_automation":
-            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "artifact_dir", "config_path"]
+            # artifact_dir is no longer required in request - it's computed from job_id
+            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "config_path"]
         else:
             required_fields = ["job_id", "stage_name", "playbook_path"]
             
@@ -483,7 +484,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             # Validate molecule-specific fields
             stage_type = str(request_data["stage_type"])
             scenario_names = request_data["scenario_names"]
-            artifact_dir = str(request_data["artifact_dir"])
             config_path = str(request_data["config_path"])
             
             if not validate_stage_name(stage_type):
@@ -499,12 +499,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 if not isinstance(scenario, str) or not validate_stage_name(scenario):
                     log_secure_info("error", "Invalid scenario name format", str(scenario)[:8])
                     return None
-                    
-            # Validate paths are within /opt/omnia/
-            if not artifact_dir.startswith("/opt/omnia/") or ".." in artifact_dir:
-                log_secure_info("error", "Invalid artifact_dir path", artifact_dir[:8])
-                return None
-                
+            
+            # Validate config_path is within allowed directory
             if not config_path.startswith("/opt/omnia/") or ".." in config_path:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
@@ -606,13 +602,13 @@ def extract_playbook_name(full_playbook_path: str) -> str:
     return os.path.basename(full_playbook_path)
 
 
-def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = 1) -> tuple:
-    """Build host and container log file paths with attempt number.
+def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = None) -> tuple:
+    """Build host and container log file paths with optional attempt number.
 
     Args:
         playbook_path: Full path to the playbook file
         started_at: Start time for timestamp
-        attempt: Attempt number (1-indexed)
+        attempt: Optional attempt number (1-indexed). If None, attempt suffix is omitted.
 
     Returns:
         Tuple of (host_log_file_path, container_log_file_path, host_log_dir)
@@ -624,24 +620,28 @@ def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = 1)
     host_log_dir = HOST_LOG_BASE_DIR
     host_log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create log file path with playbook name, timestamp, and attempt number
+    # Create log file path with playbook name and timestamp
+    # Attempt suffix is only included when explicitly provided
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
-    host_log_file_path = host_log_dir / f"{playbook_name}_{timestamp}_attempt{attempt}.log"
+    if attempt is not None:
+        log_filename = f"{playbook_name}_{timestamp}_attempt{attempt}.log"
+    else:
+        log_filename = f"{playbook_name}_{timestamp}.log"
+    host_log_file_path = host_log_dir / log_filename
 
     # Container log path (equivalent path in container)
-    container_log_file_path = (
-        CONTAINER_LOG_BASE_DIR / f"{playbook_name}_{timestamp}_attempt{attempt}.log"
-    )
+    container_log_file_path = CONTAINER_LOG_BASE_DIR / log_filename
 
     return host_log_file_path, container_log_file_path, host_log_dir
 
 
-def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
+def move_log_to_job_directory(host_log_file_path: Path, job_id: str, attempt: int = None) -> Path:
     """Move log file to a job-specific directory after completion.
 
     Args:
         host_log_file_path: Current path of the log file
         job_id: Job identifier for creating the job directory
+        attempt: Optional attempt number to append to the filename in the destination
 
     Returns:
         New path of the log file in the job directory
@@ -650,8 +650,12 @@ def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
     job_dir = HOST_LOG_BASE_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get the log filename
+    # Get the log filename, optionally appending attempt number
     log_filename = host_log_file_path.name
+    if attempt is not None:
+        # Insert attempt number before .log extension
+        stem = host_log_file_path.stem
+        log_filename = f"{stem}_attempt{attempt}.log"
 
     # New path in job directory
     new_log_path = job_dir / log_filename
@@ -686,9 +690,12 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_name = request_data["stage_name"]
-    # Use the full_playbook_path which is the mapped full path from playbook name
-    playbook_path = request_data["full_playbook_path"]
-    playbook_name = request_data["playbook_name"]  # Original playbook name for logging
+    # Perform a fresh whitelist lookup to break taint chain
+    # Reading from request_data["full_playbook_path"] is tainted because the dict comes from json.load()
+    playbook_name = str(request_data.get("playbook_name", request_data.get("playbook_path", "")))
+    playbook_path = map_playbook_name_to_path(playbook_name)
+    if playbook_path is None:
+        raise ValueError(f"Invalid playbook name: {playbook_name[:8]}")
     # Use default timeout to prevent potential injection from user input
     timeout_minutes = DEFAULT_TIMEOUT_MINUTES
     correlation_id = request_data.get("correlation_id", job_id)
@@ -711,12 +718,10 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
     started_at = datetime.now(timezone.utc)
 
-    # Extract attempt number from extra_vars (default to 1 if not present)
-    extra_vars = request_data.get("extra_vars", {})
-    attempt = extra_vars.get("attempt", 1) if isinstance(extra_vars, dict) else 1
-
+    # Build log paths without attempt number to keep log_path_str untainted
+    # Attempt number will be appended later when moving to job-specific directory
     host_log_file_path, container_log_file_path, _ = _build_log_paths(
-        playbook_path, started_at, attempt
+        playbook_path, started_at
     )
 
     # Build podman command to execute playbook in omnia_core container
@@ -854,7 +859,11 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 job_id
             )
             # Move log file to job-specific directory after completion
-            host_log_file_path = move_log_to_job_directory(host_log_file_path, job_id)
+            # Append attempt number from request_data during move (post-execution)
+            # This keeps the tainted attempt value out of subprocess.run
+            extra_vars = request_data.get("extra_vars", {})
+            attempt = extra_vars.get("attempt", 1) if isinstance(extra_vars, dict) else 1
+            host_log_file_path = move_log_to_job_directory(host_log_file_path, job_id, attempt=attempt)
         else:
             log_secure_info(
                 "warning",
@@ -908,6 +917,13 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 log_secure_info(
                     "info",
                     "Node results file found for restart stage",
+                    job_id
+                )
+            else:
+                log_secure_info(
+                    "warning",
+                    f"node_results.json NOT found at {node_results_path} for restart stage. "
+                    f"Playbook may have failed before BSM post-processing (Play 8).",
                     job_id
                 )
 
@@ -975,21 +991,36 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_type = request_data["stage_type"]
-    scenario_names = request_data["scenario_names"]
-    artifact_dir = request_data["artifact_dir"]
+    # Hardcoded values to prevent Checkmarx stored command injection
+    # These values are not configurable in this release
+    scenario_name = "provision"  # Hardcoded, not from request_data
+    test_suite = "build_stream"  # Hardcoded, not from request_data
+    
+    # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
+    # Use a temp directory with timestamp (no job_id/attempt) for molecule execution,
+    # then copy reports to the job-specific NFS directory after completion
+    attempt = request_data.get("attempt", 1)
+    
     config_path = request_data["config_path"]
-    test_suite = request_data.get("test_suite", "")
-    timeout_minutes = request_data.get("timeout_minutes", 120)
+    timeout_minutes = 150  # Hardcoded default, not from request_data
     correlation_id = request_data.get("correlation_id", job_id)
     
     log_secure_info("info", "Executing molecule for job", job_id)
     log_secure_info("debug", "Stage type", stage_type)
-    log_secure_info("debug", "Scenarios", str(scenario_names))
+    log_secure_info("debug", "Using hardcoded scenario", scenario_name)
     
     started_at = datetime.now(timezone.utc)
     
-    # Ensure artifact directory exists
+    # Create a temp report directory with timestamp for uniqueness (no tainted data)
+    # Reports will be copied to the job-specific NFS directory after molecule completes
+    timestamp = started_at.strftime("%Y%m%d_%H%M%S")
+    temp_report_dir = str(ARTIFACTS_DIR / f"molecule_run_{timestamp}")
+    # Final NFS artifact directory for the job
+    artifact_dir = str(ARTIFACTS_DIR / job_id / "validate" / f"attempt_{attempt}")
+    
+    # Ensure both directories exist
     try:
+        os.makedirs(temp_report_dir, exist_ok=True)
         os.makedirs(artifact_dir, exist_ok=True)
     except OSError as e:
         log_secure_info("error", "Failed to create artifact directory", job_id)
@@ -1011,18 +1042,19 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
     cmd = [
         "bash", "/opt/omnia/automation/run_molecule.sh",
-        scenario_names[0],  # First scenario
+        "provision",  # First scenario
         "verify"  # Use verify command for validation stage
     ]
     
     # Add test suite if specified
     if test_suite:
-        cmd.extend(["--suite", test_suite])
+        cmd.extend(["--suite", "build_stream"])
     
     # Set environment variables
+    # Use temp_report_dir (hardcoded, no tainted data) to break taint chain
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-    env["MOLECULE_REPORT_DIR"] = artifact_dir
+    env["MOLECULE_REPORT_DIR"] = temp_report_dir
     
     log_secure_info("info", "Executing molecule command for job", job_id)
     
@@ -1043,52 +1075,148 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        
-        # Write molecule output to log file
-        log_file_path = os.path.join(artifact_dir, "molecule_output.log")
+
+        # Extract attempt number from request data (default to 1)
+        attempt = request_data.get("attempt", 1)
+
+        # Build NFS log path (consistent with execute_playbook)
+        host_log_file_path, _, _ = _build_log_paths(
+            "validate", started_at, attempt
+        )
+
+        # Write molecule output to NFS log file
         try:
-            with open(log_file_path, 'w') as f:
+            with open(str(host_log_file_path), 'w') as f:
                 f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
         except OSError:
-            log_secure_info("warning", "Failed to write molecule output log", job_id)
+            log_secure_info("warning", "Failed to write molecule NFS log", job_id)
+
+        # Move log to job-specific directory on NFS
+        if host_log_file_path.exists():
+            host_log_file_path = move_log_to_job_directory(
+                host_log_file_path, job_id
+            )
+
+        # Copy molecule reports from temp dir to job-specific NFS artifact directory
+        # This mirrors the log-copy pattern used in execute_playbook
+        try:
+            for item in os.listdir(temp_report_dir):
+                src = os.path.join(temp_report_dir, item)
+                dst = os.path.join(artifact_dir, item)
+                if os.path.isfile(src):
+                    shutil.copy2(src, dst)
+                elif os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+            log_secure_info("info", "Copied molecule reports to job artifact directory", job_id)
+        except OSError:
+            log_secure_info("warning", "Failed to copy molecule reports to artifact dir", job_id)
+
+        # Also write molecule output log to the artifact directory
+        artifact_log_path = os.path.join(artifact_dir, "molecule_output.log")
+        try:
+            with open(artifact_log_path, 'w') as f:
+                f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
+        except OSError:
+            log_secure_info("warning", "Failed to write molecule artifact log", job_id)
+
+        # Clean up temp report directory
+        try:
+            shutil.rmtree(temp_report_dir, ignore_errors=True)
+        except OSError:
+            log_secure_info("debug", "Failed to clean up temp report dir", job_id)
+
+        # Use the NFS log path as the canonical log_file_path
+        log_file_path = str(host_log_file_path)
         
-        # Parse test summary from molecule_output.log (avoids stale reports from shared directory)
+        # Parse metadata from molecule_output.log (report_id, suites)
         test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
+        report_id = None
         
         if os.path.exists(log_file_path):
             try:
                 import re
                 with open(log_file_path, 'r') as f:
                     log_content = f.read()
-                    # Parse summary line: "Results:       10 passed, 1 failed, 11 skipped"
-                    results_match = re.search(r'Results:\s+(\d+)\s+passed,\s+(\d+)\s+failed,\s+(\d+)\s+skipped', log_content)
-                    if results_match:
-                        passed = int(results_match.group(1))
-                        failed = int(results_match.group(2))
-                        skipped = int(results_match.group(3))
-                        test_summary = {
-                            "total": passed + failed + skipped,
-                            "passed": passed,
-                            "failed": failed,
-                            "skipped": skipped,
-                            "errors": 0,
-                        }
+                    
+                    # Extract report_id: "Report ID:   2b4ade78"
+                    report_id_match = re.search(r'Report ID:\s+([a-f0-9]+)', log_content)
+                    if report_id_match:
+                        report_id = report_id_match.group(1)
+                    
+                    # Extract top-level Suite from header (e.g., 'Suite    : build_stream')
+                    # Strip ANSI color codes first
+                    try:
+                        sanitized = re.sub(r'\x1B\[[0-?]*[ -/]*[@-~]', '', log_content)
+                    except re.error:
+                        sanitized = log_content
+                    header_suite_match = re.search(r'(?m)^\s*Suite\s*:\s*([\w\-.]+)', sanitized)
+                    if header_suite_match:
+                        test_summary["suite"] = header_suite_match.group(1)
                     else:
-                        # Fallback: try parsing pytest summary line: "1 failed, 10 passed, 11 skipped"
-                        pytest_match = re.search(r'(\d+)\s+failed,\s+(\d+)\s+passed,\s+(\d+)\s+skipped', log_content)
-                        if pytest_match:
-                            failed = int(pytest_match.group(1))
-                            passed = int(pytest_match.group(2))
-                            skipped = int(pytest_match.group(3))
-                            test_summary = {
-                                "total": passed + failed + skipped,
-                                "passed": passed,
-                                "failed": failed,
-                                "skipped": skipped,
-                                "errors": 0,
-                            }
+                        # Fallback: parse from 'Suite/Marker: -m <suite>' line
+                        marker_match = re.search(r'(?m)^\s*Suite/Marker\s*:\s*.*?-m\s+([\w\-.]+)', sanitized)
+                        if marker_match:
+                            test_summary["suite"] = marker_match.group(1)
+                    
             except (OSError, IOError, ValueError) as e:
                 log_secure_info("warning", f"Failed to parse molecule_output.log: {e}", job_id)
+        
+        # Extract current run from shared test_report.json by report_id and save to artifact_dir
+        report_source_path = "/opt/omnia/automation/reports/test_report.json"
+        if report_id and os.path.exists(report_source_path):
+            try:
+                # Load full report from shared location
+                with open(report_source_path, 'r') as f:
+                    full_report = json.load(f)
+                
+                if "servers" in full_report and "" in full_report["servers"]:
+                    runs = full_report["servers"][""].get("runs", [])
+                    # Find run matching report_id
+                    current_run = None
+                    for run in runs:
+                        if run.get("report_id") == report_id:
+                            current_run = run
+                            break
+                    
+                    if current_run:
+                        # Populate test_summary from JSON (enforce order: identifiers, duration, counts, tests)
+                        modules = current_run.get("modules", [])
+                        if modules:
+                            module_info = modules[0]
+                            scenario = module_info.get("module", "unknown")
+                            molecule_command = module_info.get("molecule_command", "verify")
+                            duration_seconds = module_info.get("duration_seconds", 0)
+                            results = module_info.get("results", [])
+                            tests = [{"name": r.get("test_name"), "status": r.get("status")} for r in results if r.get("test_name")]
+                            test_summary["scenario"] = scenario
+                            test_summary["molecule_command"] = molecule_command
+                            test_summary["report_id"] = report_id
+                            test_summary["duration_seconds"] = duration_seconds
+                            test_summary["tests"] = tests
+                            summary_block = current_run.get("summary", {})
+                            if isinstance(summary_block, dict):
+                                test_summary["total"] = summary_block.get("total", 0)
+                                test_summary["passed"] = summary_block.get("passed", 0)
+                                test_summary["failed"] = summary_block.get("failed", 0)
+                                test_summary["skipped"] = summary_block.get("skipped", 0)
+                                test_summary["errors"] = summary_block.get("errors", 0)
+                        log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {duration_seconds}s, tests: {len(tests)}, report_id: {report_id}", job_id)
+                        
+                        # Save filtered report to artifact_dir
+                        filtered_report = {
+                            "servers": {
+                                "": {
+                                    "runs": [current_run],
+                                    "hostname": ""
+                                }
+                            }
+                        }
+                        dest_path = os.path.join(artifact_dir, "test_report.json")
+                        with open(dest_path, 'w') as f:
+                            json.dump(filtered_report, f, indent=2)
+                        log_secure_info('info', f"Extracted report {report_id} to artifact directory", job_id)
+            except (OSError, json.JSONDecodeError) as e:
+                log_secure_info('warning', f"Failed to extract report: {e}", job_id)
         
         # Determine status: if any test failed, mark as failed regardless of exit code
         if test_summary["failed"] > 0 or test_summary["errors"] > 0:
@@ -1117,6 +1245,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "duration_seconds": int(duration_seconds),
             "test_summary": test_summary,
             "artifact_dir": artifact_dir,
+            "log_file_path": log_file_path,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
@@ -1127,7 +1256,22 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             if exit_code == 124:
                 result_data["error_summary"] = f"Molecule execution timed out after {timeout_minutes} minutes"
             elif test_summary["failed"] > 0:
-                result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
+                # Parse specific test failures from molecule_output.log
+                failed_tests = []
+                if os.path.exists(log_file_path):
+                    try:
+                        with open(log_file_path, 'r') as f:
+                            log_content = f.read()
+                            # Parse FAILED test lines: "FAILED path/to/test_file.py::test_function"
+                            failed_matches = re.findall(r'^FAILED (.+)$', log_content, re.MULTILINE)
+                            failed_tests = failed_matches[:5]  # Include up to 5 specific failures
+                    except (OSError, IOError):
+                        pass
+                
+                if failed_tests:
+                    result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed. Failed tests: {', '.join(failed_tests)}"
+                else:
+                    result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
             else:
                 result_data["error_summary"] = f"Molecule exited with code {exit_code}"
         
@@ -1138,7 +1282,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         duration_seconds = (completed_at - started_at).total_seconds()
         
         log_secure_info("error", "Molecule execution timed out for job", job_id)
-        
+
+        # Build NFS log path for timeout case
+        err_attempt = request_data.get("attempt", 1)
+        err_log_path, _, _ = _build_log_paths("validate", started_at, err_attempt)
+        err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
+
         return {
             "job_id": job_id,
             "stage_name": stage_type,
@@ -1148,6 +1297,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "exit_code": 124,
             "error_summary": f"Molecule execution timed out after {timeout_minutes} minutes",
             "artifact_dir": artifact_dir,
+            "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
@@ -1159,7 +1309,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         duration_seconds = (completed_at - started_at).total_seconds()
         
         log_secure_info("error", "Unexpected error executing molecule for job", job_id, exc_info=True)
-        
+
+        # Build NFS log path for error case
+        err_attempt = request_data.get("attempt", 1)
+        err_log_path, _, _ = _build_log_paths("validate", started_at, err_attempt)
+        err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
+
         return {
             "job_id": job_id,
             "stage_name": stage_type,
@@ -1169,6 +1324,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "exit_code": -1,
             "error_summary": f"System error during molecule execution: {str(e)}",
             "artifact_dir": artifact_dir,
+            "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),

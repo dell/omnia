@@ -1,0 +1,148 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Deploy UFM InfiniBand telemetry (Metrics Only)
+# Gated by: telemetry_sources.ufm.metrics_enabled
+#
+# DATA PIPELINE:
+#   UFM Prometheus Exporter (HTTPS) → vmagent(shared) → victoria_metrics
+#
+# What Omnia does:
+#   - Validates UFM endpoint, port, TLS mode, auth mode, credentials
+#   - Creates K8s Secret with UFM credentials (and optional CA cert)
+#   - VMAgent scrape config + deployment mount are handled by Jinja2 templates
+#   - Deploys Grafana dashboard as ConfigMap (sidecar auto-discovery)
+#
+# What Omnia does NOT do:
+#   - Omnia does NOT deploy or configure UFM itself
+
+- name: Set UFM configuration facts
+  ansible.builtin.set_fact:
+    _ufm_config: "{{ telemetry_config.telemetry_sources.ufm }}"
+    _ufm_detailed_config: "{{ telemetry_config.ufm_configuration }}"
+
+# --- Validate UFM telemetry inputs ---
+# Only run validation when UFM telemetry is enabled
+
+- name: Validate UFM endpoint is not empty
+  ansible.builtin.fail:
+    msg: "{{ ufm_endpoint_empty_msg }}"
+  when:
+    - _ufm_config.metrics_enabled | default(false) | bool
+    - _ufm_detailed_config.ufm_endpoint | default('') | trim == ''
+
+- name: Validate UFM metrics port range
+  ansible.builtin.fail:
+    msg: "{{ ufm_port_range_msg }}"
+  when: >-
+    (_ufm_config.metrics_enabled | default(false) | bool) and
+    ((_ufm_detailed_config.ufm_metrics_port | default(9090) | int < 1) or
+    (_ufm_detailed_config.ufm_metrics_port | default(9090) | int > 65535))
+
+- name: Validate UFM TLS mode
+  ansible.builtin.fail:
+    msg: "{{ ufm_tls_mode_invalid_msg }}"
+  when:
+    - _ufm_config.metrics_enabled | default(false) | bool
+    - _ufm_detailed_config.tls_mode | default('self_signed') not in ['self_signed', 'ca_signed']
+
+- name: Validate UFM auth mode
+  ansible.builtin.fail:
+    msg: "{{ ufm_auth_mode_invalid_msg }}"
+  when:
+    - _ufm_config.metrics_enabled | default(false) | bool
+    - _ufm_detailed_config.auth_mode | default('basic') not in ['basic', 'none']
+
+- name: Validate UFM credentials when auth_mode is basic
+  ansible.builtin.fail:
+    msg: "{{ ufm_credentials_missing_msg }}"
+  when:
+    - _ufm_config.metrics_enabled | default(false) | bool
+    - _ufm_detailed_config.auth_mode | default('basic') == 'basic'
+    - >-
+      (hostvars['localhost']['ufm_username'] | default('') | trim == '') or
+      (hostvars['localhost']['ufm_password'] | default('') | trim == '')
+
+- name: Validate CA certificate file when tls_mode is ca_signed
+  when:
+    - _ufm_config.metrics_enabled | default(false) | bool
+    - _ufm_detailed_config.tls_mode | default('self_signed') == 'ca_signed'
+  block:
+    - name: Check CA certificate file exists
+      ansible.builtin.stat:
+        path: "{{ _ufm_detailed_config.ufm_ca_cert_path }}"
+      register: _ufm_ca_cert_stat
+      delegate_to: localhost
+
+    - name: Fail if CA certificate file not found
+      ansible.builtin.fail:
+        msg: "{{ ufm_ca_cert_not_found_msg }}"
+      when: >-
+        (_ufm_detailed_config.ufm_ca_cert_path | default('') | trim == '') or
+        (not _ufm_ca_cert_stat.stat.exists | default(false))
+
+- name: Display validated UFM configuration
+  ansible.builtin.debug:
+    msg:
+      - "UFM endpoint: {{ _ufm_detailed_config.ufm_endpoint }}:{{ _ufm_detailed_config.ufm_metrics_port | default(9001) }}"
+      - "TLS mode: {{ _ufm_detailed_config.tls_mode | default('self_signed') }}"
+      - "Auth mode: {{ _ufm_detailed_config.auth_mode | default('basic') }}"
+    verbosity: 2
+  when: _ufm_config.metrics_enabled | default(false) | bool
+
+
+# --- Create UFM credentials Kubernetes Secret ---
+
+- name: Read CA certificate content
+  ansible.builtin.slurp:
+    src: "{{ _ufm_detailed_config.ufm_ca_cert_path }}"
+  register: _ufm_ca_cert_content
+  delegate_to: localhost
+  when:
+    - _ufm_config.metrics_enabled | default(false) | bool
+    - _ufm_detailed_config.tls_mode | default('self_signed') == 'ca_signed'
+    - _ufm_detailed_config.ufm_ca_cert_path | default('') | trim != ''
+
+- name: Set CA certificate content for template processing
+  ansible.builtin.set_fact:
+    ufm_ca_cert_content: "{{ _ufm_ca_cert_content.content | b64decode }}"
+  when:
+    - _ufm_ca_cert_content is defined
+    - _ufm_ca_cert_content is not skipped
+    - _ufm_ca_cert_content.content is defined
+
+- name: Display UFM Secret creation status
+  ansible.builtin.debug:
+    msg: "{{ ufm_secret_created_msg }}"
+    verbosity: 2
+  when: _ufm_config.metrics_enabled | default(false) | bool
+
+
+# UFM telemetry resources are now deployed via Kustomize templates
+# Secret and external-service ConfigMap are created through:
+# - templates/telemetry/ufm/ufm-telemetry-secret.yaml.j2
+# - templates/telemetry/ufm/ufm-external-service.yaml.j2
+# These are processed in generate_telemetry_deployments.yml and applied via kubectl apply -k
+
+- name: Display UFM integration summary
+  ansible.builtin.debug:
+    msg:
+      - "UFM telemetry integration complete"
+      - "UFM endpoint: {{ _ufm_detailed_config.ufm_endpoint }}:{{ _ufm_detailed_config.ufm_metrics_port | default(9001) }}"
+      - "TLS mode: {{ _ufm_detailed_config.tls_mode | default('self_signed') }}"
+      - "Auth mode: {{ _ufm_detailed_config.auth_mode | default('basic') }}"
+      - "Scrape interval: {{ _ufm_detailed_config.scrape_interval | default('30s') }}"
+    verbosity: 2
+  when: _ufm_config.metrics_enabled | default(false) | bool

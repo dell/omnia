@@ -249,6 +249,7 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         audit_repo=audit_repository,
         job_id_generator=job_id_generator,
         uuid_generator=uuid_generator,
+        image_group_repo=image_group_repository,
     )
 
     create_local_repo_use_case = providers.Factory(
@@ -491,6 +492,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         audit_repo=audit_repository,
         job_id_generator=job_id_generator,
         uuid_generator=uuid_generator,
+        image_group_repo=image_group_repository,
     )
 
     create_local_repo_use_case = providers.Factory(

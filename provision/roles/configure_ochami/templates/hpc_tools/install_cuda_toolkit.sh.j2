@@ -58,20 +58,10 @@ fi
 case $rc in
     0)   # installer
         echo "[INFO] Acquired lock. Installing toolkit..."
-        mkdir -p /shared-cuda-toolkit
-        mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
 
-        if [ $? -ne 0 ]; then
-            echo "[ERROR] Failed to mount NFS cuda share."
-            echo "[ERROR] CUDA toolkit installation failed on this node."
-            echo "[INFO] To manually install CUDA toolkit, run: CUDA_INSTALL_MANUAL=true /usr/local/bin/install_cuda_toolkit.sh"
-            "$LOCK_MGR" release
-            exit 1
-        fi
-
-        # Check if CUDA toolkit is already installed on NFS
-        if [ -f "/shared-cuda-toolkit/bin/nvcc" ]; then
-            echo "[INFO] CUDA toolkit already installed on NFS. Exiting."
+        # Check if CUDA toolkit is already installed on VAST
+        if [ -f "/hpc_tools/cuda/bin/nvcc" ]; then
+            echo "[INFO] CUDA toolkit already installed on VAST. Exiting."
             "$LOCK_MGR" release
             exit 0
         fi
@@ -104,12 +94,12 @@ case $rc in
             fi
 
             echo "[INFO] Found CUDA at: $CUDA_SRC_DIR"
-            echo "[INFO] Copying contents directly to /shared-cuda-toolkit..."
-            cp -r "$CUDA_SRC_DIR"/* /shared-cuda-toolkit/ 2>/dev/null || true
+            echo "[INFO] Copying contents directly to /hpc_tools/cuda..."
+            cp -r "$CUDA_SRC_DIR"/* /hpc_tools/cuda/ 2>/dev/null || true
 
             # Verify CUDA toolkit installation
             echo "[INFO] Verifying CUDA toolkit installation..."
-            if [ -f "/shared-cuda-toolkit/bin/nvcc" ]; then
+            if [ -f "/hpc_tools/cuda/bin/nvcc" ]; then
                 echo "[SUCCESS] CUDA toolkit verified."
             else
                 echo "[ERROR] CUDA toolkit (nvcc) not found after installation."
@@ -133,8 +123,6 @@ case $rc in
                 >> "$LOCK_ROOT/.cuda_install_status.log"
             
             setup_cuda_env
-            
-            umount /shared-cuda-toolkit 2>/dev/null
             exit 0
         else
             result=$?

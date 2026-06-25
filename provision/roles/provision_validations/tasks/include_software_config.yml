@@ -45,6 +45,11 @@
     ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
     dns: "{{ network_data.admin_network.dns }}"
 
+- name: Set dns_enabled default when not defined
+  ansible.builtin.set_fact:
+    dns_enabled: false
+  when: dns_enabled is not defined
+
 - name: Initialise variables
   ansible.builtin.set_fact:
     service_k8s_support: false

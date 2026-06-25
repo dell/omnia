@@ -120,7 +120,7 @@
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
     status_code: [200, 404]
-    validate_certs: false
+    validate_certs: false  # NOSONAR - Internal GitLab uses self-signed certificates
   register: failed_nodes_check
   no_log: true
   ignore_errors: true
@@ -143,7 +143,7 @@
       content: "{{ failed_nodes_content.content }}"
       commit_message: "Add failed_nodes.json for job {{ bsm_job_id }}"
     status_code: [200, 201]
-    validate_certs: false
+    validate_certs: false  # NOSONAR - Internal GitLab uses self-signed certificates
   when: failed_nodes_check.failed or failed_nodes_check.status == 404
   register: gitlab_create_result
   ignore_errors: true
@@ -162,7 +162,7 @@
       content: "{{ failed_nodes_content.content }}"
       commit_message: "Update failed_nodes.json for job {{ bsm_job_id }}"
     status_code: [200, 201]
-    validate_certs: false
+    validate_certs: false  # NOSONAR - Internal GitLab uses self-signed certificates
   when: not failed_nodes_check.failed and failed_nodes_check.status == 200
   register: gitlab_update_result
   ignore_errors: true

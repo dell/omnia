@@ -1,0 +1,115 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Relabel a single PVC from old naming to new naming convention
+# Variables: old_pvc_item (from loop)
+
+- name: Get PVC details
+  ansible.builtin.shell: |
+    echo "pv=$(kubectl -n {{ telemetry_namespace }} get pvc {{ old_pvc_item }} -o jsonpath='{.spec.volumeName}')"
+    echo "size=$(kubectl -n {{ telemetry_namespace }} get pvc {{ old_pvc_item }} -o jsonpath='{.spec.resources.requests.storage}')"
+  register: pvc_details_raw
+  changed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Parse PVC details
+  ansible.builtin.set_fact:
+    old_pv_name: "{{ (pvc_details_raw.stdout_lines | select('match', '^pv=') | first).split('=')[1] }}"
+    old_pvc_size: "{{ (pvc_details_raw.stdout_lines | select('match', '^size=') | first).split('=')[1] }}"
+
+- name: Skip PVC if PV name is empty (not bound to a PV)
+  ansible.builtin.debug:
+    msg: "{{ victoria_skip_pvc_no_pv }}"
+  when: old_pv_name | length == 0 or old_pv_name == ''
+
+- name: Execute PVC relabeling (only if PV exists)
+  when: old_pv_name | length > 0 and old_pv_name != ''
+  block:
+    - name: Extract replica number from old PVC name
+      ansible.builtin.set_fact:
+        replica_num: "{{ old_pvc_item.split('-')[-1] }}"
+
+    - name: Set new PVC name based on deploy mode
+      ansible.builtin.set_fact:
+        new_pvc_name: "{{ new_vmstorage_pvc_prefix }}-{{ new_vmstorage_sts }}-{{ replica_num }}"
+      when: victoria_deploy_mode == 'cluster'
+
+    - name: Set new PVC name for single-node mode
+      ansible.builtin.set_fact:
+        new_pvc_name: "victoria-metrics-data-victoria-single-{{ replica_num }}"
+      when: victoria_deploy_mode == 'single'
+
+    - name: Display relabeling info
+      ansible.builtin.debug:
+        msg: "{{ victoria_relabeling_pvc }}"
+
+    - name: Set PV reclaim policy to Retain
+      ansible.builtin.command:
+        cmd: "kubectl patch pv {{ old_pv_name }} -p '{\"spec\":{\"persistentVolumeReclaimPolicy\":\"Retain\"}}'"
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Delete old PVC
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} delete pvc {{ old_pvc_item }}
+      changed_when: true
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Clear PV claimRef
+      ansible.builtin.command:
+        cmd: "kubectl patch pv {{ old_pv_name }} -p '{\"spec\":{\"claimRef\": null}}'"
+      changed_when: true
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Create new PVC bound to old PV
+      ansible.builtin.shell: |
+        set -o pipefail
+        cat <<EOF | kubectl apply -f -
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: {{ new_pvc_name }}
+          namespace: {{ telemetry_namespace }}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          volumeName: {{ old_pv_name }}
+          resources:
+            requests:
+              storage: {{ old_pvc_size }}
+        EOF
+      changed_when: true
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for new PVC to bind
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} get pvc {{ new_pvc_name }} -o jsonpath='{.status.phase}'
+      register: new_pvc_phase
+      until: new_pvc_phase.stdout == 'Bound'
+      retries: 30
+      delay: 2
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Fail if new PVC did not bind
+      ansible.builtin.fail:
+        msg: "{{ victoria_pvc_bind_failed }}"
+      when: new_pvc_phase.stdout != 'Bound'

@@ -15,12 +15,15 @@
 """Upload files use case implementation."""
 
 import hashlib
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
+import yaml
+
 from api.logging_utils import log_secure_info
-from common.config import BuildStreamConfig
+from common.config import BuildStreamConfig, load_config
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.exceptions import ArtifactAlreadyExistsError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
@@ -56,7 +59,7 @@ ALLOWED_CONFIG_FILES = {
     "pxe_mapping_file.csv",
     "storage_config.yml",
     "telemetry_config.yml",
-    "storage_config.yml",
+    "telemetry_storage_config.yml",
     "security_config.yml",
     "high_availability_config.yml",
     "omnia_config.yml",
@@ -165,6 +168,13 @@ class UploadFilesUseCase:
         # Always emit audit event with file details (for all uploads)
         self._emit_upload_files_audit_event(command, uploaded_files)
 
+        # Copy software_config.json from job artifacts to shared input directory.
+        # During build pipeline, generate-input-files has not run yet so the
+        # file won't exist — the copy is safely skipped.
+        # During deploy pipeline, the file was generated during the prior build
+        # and must be synced so the deploy uses the correct software config.
+        self._copy_software_config_from_artifacts(str(command.job_id))
+
         # Build result
         summary = UploadSummary(
             total_files=len(uploaded_files),
@@ -215,7 +225,6 @@ class UploadFilesUseCase:
         """Validate all files before processing (fail-fast).
 
         Args:
-            files: List of (filename, content) tuples.
 
         Raises:
             InvalidFilenameError: If any filename is invalid.
@@ -303,6 +312,12 @@ class UploadFilesUseCase:
         # DO NOT write to shared input directory (not needed for this file)
         if filename == "failed_nodes.json":
             self._write_to_restart_state_directory(str(job_id), filename, content)
+        elif filename == "pxe_mapping_file.csv":
+            # pxe_mapping_file.csv destination is configurable via
+            # provision_config.yml -> pxe_mapping_file_path.  Resolve the
+            # target directory from that config; fall back to the default.
+            pxe_dir = self._resolve_pxe_mapping_dir()
+            self._write_to_directory(pxe_dir, filename, content)
         else:
             self._write_to_shared_input_directory(filename, content)
 
@@ -383,15 +398,56 @@ class UploadFilesUseCase:
             filename: Filename.
             content: File content.
         """
-        # Use the standard Omnia playbook input directory
-        # This path matches NfsInputRepository.get_destination_input_repository_path()
-        playbook_input_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
-        playbook_input_dir.mkdir(parents=True, exist_ok=True)
+        self._write_to_directory(Path(DEFAULT_PLAYBOOK_INPUT_DIR), filename, content)
 
-        target_file = playbook_input_dir / filename
+    @staticmethod
+    def _write_to_directory(directory: Path, filename: str, content: bytes):
+        """Write file to an arbitrary directory.
+
+        Args:
+            directory: Target directory.
+            filename: Filename.
+            content: File content.
+        """
+        directory.mkdir(parents=True, exist_ok=True)
+        target_file = directory / filename
         target_file.write_bytes(content)
+        log_secure_info('debug', f"Wrote to directory: {target_file}")
 
-        log_secure_info('debug', f"Wrote to shared input directory: {target_file}")
+    @staticmethod
+    def _resolve_pxe_mapping_dir() -> Path:
+        """Resolve the target directory for pxe_mapping_file.csv.
+
+        Reads ``pxe_mapping_file_path`` from the already-uploaded
+        ``provision_config.yml`` in the default shared input directory.
+        If the key is present, its parent directory is used; otherwise
+        the default shared input directory is returned.
+
+        Returns:
+            Directory ``Path`` where ``pxe_mapping_file.csv`` should be written.
+        """
+        provision_config_path = Path(DEFAULT_PLAYBOOK_INPUT_DIR) / "provision_config.yml"
+        if provision_config_path.exists():
+            try:
+                with open(provision_config_path, "r", encoding="utf-8") as fh:
+                    config = yaml.safe_load(fh)
+                if isinstance(config, dict):
+                    pxe_path = config.get("pxe_mapping_file_path")
+                    if pxe_path:
+                        resolved = Path(str(pxe_path)).parent
+                        log_secure_info(
+                            'info',
+                            f"Resolved pxe_mapping_file.csv directory from "
+                            f"provision_config.yml: {resolved}",
+                        )
+                        return resolved
+            except (yaml.YAMLError, OSError) as exc:
+                log_secure_info(
+                    'warning',
+                    f"Failed to read provision_config.yml for "
+                    f"pxe_mapping_file_path: {exc}",
+                )
+        return Path(DEFAULT_PLAYBOOK_INPUT_DIR)
 
     def _write_to_restart_state_directory(self, job_id: str, filename: str, content: bytes):
         """Write file to job-specific restart_state directory for playbook consumption.
@@ -524,6 +580,52 @@ class UploadFilesUseCase:
             'info',
             f"Files uploaded: job_id={command.job_id}, total={len(uploaded_files)}, changed={changed_count}, unchanged={unchanged_count}"
         )
+
+    def _copy_software_config_from_artifacts(self, job_id: str) -> None:
+        """Copy software_config.json from job artifacts to shared input directory.
+
+        The generate-input-files stage produces software_config.json in the
+        job-specific artifacts directory (artifacts/{job_id}/input/).
+        This method copies it to the shared playbook input directory so that
+        the deploy pipeline uses the software config matching the catalog
+        that was used to build the image.
+
+        If the file does not exist (e.g. upload called from the build pipeline
+        before generate-input-files has run), the copy is silently skipped.
+
+        Args:
+            job_id: Job identifier.
+        """
+        try:
+            config = load_config()
+            artifacts_base = Path(config.file_store.base_path)
+            source = artifacts_base / job_id / "input" / "software_config.json"
+
+            if not source.exists():
+                log_secure_info(
+                    'debug',
+                    "software_config.json not found in job artifacts, skipping copy",
+                    job_id=job_id,
+                )
+                return
+
+            shared_input_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
+            shared_input_dir.mkdir(parents=True, exist_ok=True)
+            dest = shared_input_dir / "software_config.json"
+
+            shutil.copy2(source, dest)
+            log_secure_info(
+                'info',
+                f"Copied software_config.json from {source} to {dest}",
+                job_id=job_id,
+            )
+        except Exception as exc:
+            log_secure_info(
+                'warning',
+                f"Failed to copy software_config.json from job artifacts: {exc}",
+                job_id=job_id,
+                exc_info=True,
+            )
 
     def _emit_audit_event(
         self,

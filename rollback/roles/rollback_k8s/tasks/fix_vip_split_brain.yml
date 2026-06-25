@@ -1,0 +1,158 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 6: Fix kube-vip split-brain after etcd restore ──────────
+# After etcd restore the kube-vip leader lease may be lost, causing
+# multiple nodes to claim the VIP simultaneously. This stage detects
+# the split-brain and cleans up stale VIP addresses so only the
+# rightful lease holder owns the VIP.
+
+- name: Skip fix_vip if already completed
+  ansible.builtin.debug:
+    msg: "fix_vip already completed — skipping."
+  when: (rollback_status.stages.fix_vip.status | default('pending')) == 'completed'
+
+- name: Fix kube-vip split-brain
+  when: (rollback_status.stages.fix_vip.status | default('pending')) != 'completed'
+  block:
+    - name: Mark fix_vip in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            fix_vip:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Wait for kube-vip to settle ────────────────────────────────
+    - name: Wait for kube-vip to settle
+      ansible.builtin.pause:
+        seconds: "{{ vip_settle_delay }}"
+
+    # ── Get VIP lease holder ───────────────────────────────────────
+    - name: Get kube-vip lease holder
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get lease plndr-cp-lock -n kube-system
+          -o jsonpath='{.spec.holderIdentity}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _vip_lease
+      changed_when: false
+      retries: 6
+      delay: 10
+      until: _vip_lease.rc == 0
+
+    - name: Set VIP lease holder IP
+      ansible.builtin.set_fact:
+        _vip_holder_ip: "{{ _vip_lease.stdout | trim }}"
+
+    # ── Check which CPs have the VIP address ───────────────────────
+    - name: Check VIP address presence on each CP
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && ip -br addr show | grep '{{ kube_vip }}'"
+        executable: /bin/bash
+      delegate_to: "{{ item }}"
+      register: _vip_check
+      changed_when: false
+      failed_when: false
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Identify nodes with stale VIP
+      ansible.builtin.set_fact:
+        _stale_vip_nodes: >-
+          {{ _vip_check.results
+             | selectattr('rc', 'equalto', 0)
+             | map(attribute='item')
+             | reject('equalto',
+                 all_cp_nodes
+                 | select('in',
+                     node_ips | dict2items
+                     | selectattr('value', 'equalto', _vip_holder_ip)
+                     | map(attribute='key') | list
+                   ) | first | default('__none__')
+               )
+             | list }}
+
+    # ── Remove stale VIP from non-leader nodes ─────────────────────
+    - name: Display split-brain warning
+      ansible.builtin.debug:
+        msg: "{{ msg_vip_split_brain }} Stale nodes: {{ _stale_vip_nodes | join(', ') }}"
+      when: _stale_vip_nodes | length > 0
+
+    - name: Detect VIP interface and netmask on stale nodes
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          ip -br addr show | grep '{{ kube_vip }}' | awk '{for(i=3;i<=NF;i++){if($i ~ /{{ kube_vip }}/){print $1":"$i; exit}}}'
+        executable: /bin/bash
+      delegate_to: "{{ item }}"
+      register: _stale_iface
+      changed_when: false
+      failed_when: false
+      loop: "{{ _stale_vip_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+      when: _stale_vip_nodes | length > 0
+
+    - name: Remove stale VIP address from non-leader nodes
+      ansible.builtin.command:
+        cmd: >-
+          ip addr del {{ item.stdout.split(':')[1] }} dev {{ item.stdout.split(':')[0] }}
+      delegate_to: "{{ item.item }}"
+      changed_when: true
+      loop: "{{ _stale_iface.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item | default('n/a') }}"
+      when:
+        - _stale_vip_nodes | length > 0
+        - item.stdout | default('') | trim | length > 0
+        - "':' in item.stdout"
+
+    # ── Verify API server is reachable on first CP ─────────────────
+    - name: Verify API server reachable via first CP
+      ansible.builtin.command:
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get --raw /healthz
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _api_check
+      changed_when: false
+      retries: 6
+      delay: 10
+      until:
+        - _api_check.rc == 0
+        - "'ok' in _api_check.stdout"
+
+    - name: Mark fix_vip completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            fix_vip:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display fix_vip completion
+      ansible.builtin.debug:
+        msg: >-
+          kube-vip check complete.
+          {% if _stale_vip_nodes | length > 0 %}
+          Split-brain resolved — removed stale VIP from {{ _stale_vip_nodes | join(', ') }}.
+          {% else %}
+          No split-brain detected. VIP is on lease holder only.
+          {% endif %}
+          API server healthy via {{ kube_vip }}.

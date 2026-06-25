@@ -227,7 +227,7 @@ class CreateBuildImageUseCase:
             )
             return
 
-        if current_count >= self._retention_limit:
+        if current_count > self._retention_limit:
             log_secure_info(
                 "warning",
                 f"Build aborted: retention limit reached "

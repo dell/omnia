@@ -1,0 +1,79 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Remove kubelet feature gates added during upgrade ───────────────
+# Removes ChangeContainerStatusOnKubeletRestart from:
+#   1. /etc/sysconfig/kubelet (command-line argument)
+# This is necessary when rolling back from 1.35.1 to 1.34.1 because
+# the feature gate is not recognized in 1.34.1.
+
+- name: Skip remove_feature_gates if already completed
+  ansible.builtin.debug:
+    msg: "remove_feature_gates already completed — skipping."
+  when: (rollback_status.stages.remove_feature_gates.status | default('pending')) == 'completed'
+
+- name: Remove kubelet feature gates
+  when: (rollback_status.stages.remove_feature_gates.status | default('pending')) != 'completed'
+  block:
+    - name: Mark remove_feature_gates in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            remove_feature_gates:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Remove feature gate from /etc/sysconfig/kubelet on all nodes
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/kubelet
+        regexp: '.*ChangeContainerStatusOnKubeletRestart.*'
+        state: absent
+        backup: true
+      delegate_to: "{{ item }}"
+      register: _kubelet_config_remove
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Report feature gate removal from /etc/sysconfig/kubelet
+      ansible.builtin.debug:
+        msg: "Removed ChangeContainerStatusOnKubeletRestart from /etc/sysconfig/kubelet on {{ item.item }}"
+      loop: "{{ _kubelet_config_remove.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed # noqa: no-handler
+
+    - name: Reload systemd daemon on all nodes
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      delegate_to: "{{ item }}"
+      loop: "{{ all_rollback_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Mark remove_feature_gates completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            remove_feature_gates:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display remove_feature_gates completion
+      ansible.builtin.debug:
+        msg: "Kubelet feature gates removed on all {{ all_rollback_nodes | length }} nodes."

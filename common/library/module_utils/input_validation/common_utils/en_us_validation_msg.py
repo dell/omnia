@@ -102,6 +102,18 @@ SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = ("The 'service_node' role defined 
     " is not currently supported and is reserved for future use. Please remove or update this role"
     " to avoid configuration errors.")
 
+# Mapping file and software_config.json consistency validation messages
+SERVICE_K8S_FUNCTIONAL_GROUP_WITHOUT_SOFTWARE_MSG = (
+    "Service Kubernetes functional groups (service_kube_node_* or service_kube_control_plane_*) "
+    "are defined in the PXE mapping file, but 'service_k8s' is not configured in software_config.json. "
+    "Please add 'service_k8s' to the 'softwares' list in software_config.json to deploy the service cluster."
+)
+SLURM_FUNCTIONAL_GROUP_WITHOUT_SOFTWARE_MSG = (
+    "Slurm functional groups (slurm_control_node_* or slurm_node_*) "
+    "are defined in the PXE mapping file, but 'slurm_custom' is not configured in software_config.json. "
+    "Please add 'slurm_custom' to the 'softwares' list in software_config.json to deploy the Slurm cluster."
+)
+
 # Functional Groups Config Validation Messages
 
 EMPTY_OR_SYNTAX_ERROR_FUNCTIONAL_GROUPS_CONFIG_MSG = (
@@ -174,6 +186,11 @@ DEFAULT_LEASE_TIME_FAIL_MSG = "Please provide a valid default_lease_time."
 ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true or false."
 LANGUAGE_FAIL_MSG = "Only en_US.UTF-8 language supported"
 LANGUAGE_EMPTY_MSG = "Language setting cannot be empty"
+KERNEL_VERSION_OVERRIDE_FAIL_MSG = (
+    "kernel_version_override must be either empty or a valid kernel version "
+    "string (e.g. '6.12.0-55.76.1.el10_0.x86_64'). "
+    "The format must be: <major>.<minor>.<patch>-<release>."
+)
 PUBLIC_NIC_FAIL_MSG = "public_nic is empty. Please provide a public_nic value."
 PXE_MAPPING_FILE_PATH_FAIL_MSG = (
     "File path is invalid. Please ensure the file path specified in "
@@ -192,6 +209,46 @@ PXE_MAPPING_AARCH64_LOCAL_PATH_MSG = (
     "or remove aarch64 nodes from pxe_mapping_file.csv."
 )
 CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
+
+# additional_cloud_init
+ADDITIONAL_CLOUD_INIT_FILE_NOT_FOUND_MSG = (
+    "File not found. Verify additional_cloud_init_config_file "
+    "in provision_config.yml points to a valid file."
+)
+ADDITIONAL_CLOUD_INIT_YAML_SYNTAX_MSG = (
+    "YAML syntax error in additional cloud-init config file."
+)
+ADDITIONAL_CLOUD_INIT_NOT_DICT_MSG = (
+    "additional cloud-init config file must contain a YAML mapping."
+)
+ADDITIONAL_CLOUD_INIT_UNKNOWN_TOP_KEY_MSG = (
+    "Unknown top-level key. Only 'common' and 'groups' are allowed."
+)
+ADDITIONAL_CLOUD_INIT_PROHIBITED_KEY_MSG = (
+    "Prohibited key found. The keys 'bootcmd', 'network', "
+    "'network-config', and 'packages' are platform-managed "
+    "and must NOT be overridden."
+)
+ADDITIONAL_CLOUD_INIT_UNKNOWN_KEY_MSG = (
+    "Unknown key found. Only 'write_files' and 'runcmd' "
+    "are allowed."
+)
+ADDITIONAL_CLOUD_INIT_WRITE_FILES_NOT_LIST_MSG = (
+    "'write_files' must be a list."
+)
+ADDITIONAL_CLOUD_INIT_WRITE_FILES_MISSING_PATH_MSG = (
+    "write_files entry is missing the required 'path' field."
+)
+ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_LIST_MSG = "'runcmd' must be a list."
+ADDITIONAL_CLOUD_INIT_RUNCMD_NOT_STRING_MSG = (
+    "runcmd entry is not a string."
+)
+ADDITIONAL_CLOUD_INIT_INVALID_FG_MSG = (
+    "is not a valid functional group name in the 'groups' section."
+)
+ADDITIONAL_CLOUD_INIT_SECTION_NOT_DICT_MSG = (
+    "Section must be a mapping/dict."
+)
 
 # local_repo.yml
 REPO_STORE_PATH_MSG = "Please provide a valid repo_store_path value."
@@ -310,13 +367,13 @@ TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG = (
 # PowerScale telemetry validation messages
 POWERSCALE_VICTORIA_REQUIRED_MSG = (
     "PowerScale telemetry requires VictoriaMetrics to be deployed. "
-    "When telemetry_sources.powerscale.metrics_enabled is true, "
+    "When telemetry_sources.powerscale.metrics_enabled is true in telemetry_config.yml, "
     "'victoria_metrics' must be included in collection_targets "
     "(e.g., 'victoria_metrics' or 'victoria_metrics,victoria_logs')."
 )
 POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG = (
     "PowerScale logs collection requires VictoriaLogs to be deployed. "
-    "When telemetry_sources.powerscale.logs_enabled is true, "
+    "When telemetry_sources.powerscale.logs_enabled is true in telemetry_config.yml, "
     "'victoria_logs' must be included in collection_targets "
     "(e.g., 'victoria_metrics,victoria_logs')."
 )
@@ -329,15 +386,15 @@ POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
     "PowerScale telemetry requires a service cluster."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
-    "powerscale_configurations section is required when "
+    "powerscale_configurations section is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "
     "It must contain csm_observability_values_file_path."
 )
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
-    "must be a non-empty string in format 'XGi' (e.g., '5Gi')"
+    "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_observability_values_file_path is required when "
+    "csm_observability_values_file_path is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
@@ -345,42 +402,42 @@ def powerscale_csm_values_not_found_msg(path):
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
         f"CSM Observability values.yaml file not found at '{path}'. "
-        "Please verify the file path is correct."
+        "Please verify the file path is correct in telemetry_config.yml (csm_observability_values_file_path)."
     )
 POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
-    "CSM Observability values.yaml must contain a valid YAML dictionary."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) must contain a valid YAML dictionary."
 )
 def powerscale_csm_values_parse_error_msg(error):
     """Returns error message when CSM Observability values.yaml fails to parse."""
     return f"Failed to parse CSM Observability values.yaml: {error}"
 POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
-    "CSM Observability values.yaml is missing 'karaviMetricsPowerscale' section."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) is missing 'karaviMetricsPowerscale' section."
 )
 POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
-    "CSM Metrics PowerScale image is required in CSM Observability values.yaml."
+    "CSM Metrics PowerScale image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
-    "OTEL Collector image is required in CSM Observability values.yaml."
+    "OTEL Collector image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_metric_remote_write_endpoint must have a non-empty 'url' field."
+    "Each additional_metric_remote_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
 )
 ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG = (
-    "URL must start with 'http://' or 'https://'."
+    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
 ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_log_write_endpoint must have a non-empty 'url' field."
+    "Each additional_log_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
 )
 ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
-    "URL must start with 'http://' or 'https://'."
+    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
 def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
-    """Returns error message when CSM values.yaml image version doesn't match service_k8s.json."""
+    """Returns error message when CSM values.yaml image version doesn't match service_k8s (versioned)."""
     return (
         f"Image version mismatch for '{image_name}': "
         f"CSM Observability values.yaml has '{values_image}' but "
-        f"service_k8s.json has '{service_k8s_image}'. "
-        f"Please update service_k8s.json to match the values.yaml version "
+        f"service_k8s (versioned) has '{service_k8s_image}'. "
+        f"Please update service_k8s (versioned) to match the values.yaml version "
         f"and re-run local_repo.yml to mirror the correct image to Pulp."
     )
 # pylint: enable=invalid-name
@@ -400,13 +457,13 @@ POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
     "PowerScale telemetry requires a service cluster."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
-    "powerscale_configurations section is required and must contain powerscale_telemetry_support."
+    "powerscale_configurations section is required in telemetry_config.yml and must contain powerscale_telemetry_support."
 )
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
-    "must be a non-empty string in format 'XGi' (e.g., '5Gi')"
+    "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_observability_values_file_path is required when powerscale_configurations.powerscale_telemetry_support is true. "
+    "csm_observability_values_file_path is required in telemetry_config.yml when powerscale_configurations.powerscale_telemetry_support is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
 POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG = (
@@ -418,28 +475,28 @@ def powerscale_csm_values_not_found_msg(path):
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
         f"CSM Observability values.yaml file not found at '{path}'. "
-        "Please verify the file path is correct."
+        "Please verify the file path is correct in telemetry_config.yml (csm_observability_values_file_path)."
     )
 POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
-    "CSM Observability values.yaml must contain a valid YAML dictionary."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) must contain a valid YAML dictionary."
 )
 def powerscale_csm_values_parse_error_msg(error):
     """Returns error message when CSM Observability values.yaml fails to parse."""
     return f"Failed to parse CSM Observability values.yaml: {error}"
 POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
-    "CSM Observability values.yaml is missing 'karaviMetricsPowerscale' section."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) is missing 'karaviMetricsPowerscale' section."
 )
 POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
-    "CSM Metrics PowerScale image is required in CSM Observability values.yaml."
+    "CSM Metrics PowerScale image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
-    "OTEL Collector image is required in CSM Observability values.yaml."
+    "OTEL Collector image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_remote_write_endpoint must have a non-empty 'url' field."
+    "Each additional_remote_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
 )
 POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG = (
-    "URL must start with 'http://' or 'https://'."
+    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
 def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
     """Returns error message when CSM values.yaml image version doesn't match service_k8s.json."""
@@ -602,7 +659,9 @@ TELEMETRY_IP_OVERLAP_FAIL_MSG = ("admin network, telemetry network and IP ranges
                                  "Check telemetry_config.yml and network_spec.yml")
 
 # high_availability
-VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin subnet. "
+VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in a valid subnet. "
+                                 "The VIP must be in either the admin subnet or the "
+                                 "additional subnet where the Kubernetes control plane nodes are configured. "
                                  "Check high_availability_config.yml and network_spec.yml")
 VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
                        "Check high_availability_config.yml and network_spec.yml")
@@ -747,6 +806,53 @@ def get_footer():
     """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
+# Telemetry storage configuration validation
+KAFKA_STORAGE_REQUIRED_MSG = (
+    "kafka_storage section is required in telemetry_storage_config.yml "
+    "when kafka is in collection_targets for any telemetry source "
+    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "entity_operator.user_operator resource configurations."
+)
+
+VICTORIA_METRICS_STORAGE_REQUIRED_MSG = (
+    "victoria_cluster_storage section is required in telemetry_storage_config.yml "
+    "when victoria_metrics is in collection_targets for any telemetry source. "
+    "Please configure victoria_cluster_storage with vmstorage, vminsert, vmselect, and vmagent."
+)
+
+VICTORIA_LOGS_STORAGE_REQUIRED_MSG = (
+    "victoria_logs_cluster_storage section is required in telemetry_storage_config.yml "
+    "when victoria_logs is in collection_targets for any telemetry source. "
+    "Please configure victoria_logs_cluster_storage with vlstorage, vlinsert, vlselect, and vlagent."
+)
+
+VECTOR_STORAGE_REQUIRED_MSG = (
+    "vector_storage section is required in telemetry_storage_config.yml "
+    "when Vector bridges are enabled (vector_ldms or vector_ome). "
+    "Please configure vector_storage with ldms, ome, vlagent_vector, and vmagent_vector."
+)
+
+CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG = (
+    "csi_volume_exporter_storage section is required in telemetry_storage_config.yml "
+    "when CSI volume metrics are enabled. Please configure resource requests and limits."
+)
+
+CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG = (
+    "csm_metrics_powerscale_storage section is required in telemetry_storage_config.yml "
+    "when PowerScale metrics are enabled. Please configure resource requests and limits."
+)
+
+IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG = (
+    "idrac_telemetry_storage section is required in telemetry_storage_config.yml "
+    "when iDRAC metrics are enabled. Please configure resource requests and limits "
+    "for mysqldb, activemq, receiver, kafka_pump, and victoria_pump containers."
+)
+
+TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (
+    "telemetry_storage_config.yml file not found. This file is required when "
+    "telemetry collection is enabled. Please create the file with appropriate storage configurations."
+)
+
 def get_validation_initiated(input_file_path):
     """Returns a formatted message indicating validation has started for a file."""
     return f"{'#' * 10} Validation Initiated for {input_file_path} {'#' * 10}"
@@ -778,3 +884,11 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "To fix: Either set telemetry_sources.ldms.metrics_enabled=true to enable LDMS data collection, "
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
 )
+
+# CSM Observability - Unsupported metrics validation messages
+def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
+    """Returns error message when unsupported CSM metrics components are enabled."""
+    return (
+        f"{component_name} metrics collection not supported. "
+        f"Set {section_name}.enabled to false in {values_file_path} and rerun the playbook."
+    )

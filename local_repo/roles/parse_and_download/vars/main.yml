@@ -82,7 +82,7 @@ sw_download_msg: "The specified software packages have already been downloaded."
 # Usage create_metadata.yml
 meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
-metadata_warn_msg: "Warning: Metadata has changed since the last run! execution may fail if there is no internet on OIM , still you want to continue..."
+metadata_warn_msg: "Warning: Metadata has changed since the last run! execution may fail if there is no internet on OIM."
 metadata_identical_msg: "Metadata is identical. No changes detected."
 file_mode: "0644"
 folder_mode: "0755"

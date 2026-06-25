@@ -143,8 +143,8 @@ default:
         _REFRESH_FAILED=0
         for _RF_FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
                pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
-               security_config.yml high_availability_config.yml omnia_config.yml \
-               build_stream_config.yml; do
+               telemetry_storage_config.yml security_config.yml high_availability_config.yml \
+               omnia_config.yml build_stream_config.yml; do
 
           # URL-encode the file path (input/<filename>)
           _RF_ENCODED_PATH=$(printf '%s' "input/${_RF_FNAME}" | sed 's|/|%2F|g')
@@ -167,6 +167,23 @@ default:
         done
 
         echo "  [REFRESH] Updated ${_REFRESH_COUNT} files from latest commit (${_REFRESH_FAILED} not found/skipped)"
+
+        # Fetch failed_nodes.json from miscellaneous/ directory (user may have edited it in GitLab UI for retry)
+        _RF_MISC_ENCODED_PATH=$(printf '%s' "miscellaneous/failed_nodes.json" | sed 's|/|%2F|g')
+        _RF_MISC_HTTP=$(curl -s -o "/tmp/_rf_failed_nodes.json" -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/${_RF_MISC_ENCODED_PATH}/raw?ref=${CI_COMMIT_REF_NAME}" \
+          --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
+
+        if [ "$_RF_MISC_HTTP" = "200" ]; then
+          mkdir -p "${CI_PROJECT_DIR}/miscellaneous"
+          cp "/tmp/_rf_failed_nodes.json" "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json"
+          echo "  [REFRESH] Fetched miscellaneous/failed_nodes.json from latest commit"
+        else
+          echo "  [REFRESH] No miscellaneous/failed_nodes.json in repo (expected for first run)"
+        fi
+        rm -f "/tmp/_rf_failed_nodes.json"
       }
 
 # ---------------------------------------------------------------------------
@@ -238,8 +255,8 @@ deploy:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -376,7 +393,6 @@ deploy:
   artifacts:
     reports:
       dotenv: deploy.env
-      junit: test-results.xml
     paths:
       - status_response.json
 
@@ -446,8 +462,8 @@ restart:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -475,19 +491,9 @@ restart:
       echo ""
 
       # Step 1/3: Upload failed_nodes.json from GitLab to OIM (if exists)
+      # The file was already fetched by refresh_input_files() above
       echo "  Step 1/3: Upload failed_nodes.json to OIM for retry logic..."
       echo "  ------------------------------------------------------------"
-
-      # Fetch latest failed_nodes.json from main branch using GitLab API (user may have edited it)
-      echo "  [*] Fetching latest failed_nodes.json from main branch via API..."
-      GITLAB_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/miscellaneous%2Ffailed_nodes.json/raw?ref=main"
-
-      mkdir -p "${CI_PROJECT_DIR}/miscellaneous"
-
-      curl -f -s -H "PRIVATE-TOKEN: ${GITLAB_ROOT_TOKEN}" \
-        "${GITLAB_API_URL}" \
-        -o "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" 2>/dev/null || \
-        echo "  [-] No failed_nodes.json in main branch (expected for first run)"
 
       if [ -f "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" ]; then
         echo "  [+] failed_nodes.json found in GitLab repository"
@@ -652,8 +658,8 @@ validate:
 
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml security_config.yml \
-             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -684,7 +690,7 @@ validate:
       echo "  [1/3] Triggering validate stage..."
       VALIDATE_PAYLOAD=$(cat <<EOF
       {
-        "scenario_names": ["discovery"],
+        "scenario_names": ["provision"],
         "test_suite": "build_stream",
         "timeout_minutes": 120
       }
@@ -753,7 +759,6 @@ validate:
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${VALIDATE_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
-            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
             echo "  ------------------------------------------------------------"
 
             # Extract test summary from result_detail if available
@@ -763,6 +768,12 @@ validate:
               echo "${TEST_SUMMARY}" | jq '.'
               echo "  ------------------------------------------------------------"
             fi
+
+            # Display log file path after test summary with verbose message
+            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
+            echo "  ------------------------------------------------------------"
+            echo "  For more detailed information, refer to the logs below"
+            echo "  ------------------------------------------------------------"
             exit 1
             ;;
         esac
@@ -793,21 +804,12 @@ validate:
       printf "  %-22s %s\n" "Validate State:" "${VALIDATE_RESULT}"
       printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_VALIDATE}"
 
-      # Extract and display test summary
+      # Extract and display test summary (raw JSON from API)
       TEST_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
       if [ -n "${TEST_SUMMARY}" ]; then
         echo "  ------------------------------------------------------------"
         echo "  Test Summary:"
-        TOTAL=$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')
-        PASSED=$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')
-        FAILED=$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')
-        SKIPPED=$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')
-        ERRORS=$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')
-        printf "  %-22s %s\n" "Total Tests:"    "${TOTAL}"
-        printf "  %-22s %s\n" "Passed:"         "${PASSED}"
-        printf "  %-22s %s\n" "Failed:"         "${FAILED}"
-        printf "  %-22s %s\n" "Skipped:"        "${SKIPPED}"
-        printf "  %-22s %s\n" "Errors:"         "${ERRORS}"
+        echo "${TEST_SUMMARY}" | jq '.'
       fi
 
       # Display artifact directory if available
@@ -896,43 +898,6 @@ summary:
         FAILED_STATE="${VALIDATE_STATE}"
       fi
 
-      # --- Download and display per-node restart results (if available) ---
-      if [ "${RESTART_STATE}" = "COMPLETED" ] || [ "${RESTART_STATE}" = "SUCCEEDED" ] || [ "${RESTART_STATE}" = "FAILED" ]; then
-        echo "  Downloading node restart results..."
-        NR_HTTP=$(api_call_with_retry node_results.json \
-          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/artifacts/node-results" \
-          --cacert "${BSM_CERT_FILE}")
-        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-
-        if [ "${NR_HTTP}" = "200" ] && [ -f node_results.json ]; then
-          NR_TOTAL=$(jq -r '.total // 0' node_results.json 2>/dev/null)
-          NR_OK=$(jq -r '.succeeded // 0' node_results.json 2>/dev/null)
-          NR_FAIL=$(jq -r '.failed // 0' node_results.json 2>/dev/null)
-
-          echo ""
-          echo "  Node Restart Results:"
-          echo "  ------------------------------------------------------------"
-          printf "  %-24s %s\n" "Total Nodes:" "${NR_TOTAL}"
-          printf "  %-24s %s\n" "Succeeded:"   "${NR_OK}"
-          printf "  %-24s %s\n" "Failed:"      "${NR_FAIL}"
-          echo "  ------------------------------------------------------------"
-
-          # Show per-node detail (up to 50 nodes)
-          NR_COUNT=$(jq '.nodes | length' node_results.json 2>/dev/null || echo 0)
-          if [ "${NR_COUNT}" -gt 0 ]; then
-            printf "  %-20s %-10s %s\n" "Host" "Status" "Detail"
-            printf "  %-20s %-10s %s\n" "----" "------" "------"
-            jq -r '.nodes[]? | "  \(.host // "unknown")  \(if .failed then "FAILED" else "OK" end)  \(.status // "")"' \
-              node_results.json 2>/dev/null | head -50
-          fi
-          echo "  ------------------------------------------------------------"
-          echo ""
-        else
-          echo "  [INFO] No node restart results available (HTTP ${NR_HTTP})"
-          echo ""
-        fi
-      fi
-
       if [ "${PIPELINE_FAILED}" = "true" ]; then
         echo "  RESULT:  FAILED"
         echo "  Cause:   '${FAILED_STAGE}' stage reached state: ${FAILED_STATE}"
@@ -957,3 +922,4 @@ summary:
         echo "  Not all stages completed. Check individual stage logs."
       fi
       echo "============================================================"
+      exit 0

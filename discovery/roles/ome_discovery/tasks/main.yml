@@ -21,3 +21,6 @@
 
 - name: Generate PXE mapping file
   ansible.builtin.include_tasks: generate_pxe_mapping.yml
+
+- name: Generate BMC discovery report
+  ansible.builtin.include_tasks: generate_discovery_report.yml

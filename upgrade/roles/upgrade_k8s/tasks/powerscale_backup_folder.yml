@@ -1,0 +1,128 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# PowerScale CSI Driver Backup Tasks
+# ============================================================================
+# Purpose: Backup PowerScale CSI driver folder and related resources
+#
+# This task file backs up:
+#   - /opt/omnia/csi-driver-powerscale folder (current version)
+#   - Default StorageClass
+#   - PersistentVolumeClaims using PowerScale StorageClass
+# ============================================================================
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 1: Backup current PowerScale CSI driver folder
+# ───────────────────────────────────────────────────────────────────────────
+- name: Ensure csi backup directory exists
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.file:
+    path: "{{ backup_dir }}/csi"
+    state: directory
+    mode: "0755"
+
+- name: Check if current PowerScale CSI driver folder exists
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.stat:
+    path: "{{ k8s_client_mount_path }}/csi-driver-powerscale"
+  register: current_powerscale_dir_check
+  failed_when: false
+
+- name: Backup current PowerScale CSI driver folder
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.archive:
+    path: "{{ k8s_client_mount_path }}/csi-driver-powerscale"
+    dest: "{{ backup_dir }}/csi/csi-driver-powerscale-backup.tar.gz"
+    format: gz
+    mode: "0644"
+  when: current_powerscale_dir_check.stat.exists
+  register: powerscale_folder_backup
+
+- name: Display folder backup status
+  ansible.builtin.debug:
+    msg: "PowerScale CSI driver folder backed up to {{ backup_dir }}/csi/csi-driver-powerscale-backup.tar.gz"
+  when: powerscale_folder_backup is succeeded
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 2: Backup default StorageClass
+# ───────────────────────────────────────────────────────────────────────────
+- name: Get default StorageClass name
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: kubectl get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}'
+  register: default_sc_name
+  changed_when: false
+  failed_when: false
+
+- name: Get default StorageClass YAML
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get sc {{ default_sc_name.stdout }} -o yaml
+  register: powerscale_storageclass_yaml
+  changed_when: false
+  failed_when: false
+  when: default_sc_name.stdout != ""
+
+- name: Backup default StorageClass to backup directory
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.copy:
+    content: "{{ powerscale_storageclass_yaml.stdout }}"
+    dest: "{{ backup_dir }}/csi/storageclass-backup.yml"
+    mode: "{{ file_perm_644 }}"
+  when: default_sc_name.stdout != "" and powerscale_storageclass_yaml.stdout is defined
+
+- name: Display StorageClass backup status
+  ansible.builtin.debug:
+    msg: "Default StorageClass backed up to {{ backup_dir }}/csi/storageclass-backup.yml"
+  when: powerscale_storageclass_yaml.stdout is defined and powerscale_storageclass_yaml.stdout != ''
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 3: Backup PersistentVolumeClaims using PowerScale StorageClass
+# ───────────────────────────────────────────────────────────────────────────
+
+- name: Get all PVCs using default StorageClass
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pvc -A -o json | \
+      jq -r '.items[] | select(.spec.storageClassName == "{{ default_sc_name.stdout }}") | "\(.metadata.namespace) \(.metadata.name)"'
+    args:
+      executable: /bin/bash
+  register: powerscale_pvcs
+  changed_when: false
+  failed_when: false
+  when: default_sc_name.stdout != ""
+
+- name: Backup each PVC using PowerScale StorageClass
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: kubectl get pvc {{ item.split(' ')[1] }} -n {{ item.split(' ')[0] }} -o yaml > {{ backup_dir }}/csi/pvc-{{ item.split(' ')[1] }}-{{ item.split(' ')[0] }}.yaml  # noqa yaml[line-length]
+  loop: "{{ powerscale_pvcs.stdout_lines }}"
+  when: powerscale_pvcs.stdout_lines is defined and powerscale_pvcs.stdout_lines | length > 0
+  register: pvc_backup_results
+  changed_when: true
+
+- name: Display PVC backup status
+  ansible.builtin.debug:
+    msg: "Backed up {{ powerscale_pvcs.stdout_lines | length }} PVCs using PowerScale StorageClass"
+  when: powerscale_pvcs.stdout_lines is defined and powerscale_pvcs.stdout_lines | length > 0
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 4: Display backup summary
+# ───────────────────────────────────────────────────────────────────────────
+- name: Display PowerScale backup summary
+  ansible.builtin.debug:
+    msg: "{{ msg_powerscale_backup_summary }}"

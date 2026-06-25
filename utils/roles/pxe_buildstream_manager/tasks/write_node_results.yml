@@ -22,6 +22,26 @@
     bsm_job_id: "{{ job_id }}"
     node_results_dir: "/opt/omnia/build_stream_root/artifacts/{{ job_id }}"
 
+- name: Build reverse map of ADMIN_IP to BMC_IP for phone-home failure lookup
+  ansible.builtin.set_fact:
+    admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({pxe_csv_node_map[item]['ADMIN_IP']: item}) }}"
+  loop: "{{ pxe_csv_node_map | default({}) | list }}"
+  when:
+    - pxe_csv_node_map is defined
+    - pxe_csv_node_map[item]['ADMIN_IP'] is defined
+
+- name: Build phone-home failed BMC IPs list
+  ansible.builtin.set_fact:
+    phone_home_failed_bmc_ips: "{{ phone_home_failed_bmc_ips | default([]) + [admin_to_bmc_map[item]] }}"
+  loop: "{{ phone_home_failed_ips | default([]) }}"
+  when:
+    - admin_to_bmc_map is defined
+    - item in admin_to_bmc_map
+
+- name: Default phone_home_failed_bmc_ips if not set
+  ansible.builtin.set_fact:
+    phone_home_failed_bmc_ips: "{{ phone_home_failed_bmc_ips | default([]) }}"
+
 - name: Build per-node results (only hosts that were actually PXE booted, not BSM-skipped)
   ansible.builtin.set_fact:
     pxe_node_results: >-
@@ -31,13 +51,20 @@
                     if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
         'service_tag': (pxe_csv_node_map[item]['SERVICE_TAG'] | default(''))
                        if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
-        'status': 'failed' if (hostvars[item]['reboot_failed'] | default(true)) else 'success',
-        'message': hostvars[item]['reboot_status'] | default('No status available')
+        'status': _node_status,
+        'message': _node_message
       }] }}
   loop: "{{ groups['bmc'] | default([]) }}"
   when: >
     groups['bmc'] is defined and (groups['bmc'] | length > 0)
     and not (hostvars[item]['bsm_skip_this_host'] | default(false))
+  vars:
+    _reboot_failed: "{{ hostvars[item]['reboot_failed'] | default(true) }}"
+    _phone_home_failed: "{{ item in (phone_home_failed_bmc_ips | default([])) }}"
+    _node_status: "{{ 'failed' if (_reboot_failed | bool or _phone_home_failed | bool) else 'success' }}"
+    _node_message: >-
+      {{ hostvars[item]['reboot_status'] | default('No status available')
+         + (' | Phone-home failed: cloud-init did not complete' if (not _reboot_failed | bool and _phone_home_failed | bool) else '') }}
 
 - name: Ensure directories exist
   ansible.builtin.file:
@@ -46,7 +73,7 @@
     mode: "0755"
   loop:
     - "{{ node_results_dir }}"
-    - "{{ restart_state_dir }}"
+    - "{{ restart_state_dir }}/{{ job_id }}"
 
 - name: Write node_results.json
   ansible.builtin.copy:

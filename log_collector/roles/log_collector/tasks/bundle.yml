@@ -22,7 +22,7 @@
 - name: Override collection mode to curated_support when tag is active
   ansible.builtin.set_fact:
     collection_mode: "curated_support"
-  when: "'curated_support' in ansible_run_tags"
+  when: "'curated_support' in (ansible_run_tags | list)"
 
 - name: Set ISO-8601 warning timestamp for this run
   ansible.builtin.set_fact:

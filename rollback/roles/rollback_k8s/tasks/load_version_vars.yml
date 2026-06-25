@@ -1,0 +1,133 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Reusable task file: loads configuration files and extracts version variables.
+# Can be re-included per hop in multi-hop upgrades with overridden
+# software_config_file / service_k8s_config_file paths.
+
+# ── Load configuration ──────────────────────────────────────────────
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_file }}"
+    name: software_config
+
+# Use cached configs (loaded once at playbook start for performance)
+- name: Use cached storage_config
+  ansible.builtin.set_fact:
+    storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+- name: Use cached ha_config
+  ansible.builtin.set_fact:
+    ha_config: "{{ hostvars['localhost']['cached_ha_config'] }}"
+
+# ── Extract NFS paths ──────────────────────────────────────────────
+- name: Set NFS mount info from storage_config
+  ansible.builtin.set_fact:
+    _nfs_mount: >-
+      {{ storage_config.mounts
+          | selectattr('name', 'equalto', nfs_storage_name)
+          | first }}
+
+- name: Set NFS paths from mount info
+  ansible.builtin.set_fact:
+    k8s_server_share_path: "{{ _nfs_mount.source.split(':')[1] }}"
+    k8s_client_mount_path: "{{ _nfs_mount.mount_point }}"
+    k8s_nfs_server_ip: "{{ _nfs_mount.source.split(':')[0] }}"
+
+# ── Extract kube_vip ───────────────────────────────────────────────
+- name: Set kube_vip from high_availability_config
+  ansible.builtin.set_fact:
+    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address }}"
+
+# ── Extract version variables ──────────────────────────────────────
+- name: Set k8s_target_version from software_config
+  ansible.builtin.set_fact:
+    k8s_target_version: >-
+      {{ software_config.softwares
+         | selectattr('name', 'equalto', 'service_k8s')
+         | map(attribute='version') | first }}
+
+- name: Extract cluster_os_version from software_config
+  ansible.builtin.set_fact:
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+
+- name: Set version-specific service_k8s config path
+  ansible.builtin.set_fact:
+    service_k8s_config_file: "{{ input_project_dir }}/config/x86_64/rhel/{{ cluster_os_version }}/service_k8s_v{{ k8s_target_version }}.json"
+
+- name: Verify version-specific service_k8s config exists
+  ansible.builtin.stat:
+    path: "{{ service_k8s_config_file }}"
+  register: service_k8s_config_stat
+
+- name: Fail if version-specific service_k8s config is missing
+  ansible.builtin.fail:
+    msg: "Required version-specific config not found: {{ service_k8s_config_file }}"
+  when: not service_k8s_config_stat.stat.exists
+
+- name: Load version-specific service_k8s config
+  ansible.builtin.include_vars:
+    file: "{{ service_k8s_config_file }}"
+    name: service_k8s_config
+
+- name: Derive k8s_target_minor
+  ansible.builtin.set_fact:
+    k8s_target_minor: "{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') }}"
+
+- name: Extract calico_target_version from service_k8s.json
+  ansible.builtin.set_fact:
+    calico_target_version: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('package', 'search', 'calico/node')
+         | map(attribute='tag') | first | regex_replace('^v', '') }}
+
+- name: Extract metallb_target_version from service_k8s.json
+  ansible.builtin.set_fact:
+    metallb_target_version: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('package', 'search', 'metallb/speaker')
+         | map(attribute='tag') | first | regex_replace('^v', '') }}
+
+- name: Extract helm_target_version from service_k8s.json
+  ansible.builtin.set_fact:
+    helm_target_version: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('package', 'search', 'helm-v')
+         | map(attribute='package') | first
+         | regex_replace('^helm-v', '')
+         | regex_replace('-.*$', '') }}
+
+# ── Extract addon package names (for manifest file names) ─────────────
+- name: Extract addon package names from service_k8s.json
+  ansible.builtin.set_fact:
+    calico_package: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('type', 'equalto', 'manifest')
+         | selectattr('package', 'search', 'calico')
+         | map(attribute='package') | join }}
+    metallb_package: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('type', 'equalto', 'manifest')
+         | selectattr('package', 'search', 'metallb-native')
+         | map(attribute='package') | join }}
+    helm_package: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('type', 'equalto', 'tarball')
+         | selectattr('package', 'search', 'helm')
+         | map(attribute='package') | join }}
+
+# ── Set OIM host ───────────────────────────────────────────────────
+- name: Set oim_host to NFS server IP
+  ansible.builtin.set_fact:
+    oim_host: "{{ k8s_nfs_server_ip }}"

@@ -1,0 +1,86 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Load upgrade status from kube_vip
+  ansible.builtin.slurp:
+    src: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+  delegate_to: "{{ kube_vip }}"
+  register: status_slurp
+
+- name: Parse upgrade status
+  ansible.builtin.set_fact:
+    upgrade_status: "{{ status_slurp.content | b64decode | from_yaml }}"
+
+- name: Check if k8s config backup is already completed
+  ansible.builtin.debug:
+    msg: "k8s config backup already completed (status: {{ upgrade_status.k8s_config_backup.status | default('pending') }}) - skipping backup"
+  when:
+    - upgrade_status.k8s_config_backup.status | default('pending') == 'completed'
+
+- name: Skip k8s config backup if already completed
+  ansible.builtin.meta: noop
+  when: upgrade_status.k8s_config_backup.status | default('pending') == 'completed'
+
+- name: Ensure config backup directory exists
+  ansible.builtin.file:
+    path: "{{ k8s_config_backup_dir }}"
+    state: directory
+    mode: "0755"
+  when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
+
+- name: Create node-specific backup directories
+  ansible.builtin.file:
+    path: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}"
+    state: directory
+    mode: "0755"
+  when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
+
+- name: Check if k8s-config backup already exists
+  ansible.builtin.stat:
+    path: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}/k8s-config.tar.gz"
+  register: k8s_config_backup_stat
+  when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
+
+- name: Archive /etc/kubernetes to NFS mount (only if backup doesn't exist)
+  ansible.builtin.archive:
+    path: /etc/kubernetes
+    dest: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}/k8s-config.tar.gz"
+    format: gz
+    mode: "0644"
+  register: k8s_config_archive
+  when:
+    - upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
+    - k8s_config_backup_stat.stat is defined
+    - not k8s_config_backup_stat.stat.exists
+
+- name: Set permissions on archived k8s config
+  ansible.builtin.file:
+    path: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}/k8s-config.tar.gz"
+    mode: "0644"
+  when:
+    - k8s_config_archive is defined
+    - k8s_config_archive.dest is defined
+
+- name: Update k8s config backup status
+  ansible.builtin.include_tasks: update_status.yml
+  run_once: true
+  when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
+  vars:
+    status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+    status_update:
+      k8s_config_backup:
+        status: completed
+        path: "{{ k8s_config_backup_dir }}"
+        timestamp: "{{ now(utc=true).isoformat() }}"
+        error:

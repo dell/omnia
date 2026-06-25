@@ -127,15 +127,15 @@ partition_params:
   State: "UP"
   Default: "YES"
 busy_nodes: {}
-openldap_dir_name: "openldap/"
+openldap_dir_name: "openldap"
 software_config_file: "{{ input_project_dir }}/software_config.json"
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
 auth_tls_certs_path: "/opt/omnia/auth/tls_certs/ldapserver.crt"
 slurm_installation_type: configless
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 controller_empty_msg: "Slurm controller functional group is missing from PXE mapping file. Please update the file and rerun provision.yml."
-download_container_image_path: "{{ slurm_config_path }}/hpc_tools/scripts/download_container_image.sh"
-container_image_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/container_image.list"
+download_container_image_path: "{{ hpc_tools_path }}/scripts/download_container_image.sh"
+container_image_list_path: "{{ hpc_tools_path }}/scripts/container_image.list"
 pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
 packages_base_dir_x86_64: "{{ slurm_config_path }}/packages/x86_64"
 packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
@@ -151,37 +151,14 @@ offline_path_aarch64: []
 
 ssh_private_key_path: /root/.ssh/oim_rsa
 
-# nvidia sdk vars
-# Fully resolved tarball relative paths (no nested Jinja2)
-# nvidia sdk vars
-nvhpc_pkg_name_x86_64: "nvhpc_2025_2511_Linux_x86_64_cuda_13.0"
-nvhpc_pkg_name_aarch64: "nvhpc_2025_2511_Linux_aarch64_cuda_13.0"
-
-nvhpc_tarball_x86_64_relpath: "offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/{{ nvhpc_pkg_name_x86_64 }}/{{ nvhpc_pkg_name_x86_64 }}.tar.gz" # noqa: yaml[line-length]
-nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/{{ nvhpc_pkg_name_aarch64 }}/{{ nvhpc_pkg_name_aarch64 }}.tar.gz" # noqa: yaml[line-length]
-
+# NVIDIA HPC SDK vars
+# NOTE: NVHPC is now installed via DNF from Pulp-mirrored NVIDIA repo
+# User runs /usr/local/bin/setup_nvhpc_sdk.sh --install on compiler node manually
+# Slurm nodes run /usr/local/bin/setup_nvhpc_sdk.sh to mount from NFS
 nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
 
 # Benchmark pull script path
-pull_benchmarks_script_path: "{{ slurm_config_path }}/hpc_tools/scripts/pull_benchmarks.sh"
-benchmark_tools_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/benchmark_tools.list"
-
-# parallel file copy
-parallel_copy_max_workers: 4
-
-# ------------------------------------------------------------
-# Parallel Copy Candidates (Only path existence matters)
-# ------------------------------------------------------------
-
-parallel_copy_candidates:
-
-  # NVIDIA HPC SDK (x86_64 tarball extracted dir)
-  - name: nvhpc_sdk_x86_64
-    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_x86_64_relpath | dirname }}/"
-    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
-
-  - name: nvhpc_sdk_aarch64
-    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_aarch64_relpath | dirname }}/"
-    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
+pull_benchmarks_script_path: "{{ hpc_tools_path }}/scripts/pull_benchmarks.sh"
+benchmark_tools_list_path: "{{ hpc_tools_path }}/scripts/benchmark_tools.list"
 
 backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"

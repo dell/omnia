@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Calculate and validate hop chains
+# ============================================================================
+# Consolidated from calculate_hop_chain.yml + validate_hop_chains.yml
+#
+# 1. Calls calculate_upgrade_hops module to compute the chain
+# 2. Processes enabled hops from upgrade_config
+# 3. Validates hop sequence and JSON files (multi-hop only)
+# 4. Sets downstream facts
+# ============================================================================
+
+# --- Calculate ---
+
+- name: "Hops — Calculate hop chain"
+  calculate_upgrade_hops:
+    upgrade_config: "{{ upgrade_config }}"
+    current_software_config: "{{ current_software_config }}"
+    current_omnia_version: "{{ upgrade_source_version }}"
+    target_omnia_version: "{{ upgrade_target_version }}"
+  register: _hop_calculation
+
+- name: "Hops — Set calculated facts"
+  ansible.builtin.set_fact:
+    calculated_hop_chains: "{{ _hop_calculation.hop_chains }}"
+    total_upgrade_hops: "{{ _hop_calculation.total_hops }}"
+    upgrade_mode: "{{ _hop_calculation.upgrade_mode }}"
+
+# --- Process enabled hops from calculated hop chains ---
+
+- name: "Hops — Use calculated hop chains"
+  ansible.builtin.set_fact:
+    _processed_hops: "{{ calculated_hop_chains }}"
+
+# --- Validate (multi-hop only) ---
+
+- name: "Hops — Validate hop chain sequence"
+  ansible.builtin.assert:
+    that:
+      - item.from_version == current_versions[item.software] | default('not_found')
+    fail_msg: >-
+      Hop validation failed for {{ item.software }}/{{ item.hop_id }}:
+      expected {{ item.from_version }}, got {{ current_versions[item.software] | default('not_found') }}
+    success_msg: "{{ item.software }}/{{ item.hop_id }}: {{ item.from_version }} -> {{ item.to_version }}"
+  loop: "{{ _processed_hops }}"
+  loop_control:
+    label: "{{ item.software }}/{{ item.hop_id }}"
+  when: upgrade_mode == 'multi_hop'
+
+- name: "Hops — Check JSON files for all hop targets"
+  ansible.builtin.stat:
+    path: >-
+      {{ input_project_dir }}/config/{{ item.1 }}/{{
+      current_software_config.cluster_os_type }}/{{
+      current_software_config.cluster_os_version }}/{{
+      item.0.json_file }}
+  register: _hop_json_check
+  loop: "{{ _processed_hops | product(upgrade_active_architectures) | list }}"
+  loop_control:
+    label: "{{ item.0.software }}/{{ item.0.hop_id }}/{{ item.1 }}"
+
+- name: "Hops — Fail if hop JSON files missing"
+  ansible.builtin.fail:
+    msg: >-
+      JSON file not found for hop {{ item.item.0.software }}/{{ item.item.0.hop_id }}:
+      {{ item.invocation.module_args.path }}
+  loop: "{{ _hop_json_check.results }}"
+  loop_control:
+    label: "{{ item.item.0.software }}/{{ item.item.0.hop_id }}"
+  when:
+    - item.stat is defined
+    - not item.stat.exists
+    - upgrade_mode == 'multi_hop'
+
+# --- Set downstream facts ---
+
+- name: "Hops — Set hop chain facts for downstream roles"
+  ansible.builtin.set_fact:
+    upgrade_hop_chain: "{{ _processed_hops }}"
+    total_upgrade_hops: "{{ _processed_hops | length }}"
+  when: upgrade_mode == 'multi_hop'

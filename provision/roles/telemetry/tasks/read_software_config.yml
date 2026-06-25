@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,20 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Run pulp status command on omnia_core container
-  ansible.builtin.command: /usr/local/bin/pulp status
-  delegate_to: localhost
-  changed_when: false
-  register: pulp_status_output
-
-- name: Set pulp content origin value
-  ansible.builtin.set_fact:
-    pulp_content_origin: "{{ (pulp_status_output.stdout | from_json).content_settings.content_origin }}"
-
-- name: Set fact for pulp protocol
-  ansible.builtin.set_fact:
-    pulp_server_ip: "{{ pulp_content_origin | urlsplit('hostname') }}"
-
 - name: Get cluster_os_type from software_config.json
   ansible.builtin.set_fact:
     cluster_os_type: "{{ software_config['cluster_os_type'] }}"
@@ -35,14 +21,19 @@
   ansible.builtin.set_fact:
     cluster_os_version: "{{ software_config['cluster_os_version'] }}"
 
-- name: Load service_k8s.json
+- name: Load service_k8s_<version>.json
   ansible.builtin.set_fact:
     telemetry_packages: "{{ lookup('file', k8s_packages_file) | from_json }}"
 
-- name: Extract service_k8s.json and set facts for pip_modules and python_version
+- name: Extract service_k8s_v<version>.json and set facts for pip_modules and python_version
   ansible.builtin.set_fact:
     k8s_pip_packages: >-
-      {{ telemetry_packages['service_kube_control_plane']['cluster']
+      {{ (telemetry_packages['service_kube_control_plane']['cluster']
         | selectattr('type', 'equalto', 'pip_module')
         | map(attribute='package')
-        | list }}
+        | list
+        + telemetry_packages['service_k8s']['cluster']
+        | selectattr('type', 'equalto', 'pip_module')
+        | map(attribute='package')
+        | list)
+        | unique }}

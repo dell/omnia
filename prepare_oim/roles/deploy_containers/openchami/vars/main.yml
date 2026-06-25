@@ -27,8 +27,6 @@ openchami_inventory_template: "{{ role_path }}/templates/inventory.yaml.j2"
 openchami_inventory_file: "{{ openchami_clone_path }}/dell/podman-quadlets/inventory/01-ochami"
 openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_config_vars_template: "{{ role_path }}/templates/configs.yaml.j2"
-openchami_coredhcp_template: "{{ role_path }}/templates/coredhcp.yaml.j2"
-openchami_coredhcp_target: "{{ openchami_clone_path }}/dell/podman-quadlets/roles/configs/templates/coredhcp/coredhcp.yaml.j2"
 openchami_install_fail_msg: "Failed to install OpenCHAMI"
 network_spec: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
@@ -166,14 +164,3 @@ coredhcp_tmp_lease_duration: "5m"
 coredhcp_cache_validity: "30s"
 coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
-
-# PowerScale S3 endpoint error messages
-powerscale_unreachable_msg: |
-  Cannot reach PowerScale S3 endpoint: {{ s3_configurations.endpoint_url }}
-  Check: network connectivity, S3 service enabled, firewall rules
-
-powerscale_validation_fail_msg: |
-  PowerScale S3 backend requires:
-    - s3_configurations.endpoint_url in storage_config.yml
-    - s3_access_id (PowerScale Access Key -- prompted by prepare_oim)
-    - s3_secret_key (PowerScale Secret Key -- prompted by prepare_oim)
