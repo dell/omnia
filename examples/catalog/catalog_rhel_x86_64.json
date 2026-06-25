@@ -1752,8 +1752,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.48.0-kafka-4.1.0",
-        "Version": "0.48.0-kafka-4.1.0"
+        "Tag": "1.0.1-kafka-4.2.0",
+        "Version": "1.0.1-kafka-4.2.0"
       },
       "quay.io/strimzi/kafka-bridge": {
         "Name": "quay.io/strimzi/kafka-bridge",
@@ -1767,8 +1767,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.33.1",
-        "Version": "0.33.1"
+        "Tag": "1.0.0",
+        "Version": "1.0.0"
       },
       "quay.io/strimzi/operator": {
         "Name": "quay.io/strimzi/operator",
@@ -1782,8 +1782,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.48.0",
-        "Version": "0.48.0"
+        "Tag": "1.0.1",
+        "Version": "1.0.1"
       },
       "registry.k8s.io/coredns/coredns": {
         "Name": "registry.k8s.io/coredns/coredns",
@@ -2039,7 +2039,7 @@
         ]
       },
       "strimzi-kafka-operator-helm-3-chart": {
-        "Name": "strimzi-kafka-operator-helm-3-chart-0.48.0",
+        "Name": "strimzi-kafka-operator-helm-3-chart-1.0.1",
         "SupportedOS": [
           {
             "Name": "RHEL",
@@ -2053,7 +2053,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "Uri": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.48.0/strimzi-kafka-operator-helm-3-chart-0.48.0.tgz"
+            "Uri": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.0.1/strimzi-kafka-operator-helm-3-chart-1.0.1.tgz"
           }
         ]
       },

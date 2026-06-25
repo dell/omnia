@@ -54,7 +54,7 @@ class TestGenerateHumanReadableId(unittest.TestCase):
         self.assertEqual(_generate_human_readable_id("helm-v3-20-1-chart", "tarball", None, self.used_ids), "helm-chart")
         self.assertEqual(_generate_human_readable_id("helm-v3-20-1-anything-suffixed", "tarball", None, self.used_ids), "helm-anything-suffixed")
         self.assertEqual(_generate_human_readable_id("metallb-native-v0-15-3", "manifest", None, self.used_ids), "metallb-native")
-        self.assertEqual(_generate_human_readable_id("strimzi-kafka-operator-helm-3-chart-0-48-0", "tarball", None, self.used_ids), "strimzi-kafka-operator-helm-3-chart")
+        self.assertEqual(_generate_human_readable_id("strimzi-kafka-operator-helm-3-chart-1-0-1", "tarball", None, self.used_ids), "strimzi-kafka-operator-helm-3-chart_1")
         self.assertEqual(_generate_human_readable_id("victoria-metrics-operator-0-59-3", "tarball", None, self.used_ids), "victoria-metrics-operator")
         self.assertEqual(_generate_human_readable_id("python3-PyMySQL-1.1.2", "rpm", None, self.used_ids), "python3-PyMySQL")
         self.assertEqual(_generate_human_readable_id("nfs-subdir-external-provisioner-4-0-18", "tarball", None, self.used_ids), "nfs-subdir-external-provisioner")
