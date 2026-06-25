@@ -218,13 +218,14 @@ oim_cleanup_note: |
      - For Slurm configuration backup, use the separate utility: ansible-playbook utils/slurm_config_util.yml --tags config_backup
      - To skip slurm cleanup, run: ansible-playbook utils/oim_cleanup.yml --skip-tags slurm
 
-  3. The playbook removes K8s-related directories from NFS shares:
-     - ssh, calico, metallb, helm, packages, telemetry, karavi-observability, csi-driver-powerscale, nfs-client-provisioner
+  3. The playbook removes K8s-related directories and files from NFS shares:
+     - Directories: ssh, calico, metallb, helm, packages, telemetry, karavi-observability, csi-driver-powerscale, nfs-client-provisioner
+     - Files: control-plane-join-command.sh, generate-control-plane-join.sh, worker-join-command.sh, pulp_webserver.crt
      - Node IP directories (when k8s_cleanup_node_ips: true)
-     - Directory list is configurable via k8s_cleanup_directories variable in vars/main.yml
-     - Supports multi-storage: Cleans directories from all K8s storage mounts configured in omnia_config.yml
+     - Directory and file lists are configurable via k8s_cleanup_directories and k8s_cleanup_files variables in vars/main.yml
+     - Supports multi-storage: Cleans directories and files from all K8s storage mounts configured in omnia_config.yml
      - To skip k8s cleanup, run: ansible-playbook utils/oim_cleanup.yml --skip-tags k8s
-     - No backup is created for k8s directories (directory deletion only)
+     - No backup is created for k8s directories and files (deletion only)
 
   4. The omnia_core container is NOT removed by oim_cleanup.yml.
      - To delete it, log in to the OIM node and run:
@@ -247,6 +248,14 @@ k8s_cleanup_directories:
   - karavi-observability
   - csi-driver-powerscale
   - nfs-client-provisioner
+
+# List of k8s root-level files to delete from NFS share
+# Edit this list to add/remove files as needed
+k8s_cleanup_files:
+  - control-plane-join-command.sh
+  - generate-control-plane-join.sh
+  - worker-join-command.sh
+  - pulp_webserver.crt
 
 # Delete node IP directories (pattern: x.x.x.x)
 # Set to false to skip node directories
