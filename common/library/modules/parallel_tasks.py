@@ -160,9 +160,19 @@ def determine_function(
 
         # Construct the status file path using DEFAULT_STATUS_FILENAME.
         status_file = os.path.join(csv_file_path, DEFAULT_STATUS_FILENAME)
+
+        # Ensure file exists with valid header
         if not os.path.exists(status_file) or os.stat(status_file).st_size == 0:
             with open(status_file, 'w', encoding="utf-8") as file:
                 file.write(STATUS_CSV_HEADER)
+        else:
+            with open(status_file, 'r', encoding="utf-8") as file:
+                lines = file.readlines()
+                if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
+                    # Header missing or invalid - prepend header to existing data
+                    with open(status_file, 'w', encoding="utf-8") as wfile:
+                        wfile.write(STATUS_CSV_HEADER)
+                        wfile.writelines(lines)
 
 
         task_type = task.get("type")

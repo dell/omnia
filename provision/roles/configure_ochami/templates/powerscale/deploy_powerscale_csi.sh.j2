@@ -122,6 +122,13 @@ else
         echo "Snapshot Controller deployment failed (expected). Continuing..."
       }
 
+      echo "Updating Snapshot Controller image to v8.5.0..."
+      kubectl set image deployment/snapshot-controller snapshot-controller=registry.k8s.io/sig-storage/snapshot-controller:v8.5.0 -n kube-system >/dev/null 2>&1 || true
+      echo "Waiting for Snapshot Controller rollout to finish (timeout: 5 minutes)..."
+      kubectl rollout status deployment/snapshot-controller -n kube-system --timeout=300s >/dev/null 2>&1 || {
+          echo "Snapshot Controller rollout did not complete in time."
+      }
+
       echo "Waiting for Snapshot Controller pods to reach Running state..."
       MAX_ATTEMPTS=60
       WAIT_TIME=5

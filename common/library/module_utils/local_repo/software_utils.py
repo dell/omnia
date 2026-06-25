@@ -38,6 +38,7 @@ from ansible.module_utils.local_repo.config import (
     CSV_COLUMNS,
     SOFTWARE_CONFIG_SUBDIR,
     DEFAULT_STATUS_FILENAME,
+    STATUS_CSV_HEADER,
     RPM_LABEL_TEMPLATE,
     RHEL_OS_URL,
     SOFTWARES_KEY,
@@ -853,6 +854,16 @@ def check_csv_existence(path):
 
 def read_status_csv(csv_path):
     """Reads the status.csv file and returns a list of row dictionaries."""
+    # Ensure file has valid header before reading
+    if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+            if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
+                # Header missing or invalid - prepend header to existing data
+                with open(csv_path, 'w', encoding='utf-8') as wfile:
+                    wfile.write(STATUS_CSV_HEADER)
+                    wfile.writelines(lines)
+
     with open(csv_path, mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         return [row for row in reader]

@@ -45,6 +45,12 @@ pod_wait_delay: 15
 idrac_rollout_retries: 3
 idrac_rollout_delay: 30
 
+# LoadBalancer IP wait configuration
+lb_ip_wait_retries: 30
+lb_ip_wait_delay: 5
+ip_conflict_script_path: /tmp/find_ip_conflict_svcs.sh
+ip_inject_script_path: /tmp/inject_vm_lb_ips.py
+
 # Victoria operator configuration
 # victoria_operator_pkg is loaded dynamically from service_k8s JSON in include_required_input.yml
 victoria_operator_release_name: victoria-metrics-operator
@@ -105,7 +111,34 @@ victoria_lb_ips_preserved: >-
   LoadBalancer IPs injected into VMCluster manifest -
   vminsert: {{ preserved_vminsert_ip | default('N/A') }},
   vmselect: {{ preserved_vmselect_ip | default('N/A') }}
+victoria_lb_ip_injection_status: >-
+  {{ victoria_lb_ips_preserved
+     if (preserved_vminsert_ip | default('') | length > 0)
+        or (preserved_vmselect_ip | default('') | length > 0)
+     else victoria_lb_ips_not_preserved }}
 victoria_lb_ips_not_preserved: "No old LoadBalancer IPs found to preserve (fresh deploy or already operator-managed)"
+victoria_lb_ip_confirmed: >-
+  VMCluster LoadBalancer IPs confirmed -
+  vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
+  vmselect-{{ new_vmcluster_name }}: {{ vmselect_lb_ip.stdout | default('PENDING') | trim }}
+victoria_lb_ip_reclaim_needed: >-
+  VMCluster services still pending after initial wait.
+  Checking if preserved IPs were assigned to wrong services...
+victoria_lb_ip_conflict_svcs_found: >-
+  Services holding preserved IPs (will be deleted and re-created by telemetry.sh):
+  {{ ip_conflict_svcs.stdout_lines | default([]) | select() | list }}
+victoria_lb_ip_reclaim_success: >-
+  Successfully reclaimed preserved IPs for VMCluster services -
+  vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
+  vmselect-{{ new_vmcluster_name }}: {{ vmselect_lb_ip.stdout | default('PENDING') | trim }}
+victoria_lb_ip_reclaim_failed: >-
+  WARNING: VMCluster services still do not have LoadBalancer IPs after reclaim attempt.
+  vminsert: {{ vminsert_lb_ip.stdout | default('NONE') | trim }},
+  vmselect: {{ vmselect_lb_ip.stdout | default('NONE') | trim }}.
+  Please use new assigned IPs.
+victoria_old_svc_cleanup_summary: >-
+  Old services deleted: {{ old_services.stdout_lines | default([]) | select() | list }}.
+  Old vmagent deployment cleanup attempted: {{ old_vmagent_deployment }}
 victoria_pods_not_ready: "Telemetry upgrade FAILED: Some pods are not ready. {{ pods_not_ready.stdout | int }} pod(s) not in Running state."
 victoria_pods_ready_after_wait: "All telemetry pods are ready after waiting"
 telemetry_upgrade_success: "Telemetry upgrade COMPLETED: All telemetry pods are running and ready."

@@ -367,13 +367,13 @@ TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG = (
 # PowerScale telemetry validation messages
 POWERSCALE_VICTORIA_REQUIRED_MSG = (
     "PowerScale telemetry requires VictoriaMetrics to be deployed. "
-    "When telemetry_sources.powerscale.metrics_enabled is true, "
+    "When telemetry_sources.powerscale.metrics_enabled is true in telemetry_config.yml, "
     "'victoria_metrics' must be included in collection_targets "
     "(e.g., 'victoria_metrics' or 'victoria_metrics,victoria_logs')."
 )
 POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG = (
     "PowerScale logs collection requires VictoriaLogs to be deployed. "
-    "When telemetry_sources.powerscale.logs_enabled is true, "
+    "When telemetry_sources.powerscale.logs_enabled is true in telemetry_config.yml, "
     "'victoria_logs' must be included in collection_targets "
     "(e.g., 'victoria_metrics,victoria_logs')."
 )
@@ -386,15 +386,15 @@ POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
     "PowerScale telemetry requires a service cluster."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
-    "powerscale_configurations section is required when "
+    "powerscale_configurations section is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "
     "It must contain csm_observability_values_file_path."
 )
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
-    "must be a non-empty string in format 'XGi' (e.g., '5Gi')"
+    "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_observability_values_file_path is required when "
+    "csm_observability_values_file_path is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
@@ -402,34 +402,34 @@ def powerscale_csm_values_not_found_msg(path):
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
         f"CSM Observability values.yaml file not found at '{path}'. "
-        "Please verify the file path is correct."
+        "Please verify the file path is correct in telemetry_config.yml (csm_observability_values_file_path)."
     )
 POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
-    "CSM Observability values.yaml must contain a valid YAML dictionary."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) must contain a valid YAML dictionary."
 )
 def powerscale_csm_values_parse_error_msg(error):
     """Returns error message when CSM Observability values.yaml fails to parse."""
     return f"Failed to parse CSM Observability values.yaml: {error}"
 POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
-    "CSM Observability values.yaml is missing 'karaviMetricsPowerscale' section."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) is missing 'karaviMetricsPowerscale' section."
 )
 POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
-    "CSM Metrics PowerScale image is required in CSM Observability values.yaml."
+    "CSM Metrics PowerScale image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
-    "OTEL Collector image is required in CSM Observability values.yaml."
+    "OTEL Collector image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_metric_remote_write_endpoint must have a non-empty 'url' field."
+    "Each additional_metric_remote_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
 )
 ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG = (
-    "URL must start with 'http://' or 'https://'."
+    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
 ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_log_write_endpoint must have a non-empty 'url' field."
+    "Each additional_log_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
 )
 ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
-    "URL must start with 'http://' or 'https://'."
+    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
 def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
     """Returns error message when CSM values.yaml image version doesn't match service_k8s (versioned)."""
@@ -457,13 +457,13 @@ POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
     "PowerScale telemetry requires a service cluster."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
-    "powerscale_configurations section is required and must contain powerscale_telemetry_support."
+    "powerscale_configurations section is required in telemetry_config.yml and must contain powerscale_telemetry_support."
 )
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
-    "must be a non-empty string in format 'XGi' (e.g., '5Gi')"
+    "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_observability_values_file_path is required when powerscale_configurations.powerscale_telemetry_support is true. "
+    "csm_observability_values_file_path is required in telemetry_config.yml when powerscale_configurations.powerscale_telemetry_support is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
 POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG = (
@@ -475,28 +475,28 @@ def powerscale_csm_values_not_found_msg(path):
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
         f"CSM Observability values.yaml file not found at '{path}'. "
-        "Please verify the file path is correct."
+        "Please verify the file path is correct in telemetry_config.yml (csm_observability_values_file_path)."
     )
 POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
-    "CSM Observability values.yaml must contain a valid YAML dictionary."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) must contain a valid YAML dictionary."
 )
 def powerscale_csm_values_parse_error_msg(error):
     """Returns error message when CSM Observability values.yaml fails to parse."""
     return f"Failed to parse CSM Observability values.yaml: {error}"
 POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
-    "CSM Observability values.yaml is missing 'karaviMetricsPowerscale' section."
+    "CSM Observability values.yaml (path specified in telemetry_config.yml) is missing 'karaviMetricsPowerscale' section."
 )
 POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
-    "CSM Metrics PowerScale image is required in CSM Observability values.yaml."
+    "CSM Metrics PowerScale image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
-    "OTEL Collector image is required in CSM Observability values.yaml."
+    "OTEL Collector image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
 )
 POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_remote_write_endpoint must have a non-empty 'url' field."
+    "Each additional_remote_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
 )
 POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG = (
-    "URL must start with 'http://' or 'https://'."
+    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
 def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
     """Returns error message when CSM values.yaml image version doesn't match service_k8s.json."""

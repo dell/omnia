@@ -33,6 +33,12 @@
     additional_cloud_init_fg_names: []
   when: additional_cloud_init_file_path == ''
 
+- name: Create cloud-init directory
+  ansible.builtin.file:
+    path: "{{ cloud_init_dir }}"
+    state: directory
+    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
 - name: Load additional cloud-init config
   when: additional_cloud_init_file_path != ''
   block:

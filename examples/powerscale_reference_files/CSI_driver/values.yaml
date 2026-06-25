@@ -2,35 +2,35 @@
 ########################
 # version: version of this values file
 # Note: Do not change this value
-version: "v2.16.0"
+version: "v2.17.0"
 
 images:
   # "driver" defines the container image, used for the driver container.
   driver:
-    image: quay.io/dell/container-storage-modules/csi-isilon:v2.16.0
+    image: quay.io/dell/container-storage-modules/csi-isilon:v2.17.0
   # CSI sidecars
   attacher:
-    image: registry.k8s.io/sig-storage/csi-attacher:v4.10.0
+    image: registry.k8s.io/sig-storage/csi-attacher:v4.11.0
   provisioner:
-    image: registry.k8s.io/sig-storage/csi-provisioner:v6.1.0
+    image: registry.k8s.io/sig-storage/csi-provisioner:v6.2.0
   snapshotter:
-    image: registry.k8s.io/sig-storage/csi-snapshotter:v8.4.0
+    image: registry.k8s.io/sig-storage/csi-snapshotter:v8.5.0
   resizer:
-    image: registry.k8s.io/sig-storage/csi-resizer:v2.0.0
+    image: registry.k8s.io/sig-storage/csi-resizer:v2.1.0
   registrar:
-    image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.15.0
+    image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0
   healthmonitor:
-    image: registry.k8s.io/sig-storage/csi-external-health-monitor-controller:v0.16.0
+    image: registry.k8s.io/sig-storage/csi-external-health-monitor-controller:v0.17.0
 
   # CSM sidecars
   replication:
-    image: quay.io/dell/container-storage-modules/dell-csi-replicator:v1.14.0
+    image: quay.io/dell/container-storage-modules/dell-csi-replicator:v1.15.0
   podmon:
-    image: quay.io/dell/container-storage-modules/podmon:v1.15.0
+    image: quay.io/dell/container-storage-modules/podmon:v1.16.0
   authorization:
-    image: quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.4.0
+    image: quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.5.0
   metadataretriever:
-    image: quay.io/dell/container-storage-modules/csi-metadata-retriever:v1.13.0
+    image: quay.io/dell/container-storage-modules/csi-metadata-retriever:v1.14.0
 
 # CSI driver log level
 # Allowed values: "error", "warn"/"warning", "info", "debug"
@@ -119,7 +119,7 @@ controller:
   # the Kubernetes release.
   # Allowed values: n, where n > 0
   # Default value: None
-  controllerCount: 2
+  controllerCount: 1
 
   # volumeNamePrefix: Prefix of PersistentVolume names created
   # Allowed values: string
@@ -184,7 +184,7 @@ controller:
     #   true: enable volume expansion feature(install resizer sidecar)
     #   false: disable volume snapshot feature(do not install resizer sidecar)
     # Default value: None
-    enabled: true
+    enabled: false
 
   healthMonitor:
     # enabled: Enable/Disable health monitor of CSI volumes- volume status, volume condition
@@ -192,7 +192,7 @@ controller:
     #   true: enable checking of health condition of CSI volumes
     #   false: disable checking of health condition of CSI volumes
     # Default value: None
-    enabled: false
+    enabled: true
 
     # interval: Interval of monitoring volume health condition
     # Allowed values: Number followed by unit of time (s,m,h)
@@ -301,7 +301,7 @@ node:
     #   true: enable checking of health condition of CSI volumes
     #   false: disable checking of health condition of CSI volumes
     # Default value: None
-    enabled: false
+    enabled: true
 
 ## PLATFORM ATTRIBUTES
 ######################

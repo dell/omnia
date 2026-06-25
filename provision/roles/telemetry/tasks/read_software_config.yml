@@ -13,20 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Run pulp status command on omnia_core container
-  ansible.builtin.command: /usr/local/bin/pulp status
-  delegate_to: localhost
-  changed_when: false
-  register: pulp_status_output
-
-- name: Set pulp content origin value
-  ansible.builtin.set_fact:
-    pulp_content_origin: "{{ (pulp_status_output.stdout | from_json).content_settings.content_origin }}"
-
-- name: Set fact for pulp protocol
-  ansible.builtin.set_fact:
-    pulp_server_ip: "{{ pulp_content_origin | urlsplit('hostname') }}"
-
 - name: Get cluster_os_type from software_config.json
   ansible.builtin.set_fact:
     cluster_os_type: "{{ software_config['cluster_os_type'] }}"
