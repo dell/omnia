@@ -84,26 +84,26 @@
 #
 # 6. rhel_subscription_repo_config_x86_64
 #-------------------------------------------
-#    Optional configuration for overriding policy and caching settings for RHEL 
-#    subscription-based repositories on x86_64 architecture.
-#    When subscription is enabled, this config takes precedence over dynamically 
-#    generated URLs for matching repositories and adds any additional repositories.
+#    Optional configuration for overriding RHEL subscription-based repositories 
+#    on x86_64 architecture.
+#    When subscription is enabled, user-provided repos with names matching base repos
+#    (baseos, appstream, codeready-builder) will have their URL overridden.
+#    Non-matching repositories are added as additional repos.
 # Fields:
 #   url         : Base URL of the repository (REQUIRED)
-#   gpgkey      : GPG key URL (REQUIRED, can be empty to disable gpgcheck)
 #   name        : Repository name for matching (REQUIRED)
+#                   Use 'baseos', 'appstream', or 'codeready-builder' to override base repo URLs
+#   gpgkey      : GPG key URL (OPTIONAL, defaults to empty to disable gpgcheck)
 #   policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
 #                   If not provided, uses repo_config from software_config.json
 #   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
 #                   If not provided, defaults to true
-#   sslcacert   : Path to SSL CA certificate (optional)
-#   sslclientkey: Path to SSL client key (optional)
-#   sslclientcert: Path to SSL client certificate (optional)
 # Notes:
-#   - Do not use Jinja variables in this configuration.
-#   - Omit SSL fields entirely if SSL is not in use.
-#   - Matching is done by repository name (e.g., appstream)
-#   - Non-matching repositories are added as additional repos
+#   - Only 'url' and 'name' are required fields
+#   - SSL certificates are ALWAYS auto-populated from RHEL subscription defaults
+#   - User cannot override SSL certificates (sslcacert, sslclientkey, sslclientcert)
+#   - Matching is done by repository name (e.g., baseos, appstream, codeready-builder)
+#   - Non-matching repositories are added as additional repos with subscription certs
 #
 # 7. rhel_subscription_repo_config_aarch64
 #--------------------------------------------
@@ -206,8 +206,12 @@ rhel_os_url_aarch64:
 {% endif %}
 # Example:
 # rhel_subscription_repo_config_x86_64:
-#  - { url: "https://example.com/appstream", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream", policy: "always", caching: true }
-#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/supplementary/os/", gpgkey: "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "supplementary", policy: "always", caching: false }
+#  # Override baseos with standard URL (only url and name required, certs auto-populated)
+#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/baseos/os/", name: "baseos" }
+#  # Override appstream with custom URL and policy
+#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/appstream/os/", name: "appstream", policy: "always" }
+#  # Add supplementary repo (non-base repo, certs auto-populated)
+#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/supplementary/os/", name: "supplementary", policy: "always", caching: false }
 rhel_subscription_repo_config_x86_64:
 rhel_subscription_repo_config_aarch64:
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.

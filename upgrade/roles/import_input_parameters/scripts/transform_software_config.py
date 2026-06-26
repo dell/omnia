@@ -23,7 +23,7 @@ target_file = sys.argv[2]
 # These are the target versions for software entries that should be updated
 TARGET_VERSIONS = {
     "service_k8s": "1.35.1",
-    "csi_driver_powerscale": "v2.16.0"
+    "csi_driver_powerscale": "v2.17.0"
 }
 
 with open(backup_file, 'r', encoding='utf-8') as f:

@@ -362,6 +362,11 @@ class ResultPoller:
                 # S12: On restart failure, still persist node_results.json
                 if result.stage_name == "restart":
                     self._on_restart_completed(result)
+                    self._on_restart_failure(result)
+
+                # On deploy failure, mark ImageGroup FAILED
+                if result.stage_name == "deploy":
+                    self._on_deploy_failure(result)
 
                 # On validate failure, mark ImageGroup FAILED
                 if result.stage_name == "validate":
@@ -964,6 +969,52 @@ class ResultPoller:
             log_secure_info(
                 "error",
                 "Failed to update ImageGroup status on deploy "
+                f"failure for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_restart_failure(self, result: PlaybookResult) -> None:
+        """Transition ImageGroup from RESTARTING to FAILED on restart failure."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping restart failure "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "error",
+                    f"Restart failure callback: No ImageGroup found for job={result.job_id}.",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.FAILED,
+            )
+
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
+            log_secure_info(
+                "warning",
+                f"Restart FAILED for job={result.job_id}. "
+                f"ImageGroup '{image_group.id}' -> FAILED.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                "Failed to update ImageGroup status on restart "
                 f"failure for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,

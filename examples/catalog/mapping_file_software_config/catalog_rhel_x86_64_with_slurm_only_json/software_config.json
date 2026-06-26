@@ -6,12 +6,17 @@
         {"name": "default_packages", "arch": ["x86_64"]},
         {"name": "admin_debug_packages", "arch": ["x86_64"]},
         {"name": "openldap", "arch": ["x86_64"]},
-        {"name": "slurm_custom", "arch": ["x86_64"]}
+        {"name": "slurm_custom", "arch": ["x86_64"]},
+        {"name": "additional_packages", "arch": ["x86_64"]}
     ],
     "slurm_custom": [
         {"name": "slurm_control_node"},
         {"name": "slurm_node"},
         {"name": "login_node"},
         {"name": "login_compiler_node"}
+    ],
+    "additional_packages": [
+        {"name": "slurm_control_node"},
+        {"name": "slurm_node"} 
     ]
 }
