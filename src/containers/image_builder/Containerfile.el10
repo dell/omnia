@@ -1,0 +1,100 @@
+FROM docker.io/library/almalinux:10.0
+
+ARG BUILDAH_VERSION=1.42.2
+ARG GO_VERSION=1.25.11
+
+RUN dnf clean all && \
+    dnf update -y --releasever=10.0 --nogpgcheck && \
+    dnf install -y dnf-plugins-core epel-release && \
+    dnf config-manager -y --set-enabled crb && \
+    dnf clean all
+
+RUN dnf install -y \
+        bash \
+        python3.12 \
+        fuse-overlayfs \
+        tar \
+        squashfs-tools \
+        make \
+        gcc \
+        glib2-devel \
+        gpgme-devel \
+        libseccomp-devel \
+        libselinux-devel \
+        device-mapper-devel \
+        btrfs-progs-devel \
+        git \
+        wget
+
+# Determine architecture and download matching Go tarball
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        GOARCH=amd64; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        GOARCH=arm64; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    curl -LO https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-${GOARCH}.tar.gz && \
+    rm go${GO_VERSION}.linux-${GOARCH}.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+RUN git clone --branch v${BUILDAH_VERSION} --depth 1 https://github.com/containers/buildah.git /tmp/buildah && \
+    cd /tmp/buildah && \
+    go get github.com/sigstore/fulcio@v1.8.5 && \
+    go get golang.org/x/crypto@v0.52.0 && \
+    go get golang.org/x/net@v0.55.0 && \
+    go get golang.org/x/sys@v0.45.0 && \
+    go get google.golang.org/grpc@v1.79.3 && \
+    go get go.opentelemetry.io/otel@v1.41.0 && \
+    go get github.com/go-jose/go-jose/v4@v4.1.4 && \
+    go get github.com/containernetworking/plugins@v1.9.0 && \
+    go mod tidy && \
+    go get github.com/sigstore/fulcio@v1.8.5 && \
+    go get github.com/sigstore/sigstore@v1.10.4 && \
+    go get golang.org/x/crypto@v0.52.0 && \
+    go get golang.org/x/net@v0.55.0 && \
+    go mod vendor && \
+    make buildah && \
+    cp bin/buildah /usr/bin/buildah && \
+    rm -rf /tmp/buildah /usr/local/go /root/go && \
+    dnf remove -y --noautoremove make gcc git wget glib2-devel gpgme-devel libseccomp-devel libselinux-devel device-mapper-devel btrfs-progs-devel && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+RUN dnf install -y \
+        containers-common \
+        crun \
+        slirp4netns \
+        fuse-overlayfs
+
+COPY requirements.txt /
+RUN python3.12 -m ensurepip && \
+    python3.12 -m pip install --upgrade 'pip>=26.1.0' && \
+    python3.12 -m pip install -r /requirements.txt
+
+COPY src/ /usr/local/bin/
+RUN chmod -R 0755 /usr/local/bin/
+
+# Allow non-root to run buildah commands
+RUN setcap cap_setuid=ep "$(command -v newuidmap)" && \
+    setcap cap_setgid=ep "$(command -v newgidmap)" &&\
+    chmod 0755 "$(command -v newuidmap)" && \
+    chmod 0755 "$(command -v newgidmap)" && \
+    rpm --restore shadow-utils && \
+    echo "builder:2000:50000" > /etc/subuid && \
+    echo "builder:2000:50000" > /etc/subgid
+
+# Create local user for rootless image builds
+RUN useradd --uid 1002 builder && \
+    chown -R builder /home/builder
+
+# Make builder the default user when running container
+USER builder
+WORKDIR /home/builder
+
+ENV BUILDAH_ISOLATION=chroot
+
+ENTRYPOINT ["/usr/bin/buildah", "unshare"]
