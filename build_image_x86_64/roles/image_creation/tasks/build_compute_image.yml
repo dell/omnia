@@ -94,7 +94,7 @@
 
     - name: Verify x86_64 compute osimages in registry
       ansible.builtin.command:
-        cmd: "/usr/local/bin/regctl repo ls {{ oim_node_name }}.{{ domain_name }}:5000"
+        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ oim_node_name }}.{{ domain_name }}:5000"
       changed_when: false
       register: verify_compute_osimages
 
