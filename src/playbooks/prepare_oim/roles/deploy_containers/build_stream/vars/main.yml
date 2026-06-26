@@ -19,11 +19,11 @@ core_container_name: "omnia_core"
 build_stream_container_name: "omnia_build_stream"
 
 # Build Stream source code location (in omnia_core container)
-build_stream_source_path: "/omnia/build_stream"
+build_stream_source_path: "/omnia/src/build_stream"
 
 # Rsync configuration for source code deployment
 bs_rsync_options: "-av --checksum"
-bs_rsync_source: "{{ role_path }}/../../../../build_stream/"
+bs_rsync_source: "{{ role_path }}/../../../../../build_stream/"
 bs_rsync_destination: "/opt/omnia/build_stream/"
 
 # OIM metadata file path (read from omnia_core container)
@@ -127,6 +127,7 @@ build_stream_container_failure_msg: |
 
 # Automation Framework Configuration (Phase 2 - Component 5 Validate Module Spec)
 # Repository and branch configuration
+# TODO: Migrate automation library into monorepo; remove external clone dependency
 automation_repo_url: "https://github.com/dell/omnia-artifactory.git"
 automation_repo_branch: "automation-v2.2.0.0"
 automation_base_dir: "/opt/omnia/automation"

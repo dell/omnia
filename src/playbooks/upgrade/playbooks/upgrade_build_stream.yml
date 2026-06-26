@@ -40,7 +40,7 @@
     component_name: build_stream
     gitlab_role_path: "{{ playbook_dir }}/../../gitlab/roles/hosted_gitlab"
     upgrade_role_tasks: "{{ playbook_dir }}/../roles/upgrade_build_stream/tasks"
-    example_catalog_path: "{{ playbook_dir }}/../../examples/catalog"
+    example_catalog_path: "{{ playbook_dir }}/../../../examples/catalog"
   tasks:
     # ── Set upgrade_mode to bypass upgrade_checkup in credential utility ──
     - name: Set upgrade_mode to bypass upgrade_checkup in imported playbooks
@@ -272,7 +272,7 @@
     component_name: build_stream
     gitlab_role_path: "{{ playbook_dir }}/../../gitlab/roles/hosted_gitlab"
     upgrade_role_tasks: "{{ playbook_dir }}/../roles/upgrade_build_stream/tasks"
-    example_catalog_path: "{{ playbook_dir }}/../../examples/catalog"
+    example_catalog_path: "{{ playbook_dir }}/../../../examples/catalog"
     input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia-sharedpath/omnia/input/project_default') }}"
     backup_dir: "{{ hostvars['localhost']['backup_dir'] }}"
     gitlab_host: "{{ hostvars['localhost']['gitlab_host'] }}"

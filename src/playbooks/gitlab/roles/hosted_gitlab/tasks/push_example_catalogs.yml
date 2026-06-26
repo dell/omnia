@@ -21,7 +21,7 @@
 
 - name: Find all example catalog files
   ansible.builtin.find:
-    paths: "{{ playbook_dir }}/../examples/catalog"
+    paths: "{{ playbook_dir }}/../../examples/catalog"
     patterns: "*.json"
     recurse: false
   register: example_catalog_files

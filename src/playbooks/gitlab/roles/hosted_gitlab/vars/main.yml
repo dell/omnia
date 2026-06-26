@@ -136,7 +136,7 @@ gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 # Pipeline trigger and catalog defaults
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
-gitlab_catalog_json_source: "{{ role_path }}/../../../examples/catalog/catalog_rhel.json"
+gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"
 gitlab_input_repo_dir: "input"
 # Use NFS input_project_dir for user-configured files instead of default repo files
 gitlab_input_nfs_root: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
