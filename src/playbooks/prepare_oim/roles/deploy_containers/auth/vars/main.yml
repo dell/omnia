@@ -30,10 +30,8 @@ auth_service_image_pull_fail_msg:
   - The pull of the auth service image {{ auth_service_image_name }}:{{ auth_service_image_tag }} has failed.
   - "ERROR: {{ auth_service_image_name }}:{{ auth_service_image_tag }} not found locally or on Docker Hub."
   - To resolve this, please follow these steps
-  - Clone the Omnia Artifactory repository
-  - git clone https://github.com/dell/omnia-artifactory -b omnia-container
-  - Navigate to the repository directory and Build the auth image locally
-  - ./build_images.sh auth
+  - Build the auth image locally using omnia.sh --build
+  - Or build it directly using src/containers/build_images.sh auth
 auth_service_image_pull_warning_msg: |
   Failed to pull {{ auth_service_image_name }}:{{ auth_service_image_tag }} from Docker Hub after 3 attempts.
   This may be due to network issues or the image not being available on Docker Hub.

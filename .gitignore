@@ -9,6 +9,10 @@
 # Documentation
 AGENTS.md
 
+# BATS test helpers (installed locally via test/test_helper/install.sh)
+test/test_helper/bats-support/
+test/test_helper/bats-assert/
+
 # BuildStream
 build_stream/MagicMock/
 build_stream/pyproject.toml
