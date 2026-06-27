@@ -94,7 +94,9 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: check_rhel_subscription.yml
-      when: "'local_repo' in (hostvars['localhost']['omnia_run_tags'] | default([]))"
+      when:
+        - "'local_repo' in (hostvars['localhost']['omnia_run_tags'] | default([]))"
+        - "hostvars['localhost']['cluster_os_type'] | default('') == 'rhel'"
 
 - name: Configure RHEL repository URLs
   hosts: localhost
@@ -107,7 +109,9 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: configure_rhel_os_urls.yml
-      when: "'local_repo' in (omnia_run_tags | default([]))"
+      when:
+        - "'local_repo' in (omnia_run_tags | default([]))"
+        - "cluster_os_type | default('') == 'rhel'"
 
 - name: Validate omnia input config
   hosts: localhost

@@ -164,8 +164,9 @@ extensions = {
 
 os_version_ranges = {
     "rhel": ["10.0", "10.1"],
+    "ubuntu": ["26.04"],
+    "sles": ["16.0"],
     #"rocky": ["9.4"],
-    #"ubuntu": ["20.04", "22.04", "24.04"]
 }
 
 
@@ -175,6 +176,8 @@ TYPE_REQUIREMENTS = {
     "rpm_list": ["package_list", "repo_name"],
     "rpm_file": ["package", "url"],
     "rpm_repo": ["package", "repo_name"],
+    "deb": ["package", "repo_name"],
+    "deb_repo": ["package", "repo_name"],
     "ansible_galaxy_collection": ["package", "version"],
     "git": ["package", "version", "url"],
     "image": ["package", ["tag", "digest"]],  # Special: one of tag or digest

@@ -7,7 +7,6 @@
             {"package": "pmix", "type": "rpm", "repo_name": "appstream"},
             {"package": "nvcr.io/nvidia/hpc-benchmarks", "tag": "25.09", "type": "image"},
             {"package": "apptainer", "type": "rpm", "repo_name": "epel" },
-            {"package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" },
             {"package": "iscsi-initiator-utils", "type": "rpm", "repo_name": "baseos"},
             {"package": "device-mapper-multipath", "type": "rpm", "repo_name": "baseos"},
             {"package": "sg3_utils", "type": "rpm", "repo_name": "baseos"},

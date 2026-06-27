@@ -28,6 +28,7 @@ import yaml
 from jinja2 import Template
 import requests
 from requests.adapters import HTTPAdapter
+from ansible.module_utils.local_repo.config import UBUNTU_CODENAME_MAP
 from urllib3.poolmanager import PoolManager
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
@@ -278,12 +279,12 @@ def transform_package_dict(data, arch_val,logger):
         repo_mapping = {}
 
         for item in items:
-            if item.get("type") in ("rpm", "rpm_repo"):
+            if item.get("type") in ("rpm", "rpm_repo", "deb", "deb_repo"):
                 rpm_packages.append(item["package"])
                 # Preserve repo_name if available
                 if "repo_name" in item:
                     repo_mapping[item["package"]] = item["repo_name"]
-            elif item.get("type") == "rpm_list":
+            elif item.get("type") in ("rpm_list", "deb_list"):
                 rpm_packages.extend(item["package_list"])
                 # Preserve repo_mapping if available
                 if "repo_mapping" in item:
@@ -371,16 +372,20 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     for arch in archs_to_process:
 
         # Always ensure these are lists
-        rhel_repo_entry[arch] = list(local_yaml.get(f"rhel_os_url_{arch}") or [])
-        repo_entries[arch] = list(local_yaml.get(f"omnia_repo_url_rhel_{arch}") or [])
+        # Use OS-specific repo URL keys based on cluster_os_type
+        os_url_key = f"{cluster_os_type}_os_url_{arch}"
+        omnia_url_key = f"omnia_repo_url_{cluster_os_type}_{arch}"
+        rhel_repo_entry[arch] = list(local_yaml.get(os_url_key) or [])
+        repo_entries[arch] = list(local_yaml.get(omnia_url_key) or [])
         user_repo_entry[arch] = list(local_yaml.get(f"user_repo_url_{arch}") or [])
+        logger.info(f"Using OS repo key '{os_url_key}' and omnia repo key '{omnia_url_key}' for arch '{arch}'")
         # In case of Subscription, Subscription URLs take precedence if present and non-empty
         if sub_urls and arch in sub_urls and sub_urls[arch]:
-            logger.info(f"Subscription URLs detected for arch {arch}. Overriding RHEL URLs.")
+            logger.info(f"Subscription URLs detected for arch {arch}. Overriding OS URLs.")
             if not isinstance(rhel_repo_entry.get(arch), list):
                 rhel_repo_entry[arch] = []
             rhel_repo_entry[arch] = list(sub_urls[arch])
-            logger.info(f" Updated RHEL URLs: {rhel_repo_entry[arch]}")
+            logger.info(f" Updated OS URLs: {rhel_repo_entry[arch]}")
 
     parsed_repos = []
     vault_key_path = os.path.join(
@@ -420,7 +425,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 return url, False
 
             sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
-            parsed_repos.append({
+            user_entry = {
                 "package": sw_name,
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "null",
@@ -430,7 +435,17 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "client_cert": client_cert,
                 "policy": policy,
                 "sw_arch": arch
-            })
+            }
+            # Add APT metadata for Ubuntu user repos
+            if cluster_os_type == "ubuntu":
+                deb_arch = "arm64" if arch == "aarch64" else "amd64"
+                user_entry["apt_distributions"] = url_.get("apt_distributions", "/")
+                apt_comp = url_.get("apt_components")
+                if apt_comp:
+                    user_entry["apt_components"] = apt_comp
+                user_entry["apt_architectures"] = deb_arch
+                logger.info(f"APT metadata for user repo '{sw_name}': dist={user_entry['apt_distributions']}, arch={deb_arch}")
+            parsed_repos.append(user_entry)
 
             logger.info(f"Added user repo entry: {sw_name}")
 
@@ -449,9 +464,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 policy_given, caching_given, logger
             )
 
-            logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
-            logger.info(f"RHEL SSL paths: ca_cert={ca_cert}, client_key={client_key}, client_cert={client_cert}")
-            logger.info(f"RHEL SSL files exist: ca_cert={os.path.exists(ca_cert) if ca_cert else 'N/A'}, "
+            logger.info(f"Processing OS repo '{name}' for arch '{arch}' - URL: {url}")
+            logger.info(f"OS SSL paths: ca_cert={ca_cert}, client_key={client_key}, client_cert={client_cert}")
+            logger.info(f"OS SSL files exist: ca_cert={os.path.exists(ca_cert) if ca_cert else 'N/A'}, "
                          f"client_key={os.path.exists(client_key) if client_key else 'N/A'}, "
                          f"client_cert={os.path.exists(client_cert) if client_cert else 'N/A'}")
 
@@ -460,19 +475,19 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 if path and is_encrypted(path):
                     result, message = process_file(path, vault_key_path, mode)
                     if result is False:
-                        logger.error(f"Decryption failed for RHEL repo path: {path} | Error: {message}")
-                        return f"Error during decrypt for rhel repository path:{path}", False
+                        logger.error(f"Decryption failed for OS repo path: {path} | Error: {message}")
+                        return f"Error during decrypt for OS repository path:{path}", False
 
             if not is_remote_url_reachable(url, client_cert=client_cert,
                                            client_key=client_key, ca_cert=ca_cert):
-                logger.error(f"RHEL repo URL unreachable: {url}")
+                logger.error(f"OS repo URL unreachable: {url}")
                 return url, False
 
             # if not is_remote_url_reachable(url):
             #     return url, False
 
             sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
-            parsed_repos.append({
+            repo_entry = {
                 "package": sw_name,
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "null",
@@ -482,8 +497,17 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "client_cert": client_cert,
                 "policy": policy,
                 "sw_arch": arch
-            })
-            logger.info(f"Added RHEL repo entry: {sw_name}")
+            }
+            # Add APT metadata for Ubuntu OS repos
+            if cluster_os_type == "ubuntu":
+                codename = UBUNTU_CODENAME_MAP.get(cluster_os_version, "plucky")
+                deb_arch = "arm64" if arch == "aarch64" else "amd64"
+                repo_entry["apt_distributions"] = codename
+                repo_entry["apt_components"] = name
+                repo_entry["apt_architectures"] = deb_arch
+                logger.info(f"APT metadata for OS repo '{sw_name}': dist={codename}, comp={name}, arch={deb_arch}")
+            parsed_repos.append(repo_entry)
+            logger.info(f"Added OS repo entry: {sw_name}")
 
     # Handle OMNIA repositories
     seen_urls = set()
@@ -547,14 +571,24 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                     version = version_variables[var]
                     break
 
-            parsed_repos.append({
+            repo_entry = {
                 "package": sw_name,
                 "url": rendered_url,
                 "gpgkey": rendered_gpgkey,
                 "version": version if version else "null",
                 "policy": policy,
                 "sw_arch": arch
-            })
+            }
+            # Add APT metadata for Ubuntu OMNIA repos
+            if cluster_os_type == "ubuntu":
+                deb_arch = "arm64" if arch == "aarch64" else "amd64"
+                repo_entry["apt_distributions"] = repo.get("apt_distributions", "/")
+                apt_comp = repo.get("apt_components")
+                if apt_comp:
+                    repo_entry["apt_components"] = apt_comp
+                repo_entry["apt_architectures"] = deb_arch
+                logger.info(f"APT metadata for OMNIA repo '{sw_name}': dist={repo_entry['apt_distributions']}, arch={deb_arch}")
+            parsed_repos.append(repo_entry)
             logger.info(f"Added OMNIA repo entry: {sw_name}")
 
     logger.info(f"Successfully parsed {len(parsed_repos)} repository entries.")
@@ -1004,7 +1038,7 @@ def remove_duplicates_from_trans(trans):
 
             if group == "default_packages":  # Handle nested rpm_list case
                 for pkg in items:
-                    if pkg.get("type") in ("rpm", "rpm_repo") and "rpm_list" in pkg:
+                    if pkg.get("type") in ("rpm", "rpm_repo", "deb", "deb_repo") and "rpm_list" in pkg:
                         pkg["rpm_list"] = list(dict.fromkeys(pkg["rpm_list"]))
                 continue
 
@@ -1028,7 +1062,7 @@ def remove_duplicates_from_trans(trans):
                 elif type_ == "git":
                     key = (item.get("url"), item.get("version"))
 
-                elif type_ in ("rpm", "rpm_repo") and "rpm_list" in item:
+                elif type_ in ("rpm", "rpm_repo", "deb", "deb_repo") and "rpm_list" in item:
                     item["rpm_list"] = list(dict.fromkeys(item["rpm_list"]))
                     key = item.get("package")
 

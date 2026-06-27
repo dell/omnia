@@ -87,6 +87,7 @@ DNF_INFO_COMMANDS = {
     "aarch64": ["dnf", "info", "--quiet", "--forcearch=aarch64"]
 }
 PULP_RPM_PACKAGES_API = "/pulp/api/v3/content/rpm/packages/"
+PULP_DEB_PACKAGES_API = "/pulp/api/v3/content/deb/packages/"
 
 # ----------------------------
 # Cleanup File Types
@@ -227,6 +228,52 @@ pulp_rpm_commands = {
     "upload_content": "pulp rpm content upload --repository %s --file %s",
     "update_distribution_repo_config": "pulp rpm distribution update --name %s --generate-repo-config"
 }
+
+# Map Ubuntu version to release codename for APT repos
+UBUNTU_CODENAME_MAP = {
+    "26.04": "plucky",
+    "25.10": "questing",
+    "24.04": "noble",
+    "22.04": "jammy",
+    "20.04": "focal",
+}
+
+pulp_deb_commands = {
+    "create_repository": "pulp deb repository create --name %s",
+    "pulp_cleanup": "pulp orphan cleanup",
+    "show_repository": "pulp deb repository show --name %s",
+    "create_remote": "pulp deb remote create --name %s --url %s --policy %s",
+    "show_remote": "pulp deb remote show --name %s",
+    "update_remote": "pulp deb remote update --name %s --url %s --policy %s",
+    "sync_repository": "pulp deb repository sync --name %s --remote %s",
+    "publish_repository": "pulp deb publication -t verbatim create --repository %s",
+    "distribute_repository": "pulp deb distribution create --name %s  --base-path %s  --repository %s",
+    "update_distribution": "pulp deb distribution update --name %s  --base-path %s  --repository %s",
+    "create_remote_cert": "pulp deb remote create --name %s --url %s --policy %s --ca-cert %s --client-cert %s --client-key %s",
+    "update_remote_cert": "pulp deb remote update --name %s --url %s --policy %s --ca-cert %s --client-cert %s --client-key %s",
+    "check_distribution": "pulp deb distribution show --name %s",
+    "delete_repository": "pulp deb repository destroy --name %s",
+    "delete_remote": "pulp deb remote destroy --name %s",
+    "delete_distribution": "pulp deb distribution destroy --name %s",
+    "list_publications": "pulp deb publication list --repository %s --limit 1000",
+    "update_distribution_publication": "pulp deb distribution update --name %s --publication %s",
+    "check_publication": "pulp deb publication list --repository %s --limit 1000",
+    "delete_publication": "pulp deb publication destroy --href %s",
+    "get_repo_version": "pulp deb repository show --name %s",
+    "list_repositories": "pulp deb repository list --limit 1000",
+    "list_remotes": "pulp deb remote list --limit 1000",
+    "list_distributions": "pulp deb distribution list --limit 1000",
+    "orphan_cleanup": "pulp orphan cleanup --protection-time 0",
+    "list_all_publications": "pulp deb publication list --limit 1000",
+    "upload_content": "pulp deb content upload --repository %s --file %s",
+    "update_distribution_repo_config": "pulp deb distribution update --name %s"
+}
+
+def get_pulp_commands(cluster_os_type):
+    """Return the appropriate Pulp command set based on the cluster OS type."""
+    if cluster_os_type in ("ubuntu",):
+        return pulp_deb_commands
+    return pulp_rpm_commands
 
 # ----------------------------
 # Pulp Cleanup Configuration

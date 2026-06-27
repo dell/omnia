@@ -111,7 +111,18 @@ def validate_software_config(
                         "cluster_os_version",
                         cluster_os_version,
                         en_us_validation_msg.os_version_fail_msg(
-                            cluster_os_type, version_range[0], version_range[1]
+                            cluster_os_type, ", ".join(version_range), None
+                        ),
+                    )
+                )
+        elif cluster_os_type.lower() == "sles":
+            if cluster_os_version not in version_range:
+                errors.append(
+                    create_error_msg(
+                        "cluster_os_version",
+                        cluster_os_version,
+                        en_us_validation_msg.os_version_fail_msg(
+                            cluster_os_type, ", ".join(version_range), None
                         ),
                     )
                 )

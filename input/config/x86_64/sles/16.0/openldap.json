@@ -1,0 +1,10 @@
+{
+  "openldap": {
+    "cluster": [
+      {"package": "openldap2-client", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "nss-pam-ldapd", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "sssd", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "pam_mkhomedir", "type": "rpm", "repo_name": "basesystem"}
+    ]
+  }
+}

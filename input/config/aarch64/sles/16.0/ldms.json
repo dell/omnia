@@ -1,0 +1,10 @@
+{
+    "ldms": {
+        "cluster": [
+            {"package": "python3-devel", "type": "rpm", "repo_name": "development-tools"},
+            {"package": "python3-Cython", "type": "rpm", "repo_name": "development-tools"},
+            {"package": "libopenssl3", "type": "rpm", "repo_name": "basesystem"},
+            {"package": "ovis-ldms", "type": "rpm", "repo_name": "ldms"}
+        ]
+    }
+}

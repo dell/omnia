@@ -82,7 +82,43 @@
 #----------------------------
 #    Same as above but for aarch64 architecture.
 #
-# 6. rhel_subscription_repo_config_x86_64
+# 6. ubuntu_os_url_x86_64
+#-----------------------------
+#    Mandatory when using Ubuntu as the cluster OS.
+#    Contains APT repository URLs for main, universe, and multiverse for x86_64.
+# Fields:
+#   url         : Base URL of the repository (APT archive URL)
+#   gpgkey      : GPG key URL (leave empty to disable gpgcheck)
+#   name        : Name of the repository [ Allowed repo names: main, universe, multiverse ]
+#   policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
+#   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
+# Notes:
+#   - Ubuntu uses APT repositories (deb format), not RPM.
+#   - All 3 repositories [ main, universe, multiverse ] entries are mandatory.
+#
+# 7. ubuntu_os_url_aarch64
+#----------------------------
+#    Same as above but for aarch64 architecture.
+#
+# 8. sles_os_url_x86_64
+#-----------------------------
+#    Mandatory when SLES SCC registration is not active.
+#    Contains repository URLs for basesystem, server-applications, and development-tools for x86_64.
+# Fields:
+#   url         : Base URL of the repository
+#   gpgkey      : GPG key URL (leave empty to disable gpgcheck)
+#   name        : Name of the repository [ Allowed repo names: basesystem, server-applications, development-tools, desktop-applications, packagehub ]
+#   policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
+#   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
+# Notes:
+#   - Do not use Jinja variables in this configuration.
+#   - At minimum, basesystem and server-applications entries are mandatory.
+#
+# 9. sles_os_url_aarch64
+#----------------------------
+#    Same as above but for aarch64 architecture.
+#
+# 10. rhel_subscription_repo_config_x86_64
 #-------------------------------------------
 #    Optional configuration for overriding policy and caching settings for RHEL 
 #    subscription-based repositories on x86_64 architecture.
@@ -105,12 +141,12 @@
 #   - Matching is done by repository name (e.g., appstream)
 #   - Non-matching repositories are added as additional repos
 #
-# 7. rhel_subscription_repo_config_aarch64
+# 11. rhel_subscription_repo_config_aarch64
 #--------------------------------------------
 #    Same as above but for aarch64 architecture.
 #
 #### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###
-# 8. omnia_repo_url_rhel_x86_64
+# 12. omnia_repo_url_rhel_x86_64
 #-------------------------------
 #    Mandatory repository URLs for downloading RPMS for Omnia features on RHEL x86_64.
 #    Each entry includes url, gpgkey, and name.
@@ -126,9 +162,26 @@
 #                   If not provided, uses repo_config from software_config.json
 #  caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
 #                   If not provided, defaults to true
-# 9. omnia_repo_url_rhel_aarch64
+# 13. omnia_repo_url_rhel_aarch64
 #--------------------------------
 #    Same as above but for RHEL aarch64.
+#
+# 14. omnia_repo_url_ubuntu_x86_64
+#----------------------------------
+#    Mandatory repository URLs for downloading packages for Omnia features on Ubuntu x86_64.
+#    Uses APT (deb) repositories.
+#
+# 15. omnia_repo_url_ubuntu_aarch64
+#-----------------------------------
+#    Same as above but for Ubuntu aarch64.
+#
+# 16. omnia_repo_url_sles_x86_64
+#--------------------------------
+#    Mandatory repository URLs for downloading RPMS for Omnia features on SLES x86_64.
+#
+# 17. omnia_repo_url_sles_aarch64
+#---------------------------------
+#    Same as above but for SLES aarch64.
 #
 # 10. additional_repos_x86_64
 #----------------------------
@@ -166,6 +219,7 @@ user_registry:
 # user_repo_url_x86_64:
 #  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
+  - { url: "http://100.98.68.136/ubuntu-slurm/", gpgkey: "", name: "slurm_custom", apt_distributions: "noble" }
 user_repo_url_aarch64:
 #Example:
 # rhel_os_url_x86_64:
@@ -174,6 +228,22 @@ user_repo_url_aarch64:
 #  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }
 rhel_os_url_x86_64:
 rhel_os_url_aarch64:
+#Example:
+# ubuntu_os_url_x86_64:
+#  - { url: "http://archive.ubuntu.com/ubuntu/dists/plucky/main/", gpgkey: "", name: "main"}
+#  - { url: "http://archive.ubuntu.com/ubuntu/dists/plucky/universe/", gpgkey: "", name: "universe"}
+#  - { url: "http://archive.ubuntu.com/ubuntu/dists/plucky/multiverse/", gpgkey: "", name: "multiverse"}
+ubuntu_os_url_x86_64:
+  - { url: "http://archive.ubuntu.com/ubuntu/", gpgkey: "", name: "main"}
+ubuntu_os_url_aarch64:
+  - { url: "http://ports.ubuntu.com/ubuntu-ports/", gpgkey: "", name: "main"}
+#Example:
+# sles_os_url_x86_64:
+#  - { url: "http://smt.example.com/repo/SUSE/Products/SLE-Module-Basesystem/16/x86_64/", gpgkey: "", name: "basesystem"}
+#  - { url: "http://smt.example.com/repo/SUSE/Products/SLE-Module-Server-Applications/16/x86_64/", gpgkey: "", name: "server-applications"}
+#  - { url: "http://smt.example.com/repo/SUSE/Products/SLE-Module-Development-Tools/16/x86_64/", gpgkey: "", name: "development-tools"}
+sles_os_url_x86_64:
+sles_os_url_aarch64:
 # Example:
 # rhel_subscription_repo_config_x86_64:
 #  - { url: "https://example.com/appstream", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream", policy: "always", caching: true }
@@ -195,15 +265,35 @@ omnia_repo_url_rhel_x86_64:
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
   - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-35"}
   - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "cri-o-v1-35"}
-  - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key", name: "doca"}
   - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key", name: "cuda"}
   - { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
 omnia_repo_url_rhel_aarch64:
   - { url: "https://download.docker.com/linux/centos/10/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
-  - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key", name: "doca"}
   - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key", name: "cuda"}
   - { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+omnia_repo_url_ubuntu_x86_64:
+  - { url: "https://download.docker.com/linux/ubuntu/", gpgkey: "https://download.docker.com/linux/ubuntu/gpg", name: "docker-ce", apt_distributions: "plucky", apt_components: "stable"}
+  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key", name: "kubernetes-v1-35"}
+  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/Release.key", name: "cri-o-v1-35"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/3bf863cc.pub", name: "cuda"}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
+omnia_repo_url_ubuntu_aarch64:
+  - { url: "https://download.docker.com/linux/ubuntu/", gpgkey: "https://download.docker.com/linux/ubuntu/gpg", name: "docker-ce", apt_distributions: "plucky", apt_components: "stable"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/sbsa/3bf863cc.pub", name: "cuda"}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/arm64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+omnia_repo_url_sles_x86_64:
+  - { url: "https://download.docker.com/linux/sles/16/x86_64/stable/", gpgkey: "https://download.docker.com/linux/sles/gpg", name: "docker-ce"}
+  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-35"}
+  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "cri-o-v1-35"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/sles16/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/sles16/x86_64/repodata/repomd.xml.key", name: "cuda"}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/sles/x86_64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/sles/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
+omnia_repo_url_sles_aarch64:
+  - { url: "https://download.docker.com/linux/sles/16/aarch64/stable/", gpgkey: "https://download.docker.com/linux/sles/gpg", name: "docker-ce"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/sles16/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/sles16/sbsa/repodata/repomd.xml.key", name: "cuda"}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/sles/aarch64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/sles/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
 # Example:
 # additional_repos_x86_64:
 #  - { url: "https://rpm.grafana.com/", gpgkey: "", name: "grafana" }

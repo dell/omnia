@@ -1,0 +1,14 @@
+{
+  "openmpi": {
+    "cluster": [
+      { "package": "openmpi",
+        "type": "tarball",
+        "url": "https://download.open-mpi.org/release/open-mpi/v{{ openmpi_version.split('.')[:2] | join('.') }}/openmpi-{{ openmpi_version }}.tar.gz"
+      },
+      {"package": "libpmix-dev", "type": "deb", "repo_name": "universe"},
+      {"package": "libmunge-dev", "type": "deb", "repo_name": "universe"},
+      {"package": "g++", "type": "deb", "repo_name": "main"},
+      {"package": "make", "type": "deb", "repo_name": "main"}
+    ]
+  }
+}

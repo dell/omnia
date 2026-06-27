@@ -208,7 +208,7 @@ PXE_MAPPING_AARCH64_LOCAL_PATH_MSG = (
     "Please redeploy omnia core container with NFS share path option "
     "or remove aarch64 nodes from pxe_mapping_file.csv."
 )
-CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
+CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel', 'ubuntu', or 'sles'"
 
 # local_repo.yml
 REPO_STORE_PATH_MSG = "Please provide a valid repo_store_path value."
@@ -498,7 +498,7 @@ SMTP_SERVER_FAIL_MSG = ("Failed. smtp_server details are mandatory when "
 
 def os_version_fail_msg(cluster_os_type, min_version, max_version):
     """Returns a formatted message indicating os_version_fail_msg."""
-    if cluster_os_type == "ubuntu":
+    if max_version:
         return (f"For OS type '{cluster_os_type}', the version must be either {min_version} or "
                 f"{max_version}.")
     return f"For OS type '{cluster_os_type}', the supported version is {min_version}."

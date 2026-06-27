@@ -170,7 +170,7 @@ def determine_function(
         # Build the Pulp repo name once for all non-image/non-rpm task types
         repo_name = None
         content_base_dir = None
-        if task_type not in ("image", "rpm", "rpm_repo"):
+        if task_type not in ("image", "rpm", "rpm_repo", "deb", "deb_repo"):
             repo_name = build_task_repo_name(
                 task, arc, cluster_os_type, cluster_os_version, version_variables
             )
@@ -217,7 +217,7 @@ def determine_function(
             return process_rpm_file, [
                 task, status_file, content_base_dir, repo_name
             ]
-        if task_type in ("rpm", "rpm_repo"):
+        if task_type in ("rpm", "rpm_repo", "deb", "deb_repo"):
             return process_rpm, [
                 task, repo_store_path, status_file, cluster_os_type,
                 cluster_os_version, repo_config_value, arc

@@ -117,14 +117,20 @@ fail_msg: >-
 
 versions_fail_msg: "Versions were not defined for the following softwares: {{ failed_softwares | join(', ') }} in software_config.json.
     Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in {{ project_input_path }}/software_config.json"
-cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type is Fedora"
+cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type are rhel, ubuntu, sles"
 cluster_os_version_fail_msg_fedora: "Failed. The supported values of cluster_os_version is 38 when cluster_os_type is Fedora"
 # cross_os_support_fail_msg: "Cross-OS is not supported: control_plane_os '{{ control_plane_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
 valid_cluster_os_type:
-  - 'fedora'
+  - 'rhel'
+  - 'ubuntu'
+  - 'sles'
 rhel_valid_os_versions:
   - '10.0'
   - '10.1'
+ubuntu_valid_os_versions:
+  - '26.04'
+sles_valid_os_versions:
+  - '16.0'
 rocky_valid_os_versions:
   - '10.0'
   - '10.1'

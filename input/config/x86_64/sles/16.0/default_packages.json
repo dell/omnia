@@ -1,0 +1,39 @@
+{
+  "default_packages": {
+    "cluster": [
+      {"package": "systemd", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "systemd-udev", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "kernel-default", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "dracut", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "dracut-tools", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "squashfs-tools", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "nfs-client", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "nfs4-acl-tools", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "NetworkManager", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "iproute2", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "iputils", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "curl", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "bash", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "coreutils", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "grep", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "sed", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "gawk", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "findutils", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "util-linux", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "kbd", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "lsof", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "cryptsetup", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "lvm2", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "device-mapper", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "rsyslog", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "chrony", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "sudo", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "gzip", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "wget", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "cloud-init", "type": "rpm", "repo_name": "server-applications"},
+      {"package": "glibc-locale", "type": "rpm", "repo_name": "basesystem"},
+      {"package": "gedit", "type": "rpm", "repo_name": "desktop-applications"},
+      {"package": "docker.io/dellhpcomniaaisolution/image-build-el10", "tag": "1.1", "type": "image" }
+    ]
+  }
+}

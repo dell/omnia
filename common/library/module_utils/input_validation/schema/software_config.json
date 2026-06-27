@@ -4,7 +4,7 @@
   "properties": {
     "cluster_os_type": {
       "type": "string",
-      "enum": [ "rhel" ],
+      "enum": [ "rhel", "ubuntu", "sles" ],
       "description": "Specifies the type of operating system for the cluster."
     },
     "cluster_os_version": {

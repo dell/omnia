@@ -1,0 +1,10 @@
+{
+    "ldms": {
+        "cluster": [
+            {"package": "python3-dev", "type": "deb", "repo_name": "main"},
+            {"package": "cython3", "type": "deb", "repo_name": "universe"},
+            {"package": "libssl3", "type": "deb", "repo_name": "main"},
+            {"package": "ovis-ldms", "type": "deb", "repo_name": "ldms"}
+        ]
+    }
+}

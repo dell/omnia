@@ -31,9 +31,27 @@ from ansible.module_utils.local_repo.config import (
     pulp_rpm_commands,
     AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
-    PULP_CONCURRENCY
+    PULP_CONCURRENCY,
+    get_pulp_commands
 )
 from ansible.module_utils.local_repo.software_utils import build_repo_name
+
+
+def _append_apt_params(command, repo, log):
+    """Append APT-specific params (--distribution, --component, --architecture) to a pulp deb remote command."""
+    apt_dist = repo.get("apt_distributions")
+    if not apt_dist:
+        return command
+    command += f" --distribution {apt_dist}"
+    apt_comp = repo.get("apt_components")
+    if apt_comp:
+        command += f" --component {apt_comp}"
+    apt_arch = repo.get("apt_architectures")
+    if apt_arch:
+        command += f" --architecture {apt_arch}"
+    log.info(f"APT params appended: dist={apt_dist}, comp={apt_comp}, arch={apt_arch}")
+    return command
+
 
 def validate_command_input(value):
     """
@@ -145,8 +163,10 @@ def check_repository_synced(repo_name, log):
         bool: True if repository has synced packages, False otherwise.
     """
     try:
+        cmd_string = pulp_rpm_commands["show_repository"] % repo_name
+        cmd_list = shlex.split(cmd_string)
         result = subprocess.run(
-            ["pulp", "rpm", "repository", "show", "--name", repo_name],
+            cmd_list,
             capture_output=True, text=True, check=True
         )
         repo_info = json.loads(result.stdout)
@@ -245,34 +265,40 @@ def create_rpm_remote(repo,log):
 
         remote_name = repo_name
 
-        # Check if remote already exists - skip if it does
-        if show_rpm_remote(remote_name, log):
-            log.info("Remote '%s' already exists. Skipping.", remote_name)
-            return True, repo_name
-
-        # Remote doesn't exist - create it
+        remote_exists = show_rpm_remote(remote_name, log)
         repo_keys = repo.keys()
+
         if "ca_cert" in repo_keys and repo["ca_cert"]:
             ca_cert = f"@{repo['ca_cert']}"
             client_cert = f"@{repo['client_cert']}"
             client_key = f"@{repo['client_key']}"
-            if not show_rpm_remote(remote_name,log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
+                command = _append_apt_params(command, repo, log)
+                log.info("Remote '%s' already exists. Updating with certs.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
+                command = _append_apt_params(command, repo, log)
                 log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
-                result = execute_command(command,log)
-                log.info("Remote %s created.", remote_name)
+            result = execute_command(command, log)
+            log.info("Remote %s created/updated.", remote_name)
         else:
             log.info("Repository does not use SSL certificates for remote")
-            if not show_rpm_remote(remote_name,log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote"] % (remote_name, remote_url, policy_type)
+                command = _append_apt_params(command, repo, log)
+                log.info("Remote '%s' already exists. Updating.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
+                command = _append_apt_params(command, repo, log)
                 log.info("Remote '%s' does not exist. Executing creation command.", remote_name)
-                result = execute_command(command,log)
-                log.info("Remote %s created.", remote_name)
-        return result, repo_name
+            result = execute_command(command, log)
+            log.info("Remote %s created/updated.", remote_name)
+        return result, repo_name, remote_exists
 
     except Exception as e:
         log.error("Unexpected error while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
-        return False, repo.get("package", "unknown")
+        return False, repo.get("package", "unknown"), False
     finally:
         log.info("Completed RPM remote creation process for '%s'", repo.get("package", "unknown"))
 
@@ -343,9 +369,10 @@ def sync_rpm_repository(repo,log, resync_repos=None):
             if repo_name in resync_list:
                 force_sync = True
                 log.info(f"Force resync enabled for {repo_name}")
-            else:
-                #log.info(f"{repo_name} not in resync list. Skipping.")
+            elif check_repository_synced(repo_name, log):
+                # Already has content and not in resync list — skip
                 return True, repo_name, False, False # Not actually synced, no version change
+            # else: not in list but never synced (version 0) — fall through and sync
 
         # Check if already synced (skip check if force_sync is True)
         if not force_sync and check_repository_synced(repo_name, log):
@@ -685,11 +712,13 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
         version = repo.get("version")
         sw_arch = repo.get("sw_arch")
 
+        cluster_os_type = repo.get("cluster_os_type", "rhel")
+        pkg_type = "debs" if cluster_os_type == "ubuntu" else "rpms"
         if version != "null":
-            base_path = f" opt/omnia/offline_repo/cluster/{sw_arch}/rhel/{cluster_os_version}/rpms/{package_name}/{version}"
+            base_path = f" opt/omnia/offline_repo/cluster/{sw_arch}/{cluster_os_type}/{cluster_os_version}/{pkg_type}/{package_name}/{version}"
             repo_name = f"{repo_name}_{version}"
         else:
-            base_path = f"opt/omnia/offline_repo/cluster/{sw_arch}/rhel/{cluster_os_version}/rpms/{package_name}"
+            base_path = f"opt/omnia/offline_repo/cluster/{sw_arch}/{cluster_os_type}/{cluster_os_version}/{pkg_type}/{package_name}"
 
         show_command = pulp_rpm_commands["check_distribution"] % repo_name
         create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
@@ -1215,8 +1244,9 @@ def create_aggregated_distribution(repo_name, base_path, pub_href, log):
             # Use subprocess with argument list - validated_href is passed as a separate argument
             # This prevents argument injection as the value is validated against expected format
             log.info(f"Updating distribution '{dist_name}' with publication href")
+            update_pub_cmd = pulp_rpm_commands["update_distribution_publication"] % (dist_name, validated_href)
             update_result = subprocess.run(
-                ["pulp", "rpm", "distribution", "update", "--name", dist_name, "--publication", validated_href],
+                shlex.split(update_pub_cmd),
                 shell=False, capture_output=True, text=True
             )
             result = update_result.returncode == 0
@@ -1319,7 +1349,7 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_type="rhel"
     log.info("Completed management of all aggregated repositories")
     return True, "success"
 
-def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_repos=None, cluster_os_version="10.0"):
+def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_repos=None, cluster_os_version="10.0", cluster_os_type="rhel"):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -1397,10 +1427,22 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     log.info("Step 2: Starting concurrent RPM remote creation")
     with multiprocessing.Pool(processes=process) as pool:
         sync_result = pool.map(partial(create_rpm_remote, log=log), rpm_config)
-    failed = [name for success, name in sync_result if not success]
+    failed = [name for success, name, _ in sync_result if not success]
     if failed:
         log.error("Failed during creation of RPM remote for: %s", ", ".join(failed))
         return False, f"During creation of RPM remote for: {', '.join(failed)}"
+
+    # Force resync repos whose remotes were just updated (they may have stale content)
+    updated_remotes = [name for success, name, was_updated in sync_result if success and was_updated]
+    if updated_remotes:
+        log.info("Remotes updated for: %s — forcing resync.", ", ".join(updated_remotes))
+        if resync_repos == "all":
+            pass  # Already resyncing everything
+        elif resync_repos:
+            existing = resync_repos if isinstance(resync_repos, list) else [r.strip() for r in resync_repos.split(",")]
+            resync_repos = list(set(existing + updated_remotes))
+        else:
+            resync_repos = updated_remotes
 
     # Step 3: Concurrent synchronization
     log.info("Step 3: Starting concurrent RPM repository synchronization")
@@ -1430,6 +1472,9 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         # Step 5: Concurrent distribution creation/update
         log.info("Step 5: Starting concurrent RPM distribution creation/update")
         log.info(f"Processing distribution for {len(repos_for_pub_dist)} repos")
+        # Inject cluster_os_type into each repo dict for create_distribution
+        for repo in repos_for_pub_dist:
+            repo["cluster_os_type"] = cluster_os_type
         with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
             result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos, cluster_os_version=cluster_os_version), repos_for_pub_dist)
         failed = [name for success, name in result if not success]
@@ -1534,7 +1579,12 @@ def main():
     log.info(f"Architectures to process: {sw_archs}")
     log.info(f"Resync repos setting: {resync_repos}")
     # Call the function to manage RPM repositories
-    result, output = manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs, resync_repos, cluster_os_version)
+    # Select the appropriate Pulp command set based on cluster OS type
+    global pulp_rpm_commands
+    pulp_rpm_commands = get_pulp_commands(cluster_os_type)
+    log.info(f"Using Pulp commands for OS type: {cluster_os_type}")
+
+    result, output = manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs, resync_repos, cluster_os_version, cluster_os_type)
 
     if result is False:
         module.fail_json(msg=f"Error {output}, check {standard_log_path}")

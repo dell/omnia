@@ -20,7 +20,7 @@
     local_repo_config_path: "{{ local_repo_config_path }}"
     log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     key_path: "{{ project_input_path }}"
-    sub_urls: "{{ sub_final_repo_urls }}"
+    sub_urls: "{{ sub_final_repo_urls | default({}) }}"
   register: result
 
 - name: Process URL mirrors from local_repo_config

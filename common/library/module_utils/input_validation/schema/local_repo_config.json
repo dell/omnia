@@ -1414,6 +1414,114 @@
         ]
       },
       "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on aarch64 architecture."
+    },
+    "ubuntu_os_url_x86_64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 }
+        },
+        "required": ["url", "name"]
+      },
+      "description": "Ubuntu OS repository URLs for x86_64 architecture."
+    },
+    "ubuntu_os_url_aarch64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 }
+        },
+        "required": ["url", "name"]
+      },
+      "description": "Ubuntu OS repository URLs for aarch64 architecture."
+    },
+    "sles_os_url_x86_64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 }
+        },
+        "required": ["url", "name"]
+      },
+      "description": "SLES OS repository URLs for x86_64 architecture."
+    },
+    "sles_os_url_aarch64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 }
+        },
+        "required": ["url", "name"]
+      },
+      "description": "SLES OS repository URLs for aarch64 architecture."
+    },
+    "omnia_repo_url_ubuntu_x86_64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "policy": { "enum": ["always", "partial", "never"] }
+        },
+        "required": ["url", "gpgkey", "name"]
+      },
+      "description": "URLs for repositories from which packages will be downloaded for Omnia features on Ubuntu x86_64."
+    },
+    "omnia_repo_url_ubuntu_aarch64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "policy": { "enum": ["always", "partial", "never"] }
+        },
+        "required": ["url", "gpgkey", "name"]
+      },
+      "description": "URLs for repositories from which packages will be downloaded for Omnia features on Ubuntu aarch64."
+    },
+    "omnia_repo_url_sles_x86_64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "policy": { "enum": ["always", "partial", "never"] }
+        },
+        "required": ["url", "gpgkey", "name"]
+      },
+      "description": "URLs for repositories from which packages will be downloaded for Omnia features on SLES x86_64."
+    },
+    "omnia_repo_url_sles_aarch64": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "minLength": 1 },
+          "gpgkey": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "policy": { "enum": ["always", "partial", "never"] }
+        },
+        "required": ["url", "gpgkey", "name"]
+      },
+      "description": "URLs for repositories from which packages will be downloaded for Omnia features on SLES aarch64."
     }
   },
   "required": [

@@ -1,0 +1,10 @@
+{
+  "openldap": {
+    "cluster": [
+      {"package": "ldap-utils", "type": "deb", "repo_name": "main"},
+      {"package": "libnss-ldapd", "type": "deb", "repo_name": "universe"},
+      {"package": "sssd", "type": "deb", "repo_name": "main"},
+      {"package": "libpam-mkhomedir", "type": "deb", "repo_name": "main"}
+    ]
+  }
+}

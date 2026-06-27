@@ -24,7 +24,9 @@ from pathlib import Path
 from ansible.module_utils.local_repo.config import (
     DNF_COMMANDS,
     DNF_INFO_COMMANDS,
-    PULP_RPM_PACKAGES_API
+    PULP_RPM_PACKAGES_API,
+    PULP_DEB_PACKAGES_API,
+    get_pulp_commands
 )
 from multiprocessing import Lock
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
@@ -50,21 +52,28 @@ def _pulp_cmd(cmd_string, logger=None):
         return None
 
 
-def _pulp_get_repo_version(repo_name, logger):
-    """Get latest_version_href for a Pulp RPM repository."""
-    data = _pulp_cmd(f"pulp rpm repository show --name {repo_name}", logger)
+def _pulp_get_repo_version(repo_name, logger, cluster_os_type="rhel"):
+    """Get latest_version_href for a Pulp repository."""
+    cmds = get_pulp_commands(cluster_os_type)
+    data = _pulp_cmd(cmds["show_repository"] % repo_name, logger)
     if isinstance(data, dict):
         return data.get("latest_version_href", "")
     return ""
 
 
-def _pulp_find_package(pkg_name, repo_name, logger):
-    """Find RPM package in a Pulp repository. Returns package info dict or None."""
-    version_href = _pulp_get_repo_version(repo_name, logger)
+def _pulp_find_package(pkg_name, repo_name, logger, cluster_os_type="rhel"):
+    """Find package in a Pulp repository. Returns package info dict or None."""
+    version_href = _pulp_get_repo_version(repo_name, logger, cluster_os_type)
     if not version_href:
         return None
-    api_url = f"{PULP_RPM_PACKAGES_API}?name={pkg_name}&repository_version={version_href}&limit=1"
+    packages_api = PULP_DEB_PACKAGES_API if cluster_os_type == "ubuntu" else PULP_RPM_PACKAGES_API
+    name_field = "package" if cluster_os_type == "ubuntu" else "name"
+    api_url = f"{packages_api}?{name_field}={pkg_name}&repository_version={version_href}&limit=1"
+    if logger:
+        logger.info(f"Pulp package query: pulp show --href '{api_url}'")
     data = _pulp_cmd(f"pulp show --href '{api_url}'", logger)
+    if logger:
+        logger.info(f"Pulp query result for '{pkg_name}': type={type(data).__name__}, data={str(data)[:200]}")
     if isinstance(data, dict) and data.get("count", 0) > 0:
         return data.get("results", [None])[0]
     if isinstance(data, list) and len(data) > 0:
@@ -72,22 +81,24 @@ def _pulp_find_package(pkg_name, repo_name, logger):
     return None
 
 
-def _pulp_validate_package(pkg_name, repo_name, logger):
+def _pulp_validate_package(pkg_name, repo_name, logger, cluster_os_type="rhel"):
     """Check if package exists in Pulp repo (replaces dnf info)."""
-    return _pulp_find_package(pkg_name, repo_name, logger) is not None
+    return _pulp_find_package(pkg_name, repo_name, logger, cluster_os_type) is not None
 
 
-def _pulp_download_rpm(pkg_name, repo_name, rpm_directory, logger):
-    """Download a single RPM from Pulp distribution (replaces dnf download)."""
-    pkg_info = _pulp_find_package(pkg_name, repo_name, logger)
+def _pulp_download_rpm(pkg_name, repo_name, rpm_directory, logger, cluster_os_type="rhel"):
+    """Download a single package from Pulp distribution."""
+    pkg_info = _pulp_find_package(pkg_name, repo_name, logger, cluster_os_type)
     if not pkg_info:
         logger.error(f"Package '{pkg_name}' not found in Pulp repo '{repo_name}'")
         return False
-    location_href = pkg_info.get("location_href", "")
+    location_field = "relative_path" if cluster_os_type == "ubuntu" else "location_href"
+    location_href = pkg_info.get(location_field, "")
     if not location_href:
-        logger.error(f"No location_href for package '{pkg_name}'")
+        logger.error(f"No {location_field} for package '{pkg_name}'")
         return False
-    dist_data = _pulp_cmd(f"pulp rpm distribution show --name {repo_name}", logger)
+    cmds = get_pulp_commands(cluster_os_type)
+    dist_data = _pulp_cmd(cmds["check_distribution"] % repo_name, logger)
     if not isinstance(dist_data, dict) or not dist_data.get("base_url"):
         logger.error(f"Could not get distribution URL for '{repo_name}'")
         return False
@@ -165,9 +176,10 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             sw_json_name = Path(status_file_path).parent.name
             logger.info(f"Software rpms : {sw_json_name}")
 
+            pkg_dir_type = 'deb' if cluster_os_type == 'ubuntu' else 'rpm'
             rpm_directory = os.path.join(
                 repo_store_path, 'offline_repo',
-                'cluster', arc.lower(), cluster_os_type, cluster_os_version, 'rpm', sw_json_name
+                'cluster', arc.lower(), cluster_os_type, cluster_os_version, pkg_dir_type, sw_json_name
             )
             logger.info(f"rpm_dir {rpm_directory}")
             os.makedirs(rpm_directory, exist_ok=True)
@@ -177,7 +189,8 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             downloaded = []
             failed = []
 
-            if _is_dnf_available():
+            is_deb_os = cluster_os_type in ('ubuntu',)
+            if _is_dnf_available() and not is_deb_os:
                # First try to download all at once
                 dnf_download_command = (
                     DNF_COMMANDS[arch_key]
@@ -263,7 +276,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     pkg_repo_name = repo_mapping.get(pkg, "")
                     if pkg_repo_name:
                         prefixed_repo_name = _prefix_repo_name_with_arch(pkg_repo_name, status_file_path, logger)
-                        if _pulp_download_rpm(pkg, prefixed_repo_name, rpm_directory, logger):
+                        if _pulp_download_rpm(pkg, prefixed_repo_name, rpm_directory, logger, cluster_os_type):
                             downloaded.append(pkg)
                             write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
                             logger.info(f"Package '{pkg}' downloaded successfully via Pulp.")
@@ -290,12 +303,13 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             arch_key = "x86_64" if arc.lower() in ("x86_64") else "aarch64"
             valid_packages = []
             invalid_packages = []
-            use_dnf = _is_dnf_available()
+            is_deb_os = cluster_os_type in ('ubuntu',)
+            use_dnf = _is_dnf_available() and not is_deb_os
 
             if use_dnf:
                 logger.info("Validating package availability using dnf info...")
             else:
-                logger.info("dnf not available, validating package availability using Pulp CLI...")
+                logger.info(f"Using Pulp CLI for package validation (os_type={cluster_os_type})...")
 
             for pkg in package["rpm_list"]:
                 # Get repo_name for this specific RPM from mapping
@@ -324,7 +338,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     pkg_exists = result.returncode == 0
                 else:
                     # Validate package using Pulp CLI
-                    pkg_exists = _pulp_validate_package(pkg, prefixed_repo_name, logger)
+                    pkg_exists = _pulp_validate_package(pkg, prefixed_repo_name, logger, cluster_os_type)
 
                 if pkg_exists:
                     # Package exists and is available

@@ -1,0 +1,41 @@
+{
+  "default_packages": {
+    "cluster": [
+      {"package": "systemd", "type": "deb", "repo_name": "main"},
+      {"package": "udev", "type": "deb", "repo_name": "main"},
+      {"package": "linux-image-generic", "type": "deb", "repo_name": "main"},
+      {"package": "initramfs-tools", "type": "deb", "repo_name": "main"},
+      {"package": "live-boot", "type": "deb", "repo_name": "universe"},
+      {"package": "initramfs-tools-core", "type": "deb", "repo_name": "main"},
+      {"package": "squashfs-tools", "type": "deb", "repo_name": "main"},
+      {"package": "nfs-common", "type": "deb", "repo_name": "main"},
+      {"package": "nfs4-acl-tools", "type": "deb", "repo_name": "universe"},
+      {"package": "network-manager", "type": "deb", "repo_name": "main"},
+      {"package": "network-manager-gnome", "type": "deb", "repo_name": "main"},
+      {"package": "iproute2", "type": "deb", "repo_name": "main"},
+      {"package": "iputils-ping", "type": "deb", "repo_name": "main"},
+      {"package": "curl", "type": "deb", "repo_name": "main"},
+      {"package": "bash", "type": "deb", "repo_name": "main"},
+      {"package": "coreutils", "type": "deb", "repo_name": "main"},
+      {"package": "grep", "type": "deb", "repo_name": "main"},
+      {"package": "sed", "type": "deb", "repo_name": "main"},
+      {"package": "gawk", "type": "deb", "repo_name": "main"},
+      {"package": "findutils", "type": "deb", "repo_name": "main"},
+      {"package": "util-linux", "type": "deb", "repo_name": "main"},
+      {"package": "kbd", "type": "deb", "repo_name": "main"},
+      {"package": "lsof", "type": "deb", "repo_name": "main"},
+      {"package": "cryptsetup", "type": "deb", "repo_name": "main"},
+      {"package": "lvm2", "type": "deb", "repo_name": "main"},
+      {"package": "dmsetup", "type": "deb", "repo_name": "main"},
+      {"package": "rsyslog", "type": "deb", "repo_name": "main"},
+      {"package": "chrony", "type": "deb", "repo_name": "main"},
+      {"package": "sudo", "type": "deb", "repo_name": "main"},
+      {"package": "gzip", "type": "deb", "repo_name": "main"},
+      {"package": "wget", "type": "deb", "repo_name": "main"},
+      {"package": "cloud-init", "type": "deb", "repo_name": "main"},
+      {"package": "locales", "type": "deb", "repo_name": "main"},
+      {"package": "gedit", "type": "deb", "repo_name": "universe"},
+      {"package": "docker.io/dellhpcomniaaisolution/image-build-aarch64", "tag": "1.1", "type": "image" }
+    ]
+  }
+}
