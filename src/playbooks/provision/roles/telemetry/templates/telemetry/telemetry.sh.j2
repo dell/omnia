@@ -19,6 +19,17 @@ else
   helm -n telemetry install strimzi-cluster-operator "${DEPLOY_DIR}/{{ strimzi_kafka_pkg }}.tar.gz"
 fi
 
+# Helm 3 does NOT update CRDs on 'helm upgrade'. It also may not apply CRDs
+# immediately on 'helm install' in some configurations. Explicitly apply CRDs
+# from the chart tarball so that API versions are registered before
+# kubectl apply -k attempts to create Kafka resources.
+# This step is idempotent and safe for both fresh installs and upgrades.
+echo "  Applying Strimzi CRDs from chart..."
+_STRIMZI_CRD_TMP=$(mktemp -d)
+tar -xzf "${DEPLOY_DIR}/{{ strimzi_kafka_pkg }}.tar.gz" -C "$_STRIMZI_CRD_TMP"
+kubectl apply -f "$_STRIMZI_CRD_TMP/strimzi-kafka-operator/crds/" --server-side --force-conflicts
+rm -rf "$_STRIMZI_CRD_TMP"
+
 # Wait for Strimzi operator to be ready
 echo "  Waiting for Strimzi operator deployment..."
 kubectl wait --for=condition=available --timeout=300s deployment/strimzi-cluster-operator -n telemetry

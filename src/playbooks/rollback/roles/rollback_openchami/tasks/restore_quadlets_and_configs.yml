@@ -22,6 +22,8 @@
 #   3. Restore v2.1 openchami.target from backup (references coresmd.service)
 #   4. Restore v2.1 configs (coredhcp.yaml, Corefile, configs_vars.yaml)
 #   5. Restore v2.1 RPMs (openchami + ochami CLI) from backup
+#      NOTE: backup may contain both v2.1 AND v2.2 RPMs — filter needed
+#   5a. Re-remove v2.2 quadlets and re-restore configs after RPM install
 #   6. Reload systemd daemon
 #
 # Backup structure (created by omnia.sh --upgrade):
@@ -197,9 +199,41 @@
       connection: ssh
 
     # ── 5. Restore v2.1 RPMs from backup ────────────────────────────────
-    # The backup openchami_data/ may contain the v2.1 RPMs that were
-    # installed before the upgrade. If they exist, reinstall them to
-    # restore the v2.1 quadlet file definitions and CLI version.
+    # IMPORTANT: The backup openchami_data/ contains BOTH v2.1 AND v2.2
+    # RPMs (the upgrade downloads v2.2 RPMs before creating the backup).
+    # Installing all RPMs causes v2.2 to win (processed last → upgrades
+    # the just-downgraded v2.1), re-creating v2.2 quadlet files and
+    # overwriting configs with RPM defaults.
+    #
+    # Fix: Read openchami_backup_manifest.yml which records the exact
+    # source (v2.1) and target (v2.2) RPM filenames. Install ONLY the
+    # source RPMs.
+    - name: Read openchami backup manifest for source RPM versions
+      ansible.builtin.slurp:
+        src: "{{ rollback_oim_host_backup_dir }}/openchami_backup_manifest.yml"
+      register: rollback_ochami_manifest_raw
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Parse openchami backup manifest
+      ansible.builtin.set_fact:
+        rollback_ochami_manifest: >-
+          {{ (rollback_ochami_manifest_raw.content | b64decode | from_yaml)
+             if rollback_ochami_manifest_raw is not failed
+                and rollback_ochami_manifest_raw.content is defined
+             else {} }}
+
+    - name: Set v2.1 RPM filenames from manifest source_rpms
+      ansible.builtin.set_fact:
+        rollback_v21_rpm_names: >-
+          {{ [
+            rollback_ochami_manifest.source_rpms.openchami | default(''),
+            rollback_ochami_manifest.source_rpms.ochami_cli | default('')
+          ] | select | list }}
+      when: rollback_ochami_manifest.source_rpms is defined
+
     - name: Find backed-up openchami RPMs
       ansible.builtin.find:
         paths: "{{ rollback_oim_host_data }}"
@@ -211,26 +245,70 @@
       connection: ssh
       failed_when: false
 
-    - name: Display found RPMs in backup
+    - name: Filter RPMs to v2.1 only (match manifest source_rpms)
+      ansible.builtin.set_fact:
+        rollback_v21_rpms: >-
+          {%- set result = [] -%}
+          {%- for rpm in rollback_rpm_files.files | default([]) -%}
+            {%- if rpm.path | basename in (rollback_v21_rpm_names | default([])) -%}
+              {%- set _ = result.append(rpm.path) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Display RPMs selected for rollback
       ansible.builtin.debug:
         verbosity: 1
         msg: >-
-          Found {{ rollback_rpm_files.files | default([]) | length }} RPM(s) in backup:
-          {{ rollback_rpm_files.files | default([]) | map(attribute='path') | map('basename') | list }}
+          All RPMs in backup: {{ rollback_rpm_files.files | default([]) | map(attribute='path') | map('basename') | list }}.
+          Manifest source_rpms: {{ rollback_v21_rpm_names | default([]) }}.
+          Selected for install: {{ rollback_v21_rpms | default([]) | map('basename') | list }}
 
     - name: Reinstall v2.1 RPMs from backup (downgrade)
       ansible.builtin.dnf:
-        name: "{{ item.path }}"
+        name: "{{ item }}"
         state: present
         disable_gpg_check: true
         allow_downgrade: true
-      loop: "{{ rollback_rpm_files.files | default([]) }}"
+      loop: "{{ rollback_v21_rpms | default([]) }}"
       loop_control:
-        label: "{{ item.path | basename }}"
+        label: "{{ item | basename }}"
       delegate_to: oim
       delegate_facts: true
       connection: ssh
       failed_when: false
+
+    # ── 5a. Re-remove v2.2 quadlets and re-restore configs after RPM ───
+    # Defense in depth: RPM post-install scripts may still create files.
+    # Re-apply backup state to guarantee v2.1 quadlets and configs.
+    - name: Re-remove v2.2-only quadlets after RPM reinstall
+      ansible.builtin.file:
+        path: "{{ systemd_quadlet_dir }}/{{ item }}"
+        state: absent
+      loop: "{{ rollback_v22_only_quadlets }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Re-restore v2.1 quadlets after RPM reinstall
+      ansible.builtin.shell: |
+        set -o pipefail
+        cp -a {{ rollback_oim_host_quadlets }}/*.container {{ systemd_quadlet_dir }}/
+        cp -a {{ rollback_oim_host_quadlets }}/*.network {{ systemd_quadlet_dir }}/ 2>/dev/null || true
+      changed_when: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Re-restore /etc/openchami after RPM reinstall
+      ansible.builtin.shell: |
+        set -o pipefail
+        cp -a {{ rollback_oim_host_etc_openchami }}/. {{ openchami_config_dir | regex_replace('/configs$', '') }}/
+      when: rollback_etc_openchami_backup_stat.stat.exists | default(false)
+      changed_when: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
 
     # ── 6. Reload systemd daemon ────────────────────────────────────────
     # Apply all quadlet and target changes before starting services.
@@ -251,4 +329,4 @@
           - "openchami.target: restored from backup (references coresmd.service)"
           - "/etc/openchami: {{ 'restored from backup' if rollback_etc_openchami_backup_stat.stat.exists | default(false) else 'backup NOT found' }}"
           - "configs_vars.yaml: {{ 'restored' if rollback_configvars_stat.stat.exists | default(false) else 'not in backup' }}"
-          - "RPMs restored: {{ rollback_rpm_files.files | default([]) | length }}"
+          - "RPMs restored (v2.1 only): {{ rollback_v21_rpms | default([]) | map('basename') | list }}"
