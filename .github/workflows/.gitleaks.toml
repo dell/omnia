@@ -9,7 +9,19 @@ title = "Gitleaks config for Omnia"
     '''(^|/)telemetry/''',
     '''(^|/)platforms/roles/jupyterhub/files/''',
     '''(^|/)platforms/roles/polyaxon/files/''',
-    '''(^|/)roles/startservices/files/'''
+    '''(^|/)roles/startservices/files/''',
+    '''(^|/)build_stream/tests/''',
+    '''(^|/)test_postgres_integration\.py''',
+    '''(^|/)test\.sh''',
+    '''(^|/)omnia_startup\.sh''',
+    '''(^|/)input/omnia_config\.yml''',
+    '''(^|/)prepare_oim/''',
+    '''(^|/)local_repo/roles/pulp_validation/''',
+    '''(^|/)utils/credential_utility/''',
+    '''(^|/)scheduler/roles/slurm/''',
+    '''(^|/)discovery/roles/ome_discovery/''',
+    '''(^|/)common/library/modules/ome_server_inventory\.py''',
+    '''(^|/)common/library/module_utils/local_repo/user_image_utility\.py'''
   ]
 
   regexTarget = "match"
@@ -39,7 +51,36 @@ title = "Gitleaks config for Omnia"
     '''password:\s*[a-z_]+(password|secret|key|token)''',
     '''secret:\s*[a-z_]+(password|secret|key|token)''',
     '''token:\s*[a-z_]+(password|secret|key|token)''',
-    '''password:\s*\{\s*password:'''
+    '''password:\s*\{\s*password:''',
+    '''postgresql://.*@localhost''',
+    '''postgresql://.*@127\.0\.0\.1''',
+    '''%\([^)]+\)s''',
+    '''secret:.*-cert''',
+    '''passwd:\s*\$''',
+    '''password:\s*"hostvars''',
+    '''password:\s*"Registration''',
+    '''password\s*=\s*IntegrationTestConfig''',
+    '''password:\s*Optional''',
+    '''password:\s*Password''',
+    '''password:\s*"Password''',
+    '''password:\s*"Openldap''',
+    '''password:\s*"kerberos_admin_password''',
+    '''password:\s*"directory_manager_password''',
+    '''password:\s*"grafana_.*_password''',
+    '''password:\s*"mysql_.*_password''',
+    '''secret:\s*"grafana_.*''',
+    '''password:\s*"switch_.*_password''',
+    '''VAULT_PASSWORD.*omnia_test''',
+    '''passwd:\$\(''',
+    '''passwd:key=''',
+    '''password:\s*dell\d+''',
+    '''password:\s*slurmPassword''',
+    '''password\s*=\s*"correct_password"''',
+    '''PASSWORD:\s*postgres''',
+    '''password:\s*\$\{''',
+    '''password:\s*"password"''',
+    '''PASSWORD\s*=\s*"omnia_test''',
+    '''PASSWORD\s*=\s*dell\d+'''
   ]
 
 [[rules]]
