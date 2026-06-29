@@ -28,9 +28,12 @@
     rhel_tag: "{{ hostvars['localhost']['rhel_tag'] }}"
     oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
     domain_name: "{{ hostvars['localhost']['domain_name'] }}"
-    rhel_x86_64_repos: "{{ hostvars['localhost']['rhel_x86_64_repos'] }}"
-    x86_64_base_image_packages: "{{ hostvars['localhost']['x86_64_base_image_packages'] }}"
-    compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] }}"
+    rhel_x86_64_repos: "{{ hostvars['localhost']['rhel_x86_64_repos'] | default([]) }}"
+    ubuntu_x86_64_repos: "{{ hostvars['localhost']['ubuntu_x86_64_repos'] | default([]) }}"
+    ubuntu_tag: "{{ hostvars['localhost']['software_config']['cluster_os_version'] | default('24.04') }}"
+    x86_64_base_image_packages: "{{ hostvars['localhost']['x86_64_base_image_packages'] | default([]) }}"
+    x86_64_ubuntu_base_image_packages: "{{ hostvars['localhost']['x86_64_ubuntu_base_image_packages'] | default([]) }}"
+    compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] | default({}) }}"
 
 - name: Normalize build stream inputs for base image
   ansible.builtin.set_fact:

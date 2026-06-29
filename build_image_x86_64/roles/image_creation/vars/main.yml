@@ -31,6 +31,10 @@ ochami_mounts:
   - --user 0 --privileged
   - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/usr/local/share/ca-certificates/pulp_webserver.crt:z
   - -v {{ openchami_work_dir }}/images/{{ rhel_x86_64_base_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
+ochami_ubuntu_mounts:
+  - --user 0 --privileged
+  - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/usr/local/share/ca-certificates/pulp_webserver.crt:z
+  - -v {{ openchami_work_dir }}/images/{{ ubuntu_x86_64_base_image_name | default('ubuntu-x86_64_base') }}-{{ ubuntu_tag | default('24.04') }}.yaml:/home/builder/config.yaml:z
 ochami_compute_mounts:
   - --user 0 --privileged
   - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/usr/local/share/ca-certificates/pulp_webserver.crt:z
@@ -45,6 +49,13 @@ ochami_base_command:
 # build_base_image.yml
 openchami_log_dir: "{{ oim_shared_path }}/omnia/log/openchami"
 openchami_x86_64_base_image_log_path: "{{ oim_shared_path }}/omnia/log/openchami/x86_64_base_image.log"
+openchami_x86_64_ubuntu_base_image_log_path: "{{ oim_shared_path }}/omnia/log/openchami/x86_64_ubuntu_base_image.log"
+# Ubuntu image defaults
+ubuntu_x86_64_base_image_name: "ubuntu-x86_64_base"
+ubuntu_tag: "24.04"
+ubuntu_base_image_failure_msg: |
+  Ubuntu x86_64 base image build job failed or timed out.
+  Check logs at path {{ openchami_x86_64_ubuntu_base_image_log_path }} for details.
 # build_base_image.yml - image-build config template
 openchami_base_image_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
 base_image_failure_msg: |

@@ -37,3 +37,28 @@
       ansible.builtin.debug:
         msg: "{{ rhel_x86_64_repos | to_nice_yaml(indent=2) }}"
         verbosity: 2
+
+    - name: Fetch pulp deb endpoints for ubuntu x86_64
+      ansible.builtin.command: >
+        pulp deb distribution list --field name,base_url
+      register: pulp_deb_endpoints
+      changed_when: false
+      failed_when: false
+
+    - name: Filter only x86_64 ubuntu deb distributions
+      ansible.builtin.set_fact:
+        pulp_x86_64_deb_distributions: >-
+          {{ (pulp_deb_endpoints.stdout | default('[]') | from_json)
+            | selectattr('name', 'match', '^x86_64')
+            | list }}
+      when: pulp_deb_endpoints.rc == 0 and pulp_deb_endpoints.stdout | default('') | length > 0
+
+    - name: Build ubuntu_x86_64_repos list from pulp deb distributions
+      ansible.builtin.set_fact:
+        ubuntu_x86_64_repos: >-
+          {{ pulp_x86_64_deb_distributions | default([]) | map('combine', {'gpg': ''}) | list }}
+
+    - name: Debug ubuntu_x86_64_repos
+      ansible.builtin.debug:
+        msg: "{{ ubuntu_x86_64_repos | to_nice_yaml(indent=2) }}"
+        verbosity: 2

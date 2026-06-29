@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Create ochami images directory
+  ansible.builtin.file:
+    path: "{{ openchami_work_dir }}/images"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+
+- name: Create x86_64 ubuntu base image log file
+  ansible.builtin.file:
+    path: "{{ openchami_x86_64_ubuntu_base_image_log_path }}"
+    state: touch
+    mode: "{{ dir_permissions_644 }}"
+
+- name: Render x86_64 ubuntu base image build config
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/images/ubuntu-base-config.yaml.j2"
+    dest: "{{ openchami_work_dir }}/images/{{ ubuntu_x86_64_base_image_name }}-{{ ubuntu_tag }}.yaml"
+    mode: "{{ dir_permissions_644 }}"
+
+- name: Build and verify x86_64 ubuntu base osimage
+  block:
+    - name: Build x86_64 ubuntu base osimage
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          podman run --rm --device /dev/fuse --network host \
+            {{ ochami_ubuntu_mounts | join(' ') }} \
+            {{ ochami_x86_64_image | join(' ') }} \
+            {{ ochami_base_command | join(' ') }} \
+            > '{{ openchami_x86_64_ubuntu_base_image_log_path }}' 2>&1
+      async: "{{ job_async }}"
+      poll: 0
+      register: ubuntu_base_image_build
+      changed_when: true
+
+    - name: Wait for x86_64 ubuntu base image build to complete
+      ansible.builtin.async_status:
+        jid: "{{ ubuntu_base_image_build.ansible_job_id }}"
+      register: ubuntu_job_result
+      until: ubuntu_job_result.finished
+      retries: "{{ job_retry }}"
+      delay: "{{ job_delay }}"
+
+    - name: Verify the x86_64 ubuntu base osimage in registry
+      ansible.builtin.command:
+        cmd: "/usr/local/bin/regctl repo ls {{ oim_node_name }}.{{ domain_name }}:5000"
+      changed_when: false
+      register: verify_ubuntu_base_osimage
+
+    - name: Fail if x86_64 ubuntu base osimage not created
+      ansible.builtin.fail:
+        msg: "Failed to build ubuntu base osimage {{ oim_node_name }}/{{ ubuntu_x86_64_base_image_name }}"
+      when: (oim_node_name + '/' + ubuntu_x86_64_base_image_name) not in verify_ubuntu_base_osimage.stdout_lines
+
+    - name: Verify x86_64 ubuntu base osimage output
+      ansible.builtin.debug:
+        msg: "{{ verify_ubuntu_base_osimage.stdout_lines }}"
+
+  rescue:
+    - name: Fail the build if the ubuntu base image build fails
+      ansible.builtin.fail:
+        msg: "{{ ubuntu_base_image_failure_msg }}"
+
+  always:
+    - name: Set openchami SELinux context for Local flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+    - name: Set openchami SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
