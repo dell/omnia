@@ -28,26 +28,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Gitleaks
-        run: |
-          REPO="https://api.github.com/repos/gitleaks/gitleaks"
-          VERSION=$(curl -s ${REPO}/releases/latest | \
-            grep tag_name | cut -d '"' -f 4)
-          BASE="https://github.com/gitleaks/gitleaks/releases"
-          FILE="gitleaks_${VERSION#v}_linux_x64.tar.gz"
-          wget ${BASE}/download/${VERSION}/${FILE}
-          tar -xzf ${FILE}
-          chmod +x gitleaks
-
-      - name: Run Gitleaks scan on PR changes only
-        run: |
-          # Scan only commits in this PR, not entire history
-          BASE_REF="origin/${{ github.base_ref }}"
-          HEAD_REF="${{ github.sha }}"
-
-          echo "Scanning commits from ${BASE_REF} to ${HEAD_REF}"
-          ./gitleaks detect \
-            --source . \
-            --config .github/workflows/.gitleaks.toml \
-            --log-opts="${BASE_REF}..${HEAD_REF}" \
-            --verbose
+      - name: Run Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .github/workflows/.gitleaks.toml
+          GITLEAKS_ENABLE_COMMENTS: false
