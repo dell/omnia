@@ -5,7 +5,11 @@ title = "Gitleaks config for Omnia"
 
   paths = [
     '''(^|/)examples/''',
-    '''(^|/)docs/'''
+    '''(^|/)docs/''',
+    '''(^|/)telemetry/''',
+    '''(^|/)platforms/roles/jupyterhub/files/''',
+    '''(^|/)platforms/roles/polyaxon/files/''',
+    '''(^|/)roles/startservices/files/'''
   ]
 
   regexTarget = "match"
@@ -14,7 +18,28 @@ title = "Gitleaks config for Omnia"
     '''dummy[_-]?(password|secret|token|key)''',
     '''test[_-]?(password|secret|token|key)''',
     '''CHANGEME''',
-    '''password:\s*"?\{\{.*\}\}"?'''
+    '''changeme''',
+    '''password:\s*"?\{\{.*\}\}"?''',
+    '''success_msg.*password.*validated''',
+    '''fail_msg.*password''',
+    '''_password.*successfully.*validated''',
+    '''_password.*validated''',
+    '''msg.*password.*valid''',
+    '''password=.*changeme''',
+    '''1c8572f630701e8792bede122ec9c417''',
+    '''secretToken.*1c8572f6''',
+    '''cookieSecret.*1c8572f6''',
+    '''timescaledb_password:\s*postgres''',
+    '''password:\s*postgres''',
+    '''(token|secret|password)\s*=\s*[a-z_]+''',
+    '''password:\s*"password"''',
+    '''ansible_.*password.*\{\{''',
+    '''docker_password_cipher''',
+    '''load_docker_credentials''',
+    '''password:\s*[a-z_]+(password|secret|key|token)''',
+    '''secret:\s*[a-z_]+(password|secret|key|token)''',
+    '''token:\s*[a-z_]+(password|secret|key|token)''',
+    '''password:\s*\{\s*password:'''
   ]
 
 [[rules]]

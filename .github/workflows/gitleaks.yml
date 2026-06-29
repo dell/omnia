@@ -39,6 +39,15 @@ jobs:
           tar -xzf ${FILE}
           chmod +x gitleaks
 
-      - name: Run Gitleaks scan
+      - name: Run Gitleaks scan on PR changes only
         run: |
-          ./gitleaks detect --source . --log-opts="--all"
+          # Scan only commits in this PR, not entire history
+          BASE_REF="origin/${{ github.base_ref }}"
+          HEAD_REF="${{ github.sha }}"
+
+          echo "Scanning commits from ${BASE_REF} to ${HEAD_REF}"
+          ./gitleaks detect \
+            --source . \
+            --config .github/workflows/.gitleaks.toml \
+            --log-opts="${BASE_REF}..${HEAD_REF}" \
+            --verbose
