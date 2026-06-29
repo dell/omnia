@@ -28,9 +28,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .github/workflows/.gitleaks.toml
-          GITLEAKS_ENABLE_COMMENTS: false
+      - name: Run Gitleaks scan using Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/repo \
+            -w /repo \
+            ghcr.io/gitleaks/gitleaks:latest \
+            detect \
+            --source /repo \
+            --config /repo/.github/workflows/.gitleaks.toml \
+            --log-opts="origin/${{ github.base_ref }}..${{ github.sha }}" \
+            --verbose \
+            --no-git
