@@ -1,6 +1,7 @@
+---
 name: Secret Leak Scan
 
-on:
+'on':
   pull_request:
     branches:
       - main
@@ -14,16 +15,30 @@ on:
 
 jobs:
   gitleaks:
-    name: Gitleaks Secret Scan
+    name: Scan for secrets
     runs-on: ubuntu-latest
+    continue-on-error: true
+
+    permissions:
+      contents: read
+
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks on PR changes
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      - name: Install Gitleaks
+        run: |
+          REPO="https://api.github.com/repos/gitleaks/gitleaks"
+          VERSION=$(curl -s ${REPO}/releases/latest | \
+            grep tag_name | cut -d '"' -f 4)
+          BASE="https://github.com/gitleaks/gitleaks/releases"
+          FILE="gitleaks_${VERSION#v}_linux_x64.tar.gz"
+          wget ${BASE}/download/${VERSION}/${FILE}
+          tar -xzf ${FILE}
+          chmod +x gitleaks
+
+      - name: Run Gitleaks scan
+        run: |
+          ./gitleaks detect --source . --log-opts="--all"

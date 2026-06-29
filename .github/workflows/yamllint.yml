@@ -1,6 +1,7 @@
+---
 name: YAML Lint
 
-on:
+'on':
   pull_request:
     branches:
       - main

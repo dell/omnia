@@ -1,6 +1,7 @@
+---
 name: Bandit Security Scan
 
-on:
+'on':
   pull_request:
     branches:
       - main

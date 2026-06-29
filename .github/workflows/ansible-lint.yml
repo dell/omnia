@@ -1,6 +1,7 @@
+---
 name: Ansible Lint
 
-on:
+'on':
   pull_request:
     branches:
       - main

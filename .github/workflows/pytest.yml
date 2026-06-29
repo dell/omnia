@@ -1,6 +1,7 @@
+---
 name: Unit Tests & Coverage
 
-on:
+'on':
   pull_request:
     branches:
       - main
