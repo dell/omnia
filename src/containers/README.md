@@ -1,148 +1,160 @@
-# Omnia Container Image Builder
+# Omnia Container Images
 
-Build Omnia container images for deployment.
+Container build infrastructure for all Omnia container images.
+Each container has its own subdirectory with a `build.sh` and `Containerfile`.
 
 ## Quick Start
 
-Build the Omnia core container:
-
 ```bash
-./build_images.sh core core_tag=2.2 omnia_branch=v2.2.0.0
+# Build OIM group (core + auth + image-builder) — default
+./build_images.sh oim
+
+# Build a single container with custom tag
+./build_images.sh core core_tag=2.2
+
+# Build all containers
+./build_images.sh all
 ```
 
-The image will be available locally as `omnia_core:2.2`.
+**Prerequisite:** Podman (default) or Docker must be installed.
 
 ---
 
-## Prerequisites
-
-**Podman** must be installed.
-
-Install Podman: [podman.io/getting-started/installation](https://podman.io/getting-started/installation)
-
-*Note: Script supports Podman and Docker build tools (default: Podman)*
-
----
-
-## Directory Structure
-
-Each container has its own directory with a `build.sh` and a `Containerfile`:
+## Directory Layout
 
 ```
 src/containers/
-├── _common.sh                          # Shared utilities (colors, build function, summary)
-├── build_images.sh                     # Wrapper script (CLI, dispatch, summary)
-├── README.md                           # This file
-├── omnia_core/
-│   ├── build.sh                        # build_omnia_core()
-│   ├── Containerfile                   # Fedora 42, Python 3.13, Ansible, Go, Git LFS
+├── build_images.sh          # Entry point — CLI dispatch + build summary
+├── _common.sh               # Shared helpers: colors, container_build(), print_build_summary()
+├── README.md
+│
+├── omnia_core/              # Core Omnia container
+│   ├── build.sh             #   build_omnia_core()
+│   ├── Containerfile        #   Fedora 42 · Python 3.13 · Ansible · Go · Git LFS
 │   ├── cert-copy.sh
 │   ├── entrypoint.sh
 │   ├── pyproject.toml
 │   └── uv.lock
-├── omnia_auth/
-│   ├── build.sh                        # build_omnia_auth()
-│   └── Containerfile                   # Fedora 42, OpenLDAP
-├── omnia_build_stream/
-│   ├── build.sh                        # build_omnia_build_stream()
-│   ├── Containerfile                   # Fedora 42, FastAPI, uv, s3cmd
+│
+├── omnia_auth/              # OpenLDAP authentication
+│   ├── build.sh             #   build_omnia_auth()
+│   └── Containerfile        #   Fedora 42 · OpenLDAP
+│
+├── omnia_build_stream/      # BuildStream API service
+│   ├── build.sh             #   build_omnia_build_stream()
+│   ├── Containerfile        #   Fedora 42 · FastAPI · uv · s3cmd
 │   ├── init_s3cfg.sh
 │   ├── pyproject.toml
 │   └── uv.lock
-├── ldms/
-│   ├── build.sh                        # build_ldms()
-│   ├── Containerfile.bld_n_run.ubuntu26.04  # Multi-stage: OVIS LDMS builder + runner
-│   └── configure.aggregator.sh
-├── image_builder/
-│   ├── build.sh                        # build_image_builder() (clones OpenCHAMI)
-│   ├── Containerfile.el10              # AlmaLinux 10, Buildah, Go, Python
+│
+├── image_builder/           # OS image builder (OpenCHAMI) — x86_64 + aarch64
+│   ├── build.sh             #   build_image_builder()  → auto-detects arch
+│   ├── Containerfile.el10   #   AlmaLinux 10 · Buildah · Go · Python
 │   └── requirements.txt
-├── kafkapump/
-│   └── build.sh                        # build_kafkapump() (clones iDRAC Telemetry)
-├── victoriapump/
-│   └── build.sh                        # build_victoriapump() (clones iDRAC Telemetry)
-└── telemetry_receiver/
-    └── build.sh                        # build_telemetry_receiver() (clones iDRAC Telemetry)
+│
+├── ldms/                    # OVIS LDMS telemetry sampler
+│   ├── build.sh             #   build_ldms()
+│   ├── Containerfile.bld_n_run.ubuntu26.04  # Multi-stage build
+│   └── configure.aggregator.sh
+│
+├── kafkapump/               # iDRAC telemetry → Kafka
+│   └── build.sh             #   build_kafkapump()
+│
+├── victoriapump/            # iDRAC telemetry → VictoriaMetrics
+│   └── build.sh             #   build_victoriapump()
+│
+└── telemetry_receiver/      # iDRAC telemetry collector
+    └── build.sh             #   build_telemetry_receiver()
 ```
 
 ---
 
-## Common Build Commands
+## Containers
 
-### Build Core Container
-
-```bash
-# Build with specific Omnia tag (recommended)
-./build_images.sh core omnia_branch=v2.2.0.0
-
-# Build with specific Omnia branch and default tag
-./build_images.sh core omnia_branch=main
-
-# Build with default settings (uses main branch and core tag 2.2)
-./build_images.sh core
-```
-
-### Build OIM Group (Core + Auth + Image Builder)
-
-```bash
-./build_images.sh oim omnia_branch=v2.2.0.0
-```
-
-### Build ALL Containers
-
-```bash
-./build_images.sh all omnia_branch=v2.2.0.0
-```
-
-### Build Specific Combinations
-
-```bash
-# Comma-separated list
-./build_images.sh core,auth omnia_branch=v2.2.0.0 core_tag=2.2 auth_tag=1.1
-
-# Build telemetry group
-./build_images.sh telemetry
-
-# Build LDMS
-./build_images.sh ldms ldms_tag=1.1
-```
-
----
-
-## Available Containers
-
-| Container | CLI Name | Default Tag | Description |
-|-----------|----------|-------------|-------------|
-| omnia_core | `core` | 2.2 | Core Omnia container (Ansible, Python, SSH) |
-| omnia_auth | `auth` | 1.1 | OpenLDAP authentication service |
-| omnia_build_stream | `build-stream` | 1.1 | FastAPI build automation service |
-| ldms | `ldms` | 1.1 | OVIS LDMS monitoring (multi-stage Ubuntu build) |
-| image_builder | `image-builder` | 1.1 | OpenCHAMI image builder (AlmaLinux 10, Buildah) |
-| kafkapump | `kafkapump` | 1.3 | iDRAC telemetry → Kafka |
-| victoriapump | `victoriapump` | 1.3 | iDRAC telemetry → VictoriaMetrics |
-| telemetry_receiver | `telemetry-receiver` | 1.3 | iDRAC telemetry collector |
+| Container | CLI Name | Default Tag | Base | Description |
+|-----------|----------|-------------|------|-------------|
+| omnia_core | `core` | 2.2 | Fedora 42 | Core container — Ansible, Python 3.13, SSH, Go, Git LFS |
+| omnia_auth | `auth` | 1.1 | Fedora 42 | OpenLDAP authentication service |
+| omnia_build_stream | `build-stream` | 1.1 | Fedora 42 | FastAPI build automation + S3 integration |
+| image_builder | `image-builder` | 1.1 | AlmaLinux 10 | OpenCHAMI image builder — Buildah, Go, Python |
+| ldms | `ldms` | 1.1 | Ubuntu 26.04 | OVIS LDMS monitoring (multi-stage build) |
+| kafkapump | `kafkapump` | 1.3 | — | iDRAC telemetry → Kafka bridge |
+| victoriapump | `victoriapump` | 1.3 | — | iDRAC telemetry → VictoriaMetrics bridge |
+| telemetry_receiver | `telemetry-receiver` | 1.3 | — | iDRAC telemetry collector |
 
 ### Build Groups
 
-| Group | Containers |
-|-------|-----------|
-| `oim` | core, auth, image-builder (default if no arg) |
-| `all` | core, auth, ldms, kafkapump, victoriapump, telemetry-receiver, image-builder |
-| `pipeline` | core, auth, ldms, kafkapump, victoriapump, telemetry-receiver, image-builder |
-| `telemetry` | kafkapump, victoriapump, telemetry-receiver |
+| Group | Containers | Use Case |
+|-------|-----------|----------|
+| `oim` | core, auth, image-builder | OIM deployment (default) |
+| `all` | All 8 containers | Full rebuild |
+| `pipeline` | core, auth, ldms, kafkapump, victoriapump, telemetry-receiver, image-builder | CI/CD pipeline |
+| `telemetry` | kafkapump, victoriapump, telemetry-receiver | Telemetry stack only |
 
 ---
 
-## Parameters Reference
+## Architecture Support (x86_64 / aarch64)
 
-### Common (valid for all containers)
+### Image Builder — Dual Architecture
+
+The `image_builder` container automatically detects the host architecture and produces
+the correct image name:
+
+| Host Arch | Image Name | Platform |
+|-----------|-----------|----------|
+| x86_64 | `image-build-el10` | `linux/amd64` |
+| aarch64 | `image-build-aarch64` | `linux/arm64` |
+
+The `Containerfile.el10` is multi-arch — it downloads the correct Go toolchain
+for the detected architecture. No separate Containerfile is needed.
+
+```bash
+# On x86_64 host → produces image-build-el10:1.1
+./build_images.sh image-builder
+
+# On aarch64 host → produces image-build-aarch64:1.1
+./build_images.sh image-builder
+
+# With Docker — uses docker info to detect platform
+./build_images.sh image-builder build_tool=docker
+```
+
+### Other Containers
+
+- **omnia_core** — x86_64 only (Fedora 42 base)
+- **ldms** — architecture set by `--arch` in build script
+- **RPM build** — see `src/rpm_build/README.md` for LDMS RPM builds on both architectures
+
+---
+
+## Build Commands
+
+```bash
+# Single container
+./build_images.sh core core_tag=2.2
+
+# Comma-separated list
+./build_images.sh core,auth core_tag=2.2 auth_tag=1.1
+
+# Telemetry group
+./build_images.sh telemetry
+
+# Push to registry (requires Docker)
+./build_images.sh core core_tag=2.2 build_tool=docker build_action=push
+```
+
+---
+
+## Parameters
+
+### Global
 
 | Parameter | Values | Default | Description |
 |-----------|--------|---------|-------------|
 | `build_tool` | `podman`, `docker` | `podman` | Container build tool |
 | `build_action` | `load`, `push` | `load` | Load locally or push to registry |
 
-### Container-specific tags
+### Per-Container Tags
 
 | Parameter | Default | Container |
 |-----------|---------|-----------|
@@ -154,81 +166,43 @@ src/containers/
 | `kafkapump_tag` | `1.3` | kafkapump |
 | `victoriapump_tag` | `1.3` | victoriapump |
 | `telemetry_receiver_tag` | `1.3` | telemetry_receiver |
-| `omnia_branch` | `main` | omnia_core (branch/tag to clone) |
 
-### Push to Registry
-
-```bash
-# Requires Docker (Podman push not supported via this script)
-./build_images.sh core core_tag=2.2 omnia_branch=v2.2.0.0 build_tool=docker build_action=push
-```
-
----
-
-## Parameter Validation
-
-The script validates parameters and shows context-specific errors:
-
-```bash
-# Invalid parameter
-./build_images.sh core invalid_param=value
-# Error: Invalid parameter(s): invalid_param
-# Valid parameters for 'core': build_tool build_action core_tag omnia_branch
-
-# Wrong container-specific parameter
-./build_images.sh core auth_tag=1.0
-# Error: Parameter 'auth_tag' is not valid for container 'core'
-```
+Parameter validation is built in — the script rejects unknown or mismatched parameters.
 
 ---
 
 ## Docker vs Podman
 
-**Podman (default):**
-- No daemon required
-- Rootless by default
-
-**Docker:**
-- Required for `build_action=push`
-- Requires buildx for multi-platform builds
-
-### Docker Setup
+| Feature | Podman (default) | Docker |
+|---------|-----------------|--------|
+| Daemon | Not required | Required |
+| Rootless | Default | Requires config |
+| Push to registry | Not supported via script | Supported (`build_action=push`) |
+| Multi-platform | Via `--arch` flag | Via `buildx` |
 
 ```bash
+# Docker setup (if needed)
 sudo systemctl start docker
-sudo systemctl enable docker
 docker buildx create --name mybuilder --driver docker-container --use
 docker buildx inspect --bootstrap
 ```
 
 ---
 
-## Updating Python Packages
+## Updating Python Dependencies
 
-For containers using uv (omnia_core, omnia_build_stream):
+For containers using **uv** (omnia_core, omnia_build_stream):
 
-1. **Install uv**: `pip install uv`
-2. **Update pyproject.toml**: Navigate to the container folder and update
-3. **Update the lock file**: Run `uv lock` from the same directory
+1. Install uv: `pip install uv`
+2. Edit `pyproject.toml` in the container directory
+3. Run `uv lock` to regenerate the lock file
 
 ---
 
 ## Troubleshooting
 
-**Issue:** Warning about default branch
-```
-⚠️ Warning: omnia_branch not specified, using default branch: main
-```
-**Solution:** Always specify `omnia_branch` for production builds.
-
-**Issue:** Build fails
-**Solution:** Ensure Podman/Docker is running and you have internet access to pull base images.
-
-**Issue:** Permission errors with Podman
-**Solution:** Run as non-root user or configure subuid/subgid mappings.
-
----
-
-## Support
-
-For issues or questions, refer to the [Omnia documentation](https://omnia.readthedocs.io/en/latest/).
+| Issue | Solution |
+|-------|---------|
+| Build fails | Verify Podman/Docker is running and internet is accessible |
+| Permission errors (Podman) | Run as non-root; configure subuid/subgid if needed |
+| Image-builder wrong arch | Check `uname -m`; use `build_tool=docker` for cross-platform |

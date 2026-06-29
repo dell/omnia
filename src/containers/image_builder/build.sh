@@ -40,7 +40,28 @@ clone_image_builder_repo() {
 }
 
 build_image_builder() {
-    local detected_platform="linux/amd64"
+    # Detect host architecture
+    local host_arch
+    host_arch="$(uname -m)"
+
+    local image_name
+    local detected_platform
+
+    case "$host_arch" in
+        x86_64|amd64)
+            image_name="image-build-el10"
+            detected_platform="linux/amd64"
+            ;;
+        aarch64|arm64)
+            image_name="image-build-aarch64"
+            detected_platform="linux/arm64"
+            ;;
+        *)
+            echo -e "${RED}Error: Unsupported architecture '${host_arch}' for image-builder.${NC}"
+            echo -e "${YELLOW}Supported: x86_64, aarch64${NC}"
+            exit 1
+            ;;
+    esac
 
     if [ "$BUILD_TOOL" = "docker" ]; then
         # Dynamic platform detection for image-builder (only when using docker)
@@ -49,16 +70,21 @@ build_image_builder() {
             echo -e "${YELLOW}Please ensure Docker is installed and running.${NC}"
             exit 1
         }
+        # Map docker arch to image name
+        case "$detected_platform" in
+            */arm64|*/aarch64) image_name="image-build-aarch64" ;;
+            *)                 image_name="image-build-el10" ;;
+        esac
     fi
 
-    print_build_info "image-build-el10" "${IMAGE_BUILDER_TAG}" \
+    print_build_info "${image_name}" "${IMAGE_BUILDER_TAG}" \
         "Using Image Builder Commit: ${YELLOW}${IMAGE_BUILDER_COMMIT}${NC}\nUsing Detected Platform: ${YELLOW}${detected_platform}${NC}"
 
     # Clone repo if needed
     clone_image_builder_repo
 
     container_build \
-        "image-build-el10" \
+        "${image_name}" \
         "${IMAGE_BUILDER_TAG}" \
         "${IMAGE_BUILDER_CLONE_DIR}" \
         "dockerfiles/dnf/Containerfile.el10" \
