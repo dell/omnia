@@ -1349,6 +1349,7 @@ init_ssh_config() {
 }
 
 remove_container_omnia_sh() {
+    podman exec -u root omnia_core bash -c 'if [ -f /omnia/src/main ]; then rm -rf /omnia/src/main; fi' >/dev/null 2>&1 || true
     podman exec -u root omnia_core bash -c 'if [ -d /omnia/src/input ]; then rm -rf /omnia/src/input; fi' >/dev/null 2>&1 || true
 }
 
