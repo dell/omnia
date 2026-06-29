@@ -26,7 +26,9 @@ jobs:
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }} HEAD -- 'build_stream/requirements*.txt' || true)
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- \
+            'build_stream/requirements*.txt' || true)
 
           FILES=$(echo "$CHANGED" | xargs)
           echo "Changed requirements files: $FILES"
@@ -42,8 +44,12 @@ jobs:
 
       - name: Audit build_stream dependencies
         run: |
-          echo "Auditing build_stream/requirements.txt for known vulnerabilities..."
-          pip-audit -r build_stream/requirements.txt --desc on || true
+          echo "Auditing build_stream/requirements.txt"
+          echo "for known vulnerabilities..."
+          pip-audit -r build_stream/requirements.txt \
+            --desc on || true
           echo ""
-          echo "Auditing build_stream/requirements-dev.txt for known vulnerabilities..."
-          pip-audit -r build_stream/requirements-dev.txt --desc on || true
+          echo "Auditing build_stream/requirements-dev.txt"
+          echo "for known vulnerabilities..."
+          pip-audit -r build_stream/requirements-dev.txt \
+            --desc on || true

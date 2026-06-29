@@ -31,10 +31,20 @@ jobs:
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }} HEAD -- 'build_stream/**/*.py' || true)
+          # Get all changed Python files in build_stream directory
+          # (including root level)
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD | \
+            grep '^build_stream/.*\.py$' || true)
 
           FILES=$(echo "$CHANGED" | xargs)
           echo "Changed build_stream Python files: $FILES"
+
+          # Debug: show all changed files for troubleshooting
+          echo "All changed files in PR:"
+          git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD || true
+
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -87,4 +97,6 @@ jobs:
 
       - name: No build_stream files changed
         if: steps.changed-files.outputs.files == ''
-        run: echo "No build_stream Python files changed in this PR. Skipping tests."
+        run: |
+          echo "No build_stream Python files changed in this PR."
+          echo "Skipping tests."

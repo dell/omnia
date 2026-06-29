@@ -26,7 +26,8 @@ jobs:
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }} HEAD -- '*.py' || true)
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- '*.py' || true)
 
           FILES=""
           for f in $CHANGED; do
@@ -61,4 +62,6 @@ jobs:
 
       - name: No Python product files changed
         if: steps.changed-files.outputs.files == ''
-        run: echo "No Python product files changed in this PR. Skipping Bandit."
+        run: |
+          echo "No Python product files changed in this PR."
+          echo "Skipping Bandit."

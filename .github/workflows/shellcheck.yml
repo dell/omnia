@@ -26,7 +26,9 @@ jobs:
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }} HEAD -- '*.sh' '*.bash' '*.sh.j2' || true)
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- \
+            '*.sh' '*.bash' '*.sh.j2' || true)
 
           FILES=""
           for f in $CHANGED; do
@@ -51,4 +53,6 @@ jobs:
 
       - name: No shell files changed
         if: steps.changed-files.outputs.files == ''
-        run: echo "No shell files changed in this PR. Skipping ShellCheck."
+        run: |
+          echo "No shell files changed in this PR."
+          echo "Skipping ShellCheck."
