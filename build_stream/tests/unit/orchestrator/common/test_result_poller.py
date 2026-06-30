@@ -28,7 +28,8 @@ from core.artifacts.value_objects import (
     ArtifactDigest,
     ArtifactRef,
 )
-from core.image_group.value_objects import ImageGroupStatus
+from core.image_group.entities import ImageGroup
+from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
 from core.jobs.entities import Stage
 from core.jobs.value_objects import (
     JobId,
@@ -292,6 +293,7 @@ class MockImageGroupRepo:
 
     def __init__(self):
         self._groups = {}
+        self.session = type("MockSession", (), {"commit": lambda self: None, "flush": lambda self: None})()
 
     def save(self, image_group):
         self._groups[str(image_group.id)] = image_group
@@ -301,6 +303,11 @@ class MockImageGroupRepo:
             if str(ig.job_id) == str(job_id):
                 return ig
         return None
+
+    def update_status(self, image_group_id, new_status):
+        key = str(image_group_id)
+        if key in self._groups:
+            self._groups[key].status = new_status
 
 
 class MockImageRepo:
@@ -603,3 +610,198 @@ class TestBuildImageSuccess:
 
         ig = ig_repo.find_by_job_id(job_id)
         assert ig is None, "ImageGroup should not be created for non-build-image stages"
+
+
+class TestDeployFailureMarksImageGroupFailed:
+    """Regression tests for commit df9466d — deploy failure must mark ImageGroup FAILED.
+
+    Before this fix, deploy failures left the ImageGroup in DEPLOYING state,
+    which blocked cleanup from running against it.
+    """
+
+    def test_deploy_failure_marks_image_group_failed(self):
+        """Failed deploy result should transition ImageGroup to FAILED."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("deploy"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("test-cluster-v1"),
+            job_id=job_id,
+            status=ImageGroupStatus.DEPLOYING,
+        )
+        ig_repo.save(ig)
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="deploy",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="DEPLOY_PLAYBOOK_FAILED",
+            error_summary="Provision playbook exited with code 1",
+        )
+
+        poller._on_result_received(result)
+
+        saved_ig = ig_repo.find_by_job_id(job_id)
+        assert saved_ig.status == ImageGroupStatus.FAILED, (
+            "Deploy failure must transition ImageGroup to FAILED for cleanup eligibility"
+        )
+
+    def test_deploy_failure_without_image_group_does_not_crash(self):
+        """Deploy failure with no ImageGroup should be handled gracefully."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("deploy"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        # No ImageGroup saved — simulates edge case
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="deploy",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="DEPLOY_FAILED",
+            error_summary="Deploy failed",
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+        saved_stage = stage_repo.find_by_job_and_name(str(job_id), StageName("deploy"))
+        assert saved_stage.stage_state == StageState.FAILED
+
+
+class TestRestartFailureMarksImageGroupFailed:
+    """Regression tests for commit df9466d — restart failure must mark ImageGroup FAILED.
+
+    Same fix as deploy — restart failures were also leaving ImageGroup in
+    RESTARTING state, blocking cleanup.
+    """
+
+    def test_restart_failure_marks_image_group_failed(self):
+        """Failed restart result should transition ImageGroup to FAILED."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("restart"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("test-cluster-v1"),
+            job_id=job_id,
+            status=ImageGroupStatus.RESTARTING,
+        )
+        ig_repo.save(ig)
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="restart",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="RESTART_FAILED",
+            error_summary="Restart playbook exited with code 1",
+        )
+
+        poller._on_result_received(result)
+
+        saved_ig = ig_repo.find_by_job_id(job_id)
+        assert saved_ig.status == ImageGroupStatus.FAILED, (
+            "Restart failure must transition ImageGroup to FAILED for cleanup eligibility"
+        )
+
+    def test_restart_failure_without_image_group_does_not_crash(self):
+        """Restart failure with no ImageGroup should be handled gracefully."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("restart"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="restart",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="RESTART_FAILED",
+            error_summary="Restart failed",
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+        saved_stage = stage_repo.find_by_job_and_name(str(job_id), StageName("restart"))
+        assert saved_stage.stage_state == StageState.FAILED

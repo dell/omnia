@@ -223,8 +223,8 @@ class TestImageModelORM:
         roles = {img.role for img in result.images}
         assert roles == {"slurm_node", "kube_node", "login_node"}
 
-    def test_unique_role_per_group_constraint(self, session):
-        """Two images with same (image_group_id, role) should violate UNIQUE."""
+    def test_duplicate_role_per_group_allowed(self, session):
+        """Two images with same (image_group_id, role) are allowed — index is non-unique."""
         job_id = _create_job(session)
         session.add(ImageGroupModel(id="dup-role-group", job_id=job_id, status="BUILT"))
         session.flush()
@@ -243,9 +243,10 @@ class TestImageModelORM:
             role="slurm_node",
             image_name="slurm_node_v2.img",
         ))
-        with pytest.raises(Exception):  # IntegrityError
-            session.flush()
-        session.rollback()
+        session.flush()
+
+        group = session.get(ImageGroupModel, "dup-role-group")
+        assert len(group.images) == 2
 
     def test_cascade_delete_images_from_group(self, session):
         """Deleting an image_group should cascade-delete its images."""

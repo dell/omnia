@@ -115,7 +115,11 @@ class TestBuildImageAPI:
         assert "detail" in data
 
     def test_create_build_image_aarch64_missing_inventory_host(self, client, auth_headers, job_with_completed_parse_catalog):
-        """Test aarch64 build image creation without inventory host."""
+        """Test aarch64 build image creation without inventory host.
+
+        The API accepts the request (202) and validates inventory_host
+        asynchronously in the use case, failing the stage if missing.
+        """
         job_id = job_with_completed_parse_catalog
 
         # Try aarch64 without inventory host
@@ -129,9 +133,7 @@ class TestBuildImageAPI:
             headers=auth_headers
         )
 
-        assert response.status_code == 400
-        data = response.json()
-        assert "detail" in data
+        assert response.status_code == 202
 
     def test_create_build_image_unauthorized(self, client):
         """Test build image creation without authorization."""

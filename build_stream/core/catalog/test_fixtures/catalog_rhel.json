@@ -1,0 +1,115 @@
+{
+  "Catalog": {
+    "Name": "RHEL Test Catalog",
+    "Version": "1.0.0",
+    "Identifier": "catalog-rhel-test",
+    "FunctionalLayer": [
+      {
+        "Name": "slurm",
+        "FunctionalPackages": ["fp-slurm-slurmctld", "fp-slurm-slurmd"]
+      },
+      {
+        "Name": "kubernetes",
+        "FunctionalPackages": ["fp-kubectl", "fp-kubeadm"]
+      }
+    ],
+    "BaseOS": [
+      {
+        "Name": "RHEL",
+        "Version": "10.0",
+        "osPackages": ["os-baseos-pkg"]
+      }
+    ],
+    "Infrastructure": [
+      {
+        "Name": "network",
+        "InfrastructurePackages": ["infra-network-tools"]
+      }
+    ],
+    "Miscellaneous": [],
+    "Drivers": [
+      {
+        "Name": "nvidia",
+        "DriverPackages": ["drv-nvidia-driver"]
+      }
+    ],
+    "DriverPackages": {
+      "drv-nvidia-driver": {
+        "Name": "nvidia-driver",
+        "Version": "580.95",
+        "Uri": "https://example.com/nvidia-driver.rpm",
+        "Architecture": ["x86_64"],
+        "Type": "rpm",
+        "Config": {
+          "DriverBrand": "nvidia",
+          "DriverType": "gpu"
+        }
+      }
+    },
+    "FunctionalPackages": {
+      "fp-slurm-slurmctld": {
+        "Name": "slurm-slurmctld",
+        "Version": "24.05.5",
+        "SupportedOS": [{"Name": "RHEL", "Version": "10.0"}],
+        "Sources": [
+          {"Architecture": "x86_64", "RepoName": "x86_64_slurm_custom"},
+          {"Architecture": "aarch64", "RepoName": "aarch64_slurm_custom"}
+        ],
+        "Architecture": ["x86_64", "aarch64"],
+        "Type": "rpm"
+      },
+      "fp-slurm-slurmd": {
+        "Name": "slurm-slurmd",
+        "Version": "24.05.5",
+        "SupportedOS": [{"Name": "RHEL", "Version": "10.0"}],
+        "Sources": [
+          {"Architecture": "x86_64", "RepoName": "x86_64_slurm_custom"},
+          {"Architecture": "aarch64", "RepoName": "aarch64_slurm_custom"}
+        ],
+        "Architecture": ["x86_64", "aarch64"],
+        "Type": "rpm"
+      },
+      "fp-kubectl": {
+        "Name": "kubectl",
+        "Version": "1.35.1",
+        "SupportedOS": [{"Name": "RHEL", "Version": "10.0"}],
+        "Sources": [
+          {"Architecture": "x86_64", "RepoName": "kubernetes"}
+        ],
+        "Architecture": ["x86_64"],
+        "Type": "rpm"
+      },
+      "fp-kubeadm": {
+        "Name": "kubeadm",
+        "Version": "1.35.1",
+        "SupportedOS": [{"Name": "RHEL", "Version": "10.0"}],
+        "Sources": [
+          {"Architecture": "x86_64", "RepoName": "kubernetes"}
+        ],
+        "Architecture": ["x86_64"],
+        "Type": "rpm"
+      }
+    },
+    "OSPackages": {
+      "os-baseos-pkg": {
+        "Name": "baseos-release",
+        "Version": "10.0",
+        "SupportedOS": [{"Name": "RHEL", "Version": "10.0"}],
+        "Sources": [
+          {"Architecture": "x86_64", "RepoName": "x86_64_baseos"}
+        ],
+        "Architecture": ["x86_64"],
+        "Type": "rpm"
+      }
+    },
+    "InfrastructurePackages": {
+      "infra-network-tools": {
+        "Name": "network-tools",
+        "Version": "1.0",
+        "Type": "rpm",
+        "Architecture": ["x86_64"],
+        "SupportedFunctions": [{"Name": "network"}]
+      }
+    }
+  }
+}

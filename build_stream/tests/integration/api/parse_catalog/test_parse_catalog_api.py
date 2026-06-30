@@ -155,9 +155,14 @@ class TestParseCatalogAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
         )
 
-        assert response.status_code == 500
+        assert response.status_code == 400
         data = response.json()
-        assert data["detail"]["error_code"] in ("CATALOG_PARSE_ERROR", "INTERNAL_ERROR")
+        assert data["detail"]["error_code"] in (
+            "INVALID_CATALOG_FORMAT",
+            "InvalidCatalogFormatError",
+            "CATALOG_PARSE_ERROR",
+            "INTERNAL_ERROR",
+        )
 
     def test_parse_catalog_file_too_large(
         self,
@@ -181,11 +186,13 @@ class TestParseCatalogAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
         )
 
-        assert response.status_code == 500
+        assert response.status_code == 400
         data = response.json()
-        assert (
-            data["detail"]["error_code"] == "CATALOG_PARSE_ERROR"
-            or data["detail"]["error_code"] == "INTERNAL_ERROR"
+        assert data["detail"]["error_code"] in (
+            "INVALID_CATALOG_FORMAT",
+            "InvalidCatalogFormatError",
+            "CATALOG_PARSE_ERROR",
+            "INTERNAL_ERROR",
         )
 
     def test_parse_catalog_job_not_found(

@@ -48,7 +48,7 @@ class TestValidateSuccess:
         data = response.json()
         assert data["job_id"] == job_with_completed_restart
         assert data["stage"] == "validate"
-        assert data["status"] == "QUEUED"
+        assert data["status"] == "accepted"
         assert "submitted_at" in data
         assert "correlation_id" in data
         assert "attempt" in data

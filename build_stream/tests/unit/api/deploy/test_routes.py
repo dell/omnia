@@ -28,6 +28,11 @@ from core.image_group.exceptions import (
     ImageGroupNotFoundError,
     InvalidStateTransitionError as IGInvalidStateTransitionError,
 )
+from core.deploy.exceptions import (
+    DeployDomainError,
+    DeployExecutionError,
+    StageGuardViolationError,
+)
 from core.jobs.exceptions import (
     JobNotFoundError,
     UpstreamStageNotCompletedError,
@@ -226,6 +231,92 @@ class TestCreateDeploy:
         job_id = _uuid()
         use_case = MockDeployUseCase(
             error_to_raise=RuntimeError("unexpected")
+        )
+        request_body = DeployRequest(image_group_id="test-cluster-v1")
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_deploy(
+                job_id=job_id,
+                request_body=request_body,
+                token_data={"client_id": "test-client", "scopes": ["job:write"]},
+                use_case=use_case,
+                correlation_id=CorrelationId(_uuid()),
+                _=None,
+            )
+        assert exc_info.value.status_code == 500
+
+    def test_invalid_image_group_id(self):
+        """Returns 400 for invalid image_group_id format.
+
+        Pydantic rejects empty strings (min_length=1) and long strings
+        (max_length=128). Whitespace-only strings pass Pydantic but fail
+        ImageGroupId validation, triggering the ValueError handler.
+        """
+        job_id = _uuid()
+        use_case = MockDeployUseCase()
+        # Whitespace passes Pydantic min_length but fails ImageGroupId validation
+        request_body = DeployRequest(image_group_id="   ")
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_deploy(
+                job_id=job_id,
+                request_body=request_body,
+                token_data={"client_id": "test-client", "scopes": ["job:write"]},
+                use_case=use_case,
+                correlation_id=CorrelationId(_uuid()),
+                _=None,
+            )
+        assert exc_info.value.status_code == 400
+
+    def test_stage_guard_violation(self):
+        """Returns 412 when stage guard is violated."""
+        job_id = _uuid()
+        use_case = MockDeployUseCase(
+            error_to_raise=StageGuardViolationError(
+                "Build-image stage not completed", _uuid()
+            )
+        )
+        request_body = DeployRequest(image_group_id="test-cluster-v1")
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_deploy(
+                job_id=job_id,
+                request_body=request_body,
+                token_data={"client_id": "test-client", "scopes": ["job:write"]},
+                use_case=use_case,
+                correlation_id=CorrelationId(_uuid()),
+                _=None,
+            )
+        assert exc_info.value.status_code == 412
+
+    def test_deploy_execution_error(self):
+        """Returns 500 when deploy execution fails."""
+        job_id = _uuid()
+        use_case = MockDeployUseCase(
+            error_to_raise=DeployExecutionError(
+                "Playbook submission failed", _uuid()
+            )
+        )
+        request_body = DeployRequest(image_group_id="test-cluster-v1")
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_deploy(
+                job_id=job_id,
+                request_body=request_body,
+                token_data={"client_id": "test-client", "scopes": ["job:write"]},
+                use_case=use_case,
+                correlation_id=CorrelationId(_uuid()),
+                _=None,
+            )
+        assert exc_info.value.status_code == 500
+
+    def test_deploy_domain_error(self):
+        """Returns 500 when a deploy domain error occurs."""
+        job_id = _uuid()
+        use_case = MockDeployUseCase(
+            error_to_raise=DeployDomainError(
+                "Domain invariant violated", _uuid()
+            )
         )
         request_body = DeployRequest(image_group_id="test-cluster-v1")
 

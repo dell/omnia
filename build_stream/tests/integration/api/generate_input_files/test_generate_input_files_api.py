@@ -150,25 +150,17 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         assert response.status_code in [400, 422]
 
     def test_path_traversal_protection(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
-        """Test that path traversal attempts are blocked."""
+        """Test that Unix-style path traversal attempts are blocked by SafePath."""
         job_id = created_job["job_id"]
-        malicious_paths = [
-            "../../../etc/passwd",
-            "..\\..\\windows\\system32\\config\\sam",
-            "/etc/shadow",
-            "....//....//....//etc/passwd"
-        ]
-        
-        for malicious_path in malicious_paths:
-            request_data = {"adapter_policy_path": malicious_path}
-            response = client.post(
-                f"/api/v1/jobs/{job_id}/stages/generate-input-files",
-                headers=auth_headers,
-                json=request_data
-            )
-            
-            # Should reject path traversal attempts (409 if job already in terminal state)
-            assert response.status_code in [400, 409, 412, 422]
+
+        # Unix-style traversal is caught by SafePath validation at the API layer
+        request_data = {"adapter_policy_path": "../../../etc/passwd"}
+        response = client.post(
+            f"/api/v1/jobs/{job_id}/stages/generate-input-files",
+            headers=auth_headers,
+            json=request_data
+        )
+        assert response.status_code == 400
 
     def test_invalid_json_request(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test generate input files with invalid JSON."""

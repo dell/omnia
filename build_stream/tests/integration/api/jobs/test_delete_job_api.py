@@ -22,8 +22,13 @@
 class TestDeleteJobSuccess:
     """Tests for successful job deletion scenarios."""
 
-    def test_delete_existing_job_returns_204(self, client, auth_headers):
-        """Delete existing job should return 204 No Content."""
+    def test_delete_job_without_image_group_returns_404(self, client, auth_headers):
+        """Delete a freshly created job (no image_group) returns 404.
+
+        The cleanup use case requires an image_group to exist.
+        Jobs that have not reached the build-image stage have no
+        image_group, so the API returns 404.
+        """
         create_payload = {"client_id": "client-123", "client_name": "test-client"}
         create_response = client.post("/api/v1/jobs", json=create_payload, headers=auth_headers)
         assert create_response.status_code == 201
@@ -35,11 +40,10 @@ class TestDeleteJobSuccess:
         }
         delete_response = client.delete(f"/api/v1/jobs/{job_id}", headers=delete_headers)
 
-        assert delete_response.status_code == 204
-        assert delete_response.content == b""
+        assert delete_response.status_code == 404
 
     def test_delete_job_is_idempotent(self, client, auth_headers):
-        """Delete job should be idempotent - multiple deletes should succeed."""
+        """Repeated delete on a job without image_group returns 404 consistently."""
         create_payload = {"client_id": "client-123", "client_name": "test-client"}
         create_response = client.post("/api/v1/jobs", json=create_payload, headers=auth_headers)
         job_id = create_response.json()["job_id"]
@@ -50,13 +54,13 @@ class TestDeleteJobSuccess:
         }
 
         delete_response1 = client.delete(f"/api/v1/jobs/{job_id}", headers=delete_headers)
-        assert delete_response1.status_code == 204
+        assert delete_response1.status_code == 404
 
         delete_response2 = client.delete(f"/api/v1/jobs/{job_id}", headers=delete_headers)
-        assert delete_response2.status_code in [204, 404, 410]
+        assert delete_response2.status_code in [404, 412]
 
-    def test_deleted_job_not_retrievable(self, client, auth_headers):
-        """Deleted job should not be retrievable via GET endpoint."""
+    def test_job_retrievable_after_failed_delete(self, client, auth_headers):
+        """Job remains retrievable after a failed delete (no image_group)."""
         create_payload = {"client_id": "client-123", "client_name": "test-client"}
         create_response = client.post("/api/v1/jobs", json=create_payload, headers=auth_headers)
         job_id = create_response.json()["job_id"]
@@ -67,10 +71,10 @@ class TestDeleteJobSuccess:
         }
 
         delete_response = client.delete(f"/api/v1/jobs/{job_id}", headers=headers)
-        assert delete_response.status_code == 204
+        assert delete_response.status_code == 404
 
         get_response = client.get(f"/api/v1/jobs/{job_id}", headers=headers)
-        assert get_response.status_code in [404, 410]
+        assert get_response.status_code == 200
 
 
 class TestDeleteJobNotFound:
