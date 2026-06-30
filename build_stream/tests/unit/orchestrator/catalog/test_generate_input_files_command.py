@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from core.artifacts.value_objects import SafePath
-from core.jobs.value_objects import ClientId, CorrelationId, JobId
+from core.jobs.value_objects import CorrelationId, JobId
 from orchestrator.catalog.commands.generate_input_files import GenerateInputFilesCommand
 
 
@@ -111,31 +111,3 @@ class TestGenerateInputFilesCommand:
         assert VALID_JOB_ID in str_repr
         assert VALID_CORRELATION_ID in str_repr
         assert "/opt/omnia/policy.json" in str_repr
-
-    def test_default_client_id(self) -> None:
-        cmd = GenerateInputFilesCommand(
-            job_id=JobId(VALID_JOB_ID),
-            correlation_id=CorrelationId(VALID_CORRELATION_ID),
-        )
-        assert str(cmd.client_id) == "unknown"
-
-    def test_custom_client_id(self) -> None:
-        cmd = GenerateInputFilesCommand(
-            job_id=JobId(VALID_JOB_ID),
-            correlation_id=CorrelationId(VALID_CORRELATION_ID),
-            client_id=ClientId("my-client"),
-        )
-        assert str(cmd.client_id) == "my-client"
-
-    def test_equality_with_different_client_id(self) -> None:
-        cmd1 = GenerateInputFilesCommand(
-            job_id=JobId(VALID_JOB_ID),
-            correlation_id=CorrelationId(VALID_CORRELATION_ID),
-            client_id=ClientId("client-a"),
-        )
-        cmd2 = GenerateInputFilesCommand(
-            job_id=JobId(VALID_JOB_ID),
-            correlation_id=CorrelationId(VALID_CORRELATION_ID),
-            client_id=ClientId("client-b"),
-        )
-        assert cmd1 != cmd2

@@ -24,6 +24,11 @@ if PROJECT_ROOT not in sys.path:
 
 from core.catalog.generator import generate_root_json_from_catalog, _DEFAULT_SCHEMA_PATH
 
+# Maintained catalog lives in the examples directory (sibling of build_stream).
+EXAMPLES_CATALOG = os.path.join(
+    os.path.dirname(PROJECT_ROOT), "examples", "catalog", "catalog_rhel.json"
+)
+
 
 class TestGeneratorDefaults(unittest.TestCase):
     def test_default_schema_path_points_to_resources(self):
@@ -32,13 +37,11 @@ class TestGeneratorDefaults(unittest.TestCase):
         self.assertEqual(os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema))
 
     def test_generate_root_json_with_defaults_writes_output(self):
-        catalog_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "fixtures", "catalogs", "catalog_rhel.json")
-        )
-        
-        # Skip test if fixture doesn't exist
+        catalog_path = EXAMPLES_CATALOG
+
+        # Skip test if the examples catalog isn't available
         if not os.path.exists(catalog_path):
-            self.skipTest("Catalog fixture not found")
+            self.skipTest("Examples catalog not found")
             return
 
         with tempfile.TemporaryDirectory() as tmpdir:

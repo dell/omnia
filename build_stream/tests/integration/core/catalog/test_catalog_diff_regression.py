@@ -19,6 +19,10 @@ These tests verify that:
 - Specific packages (csi git packages, msr-safe, nvhpc) are correctly routed.
 - Functional layers in the catalog match PXE mapping expectations.
 - No unwanted architecture layers are generated (e.g. service_k8s aarch64).
+
+The catalog under test is sourced from the maintained ``examples/catalog``
+directory rather than a checked-in fixture. Tests that require the expected
+``input/`` baseline skip cleanly when that baseline is not present.
 """
 
 import csv
@@ -27,40 +31,33 @@ import os
 import sys
 import tempfile
 import unittest
-import warnings
-from pathlib import Path
 
+from core.catalog.generator import generate_root_json_from_catalog
+from core.catalog.adapter_policy import (
+    generate_configs_from_policy,
+    _DEFAULT_POLICY_PATH,
+)
+
+# diff_input_configs lives alongside this test (stdlib-only helper tool).
 HERE = os.path.dirname(__file__)
-CATALOG_PARSER_DIR = os.path.dirname(HERE)
-PROJECT_ROOT = os.path.dirname(CATALOG_PARSER_DIR)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-try:
-    from catalog_parser.generator import generate_root_json_from_catalog
-    from catalog_parser.adapter_policy import (
-        generate_configs_from_policy,
-        _DEFAULT_POLICY_PATH,
-    )
-    from core.catalog.tests import diff_input_configs
-except ModuleNotFoundError:
-    from core.catalog.generator import generate_root_json_from_catalog
-    from core.catalog.adapter_policy import (
-        generate_configs_from_policy,
-        _DEFAULT_POLICY_PATH,
-    )
-    from core.catalog.tests import diff_input_configs
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import diff_input_configs  # noqa: E402  pylint: disable=wrong-import-position
 
 # ── Paths ──────────────────────────────────────────────────────────────
 
-_REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
+# tests/integration/core/catalog -> build_stream root (4 levels up)
+_BUILD_STREAM_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
+# build_stream root -> omnia repo root (examples is a sibling of build_stream)
+_REPO_ROOT = os.path.dirname(_BUILD_STREAM_ROOT)
 _EXAMPLES_CATALOG = os.path.join(
     _REPO_ROOT, "examples", "catalog", "catalog_rhel.json"
 )
-_EXPECTED_INPUT_DIR = os.path.join(_REPO_ROOT, "input")
-_SCHEMA_PATH = os.path.join(CATALOG_PARSER_DIR, "resources", "CatalogSchema.json")
-_POLICY_PATH = os.path.join(CATALOG_PARSER_DIR, "resources", "adapter_policy_default.json")
-_POLICY_SCHEMA_PATH = os.path.join(CATALOG_PARSER_DIR, "resources", "AdapterPolicySchema.json")
+_EXPECTED_INPUT_DIR = os.path.join(_BUILD_STREAM_ROOT, "input")
+_CATALOG_RESOURCES = os.path.join(_BUILD_STREAM_ROOT, "core", "catalog", "resources")
+_SCHEMA_PATH = os.path.join(_CATALOG_RESOURCES, "CatalogSchema.json")
+_POLICY_PATH = os.path.join(_CATALOG_RESOURCES, "adapter_policy_default.json")
+_POLICY_SCHEMA_PATH = os.path.join(_CATALOG_RESOURCES, "AdapterPolicySchema.json")
 _PXE_MAPPING_DIR = os.path.join(
     _REPO_ROOT, "examples", "catalog", "mapping_file_software_config",
     "catalog_rhel_json",
@@ -134,6 +131,10 @@ class TestAdapterDiffReport(unittest.TestCase):
             raise unittest.SkipTest(
                 f"Examples catalog not found: {_EXAMPLES_CATALOG}"
             )
+        if not os.path.isdir(_EXPECTED_INPUT_DIR):
+            raise unittest.SkipTest(
+                f"Expected input baseline not found: {_EXPECTED_INPUT_DIR}"
+            )
         cls.adapter_output = _generate_adapter_output(_EXAMPLES_CATALOG)
         # Generate diff report (uses temporary file)
         passed, issue_count, cls.diff_report_path = diff_input_configs.run_diff_for_test(
@@ -170,6 +171,7 @@ class TestAdapterDiffReport(unittest.TestCase):
         for expected_base in ("csi-powerscale", "external-snapshotter", "helm-charts"):
             matches = [n for n in git_names if expected_base in n]
             self.assertTrue(matches, f"Git package matching '{expected_base}' not found in {git_names}")
+
 
 class TestCatalogFunctionalLayers(unittest.TestCase):
     """Verify functional layers match PXE mapping and bundle architecture constraints."""
@@ -229,7 +231,6 @@ class TestCatalogFunctionalLayers(unittest.TestCase):
                 expected_layers.add(f"{base_role}_first_{arch}")
 
         extra = layer_names - expected_layers
-        missing = expected_layers - layer_names
 
         self.assertEqual(
             extra, set(),
@@ -276,6 +277,7 @@ class TestCatalogFunctionalLayers(unittest.TestCase):
             missing, [],
             f"msr-safe ({msr_id}) missing from layers: {missing}"
         )
+
 
 if __name__ == "__main__":
     unittest.main()

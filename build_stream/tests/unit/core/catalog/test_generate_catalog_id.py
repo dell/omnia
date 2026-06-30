@@ -12,15 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the _generate_human_readable_id function."""
-# pylint: disable=wrong-import-position
+"""Unit tests for the _generate_human_readable_id function in generate_catalog."""
 
 import unittest
-import sys
-from pathlib import Path
-
-# Add parent directory to path to import generate_catalog
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from generate_catalog import _generate_human_readable_id
 
@@ -158,6 +152,7 @@ class TestGenerateHumanReadableId(unittest.TestCase):
         self.assertIn("calico", self.used_ids)
         self.assertIn("calico_1", self.used_ids)
         self.assertIn("calico_2", self.used_ids)
+
 
 if __name__ == "__main__":
     unittest.main()

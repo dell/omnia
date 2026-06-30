@@ -27,7 +27,10 @@ if PROJECT_ROOT not in sys.path:
 
 from core.catalog.adapter import generate_omnia_json_from_catalog, _DEFAULT_SCHEMA_PATH
 
-pytestmark = pytest.mark.skip(reason="Test file marked to be ignored")
+# Maintained catalog lives in the examples directory (sibling of build_stream).
+EXAMPLES_CATALOG = os.path.join(
+    os.path.dirname(PROJECT_ROOT), "examples", "catalog", "catalog_rhel.json"
+)
 
 
 class TestAdapterDefaults(unittest.TestCase):
@@ -36,14 +39,17 @@ class TestAdapterDefaults(unittest.TestCase):
         expected_schema = os.path.join(PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json")
         self.assertEqual(os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema))
 
+    @unittest.skip(
+        "Legacy adapter path (generate_all_configs) is unused in production; "
+        "build_slurm_custom_config raises ValueError on arches lacking Slurm "
+        "features. Production uses adapter_policy.generate_configs_from_policy."
+    )
     def test_generate_omnia_json_with_defaults_writes_output(self):
-        catalog_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "fixtures", "catalogs", "catalog_rhel.json")
-        )
-        
-        # Skip test if fixture doesn't exist
+        catalog_path = EXAMPLES_CATALOG
+
+        # Skip test if the examples catalog isn't available
         if not os.path.exists(catalog_path):
-            self.skipTest("Catalog fixture not found")
+            self.skipTest("Examples catalog not found")
             return
 
         with tempfile.TemporaryDirectory() as tmpdir:

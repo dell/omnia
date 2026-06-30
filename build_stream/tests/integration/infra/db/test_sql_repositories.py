@@ -49,12 +49,31 @@ from infra.db.repositories import (
 from infra.db.session import get_db_session
 
 
+def _live_postgres_or_skip(url: str) -> None:
+    """Skip the test session unless a live PostgreSQL is reachable at ``url``.
+
+    These are true integration tests that need a running PostgreSQL plus a
+    working SQLAlchemy postgresql dialect. In environments without DB infra
+    (e.g. local dev) ``create_engine``/connect raises; we translate that into a
+    clean ``pytest.skip`` instead of a noisy collection error. When the DB is
+    available (CI) the probe succeeds and the tests run normally.
+    """
+    try:
+        engine = create_engine(url)
+        with engine.connect():
+            pass
+        engine.dispose()
+    except Exception as exc:  # pylint: disable=broad-except
+        pytest.skip(f"Live PostgreSQL not available ({type(exc).__name__}): {exc}")
+
+
 @pytest.fixture(scope="session")
 def pg_url() -> str:
     """Get PostgreSQL URL from environment or use testcontainers."""
     # First try to get from environment (for manual testing)
     pg_url = os.getenv("TEST_DATABASE_URL")
     if pg_url:
+        _live_postgres_or_skip(pg_url)
         yield pg_url
         return
 

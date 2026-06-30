@@ -1,80 +1,55 @@
 # Build Stream Test Suite
 
-This directory contains comprehensive unit and integration tests for all Build Stream workflows including Jobs API, Catalog Processing, Local Repository, Image Building, and Validation.
+Comprehensive unit and integration tests for all Build Stream workflows including
+Jobs API, Catalog Processing, Local Repository, Image Building, Deploy, Restart,
+Cleanup, Upload, and Validation.
 
 ## Test Structure
 
 ```
 tests/
-├── integration/                # Integration tests for end-to-end workflows
-│   ├── api/                   # API endpoint integration tests
-│   │   ├── jobs/              # Jobs API tests
-│   │   │   ├── conftest.py                    # Shared fixtures
-│   │   │   ├── test_create_job_api.py         # POST /jobs tests
-│   │   │   ├── test_get_job_api.py            # GET /jobs/{id} tests
-│   │   │   └── test_delete_job_api.py         # DELETE /jobs/{id} tests
-│   │   ├── catalog_roles/     # Catalog processing tests
-│   │   │   ├── conftest.py                    # Shared fixtures
-│   │   │   ├── test_get_roles_api.py          # GET /catalog_roles tests
-│   │   │   └── test_catalog_workflow.py       # End-to-end catalog tests
-│   │   ├── parse_catalog/     # Catalog parsing tests
-│   │   │   ├── conftest.py                    # Shared fixtures
-│   │   │   └── test_parse_catalog_api.py      # POST /parse_catalog tests
-│   │   ├── local_repo/        # Local repository tests
-│   │   │   ├── conftest.py                    # Shared fixtures
-│   │   │   ├── test_create_local_repo_api.py  # POST /local_repo tests
-│   │   │   └── test_repo_workflow.py          # End-to-end repo tests
-│   │   ├── build_image/       # Image building tests
-│   │   │   ├── conftest.py                    # Shared fixtures
-│   │   │   ├── test_build_image_api.py        # POST /build_image tests
-│   │   │   └── test_multi_arch_build.py       # Multi-architecture tests
-│   │   └── validate/          # Validation tests
-│   │       ├── conftest.py                    # Shared fixtures
-│   │       └── test_validate_api.py           # POST /validate tests
-│   ├── core/                  # Core domain integration tests
-│   │   ├── jobs/              # Job entity integration tests
-│   │   ├── catalog/           # Catalog entity integration tests
-│   │   └── localrepo/         # Repository entity integration tests
-│   └── infra/                 # Infrastructure integration tests
-│       ├── repositories/      # Repository integration tests
-│       └── external/          # External service integration tests
-├── unit/                      # Unit tests for individual components
-│   ├── api/                   # API layer unit tests
-│   │   ├── jobs/              # Jobs API unit tests
-│   │   │   ├── test_schemas.py                # Pydantic schema tests
-│   │   │   ├── test_dependencies.py           # Dependency injection tests
-│   │   │   └── test_routes.py                 # Route handler tests
-│   │   ├── catalog_roles/     # Catalog API unit tests
-│   │   ├── local_repo/        # Local repo API unit tests
-│   │   └── validate/          # Validation API unit tests
-│   ├── core/                  # Core domain unit tests
-│   │   ├── jobs/              # Job entity and value object tests
-│   │   ├── catalog/           # Catalog entity tests
-│   │   ├── localrepo/         # Repository entity tests
-│   │   └── validate/          # Validation entity tests
-│   ├── orchestrator/          # Use case unit tests
-│   │   ├── jobs/              # Job use case tests
-│   │   ├── catalog/           # Catalog use case tests
-│   │   ├── local_repo/        # Repository use case tests
-│   │   └── validate/          # Validation use case tests
-│   └── infra/                 # Infrastructure unit tests
-│       ├── repositories/      # Repository implementation tests
-│       ├── artifact_store/    # Artifact store tests
-│       └── db/                # Database layer tests
-├── end_to_end/                # Complete workflow tests
-│   ├── test_full_job_workflow.py              # Complete job lifecycle
-│   └── test_catalog_to_image.py               # Catalog to image workflow
-├── performance/               # Performance and load tests
-│   └── test_load.py           # Load testing scenarios
-├── fixtures/                  # Shared test fixtures
-│   ├── job_fixtures.py        # Job test data
-│   └── repo_fixtures.py       # Repository test data
-├── mocks/                     # Mock objects and data
-│   ├── mock_vault.py          # Vault mock
-│   └── mock_registry.py       # Registry mock
-└── utils/                     # Test utilities and helpers
-    ├── assertions.py          # Custom assertions
-    └── helpers.py             # Test helper functions
+├── integration/                       # Integration tests (API workflows, core domain, infra)
+│   ├── api/
+│   │   ├── auth/                      # Registration & token tests
+│   │   ├── build_image/               # POST /build_image tests
+│   │   ├── catalog_roles/             # GET /catalog_roles tests
+│   │   ├── generate_input_files/      # Generate input files tests
+│   │   ├── jobs/                      # Jobs CRUD (create, get, delete)
+│   │   ├── parse_catalog/             # POST /parse_catalog tests
+│   │   ├── restart/                   # Restart stage tests
+│   │   └── validate/                  # POST /validate tests
+│   ├── core/
+│   │   ├── catalog/                   # Catalog adapter, generator, policy, diff regression
+│   │   └── image_group/               # ImageGroup data model tests
+│   └── infra/
+│       └── db/                        # SQL repository tests (skips if no live PostgreSQL)
+├── unit/                              # Unit tests (isolated, fast, no external deps)
+│   ├── api/
+│   │   ├── build_image/               # Build image route tests
+│   │   ├── catalog_roles/             # Catalog roles service tests
+│   │   ├── deploy/                    # Deploy route error handler tests
+│   │   ├── generate_input_files/      # Generate input files route tests
+│   │   ├── images/                    # Images route tests
+│   │   ├── jobs/                      # Jobs schema & dependency tests
+│   │   ├── local_repo/               # Local repo route tests
+│   │   ├── parse_catalog/             # Parse catalog route tests
+│   │   ├── restart/                   # Restart route tests
+│   │   ├── upload/                    # Upload route tests
+│   │   └── validate/                  # Validate route tests
+│   ├── core/
+│   │   ├── catalog/                   # Parser, adapter, generator, exceptions, catalog ID
+│   │   ├── cleanup/                   # Cleanup exceptions, S3 service interface
+│   │   ├── deploy/                    # Deploy entities, services, exceptions
+│   │   ├── image_group/               # ImageGroup value objects
+│   │   ├── jobs/                      # Job entities, value objects, state machine
+│   │   └── localrepo/                 # Local repo entities
+│   └── orchestrator/
+│       ├── catalog/                   # Catalog use case & command tests
+│       ├── common/                    # ResultPoller tests (build-image, deploy/restart failure)
+│       ├── local_repo/                # Local repo use case tests
+│       └── validate/                  # Validate use case (retry lifecycle, guard edge cases)
+├── others/                            # Design rule enforcement tests
+└── conftest.py                        # Shared fixtures (auth, client, DB session)
 ```
 
 ## Prerequisites
@@ -96,24 +71,24 @@ Required packages:
 ### Run All Tests
 
 ```bash
-# Run all tests
-pytest tests/ -v
+# Run all tests (ENV=test prevents debugpy from attaching)
+ENV=test python -m pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=api --cov=orchestrator --cov-report=html
+ENV=test python -m pytest tests/ --cov=api --cov=orchestrator --cov=core --cov-report=html
 ```
 
 ### Run Specific Test Suites
 
 ```bash
 # Integration tests only
-pytest tests/integration/ -v
+python -m pytest tests/integration/ -v
 
-# Unit tests only
-pytest tests/unit/ -v
+# Unit tests only (fast — no external deps)
+python -m pytest tests/unit/ -v
 
 # API tests only
-pytest tests/integration/api/ tests/unit/api/ -v
+python -m pytest tests/integration/api/ tests/unit/api/ -v
 ```
 
 ### Run Specific Test Files
@@ -238,12 +213,26 @@ pytest tests/unit/core/validate/ -k schema -v
 
 ## Test Fixtures
 
+### Catalog Fixtures
+
+Tests use the **real examples catalog** shipped with the repo:
+
+```
+../examples/catalog/catalog_rhel.json   # Primary catalog fixture (RHEL 10.0)
+core/catalog/test_fixtures/             # Remaining domain-specific fixtures:
+  ├── adapter_policy_test.json          #   Policy config for adapter_policy tests
+  └── functional_layer.json             #   Functional layer for generator tests
+```
+
+The stale `core/catalog/test_fixtures/catalog_rhel.json` was removed; all tests
+now reference `examples/catalog/catalog_rhel.json` and skip gracefully if the
+file is not present (e.g. in a shallow CI clone).
+
 ### Shared Fixtures (conftest.py)
 
 **Authentication & Authorization:**
 - `client`: FastAPI TestClient with dev container
 - `auth_headers`: Standard authentication headers
-- `admin_auth_headers`: Admin-level authentication
 
 **Idempotency & Correlation:**
 - `unique_idempotency_key`: Unique key per test
@@ -251,7 +240,6 @@ pytest tests/unit/core/validate/ -k schema -v
 
 **Database & Storage:**
 - `db_session`: Database session for tests
-- `clean_db`: Fresh database for each test
 - `artifact_store`: Test artifact storage
 
 **Mock Services:**
@@ -272,6 +260,19 @@ def test_create_job(client, auth_headers, unique_idempotency_key):
     assert response.status_code == 201
     assert "job_id" in response.json()
 ```
+
+## Known Skips & Pre-existing Issues
+
+- `tests/integration/infra/db/test_sql_repositories.py` — skips/errors when no
+  PostgreSQL dialect is available (no live DB in local dev)
+- `test_adapter_cli_defaults::test_generate_omnia_json_with_defaults_writes_output`
+  — skipped: legacy `generate_all_configs` adapter path is unused in production;
+  the current production path is `adapter_policy.generate_configs_from_policy`
+- `tests/others/test_dependency_rules.py` — 2 pre-existing architectural
+  violation failures in `api/jobs/routes.py` (not test bugs)
+- `tests/performance/test_local_repo_performance.py` — 3 pre-existing failures;
+  tests expect `202` from `POST /local_repo` but get `412` because the job
+  has no completed upstream stages
 
 ## Coverage Report
 

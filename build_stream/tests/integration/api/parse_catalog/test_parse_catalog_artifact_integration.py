@@ -110,7 +110,7 @@ base_path = {self.temp_file_dir}/artifacts
         """Test that parse catalog creates artifact files on file store."""
         # Load a valid catalog from fixtures
         project_root = Path(__file__).parent.parent.parent.parent.parent
-        catalog_fixture_path = project_root / "core" / "catalog" / "test_fixtures" / "catalog_rhel.json"
+        catalog_fixture_path = project_root.parent / "examples" / "catalog" / "catalog_rhel.json"
         with open(catalog_fixture_path, "r", encoding="utf-8") as f:
             catalog_data = json.load(f)
 

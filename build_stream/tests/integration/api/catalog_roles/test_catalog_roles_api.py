@@ -46,7 +46,9 @@ class TestGetCatalogRolesAPI:  # pylint: disable=too-many-public-methods
         project_root = os.path.abspath(
             os.path.join(here, "..", "..", "..", "..")
         )
-        catalog_path = os.path.join(project_root, "core", "catalog", "test_fixtures", "catalog_rhel.json")
+        catalog_path = os.path.join(
+            os.path.dirname(project_root), "examples", "catalog", "catalog_rhel.json"
+        )
         with open(catalog_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
