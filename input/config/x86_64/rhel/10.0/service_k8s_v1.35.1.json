@@ -22,7 +22,7 @@
       { "package": "docker.io/victoriametrics/vlagent", "type": "image", "tag": "v1.50.0" },
       { "package": "docker.io/alpine/kubectl", "tag": "1.35.1", "type": "image" },
       { "package": "docker.io/curlimages/curl", "type": "image", "tag": "8.17.0" },
-      { "package": "docker.io/apache/activemq-classic", "type": "image", "tag": "5.19.2" },
+      { "package": "docker.io/apache/activemq", "type": "image", "tag": "5.19.7" },
       { "package": "docker.io/library/mysql", "type": "image", "tag": "9.3.0" },
       { "package": "docker.io/library/python", "type": "image", "tag": "3.12-slim" },
       { "package": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver", "type": "image", "tag": "1.3" },

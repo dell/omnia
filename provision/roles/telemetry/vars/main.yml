@@ -53,7 +53,7 @@ idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idr
 kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}"
 victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}"
 
-activemq_image: "{{ telemetry_images['apache/activemq-classic'] | default('docker.io/apache/activemq-classic:5.19.2') }}"
+activemq_image: "{{ telemetry_images['apache/activemq'] | default('docker.io/apache/activemq:5.19.7') }}"
 activemq_http_port_1: 8161
 activemq_http_port_2: 61616
 messagebus_http_port: 61613
