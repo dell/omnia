@@ -53,7 +53,7 @@ idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idr
 kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}"
 victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}"
 
-activemq_image: "{{ telemetry_images['rmohr/activemq'] | default('docker.io/rmohr/activemq:5.15.9') }}"
+activemq_image: "{{ telemetry_images['apache/activemq'] | default('docker.io/apache/activemq:5.19.7') }}"
 activemq_http_port_1: 8161
 activemq_http_port_2: 61616
 messagebus_http_port: 61613
@@ -116,9 +116,9 @@ kafka:
   lb_service_name: "kafka-loadbalancer"
   container_port1: 9093
   # Kafka images from service_k8s_v<version>.json
-  operator_image: "{{ telemetry_images['strimzi/operator'] | default('quay.io/strimzi/operator:0.48.0') }}"
-  kafka_image: "{{ telemetry_images['strimzi/kafka'] | default('quay.io/strimzi/kafka:0.48.0-kafka-4.1.0') }}"
-  bridge_image: "{{ telemetry_images['strimzi/kafka-bridge'] | default('quay.io/strimzi/kafka-bridge:0.33.1') }}"
+  operator_image: "{{ telemetry_images['strimzi/operator'] | default('quay.io/strimzi/operator:1.0.1') }}"
+  kafka_image: "{{ telemetry_images['strimzi/kafka'] | default('quay.io/strimzi/kafka:1.0.1-kafka-4.2.0') }}"
+  bridge_image: "{{ telemetry_images['strimzi/kafka-bridge'] | default('quay.io/strimzi/kafka-bridge:1.0.0') }}"
   container_port2: 9093
   image: "apache/kafka:4.1.0"
   cluster_id: "kafka-cluster-id"

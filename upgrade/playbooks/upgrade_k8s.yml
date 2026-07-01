@@ -649,8 +649,119 @@
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
+    # Check if we're resuming an in-progress/failed upgrade - skip full validation if so
+    - name: "Check for existing upgrade status file"
+      block:
+        - name: "Use cached storage_config"
+          ansible.builtin.set_fact:
+            storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+        - name: "Use cached omnia_config"
+          ansible.builtin.set_fact:
+            omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+        - name: "Set k8s_nfs_storage_name"
+          ansible.builtin.set_fact:
+            k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+        - name: "Set status_file path"
+          ansible.builtin.set_fact:
+            status_file: >-
+              {{ (storage_config.mounts
+                  | selectattr('name', 'equalto', k8s_nfs_storage_name)
+                  | first).mount_point }}/upgrade/upgrade_status.yml
+
+        - name: "Check if upgrade status file exists"
+          ansible.builtin.stat:
+            path: "{{ status_file }}"
+          delegate_to: "{{ kube_vip }}"
+          register: validation_status_file_stat
+
+        - name: "Read existing status file"
+          ansible.builtin.slurp:
+            src: "{{ status_file }}"
+          delegate_to: "{{ kube_vip }}"
+          register: validation_status_slurp
+          when: validation_status_file_stat.stat.exists | default(false)
+
+        - name: "Parse existing status"
+          ansible.builtin.set_fact:
+            validation_existing_status: "{{ validation_status_slurp.content | b64decode | from_yaml | default({}, true) }}"
+          when: validation_status_file_stat.stat.exists | default(false)
+
+        - name: "Set default for validation_existing_status if not defined"
+          ansible.builtin.set_fact:
+            validation_existing_status: {}
+          when: not (validation_status_file_stat.stat.exists | default(false))
+
+        - name: "Check if upgrade is in progress or failed (resuming)"
+          ansible.builtin.set_fact:
+            upgrade_resuming_early: >-
+              {{ validation_status_file_stat.stat.exists | default(false) and
+                 (validation_existing_status.upgrade.status | default('')) in ['in_progress', 'failed'] }}
+
+        - name: "Display resuming message and skip full validation"
+          ansible.builtin.debug:
+            msg:
+              - "════════════════════════════════════════════════════════════════════════════════"
+              - "[UPGRADE] Resuming previous upgrade - skipping pre-upgrade validation"
+              - "════════════════════════════════════════════════════════════════════════════════"
+              - "Upgrade status: {{ validation_existing_status.upgrade.status | default('unknown') }}"
+              - "Nodes may be drained or pods restarting - full validation not appropriate"
+              - "Loading node groups from existing upgrade_status.yml instead"
+              - "════════════════════════════════════════════════════════════════════════════════"
+          when: upgrade_resuming_early | default(false)
+
+        - name: "Load node groups from status file when resuming"
+          when: upgrade_resuming_early | default(false)
+          block:
+            - name: "Extract node groups from upgrade status"
+              ansible.builtin.set_fact:
+                groups_cp_first: >-
+                  {{ validation_existing_status.nodes | dict2items
+                     | selectattr('value.role', 'equalto', 'control_plane_first')
+                     | map(attribute='key') | list }}
+                groups_cp: >-
+                  {{ validation_existing_status.nodes | dict2items
+                     | selectattr('value.role', 'equalto', 'control_plane')
+                     | map(attribute='key') | list }}
+                groups_worker: >-
+                  {{ validation_existing_status.nodes | dict2items
+                     | selectattr('value.role', 'equalto', 'worker')
+                     | map(attribute='key') | list }}
+
+            - name: "Build node IPs from upgrade status"
+              ansible.builtin.set_fact:
+                node_ips: >-
+                  {{ dict(validation_existing_status.nodes | dict2items
+                     | map(attribute='key')
+                     | zip(validation_existing_status.nodes | dict2items
+                           | map(attribute='value.ip'))) }}
+
+            - name: "Set all upgrade nodes"
+              ansible.builtin.set_fact:
+                all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
+
+            - name: "Load nodes.yaml for parsed_nodes"
+              ansible.builtin.slurp:
+                src: "{{ nodes_yaml_path }}"
+              register: nodes_slurp_resume_early
+
+            - name: "Parse nodes.yaml"
+              ansible.builtin.set_fact:
+                parsed_nodes: "{{ nodes_slurp_resume_early.content | b64decode | from_yaml }}"
+
+            - name: "Mark cluster validation as completed (skipped for resume)"
+              ansible.builtin.set_fact:
+                cluster_validation_completed: true
+
+            - name: "Set upgrade_resuming flag for subsequent plays"
+              ansible.builtin.set_fact:
+                upgrade_resuming: true
+
     - name: "Validate cluster nodes against nodes.yaml"
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
+      when: not (upgrade_resuming_early | default(false))
 
     - name: "Cache validated node groups for subsequent plays"
       ansible.builtin.set_fact:
@@ -711,17 +822,6 @@
         parsed_nodes: "{{ hostvars['localhost']['validated_parsed_nodes'] }}"
       when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: "Run cluster validation if not already done"
-      when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
-      block:
-        - name: "Load upgrade role variables for validation"
-          ansible.builtin.include_vars:
-            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
-
-        - name: "Run cluster node validation"
-          ansible.builtin.include_tasks:
-            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
-
     - name: Load variables from file
       ansible.builtin.include_vars:
         file: /tmp/k8s_vars.yml
@@ -743,6 +843,77 @@
       ansible.builtin.set_fact:
         existing_status: "{{ existing_status_slurp.content | b64decode | from_yaml | default({}, true) }}"
       when: status_file_stat.stat.exists | default(false)
+
+    - name: Check if upgrade is in progress or failed (resuming)
+      ansible.builtin.set_fact:
+        upgrade_resuming: "{{ status_file_stat.stat.exists | default(false) and (existing_status.upgrade.status | default('')) in ['in_progress', 'failed'] }}"
+
+    - name: "Load node groups from existing upgrade status (resuming upgrade)"
+      when:
+        - upgrade_resuming | default(false)
+        - not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+      block:
+        - name: "Display resuming upgrade message"
+          ansible.builtin.debug:
+            msg:
+              - "========================================================================"
+              - "[UPGRADE] Resuming previous upgrade"
+              - "========================================================================"
+              - "Upgrade status: {{ existing_status.upgrade.status | default('unknown') }}"
+              - "Skipping node/pod health validation (nodes may be drained or pods restarting)"
+              - "Loading node groups from existing upgrade_status.yml"
+              - "========================================================================"
+
+        - name: "Extract node groups from upgrade status"
+          ansible.builtin.set_fact:
+            groups_cp_first: >-
+              {{ existing_status.nodes | dict2items
+                 | selectattr('value.role', 'equalto', 'control_plane_first')
+                 | map(attribute='key') | list }}
+            groups_cp: >-
+              {{ existing_status.nodes | dict2items
+                 | selectattr('value.role', 'equalto', 'control_plane')
+                 | map(attribute='key') | list }}
+            groups_worker: >-
+              {{ existing_status.nodes | dict2items
+                 | selectattr('value.role', 'equalto', 'worker')
+                 | map(attribute='key') | list }}
+
+        - name: "Build node IPs from upgrade status"
+          ansible.builtin.set_fact:
+            node_ips: >-
+              {{ existing_status.nodes | dict2items
+                 | items2dict(key_name='key', value_name='value.ip') }}
+
+        - name: "Set all upgrade nodes"
+          ansible.builtin.set_fact:
+            all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
+
+        - name: "Load nodes.yaml for parsed_nodes"
+          ansible.builtin.slurp:
+            src: "{{ nodes_yaml_path }}"
+          register: nodes_slurp_resume
+
+        - name: "Parse nodes.yaml"
+          ansible.builtin.set_fact:
+            parsed_nodes: "{{ nodes_slurp_resume.content | b64decode | from_yaml }}"
+
+        - name: "Mark validation as completed (skipped for resume)"
+          ansible.builtin.set_fact:
+            cluster_validation_completed: true
+
+    - name: "Run cluster validation if not already done and not resuming"
+      when:
+        - not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+        - not (upgrade_resuming | default(false))
+      block:
+        - name: "Load upgrade role variables for validation"
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
+
+        - name: "Run cluster node validation"
+          ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
 
     # Steps are stored as dictionary for reliable YAML handling
     # Execution order: setup_repos -> kubeadm_install -> kubeadm_upgrade_apply/node ->
@@ -938,8 +1109,14 @@
         node_ips: "{{ hostvars['localhost']['validated_node_ips'] }}"
       when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: "Run cluster validation if not already done"
-      when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+    - name: "Use upgrade_resuming flag from previous play"
+      ansible.builtin.set_fact:
+        upgrade_resuming: "{{ hostvars['localhost']['upgrade_resuming'] | default(false) }}"
+
+    - name: "Run cluster validation if not already done and not resuming"
+      when:
+        - not (hostvars['localhost']['cluster_validation_completed'] | default(false))
+        - not (upgrade_resuming | default(false))
       block:
         - name: "Load upgrade role variables for validation"
           ansible.builtin.include_vars:
@@ -1504,20 +1681,30 @@
         all_upgrade_nodes: "{{ hostvars['localhost']['validated_all_upgrade_nodes'] }}"
       when: hostvars['localhost']['cluster_validation_completed'] | default(false)
 
-    - name: "Run cluster validation if not already done"
+    # Note: Post-validation does NOT run validate_cluster_nodes.yml
+    # That file contains pre-upgrade checks (all-namespace pod health) which are not appropriate here.
+    # Post-validation only runs post_validation.yml which checks core K8s components.
+
+    - name: "Load all_upgrade_nodes from previous play or status file"
       when: not (hostvars['localhost']['cluster_validation_completed'] | default(false))
       block:
-        - name: "Load upgrade role variables for validation"
+        - name: "Load upgrade role variables"
           ansible.builtin.include_vars:
             file: "{{ playbook_dir }}/../roles/upgrade_k8s/vars/main.yml"
 
-        - name: "Run cluster node validation"
-          ansible.builtin.include_tasks:
-            file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/validate_cluster_nodes.yml"
+        - name: "Read status file for node list"
+          ansible.builtin.slurp:
+            src: "{{ status_file }}"
+          delegate_to: "{{ kube_vip }}"
+          register: status_for_nodes
 
-        - name: "Set all_upgrade_nodes from validation"
+        - name: "Parse status file for nodes"
           ansible.builtin.set_fact:
-            all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
+            status_nodes: "{{ (status_for_nodes.content | b64decode | from_yaml).nodes | default({}) }}"
+
+        - name: "Build all_upgrade_nodes from status file"
+          ansible.builtin.set_fact:
+            all_upgrade_nodes: "{{ status_nodes.keys() | list }}"
 
     - name: Get k8s_from_version from status file
       ansible.builtin.slurp:

@@ -225,7 +225,6 @@ class UploadFilesUseCase:
         """Validate all files before processing (fail-fast).
 
         Args:
-            files: List of (filename, content) tuples.
 
         Raises:
             InvalidFilenameError: If any filename is invalid.
@@ -600,7 +599,7 @@ class UploadFilesUseCase:
         try:
             config = load_config()
             artifacts_base = Path(config.file_store.base_path)
-            source = artifacts_base / job_id / "software_config.json"
+            source = artifacts_base / job_id / "input" / "software_config.json"
 
             if not source.exists():
                 log_secure_info(

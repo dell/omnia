@@ -252,6 +252,8 @@
     # ── Cleanup old pre-operator services and deployments ──
     # The operator creates new services with different names (e.g. vminsert-victoria-cluster),
     # so the old standalone services become stale and waste LoadBalancer IPs.
+    # Old services MUST be deleted BEFORE applying VMCluster CR so MetalLB can
+    # assign the same IPs to the new operator-managed services via loadBalancerIP.
     - name: Find old pre-operator services
       ansible.builtin.shell: |
         set -o pipefail
@@ -285,6 +287,5 @@
 
     - name: Display old resource cleanup summary
       ansible.builtin.debug:
-        msg:
-          - "Old services deleted: {{ old_services.stdout_lines | default([]) | select() | list }}"
-          - "Old vmagent deployment cleanup attempted: {{ old_vmagent_deployment }}"
+        msg: "{{ victoria_old_svc_cleanup_summary }}"
+        verbosity: 2

@@ -1,0 +1,134 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# pre_rollback_checks.yml — Validate Pulp Rollback Preconditions
+# ============================================================================
+# Checks:
+#   1. Pulp container exists and is deployed
+#   2. Backup directory exists with Pulp backup
+#   3. Backed-up quadlet file or image tag exists
+#
+# No idempotency check — rollback always executes regardless of current
+# container state. This ensures rollback works even in partial or failed
+# upgrade states.
+# ============================================================================
+
+- name: Pre-rollback validation
+  block:
+    # ── Check if Pulp container exists ────────────────────────────────────
+    - name: Check if Pulp container exists
+      ansible.builtin.command: podman container exists {{ pulp_container_name }}
+      register: pulp_exists_check
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Set Pulp deployment status
+      ansible.builtin.set_fact:
+        pulp_deployed: "{{ pulp_exists_check.rc == 0 }}"
+
+    - name: Display Pulp not deployed message
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.pulp.not_deployed }}"
+      when: not pulp_deployed
+
+    # ── Get current Pulp container info ───────────────────────────────────
+    - name: Get current Pulp container info
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: pulp_pre_info
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: pulp_deployed
+
+    - name: Extract current Pulp image version
+      ansible.builtin.set_fact:
+        pulp_current_image: "{{ pulp_pre_info.containers[0].ImageName | default('unknown') }}"
+        pulp_current_status: "{{ pulp_pre_info.containers[0].State.Status | default('unknown') }}"
+      when:
+        - pulp_deployed
+        - pulp_pre_info.containers | length > 0
+
+    - name: Display current Pulp version
+      ansible.builtin.debug:
+        msg: "Current Pulp image: {{ pulp_current_image | default('not found') }}, Status: {{ pulp_current_status | default('unknown') }}"
+      when: pulp_deployed
+
+    # ── Check if already at rollback target version ───────────────────────
+    - name: Check if Pulp is already at rollback target version
+      ansible.builtin.set_fact:
+        pulp_already_rolled_back: "{{ (pulp_rollback_image | default('')) in ((pulp_current_image | default('')) | string) }}"
+      when: pulp_deployed
+
+    - name: Display skip message if already at target version
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.pulp.already_v21 }}"
+      when:
+        - pulp_deployed
+        - pulp_already_rolled_back | default(false)
+
+    # ── Verify backup directory exists ────────────────────────────────────
+    - name: Check backup directory exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_pulp_subpath }}"
+      register: rollback_pulp_backup_stat
+      when: pulp_deployed
+
+    - name: Check backed-up quadlet file exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_pulp_quadlet_subpath }}/{{ pulp_container_name }}.container"
+      register: rollback_pulp_quadlet_stat
+      when: pulp_deployed
+
+    - name: Check backed-up image tag file exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_pulp_image_tag_subpath }}"
+      register: rollback_pulp_image_tag_stat
+      when: pulp_deployed
+
+    - name: Display backup inventory
+      ansible.builtin.debug:
+        verbosity: 1
+        msg:
+          - "Backup directory: {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_pulp_subpath }}"
+          - "Pulp backup: {{ 'found' if rollback_pulp_backup_stat.stat.exists | default(false) else 'MISSING' }}"
+          - "Quadlet backup: {{ 'found' if rollback_pulp_quadlet_stat.stat.exists | default(false) else 'MISSING' }}"
+          - "Image tag backup: {{ 'found' if rollback_pulp_image_tag_stat.stat.exists | default(false) else 'MISSING' }}"
+      when: pulp_deployed
+
+    # ── Determine rollback strategy ───────────────────────────────────────
+    # If quadlet backup exists, restore it. Otherwise, update image tag in current quadlet.
+    - name: Determine rollback strategy
+      ansible.builtin.set_fact:
+        pulp_rollback_strategy: >-
+          {{ 'restore_quadlet' if (rollback_pulp_quadlet_stat.stat.exists | default(false))
+             else 'update_image_tag' }}
+      when: pulp_deployed
+
+    - name: Display rollback strategy
+      ansible.builtin.debug:
+        msg: "Pulp rollback strategy: {{ pulp_rollback_strategy | default('N/A') }}"
+      when: pulp_deployed
+
+    - name: Display rollback proceeding message
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.pulp.backup_found }}"
+      when:
+        - pulp_deployed
+        - rollback_pulp_backup_stat.stat.exists | default(false) or not (pulp_already_rolled_back | default(false))

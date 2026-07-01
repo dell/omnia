@@ -50,6 +50,11 @@
   tags:
     - always
   tasks:
+    - name: Enable subscription check when validate_config.yml is run directly
+      ansible.builtin.set_fact:
+        run_subscription_check: true
+      when: run_subscription_check is not defined and omnia_run_tags is not defined
+
     - name: Run subscription validation tasks
       when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or 'all' in (ansible_run_tags | default([]) | list)"
       block:
@@ -94,7 +99,7 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: check_rhel_subscription.yml
-      when: "'local_repo' in (hostvars['localhost']['omnia_run_tags'] | default([]))"
+      when: "hostvars['localhost']['run_subscription_check'] | default(false) | bool"
 
 - name: Configure RHEL repository URLs
   hosts: localhost
@@ -107,7 +112,7 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: configure_rhel_os_urls.yml
-      when: "'local_repo' in (omnia_run_tags | default([]))"
+      when: "run_subscription_check | default(false) | bool"
 
 - name: Validate omnia input config
   hosts: localhost

@@ -67,6 +67,22 @@
       ansible.builtin.debug:
         msg: "{{ pods_before_upgrade.stdout_lines }}"
 
+    # ── Pre-CRD migration: Strimzi major version upgrade (0.x → 1.x) ──
+    # See files/migrate_strimzi_crds.sh for full details.
+    # The script is idempotent — no-op when CRDs are already healthy or absent.
+    - name: Run Strimzi CRD migration if needed (v1beta2 → v1)
+      ansible.builtin.script:
+        cmd: migrate_strimzi_crds.sh {{ telemetry_namespace }}
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: strimzi_migration_result
+      changed_when: "'starting strimzi crd migration' in strimzi_migration_result.stdout | lower"
+      failed_when: strimzi_migration_result.rc != 0
+
+    - name: Display Strimzi migration result
+      ansible.builtin.debug:
+        msg: "{{ strimzi_migration_result.stdout_lines }}"
+
     # ── Execute telemetry.sh ──
     - name: Execute telemetry.sh on kube_vip
       ansible.builtin.command:

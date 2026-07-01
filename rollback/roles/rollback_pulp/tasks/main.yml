@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# rollback_pulp — Main Orchestration
+# ============================================================================
+# Reverse the Pulp upgrade (3.113 → 3.80) by:
+#   1. Resolving admin NIC IP for health checks
+#   2. Pre-rollback checks (verify Pulp is deployed, backup exists)
+#   3. Stopping the current Pulp container
+#   4. Restoring PostgreSQL data from backup (PG 12/13 compatible)
+#   5. Restoring the v2.1 quadlet file from backup
+#   6. Pulling the v2.1 Pulp image (3.80)
+#   7. Starting the rolled-back container
+#   8. Post-rollback health check
+#   9. Cleanup (orphan artifacts, redundant backup data)
+#
+# IMPORTANT: PostgreSQL data must be restored because:
+# - Pulp 3.80 uses PostgreSQL 12/13
+# - Pulp 3.113 uses PostgreSQL 16
+# - PostgreSQL cannot downgrade data files between major versions
+#
+# No idempotency check — rollback always executes regardless of current
+# container state. This ensures rollback works even in partial or failed
+# upgrade states.
+# ============================================================================
+
+- name: Read oim_metadata.yml for shared storage path
+  ansible.builtin.slurp:
+    src: "{{ oim_metadata_path }}"
+  register: _pulp_oim_metadata_raw
+
+- name: Set OIM host-side paths from metadata
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ (_pulp_oim_metadata_raw.content | b64decode | from_yaml).oim_shared_path | regex_replace('/$', '') }}"
+
+- name: Derive OIM host-side Pulp paths
+  ansible.builtin.set_fact:
+    oim_host_pulp_data_base: "{{ oim_shared_path }}/omnia/pulp/settings"
+    oim_host_pgsql_path: "{{ oim_shared_path }}/omnia/pulp/settings/pgsql"
+    oim_host_backup_dir: "{{ oim_shared_path }}/omnia/backups/upgrade/version_2.1.0.0/pulp"
+    oim_host_pgsql_backup: "{{ oim_shared_path }}/omnia/backups/upgrade/version_2.1.0.0/pulp/pgsql"
+    oim_host_rollback_backup_dir: >-
+      {{ (rollback_backup_dir | default(rollback_backup_dir_default))
+         | regex_replace('^/opt/omnia', oim_shared_path ~ '/omnia') }}
+
+- name: Resolve admin NIC IP for Pulp API endpoints
+  ansible.builtin.include_tasks: resolve_admin_ip.yml
+
+- name: Pulp rollback workflow
+  block:
+    - name: Pre-rollback validation checks
+      ansible.builtin.include_tasks: pre_rollback_checks.yml
+
+    - name: Execute Pulp rollback
+      ansible.builtin.include_tasks: rollback_pulp_container.yml
+      when: pulp_deployed | default(false) | bool
+
+    - name: Post-rollback health check
+      ansible.builtin.include_tasks: post_rollback_health_check.yml
+      when: pulp_deployed | default(false) | bool
+
+    - name: Post-rollback cleanup (orphans and temporary data)
+      ansible.builtin.include_tasks: cleanup_pulp_data.yml
+      when:
+        - pulp_deployed | default(false) | bool
+        - pulp_rollback_success | default(false) | bool
+
+  rescue:
+    - name: Set rollback failure flag
+      ansible.builtin.set_fact:
+        pulp_rollback_failed: true
+
+  always:
+    - name: Rollback status and cleanup
+      ansible.builtin.include_tasks: rollback_status.yml

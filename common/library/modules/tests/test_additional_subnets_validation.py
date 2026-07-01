@@ -314,6 +314,7 @@ class TestPXEMappingSubnetValidation(unittest.TestCase):
             )
             self.assertTrue(len(errors) > 0)
             self.assertTrue("192.168.100.10" in str(errors))
+            self.assertIn(pxe_file, errors[0]["error_key"])
         finally:
             os.unlink(pxe_file)
 
@@ -333,6 +334,7 @@ class TestPXEMappingSubnetValidation(unittest.TestCase):
             )
             self.assertTrue(len(errors) > 0)
             self.assertTrue("10.40.2.10" in str(errors))
+            self.assertIn(pxe_file, errors[0]["error_key"])
         finally:
             os.unlink(pxe_file)
 
@@ -347,6 +349,7 @@ class TestPXEMappingSubnetValidation(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertTrue("192.168.100.10" in str(errors))
             self.assertFalse("172.16.0.10" in str(errors))
+            self.assertIn(pxe_file, errors[0]["error_key"])
         finally:
             os.unlink(pxe_file)
 

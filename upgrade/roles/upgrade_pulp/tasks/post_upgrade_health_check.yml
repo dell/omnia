@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Pulp Post-Upgrade Health Check
+#
+# Verifies:
+#   1. Pulp API is accessible and responding
+#   2. Pulp container is running with the new image
+# Sets pulp_upgrade_success flag for cleanup tasks.
+# ===========================================================================
+
+- name: Check Pulp API status after upgrade
+  ansible.builtin.uri:
+    url: "{{ pulp_status_url }}"
+    method: GET
+    validate_certs: false
+    status_code: [200]
+  register: pulp_post_health
+  retries: "{{ pulp_health_retries }}"
+  delay: "{{ pulp_health_delay }}"
+  until: pulp_post_health.status == 200
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+- name: Get Pulp container info after upgrade
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: pulp_post_info
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+- name: Verify Pulp is running with new image
+  ansible.builtin.assert:
+    that:
+      - pulp_post_info.containers | length > 0
+      - pulp_post_info.containers[0].State.Status == 'running'
+      - pulp_target_image in pulp_post_info.containers[0].ImageName
+    fail_msg: |
+      Pulp upgrade verification failed.
+      Expected image: {{ pulp_target_image }}
+      Actual image: {{ pulp_post_info.containers[0].ImageName | default('unknown') }}
+      Container status: {{ pulp_post_info.containers[0].State.Status | default('unknown') }}
+    success_msg: "Pulp successfully upgraded to {{ pulp_target_image }}"
+
+- name: Set upgrade success flag
+  ansible.builtin.set_fact:
+    pulp_upgrade_success: true
+
+- name: Display Pulp upgrade summary
+  ansible.builtin.debug:
+    msg:
+      - "════════════════════════════════════════════════════════════"
+      - "              PULP UPGRADE COMPLETED SUCCESSFULLY"
+      - "════════════════════════════════════════════════════════════"
+      - "  Previous image: {{ pulp_current_image | default('unknown') }}"
+      - "  New image:      {{ pulp_target_image }}"
+      - "  Container:      {{ pulp_container_name }}"
+      - "  Status:         running"
+      - "  API endpoint:   {{ pulp_status_url }}"
+      - "════════════════════════════════════════════════════════════"

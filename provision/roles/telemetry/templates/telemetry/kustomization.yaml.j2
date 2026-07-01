@@ -54,6 +54,7 @@ resources:
 {% endif %}
 {% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) %}
 # iDRAC Telemetry Resources
+  - activemq-config.yaml
   - idrac_telemetry_statefulset.yaml
   - telemetry_cleaner_rbac.yaml
   - telemetry_pod_cleanup.yaml

@@ -123,25 +123,45 @@
       changed_when: true
       failed_when: false
 
-    - name: Extract only RHEL baseurls (appstream, baseos, codeready-builder)
+    - name: Extract EUS baseurls (appstream, baseos, codeready-builder)
+      vars:
+        eus_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-eus-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-eus-rpms"
       ansible.builtin.shell: |
         set -o pipefail
-        awk -v ver="{{ rhel_version }}" '
+        awk '
           /^\[/ {section=$0}
-          /^baseurl/ && section ~ /(rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms)/ {
-            gsub(/\$releasever/, ver, $3)
+          /^baseurl/ && section ~ /({{ eus_pattern }})/ {
+            gsub(/\$releasever/, "{{ hostvars['localhost']['cluster_os_version'] }}", $3)
             print $3
           }
         ' {{ redhat_repo_file }}
-      register: repo_baseurls
+      register: eus_baseurls
       changed_when: false
+      failed_when: false
 
+    - name: Extract standard baseurls if EUS not found
+      vars:
+        std_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms"
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk '
+          /^\[/ {section=$0}
+          /^baseurl/ && section ~ /({{ std_pattern }})/ {
+            gsub(/\$releasever/, "{{ hostvars['localhost']['cluster_os_version'] }}", $3)
+            print $3
+          }
+        ' {{ redhat_repo_file }}
+      register: standard_baseurls
+      changed_when: false
+      when: eus_baseurls.stdout_lines | default([]) | length == 0
 
-    - name: Set fact repo baseurls with trailing slash
+    - name: Set fact repo baseurls (EUS preferred, fallback to standard)
       ansible.builtin.set_fact:
-        repo_baseurls: "{{ repo_baseurls.stdout_lines
-                          | map('regex_replace', '([^/])$', '\\1/')
-                          | list }}"
+        repo_baseurls: >-
+          {{ (eus_baseurls.stdout_lines if (eus_baseurls.stdout_lines | default([]) | length > 0)
+              else standard_baseurls.stdout_lines | default([]))
+              | map('regex_replace', '([^/])$', '\1/')
+              | list }}
 
     - name: Show extracted baseurls
       ansible.builtin.debug:

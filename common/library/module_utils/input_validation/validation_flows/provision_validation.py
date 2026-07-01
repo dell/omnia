@@ -913,7 +913,7 @@ def validate_pxe_admin_ips_subnet_consistency(
         if not in_additional:
             errors.append(
                 create_error_msg(
-                    "ADMIN_IP subnet consistency",
+                    f"{pxe_mapping_file_path}: ADMIN_IP subnet consistency",
                     host_ip,
                     f"Node ADMIN_IP {host_ip} does not belong to the primary "
                     f"admin subnet ({oim_admin_ip}/{admin_netmaskbits}) or any "

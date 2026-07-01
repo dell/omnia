@@ -27,8 +27,28 @@
 - name: Derive sink support flags from collection_targets
   ansible.builtin.include_tasks: derive_sink_support_flags.yml
 
+- name: Set pulp server facts for cloud-init templates
+  when:
+    - hostvars['localhost']['service_k8s_support'] | default(false) | bool
+  block:
+    - name: Run pulp status command on omnia_core container
+      ansible.builtin.command: /usr/local/bin/pulp status
+      delegate_to: localhost
+      changed_when: false
+      register: pulp_status_output
+
+    - name: Set pulp content origin value
+      ansible.builtin.set_fact:
+        pulp_content_origin: "{{ (pulp_status_output.stdout | from_json).content_settings.content_origin }}"
+
+    - name: Set pulp_server_ip fact
+      ansible.builtin.set_fact:
+        pulp_server_ip: "{{ pulp_content_origin | urlsplit('hostname') }}"
+
 - name: Configure service_k8s telemetry services
-  when: hostvars['localhost']['service_k8s_support'] | default(false) | bool
+  when:
+    - hostvars['localhost']['service_k8s_support'] | default(false) | bool
+    - telemetry_enabled | default(false) | bool
   block:
     - name: Read telemetry packages from software config
       ansible.builtin.include_tasks: read_software_config.yml
@@ -148,8 +168,3 @@
         - telemetry_enabled | default(false) | bool
       tags:
         - telemetry_deployment
-
-    # - name: Apply telemetry configurations on upgrade
-    #   ansible.builtin.include_tasks: apply_telemetry_on_upgrade.yml
-    #   when:
-    #     - hostvars['localhost']['upgrade_enabled'] | default(false) | bool
