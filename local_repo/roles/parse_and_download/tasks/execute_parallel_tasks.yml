@@ -58,7 +58,7 @@
 
     - name: Confirm all tasks Success
       ansible.builtin.debug:
-        msg: "All tasks completed successfully. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/ on OIM host"
+        msg: "All tasks completed successfully. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/ on OIM host" # noqa: yaml[line-length]
       when: task_results.overall_status == "SUCCESS"
 
     - name: Fail if Partial Success
