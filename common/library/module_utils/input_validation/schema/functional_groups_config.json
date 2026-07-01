@@ -16,7 +16,7 @@
             "parent": {
               "type": "string",
               "pattern": "^[a-zA-Z0-9,]*$",
-              "description": "List of service tag of associated active service node(s). This field will be mandatory for slurm_node related roles."
+              "description": "The list of service tags that are associated with active service node(s). This field will be mandatory for group of nodes associated with slurm_node_x86_64 and slurm_node_aarch64 functional_groups. Example: ABCD12."
             }
           },
           "required": [

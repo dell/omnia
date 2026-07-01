@@ -70,17 +70,20 @@
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vminsert pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vminsert pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -90,11 +93,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vminsert pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vminsert pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -116,17 +121,20 @@
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vmselect pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vmselect pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -136,11 +144,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vmselect pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vmselect pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -162,17 +172,20 @@
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vmagent pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vmagent pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -182,11 +195,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vmagent pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vmagent pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -206,24 +221,29 @@
       "properties": {
         "vlstorage": {
           "type": "object",
+          "description": "VLStorage resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of vlstorage pod replicas."
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vlstorage pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vlstorage pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -233,11 +253,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vlstorage pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vlstorage pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -250,24 +272,29 @@
         },
         "vlinsert": {
           "type": "object",
+          "description": "VLInsert resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of vlinsert pod replicas."
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vlinsert pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vlinsert pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -277,11 +304,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vlinsert pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vlinsert pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -294,24 +323,29 @@
         },
         "vlselect": {
           "type": "object",
+          "description": "VLSelect resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of vlselect pod replicas."
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vlselect pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vlselect pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -321,11 +355,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vlselect pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vlselect pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -338,29 +374,35 @@
         },
         "vlagent": {
           "type": "object",
+          "description": "VLAgent resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of vlagent pod replicas."
             },
             "pvc_size": {
               "type": "string",
               "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
-              "default": "5Gi"
+              "default": "5Gi",
+              "description": "PVC size for vlagent pods. Default: 5Gi"
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vlagent pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vlagent pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -370,11 +412,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vlagent pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vlagent pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -394,24 +438,29 @@
       "properties": {
         "ldms": {
           "type": "object",
+          "description": "Vector-LDMS resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of Vector-LDMS pod replicas."
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for Vector-LDMS pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for Vector-LDMS pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -421,11 +470,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for Vector-LDMS pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for Vector-LDMS pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -438,24 +489,29 @@
         },
         "ome": {
           "type": "object",
+          "description": "Vector-OME resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of Vector-OME pod replicas."
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for Vector-OME pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for Vector-OME pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -465,11 +521,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for Vector-OME pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for Vector-OME pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -482,29 +540,35 @@
         },
         "vlagent_vector": {
           "type": "object",
+          "description": "VLAgent-Vector resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of vlagent-vector pod replicas."
             },
             "pvc_size": {
               "type": "string",
               "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
-              "default": "5Gi"
+              "default": "5Gi",
+              "description": "PVC size for vlagent-vector pods. Default: 5Gi"
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vlagent-vector pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vlagent-vector pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -514,11 +578,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vlagent-vector pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vlagent-vector pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -531,29 +597,35 @@
         },
         "vmagent_vector": {
           "type": "object",
+          "description": "VMAgent-Vector resource configuration.",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Number of vmagent-vector pod replicas."
             },
             "pvc_size": {
               "type": "string",
               "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
-              "default": "5Gi"
+              "default": "5Gi",
+              "description": "PVC size for vmagent-vector pods. Default: 5Gi"
             },
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for vmagent-vector pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for vmagent-vector pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -563,11 +635,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for vmagent-vector pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for vmagent-vector pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -587,17 +661,20 @@
       "properties": {
         "resources": {
           "type": "object",
+          "description": "Resource requests and limits.",
           "properties": {
             "requests": {
               "type": "object",
               "properties": {
                 "cpu": {
                   "type": "string",
-                  "pattern": "^[0-9]+m?$"
+                  "pattern": "^[0-9]+m?$",
+                  "description": "CPU request for CSI Volume Exporter pods."
                 },
                 "memory": {
                   "type": "string",
-                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                  "description": "Memory request for CSI Volume Exporter pods."
                 }
               },
               "required": ["cpu", "memory"]
@@ -607,11 +684,13 @@
               "properties": {
                 "cpu": {
                   "type": "string",
-                  "pattern": "^[0-9]+m?$"
+                  "pattern": "^[0-9]+m?$",
+                  "description": "CPU limit for CSI Volume Exporter pods."
                 },
                 "memory": {
                   "type": "string",
-                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                  "description": "Memory limit for CSI Volume Exporter pods."
                 }
               },
               "required": ["cpu", "memory"]
@@ -631,11 +710,13 @@
           "properties": {
             "cpu": {
               "type": "string",
-              "pattern": "^[0-9]+m?$"
+              "pattern": "^[0-9]+m?$",
+              "description": "CPU request for CSM Metrics PowerScale pods."
             },
             "memory": {
               "type": "string",
-              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+              "description": "Memory request for CSM Metrics PowerScale pods."
             }
           },
           "required": ["cpu", "memory"]
@@ -645,11 +726,13 @@
           "properties": {
             "cpu": {
               "type": "string",
-              "pattern": "^[0-9]+m?$"
+              "pattern": "^[0-9]+m?$",
+              "description": "CPU limit for CSM Metrics PowerScale pods."
             },
             "memory": {
               "type": "string",
-              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+              "description": "Memory limit for CSM Metrics PowerScale pods."
             }
           },
           "required": ["cpu", "memory"]
@@ -667,17 +750,20 @@
           "properties": {
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request for Kafka broker pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request for Kafka broker pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -687,11 +773,13 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit for Kafka broker pods."
                     },
                     "cpu": {
                       "type": "string",
-                      "pattern": "^[0-9]+m?$"
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit for Kafka broker pods."
                     }
                   },
                   "required": ["memory", "cpu"]
@@ -708,20 +796,24 @@
           "properties": {
             "user_operator": {
               "type": "object",
+              "description": "Kafka User Operator resource configuration.",
               "properties": {
                 "resources": {
                   "type": "object",
+                  "description": "Resource requests and limits.",
                   "properties": {
                     "requests": {
                       "type": "object",
                       "properties": {
                         "memory": {
                           "type": "string",
-                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                          "description": "Memory request for Kafka User Operator pods."
                         },
                         "cpu": {
                           "type": "string",
-                          "pattern": "^[0-9]+m?$"
+                          "pattern": "^[0-9]+m?$",
+                          "description": "CPU request for Kafka User Operator pods."
                         }
                       },
                       "required": ["memory", "cpu"]
@@ -731,11 +823,13 @@
                       "properties": {
                         "memory": {
                           "type": "string",
-                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                          "description": "Memory limit for Kafka User Operator pods."
                         },
                         "cpu": {
                           "type": "string",
-                          "pattern": "^[0-9]+m?$"
+                          "pattern": "^[0-9]+m?$",
+                          "description": "CPU limit for Kafka User Operator pods."
                         }
                       },
                       "required": ["memory", "cpu"]
@@ -762,20 +856,21 @@
           "properties": {
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU request for mysqldb container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory request for mysqldb container." }
                   },
                   "required": ["cpu", "memory"]
                 },
                 "limits": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU limit for mysqldb container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory limit for mysqldb container." }
                   },
                   "required": ["cpu", "memory"]
                 }
@@ -791,20 +886,21 @@
           "properties": {
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU request for activemq container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory request for activemq container." }
                   },
                   "required": ["cpu", "memory"]
                 },
                 "limits": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU limit for activemq container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory limit for activemq container." }
                   },
                   "required": ["cpu", "memory"]
                 }
@@ -820,20 +916,21 @@
           "properties": {
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU request for receiver container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory request for receiver container." }
                   },
                   "required": ["cpu", "memory"]
                 },
                 "limits": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU limit for receiver container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory limit for receiver container." }
                   },
                   "required": ["cpu", "memory"]
                 }
@@ -849,20 +946,21 @@
           "properties": {
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU request for kafka_pump container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory request for kafka_pump container." }
                   },
                   "required": ["cpu", "memory"]
                 },
                 "limits": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU limit for kafka_pump container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory limit for kafka_pump container." }
                   },
                   "required": ["cpu", "memory"]
                 }
@@ -878,20 +976,21 @@
           "properties": {
             "resources": {
               "type": "object",
+              "description": "Resource requests and limits.",
               "properties": {
                 "requests": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU request for victoria_pump container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory request for victoria_pump container." }
                   },
                   "required": ["cpu", "memory"]
                 },
                 "limits": {
                   "type": "object",
                   "properties": {
-                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$" },
-                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$" }
+                    "cpu": { "type": "string", "pattern": "^[0-9]+m?$", "description": "CPU limit for victoria_pump container." },
+                    "memory": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$", "description": "Memory limit for victoria_pump container." }
                   },
                   "required": ["cpu", "memory"]
                 }

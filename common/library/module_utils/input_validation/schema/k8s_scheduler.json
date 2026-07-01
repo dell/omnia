@@ -4,16 +4,16 @@
   "type": "object",
   "properties": {
     "k8s_cni": {
-      "description": "Kubernetes internal network for services",
+      "description": "Kubernetes SDN network. Accepted values: calico. Default: calico",
       "enum":["calico"]
     },
     "k8s_service_addresses": {
-      "description": "Kubernetes pod network CIDR for internal network",
+      "description": "Kubernetes internal network for services. This network must be unused in your network infrastructure. Default: 10.233.0.0/18",
       "type":"string",
       "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
     },
     "pod_external_ip_range": {
-      "description": "Kubernetes pod network CIDR for internal network",
+      "description": "IP range used by the loadbalancer for assigning external IPs to Kubernetes services. Ensure the IP range is not assigned to any node in the cluster.",
       "type":"string",
       "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
     },

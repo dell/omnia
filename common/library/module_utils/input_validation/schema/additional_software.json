@@ -7,16 +7,17 @@
       "properties": {
         "cluster": {
           "type": "array",
+          "description": "List of additional software packages to install on the cluster nodes.",
           "minItems": 0,
           "items": {
             "type": "object",
             "oneOf": [
               {
                 "properties": {
-                  "package": { "type": "string", "minLength": 1 },
-                  "type": { "const": "rpm" },
-                  "repo_name": { "type": "string", "minLength": 1 },
-                  "reboot_required": { "type": "boolean", "minLength": 1 }
+                  "package": { "type": "string", "minLength": 1, "description": "Name of the additional software RPM package to be installed on the nodes." },
+                  "type": { "const": "rpm", "description": "Type of the additional software package. Value: rpm" },
+                  "repo_name": { "type": "string", "minLength": 1, "description": "Name of the repository from which the package will be downloaded." },
+                  "reboot_required": { "type": "boolean", "minLength": 1, "description": "Indicates whether the listed cluster nodes will be rebooted post software package installation. Default: false" }
                 },
                 "required": ["package", "type", "repo_name"],
                 "additionalProperties": false
@@ -25,22 +26,23 @@
                 "properties": {
                   "package_list": {
                     "type": "array",
+                    "description": "List of multiple RPM packages to download from a single repository.",
                     "items": { "type": "string", "minLength": 1 },
                     "minItems": 1
                   },
-                  "type": { "const": "rpm_list" },
-                  "repo_name": { "type": "string", "minLength": 1 },
-                  "reboot_required": { "type": "boolean", "minLength": 1 }
+                  "type": { "const": "rpm_list", "description": "Type of the additional software package. Value: rpm_list" },
+                  "repo_name": { "type": "string", "minLength": 1, "description": "Name of the repository from which the packages will be downloaded." },
+                  "reboot_required": { "type": "boolean", "minLength": 1, "description": "Indicates whether the listed cluster nodes will be rebooted post software package installation. Default: false" }
                 },
                 "required": ["package_list", "type", "repo_name"],
                 "additionalProperties": false
               },
               {
                 "properties": {
-                  "package": { "type": "string", "minLength": 1 },
-                  "type": { "const": "image" },
-                  "tag": { "type": "string" },
-                  "digest": { "type": "string" }
+                  "package": { "type": "string", "minLength": 1, "description": "Name of the container image to be pulled." },
+                  "type": { "const": "image", "description": "Type of the additional software package. Value: image" },
+                  "tag": { "type": "string", "description": "Tag of the additional software container image." },
+                  "digest": { "type": "string", "description": "Digest value of the image being pulled from the external repository." }
                 },
                 "required": ["package", "type"],
                 "oneOf": [

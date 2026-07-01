@@ -12,15 +12,15 @@
           "cluster_name": {
             "type": "string",
             "minLength": 1,
-            "description": "Required. Name of the Kubernetes service cluster. Must match the service cluster name defined elsewhere."
+            "description": "Name of the Kubernetes cluster for which you want to set up HA. Must match the service cluster name defined elsewhere."
           },
           "enable_k8s_ha": {
             "type": "boolean",
-            "description": "Mandatory. Must be true. Service Kubernetes cluster deployment is supported only in HA mode."
+            "description": "Set to true to enable HA for the Kubernetes cluster. Service Kubernetes cluster deployment is supported only in HA mode. Accepted values: true or false."
           },
           "virtual_ip_address": {
             "type": "string",
-            "description": "Mandatory. Virtual IP address used as the Kubernetes API endpoint for the service cluster setup.",
+            "description": "Virtual IP address of the admin network used as the Kubernetes API endpoint for the service cluster setup. Ensure that the virtual IP is not assigned to any node in the cluster. Example: 10.11.255.10.",
             "allOf": [
               { "pattern": "^[0-9.]+$" },
               { "format": "ipv4" }

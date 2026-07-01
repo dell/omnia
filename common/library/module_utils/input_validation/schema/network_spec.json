@@ -28,21 +28,25 @@
                   "dynamic_range"
                 ],
                 "properties": {
-                  "oim_nic_name": { "type": "string" },
+                  "oim_nic_name": { "type": "string", "description": "The name of the interface on the OIM server associated with the admin network. Default: eno1" },
                   "subnet": {
                     "type": "string",
+                    "description": "The subnet address for the admin network. Default: 172.16.0.0",
                     "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                   },
                   "netmask_bits": {
                     "type": "string",
+                    "description": "The number of bits in the subnet mask. Default: 24",
                     "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
                   },
                   "primary_oim_admin_ip": {
                     "type": "string",
+                    "description": "The admin IP address of the OIM server which is configured. Default: 172.16.107.254",
                     "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                   },
                   "primary_oim_bmc_ip": {
                     "type": "string",
+                    "description": "The iDRAC IP address of the OIM server. Mandatory only if idrac_telemetry is enabled and telemetry data needs to be collected from the OIM server.",
                     "oneOf": [
                     {
                      "maxLength": 0
@@ -55,9 +59,11 @@
                   },
                   "dynamic_range": {
                     "type": "string",
+                    "description": "The range of dynamic IP addresses available on the admin network. Default: 172.16.107.201-172.16.107.250",
                     "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                   },
                   "dns": {
+                    "description": "List of external DNS server IP addresses for the admin network. Default: []",
                     "oneOf": [
                       {
                         "type": "array",
@@ -74,6 +80,7 @@
                     ]
                   },
                   "ntp_servers": {
+                    "description": "List of NTP servers for the admin network. Each entry includes address (IP or hostname) and type (server or pool). Default: []",
                     "oneOf": [
                       {
                         "type": "array",
@@ -88,10 +95,12 @@
                           "properties": {
                             "address": {
                               "type": "string",
+                              "description": "IP address or hostname of the NTP server.",
                               "pattern": "^((?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})|([a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,})$"
                             },
                             "type": {
                               "type": "string",
+                              "description": "NTP source type. Accepted values: server, pool.",
                               "enum": ["server", "pool"]
                             }
                           },
@@ -101,6 +110,7 @@
                     ]
                   },
                   "additional_subnets": {
+                    "description": "Optional field for multi-RAC/multi-subnet PXE deployments. Each entry defines a separate subnet managed via DHCP relay. Leave empty array for single-subnet deployments. Default: []",
                     "oneOf": [
                       {
                         "type": "array",
@@ -120,18 +130,22 @@
                           "properties": {
                             "subnet": {
                               "type": "string",
+                              "description": "The network address of the additional subnet.",
                               "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                             },
                             "netmask_bits": {
                               "type": "string",
+                              "description": "The CIDR prefix length for the additional subnet.",
                               "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
                             },
                             "router": {
                               "type": "string",
+                              "description": "The gateway/router IP for this subnet (used as DHCP option 3).",
                               "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                             },
                             "dynamic_range": {
                               "type": "string",
+                              "description": "The DHCP IP pool range in start_ip-end_ip format. Must fall within the subnet.",
                               "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                             }
                           },
@@ -152,6 +166,7 @@
             "properties": {
               "ib_network": {
                 "type": "object",
+                "description": "InfiniBand network configuration.",
                 "required": [
                   "subnet",
                   "netmask_bits"
@@ -159,13 +174,16 @@
                 "properties": {
                   "subnet": {
                     "type": "string",
+                    "description": "The subnet of the IB network. Default: 192.168.0.0",
                     "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                   },
                   "netmask_bits": {
                     "type": "string",
+                    "description": "The number of bits in the subnet mask. Must be same as admin_network netmask_bits. Default: 24",
                     "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
                   },
                   "dns": {
+                    "description": "External DNS server IP addresses for the InfiniBand network. Default: []",
                     "oneOf": [
                       {
                         "type": "array",

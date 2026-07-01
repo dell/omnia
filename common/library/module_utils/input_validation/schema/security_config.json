@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "ldap_connection_type": {
-      "description": "LDAP connection type (TLS or SSL)",
+      "description": "LDAP connection type. Accepted values: TLS, SSL.",
       "type": "string"
     }
   },
