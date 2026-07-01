@@ -115,14 +115,13 @@
             search {{ domain_name }}
             nameserver {{ admin_nic_ip }}
             options timeout:1 attempts:2
-{% else %}
+{% endif %}
         - path: /etc/hosts
           append: true
           content: |
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
-{% endif %}
 
         - path: /root/init_slurm_db.sql
           permissions: '{{ file_mode_600 }}'

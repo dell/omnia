@@ -16,6 +16,15 @@
 - name: Include openchami vars
   ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
 
+- name: Refresh dns_enabled from provision_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
+    name: _provision_config_refresh
+
+- name: Override dns_enabled with current provision_config value
+  ansible.builtin.set_fact:
+    dns_enabled: "{{ _provision_config_refresh.dns_enabled | default(false) | bool }}"
+
 - name: Include nodes vars
   ansible.builtin.slurp:
     src: "{{ openchami_nodes_vars_path }}"
