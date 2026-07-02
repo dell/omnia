@@ -1,3 +1,4 @@
+---
 karaviMetricsPowerflex:
   image: quay.io/dell/container-storage-modules/csm-metrics-powerflex:v1.15.0
   enabled: false

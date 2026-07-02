@@ -55,7 +55,7 @@
           ansible.builtin.fail:
             msg: "{{ cert_restart_fail_msg }}"
 
-    - name: Wait for {{ cert_wait_time }} seconds before checking again # noqa: name[template]
+    - name: Wait for {{ cert_wait_time }} seconds before checking again  # noqa: name[template]
       ansible.builtin.wait_for:
         timeout: "{{ cert_wait_time }}"
 

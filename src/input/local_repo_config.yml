@@ -19,7 +19,7 @@
 # VARIABLE DETAILS
 # ================================
 # 1. user_registry
-#--------------------------
+# --------------------------
 # Configuration for user registry to configure additional images in Pulp
 # Fields:
 #   host       : Registry IP and port in format "IP:port"

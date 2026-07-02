@@ -52,9 +52,9 @@ omnia_upgrade_paths:
     next_omnia_version: "2.2.0.0"
     software_versions:
       service_k8s: "1.35.1"
-  # Uncomment to enable multi-hop upgrade to Omnia 2.3.0.0:
-  # K8s 1.35.1 -> 1.37.1 will auto-generate intermediate hop via 1.36.1
-  # "2.2.0.0":
+    # Uncomment to enable multi-hop upgrade to Omnia 2.3.0.0:
+    # K8s 1.35.1 -> 1.37.1 will auto-generate intermediate hop via 1.36.1
+    # "2.2.0.0":
   #   next_omnia_version: "2.3.0.0"
   #   software_versions:
   #     service_k8s: "1.37.1"
@@ -77,9 +77,9 @@ components:
     supported_versions:
       - "1.34.1"
       - "1.35.1"
-  # Additional components (placeholders)
-  # slurm_custom:
-  #   json_file: "slurm_custom"
+    # Additional components (placeholders)
+    # slurm_custom:
+    #   json_file: "slurm_custom"
   #   enabled: false
   #   supported_versions:
   #     - "24.05"

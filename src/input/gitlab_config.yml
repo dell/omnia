@@ -24,6 +24,7 @@
 #   - This is the IP address of the server where GitLab will be installed
 #   - Must be accessible from the OIM server
 #   - Must be configured in build_stream/gitlab/inventory/hosts.ini
+---
 gitlab_host: ""
 
 # Project settings
@@ -112,4 +113,3 @@ gitlab_puma_workers: 2
 
 # Target host for GitLab deployment/cleanup
 gitlab_sidekiq_concurrency: 10
-
