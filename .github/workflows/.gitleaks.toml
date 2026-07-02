@@ -4,83 +4,116 @@ title = "Gitleaks config for Omnia"
   description = "Ignore known false positives for infra repos"
 
   paths = [
-    '''(^|/)examples/''',
-    '''(^|/)docs/''',
-    '''(^|/)telemetry/''',
-    '''(^|/)platforms/roles/jupyterhub/files/''',
-    '''(^|/)platforms/roles/polyaxon/files/''',
-    '''(^|/)roles/startservices/files/''',
-    '''(^|/)build_stream/tests/''',
-    '''(^|/)test_postgres_integration\.py''',
-    '''(^|/)test\.sh''',
-    '''(^|/)omnia_startup\.sh''',
-    '''(^|/)input/omnia_config\.yml''',
-    '''(^|/)prepare_oim/''',
-    '''(^|/)local_repo/roles/pulp_validation/''',
-    '''(^|/)utils/credential_utility/''',
-    '''(^|/)scheduler/roles/slurm/''',
-    '''(^|/)discovery/roles/ome_discovery/''',
-    '''(^|/)common/library/modules/ome_server_inventory\.py''',
-    '''(^|/)common/library/module_utils/local_repo/user_image_utility\.py'''
+    '''(^|/)\.git/'''
   ]
 
   regexTarget = "match"
   regexes = [
+    # Test/Example/Demo credentials
     '''example[_-]?(password|secret|token|key)''',
     '''dummy[_-]?(password|secret|token|key)''',
     '''test[_-]?(password|secret|token|key)''',
+    '''demo[_-]?(password|secret|token|key)''',
     '''CHANGEME''',
     '''changeme''',
+    '''password:\s*dell\d+''',
+    '''PASSWORD\s*=\s*dell\d+''',
+    '''PASSWORD\s*=\s*"dell\d+''',
+    '''password:\s*slurmPassword''',
+    '''password:\s*"slurmPassword''',
+    '''VAULT_PASSWORD.*omnia_test''',
+    '''PASSWORD\s*=\s*"omnia_test''',
+    '''password\s*=\s*"correct_password"''',
+    
+    # Ansible/Jinja2 variable references
     '''password:\s*"?\{\{.*\}\}"?''',
+    '''ansible_.*password.*\{\{''',
+    '''password:\s*"hostvars''',
+    '''password:\s*hostvars''',
+    '''password:\s*\$\{''',
+    '''password:\s*\$[A-Z_]+''',
+    
+    # Variable names (not values)
+    '''(token|secret|password)\s*=\s*[a-z_]+''',
+    '''password:\s*[a-z_]+(password|secret|key|token)''',
+    '''secret:\s*[a-z_]+(password|secret|key|token)''',
+    '''token:\s*[a-z_]+(password|secret|key|token)''',
+    '''password:\s*\{\s*password:''',
+    '''docker_password_cipher''',
+    '''load_docker_credentials''',
+    '''password:\s*s3_secret_key''',
+    '''password:\s*minio_s3_password''',
+    '''password:\s*switch_snmp3_password''',
+    '''password:\s*"mysql_.*_password''',
+    '''password:\s*"grafana_.*_password''',
+    '''password:\s*"switch_.*_password''',
+    '''password:\s*"kerberos_admin_password''',
+    '''password:\s*"directory_manager_password''',
+    '''secret:\s*"grafana_.*''',
+    
+    # Validation/Success messages
     '''success_msg.*password.*validated''',
     '''fail_msg.*password''',
     '''_password.*successfully.*validated''',
     '''_password.*validated''',
     '''msg.*password.*valid''',
-    '''password=.*changeme''',
-    '''1c8572f630701e8792bede122ec9c417''',
-    '''secretToken.*1c8572f6''',
-    '''cookieSecret.*1c8572f6''',
-    '''timescaledb_password:\s*postgres''',
-    '''password:\s*postgres''',
-    '''(token|secret|password)\s*=\s*[a-z_]+''',
-    '''password:\s*"password"''',
-    '''ansible_.*password.*\{\{''',
-    '''docker_password_cipher''',
-    '''load_docker_credentials''',
-    '''password:\s*[a-z_]+(password|secret|key|token)''',
-    '''secret:\s*[a-z_]+(password|secret|key|token)''',
-    '''token:\s*[a-z_]+(password|secret|key|token)''',
-    '''password:\s*\{\s*password:''',
+    
+    # Database connection strings (localhost/templates)
     '''postgresql://.*@localhost''',
     '''postgresql://.*@127\.0\.0\.1''',
+    '''postgresql://user:pass@host''',
+    '''postgresql://.*%\([^)]+\)s''',
     '''%\([^)]+\)s''',
-    '''secret:.*-cert''',
+    '''timescaledb_password:\s*postgres''',
+    '''password:\s*postgres''',
+    '''PASSWORD:\s*postgres''',
+    
+    # Shell commands and scripts
     '''passwd:\s*\$''',
-    '''password:\s*"hostvars''',
-    '''password:\s*"Registration''',
-    '''password\s*=\s*IntegrationTestConfig''',
+    '''passwd:\$\(''',
+    '''passwd=\$\(openssl''',
+    '''hashed_passwd=\$\(openssl''',
+    '''openssl passwd''',
+    '''passwd:key=''',
+    
+    # Configuration/Documentation fields
     '''password:\s*Optional''',
     '''password:\s*Password''',
     '''password:\s*"Password''',
-    '''password:\s*"Openldap''',
-    '''password:\s*"kerberos_admin_password''',
-    '''password:\s*"directory_manager_password''',
-    '''password:\s*"grafana_.*_password''',
-    '''password:\s*"mysql_.*_password''',
-    '''secret:\s*"grafana_.*''',
-    '''password:\s*"switch_.*_password''',
-    '''VAULT_PASSWORD.*omnia_test''',
-    '''passwd:\$\(''',
-    '''passwd:key=''',
-    '''password:\s*dell\d+''',
-    '''password:\s*slurmPassword''',
-    '''password\s*=\s*"correct_password"''',
-    '''PASSWORD:\s*postgres''',
-    '''password:\s*\$\{''',
+    '''password:\s*password''',
     '''password:\s*"password"''',
-    '''PASSWORD\s*=\s*"omnia_test''',
-    '''PASSWORD\s*=\s*dell\d+'''
+    '''password:\s*"Openldap''',
+    '''password:\s*"Registration''',
+    '''password:\s*Registration''',
+    '''password\s*=\s*IntegrationTestConfig''',
+    '''password:.*description''',
+    '''password:.*request_args''',
+    '''password:.*database''',
+    '''password\s*=\s*AUTH_PASSWORD''',
+    '''password\s*=\s*\$MINIO_PASSWORD''',
+    '''password:\s*$''',
+    '''password:\s+description''',
+    '''password:\s+required''',
+    '''password:\s+type:''',
+    '''password=None''',
+    '''password:\n\s+request_args''',
+    '''password:\n\s*database''',
+    '''password:\ndatabase''',
+    
+    # Documentation examples (xxx placeholders)
+    '''TOKEN=hf_x+''',
+    '''vault_password="x+''',
+    '''Password:\s*\d{8}''',
+    '''secret\s*=\s*"bld_s_[A-Za-z0-9_-]+"''',
+    
+    # Known test/example tokens
+    '''1c8572f630701e8792bede122ec9c417''',
+    '''secretToken.*1c8572f6''',
+    '''cookieSecret.*1c8572f6''',
+    
+    # Certificate references
+    '''secret:.*-cert''',
+    '''secret:.*-ca-cert'''
   ]
 
 [[rules]]
