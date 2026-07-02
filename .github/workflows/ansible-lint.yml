@@ -53,10 +53,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible-core
 
+      - name: Cache Ansible collections
+        if: steps.changed-files.outputs.files != ''
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/collections
+          key: ${{ runner.os }}-ansible-collections-${{ hashFiles('.config/requirements.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ansible-collections-
+
       - name: Install Ansible Collections from requirements.yml
         if: steps.changed-files.outputs.files != ''
         run: |
-          ansible-galaxy collection install -r .config/requirements.yml --force --clear-response-cache
+          ansible-galaxy collection install -r .config/requirements.yml --force-with-deps
 
       - name: Run ansible-lint on changed files
         if: steps.changed-files.outputs.files != ''
