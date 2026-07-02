@@ -56,7 +56,10 @@
       - ""
       - "3. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
       - ""
-      - "4. Run:"
+      - "4. If fresh installation of Omnia, Run:"
+      - "     ansible-playbook prepare_oim/prepare_oim.yml"
+      - ""
+      - "   If Slurm add node scenario, Run:"
       - "     ansible-playbook provision/provision.yml"
       - "============================================================"
 
