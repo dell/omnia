@@ -12,6 +12,7 @@ name: ShellCheck
       - pub/telemetry
       - pub/q2_upgrade
       - pub/q2_ansible
+      - q3_main
 
 jobs:
   shellcheck:

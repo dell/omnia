@@ -61,17 +61,19 @@ jobs:
           echo "${{ steps.changed-files.outputs.files }}"
 
           # Filter out files from the excluded directory
-          FILES=$(echo "${{ steps.changed-files.outputs.files }}" | \
+          EXCL="^src/playbooks/discovery/roles/"
+          EXCL+="telemetry/files/nersc-ldms-aggr/"
+          FILES=$(echo \
+            "${{ steps.changed-files.outputs.files }}" | \
             tr ' ' '\n' | \
-            grep -v '^discovery/roles/telemetry/files/nersc-ldms-aggr/' | \
-            xargs)
+            grep -v "$EXCL" | xargs)
 
           if [ -n "$FILES" ]; then
             # Set PYTHONPATH to include build_stream directory
             # for proper import resolution
             # This allows pylint to resolve both relative imports
             # in build_stream and regular imports elsewhere
-            PYTHONPATH=.:./build_stream pylint $FILES \
+            PYTHONPATH=.:./src/build_stream pylint $FILES \
               --fail-under=${PYLINT_THRESHOLD}
           else
             echo "No files to lint after filtering."

@@ -10,6 +10,7 @@ name: Ansible Lint
       - pub/build_stream
       - pub/telemetry
       - pub/q2_upgrade
+      - pub/q2_ansible
       - q3_main
 
 jobs:
@@ -39,7 +40,8 @@ jobs:
               # Exclude CI workflow files, config files,
               # and other non-Ansible YAML
               case "$f" in
-                .github/*|.config/*|.readthedocs*|build_stream/*) continue ;;
+                .github/*|.config/*|.readthedocs*|\
+                src/build_stream/*) continue ;;
                 *) FILES="$FILES $f" ;;
               esac
             fi

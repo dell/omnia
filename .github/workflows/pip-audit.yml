@@ -12,6 +12,7 @@ name: Dependency Vulnerability Scan
       - pub/telemetry
       - pub/q2_upgrade
       - pub/q2_ansible
+      - q3_main
 
 jobs:
   pip-audit:
@@ -29,7 +30,7 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD -- \
-            'build_stream/requirements*.txt' || true)
+            'src/build_stream/requirements*.txt' || true)
 
           FILES=$(echo "$CHANGED" | xargs)
           echo "Changed requirements files: $FILES"
@@ -45,12 +46,12 @@ jobs:
 
       - name: Audit build_stream dependencies
         run: |
-          echo "Auditing build_stream/requirements.txt"
+          echo "Auditing src/build_stream/requirements.txt"
           echo "for known vulnerabilities..."
-          pip-audit -r build_stream/requirements.txt \
+          pip-audit -r src/build_stream/requirements.txt \
             --desc on || true
           echo ""
-          echo "Auditing build_stream/requirements-dev.txt"
+          echo "Auditing src/build_stream/requirements-dev.txt"
           echo "for known vulnerabilities..."
-          pip-audit -r build_stream/requirements-dev.txt \
+          pip-audit -r src/build_stream/requirements-dev.txt \
             --desc on || true

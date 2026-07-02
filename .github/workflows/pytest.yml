@@ -12,6 +12,7 @@ name: Unit Tests & Coverage
       - pub/telemetry
       - pub/q2_upgrade
       - pub/q2_ansible
+      - q3_main
 
 jobs:
   test:
@@ -36,10 +37,10 @@ jobs:
           # (including root level)
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD | \
-            grep '^build_stream/.*\.py$' || true)
+            grep '^src/build_stream/.*\.py$' || true)
 
           FILES=$(echo "$CHANGED" | xargs)
-          echo "Changed build_stream Python files: $FILES"
+          echo "Changed src/build_stream Python files: $FILES"
 
           # Debug: show all changed files for troubleshooting
           echo "All changed files in PR:"
@@ -58,12 +59,12 @@ jobs:
         if: steps.changed-files.outputs.files != ''
         run: |
           python -m pip install --upgrade pip
-          pip install -r build_stream/requirements.txt
-          pip install -r build_stream/requirements-dev.txt
+          pip install -r src/build_stream/requirements.txt
+          pip install -r src/build_stream/requirements-dev.txt
 
       - name: Run unit tests with coverage
         if: steps.changed-files.outputs.files != ''
-        working-directory: build_stream
+        working-directory: src/build_stream
         run: |
           python -m pytest tests/unit/ -v --tb=short \
             --junitxml=test-results.xml \
@@ -74,7 +75,7 @@ jobs:
 
       - name: Check coverage threshold
         if: steps.changed-files.outputs.files != ''
-        working-directory: build_stream
+        working-directory: src/build_stream
         run: |
           python -m pytest tests/unit/ \
             --cov=. \
@@ -87,17 +88,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: build_stream/test-results.xml
+          path: src/build_stream/test-results.xml
 
       - name: Upload coverage report
         if: steps.changed-files.outputs.files != '' && always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: build_stream/coverage.xml
+          path: src/build_stream/coverage.xml
 
       - name: No build_stream files changed
         if: steps.changed-files.outputs.files == ''
         run: |
-          echo "No build_stream Python files changed in this PR."
+          echo "No src/build_stream Python files changed in this PR."
           echo "Skipping tests."
