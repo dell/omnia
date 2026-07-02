@@ -24,17 +24,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get changed shell files (excluding deleted)
+      - name: Get changed shell files (excluding deleted and Jinja2 templates)
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD -- \
-            '*.sh' '*.bash' '*.sh.j2' || true)
+            '*.sh' '*.bash' || true)
 
           FILES=""
           for f in $CHANGED; do
-            if [ -f "$f" ]; then
+            if [ -f "$f" ] && [[ "$f" != *.j2 ]]; then
               FILES="$FILES $f"
             fi
           done
