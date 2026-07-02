@@ -1,0 +1,131 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Pulp Container Rollback (3.113 → 3.80)
+#
+# Steps:
+#   1. Pull the v2.1 Pulp image (3.80)
+#   2. Stop and remove current container
+#   3. Restore PostgreSQL data (PG 16 → PG 12/13)
+#   4. Update quadlet file with rollback image tag
+#   5. Reload systemd, start container, wait for init
+# ============================================================================
+
+- name: Skip rollback if already at target version
+  ansible.builtin.debug:
+    msg: "Pulp is already at rollback target version. Skipping."
+  when: pulp_already_rolled_back | default(false)
+
+- name: Execute Pulp container rollback
+  when: not (pulp_already_rolled_back | default(false))
+  block:
+    # --- 1. Pull v2.1 Pulp image ---
+    - name: Pull v2.1 Pulp image ({{ pulp_rollback_image }})
+      containers.podman.podman_image:
+        name: "{{ pulp_rollback_image }}"
+        state: present
+        force: true
+      register: pulp_image_pull
+      retries: "{{ pull_image_retries }}"
+      delay: "{{ pull_image_delay }}"
+      until: pulp_image_pull is succeeded
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # --- 2. Stop and remove current container ---
+    - name: Stop Pulp systemd service
+      ansible.builtin.systemd:
+        name: "{{ pulp_container_name }}"
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Force remove Pulp container
+      ansible.builtin.command: podman rm -f {{ pulp_container_name }}
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      changed_when: true
+      failed_when: false
+
+    # --- 3. Restore PostgreSQL data from backup ---
+    - name: Restore Pulp PostgreSQL data from backup
+      ansible.builtin.include_tasks: restore_pulp_data.yml
+
+    # --- 4. Update quadlet file with rollback image ---
+    - name: Restore quadlet file from backup
+      ansible.builtin.copy:
+        src: "{{ oim_host_rollback_backup_dir }}/{{ backup_pulp_quadlet_subpath }}/{{ pulp_container_name }}.container"
+        dest: "{{ pulp_quadlet_path }}"
+        mode: "{{ file_permissions_644 }}"
+        remote_src: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: pulp_rollback_strategy | default('update_image_tag') == 'restore_quadlet'
+
+    - name: Update Image line in quadlet file
+      ansible.builtin.replace:
+        path: "{{ pulp_quadlet_path }}"
+        regexp: '^Image=.*pulp.*$'
+        replace: "Image={{ pulp_rollback_image }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: pulp_rollback_strategy | default('update_image_tag') == 'update_image_tag'
+
+    # --- 5. Reload systemd, start container, wait for init ---
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Start Pulp systemd service
+      ansible.builtin.systemd:
+        name: "{{ pulp_container_name }}"
+        state: started
+        enabled: true
+      register: pulp_start_result
+      retries: "{{ pulp_startup_retries }}"
+      delay: "{{ pulp_startup_delay }}"
+      until: pulp_start_result is succeeded
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for Pulp container to initialize
+      ansible.builtin.pause:
+        seconds: "{{ pulp_init_wait }}"
+
+    - name: Verify Pulp container is running
+      ansible.builtin.command: podman ps --filter name={{ pulp_container_name }} --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: pulp_status_check
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      changed_when: false
+      retries: "{{ pulp_startup_retries }}"
+      delay: "{{ pulp_startup_delay }}"
+      until: "'Up' in pulp_status_check.stdout"
+
+    - name: Display Pulp container status
+      ansible.builtin.debug:
+        msg: "Pulp container status: {{ pulp_status_check.stdout }}"

@@ -26,21 +26,17 @@
     daemon_reload: true
   delegate_to: "{{ current_node_name }}"
 
-# Part 4: Restart crio service
-- name: Restart crio on {{ current_node_name }}
-  ansible.builtin.systemd:
-    name: crio
-    state: restarted
-  delegate_to: "{{ current_node_name }}"
-
-# Part 5: Restart kubelet service
+# Part 4: Restart kubelet service
+# Note: CRI-O was already restarted during the crio_install step.
+# Restarting it again here is redundant and causes unnecessary pod disruption.
+# Only kubelet needs to be restarted to apply the config.yaml and feature gate changes.
 - name: Restart kubelet on {{ current_node_name }}
   ansible.builtin.systemd:
     name: kubelet
     state: restarted
   delegate_to: "{{ current_node_name }}"
 
-# Part 6: Wait for node to become Ready with correct version
+# Part 5: Wait for node to become Ready with correct version
 - name: Wait for node to become Ready
   ansible.builtin.command: >-
     kubectl get node {{ node_ip }}

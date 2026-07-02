@@ -1,0 +1,37 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Backup Pulp PostgreSQL Data Before Upgrade
+#
+# PostgreSQL data must be backed up before upgrade because:
+# - Pulp 3.80 uses PostgreSQL 12/13
+# - Pulp 3.113 uses PostgreSQL 16
+# - PostgreSQL cannot downgrade data files between major versions
+#
+# Without this backup, rollback is not possible.
+# ===========================================================================
+
+- name: Backup Pulp PostgreSQL data
+  pulp_pgsql_backup_restore:
+    action: backup
+    src_path: "{{ pulp_pgsql_path }}"
+    dest_path: "{{ pulp_pgsql_backup_path }}"
+    backup_dir: "{{ pulp_backup_dir }}"
+  register: pulp_backup_result
+
+- name: Display backup result
+  ansible.builtin.debug:
+    msg: "{{ pulp_backup_result.messages | default(['Backup task completed']) }}"

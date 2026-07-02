@@ -121,9 +121,10 @@
     - name: Display k8s cleanup information
       ansible.builtin.debug:
         msg: |
-          WARNING: This will delete K8s-related directories from NFS shares:
+          WARNING: This will delete K8s-related directories and files from NFS shares:
           {% for mount in k8s_storage_mounts %}
           Storage: {{ mount.name }} ({{ mount.mount_point }})
+          Directories:
           {% for item in k8s_static_dirs_stat.results %}
           {% if item.stat.exists and item.item.startswith(mount.mount_point) %}
           - {{ item.item }} ({{ item.item | basename }})
@@ -141,6 +142,10 @@
           {% else %}
           Node IP directories: Skipped (k8s_cleanup_node_ips: false)
           {% endif %}
+          Root-level files:
+          {% for file in k8s_cleanup_files %}
+          - {{ mount.mount_point }}/{{ file }}
+          {% endfor %}
           {% endfor %}
 
           CRITICAL WARNING: Deleting NFS shared data will affect ALL nodes!
@@ -173,19 +178,44 @@
       when: k8s_cleanup_needed | default(false)
       loop: "{{ k8s_all_cleanup_paths }}"
 
+    - name: Delete K8s root-level files
+      ansible.builtin.file:
+        path: "{{ item.0 }}/{{ item.1 }}"
+        state: absent
+      register: k8s_files_cleanup_result
+      when: k8s_cleanup_needed | default(false)
+      loop: "{{ all_k8s_base_paths | product(k8s_cleanup_files) | list }}"
+      loop_control:
+        label: "{{ item.0 }}/{{ item.1 }}"
+      failed_when: false
+
     - name: Display k8s cleanup completion message
       ansible.builtin.debug:
         msg: |
           K8s-related cleanup completed.
           {% for mount in k8s_storage_mounts %}
           Storage: {{ mount.name }} ({{ mount.mount_point }})
-          {% set mount_deleted = k8s_cleanup_result.results | selectattr('item', 'search', '^' + mount.mount_point) | selectattr('changed') | list %}
+          {% set mount_deleted = k8s_cleanup_result.results |
+                                selectattr('item', 'search', '^' + mount.mount_point) |
+                                selectattr('changed') |
+                                list %}
           {% if mount_deleted %}
           {% for item in mount_deleted %}
-          -> Deleted: {{ item.item }}
+          -> Deleted directory: {{ item.item }}
           {% endfor %}
           {% else %}
           -> No directories deleted from this storage
+          {% endif %}
+          {% set mount_files_deleted = k8s_files_cleanup_result.results |
+                                     selectattr('item', 'search', '^' + mount.mount_point) |
+                                     selectattr('changed') |
+                                     list %}
+          {% if mount_files_deleted %}
+          {% for item in mount_files_deleted %}
+          -> Deleted file: {{ item.item }}
+          {% endfor %}
+          {% else %}
+          -> No files deleted from this storage
           {% endif %}
           {% endfor %}
       when: k8s_cleanup_needed | default(false)

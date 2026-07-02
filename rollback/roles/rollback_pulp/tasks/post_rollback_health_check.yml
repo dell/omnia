@@ -1,0 +1,91 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# post_rollback_health_check.yml — Verify Pulp Rollback Success
+#
+# Validates:
+#   1. Pulp container is running with the correct (rolled-back) image
+#   2. Pulp API is accessible and responding
+# Sets pulp_rollback_success flag for cleanup tasks.
+# ============================================================================
+
+- name: Post-rollback health check
+  block:
+    # ── Verify container is running with correct image ────────────────────
+    - name: Get rolled-back Pulp container info
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: pulp_post_info
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify Pulp is running with rolled-back image
+      ansible.builtin.assert:
+        that:
+          - pulp_post_info.containers | length > 0
+          - pulp_post_info.containers[0].State.Status == 'running'
+          - pulp_rollback_tag in (pulp_post_info.containers[0].ImageName | default(''))
+        fail_msg: |
+          Pulp rollback verification failed.
+          Expected image tag: {{ pulp_rollback_tag }}
+          Actual image: {{ pulp_post_info.containers[0].ImageName | default('unknown') }}
+          Container status: {{ pulp_post_info.containers[0].State.Status | default('unknown') }}
+        success_msg: "Pulp container is running with rolled-back image: {{ pulp_post_info.containers[0].ImageName | default('unknown') }}"
+
+    # ── Verify Pulp API is accessible ─────────────────────────────────────
+    - name: Check Pulp API status after rollback
+      ansible.builtin.uri:
+        url: "{{ pulp_status_url }}"
+        method: GET
+        validate_certs: false
+        status_code: [200]
+        return_content: true
+      register: pulp_post_health
+      retries: "{{ pulp_health_retries }}"
+      delay: "{{ pulp_health_delay }}"
+      until: pulp_post_health.status == 200
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display Pulp workers status
+      ansible.builtin.debug:
+        msg: >-
+          Pulp API: healthy (HTTP {{ pulp_post_health.status }}) |
+          Workers: {{ (pulp_post_health.json | default({})).online_workers | default([]) | length }} |
+          Content apps: {{ (pulp_post_health.json | default({})).online_content_apps | default([]) | length }}
+
+    - name: Set rollback success flag
+      ansible.builtin.set_fact:
+        pulp_rollback_success: true
+
+    - name: Display rollback success message
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.pulp.rollback_success }}"
+
+  rescue:
+    - name: Display rollback health check failure
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.pulp.post_check_failure }}"
+
+    - name: Set rollback failure flag
+      ansible.builtin.set_fact:
+        pulp_rollback_failed: true
+
+    - name: Fail with health check error
+      ansible.builtin.fail:
+        msg: "Pulp post-rollback health check failed. Check container logs: podman logs {{ pulp_container_name }}"

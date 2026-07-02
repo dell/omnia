@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# resolve_admin_ip.yml — Resolve Admin NIC IP for Pulp API Health Checks
+# ============================================================================
+# Resolves the admin_nic_ip needed for Pulp API health check endpoints.
+#
+# Resolution order:
+#   1. Primary: Extract from local_repo_access.yml (same as upgrade_k8s)
+#   2. Fallback: Extract from network_spec.yml (same as prepare_oim)
+#   3. Last resort: Use localhost
+#
+# Sets fact:
+#   admin_nic_ip — IP address for Pulp API health checks
+# ============================================================================
+
+- name: Resolve admin NIC IP for Pulp health checks
+  block:
+    # Primary method: Extract from local_repo_access.yml (same as upgrade_k8s)
+    - name: Check if local_repo_access.yml exists
+      ansible.builtin.stat:
+        path: "{{ local_repo_access_path }}"
+      register: local_repo_access_stat
+
+    - name: Load local_repo_access.yml
+      ansible.builtin.slurp:
+        src: "{{ local_repo_access_path }}"
+      register: local_repo_access_raw
+      when: local_repo_access_stat.stat.exists
+
+    - name: Parse local_repo_access.yml
+      ansible.builtin.set_fact:
+        _local_repo_access: "{{ local_repo_access_raw.content | b64decode | from_yaml }}"
+      when: local_repo_access_stat.stat.exists
+
+    - name: Set admin_nic_ip from local_repo_access
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ _local_repo_access.offline_tarball_path | regex_replace('^(https?)://([^:]+):.*', '\\2') }}"
+      when:
+        - local_repo_access_stat.stat.exists
+        - _local_repo_access.offline_tarball_path is defined
+
+    # Fallback method: Extract from network_spec.yml
+    - name: Check if network_spec.yml exists
+      ansible.builtin.stat:
+        path: "{{ network_spec_path }}"
+      register: network_spec_stat
+      when: admin_nic_ip is not defined
+
+    - name: Load network_spec.yml as fallback
+      ansible.builtin.include_vars:
+        file: "{{ network_spec_path }}"
+      when:
+        - admin_nic_ip is not defined
+        - network_spec_stat.stat.exists | default(false)
+
+    # Networks is a list in network_spec.yml, parse it to extract admin_network
+    - name: Parse network_spec data into network_data
+      ansible.builtin.set_fact:
+        network_data: "{{ network_data | default({}) | combine({item.keys() | first: item.values() | first}) }}"
+      loop: "{{ Networks }}"
+      when:
+        - admin_nic_ip is not defined
+        - Networks is defined
+
+    - name: Set admin_nic_ip from network_spec
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+      when:
+        - admin_nic_ip is not defined
+        - network_data is defined
+        - network_data.admin_network is defined
+        - network_data.admin_network.primary_oim_admin_ip is defined
+
+  rescue:
+    - name: Fallback to localhost for admin_nic_ip
+      ansible.builtin.set_fact:
+        admin_nic_ip: "localhost"
+
+- name: Display resolved admin_nic_ip
+  ansible.builtin.debug:
+    msg: "Pulp health checks will use admin_nic_ip: {{ admin_nic_ip }}"

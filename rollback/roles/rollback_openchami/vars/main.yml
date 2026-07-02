@@ -133,7 +133,7 @@ rollback_messages:
       Rollback is not needed. Skipping.
     backup_found: "Backup directory found. Proceeding with rollback."
   permissions:
-    normalized: "Backup and /etc/openchami permissions verified (directories 0755, files 0644)."
+    normalized: "Backup and /etc/openchami permissions and SELinux contexts verified (directories 0755, files 0644, context container_file_t)."
     unfixable: |
       ════════════════════════════════════════════
         OPENCHAMI ROLLBACK BLOCKED — PERMISSION ISSUE
@@ -141,26 +141,31 @@ rollback_messages:
       One or more files/directories in the backup or /etc/openchami could not
       be made readable. The rollback cannot read these to restore them.
 
-      This usually happens on the shared NFS backup path (root_squash) when
-      container-created files carry restrictive ownership/permissions.
+      This usually happens due to:
+        1. SELinux context issues (files need container_file_t context)
+        2. NFS root_squash with restrictive ownership/permissions
 
-      Fix the permissions MANUALLY, then re-run ONLY the OpenCHAMI/OIM rollback:
+      Fix the permissions and SELinux context MANUALLY on the OIM host,
+      then re-run ONLY the OpenCHAMI/OIM rollback:
 
-        On the OIM host (as a user that owns the files, e.g. the NFS owner):
+        On the OIM host (SSH to the OIM, NOT the core container):
+          # Fix permissions
           chmod -R u+rwX,go+rX /etc/openchami
-          chmod -R u+rwX,go+rX {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami
+          chmod -R u+rwX,go+rX {{ rollback_oim_host_backup_dir }}/openchami
 
-        Ensure all directories are 0755 and all files are 0644, and that none
-        are in a permission-denied / immutable state. Then retry:
+          # Fix SELinux context
+          chcon -R system_u:object_r:container_file_t:s0 /etc/openchami
+          chcon -R system_u:object_r:container_file_t:s0 {{ rollback_oim_host_backup_dir }}/openchami
 
+        Then retry from the core container:
           cd /opt/omnia/... && ansible-playbook rollback/rollback.yml --tags oim
 
-      Relevant directories that must be readable:
+      Relevant directories on OIM host that must be readable:
         /etc/openchami, /etc/openchami/configs, /etc/openchami/pg-init
-        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/etc_openchami
-        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/etc_openchami/configs
-        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/etc_openchami/pg-init
-        {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/openchami/postgresql_backup
+        {{ rollback_oim_host_backup_dir }}/openchami/etc_openchami
+        {{ rollback_oim_host_backup_dir }}/openchami/etc_openchami/configs
+        {{ rollback_oim_host_backup_dir }}/openchami/etc_openchami/pg-init
+        {{ rollback_oim_host_backup_dir }}/openchami/postgresql_backup
   restore:
     quadlets_success: "Restored v2.1 quadlet files from backup."
     quadlets_failure: "Failed to restore v2.1 quadlet files."

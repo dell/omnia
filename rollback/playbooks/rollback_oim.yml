@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Rollback OIM (includes OpenCHAMI)
+- name: Rollback OIM (includes Pulp and OpenCHAMI)
   hosts: localhost
   connection: local
   gather_facts: true
@@ -59,7 +59,53 @@
       ansible.builtin.set_fact:
         rollback_backup_dir: "{{ rollback_manifest.backup_dir | default('/opt/omnia/backups/upgrade/version_2.1.0.0') }}"
 
-    # ── Phase 1: OpenCHAMI Rollback ─────────────────────────────────────
+    # ── Phase 1: Pulp Rollback ────────────────────────────────────────────
+    # The rollback_pulp role handles the full lifecycle:
+    #   resolve_admin_ip → pre_rollback_checks → rollback_pulp_container
+    #   → post_rollback_health_check
+    # On failure, the role sets pulp_rollback_failed and raises fail.
+    # On skip (not deployed / already at v2.1), the role completes normally.
+    - name: "Phase 1 — Pulp Rollback"
+      block:
+        - name: Rollback Pulp container
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../roles/rollback_pulp"
+
+        - name: Display Pulp rollback outcome
+          ansible.builtin.debug:
+            msg: >-
+              Pulp Phase 1 result —
+              deployed={{ pulp_deployed | default(false) }},
+              failed={{ pulp_rollback_failed | default(false) }}
+
+      rescue:
+        - name: Re-read rollback_manifest.yml after Pulp failure
+          ansible.builtin.slurp:
+            src: "{{ rollback_manifest_path }}"
+          register: pulp_rescue_raw_rollback_manifest
+
+        - name: Parse current manifest state
+          ansible.builtin.set_fact:
+            pulp_rescue_rollback_manifest: "{{ pulp_rescue_raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+        - name: Pulp rollback failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ pulp_rescue_rollback_manifest | combine({
+                   'component_status': pulp_rescue_rollback_manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+
+        - name: Fail with Pulp rollback error
+          ansible.builtin.fail:
+            msg: >-
+              Pulp rollback failed. Check container logs: podman logs pulp
+              Backup directory: {{ rollback_backup_dir | default('N/A') }}
+
+    # ── Phase 2: OpenCHAMI Rollback ─────────────────────────────────────
     # The rollback_openchami role handles the full lifecycle:
     #   resolve_backup_dir → pre_rollback_checks → stop_current_containers
     #   → restore_quadlets_and_configs → start_postgres_only
@@ -67,7 +113,7 @@
     #   → reload_cloud_init_data → post_rollback_health_check
     # On failure, the role sets openchami_rollback_failed and raises fail.
     # On skip (already at v2.1), the role completes normally.
-    - name: "Phase 1 — OpenCHAMI Rollback"
+    - name: "Phase 2 — OpenCHAMI Rollback"
       block:
         - name: Rollback OpenCHAMI containers and services
           ansible.builtin.include_role:
@@ -76,7 +122,7 @@
         - name: Display OpenCHAMI rollback outcome
           ansible.builtin.debug:
             msg: >-
-              OpenCHAMI Phase 1 result —
+              OpenCHAMI Phase 2 result —
               rollback_needed={{ rollback_needed | default(true) }},
               failed={{ openchami_rollback_failed | default(false) }}
 

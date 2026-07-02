@@ -1,0 +1,100 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Cleanup Pulp Data After Rollback
+#
+# - Triggers Pulp DB orphan cleanup + removes filesystem orphans
+#   via pulp_fs_orphan_cleanup module (reads creds from cli.toml)
+# - Cleans up redundant PG 16 data from backup
+# - Removes temporary files from pgsql directory
+# ===========================================================================
+
+# ── Orphan cleanup (DB-level + filesystem-level) ────────────────────────────
+# Runs inside omnia_core where cli.toml and media directory are accessible.
+# No password arguments — credentials read from /root/.config/pulp/cli.toml.
+- name: Run Pulp orphan cleanup (DB + filesystem)
+  pulp_fs_orphan_cleanup:
+    media_dir: "{{ pulp_data_base_path }}/pulp_storage/media"
+    trigger_db_orphan_cleanup: true
+  register: fs_orphan_result
+  failed_when: false
+
+- name: Display orphan cleanup result
+  ansible.builtin.debug:
+    msg:
+      - "DB orphan cleanup: {{ fs_orphan_result.db_orphan_cleanup_status | default('N/A') }}"
+      - "Disk artifacts: {{ fs_orphan_result.disk_artifact_count | default('N/A') }}"
+      - "DB artifacts: {{ fs_orphan_result.db_artifact_count | default('N/A') }}"
+      - "Orphans removed: {{ fs_orphan_result.removed_count | default(0) }}"
+      - "Space freed: {{ fs_orphan_result.freed_mb | default(0) }} MB"
+
+# ── Clean up backup and temp data ───────────────────────────────────────────
+- name: Clean up backup and temporary PostgreSQL data
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    BACKUP="{{ oim_host_pgsql_backup }}"
+    LIVE="{{ oim_host_pgsql_path }}"
+
+    # Clean backup: remove PG 16 data, rename data_old to data
+    if [ -d "$BACKUP/data" ]; then
+      BK_VER=$(cat "$BACKUP/data/PG_VERSION" 2>/dev/null || echo "unknown")
+      if [ "$BK_VER" != "12" ] && [ "$BK_VER" != "13" ]; then
+        rm -rf "$BACKUP/data"
+        echo "Removed PG $BK_VER data from backup"
+        DATA_OLD=$(find "$BACKUP" -maxdepth 1 -type d -name "data_old.*" 2>/dev/null | head -1)
+        if [ -n "$DATA_OLD" ] && [ -d "$DATA_OLD" ]; then
+          mv "$DATA_OLD" "$BACKUP/data"
+          echo "Renamed $(basename "$DATA_OLD") to data in backup"
+        fi
+      fi
+    fi
+
+    # Clean live pgsql: remove data_old.* and data_pg16* directories
+    find "$LIVE" -maxdepth 1 -type d \( -name "data_old.*" -o -name "data_pg16*" \) -exec rm -rf {} \; 2>/dev/null
+    echo "Cleaned up temporary directories"
+  args:
+    executable: /bin/bash
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  register: cleanup_result
+  changed_when: true
+  failed_when: false
+
+- name: Display cleanup result
+  ansible.builtin.debug:
+    msg: "{{ cleanup_result.stdout_lines | default(['Cleanup completed']) }}"
+
+# ── Report disk usage ──────────────────────────────────────────────────────
+- name: Report disk usage after rollback
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "Pulp storage: $(du -sh {{ oim_host_pulp_data_base }}/pulp_storage 2>/dev/null | cut -f1)"
+    echo "PostgreSQL:   $(du -sh {{ oim_host_pgsql_path }} 2>/dev/null | cut -f1)"
+    echo "Backup:       $(du -sh {{ oim_host_backup_dir }} 2>/dev/null | cut -f1)"
+  args:
+    executable: /bin/bash
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  register: disk_usage_result
+  changed_when: false
+  failed_when: false
+
+- name: Display disk usage
+  ansible.builtin.debug:
+    msg: "{{ disk_usage_result.stdout_lines | default([]) }}"

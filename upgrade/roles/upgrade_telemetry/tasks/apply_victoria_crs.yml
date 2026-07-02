@@ -150,7 +150,7 @@
 - name: Reclaim preserved IPs from conflicting services
   when:
     - preserved_vminsert_ip | default('') | length > 0 or preserved_vmselect_ip | default('') | length > 0
-    - vminsert_lb_ip.stdout | trim | length == 0 or vmselect_lb_ip.stdout | trim | length == 0
+    - (vminsert_lb_ip.stdout | default('') | trim | length == 0) or (vmselect_lb_ip.stdout | default('') | trim | length == 0)
   block:
     - name: Stage IP conflict detection script
       ansible.builtin.template:

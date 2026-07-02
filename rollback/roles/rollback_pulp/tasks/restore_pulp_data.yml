@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Restore Pulp PostgreSQL Data During Rollback
+#
+# Uses the pulp_pgsql_backup_restore module to intelligently restore PG 12/13
+# data from the backup, handling the case where the backup may contain
+# PG 16 data (from the upgrade) with the original PG 12/13 data in
+# a data_old.* directory.
+#
+# Runs inside omnia_core where backup and pgsql paths are accessible
+# via shared NFS storage at /opt/omnia/.
+# ===========================================================================
+
+- name: Restore Pulp PostgreSQL data for rollback
+  pulp_pgsql_backup_restore:
+    action: restore
+    backup_path: "{{ pulp_pgsql_backup_path }}"
+    dest_path: "{{ pulp_pgsql_path }}"
+  register: pgsql_restore_result
+
+- name: Display restore result
+  ansible.builtin.debug:
+    msg:
+      - "Restore mode: {{ pgsql_restore_result.restore_mode }}"
+      - "Backup PG version: {{ pgsql_restore_result.backup_pg_version }}"
+      - "Restored PG version: {{ pgsql_restore_result.restored_pg_version }}"
+      - "{{ pgsql_restore_result.messages | join(', ') }}"

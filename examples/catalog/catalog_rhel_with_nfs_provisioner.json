@@ -67,6 +67,7 @@
           "device-mapper-multipath",
           "doca-ofed",
           "docker.io/alpine/kubectl",
+          "docker.io/apache/activemq",
           "docker.io/calico/cni",
           "docker.io/calico/kube-controllers",
           "docker.io/calico/node",
@@ -79,7 +80,6 @@
           "docker.io/library/mysql",
           "docker.io/library/python",
           "docker.io/nginxinc/nginx-unprivileged",
-          "docker.io/rmohr/activemq",
           "docker.io/timberio/vector",
           "docker.io/victoriametrics/operator",
           "docker.io/victoriametrics/operator_1",
@@ -146,6 +146,7 @@
           "device-mapper-multipath",
           "doca-ofed",
           "docker.io/alpine/kubectl",
+          "docker.io/apache/activemq",
           "docker.io/curlimages/curl",
           "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
           "docker.io/dellhpcomniaaisolution/kafkapump",
@@ -155,7 +156,6 @@
           "docker.io/library/mysql",
           "docker.io/library/python",
           "docker.io/nginxinc/nginx-unprivileged",
-          "docker.io/rmohr/activemq",
           "docker.io/timberio/vector",
           "docker.io/victoriametrics/operator",
           "docker.io/victoriametrics/operator_1",
@@ -566,6 +566,21 @@
         "Tag": "1.35.1",
         "Version": "1.35.1"
       },
+      "docker.io/apache/activemq": {
+        "Name": "docker.io/apache/activemq",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Type": "image",
+        "Tag": "5.19.7",
+        "Version": "5.19.7"
+      },
       "docker.io/calico/cni": {
         "Name": "docker.io/calico/cni",
         "SupportedOS": [
@@ -745,21 +760,6 @@
         "Type": "image",
         "Tag": "1.29",
         "Version": "1.29"
-      },
-      "docker.io/rmohr/activemq": {
-        "Name": "docker.io/rmohr/activemq",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "5.15.9",
-        "Version": "5.15.9"
       },
       "docker.io/timberio/vector": {
         "Name": "docker.io/timberio/vector",
@@ -1735,8 +1735,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.48.0-kafka-4.1.0",
-        "Version": "0.48.0-kafka-4.1.0"
+        "Tag": "1.1.0-kafka-4.3.0",
+        "Version": "1.1.0-kafka-4.3.0"
       },
       "quay.io/strimzi/kafka-bridge": {
         "Name": "quay.io/strimzi/kafka-bridge",
@@ -1750,8 +1750,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.33.1",
-        "Version": "0.33.1"
+        "Tag": "1.0.0",
+        "Version": "1.0.0"
       },
       "quay.io/strimzi/operator": {
         "Name": "quay.io/strimzi/operator",
@@ -1765,8 +1765,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "0.48.0",
-        "Version": "0.48.0"
+        "Tag": "1.1.0",
+        "Version": "1.1.0"
       },
       "registry.k8s.io/coredns/coredns": {
         "Name": "registry.k8s.io/coredns/coredns",
@@ -2057,7 +2057,7 @@
         ]
       },
       "strimzi-kafka-operator-helm-3-chart": {
-        "Name": "strimzi-kafka-operator-helm-3-chart-0.48.0",
+        "Name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
         "SupportedOS": [
           {
             "Name": "RHEL",
@@ -2071,7 +2071,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "Uri": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.48.0/strimzi-kafka-operator-helm-3-chart-0.48.0.tgz"
+            "Uri": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
           }
         ]
       },

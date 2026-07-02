@@ -48,6 +48,9 @@ spec:
     spec:
       volumes:
 {% set types = telemetry_config.telemetry_sources.idrac.collection_targets | default([]) %}
+        - name: activemq-config
+          configMap:
+            name: activemq-config
 {% if 'kafka' in types %}
         # Mount Kafka cluster CA certificate for TLS verification
         - name: kafka-cluster-ca-cert
@@ -139,6 +142,11 @@ spec:
         - name: activemq
           image: {{ activemq_image }}
           imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: activemq-config
+              mountPath: /opt/apache-activemq/conf/activemq.xml
+              subPath: activemq.xml
+              readOnly: true
           resources:
             requests:
               cpu: {{ idrac_telemetry_resources.activemq.requests.cpu }}

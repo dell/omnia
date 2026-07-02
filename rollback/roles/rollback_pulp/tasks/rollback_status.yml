@@ -1,0 +1,52 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# rollback_status.yml — Report Pulp Rollback Status
+# ============================================================================
+# Reports the final status of the Pulp rollback operation.
+# This task runs in the 'always' block to ensure status is reported
+# regardless of success or failure.
+# ============================================================================
+
+- name: Determine final rollback status
+  ansible.builtin.set_fact:
+    pulp_rollback_final_status: >-
+      {{ 'skipped' if not (pulp_deployed | default(false))
+         else ('skipped' if (pulp_already_rolled_back | default(false))
+               else ('failed' if (pulp_rollback_failed | default(false))
+                     else 'completed')) }}
+
+- name: Display Pulp rollback summary
+  ansible.builtin.debug:
+    msg:
+      - "════════════════════════════════════════════════════════════"
+      - "              PULP ROLLBACK STATUS: {{ pulp_rollback_final_status | upper }}"
+      - "════════════════════════════════════════════════════════════"
+      - "Deployed: {{ pulp_deployed | default(false) }}"
+      - "Already at target: {{ pulp_already_rolled_back | default(false) }}"
+      - "Rollback failed: {{ pulp_rollback_failed | default(false) }}"
+      - "Target image: {{ pulp_rollback_image }}"
+      - "════════════════════════════════════════════════════════════"
+
+- name: Display failure message if rollback failed
+  ansible.builtin.debug:
+    msg: "{{ rollback_messages.pulp.rollback_failure }}"
+  when: pulp_rollback_failed | default(false)
+
+- name: Re-raise failure if rollback failed
+  ansible.builtin.fail:
+    msg: "Pulp rollback failed. See above for details."
+  when: pulp_rollback_failed | default(false)

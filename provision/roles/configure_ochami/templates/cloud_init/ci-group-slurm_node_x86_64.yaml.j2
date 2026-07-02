@@ -428,9 +428,7 @@
         # DOCA and IB configuration - now ready before vendor_data mounts
         - bash /usr/local/bin/doca-install.sh || echo "DOCA install failed (non-critical)"
         - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"
-{% if hostvars['localhost']['openmpi_support'] %}
         - bash /usr/local/bin/setup_doca_mpi_env.sh || echo "DOCA MPI environment setup failed (non-critical)"
-{% endif %}
         
 {# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
 {%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
@@ -515,17 +513,15 @@
         - mount -av
 {% endif %}
         # UCX and OpenMPI auto-compilation disabled
-        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 used by default
+        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 configured by default
 {% if hostvars['localhost']['ucx_support'] %}
         - echo "===== UCX Configuration ====="
         - echo "UCX version specified in software_config.json (available for manual compilation)"
         - echo "Default stack - DOCA UCX 1.20.0 (system default)"
 {% endif %}
-{% if hostvars['localhost']['openmpi_support'] %}
         - echo "===== OpenMPI Configuration ====="
         - echo "OpenMPI version specified in software_config.json (available for manual compilation)"
         - echo "Default stack - DOCA OpenMPI 4.1.9a1 (system default)"
-{% endif %}
 
 {% if ldms_support %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
