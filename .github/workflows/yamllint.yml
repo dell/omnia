@@ -52,7 +52,7 @@ jobs:
         run: |
           echo "Running yamllint on:"
           echo "${{ steps.changed-files.outputs.files }}"
-          yamllint -c .yamllint.yml \
+          yamllint -c .yamllint \
             ${{ steps.changed-files.outputs.files }} || \
             yamllint ${{ steps.changed-files.outputs.files }}
 

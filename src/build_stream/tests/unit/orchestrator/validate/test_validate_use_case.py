@@ -231,7 +231,7 @@ class TestValidateUseCaseSuccess:
 
         assert result.job_id == str(job_id)
         assert result.stage_name == "validate"
-        assert result.status == "QUEUED"
+        assert result.status == "accepted"
         assert result.attempt == 1
         assert result.submitted_at.endswith("Z")
         assert result.correlation_id == str(command.correlation_id)
@@ -408,10 +408,10 @@ class TestValidateUseCaseGuards:
         with pytest.raises(InvalidStateTransitionError):
             use_case.execute(command)
 
-    def test_pending_validate_stage_raises_409(
+    def test_pending_validate_stage_allows_retry(
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
-        """Active validate stage (PENDING) raises InvalidStateTransitionError."""
+        """PENDING validate stage is allowed — only IN_PROGRESS blocks."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
@@ -424,8 +424,8 @@ class TestValidateUseCaseGuards:
             job_repo, stage_repo, audit_repo, queue_service, uuid_gen
         )
 
-        with pytest.raises(InvalidStateTransitionError):
-            use_case.execute(command)
+        result = use_case.execute(command)
+        assert result.status == "accepted"
 
 
 class TestValidateUseCaseQueueFailure:

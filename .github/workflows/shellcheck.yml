@@ -51,7 +51,27 @@ jobs:
         if: steps.changed-files.outputs.files != ''
         run: |
           echo "Running ShellCheck on: ${{ steps.changed-files.outputs.files }}"
-          shellcheck ${{ steps.changed-files.outputs.files }}
+          shellcheck -f gcc ${{ steps.changed-files.outputs.files }} > shellcheck_output.txt 2>&1 || true
+          
+          # Compute error and warning counts
+          ERROR_COUNT=$(grep -c "error:" shellcheck_output.txt || echo "0")
+          WARNING_COUNT=$(grep -c "warning:" shellcheck_output.txt || echo "0")
+          
+          echo "## ShellCheck Report"
+          echo "| Category | Count |"
+          echo "|----------|-------|"
+          echo "| Errors   | $ERROR_COUNT |"
+          echo "| Warnings | $WARNING_COUNT |"
+          echo ""
+          
+          # Display the full output
+          cat shellcheck_output.txt
+          
+          # Fail if there are errors
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "ShellCheck found $ERROR_COUNT error(s). Please fix them."
+            exit 1
+          fi
 
       - name: No shell files changed
         if: steps.changed-files.outputs.files == ''

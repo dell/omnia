@@ -51,32 +51,11 @@ jobs:
           echo "Filtered files: $FILES"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Python
-        if: steps.changed-files.outputs.files != ''
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install Ansible and Ansible Lint
-        if: steps.changed-files.outputs.files != ''
-        run: |
-          python -m pip install --upgrade pip
-          pip install ansible-core ansible-lint
-
-      - name: Install Ansible Collections from requirements.yml
-        if: steps.changed-files.outputs.files != ''
-        run: |
-          ansible-galaxy collection install \
-            -r .config/requirements.yml \
-            --force --clear-response-cache
-
       - name: Run ansible-lint on changed files
         if: steps.changed-files.outputs.files != ''
-        run: |
-          echo "Running ansible-lint on:"
-          echo "${{ steps.changed-files.outputs.files }}"
-          ansible-lint --config=.config/ansible-lint.yml \
-            ${{ steps.changed-files.outputs.files }}
+        uses: ansible/ansible-lint@main
+        with:
+          args: --config=.config/ansible-lint.yml ${{ steps.changed-files.outputs.files }}
 
       - name: No Ansible files changed
         if: steps.changed-files.outputs.files == ''
