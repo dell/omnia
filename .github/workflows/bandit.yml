@@ -1,0 +1,69 @@
+---
+name: Bandit Security Scan
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - release_1.7.1
+      - pub/build_stream
+      - pub/q2_dev
+      - pub/telemetry
+      - pub/q2_upgrade
+      - pub/q2_ansible
+      - q3_main
+
+jobs:
+  bandit:
+    name: Bandit Python SAST
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed Python files (excluding deleted)
+        id: changed-files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- '*.py' || true)
+
+          FILES=""
+          for f in $CHANGED; do
+            if [ -f "$f" ]; then
+              # Exclude test files — Bandit SAST is for product code
+              case "$f" in
+                */tests/*|*/test_*|*_test.py) continue ;;
+                *) FILES="$FILES $f" ;;
+              esac
+            fi
+          done
+
+          FILES=$(echo "$FILES" | xargs)
+          echo "Filtered files: $FILES"
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        if: steps.changed-files.outputs.files != ''
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit
+        if: steps.changed-files.outputs.files != ''
+        run: pip install bandit
+
+      - name: Run Bandit on changed files
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          echo "Running Bandit on: ${{ steps.changed-files.outputs.files }}"
+          bandit ${{ steps.changed-files.outputs.files }} -ll -ii -f txt
+
+      - name: No Python product files changed
+        if: steps.changed-files.outputs.files == ''
+        run: |
+          echo "No Python product files changed in this PR."
+          echo "Skipping Bandit."

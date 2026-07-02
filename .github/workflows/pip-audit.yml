@@ -1,0 +1,57 @@
+---
+name: Dependency Vulnerability Scan
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - release_1.7.1
+      - pub/build_stream
+      - pub/q2_dev
+      - pub/telemetry
+      - pub/q2_upgrade
+      - pub/q2_ansible
+      - q3_main
+
+jobs:
+  pip-audit:
+    name: pip-audit Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changed requirements files
+        id: changed-files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- \
+            'src/build_stream/requirements*.txt' || true)
+
+          FILES=$(echo "$CHANGED" | xargs)
+          echo "Changed requirements files: $FILES"
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit build_stream dependencies
+        run: |
+          echo "Auditing src/build_stream/requirements.txt"
+          echo "for known vulnerabilities..."
+          pip-audit -r src/build_stream/requirements.txt \
+            --desc on || true
+          echo ""
+          echo "Auditing src/build_stream/requirements-dev.txt"
+          echo "for known vulnerabilities..."
+          pip-audit -r src/build_stream/requirements-dev.txt \
+            --desc on || true

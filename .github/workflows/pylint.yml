@@ -1,6 +1,7 @@
+---
 name: Pylint
 
-on:
+'on':
   pull_request:
     branches:
       - main
@@ -30,13 +31,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible pylint kubernetes prettytable requests passlib fastapi uvicorn sqlalchemy pytest httpx argon2-cffi pyyaml dependency-injector
+          pip install ansible pylint kubernetes prettytable \
+            requests passlib fastapi uvicorn sqlalchemy pytest \
+            httpx argon2-cffi pyyaml dependency-injector
 
       - name: Get changed Python files (excluding deleted)
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }} HEAD -- '*.py' || true)
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- '*.py' || true)
 
           FILES=""
           for f in $CHANGED; do
@@ -53,15 +57,24 @@ jobs:
       - name: Run pylint on changed files
         if: steps.changed-files.outputs.files != ''
         run: |
-          echo "Running pylint on: ${{ steps.changed-files.outputs.files }}"
-          
+          echo "Running pylint on:"
+          echo "${{ steps.changed-files.outputs.files }}"
+
           # Filter out files from the excluded directory
-          FILES=$(echo "${{ steps.changed-files.outputs.files }}" | tr ' ' '\n' | grep -v '^discovery/roles/telemetry/files/nersc-ldms-aggr/' | xargs)
+          EXCL="^src/playbooks/discovery/roles/"
+          EXCL+="telemetry/files/nersc-ldms-aggr/"
+          FILES=$(echo \
+            "${{ steps.changed-files.outputs.files }}" | \
+            tr ' ' '\n' | \
+            grep -v "$EXCL" | xargs)
 
           if [ -n "$FILES" ]; then
-            # Set PYTHONPATH to include build_stream directory for proper import resolution
-            # This allows pylint to resolve both relative imports in build_stream and regular imports elsewhere
-            PYTHONPATH=.:./build_stream pylint $FILES --fail-under=${PYLINT_THRESHOLD}
+            # Set PYTHONPATH to include build_stream directory
+            # for proper import resolution
+            # This allows pylint to resolve both relative imports
+            # in build_stream and regular imports elsewhere
+            PYTHONPATH=.:./src/build_stream pylint $FILES \
+              --fail-under=${PYLINT_THRESHOLD}
           else
             echo "No files to lint after filtering."
           fi

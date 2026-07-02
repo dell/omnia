@@ -1,0 +1,80 @@
+---
+name: ShellCheck
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - release_1.7.1
+      - pub/build_stream
+      - pub/q2_dev
+      - pub/telemetry
+      - pub/q2_upgrade
+      - pub/q2_ansible
+      - q3_main
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed shell files (excluding deleted and Jinja2 templates)
+        id: changed-files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- \
+            '*.sh' '*.bash' || true)
+
+          FILES=""
+          for f in $CHANGED; do
+            if [ -f "$f" ] && [[ "$f" != *.j2 ]]; then
+              FILES="$FILES $f"
+            fi
+          done
+
+          FILES=$(echo "$FILES" | xargs)
+          echo "Filtered files: $FILES"
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Install ShellCheck
+        if: steps.changed-files.outputs.files != ''
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on changed files
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          echo "Running ShellCheck on: ${{ steps.changed-files.outputs.files }}"
+          shellcheck -f gcc ${{ steps.changed-files.outputs.files }} > shellcheck_output.txt 2>&1 || true
+
+          # Display the full output
+          cat shellcheck_output.txt
+
+          # Compute error and warning counts
+          ERROR_COUNT=$(grep -c "error:" shellcheck_output.txt || echo "0")
+          WARNING_COUNT=$(grep -c "warning:" shellcheck_output.txt || echo "0")
+
+          echo ""
+          echo "## ShellCheck Report"
+          echo "| Category | Count |"
+          echo "|----------|-------|"
+          echo "| Errors   | $ERROR_COUNT |"
+          echo "| Warnings | $WARNING_COUNT |"
+
+          # Fail if there are errors
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "ShellCheck found $ERROR_COUNT error(s). Please fix them."
+            exit 1
+          fi
+
+      - name: No shell files changed
+        if: steps.changed-files.outputs.files == ''
+        run: |
+          echo "No shell files changed in this PR."
+          echo "Skipping ShellCheck."

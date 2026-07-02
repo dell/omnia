@@ -1,0 +1,104 @@
+---
+name: Unit Tests & Coverage
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - release_1.7.1
+      - pub/build_stream
+      - pub/q2_dev
+      - pub/telemetry
+      - pub/q2_upgrade
+      - pub/q2_ansible
+      - q3_main
+
+jobs:
+  test:
+    name: Unit Tests & Coverage
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_THRESHOLD: 70
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changed build_stream files
+        id: changed-files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          # Get all changed Python files in build_stream directory
+          # (including root level)
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD | \
+            grep '^src/build_stream/.*\.py$' || true)
+
+          FILES=$(echo "$CHANGED" | xargs)
+          echo "Changed src/build_stream Python files: $FILES"
+
+          # Debug: show all changed files for troubleshooting
+          echo "All changed files in PR:"
+          git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD || true
+
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        if: steps.changed-files.outputs.files != ''
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/build_stream/requirements.txt
+          pip install -r src/build_stream/requirements-dev.txt
+
+      - name: Run unit tests with coverage
+        if: steps.changed-files.outputs.files != ''
+        working-directory: src/build_stream
+        run: |
+          python -m pytest tests/unit/ -v --tb=short \
+            --junitxml=test-results.xml \
+            --cov=. \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            -m unit
+
+      - name: Check coverage threshold
+        if: steps.changed-files.outputs.files != ''
+        working-directory: src/build_stream
+        run: |
+          python -m pytest tests/unit/ \
+            --cov=. \
+            --cov-fail-under=${COVERAGE_THRESHOLD} \
+            -m unit -q --no-header 2>&1 | tail -5
+          echo "Coverage threshold check: ${COVERAGE_THRESHOLD}% minimum"
+
+      - name: Upload test results
+        if: steps.changed-files.outputs.files != '' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: src/build_stream/test-results.xml
+
+      - name: Upload coverage report
+        if: steps.changed-files.outputs.files != '' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: src/build_stream/coverage.xml
+
+      - name: No build_stream files changed
+        if: steps.changed-files.outputs.files == ''
+        run: |
+          echo "No src/build_stream Python files changed in this PR."
+          echo "Skipping tests."

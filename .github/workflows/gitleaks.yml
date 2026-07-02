@@ -1,0 +1,42 @@
+---
+name: Secret Leak Scan
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - release_1.7.1
+      - pub/build_stream
+      - pub/q2_dev
+      - pub/telemetry
+      - pub/q2_upgrade
+      - pub/q2_ansible
+      - q3_main
+
+jobs:
+  gitleaks:
+    name: Scan for secrets
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks scan using Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/repo \
+            -w /repo \
+            ghcr.io/gitleaks/gitleaks:latest \
+            detect \
+            --source /repo \
+            --config /repo/.github/workflows/.gitleaks.toml \
+            --log-opts="origin/${{ github.base_ref }}..${{ github.sha }}" \
+            --verbose \
+            --no-git
