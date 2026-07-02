@@ -1,0 +1,18 @@
+#!/bin/bash
+MARKER="/var/log/track/slurm_controller_track"
+if [ -f "$MARKER" ]; then
+  echo "Slurm controller track file already exists. Skipping."
+  exit 0
+fi
+
+echo "Waiting for slurmctld to become active..."
+while true; do
+  if systemctl is-active --quiet slurmctld; then
+    echo "Slurm controller is active."
+    touch "$MARKER"
+    exit 0
+  else
+    echo "slurmctld is not active yet. Retrying in 5 seconds."
+  fi
+  sleep 5
+done

@@ -1,0 +1,14 @@
+#!/bin/bash
+LOGFILE="/var/log/configure_munge_and_pam.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "[INFO] ===== Starting Munge key and PAM configuration (aarch64) ====="
+
+echo "[INFO] Setting ownership and permissions for Munge key"
+chown -R {{ munge_user }}:{{ munge_group }} /etc/munge/munge.key
+chmod {{ file_mode_400 }} /etc/munge/munge.key
+
+echo "[INFO] Updating PAM configuration for pam_slurm_adopt in /etc/pam.d/sshd"
+sed -i '/^password\s\+include\s\+password-auth/i account    required    pam_slurm_adopt.so action_no_jobs=deny' /etc/pam.d/sshd
+
+echo "[INFO] ===== Completed Munge key and PAM configuration (aarch64) ====="

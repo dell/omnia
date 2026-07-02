@@ -1,0 +1,5 @@
+chown -R {{ munge_user }}:{{ munge_group }} /etc/munge
+chmod 700 /etc/munge
+chmod {{ file_mode_400 }} /etc/munge/munge.key
+systemctl enable munge
+systemctl start munge

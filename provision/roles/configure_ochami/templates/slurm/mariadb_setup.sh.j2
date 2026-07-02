@@ -1,0 +1,27 @@
+#!/bin/bash
+SLURMDBD_CONF="/etc/slurm/slurmdbd.conf"
+SLURM_USER="{{ slurm_user }}"
+SLURM_GROUP="{{ slurm_user }}"
+# Function to extract value from slurm.conf
+get_value_slurm_conf() {
+    local key="$1"
+    local default="$2"
+    local value
+    value=$(grep -iE "^\s*$key\s*=" "$SLURMDBD_CONF" | sed -E 's/^\s*[^=]+=//; s/#.*//; s/\s+$//')
+    echo "${value:-$default}"
+}
+chown -R {{ mysql_user }}:{{ mysql_group }} /var/lib/mysql
+chown -R {{ slurm_user }}:{{ slurm_user }} /var/log/mariadb
+chown -R {{ slurm_user }}:{{ slurm_user }} /etc/my.cnf.d # Required? why slurm user for my.cnf??
+chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }}
+chmod {{ file_mode_755 }} /etc/my.cnf.d /var/lib/mysql /var/log/mariadb {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }}
+
+#firewall
+systemctl enable firewalld
+systemctl start firewalld
+StoragePort=$(get_value_slurm_conf "StoragePort" "3306")
+firewall-cmd --permanent --add-port="$StoragePort"/tcp
+firewall-cmd --reload
+systemctl enable --now mariadb
+systemctl start mariadb
+mysql -u root < /root/slurm_db_init.sql
