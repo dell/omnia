@@ -151,6 +151,54 @@ def validate_slurm_login_compiler_prefix(pxe_mapping_file_path):
             "Ensure both use the same suffix (_x86_64 or _aarch64)."
         )
 
+def validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, dns_enabled):
+    """
+    Validates that all hostnames in the PXE mapping file follow the NID format
+    (e.g., nid001, nid00001) when dns_enabled is true.
+
+    When DNS is enabled, CoreDNS handles hostname resolution and expects NID-format
+    hostnames. Custom hostnames require /etc/hosts (dns_enabled=false).
+
+    Args:
+        pxe_mapping_file_path (str): Path to the PXE mapping file.
+        dns_enabled (bool): Whether DNS is enabled in provision_config.yml.
+
+    Raises:
+        ValueError: If dns_enabled is true and any hostname does not match the NID format.
+    """
+    if not dns_enabled:
+        return
+
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not hostname_col:
+        return
+
+    nid_re = re.compile(r"^nid\d+$")
+    invalid_hostnames = []
+
+    for row_idx, row in enumerate(reader, start=2):
+        hostname = row.get(hostname_col, "").strip() if row.get(hostname_col) else ""
+        if hostname and not nid_re.match(hostname):
+            invalid_hostnames.append(f"'{hostname}' (row {row_idx})")
+
+    if invalid_hostnames:
+        raise ValueError(
+            f"{en_us_validation_msg.DNS_ENABLED_NON_NID_HOSTNAME_MSG} "
+            f"Invalid hostnames: {', '.join(invalid_hostnames)}"
+        )
+
+
 def validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path):
     """
     Validates that HOSTNAME values in the mapping file are unique.
@@ -1318,6 +1366,10 @@ def validate_provision_config(
             validate_slurm_login_compiler_prefix(pxe_mapping_file_path)
             validate_aarch64_local_path_compatibility(pxe_mapping_file_path)
             validate_functional_groups_software_consistency(pxe_mapping_file_path, software_config_json, logger)
+            dns_enabled = data.get("dns_enabled", False)
+            if isinstance(dns_enabled, str):
+                dns_enabled = dns_enabled.lower() in ("true", "yes", "1")
+            validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, bool(dns_enabled))
 
             # Validate ADMIN_IPs against network_spec.yml subnets (including additional_subnets)
             network_spec_path = create_file_path(input_file_path, file_names["network_spec"])

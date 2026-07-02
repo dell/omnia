@@ -108,13 +108,14 @@
             search {{ domain_name }}
             nameserver {{ admin_nic_ip }}
             options timeout:1 attempts:2
-{% endif %}
+{% else %}
         - path: /etc/hosts
           append: true
           content: |
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
+{% endif %}
         - path: /etc/profile.d/create_scratch.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
