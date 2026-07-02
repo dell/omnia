@@ -8,10 +8,9 @@ name: Ansible Lint
       - staging
       - release_1.7.1
       - pub/build_stream
-      - pub/q2_dev
       - pub/telemetry
       - pub/q2_upgrade
-      - pub/q2_ansible
+      - q3_main
 
 jobs:
   build:

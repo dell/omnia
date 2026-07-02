@@ -1,0 +1,81 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
+auth_service_directories: "{{ omnia_nfs_share }}/auth"
+openldap_tls_certs_directory: "{{ auth_service_directories }}/tls_certs"
+rhel_cert_file: "ldapserver.crt"
+rhel_cert_key: "ldapserver.key"
+openldap_ports:
+  - 389
+  - 636
+wait_time: 10
+auth_service_image_name: omnia_auth
+auth_service_image_tag: "1.1"
+auth_service_registry: "docker.io/dellhpcomniaaisolution"
+auth_service_container_name: omnia_auth
+auth_service_image_pull_fail_msg:
+  - The pull of the auth service image {{ auth_service_image_name }}:{{ auth_service_image_tag }} has failed.
+  - "ERROR: {{ auth_service_image_name }}:{{ auth_service_image_tag }} not found locally or on Docker Hub."
+  - To resolve this, please follow these steps
+  - Build the auth image locally using omnia.sh --build
+  - Or build it directly using src/containers/build_images.sh auth
+auth_service_image_pull_warning_msg: |
+  Failed to pull {{ auth_service_image_name }}:{{ auth_service_image_tag }} from Docker Hub after 3 attempts.
+  This may be due to network issues or the image not being available on Docker Hub.
+  The deployment will continue, but the final image verification will determine if the image is available.
+auth_service_quadlet_mode: "0644"
+
+auth_service_container_success_msg: "The {{ auth_service_container_name }} container has been successfully deployed."
+auth_service_container_failure_msg: |
+  The deployment of the {{ auth_service_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ auth_service_container_name }} container successfully.
+
+# Usage: include_security_config.yml
+security_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/security_config.yml"
+security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
+
+# Usage: configure_slapd_conf.yml
+slapd_conf_dest: "{{ auth_service_directories }}/slapd.conf"
+file_permissions_644: "0644"
+
+# Usage: configure_bootstrap_ldif.yml
+bootstrap_ldif_dest: "{{ auth_service_directories }}/bootstrap.ldif"
+
+# Usage: configure_ldap_conf.yml
+ldap_conf_dest: "{{ auth_service_directories }}/ldap.conf"
+# Common vars
+user_home_dir: "/home"
+file_permission: "0600"
+sasl_nocanon_regxp: "SASL_NOCANON\ton"
+sasl_nacanon_replace1: "SASL_NOCANON\ton\nBASE\t{{ reqd_domain_name }}"
+sasl_nacanon_replace2: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars[groups['auth_server'][0]]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}"
+sasl_nacanon_replace3: "SASL_NOCANON\ton\nTLS_CACERT\t{{ tls_cert_path }}"
+sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars[groups['auth_server'][0]]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}:636"
+file_mode: "0644"
+oim_certs_dir: "/opt/omnia/security/certs/"
+
+# Usage: configure_sssd_conf.yml
+sssd_conf_dest: "{{ auth_service_directories }}/sssd.conf"
+
+# Usage: configure_slapd_conf.yml
+suffix_regexp: "dc=omnia,dc=test"
+db_config_name_regexp: "cn=admin"
+sha_pswd_regexp: "{SSHA}CcEj20AyhrDhWhFGlu01HWnn8eKP1sH3"
+
+# Usage: configure_bootstrap_ldif.yml
+common_name_regexp: "cn: admin"
+domain_component: "dc: omnia"

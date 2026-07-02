@@ -2,6 +2,7 @@
 /docs/build/
 **/__pycache__/
 .venv
+*.pyc
 
 # IDE
 .vscode/
@@ -9,8 +10,21 @@
 # Documentation
 AGENTS.md
 
+# BATS test helpers (installed locally via test/test_helper/install.sh)
+test/test_helper/bats-support/
+test/test_helper/bats-assert/
+
 # BuildStream
-build_stream/MagicMock/
-build_stream/pyproject.toml
-build_stream/tests/demo/demo_client_credentials.json
-build_stream/update_playbook_watcher.sh
+src/build_stream/MagicMock/
+src/build_stream/pyproject.toml
+src/build_stream/tests/demo/demo_client_credentials.json
+src/build_stream/update_playbook_watcher.sh
+
+# RPM build artifacts
+src/rpm_build/**/*.rpm
+src/rpm_build/**/*.tar.gz
+src/rpm_build/**/ovis-code/
+
+# Container build artifacts
+*.tar
+*.img
