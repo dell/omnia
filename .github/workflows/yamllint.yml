@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get changed YAML files (excluding deleted)
+      - name: Get changed YAML files (excluding deleted and Ansible files)
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
@@ -34,7 +34,17 @@ jobs:
 
           FILES=""
           for f in $CHANGED; do
-            if [ -f "$f" ]; then
+            # Exclude Ansible files (playbooks, roles, tasks, handlers, vars, defaults, etc.)
+            if [ -f "$f" ] && \
+               [[ ! "$f" =~ src/playbooks/ ]] && \
+               [[ ! "$f" =~ /roles/ ]] && \
+               [[ ! "$f" =~ /tasks/ ]] && \
+               [[ ! "$f" =~ /handlers/ ]] && \
+               [[ ! "$f" =~ /vars/ ]] && \
+               [[ ! "$f" =~ /defaults/ ]] && \
+               [[ ! "$f" =~ /meta/ ]] && \
+               [[ ! "$f" =~ /group_vars/ ]] && \
+               [[ ! "$f" =~ /host_vars/ ]]; then
               FILES="$FILES $f"
             fi
           done
