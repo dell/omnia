@@ -40,7 +40,7 @@ esac
 
 echo "Detected/Selected architecture: $ARCH_NAME"
 echo
-echo "Start build container. From there: pushd /builds/ovis/ && ../scripts/build_ldms.rockylinux10.bash"
+echo "Start build container. From there: pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash"
 
 if [[ -z "$REPO_URL" && -z "$REPO_NAME" ]]; then
   echo "Warning: SLURM_REPO_URL and SLURM_REPO_NAME must be provided."
@@ -51,7 +51,7 @@ if [[ -z "$REPO_URL" && -z "$REPO_NAME" ]]; then
     rockylinux:10.0 \
     bash -c "
         echo 'Running LDMS build...'
-        pushd /builds/ovis/ && ../scripts/build_ldms.rockylinux10.bash
+        pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash
     "
 else
     podman run -it --rm \
@@ -72,6 +72,6 @@ EOF
         dnf clean all && dnf repolist
 
         echo 'Running LDMS build...'
-        pushd /builds/ovis/ && ../scripts/build_ldms.rockylinux10.bash
+        pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash
     "
 fi

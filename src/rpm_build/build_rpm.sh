@@ -85,13 +85,10 @@ mkdir -p "$DEST_DIR"
 cd "$DEST_DIR"
 
 if [ ! -d "ovis" ]; then
-    echo "Cloning OVIS repository..."
+    echo "Cloning OVIS repository (version $LDMS_VERSION)..."
     git clone --branch v"$LDMS_VERSION" --depth 1 "$REPO_URL"
 else
-    echo "Repository already exists. Updating..."
-    cd ovis
-    git pull origin main
-    cd ..
+    echo "Repository already exists at $DEST_DIR/ovis. Skipping clone."
 fi
 
 # === Step 2: Export LDMS_REPO path ===
