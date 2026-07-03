@@ -1,9 +1,14 @@
 options:
-  layer_type: 'base'
-  name: '{{ ubuntu_x86_64_base_image_name }}'
+  layer_type: base
+  name: '{{ ubuntu_base_compute_image_name }}'
   publish_tags: '{{ ubuntu_tag }}'
-  pkg_manager: 'apt'
-  parent: 'ubuntu:{{ ubuntu_tag }}'
+  pkg_manager: apt
+  parent: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}/{{ ubuntu_x86_64_base_image_name }}:{{ ubuntu_tag }}'
+  registry_opts_pull:
+    - '--tls-verify=false'
+  publish_s3: '{{ s3_endpoint }}'
+  s3_prefix: '{{ group_name }}/{{ ubuntu_base_compute_image_name }}/'
+  s3_bucket: 'boot-images'
   publish_registry: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
   registry_opts_push:
     - '--tls-verify=false'
@@ -24,14 +29,17 @@ repos:
 {% endfor %}
 
 packages:
-  - initramfs-tools
-  - linux-image-generic
-{% for pkg in x86_64_ubuntu_base_image_packages | default([]) %}
+{% for pkg in compute_packages %}
   - {{ pkg }}
 {% endfor %}
 
+{% set command_var = functional_group + '_compute_commands' %}
+{% set commands_list = lookup('vars', command_var, default=[]) %}
 cmds:
-  - cmd: "update-initramfs -c -k all"
-{% for cmd in base_image_commands | default([]) %}
+{% if commands_list | length > 0 %}
+{% for cmd in commands_list %}
   - cmd: "{{ cmd }}"
 {% endfor %}
+{% else %}
+  []
+{% endif %}

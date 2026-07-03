@@ -11,13 +11,17 @@ initrd: "{{ s3_base_url }}/{{ initrd }}"
    and (compute_image_suffix | default('')) != ''
    else "" %}
 {% set img_suffix = naming_suffix | default('') %}
+{% set cluster_os_type = hostvars['localhost']['cluster_os_type'] | default('rhel') %}
 {% set root_image_path =
-  "boot-images/%s/rhel-%s%s%s/rhel%s-rhel-%s%s%s-%s" % (
+  "boot-images/%s/%s-%s%s%s/%s%s-%s-%s%s%s-%s" % (
     functional_group_name,
+    cluster_os_type,
     functional_group_name,
     img_suffix,
     bs_suffix,
+    cluster_os_type,
     hostvars['localhost']['cluster_os_version'],
+    cluster_os_type,
     functional_group_name,
     img_suffix,
     bs_suffix,

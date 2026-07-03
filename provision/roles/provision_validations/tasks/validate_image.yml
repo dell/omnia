@@ -46,7 +46,7 @@
 - name: Build image search pattern for S3 validation
   ansible.builtin.set_fact:
     image_search_pattern: >-
-      rhel-{{ functional_group_name }}{{ naming_suffix }}{{ compute_image_suffix }}
+      {{ hostvars['localhost']['software_config']['cluster_os_type'] | default('rhel') }}-{{ functional_group_name }}{{ naming_suffix }}{{ compute_image_suffix }}
 
 - name: Verify image, kernel and initramfs in S3
   ansible.builtin.shell: |
@@ -56,7 +56,7 @@
     {% if hostvars['localhost']['kernel_version_override'] | default('') | length > 0 %}
     grep "{{ hostvars['localhost']['kernel_version_override'] }}" | \
     {% endif %}
-    grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
+    awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
   register: verify_s3_image
@@ -74,7 +74,7 @@
 - name: Set kernel and initrd variables
   ansible.builtin.set_fact:
     kernel: "{{ verify_s3_image.stdout_lines | select('search', 'vmlinuz') | list | first }}"
-    initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initramfs') | list | first }}"
+    initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initr') | list | first }}"
   when: verify_s3_image.stdout_lines | length > 1
 
 - name: Fail if kernel override did not match any S3 image

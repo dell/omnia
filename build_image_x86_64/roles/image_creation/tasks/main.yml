@@ -31,6 +31,7 @@
 - name: Invoking x86_64 build base image playbook
   ansible.builtin.include_tasks: build_base_image.yml
   tags: base_image
+  when: hostvars['localhost']['software_config']['cluster_os_type'] | default('rhel') == 'rhel'
 
 - name: Invoking x86_64 build ubuntu base image playbook
   ansible.builtin.include_tasks: build_ubuntu_base_image.yml
@@ -41,6 +42,11 @@
   ansible.builtin.include_tasks: build_compute_image.yml
   tags: compute_image
   when: hostvars['localhost']['software_config']['cluster_os_type'] | default('rhel') == 'rhel'
+
+- name: Invoking x86_64 build ubuntu compute image playbooks
+  ansible.builtin.include_tasks: build_ubuntu_compute_image.yml
+  tags: ubuntu_compute_image
+  when: hostvars['localhost']['software_config']['cluster_os_type'] | default('rhel') == 'ubuntu'
 
 - name: Set S3 bucket ACLs for PowerScale backend
   ansible.builtin.include_tasks: set_s3_acl.yml

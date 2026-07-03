@@ -53,10 +53,46 @@
             | list }}
       when: pulp_deb_endpoints.rc == 0 and pulp_deb_endpoints.stdout | default('') | length > 0
 
-    - name: Build ubuntu_x86_64_repos list from pulp deb distributions
+    - name: Fetch pulp deb remotes with distribution info
+      ansible.builtin.command: >
+        pulp deb remote list --field name,distributions,components
+      register: pulp_deb_remotes
+      changed_when: false
+      failed_when: false
+
+    - name: Build apt distribution map from pulp deb remotes
+      ansible.builtin.set_fact:
+        pulp_deb_remote_map: >-
+          {{ (pulp_deb_remotes.stdout | default('[]') | from_json)
+            | items2dict(key_name='name', value_name='distributions') }}
+        pulp_deb_comp_map: >-
+          {{ (pulp_deb_remotes.stdout | default('[]') | from_json)
+            | items2dict(key_name='name', value_name='components') }}
+      when: pulp_deb_remotes.rc == 0 and pulp_deb_remotes.stdout | default('') | length > 0
+
+    - name: Initialize ubuntu_x86_64_repos list
+      ansible.builtin.set_fact:
+        ubuntu_x86_64_repos: []
+
+    - name: Build ubuntu_x86_64_repos list with apt distribution info
       ansible.builtin.set_fact:
         ubuntu_x86_64_repos: >-
-          {{ pulp_x86_64_deb_distributions | default([]) | map('combine', {'gpg': ''}) | list }}
+          {{ ubuntu_x86_64_repos + [
+            item | combine({
+              'gpg': '',
+              'apt_dist': (pulp_deb_remote_map | default({}))[item.name] | default('') | regex_replace('^/$', 'flat-repo'),
+              'apt_comp': ((pulp_deb_comp_map | default({}))[item.name] | default('') | string)
+                | regex_replace('^None$', 'flat-repo-component')
+                | regex_replace('^$', 'flat-repo-component')
+            })
+          ] }}
+      loop: "{{ pulp_x86_64_deb_distributions | default([]) }}"
+      loop_control:
+        loop_var: item
+
+    - name: Filter out repos with no apt_dist (no remote mapping)
+      ansible.builtin.set_fact:
+        ubuntu_x86_64_repos: "{{ ubuntu_x86_64_repos | selectattr('apt_dist', 'ne', '') | list }}"
 
     - name: Debug ubuntu_x86_64_repos
       ansible.builtin.debug:

@@ -723,6 +723,9 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
         show_command = pulp_rpm_commands["check_distribution"] % repo_name
         create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
         update_command = pulp_rpm_commands["update_distribution"] % (repo_name, base_path, repo_name)
+        # Use basepath-only update for deb to avoid repository/publication conflict
+        if cluster_os_type == "ubuntu":
+            update_command = pulp_rpm_commands.get("update_distribution_basepath", update_command) % (repo_name, base_path)
 
         log.info("Processing distribution for repository: '%s', Base path: '%s'", repo_name, base_path)
         # Check if distribution already exists

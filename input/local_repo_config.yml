@@ -219,7 +219,7 @@ user_registry:
 # user_repo_url_x86_64:
 #  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
-  - { url: "http://100.98.68.136/ubuntu-slurm/", gpgkey: "", name: "slurm_custom", apt_distributions: "noble" }
+  - { url: "http://100.98.68.136/ubuntu-slurm/", gpgkey: "", name: "slurm_custom", apt_distributions: "./", apt_components: "" }
 user_repo_url_aarch64:
 #Example:
 # rhel_os_url_x86_64:
@@ -234,9 +234,15 @@ rhel_os_url_aarch64:
 #  - { url: "http://archive.ubuntu.com/ubuntu/dists/plucky/universe/", gpgkey: "", name: "universe"}
 #  - { url: "http://archive.ubuntu.com/ubuntu/dists/plucky/multiverse/", gpgkey: "", name: "multiverse"}
 ubuntu_os_url_x86_64:
-  - { url: "http://archive.ubuntu.com/ubuntu/", gpgkey: "", name: "main"}
+  - { url: "http://archive.ubuntu.com/ubuntu/", gpgkey: "", name: "main", apt_distributions: "plucky", apt_components: "main" }
+  - { url: "http://archive.ubuntu.com/ubuntu/", gpgkey: "", name: "restricted", apt_distributions: "plucky", apt_components: "restricted" }
+  - { url: "http://archive.ubuntu.com/ubuntu/", gpgkey: "", name: "universe", apt_distributions: "plucky", apt_components: "universe" }
+  - { url: "http://archive.ubuntu.com/ubuntu/", gpgkey: "", name: "multiverse", apt_distributions: "plucky", apt_components: "multiverse" }
 ubuntu_os_url_aarch64:
-  - { url: "http://ports.ubuntu.com/ubuntu-ports/", gpgkey: "", name: "main"}
+  - { url: "http://ports.ubuntu.com/ubuntu-ports/", gpgkey: "", name: "main", apt_distributions: "plucky", apt_components: "main" }
+  - { url: "http://ports.ubuntu.com/ubuntu-ports/", gpgkey: "", name: "restricted", apt_distributions: "plucky", apt_components: "restricted" }
+  - { url: "http://ports.ubuntu.com/ubuntu-ports/", gpgkey: "", name: "universe", apt_distributions: "plucky", apt_components: "universe" }
+  - { url: "http://ports.ubuntu.com/ubuntu-ports/", gpgkey: "", name: "multiverse", apt_distributions: "plucky", apt_components: "multiverse" }
 #Example:
 # sles_os_url_x86_64:
 #  - { url: "http://smt.example.com/repo/SUSE/Products/SLE-Module-Basesystem/16/x86_64/", gpgkey: "", name: "basesystem"}
@@ -275,14 +281,16 @@ omnia_repo_url_rhel_aarch64:
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
 omnia_repo_url_ubuntu_x86_64:
   - { url: "https://download.docker.com/linux/ubuntu/", gpgkey: "https://download.docker.com/linux/ubuntu/gpg", name: "docker-ce", apt_distributions: "plucky", apt_components: "stable"}
-  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key", name: "kubernetes-v1-35"}
-  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/Release.key", name: "cri-o-v1-35"}
-  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/3bf863cc.pub", name: "cuda"}
-  - { url: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
+  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key", name: "kubernetes-v1-35", apt_distributions: "./", apt_components: ""}
+  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/Release.key", name: "cri-o-v1-35", apt_distributions: "./", apt_components: ""}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/3bf863cc.pub", name: "cuda", apt_distributions: "./", apt_components: ""}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk", apt_distributions: "./", apt_components: ""}
 omnia_repo_url_ubuntu_aarch64:
   - { url: "https://download.docker.com/linux/ubuntu/", gpgkey: "https://download.docker.com/linux/ubuntu/gpg", name: "docker-ce", apt_distributions: "plucky", apt_components: "stable"}
-  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/sbsa/3bf863cc.pub", name: "cuda"}
-  - { url: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/arm64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"}
+  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key", name: "kubernetes-v1-35", apt_distributions: "./", apt_components: ""}
+  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/Release.key", name: "cri-o-v1-35", apt_distributions: "./", apt_components: ""}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/sbsa/3bf863cc.pub", name: "cuda", apt_distributions: "./", apt_components: ""}
+  - { url: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/arm64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk", apt_distributions: "./", apt_components: ""}
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
 omnia_repo_url_sles_x86_64:
   - { url: "https://download.docker.com/linux/sles/16/x86_64/stable/", gpgkey: "https://download.docker.com/linux/sles/gpg", name: "docker-ce"}

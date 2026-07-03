@@ -52,7 +52,7 @@
 
 - name: Build full Podman image path for x86_64
   ansible.builtin.set_fact:
-    pulp_x86_image: "{{ oim_pxe_ip }}:2225/{{ pulp_x86_64_image_name }}"
+    pulp_x86_image: "{{ pulp_x86_64_image_name if '/' in pulp_x86_64_image_name else oim_pxe_ip + ':2225/' + pulp_x86_64_image_name }}"
 
 - name: Pull and tag x86_64 image
   block:

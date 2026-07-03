@@ -249,6 +249,7 @@ pulp_deb_commands = {
     "publish_repository": "pulp deb publication -t verbatim create --repository %s",
     "distribute_repository": "pulp deb distribution create --name %s  --base-path %s  --repository %s",
     "update_distribution": "pulp deb distribution update --name %s  --base-path %s  --repository %s",
+    "update_distribution_basepath": "pulp deb distribution update --name %s  --base-path %s",
     "create_remote_cert": "pulp deb remote create --name %s --url %s --policy %s --ca-cert %s --client-cert %s --client-key %s",
     "update_remote_cert": "pulp deb remote update --name %s --url %s --policy %s --ca-cert %s --client-cert %s --client-key %s",
     "check_distribution": "pulp deb distribution show --name %s",

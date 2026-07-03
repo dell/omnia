@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-wolfi:1.1"
+pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.1"
 x86_64_local_tag: "x86_64-image-builder/ochami"
 pull_image_retries: "5"
 pull_image_delay: "10"
@@ -35,6 +35,8 @@ ochami_ubuntu_mounts:
   - --user 0 --privileged
   - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/usr/local/share/ca-certificates/pulp_webserver.crt:z
   - -v {{ openchami_work_dir }}/images/{{ ubuntu_x86_64_base_image_name | default('ubuntu-x86_64_base') }}-{{ ubuntu_tag | default('24.04') }}.yaml:/home/builder/config.yaml:z
+  - -v {{ oim_shared_path }}/omnia/openchami/image-builder-installer.py:/usr/local/bin/installer.py:z
+  - -v {{ oim_shared_path }}/omnia/openchami/image-builder-layer.py:/usr/local/bin/layer.py:z
 ochami_compute_mounts:
   - --user 0 --privileged
   - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/usr/local/share/ca-certificates/pulp_webserver.crt:z
@@ -44,7 +46,7 @@ ochami_x86_64_image:
   - --entrypoint /bin/bash
   - "localhost/{{ x86_64_local_tag }}"
 ochami_base_command:
-  - -c 'update-ca-certificates && image-build --config /home/builder/config.yaml --log-level DEBUG'
+  - -c 'cp /usr/local/share/ca-certificates/pulp_webserver.crt /etc/pki/ca-trust/source/anchors/ && update-ca-trust && image-build --config /home/builder/config.yaml --log-level DEBUG'
 
 # build_base_image.yml
 openchami_log_dir: "{{ oim_shared_path }}/omnia/log/openchami"
