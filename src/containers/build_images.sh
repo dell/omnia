@@ -91,7 +91,7 @@ for arg in "$@"; do
 
     param_name="${arg%%=*}"
 
-    if [[ ! " ${VALID_PARAMS[@]} " =~ " ${param_name} " ]]; then
+    if [[ ! " ${VALID_PARAMS[*]} " =~ " ${param_name} " ]]; then
         INVALID_PARAMS+=("$param_name")
     fi
 
@@ -149,10 +149,10 @@ validate_container_params() {
     local allowed_params=("${@:2}")
 
     for param in "${CONTAINER_PARAMS[@]}"; do
-        if [[ " ${COMMON_PARAMS[@]} " =~ " ${param} " ]]; then
+        if [[ " ${COMMON_PARAMS[*]} " =~ " ${param} " ]]; then
             continue
         fi
-        if [[ ! " ${allowed_params[@]} " =~ " ${param} " ]]; then
+        if [[ ! " ${allowed_params[*]} " =~ " ${param} " ]]; then
             echo -e "${RED}Error: Parameter '${param}' is not valid for container '${container}'${NC}"
             echo -e "${YELLOW}Valid parameters for '${container}': ${COMMON_PARAMS[*]} ${allowed_params[*]}${NC}"
             exit 1

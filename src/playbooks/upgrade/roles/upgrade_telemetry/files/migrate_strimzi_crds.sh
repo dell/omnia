@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-#!/bin/bash
+
 # migrate_strimzi_crds.sh — Strimzi CRD major version migration
 #
 # Handles the upgrade from Strimzi 0.x (v1beta2) to 1.x (v1-only).
