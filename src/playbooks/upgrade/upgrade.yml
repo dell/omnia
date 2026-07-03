@@ -453,7 +453,7 @@
 
           ── Omnia Upgrade Execution Plan (in order) ──────────────────
             1. oim           → Upgrade OpenCHAMI control-plane containers
-                               on the Omnia Infrastructure Manager
+                               and Pulp container (3.80 → 3.113) on the OIM
             2. build_stream  → SKIPPED (not enabled in build_stream_config.yml)
             3. local_repo    → Synchronize Omnia 2.2 packages into the
                                local Pulp repository for cluster nodes
@@ -607,7 +607,7 @@
 # Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
 # skips if its component_status is already 'completed')
 # ──────────────────────────────────────────────────────────────────────
-- name: Upgrade OIM tasks (includes OpenCHAMI)
+- name: Upgrade OIM tasks (includes OpenCHAMI and Pulp)
   ansible.builtin.import_playbook: playbooks/upgrade_oim.yml
   tags: [oim]
 

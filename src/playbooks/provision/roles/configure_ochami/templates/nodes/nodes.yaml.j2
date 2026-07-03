@@ -3,7 +3,7 @@ nodes:
 - name: {{ item.value.HOSTNAME }}
   xname: {{ item.value.XNAME }}
   description: {{ item.value.SERVICE_TAG }}
-  nid: {{ loop.index }}
+  nid: {{ item.value.HOSTNAME | regex_replace('^nid0*', '') | int if item.value.HOSTNAME is regex('^nid\\d+$') else loop.index }}
   group: {{ item.value.FUNCTIONAL_GROUP_NAME }}
   bmc_mac: {{ item.value.BMC_MAC }} 
   bmc_ip: {{ item.value.BMC_IP }}

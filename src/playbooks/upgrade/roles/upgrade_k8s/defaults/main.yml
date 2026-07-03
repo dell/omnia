@@ -20,8 +20,10 @@ oim_data_path: "/opt/omnia/.data"
 oim_provision_path: "/opt/omnia/provision"
 tmp_path: "/tmp"
 cluster_os_version: "10.0"
-admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('127.0.0.1') }}"
-admin_nic_cidr: "{{ hostvars['localhost']['admin_nic_cidr'] | default('10.0.0.0/24') }}"
+# admin_nic_ip and admin_nic_cidr are calculated from network_spec.yml in upgrade_k8s.yml playbook
+# Do not use default values here to avoid misconfiguration
+admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+admin_nic_cidr: "{{ hostvars['localhost']['admin_nic_cidr'] }}"
 
 # MinIO S3 for boot images
 minio_ip: "{{ hostvars['localhost']['minio_ip'] | default(admin_nic_ip) }}"

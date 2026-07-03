@@ -1,0 +1,58 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Cleanup After Pulp Upgrade
+#
+# - Runs Pulp orphan cleanup to reclaim disk space
+#   via pulp_fs_orphan_cleanup module (reads creds from cli.toml)
+# - Reports disk usage
+# NOTE: Backup directory is preserved for rollback.
+# ===========================================================================
+
+# Runs inside omnia_core where cli.toml and media directory are accessible.
+# No password arguments — credentials read from /root/.config/pulp/cli.toml.
+- name: Run Pulp orphan cleanup after upgrade
+  pulp_fs_orphan_cleanup:
+    media_dir: "{{ pulp_data_base_path }}/pulp_storage/media"
+    trigger_db_orphan_cleanup: true
+  register: orphan_result
+  failed_when: false
+
+- name: Display orphan cleanup result
+  ansible.builtin.debug:
+    msg:
+      - "DB orphan cleanup: {{ orphan_result.db_orphan_cleanup_status | default('N/A') }}"
+      - "Orphans removed: {{ orphan_result.removed_count | default(0) }}"
+      - "Space freed: {{ orphan_result.freed_mb | default(0) }} MB"
+
+- name: Report disk usage after upgrade
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "Pulp storage: $(du -sh {{ oim_host_pulp_data_base }}/pulp_storage 2>/dev/null | cut -f1)"
+    echo "PostgreSQL:   $(du -sh {{ oim_host_pgsql_path }} 2>/dev/null | cut -f1)"
+    echo "Backup:       $(du -sh {{ oim_host_backup_dir }} 2>/dev/null | cut -f1)"
+  args:
+    executable: /bin/bash
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  register: disk_usage_result
+  changed_when: false
+  failed_when: false
+
+- name: Display disk usage
+  ansible.builtin.debug:
+    msg: "{{ disk_usage_result.stdout_lines | default([]) }}"

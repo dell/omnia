@@ -45,10 +45,10 @@ openchami_aarch64_base_image_log_path: "{{ oim_shared_path }}/omnia/log/opencham
 openchami_base_image_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
 base_image_failure_msg: |
   Base aarch64 image build job failed or timed out.
-  Check logs at path {{ openchami_aarch64_base_image_log_path }} for details.
+  Check logs at path {{ openchami_aarch64_base_image_log_path }} on OIM host for details.
 compute_image_failure_msg: |
   aarch64 compute image build job did not complete successfully.
-  Check logs at {{ openchami_log_dir }} for respective functional group for more details.
+  Check logs at {{ openchami_log_dir }} on OIM host for respective functional group for more details.
 
 # build_compute_image.yml - image-build config template
 openchami_compute_image_config_template: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"

@@ -171,6 +171,14 @@
   when: item.skip_when is not defined or not item.skip_when | bool
   tags: telemetry_deployment
 
+- name: Populate ActiveMQ ConfigMap
+  ansible.builtin.template:
+    src: 'telemetry/idrac_telemetry/activemq-config.yaml.j2'
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/activemq-config.yaml"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
+  tags: telemetry_deployment
+
 - name: Populate iDRAC telemetry statefulset
   ansible.builtin.template:
     src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'

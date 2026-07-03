@@ -885,6 +885,15 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
 )
 
+# DNS hostname validation messages
+DNS_ENABLED_NON_NID_HOSTNAME_MSG = (
+    "When dns_enabled is true in provision_config.yml, all hostnames in the PXE mapping file "
+    "must follow the NID format (e.g., nid001, nid00001). "
+    "Custom hostnames are not supported with DNS enabled. "
+    "Either set dns_enabled to false to use custom hostnames with /etc/hosts, "
+    "or update the hostnames to use the NID format."
+)
+
 # CSM Observability - Unsupported metrics validation messages
 def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
     """Returns error message when unsupported CSM metrics components are enabled."""

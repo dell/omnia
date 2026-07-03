@@ -24,7 +24,7 @@
     container_images: >-
       {{ container_images + [
           'docker.io/library/mysql:' + mysql_tag,
-          'docker.io/rmohr/activemq:' + activemq_tag,
+          'docker.io/apache/activemq:' + activemq_tag,
           'docker.io/library/golang:' + golang_tag,
           'docker.io/prom/prometheus:' + prometheus_tag
         ] }}
