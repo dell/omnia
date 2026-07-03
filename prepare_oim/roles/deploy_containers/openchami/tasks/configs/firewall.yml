@@ -33,7 +33,7 @@
     state: enabled
   loop: "{{ udp_ports }}"
 
-- name: Open DNS port for CoreDNS (when dns_enabled)
+- name: Open DNS port for CoreDNS
   ansible.posix.firewalld:
     port: "{{ item }}"
     permanent: true
@@ -41,7 +41,6 @@
   loop:
     - 53/tcp
     - 53/udp
-  when: dns_enabled | default(false) | bool
 
 - name: Add Podman interfaces to trusted zone
   ansible.posix.firewalld:
