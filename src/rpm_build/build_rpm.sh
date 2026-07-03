@@ -23,7 +23,7 @@ print_usage() {
 
 SLURM_REPO_URL=""
 SLURM_REPO_NAME=""
-LDMS_VERSION="4.5.2"
+LDMS_VERSION="4.5.1"
 # Parse command-line option for LDMS version
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -96,18 +96,17 @@ export LDMS_REPO="$DEST_DIR/ovis"
 echo "LDMS_REPO set to $LDMS_REPO"
 
 # === Step 3: Start container build script ===
-# Change into working  directory
-if [ -d "$TARGET_DIR" ]; then
-    cd "$TARGET_DIR"
-    echo "Changed into $TARGET_DIR"
-else
-    echo "Directory $TARGET_DIR does not exist."
+# Verify target directory exists
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "Error: Directory $TARGET_DIR does not exist."
+    exit 1
 fi
+
 echo "Starting container build..."
 if [[ -n "$SLURM_REPO_URL" && -n "$SLURM_REPO_NAME" ]]; then
     echo "Starting container build with SLURM_REPO_URL=$SLURM_REPO_URL and SLURM_REPO_NAME=$SLURM_REPO_NAME"
-    bash "./start_build_container.rockylinux10.bash" "$SLURM_REPO_URL" "$SLURM_REPO_NAME"
+    bash "$TARGET_DIR/start_build_container.rockylinux10.bash" "$SLURM_REPO_URL" "$SLURM_REPO_NAME"
 else
-    echo "Warning: Starting container build without SLURM "
-    bash "./start_build_container.rockylinux10.bash"
+    echo "Warning: Starting container build without SLURM"
+    bash "$TARGET_DIR/start_build_container.rockylinux10.bash"
 fi
