@@ -14,8 +14,9 @@
 
 """Shared fixtures for Catalog Roles API tests."""
 
+# pylint: disable=import-outside-toplevel,unused-import,unused-argument,redefined-outer-name,protected-access
+
 import os
-from pathlib import Path
 from typing import Dict
 
 import pytest
