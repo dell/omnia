@@ -12,44 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for Local Repository API integration tests."""
+"""Shared fixtures for Validate API tests."""
 
 import os
 from pathlib import Path
 from typing import Dict
 
 import pytest
+
 from fastapi.testclient import TestClient
 from api.dependencies import verify_token
 
-from main import app
 from infra.id_generator import UUIDv4Generator
+from core.jobs.value_objects import StageState
 
 
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""
     os.environ["ENV"] = "dev"
+    # Use file-based SQLite database for these tests
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
 
-    import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
-    import importlib  # pylint: disable=import-outside-toplevel
-
-    config_module.db_config = config_module.DatabaseConfig()
-
-    import infra.db.session  # pylint: disable=import-outside-toplevel
-    importlib.reload(infra.db.session)
-    session_module = infra.db.session
-
-    from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
-    engine = create_engine(db_url)
-    session_module._engine = engine  # pylint: disable=protected-access
-    session_module._session_factory = None  # pylint: disable=protected-access
-
-    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
-    Base.metadata.create_all(engine)
+    # Import app after setting DATABASE_URL
+    from main import app
 
     def mock_verify_token():
         return {
@@ -60,18 +48,30 @@ def client(tmp_path):
 
     app.dependency_overrides[verify_token] = mock_verify_token
 
+    # Create database tables before starting test client
+    from infra.db.models import Base
+    import infra.db.config as config_module
+    import importlib
+
+    # Refresh db_config to pick up new DATABASE_URL
+    config_module.db_config = config_module.DatabaseConfig()
+
+    # Re-import session module to pick up new db_config
+    import infra.db.session
+    importlib.reload(infra.db.session)
+    session_module = infra.db.session
+
+    from sqlalchemy import create_engine
+    engine = create_engine(db_url)
+    session_module._engine = engine
+    session_module._session_factory = None
+    Base.metadata.create_all(engine)
+
     with TestClient(app) as test_client:
         yield test_client
 
     # Cleanup
     app.dependency_overrides.clear()
-
-
-@pytest.fixture(scope="function")
-def unauth_client():
-    """Create test client without auth mock for testing real auth behaviour."""
-    os.environ["ENV"] = "dev"
-    return TestClient(app)
 
 
 @pytest.fixture(name="uuid_generator")
@@ -106,6 +106,38 @@ def created_job(client, auth_headers) -> str:
 
 
 @pytest.fixture
+def job_with_completed_restart(client, auth_headers, created_job, monkeypatch) -> str:
+    """Create a job with a completed restart stage."""
+    from core.jobs.entities import Stage
+    from core.jobs.value_objects import JobId, StageName, StageType
+
+    # Mock the stage repository to return a completed restart stage
+    def mock_find_by_job_and_name(self, job_id, stage_name):
+        # Handle JobId objects or string job_id
+        job_id_str = str(job_id)
+
+        if stage_name.value == StageType.RESTART.value:
+            stage = Stage(
+                job_id=JobId(job_id_str),
+                stage_name=StageName(StageType.RESTART.value),
+                stage_state=StageState.COMPLETED,
+                attempt=1
+            )
+            return stage
+        return None
+
+    # Apply the mock - in dev mode, it uses container's stage repository
+    from container import container
+    monkeypatch.setattr(
+        container.stage_repository().__class__,
+        "find_by_job_and_name",
+        mock_find_by_job_and_name
+    )
+
+    return created_job
+
+
+@pytest.fixture
 def nfs_queue_dir(tmp_path):
     """Create temporary NFS queue directory structure."""
     requests_dir = tmp_path / "requests"
@@ -119,18 +151,3 @@ def nfs_queue_dir(tmp_path):
     processing_dir.mkdir(parents=True)
 
     return tmp_path
-
-
-@pytest.fixture
-def input_dir(tmp_path):
-    """Create temporary input directory with sample files."""
-    base = tmp_path / "build_stream"
-    return base
-
-
-def setup_input_files(input_dir_path: Path, job_id: str) -> Path:
-    """Create input files for a given job_id."""
-    job_input = input_dir_path / job_id / "input"
-    job_input.mkdir(parents=True, exist_ok=True)
-    (job_input / "config.json").write_text('{"cluster_os": "rhel9.2"}')
-    return job_input

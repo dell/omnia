@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared pytest fixtures for Build Stream API tests.
-
-Note: This conftest is for mock-based unit/integration tests.
-E2E integration tests use tests/integration/conftest.py which does not
-import the app directly (it runs the server as a subprocess).
-"""
+"""Shared pytest fixtures for Build Stream API tests."""
 
 # pylint: disable=redefined-outer-name,global-statement,import-outside-toplevel,protected-access
 
@@ -342,8 +337,9 @@ def generate_invalid_client_id() -> str:
 
 def generate_invalid_client_secret() -> str:
     """Generate an invalid client secret for testing.
-    
+
     Returns:
         Invalid client secret string (too short).
     """
     return "short"
+

@@ -46,7 +46,7 @@ import diff_input_configs  # noqa: E402  pylint: disable=wrong-import-position
 
 # ── Paths ──────────────────────────────────────────────────────────────
 
-# tests/integration/core/catalog -> build_stream root (4 levels up)
+# tests/unit/core/catalog -> build_stream root (4 levels up)
 _BUILD_STREAM_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 # build_stream root -> omnia repo root (examples is a sibling of build_stream)
 _REPO_ROOT = os.path.dirname(_BUILD_STREAM_ROOT)

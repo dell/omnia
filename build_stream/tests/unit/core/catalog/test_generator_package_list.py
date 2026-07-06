@@ -40,7 +40,7 @@ class TestGetPackageList(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.base_dir = os.path.dirname(__file__)
-        # Calculate path to fixtures: tests/integration/core/catalog -> core/catalog/test_fixtures
+        # Calculate path to fixtures: tests/unit/core/catalog -> core/catalog/test_fixtures
         self.fixture_path = os.path.abspath(
             os.path.join(self.base_dir, "..", "..", "..", "..", "core", "catalog", "test_fixtures", "functional_layer.json")
         )

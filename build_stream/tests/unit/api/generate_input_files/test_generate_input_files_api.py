@@ -50,8 +50,37 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         from infra.db.models import Base  # pylint: disable=import-outside-toplevel
         Base.metadata.create_all(engine)
 
+        # Mock auth to accept "Bearer test-token"
+        from fastapi import Depends, HTTPException, status
+        from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+        from api.dependencies import verify_token
+
+        _bearer = HTTPBearer(auto_error=False)
+
+        def _mock_verify_token(
+            credentials: Depends = Depends(_bearer),
+        ):
+            """Mock verify_token that accepts test-token."""
+            if credentials is None or not credentials.credentials:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={"error": "missing_token", "error_description": "Authorization header is required"},
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            token = credentials.credentials
+            return {
+                "client_id": token,
+                "client_name": token,
+                "scopes": ["job:write", "job:read", "catalog:read", "catalog:write"],
+                "token_id": "test-token-id",
+            }
+
+        app.dependency_overrides[verify_token] = _mock_verify_token
+
         with TestClient(app) as client:
             yield client
+
+        app.dependency_overrides.clear()
 
     @pytest.fixture
     def auth_headers(self, mock_jwt_validation) -> Dict[str, str]:  # pylint: disable=unused-argument

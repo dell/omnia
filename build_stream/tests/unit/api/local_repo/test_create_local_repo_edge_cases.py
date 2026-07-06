@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.integration.api.local_repo.conftest import setup_input_files
+from tests.unit.api.local_repo.conftest import setup_input_files
 
 
 class TestCreateLocalRepoEdgeCases:

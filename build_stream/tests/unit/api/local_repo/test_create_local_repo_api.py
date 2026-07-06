@@ -16,7 +16,7 @@
 
 from unittest.mock import patch
 
-from tests.integration.api.local_repo.conftest import setup_input_files
+from tests.unit.api.local_repo.conftest import setup_input_files
 
 
 class TestCreateLocalRepoSuccess:

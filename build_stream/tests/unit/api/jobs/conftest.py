@@ -12,37 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for ParseCatalog API integration tests."""
+"""Shared fixtures for Jobs API tests."""
 
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 import pytest
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.testclient import TestClient
 
+from main import app
+from api.dependencies import verify_token
 from infra.id_generator import UUIDv4Generator
+
+_bearer = HTTPBearer(auto_error=False)
+
+
+def _mock_verify_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+):
+    """Mock verify_token that uses the token value as client_id."""
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "missing_token", "error_description": "Authorization header is required"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = credentials.credentials
+    return {
+        "client_id": token,
+        "client_name": token,
+        "scopes": ["job:write", "job:read"],
+        "token_id": "test-token-id",
+    }
 
 
 @pytest.fixture(scope="function")
 def client(tmp_path):
-    """Create test client with fresh container for each test."""
+    """Create test client with mocked JWT auth and fresh DB for each test."""
     os.environ["ENV"] = "dev"
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
 
-    from main import app  # pylint: disable=import-outside-toplevel
-
-    def mock_verify_token():
-        return {
-            "sub": "test-client-123",
-            "client_id": "test-client-123",
-            "scopes": ["job:write", "job:read", "catalog:read"]
-        }
-
-    from api.dependencies import verify_token  # pylint: disable=import-outside-toplevel
-    app.dependency_overrides[verify_token] = mock_verify_token
-
-    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
     import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
     import importlib  # pylint: disable=import-outside-toplevel
 
@@ -56,13 +69,20 @@ def client(tmp_path):
     engine = create_engine(db_url)
     session_module._engine = engine  # pylint: disable=protected-access
     session_module._session_factory = None  # pylint: disable=protected-access
+
+    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
     Base.metadata.create_all(engine)
 
-    from fastapi.testclient import TestClient  # pylint: disable=import-outside-toplevel
-    with TestClient(app) as test_client:
-        yield test_client
-
+    app.dependency_overrides[verify_token] = _mock_verify_token
+    test_client = TestClient(app)
+    yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def unauth_client():
+    """Create test client without auth mock for testing real auth behaviour."""
+    return TestClient(app)
 
 
 @pytest.fixture(name="uuid_generator")
@@ -71,8 +91,8 @@ def uuid_generator_fixture():
     return UUIDv4Generator()
 
 
-@pytest.fixture(name="auth_headers")
-def auth_headers_fixture(uuid_generator) -> Dict[str, str]:
+@pytest.fixture
+def auth_headers(uuid_generator) -> Dict[str, str]:
     """Standard authentication headers for testing."""
     return {
         "Authorization": "Bearer test-client-123",
@@ -82,15 +102,12 @@ def auth_headers_fixture(uuid_generator) -> Dict[str, str]:
 
 
 @pytest.fixture
-def unique_correlation_id(uuid_generator) -> str:
-    """Generate unique correlation ID for each test."""
-    return str(uuid_generator.generate())
+def unique_idempotency_key(uuid_generator) -> str:
+    """Generate unique idempotency key for each test."""
+    return f"test-key-{uuid_generator.generate()}"
 
 
 @pytest.fixture
-def created_job(client, auth_headers) -> str:
-    """Create a job and return its job_id."""
-    payload = {"client_id": "test-client-123", "client_name": "test-client"}
-    response = client.post("/api/v1/jobs", json=payload, headers=auth_headers)
-    assert response.status_code == 201
-    return response.json()["job_id"]
+def unique_correlation_id(uuid_generator) -> str:
+    """Generate unique correlation ID for each test."""
+    return str(uuid_generator.generate())

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for Restart API integration tests."""
+"""Shared fixtures for Generate Input Files API tests."""
 
 import os
 from typing import Dict
@@ -20,32 +20,43 @@ from typing import Dict
 import pytest
 
 
+@pytest.fixture
+def mock_jwt_validation():
+    """Mock JWT validation fixture for generate_input_files tests."""
+    return True
+
+
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""
     os.environ["ENV"] = "dev"
+    # Use file-based SQLite database for these tests
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
 
+    # Import app after setting DATABASE_URL
     from main import app
 
     def mock_verify_token():
         return {
             "sub": "test-client-123",
             "client_id": "test-client-123",
-            "scopes": ["job:write", "job:read"]
+            "scopes": ["job:write", "job:read", "catalog:read", "catalog:write"]
         }
 
     from api.dependencies import verify_token
     app.dependency_overrides[verify_token] = mock_verify_token
 
+    # Create database tables before starting test client
     from infra.db.models import Base
     import infra.db.config as config_module
     import importlib
 
+    # Refresh db_config to pick up new DATABASE_URL
     config_module.db_config = config_module.DatabaseConfig()
 
+    # Re-import session module to pick up new db_config
     import infra.db.session
     importlib.reload(infra.db.session)
     session_module = infra.db.session
@@ -60,6 +71,7 @@ def client(tmp_path):
     with TestClient(app) as test_client:
         yield test_client
 
+    # Cleanup
     app.dependency_overrides.clear()
 
 
@@ -81,38 +93,15 @@ def auth_headers_fixture(uuid_generator) -> Dict[str, str]:
 
 
 @pytest.fixture
+def unique_correlation_id(uuid_generator) -> str:
+    """Generate unique correlation ID for each test."""
+    return str(uuid_generator.generate())
+
+
+@pytest.fixture
 def created_job(client, auth_headers) -> str:
     """Create a job and return its job_id."""
     payload = {"client_id": "test-client-123", "client_name": "test-client"}
     response = client.post("/api/v1/jobs", json=payload, headers=auth_headers)
     assert response.status_code == 201
     return response.json()["job_id"]
-
-
-@pytest.fixture
-def job_with_pending_restart(client, auth_headers, created_job, monkeypatch) -> str:
-    """Create a job with a PENDING restart stage."""
-    from core.jobs.entities import Stage
-    from core.jobs.value_objects import JobId, StageName, StageState, StageType
-
-    def mock_find_by_job_and_name(self, job_id, stage_name):
-        job_id_str = str(job_id)
-
-        if stage_name.value == StageType.RESTART.value:
-            stage = Stage(
-                job_id=JobId(job_id_str),
-                stage_name=StageName(StageType.RESTART.value),
-                stage_state=StageState.PENDING,
-                attempt=1
-            )
-            return stage
-        return None
-
-    from container import container
-    monkeypatch.setattr(
-        container.stage_repository().__class__,
-        "find_by_job_and_name",
-        mock_find_by_job_and_name
-    )
-
-    return created_job

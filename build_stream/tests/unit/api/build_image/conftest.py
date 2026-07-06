@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for Generate Input Files API integration tests."""
+"""Shared fixtures for Build Image API tests."""
 
 import os
 from pathlib import Path
@@ -20,16 +20,16 @@ from typing import Dict
 
 import pytest
 
-# Use file-based SQLite database for integration tests
+# Use file-based SQLite database for these tests
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""
     os.environ["ENV"] = "dev"
-    # Use file-based SQLite database for integration tests
+    # Use file-based SQLite database for these tests
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
-    
+
     # Import app after setting DATABASE_URL
     from main import app
 
@@ -37,31 +37,31 @@ def client(tmp_path):
         return {
             "sub": "test-client-123",
             "client_id": "test-client-123",
-            "scopes": ["job:write", "job:read", "catalog:read", "catalog:write"]
+            "scopes": ["job:write", "job:read"]
         }
 
     from api.dependencies import verify_token
     app.dependency_overrides[verify_token] = mock_verify_token
-    
+
     # Create database tables before starting test client
     from infra.db.models import Base
     import infra.db.config as config_module
     import importlib
-    
+
     # Refresh db_config to pick up new DATABASE_URL
     config_module.db_config = config_module.DatabaseConfig()
-    
+
     # Re-import session module to pick up new db_config
     import infra.db.session
     importlib.reload(infra.db.session)
     session_module = infra.db.session
-    
+
     from sqlalchemy import create_engine
     engine = create_engine(db_url)
     session_module._engine = engine
     session_module._session_factory = None
     Base.metadata.create_all(engine)
-    
+
     from fastapi.testclient import TestClient
     with TestClient(app) as test_client:
         yield test_client
@@ -100,3 +100,51 @@ def created_job(client, auth_headers) -> str:
     response = client.post("/api/v1/jobs", json=payload, headers=auth_headers)
     assert response.status_code == 201
     return response.json()["job_id"]
+
+
+@pytest.fixture
+def job_with_completed_parse_catalog(client, auth_headers, created_job, monkeypatch) -> str:
+    """Create a job with a completed create-local-repository stage."""
+    from core.jobs.entities import Stage
+    from core.jobs.value_objects import JobId, StageName, StageState, StageType
+
+    # Mock the stage repository to return a completed create-local-repository stage
+    def mock_find_by_job_and_name(self, job_id, stage_name):
+        # Handle JobId objects or string job_id
+        job_id_str = str(job_id)
+
+        if stage_name.value == StageType.CREATE_LOCAL_REPOSITORY.value:
+            stage = Stage(
+                job_id=JobId(job_id_str),
+                stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
+                stage_state=StageState.COMPLETED,
+                attempt=1
+            )
+            return stage
+        elif stage_name.value == StageType.BUILD_IMAGE_X86_64.value:
+            stage = Stage(
+                job_id=JobId(job_id_str),
+                stage_name=StageName(StageType.BUILD_IMAGE_X86_64.value),
+                stage_state=StageState.PENDING,
+                attempt=1
+            )
+            return stage
+        elif stage_name.value == StageType.BUILD_IMAGE_AARCH64.value:
+            stage = Stage(
+                job_id=JobId(job_id_str),
+                stage_name=StageName(StageType.BUILD_IMAGE_AARCH64.value),
+                stage_state=StageState.PENDING,
+                attempt=1
+            )
+            return stage
+        return None
+
+    # Apply the mock - in dev mode, it uses container's stage repository
+    from container import container
+    monkeypatch.setattr(
+        container.stage_repository().__class__,
+        "find_by_job_and_name",
+        mock_find_by_job_and_name
+    )
+
+    return created_job
