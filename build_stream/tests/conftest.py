@@ -14,7 +14,7 @@
 
 """Shared pytest fixtures for Build Stream API tests."""
 
-# pylint: disable=redefined-outer-name,global-statement,import-outside-toplevel,protected-access,wrong-import-position
+# pylint: disable=redefined-outer-name,global-statement,import-outside-toplevel,protected-access,wrong-import-position,import-error
 
 import base64
 import os
@@ -37,7 +37,7 @@ sys.modules['sqlalchemy.dialects.postgresql'].JSONB = _sa_JSON
 
 # Patch infra.db.session engine creation for SQLite compatibility
 # SQLite does not support pool_size/max_overflow parameters
-import infra.db.session as _db_session_mod  # noqa: E402 pylint: disable=wrong-import-position
+import infra.db.session as _db_session_mod  # noqa: E402 pylint: disable=wrong-import-position,ungrouped-imports
 from sqlalchemy import create_engine as _sa_create_engine, event as _sa_event  # noqa: E402 pylint: disable=wrong-import-position
 
 _sqlite_engine = _sa_create_engine("sqlite:///:memory:", echo=False)
@@ -62,19 +62,19 @@ else:
     if not hasattr(jwt.exceptions, 'DecodeError'):
         jwt.exceptions.DecodeError = jwt.exceptions.JWTDecodeError
     if not hasattr(jwt.exceptions, 'ExpiredSignatureError'):
-        class ExpiredSignatureError(jwt.exceptions.JWTDecodeError):
+        class ExpiredSignatureError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
             """Alias for expired signature errors."""
         jwt.exceptions.ExpiredSignatureError = ExpiredSignatureError
     if not hasattr(jwt.exceptions, 'InvalidAudienceError'):
-        class InvalidAudienceError(jwt.exceptions.JWTDecodeError):
+        class InvalidAudienceError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
             """Alias for invalid audience errors."""
         jwt.exceptions.InvalidAudienceError = InvalidAudienceError
     if not hasattr(jwt.exceptions, 'InvalidIssuerError'):
-        class InvalidIssuerError(jwt.exceptions.JWTDecodeError):
+        class InvalidIssuerError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
             """Alias for invalid issuer errors."""
         jwt.exceptions.InvalidIssuerError = InvalidIssuerError
     if not hasattr(jwt.exceptions, 'InvalidSignatureError'):
-        class InvalidSignatureError(jwt.exceptions.JWTDecodeError):
+        class InvalidSignatureError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
             """Alias for invalid signature errors."""
         jwt.exceptions.InvalidSignatureError = InvalidSignatureError
 

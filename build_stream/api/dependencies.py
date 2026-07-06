@@ -18,6 +18,7 @@ This module provides all FastAPI dependencies including authentication,
 authorization, database sessions, repositories, and domain-specific use cases.
 """
 
+# pylint: disable=import-error,too-many-locals,broad-exception-caught,wrong-import-position,line-too-long,trailing-whitespace
 import os
 from typing import Annotated, Generator
 
@@ -165,7 +166,8 @@ def require_scope(required_scope: str):
                 },
             )
 
-        log_secure_info('info', f"Scope validation passed for client: {token_data["client_id"][:8] + "..."}, scope: {required_scope}")
+        client_id_short = token_data["client_id"][:8] + "..."
+        log_secure_info('info', f'Scope validation passed for client: {client_id_short}, scope: {required_scope}')
         return token_data
 
     return scope_dependency

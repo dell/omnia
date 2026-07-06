@@ -14,14 +14,12 @@
 
 """Performance tests for Local Repository API."""
 
+# pylint: disable=import-outside-toplevel,too-many-arguments,too-many-positional-arguments,too-many-locals,unused-argument,import-error,no-else-return,line-too-long,unused-import
+
 import time
-import uuid
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-
-from tests.unit.api.local_repo.conftest import setup_input_files
 
 # Import fixtures needed for performance tests
 pytest_plugins = ["tests.unit.api.local_repo.conftest"]
