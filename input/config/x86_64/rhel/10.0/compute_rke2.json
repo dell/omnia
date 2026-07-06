@@ -2,10 +2,10 @@
   "compute_rke2": {
     "cluster": [
       { "package": "docker.io/library/busybox", "type": "image", "tag": "1.36" },
-      { "package": "firewalld", "type": "rpm", "repo_name": "x86_64_baseos" },
-      { "package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos" },
-      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
-      { "package": "vim", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "firewalld", "type": "rpm", "repo_name": "baseos" },
+      { "package": "python3-firewall", "type": "rpm", "repo_name": "baseos" },
+      { "package": "git", "type": "rpm", "repo_name": "appstream"},
+      { "package": "vim", "type": "rpm", "repo_name": "appstream"},
       { "package": "rke2-server", "type": "rpm", "repo_name": "rke2" },
       { "package": "rke2-agent", "type": "rpm", "repo_name": "rke2" },
       { "package": "rke2-common", "type": "rpm", "repo_name": "rke2" },
@@ -24,8 +24,8 @@
       { "package": "ghcr.io/kube-vip/kube-vip", "tag": "v0.8.9", "type": "image" },
       { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
       { "package": "prettytable==3.14.0", "type": "pip_module" },
-      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
-      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "python3.12", "type": "rpm", "repo_name": "appstream" },
+      { "package": "git", "type": "rpm", "repo_name": "appstream"},
       { "package": "kubernetes==33.1.0", "type": "pip_module" }
     ]
   },
@@ -41,8 +41,8 @@
       { "package": "helm-v3.19.0-amd64", "type": "tarball", "url": "https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz" },
       { "package": "nfs-subdir-external-provisioner-4.0.18", "type": "tarball", "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz" },
       { "package": "prettytable==3.14.0", "type": "pip_module" },
-      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
-      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "python3.12", "type": "rpm", "repo_name": "appstream" },
+      { "package": "git", "type": "rpm", "repo_name": "appstream"},
       { "package": "kubernetes==33.1.0", "type": "pip_module" }
     ]
   },
