@@ -156,7 +156,7 @@ def require_scope(required_scope: str):
             HTTPException: If required scope is not present.
         """
         if required_scope not in token_data["scopes"]:
-            log_secure_info('warning', f"Access denied - missing required scope: {required_scope} (client: {token_data["client_id"][:8] + "..."})")
+            log_secure_info('warning', f'Access denied - missing required scope: {required_scope} (client: {token_data["client_id"][:8] + "..."})')
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
