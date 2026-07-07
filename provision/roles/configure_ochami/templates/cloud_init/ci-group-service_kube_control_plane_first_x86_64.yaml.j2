@@ -341,6 +341,13 @@
               ipAddressPools:
               - first-pool
 
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
+        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ pv_entry.content | indent(12) }}
+{% endfor %}
+
       runcmd:
         - /usr/local/bin/set-ssh.sh
         - "systemctl enable chronyd"
