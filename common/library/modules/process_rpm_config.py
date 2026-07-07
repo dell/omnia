@@ -761,19 +761,21 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
     finally:
         log.info("Completed distribution creation/update for repository '%s'", repo.get("package", "unknown"))
 
-def get_base_urls(log):
+def get_base_urls(log, cluster_os_type="rhel"):
     """
-    Fetch all distributions from Pulp RPM distribution.
+    Fetch all distributions from Pulp RPM/deb distribution.
 
     Args:
         log (logging.Logger): Logger instance for logging the process and errors.
+        cluster_os_type (str): The cluster OS type ('rhel' or 'ubuntu').
 
     Returns:
         list: A list of dictionaries containing the base URLs and names of all distributions.
               Returns an empty list if there is an error.
     """
 
-    command = ['pulp', 'rpm', 'distribution', 'list', '--field', 'base_url,name']
+    dist_type = 'deb' if cluster_os_type == 'ubuntu' else 'rpm'
+    command = ['pulp', dist_type, 'distribution', 'list', '--field', 'base_url,name']
     log.info(f"Executing command: {' '.join(command)}")
 
     result = subprocess.run(command,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
@@ -797,19 +799,23 @@ def get_base_urls(log):
 
     return distributions
 
-def create_yum_repo_file(distributions, log):
+def create_yum_repo_file(distributions, log, cluster_os_type="rhel"):
     """
-    Creates a new 'pulp.repo' file in /etc/yum.repos.d and adds multiple repositories.
+    Creates a new repo file for the package manager (yum.repos.d for RHEL, sources.list.d for Ubuntu).
 
     Args:
         distributions (list): A list of dictionaries containing the base URLs and names of all distributions.
         log (logging.Logger): Logger instance for logging the process and errors.
+        cluster_os_type (str): The cluster OS type ('rhel' or 'ubuntu').
 
     Returns:
         None
     """
     try:
-        repo_file_path = "/etc/yum.repos.d/pulp.repo"
+        if cluster_os_type == "ubuntu":
+            repo_file_path = "/etc/apt/sources.list.d/pulp.list"
+        else:
+            repo_file_path = "/etc/yum.repos.d/pulp.repo"
         log.info(f"Target repo file path: {repo_file_path}")
 
         # Validate input
@@ -829,7 +835,10 @@ def create_yum_repo_file(distributions, log):
         for distribution in distributions:
             repo_name = distribution["name"]
             base_url = distribution["base_url"]
-            repo_entry = f"""
+            if cluster_os_type == "ubuntu":
+                repo_entry = f"deb [trusted=yes] {base_url} ./"
+            else:
+                repo_entry = f"""
 [{repo_name}]
 name={repo_name} repo
 baseurl={base_url}
@@ -839,16 +848,16 @@ gpgcheck=0
             repo_content += repo_entry.strip() + "\n\n"
 
         # Write all repositories at once
-        log.info("Writing all repository entries to pulp.repo file")
+        log.info("Writing all repository entries to repo file")
         with open(repo_file_path, 'w', encoding='utf-8') as repo_file:
             repo_file.write(repo_content.strip() + "\n")
 
         log.info(f"Created {repo_file_path} with {len(distributions)} repositories")
 
     except PermissionError:
-        log.error("Permission denied while writing to /etc/yum.repos.d/. Run with elevated privileges.")
+        log.error(f"Permission denied while writing to {repo_file_path}. Run with elevated privileges.")
     except Exception as e:
-        log.error(f"Unexpected error while creating YUM repo file: {e}")
+        log.error(f"Unexpected error while creating repo file: {e}")
 
 def validate_resync_repos(resync_repos, rpm_config, log):
     """
@@ -1492,13 +1501,13 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     # and local_repo.yml runs again with already-synced repos.
     # Distributions must exist before we can fetch base_urls.
     log.info("Step 6: Ensuring pulp.repo file exists")
-    base_urls = get_base_urls(log)
+    base_urls = get_base_urls(log, cluster_os_type)
     if not base_urls:
         log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
         return False, "Base URLs fetch failed — repo file not created."
 
     log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
-    create_yum_repo_file(base_urls, log)
+    create_yum_repo_file(base_urls, log, cluster_os_type)
     log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
 
     # Return appropriate success message based on resync_repos and skip status
