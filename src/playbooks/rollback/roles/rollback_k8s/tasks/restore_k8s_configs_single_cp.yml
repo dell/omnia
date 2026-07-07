@@ -114,6 +114,15 @@
           Backup archive: {{ k8s_config_backup_dir }}/{{ _cp_node }}/k8s-config.tar.gz
       when: not (_admin_conf.stat.exists and _ca_crt.stat.exists)
 
+    # ── Fix kubelet.conf to point to VIP instead of node IP ────────
+    - name: Ensure kubelet.conf points to kube-vip on {{ _cp_node }}
+      ansible.builtin.replace:
+        path: /etc/kubernetes/kubelet.conf
+        regexp: 'server: https://{{ node_ips[_cp_node] }}:6443'
+        replace: 'server: https://{{ kube_vip }}:6443'
+      delegate_to: "{{ _cp_node }}"
+      when: node_ips[_cp_node] is defined
+
     # ── Update per-node status ─────────────────────────────────────
     - name: Mark restore_k8s_configs completed for {{ _cp_node }}
       ansible.builtin.include_tasks:

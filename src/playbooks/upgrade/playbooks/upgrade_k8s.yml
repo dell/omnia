@@ -31,7 +31,7 @@
   tasks:
     - name: "Load upgrade_vars.yml for supported versions"
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../../../common/vars/upgrade_vars.yml"
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
 
     - name: "Load software_config.json"
       ansible.builtin.slurp:
@@ -118,7 +118,7 @@
 
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../../../common/vars/upgrade_vars.yml"
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
 
     - name: "Extract K8s target version from upgrade configuration"
       ansible.builtin.set_fact:
@@ -366,7 +366,7 @@
 
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../../../common/vars/upgrade_vars.yml"
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
 
     - name: Set k8s_from_version from kube_vip
       ansible.builtin.set_fact:
@@ -411,7 +411,7 @@
 
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../../../common/vars/upgrade_vars.yml"
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
 
     - name: "Get current cluster version"
       ansible.builtin.command: /usr/bin/kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}'
@@ -1328,6 +1328,21 @@
       ansible.builtin.set_fact:
         admin_nic_ip: "{{ pulp_server_ip }}"
 
+    - name: Load network_spec.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/network_spec.yml"
+
+    - name: Parse network_spec data
+      ansible.builtin.set_fact:
+        network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+      with_dict: "{{ Networks }}"
+
+    - name: Set admin network variables
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+        admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
+        admin_nic_cidr: "{{ (network_data.admin_network.subnet + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
+
     - name: Set cluster OS version
       ansible.builtin.set_fact:
         cluster_os_version: "{{ _software_config.cluster_os_version }}"
@@ -1347,7 +1362,7 @@
 
     - name: Load upgrade_vars.yml
       ansible.builtin.slurp:
-        path: "{{ playbook_dir }}/../../../common/vars/upgrade_vars.yml"
+        path: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
       register: _upgrade_config_slurp
 
     - name: Parse upgrade_vars.yml
@@ -1647,7 +1662,7 @@
 
     - name: Load upgrade_vars.yml
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../../../common/vars/upgrade_vars.yml"
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
 
     - name: Set k8s_target_version
       ansible.builtin.set_fact:

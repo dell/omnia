@@ -18,6 +18,14 @@
 # the split-brain and cleans up stale VIP addresses so only the
 # rightful lease holder owns the VIP.
 
+# ── Set default _stale_vip_nodes if fix_vip already completed ─────
+# This ensures _stale_vip_nodes variable is always defined, even when
+# fix_vip stage is skipped because it's already completed.
+- name: Set default _stale_vip_nodes when fix_vip already completed
+  ansible.builtin.set_fact:
+    _stale_vip_nodes: []
+  when: (rollback_status.stages.fix_vip.status | default('pending')) == 'completed'
+
 - name: Skip fix_vip if already completed
   ansible.builtin.debug:
     msg: "fix_vip already completed — skipping."

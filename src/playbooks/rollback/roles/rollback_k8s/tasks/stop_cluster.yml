@@ -18,6 +18,14 @@
 #   2. Non-leader CPs
 #   3. VIP leader last (keeps API accessible as long as possible)
 
+# ── Set default cp_shutdown_order if stop_cluster already completed ─────
+# This ensures cp_shutdown_order variable is always defined, even when
+# stop_cluster stage is skipped because it's already completed.
+- name: Set default cp_shutdown_order when stop_cluster already completed
+  ansible.builtin.set_fact:
+    cp_shutdown_order: "{{ all_cp_nodes }}"
+  when: (rollback_status.stages.stop_cluster.status | default('pending')) == 'completed'
+
 - name: Skip stop_cluster if already completed
   ansible.builtin.debug:
     msg: "stop_cluster already completed — skipping."

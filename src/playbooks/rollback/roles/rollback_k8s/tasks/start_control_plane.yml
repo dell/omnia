@@ -68,11 +68,32 @@
       loop_control:
         label: "{{ item }}"
 
+    # ── Wait for static pods to be recreated ───────────────────────
+    # After kubelet restart, static pods need time to be recreated.
+    # This is especially important when /etc/kubernetes is on NFS.
+    - name: Wait for static pods to initialize
+      ansible.builtin.pause:
+        seconds: 15
+
     # ── Wait for API server to be fully responsive ─────────────────
     # Use --server to bypass kube_vip (VIP may not be up yet)
+    # Check /healthz?exclude=etcd first to ensure API server is up,
+    # then verify full health including etcd connectivity.
     - name: Wait for API server on first CP
-      ansible.builtin.command:
-        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get --raw /healthz
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          HEALTH=$(curl -sk https://{{ first_cp_ip }}:6443/healthz 2>/dev/null)
+          if [ "$HEALTH" = "ok" ]; then
+            echo "ok"
+            exit 0
+          else
+            echo "$HEALTH" | grep -q '\-\]etcd failed' && exit 1
+            echo "$HEALTH"
+            exit 1
+          fi
+      args:
+        executable: /bin/bash
       delegate_to: "{{ groups_cp_first | first }}"
       register: _api_health
       changed_when: false
@@ -80,10 +101,10 @@
       delay: "{{ apiserver_wait_delay }}"
       until:
         - _api_health.rc == 0
-        - "'ok' in _api_health.stdout"
+        - _api_health.stdout == 'ok'
 
     # ── Wait for each CP node to become Ready ──────────────────────
-    - name: Wait for node {{ item }} to be Ready at {{ k8s_rollback_version }} version  # noqa:name[template]
+    - name: Wait for control plane nodes to be Ready at rollback version
       ansible.builtin.command: >-
         kubectl --server=https://{{ first_cp_ip }}:6443
         get node {{ node_ips[item] }}

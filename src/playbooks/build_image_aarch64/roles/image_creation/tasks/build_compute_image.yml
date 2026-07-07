@@ -127,7 +127,7 @@
       ansible.builtin.set_fact:
         failure_msg_list:
           - "aarch64 compute image build job did not complete successfully."
-          - "Check logs at {{ oim_shared_path }}/omnia/log/openchami for respective functional group for more details."
+          - "Check logs at {{ oim_shared_path }}/omnia/log/openchami on OIM host for respective functional group for more details."
           - ""
           - "Failed images:"
 
@@ -138,7 +138,7 @@
 
     - name: Add log paths section to message
       ansible.builtin.set_fact:
-        failure_msg_list: "{{ failure_msg_list + ['', 'Check logs at ' + openchami_log_dir + ' for details:'] }}"
+        failure_msg_list: "{{ failure_msg_list + ['', 'Check logs at ' + openchami_log_dir + ' on OIM host for details:'] }}"
 
     - name: Add log file paths to message
       ansible.builtin.set_fact:

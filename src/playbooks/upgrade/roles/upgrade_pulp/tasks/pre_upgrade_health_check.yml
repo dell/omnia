@@ -1,0 +1,100 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Pulp Pre-Upgrade Health Check
+#
+# Verifies:
+#   1. Pulp container exists and is deployed
+#   2. Current Pulp version (to determine if upgrade is needed)
+#   3. Pulp API is accessible
+# ===========================================================================
+
+- name: Check if Pulp container exists
+  ansible.builtin.command: podman container exists {{ pulp_container_name }}
+  register: pulp_exists_check
+  changed_when: false
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+- name: Set Pulp deployment status
+  ansible.builtin.set_fact:
+    pulp_deployed: "{{ pulp_exists_check.rc == 0 }}"
+
+- name: Display Pulp not deployed message
+  ansible.builtin.debug:
+    msg: "{{ upgrade_messages.pulp.not_deployed }}"
+  when: not pulp_deployed
+
+- name: Get current Pulp container info
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: pulp_pre_info
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  when: pulp_deployed
+
+- name: Extract current Pulp image version
+  ansible.builtin.set_fact:
+    pulp_current_image: "{{ pulp_pre_info.containers[0].ImageName | default('unknown') }}"
+    pulp_current_status: "{{ pulp_pre_info.containers[0].State.Status | default('unknown') }}"
+  when:
+    - pulp_deployed
+    - pulp_pre_info.containers | length > 0
+
+- name: Display current Pulp version
+  ansible.builtin.debug:
+    msg: "Current Pulp image: {{ pulp_current_image | default('not found') }}, Status: {{ pulp_current_status | default('unknown') }}"
+  when: pulp_deployed
+
+- name: Check if Pulp is already at target version
+  ansible.builtin.set_fact:
+    pulp_upgrade_needed: "{{ (pulp_target_image | default('')) not in ((pulp_current_image | default('')) | string) }}"
+  when: pulp_deployed
+
+- name: Display skip message if already at target version
+  ansible.builtin.debug:
+    msg: "{{ upgrade_messages.pulp.already_upgraded }}"
+  when:
+    - pulp_deployed
+    - not (pulp_upgrade_needed | default(true))
+
+- name: Check Pulp API status before upgrade
+  ansible.builtin.uri:
+    url: "{{ pulp_status_url }}"
+    method: GET
+    validate_certs: false
+    status_code: [200]
+  register: pulp_pre_health
+  retries: 3
+  delay: 5
+  until: pulp_pre_health.status == 200
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  failed_when: false
+  when:
+    - pulp_deployed
+    - pulp_upgrade_needed | default(true)
+
+- name: Display Pulp pre-upgrade health status
+  ansible.builtin.debug:
+    msg: "Pulp API status: {{ 'healthy (HTTP 200)' if pulp_pre_health.status | default(0) == 200 else 'not accessible (will attempt upgrade anyway)' }}"
+  when:
+    - pulp_deployed
+    - pulp_upgrade_needed | default(true)

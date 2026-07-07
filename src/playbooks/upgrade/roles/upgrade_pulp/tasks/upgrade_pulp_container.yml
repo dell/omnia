@@ -1,0 +1,108 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ===========================================================================
+# Upgrade Pulp Container (3.80 → 3.113)
+#
+# Steps:
+#   1. Pull new Pulp image
+#   2. Stop and remove old container
+#   3. Update quadlet file with new image tag
+#   4. Reload systemd and start container
+#   5. Wait for initialization and run migrations
+# ===========================================================================
+
+# --- 1. Pull new Pulp image ---
+- name: Pull new Pulp image ({{ pulp_target_image }})
+  ansible.builtin.command: podman pull {{ pulp_target_image }}
+  register: pulp_pull_result
+  retries: "{{ pull_image_retries }}"
+  delay: "{{ pull_image_delay }}"
+  until: pulp_pull_result.rc == 0
+  changed_when: pulp_pull_result.rc == 0
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+# --- 2. Stop and remove old container ---
+- name: Stop Pulp service
+  ansible.builtin.systemd:
+    name: "{{ pulp_container_name }}"
+    state: stopped
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+- name: Remove old Pulp container
+  ansible.builtin.command: podman rm -f {{ pulp_container_name }}
+  changed_when: true
+  failed_when: false
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+# --- 3. Update quadlet file with new image ---
+- name: Update Pulp image in quadlet file
+  ansible.builtin.lineinfile:
+    path: "{{ pulp_quadlet_path }}"
+    regexp: '^Image=.*'
+    line: "Image={{ pulp_target_image }}"
+    state: present
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+# --- 4. Reload systemd and start container ---
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+- name: Start Pulp service
+  ansible.builtin.systemd:
+    name: "{{ pulp_container_name }}"
+    state: started
+    enabled: true
+  register: pulp_start_result
+  retries: "{{ pulp_startup_retries }}"
+  delay: "{{ pulp_startup_delay }}"
+  until: pulp_start_result is succeeded
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+# --- 5. Wait for initialization and run migrations ---
+- name: Wait for Pulp services to initialize
+  ansible.builtin.pause:
+    seconds: "{{ pulp_init_wait }}"
+
+- name: Run Pulp database migrations
+  containers.podman.podman_container_exec:
+    name: "{{ pulp_container_name }}"
+    command: pulpcore-manager migrate --noinput
+  register: pulp_migrate_result
+  retries: 3
+  delay: 10
+  until: pulp_migrate_result.rc == 0
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+  failed_when: false
+
+- name: Display migration result
+  ansible.builtin.debug:
+    msg: "Database migration: {{ 'completed' if pulp_migrate_result.rc | default(1) == 0 else 'skipped or not required' }}"

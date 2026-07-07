@@ -1,0 +1,120 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# rollback_pulp — Variables
+# ============================================================================
+# Rollback target: Pulp 3.80 (from Pulp 3.113)
+# Reverses the upgrade performed by upgrade_pulp role.
+# ============================================================================
+
+# File permissions
+dir_permissions_755: "0755"
+file_permissions_644: "0644"
+
+# Manifest path for locating backup directory
+manifest_path: "/opt/omnia/.data/upgrade_manifest.yml"
+
+# Default backup directory (must match upgrade_pulp)
+rollback_backup_dir_default: "/opt/omnia/backups/upgrade/version_2.1.0.0"
+
+# Pulp container settings
+pulp_container_name: "pulp"
+pulp_rollback_tag: "3.80"
+pulp_rollback_image: "docker.io/pulp/pulp:{{ pulp_rollback_tag }}"
+
+# Pulp quadlet file path
+pulp_quadlet_path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+
+# OIM metadata (for resolving host-side shared storage paths)
+oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
+
+# Paths for resolving admin_nic_ip
+local_repo_access_path: "/opt/omnia/provision/local_repo_access.yml"
+network_spec_path: "{{ input_project_dir | default('/opt/omnia/input') }}/network_spec.yml"
+
+# Pulp API endpoint for health checks
+pulp_protocol: "https"
+pulp_port: "2225"
+pulp_status_url: "{{ pulp_protocol }}://{{ admin_nic_ip | default('localhost') }}:{{ pulp_port }}/pulp/api/v3/status/"
+
+# Image pull settings
+pull_image_retries: 5
+pull_image_delay: 10
+
+# Pulp startup and health check settings
+pulp_startup_retries: 10
+pulp_startup_delay: 10
+pulp_init_wait: 30
+pulp_health_retries: 12
+pulp_health_delay: 10
+
+# Backup sub-paths (relative to rollback_backup_dir)
+backup_pulp_subpath: "pulp"
+backup_pulp_quadlet_subpath: "pulp/quadlet"
+backup_pulp_image_tag_subpath: "pulp/image_tag.txt"
+
+# Pulp shared storage paths (OIM container paths)
+# These paths are inside the OIM container and mounted as volumes in the Pulp container
+pulp_data_base_path: "/opt/omnia/pulp/settings"
+pulp_pgsql_path: "{{ pulp_data_base_path }}/pgsql"
+
+# PostgreSQL backup paths
+# PostgreSQL data must be restored during rollback because:
+# - Pulp 3.80 uses PostgreSQL 12/13
+# - Pulp 3.113 uses PostgreSQL 16
+# - PostgreSQL cannot downgrade data files between major versions
+pulp_backup_dir: "/opt/omnia/backups/upgrade/version_2.1.0.0/pulp"
+pulp_pgsql_backup_path: "{{ pulp_backup_dir }}/pgsql"
+
+# Rollback messages
+rollback_messages:
+  pulp:
+    not_deployed: |
+      Pulp container is not deployed on the OIM. Skipping Pulp rollback.
+    no_backup: |
+      FATAL: Pulp backup not found at {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_pulp_subpath }}.
+      Cannot rollback without a valid backup.
+    already_v21: |
+      Pulp is already at v2.1 version ({{ pulp_rollback_image }}). Skipping rollback.
+    backup_found: "Pulp backup found. Proceeding with rollback."
+    rollback_success: |
+      ════════════════════════════════════════════════════════════
+                    PULP ROLLBACK COMPLETED SUCCESSFULLY
+      ════════════════════════════════════════════════════════════
+        Previous image: {{ pulp_current_image | default('unknown') }}
+        Rolled back to: {{ pulp_rollback_image }}
+        Container:      {{ pulp_container_name }}
+        Status:         running
+        API endpoint:   {{ pulp_status_url }}
+      ════════════════════════════════════════════════════════════
+    rollback_failure: |
+      ════════════════════════════════════════════════════════════
+                         PULP ROLLBACK FAILED
+      ════════════════════════════════════════════════════════════
+        Target image: {{ pulp_rollback_image }}
+
+        Please check:
+          - Pulp container logs: podman logs {{ pulp_container_name }}
+          - Pulp service status: systemctl status {{ pulp_container_name }}
+          - Shared storage accessibility
+      ════════════════════════════════════════════════════════════
+    pre_check_failure: |
+      Pulp pre-rollback check failed.
+      Please verify Pulp container state before attempting rollback.
+    post_check_failure: |
+      Pulp post-rollback health check failed.
+      The rolled-back Pulp container may not be functioning correctly.
+      Check container logs: podman logs {{ pulp_container_name }}

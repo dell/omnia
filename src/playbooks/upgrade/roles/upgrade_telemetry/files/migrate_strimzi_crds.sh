@@ -1,0 +1,117 @@
+#!/bin/bash
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# migrate_strimzi_crds.sh — Strimzi CRD major version migration
+#
+# Handles the upgrade from Strimzi 0.x (v1beta2) to 1.x (v1-only).
+# Strimzi 1.0.x completely dropped the v1beta2 API. Kubernetes
+# cannot remove a served version when objects stored in that version
+# still exist in etcd. This script:
+#
+#   1. Detects whether migration is needed
+#   2. Temporarily re-enables v1beta2 on CRDs so stuck CRs are readable
+#   3. Deletes existing Kafka CRs (they will be recreated by telemetry.sh)
+#   4. Deletes old PVCs (new cluster ID makes old data incompatible)
+#   5. Removes CRDs (handles stuck cleanup finalizers)
+#
+# telemetry.sh then recreates CRDs + CRs from the new chart.
+# This script is fully idempotent — it is a no-op when CRDs are
+# already healthy, absent, or running v1 without issues.
+#
+# Usage: bash migrate_strimzi_crds.sh <namespace>
+# Exit codes: 0 = success or no migration needed
+
+set -euo pipefail
+
+NS="${1:-telemetry}"
+
+# ── Phase 1: Detect ─────────────────────────────────────────────
+needs_migration=false
+
+# Check if any Strimzi CRD still lists v1beta2 in storedVersions
+for crd in $(kubectl get crd -o name 2>/dev/null | grep -E '\.kafka\.strimzi\.io|\.core\.strimzi\.io'); do
+  if kubectl get "$crd" -o jsonpath='{.status.storedVersions}' 2>/dev/null | grep -q 'v1beta2'; then
+    echo "[MIGRATE] $crd has v1beta2 in storedVersions"
+    needs_migration=true
+    break
+  fi
+done
+
+# Check if CRs are stuck (v1-only CRDs but objects stored as v1beta2)
+if [ "$needs_migration" = "false" ] && kubectl get crd kafkas.kafka.strimzi.io >/dev/null 2>&1; then
+  if kubectl get kafka -n "$NS" 2>&1 | grep -q 'convert CR from an invalid group/version'; then
+    echo "[MIGRATE] CRs stuck — conversion error detected"
+    needs_migration=true
+  fi
+fi
+
+if [ "$needs_migration" = "false" ]; then
+  echo "[MIGRATE] No Strimzi CRD migration needed."
+  exit 0
+fi
+
+echo "[MIGRATE] Starting Strimzi CRD migration (v1beta2 → v1)..."
+
+# ── Phase 2: Make stuck CRs readable ────────────────────────────
+STRIMZI_CRDS=$(kubectl get crd -o name 2>/dev/null \
+  | grep -E '\.kafka\.strimzi\.io|\.core\.strimzi\.io' \
+  | sed 's|customresourcedefinition.apiextensions.k8s.io/||')
+
+if [ -n "$STRIMZI_CRDS" ]; then
+  echo "[MIGRATE] Temporarily adding v1beta2 to CRDs..."
+  for crd in $STRIMZI_CRDS; do
+    kubectl get crd "$crd" -o json 2>/dev/null \
+      | jq '.spec.versions += [(.spec.versions[0] | .name = "v1beta2" | .served = true | .storage = false)]' \
+      | kubectl apply -f - --server-side --force-conflicts >/dev/null 2>&1 || true
+  done
+fi
+
+# ── Phase 3: Delete existing CRs ────────────────────────────────
+echo "[MIGRATE] Deleting existing Kafka CRs..."
+for kind in kafka kafkanodepool kafkabridge kafkatopic kafkauser strimzipodset; do
+  for item in $(kubectl get "$kind" -n "$NS" -o name 2>/dev/null); do
+    kubectl patch "$item" -n "$NS" --type=merge \
+      -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
+    kubectl delete "$item" -n "$NS" --wait=false 2>/dev/null || true
+  done
+done
+sleep 5
+
+# ── Phase 4: Delete old Kafka PVCs ───────────────────────────────
+echo "[MIGRATE] Deleting old Kafka PVCs (new cluster ID makes old data incompatible)..."
+kubectl delete pvc -n "$NS" -l strimzi.io/cluster=kafka --wait=false 2>/dev/null || true
+
+# ── Phase 5: Delete cluster-id secret (operator will regenerate) ─
+kubectl delete secret kafka-cluster-id -n "$NS" 2>/dev/null || true
+
+# ── Phase 6: Delete CRDs ────────────────────────────────────────
+if [ -n "$STRIMZI_CRDS" ]; then
+  echo "[MIGRATE] Deleting Strimzi CRDs..."
+  kubectl delete crd $STRIMZI_CRDS --wait=false --timeout=30s 2>&1 || true
+  sleep 5
+  # Remove cleanup finalizers from any CRDs stuck in Terminating
+  for crd in $(kubectl get crd -o name 2>/dev/null | grep -E '\.strimzi\.io'); do
+    kubectl patch "$crd" --type=merge \
+      -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
+  done
+  # Wait for CRDs to fully disappear
+  for i in $(seq 1 24); do
+    remaining=$(kubectl get crd -o name 2>/dev/null | grep -cE '\.strimzi\.io' || echo 0)
+    [ "$remaining" -eq 0 ] 2>/dev/null && break
+    sleep 5
+  done
+fi
+
+echo "[MIGRATE] Strimzi CRD migration complete. telemetry.sh will recreate CRDs and CRs."
