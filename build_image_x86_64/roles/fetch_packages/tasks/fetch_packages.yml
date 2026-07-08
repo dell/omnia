@@ -26,6 +26,7 @@
     - name: Set x86_64_base_image_packages
       ansible.builtin.set_fact:
         x86_64_base_image_packages: "{{ base_image_output.base_image_packages }}"
+        x86_64_ubuntu_base_image_packages: "{{ base_image_output.base_image_packages }}"
 
     - name: Debug package x86_64_base_image_packages
       ansible.builtin.debug:

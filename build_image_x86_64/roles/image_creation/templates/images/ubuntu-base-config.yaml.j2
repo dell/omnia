@@ -24,14 +24,21 @@ repos:
 {% endfor %}
 
 packages:
-  - initramfs-tools
-  - linux-image-generic
+  - curl
+  - util-linux
+  - dmsetup
+  - dracut-core
+  - dracut-network
 {% for pkg in x86_64_ubuntu_base_image_packages | default([]) %}
+{% if pkg not in ('live-boot', 'initramfs-tools', 'initramfs-tools-core', 'linux-image-generic', 'dracut-network', 'dracut-live', 'dracut-core', 'curl', 'util-linux', 'dmsetup') %}
   - {{ pkg }}
+{% endif %}
 {% endfor %}
+  - linux-image-generic
 
 cmds:
-  - cmd: "update-initramfs -c -k all"
+  - cmd: "echo '=== dmsquash-live module-setup.sh ===' && cat /usr/lib/dracut/modules.d/70dmsquash-live/module-setup.sh | head -30"
+  - cmd: "KVER=$(ls /lib/modules/ | head -1) && depmod ${KVER} && dracut --force --force-add 'dmsquash-live livenet' --kver ${KVER}"
 {% for cmd in base_image_commands | default([]) %}
   - cmd: "{{ cmd }}"
 {% endfor %}

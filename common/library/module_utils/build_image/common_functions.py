@@ -128,7 +128,7 @@ def extract_rpm_package_names(cluster_items):
         return []
     return [
         item.get('package') for item in cluster_items
-        if item.get('type') == 'rpm' and item.get('package')
+        if item.get('type') in ('rpm', 'deb', 'rpm_repo', 'deb_repo') and item.get('package')
     ]
 
 

@@ -13,6 +13,16 @@
 #  limitations under the License.
 ---
 
+- name: Deploy patched image-builder scripts for Ubuntu builds
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/image-builder/{{ item.src }}"
+    dest: "{{ oim_shared_path }}/omnia/openchami/image-builder-{{ item.dest }}"
+    mode: "{{ dir_permissions_755 }}"
+  loop:
+    - { src: 'installer.py', dest: 'installer.py' }
+    - { src: 'layer.py', dest: 'layer.py' }
+    - { src: 'publish.py', dest: 'publish.py' }
+
 - name: Create ochami images directory
   ansible.builtin.file:
     path: "{{ openchami_work_dir }}/images"

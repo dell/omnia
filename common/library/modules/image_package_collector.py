@@ -50,7 +50,7 @@ def get_additional_packages_for_role(additional_json_path, role_name, module):
 
     packages = []
     for item in cluster_items:
-        if item.get('type') == 'rpm' and item.get('package'):
+        if item.get('type') in ('rpm', 'deb', 'rpm_repo', 'deb_repo') and item.get('package'):
             packages.append(item['package'])
 
     return packages
@@ -98,12 +98,12 @@ def collect_packages_from_json(sw_data, fg_name=None,
 
         if "slurm_custom" in sw_data and "cluster" in sw_data["slurm_custom"]:
             for entry in sw_data["slurm_custom"]["cluster"]:
-                if entry.get("type") == "rpm" and "package" in entry:
+                if entry.get("type") in ("rpm", "deb", "rpm_repo", "deb_repo") and "package" in entry:
                     packages.append(entry["package"])
 
         if fg_name in sw_data and "cluster" in sw_data[fg_name]:
             for entry in sw_data[fg_name]["cluster"]:
-                if entry.get("type") == "rpm" and "package" in entry:
+                if entry.get("type") in ("rpm", "deb", "rpm_repo", "deb_repo") and "package" in entry:
                     packages.append(entry["package"])
 
     elif service_k8s_defined:
@@ -111,24 +111,24 @@ def collect_packages_from_json(sw_data, fg_name=None,
 
         if "service_k8s" in sw_data and "cluster" in sw_data["service_k8s"]:
             for entry in sw_data["service_k8s"]["cluster"]:
-                if entry.get("type") == "rpm" and "package" in entry:
+                if entry.get("type") in ("rpm", "deb", "rpm_repo", "deb_repo") and "package" in entry:
                     packages.append(entry["package"])
 
         if fg_name in sw_data and "cluster" in sw_data[fg_name]:
             for entry in sw_data[fg_name]["cluster"]:
-                if entry.get("type") == "rpm" and "package" in entry:
+                if entry.get("type") in ("rpm", "deb", "rpm_repo", "deb_repo") and "package" in entry:
                     packages.append(entry["package"])
 
     else:
         for section_data in sw_data.values():
             if isinstance(section_data, dict) and "cluster" in section_data:
                 for entry in section_data["cluster"]:
-                    if entry.get("type") == "rpm" and "package" in entry:
+                    if entry.get("type") in ("rpm", "deb", "rpm_repo", "deb_repo") and "package" in entry:
                         packages.append(entry["package"])
 
         if "cluster" in sw_data and isinstance(sw_data["cluster"], list):
             for entry in sw_data["cluster"]:
-                if entry.get("type") == "rpm" and "package" in entry:
+                if entry.get("type") in ("rpm", "deb", "rpm_repo", "deb_repo") and "package" in entry:
                     packages.append(entry["package"])
 
     return packages
