@@ -1,0 +1,526 @@
+- name: {{ functional_group_name }}
+  description: "{{ functional_group_name }}"
+
+  file:
+    encoding: plain
+    content: |
+      ## template: jinja
+      #cloud-config
+      merge_how:
+      - name: list
+        settings: [append]
+      - name: dict
+        settings: [no_replace, recurse_list]
+      users:
+        - name: root
+          ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
+          lock_passwd: false
+          hashed_passwd: "{{ hashed_password_output.stdout }}"
+        - name: {{ slurm_user }}
+          uid: {{ slurm_uid }}
+          system: true
+          no_create_home: true
+          shell: /sbin/nologin
+
+      disable_root: false
+
+      write_files:
+        - path: /usr/local/bin/doca-install.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/doca-install.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/configure-ib-network.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/set-ssh.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            #!/bin/bash
+            timedatectl set-timezone {{ hostvars['oim']['oim_timezone'] }}
+            sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+            sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+            sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
+            systemctl restart ssh
+            default_count=$(ip route | grep -c "^default")
+            if [ "$default_count" -le 1 ]; then
+                echo "Only one or no default route found. No action needed."
+            else
+                private_nic=$(ip route | grep "^default via {{ hostvars['localhost']['admin_nic_ip'] }}" | awk '{print $5}')
+                # Get all default routes
+                ip route | grep '^default' | while read -r line; do
+                    nmcli con del "Wired Connection"
+                    # Extract NIC name
+                    nic=$(echo "$line" | awk '{prFint $5}')
+
+                    # Add the default route to the connection
+                    if [ -n "$nic" ]; then
+                        echo "Adding nmcli device $nic"
+                        nmcli con add type ethernet ifname "$nic" con-name "$nic" ipv4.method auto
+                        if [ "$nic" = "$private_nic" ]; then
+                          nmcli con modify "$nic" ipv4.never-default yes
+                          nmcli con delete "cloud-init $nic"
+                        fi
+                        nmcli con up "$nic"
+                    else
+                        echo "No connection found for device $nic"
+                    fi
+                done
+            fi
+        
+        - path: /root/.ssh/config
+          permissions: '0600'
+          content: |
+            Host {{ slurm_control_ssh_patterns }}
+                IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
+                IdentitiesOnly yes
+
+
+{% if hostvars['localhost']['openldap_support'] %}
+        - path: /etc/sssd/sssd.conf
+          owner: root:root
+          permissions: '0600'
+          content: |
+            {{ lookup('template', 'templates/openldap/sssd.conf.j2') | indent(6) }}
+
+        - path: /usr/local/bin/update_ldap_conf.sh
+          owner: root:root
+          permissions: '0755'
+          content: |
+            {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
+{% endif %}
+
+{% if ldms_support %}
+        - path: /root/ldms_sampler.sh
+          owner: root:root
+          permissions: '0755'
+          content: |
+            {{ lookup('template', 'templates/ldms/ldms_sampler.sh.j2') | indent(12) }}
+{% endif %}
+
+{% if slurm_node_present %}
+        - path: /usr/local/bin/slurm_cuda_coordinator.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/slurm_cuda_coordinator.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/install_cuda_driver.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_cuda_driver.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/install_nvidia_peermem.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_nvidia_peermem.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/install_dcgm.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_dcgm.sh.j2') | indent(12) }}
+
+{% if not login_compiler_node_present %}
+        - path: /usr/local/bin/generate_install_uuid.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/generate_install_uuid.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/cuda_lock_manager.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/cuda_lock_manager.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/install_cuda_toolkit.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_cuda_toolkit.sh.j2') | indent(12) }}
+{% endif %}
+{% endif %}
+
+{% if dns_enabled | default(false) | bool %}
+        - path: /etc/resolv.conf
+          owner: root:root
+          permissions: '0644'
+          content: |
+            search {{ domain_name }}
+            nameserver {{ admin_nic_ip }}
+            options timeout:1 attempts:2
+{% else %}
+        - path: /etc/hosts
+          append: true
+          content: |
+{% for key in ip_name_map | sort %}
+            {{ ip_name_map[key] }} {{ key }}
+{% endfor %}
+{% endif %}
+        - path: /etc/profile.d/create_scratch.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/slurm/create_scratch.sh.j2') | indent(12) }}
+
+        - path: /etc/default/slurmd
+          owner: root:root
+          permissions: '0644'
+          content: |
+            SLURMD_OPTIONS="{{ conf_server }}"
+
+        - path: /usr/local/bin/configure_vast_installation.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/vast/configure_vast_installation.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/configure_dirs_and_mounts.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            #!/bin/bash
+            LOGFILE="/var/log/configure_dirs_and_mounts.log"
+            exec > >(tee -a "$LOGFILE") 2>&1
+
+            echo "[INFO] ===== Starting directory creation and NFS mounts for Pulp cert, Slurm and Munge ====="
+            
+            # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
+            mkdir -p {{ client_mount_path }}/slurm/ssh
+            echo "[INFO] Creating base directories for Pulp cert, Slurm and Munge"
+            mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
+
+            echo "[INFO] Updating /etc/fstab with NFS entries for Pulp cert, Slurm and Munge paths"
+            echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
+            chmod {{ file_mode }} /etc/fstab
+
+            echo "[INFO] Mounting all NFS entries from /etc/fstab"
+            mount -av
+            mkdir -p /etc/containers/registries.conf.d
+            mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
+
+            echo "[INFO] ===== Completed directory creation and NFS mounts for Slurm and Munge ====="
+
+        - path: /usr/local/bin/configure_slurmd_setup.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            #!/bin/bash
+            LOGFILE="/var/log/configure_slurmd_setup.log"
+            exec > >(tee -a "$LOGFILE") 2>&1
+
+            echo "[INFO] ===== Starting slurmd setup (service file, directories, epilog) ====="
+
+            bash /usr/local/bin/check_slurm_controller_status.sh
+
+            echo "[INFO] Setting ownership for Slurm directories"
+            chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_log_dir_effective }}
+            chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_pid_dir_effective }}
+            chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
+
+            echo "[INFO] Setting permissions for Slurm directories"
+            chmod {{ file_mode_755 }} {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }}
+
+            echo "[INFO] Ensuring Slurm epilog directory and logout script permissions"
+            chmod {{ file_mode_755 }} /etc/slurm/epilog.d/
+            chmod {{ file_mode_755 }} /etc/slurm/epilog.d/logout_user.sh
+{% for epath in slurm_epilog_custom_paths %}
+
+            echo "[INFO] Checking custom epilog script: {{ epath }}"
+            if [ ! -f "{{ epath }}" ]; then
+              echo "[INFO] Creating stub epilog script at {{ epath }}"
+              mkdir -p "$(dirname '{{ epath }}')"
+              printf '#!/bin/bash\n# Custom epilog script placeholder\n# Add your epilog commands here\n' > "{{ epath }}"
+              chown {{ slurm_user }}:{{ slurm_user }} "{{ epath }}"
+              chmod {{ file_mode_755 }} "{{ epath }}"
+            fi
+{% endfor %}
+
+
+            echo "[INFO] Creating and configuring slurmd spool directory"
+            mkdir -p {{ slurm_slurmd_spool_dir_effective }}
+            chmod {{ file_mode_755 }} {{ slurm_slurmd_spool_dir_effective }}
+            chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
+
+            echo "[INFO] ===== Completed slurmd setup ====="
+
+        - path: /usr/local/bin/configure_munge_and_pam.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            #!/bin/bash
+            LOGFILE="/var/log/configure_munge_and_pam.log"
+            exec > >(tee -a "$LOGFILE") 2>&1
+
+            echo "[INFO] ===== Starting Munge key and PAM configuration ====="
+
+            echo "[INFO] Setting ownership and permissions for Munge key"
+            chown -R {{ munge_user }}:{{ munge_group }} /etc/munge/munge.key
+            chmod {{ file_mode_400 }} /etc/munge/munge.key
+
+            echo "[INFO] Updating PAM configuration for pam_slurm_adopt in /etc/pam.d/sshd"
+            sed -i '/^password\s\+include\s\+password-auth/i account    required    pam_slurm_adopt.so action_no_jobs=deny' /etc/pam.d/sshd
+
+            echo "[INFO] ===== Completed Munge key and PAM configuration ====="
+
+            
+        - path: /usr/local/bin/configure_firewall_and_services.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            #!/bin/bash
+            LOGFILE="/var/log/configure_firewall_and_services.log"
+            exec > >(tee -a "$LOGFILE") 2>&1
+
+            echo "[INFO] ===== Starting firewall and service configuration ====="
+
+            # Ubuntu: Use ufw instead of firewalld
+            echo "[INFO] Enabling ufw firewall"
+            ufw --force enable
+
+            # Default values in case parsing slurm.conf fails
+            DEFAULT_SRUN_RANGE="60001-63000"
+            DEFAULT_SLURMD_PORT="6818"
+
+            CTLD_SLURM_DIR_MNT="/mnt/slurm_ctld_etc_slurm"
+            SLURM_CONF_PATH="$CTLD_SLURM_DIR_MNT/slurm.conf"
+
+            echo "[INFO] Mounting controller slurm.conf from NFS: {{ cloud_init_nfs_path }}/{{ ctld_list[0] }}/etc/slurm -> $CTLD_SLURM_DIR_MNT"
+            mkdir -p "$CTLD_SLURM_DIR_MNT"
+            mount -t nfs "{{ cloud_init_nfs_path }}/{{ ctld_list[0] }}/etc/slurm" "$CTLD_SLURM_DIR_MNT" || {
+              echo "[WARN] Failed to mount controller slurm.conf directory, falling back to defaults."
+              SRUN_RANGE="$DEFAULT_SRUN_RANGE"
+              SLURMD_PORT="$DEFAULT_SLURMD_PORT"
+            }
+
+            if [ -f "$SLURM_CONF_PATH" ]; then
+              echo "[INFO] Parsing SlurmdPort and SrunPortRange from $SLURM_CONF_PATH"
+
+              SLURMD_PORT=$(grep -iE '^SlurmdPort=' "$SLURM_CONF_PATH" | sed -E 's/^SlurmdPort=//; s/#.*//; s/\s+$//')
+              SRUN_RANGE=$(grep -iE '^SrunPortRange=' "$SLURM_CONF_PATH" | sed -E 's/^SrunPortRange=//; s/#.*//; s/\s+$//')
+
+              [ -z "$SLURMD_PORT" ] && SLURMD_PORT="$DEFAULT_SLURMD_PORT" && echo "[WARN] SlurmdPort not found in slurm.conf, using default $SLURMD_PORT"
+              [ -z "$SRUN_RANGE" ] && SRUN_RANGE="$DEFAULT_SRUN_RANGE" && echo "[WARN] SrunPortRange not found in slurm.conf, using default $SRUN_RANGE"
+            else
+              echo "[WARN] slurm.conf not found at $SLURM_CONF_PATH, using defaults."
+              SRUN_RANGE="$DEFAULT_SRUN_RANGE"
+              SLURMD_PORT="$DEFAULT_SLURMD_PORT"
+            fi
+
+            echo "[INFO] Using SlurmdPort=$SLURMD_PORT and SrunPortRange=$SRUN_RANGE for firewall configuration"
+
+            echo "[INFO] Configuring firewall rules for SSH and Slurm ports (Ubuntu: ufw)"
+            ufw allow ssh
+            ufw allow "${SRUN_RANGE}"/tcp
+            ufw allow "${SLURMD_PORT}"/tcp
+            
+            # Add PXE network to trusted zone for ORTE communication
+            echo "[INFO] Adding PXE network to trusted zone for ORTE communication"
+            # Calculate PXE subnet using admin IP and netmask bits
+            ADMIN_IP="{{ hostvars['localhost']['admin_nic_ip'] }}"
+            NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
+            
+            # Convert IP to integer and calculate network address
+            ip_to_int() {
+              local IFS=.
+              read -r a b c d <<< "$1"
+              echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
+            }
+            
+            int_to_ip() {
+              local ip=$1
+              echo "$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))"
+            }
+            
+            ADMIN_IP_INT=$(ip_to_int "$ADMIN_IP")
+            HOST_BITS=$(( 32 - NETMASK_BITS ))
+            HOST_MASK=$(( (1 << HOST_BITS) - 1 ))
+            NETWORK_MASK=$(( ~HOST_MASK & 0xFFFFFFFF ))
+            NETWORK_INT=$(( ADMIN_IP_INT & NETWORK_MASK ))
+            NETWORK_IP=$(int_to_ip "$NETWORK_INT")
+            
+            PXE_SUBNET="$NETWORK_IP/$NETMASK_BITS"
+            echo "[INFO] Admin IP: $ADMIN_IP, Netmask: /$NETMASK_BITS, PXE Subnet: $PXE_SUBNET"
+            ufw allow from "$PXE_SUBNET"
+            
+            echo "[INFO] Unmounting controller slurm.conf directory from $CTLD_SLURM_DIR_MNT"
+            umount "$CTLD_SLURM_DIR_MNT" 2>/dev/null || echo "[WARN] Failed to unmount $CTLD_SLURM_DIR_MNT (may not have been mounted)"
+
+            echo "[INFO] Enabling and starting core services: ssh, munge, slurmd"
+            systemctl enable ssh
+            systemctl start ssh
+            systemctl enable munge
+            systemctl start munge
+            systemctl enable slurmd
+            systemctl start slurmd
+            
+            echo "[INFO] Reloading systemd daemon and restarting ssh"
+            systemctl daemon-reexec
+            systemctl restart ssh
+            systemctl restart slurmd
+
+            echo "[INFO] ===== Completed firewall and service configuration ====="
+
+        - path: /usr/local/bin/check_slurm_controller_status.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/slurm/check_slurm_controller_status.sh.j2') | indent(12) }}
+
+        - path: /tmp/apptainer_mirror.conf
+          permissions: '0644'
+          content: |
+            {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+        
+        - path: /usr/local/bin/configure_ucx_openmpi_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/configure_ucx_openmpi_env.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/setup_doca_mpi_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/setup_doca_mpi_env.sh.j2') | indent(12) }}
+            
+
+        # NVIDIA HPC SDK setup script (run manually: /usr/local/bin/setup_nvhpc_sdk.sh)
+        - path: /usr/local/bin/setup_nvhpc_sdk.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/setup_nvhpc_sdk.sh.j2') | indent(12) }}
+
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
+        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ pv_entry.content | indent(12) }}
+{% endfor %}
+
+
+      runcmd:
+        - /usr/local/bin/set-ssh.sh
+        - /usr/local/bin/configure_vast_installation.sh
+        # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
+        - /usr/local/bin/configure_dirs_and_mounts.sh
+        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
+        # Ubuntu: No dnf, skip gpgcheck config
+        # DOCA and IB configuration - now ready before vendor_data mounts
+        - bash /usr/local/bin/doca-install.sh || echo "DOCA install failed (non-critical)"
+        - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"
+{% if hostvars['localhost']['openmpi_support'] %}
+        - bash /usr/local/bin/setup_doca_mpi_env.sh || echo "DOCA MPI environment setup failed (non-critical)"
+{% endif %}
+        
+{# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined and cloud_init_groups_dict[functional_group_name].runcmd is not none %}
+{% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
+        - {{ cmd }}
+{% endfor %}
+{% endif %}
+{% raw %}
+      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
+      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
+      {% if mymounts %}
+      {% for mount in mymounts.get("mounts", []) %}
+        - mkdir -pv {{ mount[1] }}
+        - echo "{{ mount | join(' ') }}" >> /etc/fstab
+      {% endfor %}
+        - mount -av
+      {% for decoded_cmd in mymounts.get("runcmd", []) %}
+        - {{ decoded_cmd }}
+      {% endfor %}
+      {% else %}
+        - echo "No mount entries found for this host"
+      {% endif %}
+      {% endif %}
+{% endraw %}
+{% set fg_swap = cloud_init_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
+{% include 'configure_swap.yaml.j2' %}
+        - mount -av
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([], true) %}
+        - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+{% endfor %}
+        # VAST storage: create subdirectory structure for compute node
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/slurm/hpc_tools {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
+        - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
+        - mkdir -pv /hpc_tools /apps /scratch /projects
+        - echo "{{ vast_mount_point }}/slurm/hpc_tools  /hpc_tools  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
+        - mount -av
+        - chmod 1777 /tmp /scratch
+{% if slurm_node_present %}
+        - /usr/local/bin/slurm_cuda_coordinator.sh || echo "CUDA coordinator setup failed (non-critical)"
+        - timeout 900 /usr/local/bin/install_cuda_driver.sh || echo "CUDA driver install failed or timed out (non-critical)"
+{% if dcgm_support %}
+        - timeout 300 /usr/local/bin/install_dcgm.sh || echo "DCGM install failed or timed out (non-critical)"
+{% endif %}
+        - timeout 600 /usr/local/bin/install_nvidia_peermem.sh || echo "NVIDIA peermem install failed or timed out (non-critical)"
+{% endif %}
+
+        - /usr/local/bin/configure_slurmd_setup.sh
+        - /usr/local/bin/configure_munge_and_pam.sh
+
+        - /usr/local/bin/configure_firewall_and_services.sh
+{% if hostvars['localhost']['openldap_support'] %}
+        - /usr/local/bin/update_ldap_conf.sh
+        - mkdir -p /ldapcerts || echo "LDAP cert directory already exists or creation failed (non-critical)"
+        - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mkdir -pv {{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home
+        - echo "{{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home  none  bind  0  0" >> /etc/fstab
+        - chmod {{ file_mode }} /etc/fstab
+        - mount -av
+        - cp -f /ldapcerts/* /etc/openldap/certs/ || echo "LDAP cert copy failed (non-critical)"
+        - umount /ldapcerts || echo "LDAP cert unmount failed (non-critical)"
+        # Ubuntu: Use ufw instead of firewalld
+        - ufw allow {{ ldap_starttls_port }}/tcp || echo "Firewall LDAP port configuration failed (non-critical)"
+        - ufw allow {{ ldap_ssl_port }}/tcp || echo "Firewall LDAP SSL port configuration failed (non-critical)"
+        # Ubuntu: No SELinux, skip setenforce, authselect, setsebool (use pam-auth-update instead)
+        - pam-auth-update --enable mkhomedir
+        - systemctl enable --now sssd
+        - systemctl restart ssh
+{% endif %}
+
+{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or ldms_support %}
+        # Add NFS entry and mount
+        - mkdir -p {{ client_mount_path }}
+        - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mount -av
+{% endif %}
+        # UCX and OpenMPI auto-compilation disabled
+        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 used by default
+{% if hostvars['localhost']['ucx_support'] %}
+        - echo "===== UCX Configuration ====="
+        - echo "UCX version specified in software_config.json (available for manual compilation)"
+        - echo "Default stack - DOCA UCX 1.20.0 (system default)"
+{% endif %}
+{% if hostvars['localhost']['openmpi_support'] %}
+        - echo "===== OpenMPI Configuration ====="
+        - echo "OpenMPI version specified in software_config.json (available for manual compilation)"
+        - echo "Default stack - DOCA OpenMPI 4.1.9a1 (system default)"
+{% endif %}
+
+{% if ldms_support %}
+        - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
+        - /root/ldms_sampler.sh || echo "LDMS setup failed (non-critical)"
+{% endif %}
+        # NVIDIA HPC SDK: Script deployed to /usr/local/bin/setup_nvhpc_sdk.sh
+        # User must run manually after NVHPC is installed on compiler node
+        - echo "Run /usr/local/bin/setup_nvhpc_sdk.sh to setup NVIDIA HPC SDK"
+        - systemctl restart slurmd
+        - echo "Cloud-Init has completed successfully."

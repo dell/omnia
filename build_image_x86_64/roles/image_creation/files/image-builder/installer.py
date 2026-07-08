@@ -208,12 +208,16 @@ class Installer:
                      check=False, env=env)
             if rc != 0:
                 logging.warn("apt-get update returned non-zero, continuing anyway")
-            # Divert vgcfgbackup to prevent lvm2 postinst hang in container
-            # (vgcfgbackup spins at 100% CPU with no block devices)
-            logging.info("Diverting vgcfgbackup to prevent lvm2 postinst hang")
-            cmd(["buildah", "run", self.cname, "--", "bash", "-c",
-                 'dpkg-divert --local --rename --divert /sbin/vgcfgbackup.real --add /sbin/vgcfgbackup && '
-                 'echo \'#!/bin/sh\nexit 0\' > /sbin/vgcfgbackup && chmod +x /sbin/vgcfgbackup'],
+            # Divert LVM commands to prevent lvm2 postinst hang in container
+            # (vgcfgbackup, vgchange, pvscan etc. hang with no block devices)
+            logging.info("Diverting LVM commands to prevent lvm2 postinst hang")
+            lvm_cmds = ['vgcfgbackup', 'vgchange', 'pvscan', 'vgscan', 'lvscan']
+            divert_script = ' && '.join(
+                [f'dpkg-divert --local --rename --divert /sbin/{c}.real --add /sbin/{c} 2>/dev/null; '
+                 f'echo \'#!/bin/sh\\nexit 0\' > /sbin/{c} && chmod +x /sbin/{c}'
+                 for c in lvm_cmds]
+            )
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c", divert_script],
                 check=False, env=env)
             # Run apt-get install with --allow-unauthenticated for Pulp repos
             rc = cmd(["buildah", "run", "--env", "DEBIAN_FRONTEND=noninteractive",
@@ -223,10 +227,13 @@ class Installer:
                       "-o", 'Dpkg::Options::=--force-confdef',
                       "-o", 'Dpkg::Options::=--force-confold'] + packages,
                      check=False, env=env)
-            # Restore real vgcfgbackup after install
-            logging.info("Restoring real vgcfgbackup")
-            cmd(["buildah", "run", self.cname, "--", "bash", "-c",
-                 'dpkg-divert --remove --rename /sbin/vgcfgbackup 2>/dev/null; true'],
+            # Restore real LVM commands after install
+            logging.info("Restoring real LVM commands")
+            restore_script = '; '.join(
+                [f'dpkg-divert --remove --rename /sbin/{c} 2>/dev/null'
+                 for c in lvm_cmds]
+            ) + '; true'
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c", restore_script],
                 check=False, env=env)
             if rc != 0:
                 logging.warn("apt-get install returned %d, attempting to fix broken packages", rc)

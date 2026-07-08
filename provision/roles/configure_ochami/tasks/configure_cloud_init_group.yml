@@ -30,7 +30,7 @@
   block:
     - name: Load ci group template - {{ functional_group_name }}
       ansible.builtin.template:
-        src: "cloud_init/ci-group-{{ functional_group_name }}.yaml.j2"
+        src: "cloud_init/ci-group-{{ functional_group_name }}{{ '_ubuntu' if hostvars['localhost']['cluster_os_type'] == 'ubuntu' else '' }}.yaml.j2"
         dest: "{{ cloud_init_dir }}/ci-group-{{ functional_group_name }}.yaml"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   rescue:
