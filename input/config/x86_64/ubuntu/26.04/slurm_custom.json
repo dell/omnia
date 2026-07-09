@@ -23,6 +23,7 @@
         "cluster": [
             {"package": "slurm-smd-slurmctld", "type": "deb", "repo_name": "slurm_custom"},
             {"package": "slurm-smd-slurmdbd", "type": "deb", "repo_name": "slurm_custom"},
+            {"package": "slurm-smd-client", "type": "deb", "repo_name": "slurm_custom"},
             {"package": "python3-pymysql", "type": "deb", "repo_name": "main"},
             {"package": "mariadb-server", "type": "deb", "repo_name": "universe"}
         ]

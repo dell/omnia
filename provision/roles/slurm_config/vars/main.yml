@@ -99,7 +99,7 @@ mariadb: mariadb
 mysql: mysql
 root_user: root
 root_group: root
-plugin_slurm_dir: "/usr/lib64/slurm"
+plugin_slurm_dir: "{{ '/usr/lib/x86_64-linux-gnu/slurm' if ansible_os_family == 'Debian' else '/usr/lib64/slurm' }}"
 munge_key_cmd: "dd if=/dev/urandom bs=1 count=1024"
 slurm_ctld_parameters: ['enable_configless']
 partitions: {}

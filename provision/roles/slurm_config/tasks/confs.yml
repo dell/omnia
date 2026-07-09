@@ -147,7 +147,7 @@
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({})
      | combine({'slurmdbd': (apply_config['slurmdbd']
-     | combine({'DbdHost': ctld_list[0], 'StorageHost': ctld_list[0]}))}) }}"
+     | combine({'DbdHost': ctld_list[0], 'StorageHost': 'localhost'}))}) }}"
   when: ctld_list | length > 0
   no_log: "{{ _no_log }}"
 
@@ -222,7 +222,7 @@
 - name: Slurm dbd - DbdHost and StorageHost
   ansible.builtin.set_fact:
     conf_merge_dict: "{{ conf_merge_dict
-     | combine({'slurmdbd': [{'DbdHost': ctld_list[0], 'StorageHost': ctld_list[0]}] + conf_merge_dict['slurmdbd']}) }}"
+     | combine({'slurmdbd': [{'DbdHost': ctld_list[0], 'StorageHost': 'localhost'}] + conf_merge_dict['slurmdbd']}) }}"
   when: "'slurmdbd' in conf_merge_dict"
   no_log: "{{ _no_log }}"
 

@@ -214,14 +214,35 @@ class Installer:
                      check=False, env=env)
             if rc != 0:
                 logging.warn("apt-get update returned non-zero, continuing anyway")
-            # Divert lvm2 postinst script to prevent hang in container
-            # (lvm2 postinst runs vgscan/vgchange which hang with no block devices)
-            logging.info("Diverting lvm2 postinst script to prevent hang")
-            divert_postinst = "dpkg-divert --local --rename --divert /var/lib/dpkg/info/lvm2.postinst.real --add /var/lib/dpkg/info/lvm2.postinst 2>/dev/null || true"
-            replace_postinst = "echo '#!/bin/sh' > /var/lib/dpkg/info/lvm2.postinst && echo 'exit 0' >> /var/lib/dpkg/info/lvm2.postinst && chmod +x /var/lib/dpkg/info/lvm2.postinst"
-            postinst_script = f"{divert_postinst} && {replace_postinst}"
-            cmd(["buildah", "run", self.cname, "--", "bash", "-c", postinst_script],
+            # ===== FIX: Divert actual LVM BINARIES, not postinst script =====
+            # LVM tools hang in containers with no block devices.
+            # dpkg-divert on the real binaries makes dpkg install them
+            # to diverted paths, leaving our /bin/true symlinks in place.
+            lvm_bins_to_divert = [
+                'vgcfgbackup', 'vgscan', 'vgchange', 'pvscan',
+                'lvm', 'lvs', 'vgs', 'pvs', 'vgmknodes'
+            ]
+
+            logging.info("Diverting LVM binaries to prevent hang in container build")
+            for lvm_bin in lvm_bins_to_divert:
+                divert_cmd = (
+                    f"dpkg-divert --local --rename --add /usr/sbin/{lvm_bin} 2>/dev/null; "
+                    f"ln -sf /bin/true /usr/sbin/{lvm_bin}"
+                )
+                cmd(["buildah", "run", self.cname, "--", "bash", "-c", divert_cmd],
+                    check=False, env=env)
+
+            # Also prevent any service starts during package install
+            logging.info("Installing policy-rc.d to prevent service starts during build")
+            policy_cmd = (
+                "echo '#!/bin/sh' > /usr/sbin/policy-rc.d && "
+                "echo 'exit 101' >> /usr/sbin/policy-rc.d && "
+                "chmod +x /usr/sbin/policy-rc.d"
+            )
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c", policy_cmd],
                 check=False, env=env)
+            # ===== END FIX =====
+
             # Run apt-get install with --allow-unauthenticated and --fix-missing
             # --fix-missing: skip packages that can't be fetched (e.g. 404 from broken repos)
             rc = cmd(["buildah", "run", "--env", "DEBIAN_FRONTEND=noninteractive",
@@ -232,11 +253,23 @@ class Installer:
                       "-o", 'Dpkg::Options::=--force-confdef',
                       "-o", 'Dpkg::Options::=--force-confold'] + packages,
                      check=False, env=env)
-            # Restore real lvm2 postinst script after install
-            logging.info("Restoring real lvm2 postinst script")
-            restore_postinst = "dpkg-divert --remove --rename /var/lib/dpkg/info/lvm2.postinst 2>/dev/null || true"
-            cmd(["buildah", "run", self.cname, "--", "bash", "-c", restore_postinst],
+            # ===== FIX: Restore diverted LVM binaries after install =====
+            logging.info("Restoring diverted LVM binaries")
+            for lvm_bin in lvm_bins_to_divert:
+                restore_cmd = (
+                    f"rm -f /usr/sbin/{lvm_bin}; "
+                    f"dpkg-divert --remove --rename /usr/sbin/{lvm_bin} 2>/dev/null || true"
+                )
+                cmd(["buildah", "run", self.cname, "--", "bash", "-c", restore_cmd],
+                    check=False, env=env)
+
+            # Remove policy-rc.d so services can start normally on booted nodes
+            logging.info("Removing policy-rc.d")
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c",
+                 "rm -f /usr/sbin/policy-rc.d"],
                 check=False, env=env)
+            # ===== END RESTORE =====
+
             if rc != 0:
                 logging.warn("apt-get install returned %d, attempting to fix broken packages", rc)
                 # Retry install with --fix-broken to resolve partial installs
