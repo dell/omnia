@@ -1687,7 +1687,7 @@ def validate_omnia_config(
             input_file_path, file_names["high_availability_config"])
         with open(ha_config_path, "r", encoding="utf-8") as f:
             ha_config = yaml.safe_load(f)
-        for k in ["service_k8s_cluster_ha"]:
+        for k in ["service_k8s_cluster_ha", "compute_rke2_k8s_cluster_ha"]:
             ha_config[k] = [xha["cluster_name"] for xha in ha_config.get(k, [])]
         validate_k8s(data, admin_networks, sw_list, ha_config, tag_names,
                         errors, st_config, module, input_file_path, logger)
