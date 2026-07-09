@@ -198,8 +198,7 @@
         conf_merge_dict | default({})
         | combine({
             existing_conf_set.item.1: (
-              ([existing_conf_set.stat.path] if existing_conf_set.stat.exists else [])
-              + [apply_config[existing_conf_set.item.1]]
+              [apply_config[existing_conf_set.item.1]]
               + ([parsed_configs_input.get(existing_conf_set.item.1)]
                if parsed_configs_input is defined and parsed_configs_input.get(existing_conf_set.item.1) else [])
             )
