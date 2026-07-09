@@ -135,12 +135,12 @@ def collect_packages_from_json(sw_data, fg_name=None,
 
 
 def process_functional_group(fg_name, arch, os_version, input_project_dir,
-                             software_map, allowed_softwares, module):
+                             software_map, allowed_softwares, module, cluster_os_type="rhel"):
     """
     Process a single functional group and return its package list.
     """
     group_path = os.path.join(
-        input_project_dir, "config", arch, "rhel", os_version
+        input_project_dir, "config", arch, cluster_os_type, os_version
     )
 
     if not os.path.isdir(group_path):
@@ -229,6 +229,8 @@ def run_module():
     if not os_version:
         module.fail_json(msg="cluster_os_version not found in software_config.json")
 
+    cluster_os_type = software_config.get("cluster_os_type", "rhel")
+
     # Extract service_k8s version from software_config if not provided
     if not service_k8s_version:
         for sw in software_config.get("softwares", []):
@@ -305,7 +307,7 @@ def run_module():
 
         packages = process_functional_group(
             fg_name, arch, os_version, input_project_dir,
-            software_map, allowed_softwares, module
+            software_map, allowed_softwares, module, cluster_os_type
         )
 
         # Add role-specific packages from additional_packages.json if enabled

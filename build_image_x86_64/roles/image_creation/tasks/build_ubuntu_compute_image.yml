@@ -50,6 +50,16 @@
   loop_control:
     loop_var: item
 
+- name: Deploy patched image-builder scripts for Ubuntu compute builds
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/image-builder/{{ item.src }}"
+    dest: "{{ oim_shared_path }}/omnia/openchami/image-builder-{{ item.dest }}"
+    mode: "{{ dir_permissions_755 }}"
+  loop:
+    - { src: 'installer.py', dest: 'installer.py' }
+    - { src: 'layer.py', dest: 'layer.py' }
+    - { src: 'publish.py', dest: 'publish.py' }
+
 - name: Build x86_64 ubuntu compute osimages in parallel
   ansible.builtin.shell:
     cmd: |
@@ -59,9 +69,9 @@
         {{ aws_checksum_env }} --user 0 --privileged \
         -v {{ pulp_cert_host_path }}:/usr/local/share/ca-certificates/pulp_webserver.crt:z \
         -v {{ openchami_work_dir }}/images/ubuntu-{{ item.key }}{{ compute_image_suffix }}-{{ ubuntu_tag }}.yaml:/home/builder/config.yaml:z \
-        -v {{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/image-builder-installer.py:/usr/local/bin/installer.py:z \
-        -v {{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/image-builder-layer.py:/usr/local/bin/layer.py:z \
-        -v {{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/image-builder-publish.py:/usr/local/bin/publish.py:z \
+        -v {{ oim_shared_path }}/omnia/openchami/image-builder-installer.py:/usr/local/bin/installer.py:z \
+        -v {{ oim_shared_path }}/omnia/openchami/image-builder-layer.py:/usr/local/bin/layer.py:z \
+        -v {{ oim_shared_path }}/omnia/openchami/image-builder-publish.py:/usr/local/bin/publish.py:z \
         {{ ochami_x86_64_image | join(' ') }} \
         {{ ochami_base_command | join(' ') }} \
         > '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1

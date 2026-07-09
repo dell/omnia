@@ -201,6 +201,12 @@ class Installer:
             cmd(["buildah", "run", self.cname, "--", "bash", "-c",
                  'echo \'Acquire::https::Verify-Peer "false";\' > /etc/apt/apt.conf.d/99no-ssl-verify'],
                 check=False, env=env)
+            # Remove CUDA/nvidia repo sources inherited from base image
+            # These repos have broken/missing packages that cause apt-get install to fail
+            logging.info("Removing CUDA/nvidia repo sources to avoid broken dependencies")
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c",
+                 'rm -f /etc/apt/sources.list.d/*cuda* /etc/apt/sources.list.d/*nvidia*'],
+                check=False, env=env)
             # Run apt-get update with --allow-insecure-repositories for Pulp repos
             rc = cmd(["buildah", "run", "--env", "DEBIAN_FRONTEND=noninteractive",
                       self.cname, "--", "apt-get", "update",
@@ -208,41 +214,62 @@ class Installer:
                      check=False, env=env)
             if rc != 0:
                 logging.warn("apt-get update returned non-zero, continuing anyway")
-            # Divert LVM commands to prevent lvm2 postinst hang in container
-            # (vgcfgbackup, vgchange, pvscan etc. hang with no block devices)
-            logging.info("Diverting LVM commands to prevent lvm2 postinst hang")
-            lvm_cmds = ['vgcfgbackup', 'vgchange', 'pvscan', 'vgscan', 'lvscan']
-            divert_script = ' && '.join(
-                [f'dpkg-divert --local --rename --divert /sbin/{c}.real --add /sbin/{c} 2>/dev/null; '
-                 f'echo \'#!/bin/sh\\nexit 0\' > /sbin/{c} && chmod +x /sbin/{c}'
-                 for c in lvm_cmds]
-            )
-            cmd(["buildah", "run", self.cname, "--", "bash", "-c", divert_script],
+            # Divert lvm2 postinst script to prevent hang in container
+            # (lvm2 postinst runs vgscan/vgchange which hang with no block devices)
+            logging.info("Diverting lvm2 postinst script to prevent hang")
+            divert_postinst = "dpkg-divert --local --rename --divert /var/lib/dpkg/info/lvm2.postinst.real --add /var/lib/dpkg/info/lvm2.postinst 2>/dev/null || true"
+            replace_postinst = "echo '#!/bin/sh' > /var/lib/dpkg/info/lvm2.postinst && echo 'exit 0' >> /var/lib/dpkg/info/lvm2.postinst && chmod +x /var/lib/dpkg/info/lvm2.postinst"
+            postinst_script = f"{divert_postinst} && {replace_postinst}"
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c", postinst_script],
                 check=False, env=env)
-            # Run apt-get install with --allow-unauthenticated for Pulp repos
+            # Run apt-get install with --allow-unauthenticated and --fix-missing
+            # --fix-missing: skip packages that can't be fetched (e.g. 404 from broken repos)
             rc = cmd(["buildah", "run", "--env", "DEBIAN_FRONTEND=noninteractive",
                       self.cname, "--", "apt-get", "install", "-y",
                       "--no-install-recommends", "--allow-unauthenticated",
+                      "--fix-missing",
                       "-o", 'Dpkg::Options::=--force-overwrite',
                       "-o", 'Dpkg::Options::=--force-confdef',
                       "-o", 'Dpkg::Options::=--force-confold'] + packages,
                      check=False, env=env)
-            # Restore real LVM commands after install
-            logging.info("Restoring real LVM commands")
-            restore_script = '; '.join(
-                [f'dpkg-divert --remove --rename /sbin/{c} 2>/dev/null'
-                 for c in lvm_cmds]
-            ) + '; true'
-            cmd(["buildah", "run", self.cname, "--", "bash", "-c", restore_script],
+            # Restore real lvm2 postinst script after install
+            logging.info("Restoring real lvm2 postinst script")
+            restore_postinst = "dpkg-divert --remove --rename /var/lib/dpkg/info/lvm2.postinst 2>/dev/null || true"
+            cmd(["buildah", "run", self.cname, "--", "bash", "-c", restore_postinst],
                 check=False, env=env)
             if rc != 0:
                 logging.warn("apt-get install returned %d, attempting to fix broken packages", rc)
+                # Retry install with --fix-broken to resolve partial installs
                 rc2 = cmd(["buildah", "run", "--env", "DEBIAN_FRONTEND=noninteractive",
-                           self.cname, "--", "dpkg", "--configure", "-a",
-                           "--force-overwrite", "--force-confdef", "--force-confold"],
+                           self.cname, "--", "apt-get", "install", "-y",
+                           "--fix-broken", "--fix-missing",
+                           "--no-install-recommends", "--allow-unauthenticated",
+                           "-o", 'Dpkg::Options::=--force-overwrite',
+                           "-o", 'Dpkg::Options::=--force-confdef',
+                           "-o", 'Dpkg::Options::=--force-confold'],
                           check=False, env=env)
                 if rc2 != 0:
-                    raise Exception("Installing base packages failed")
+                    logging.warn("apt-get --fix-broken returned %d, running dpkg --configure -a", rc2)
+                    rc3 = cmd(["buildah", "run", "--env", "DEBIAN_FRONTEND=noninteractive",
+                               self.cname, "--", "dpkg", "--configure", "-a",
+                               "--force-overwrite", "--force-confdef", "--force-confold"],
+                              check=False, env=env)
+                    if rc3 != 0:
+                        raise Exception("Installing base packages failed")
+                # Verify requested packages were actually installed
+                logging.info("Verifying requested packages were installed")
+                verify_cmd = " && ".join([f"dpkg -s {pkg} >/dev/null 2>&1" for pkg in packages])
+                rc_verify = cmd(["buildah", "run", self.cname, "--", "bash", "-c", verify_cmd],
+                                check=False, env=env)
+                if rc_verify != 0:
+                    logging.error("Some requested packages were NOT installed after fix attempt")
+                    # Log which packages are missing
+                    for pkg in packages:
+                        rc_pkg = cmd(["buildah", "run", self.cname, "--", "dpkg", "-s", pkg],
+                                     check=False, env=env)
+                        if rc_pkg != 0:
+                            logging.error(f"MISSING package: {pkg}")
+                    raise Exception("Installing base packages failed - required packages missing")
             return
         elif self.pkg_man == "apk":
             env = os.environ.copy()

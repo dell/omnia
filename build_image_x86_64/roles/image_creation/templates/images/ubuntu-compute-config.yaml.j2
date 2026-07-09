@@ -15,7 +15,7 @@ options:
 
 repos:
 {% for repo in ubuntu_x86_64_repos | default([]) %}
-{% if repo.base_url | length > 1 %}
+{% if repo.base_url | length > 1 and 'cuda' not in repo.name | lower and 'nvidia-hpc-sdk' not in repo.name | lower %}
   - alias: '{{ repo.name }}'
     url: '{{ repo.base_url }}'
 {% if repo.apt_dist | default('') | length > 0 %}
@@ -40,6 +40,5 @@ cmds:
 {% for cmd in commands_list %}
   - cmd: "{{ cmd }}"
 {% endfor %}
-{% else %}
-  []
 {% endif %}
+  - cmd: "KVER=$(ls /lib/modules/ | head -1) && depmod ${KVER} && dracut --force --force-add 'dmsquash-live livenet' --kver ${KVER}"
