@@ -39,7 +39,7 @@
 
 - name: Failed due to validation failure
   ansible.builtin.fail:
-    msg: >-
+    msg: |
 
       {{ validation_error_msg }}
 
