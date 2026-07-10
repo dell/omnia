@@ -784,8 +784,8 @@ init_container_config() {
                         echo -e "${BLUE} Please provide the external NFS server share path:${NC}"
                         read -p "External NFS share path: " nfs_server_share_path
 
-                        echo -e "${BLUE} Please provide the OIM client share path (mount target):${NC}"
-                        read -p "Omnia shared path: " omnia_path
+                        echo -e "${BLUE} Please provide the directory to store Omnia cluster configuration files:${NC}"
+                        read -p "Omnia config path: " omnia_path
 
                         # Validate Omnia shared path is absolute
                         if [[ "$omnia_path" != /* ]]; then
