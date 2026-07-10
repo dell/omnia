@@ -45,7 +45,6 @@
 
       {% if validation_status.errors is defined and validation_status.errors | length > 0 %}
       Errors:
-
       {% for err in validation_status.errors %}
       - {{ err }}
       {% endfor %}
@@ -53,7 +52,6 @@
 
       {% if validation_status.invalid_files is defined and validation_status.invalid_files | length > 0 %}
       Invalid files:
-
       {% for invalid_file in validation_status.invalid_files %}
       - {{ invalid_file }}
       {% endfor %}
