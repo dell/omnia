@@ -276,8 +276,8 @@
 # on the nodes; the cloud-init templates copy these from the NFS share.
 - name: Download RKE2 airgap image tarballs to NFS share
   ansible.builtin.get_url:
-    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.zst"
-    dest: "{{ k8s_client_mount_path }}/rke2/images/{{ item }}.tar.zst"
+    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.gz"
+    dest: "{{ k8s_client_mount_path }}/rke2/images/{{ item }}.tar.gz"
     mode: "{{ file_mode }}"
     validate_certs: false
   loop:
