@@ -111,7 +111,7 @@ def download_file_distribution(distribution_name, dl_directory, relative_path, l
                     full_url,
                     stream=True,
                     headers=headers,
-                    verify=PULP_SSL_CA_CERT,
+                    verify=False,
                     timeout=(30, 600)
                 ) as r:
 

@@ -22,7 +22,7 @@ rhel_tag: "{{ rhel_tag }}"
 rhel_repos:
 {% set rhel_repo = rhel_x86_64_repos %}
 {% for repo in rhel_repo %}
-  - { name: '{{ repo.name }}', url: '{{ repo.base_url }}', gpg: '{{ repo.gpg }}' }
+  - { name: '{{ repo.name }}', url: '{{ repo.base_url }}', gpg: '{{ repo.gpg }}', sslverify: false }
 {% endfor %}
 
 base_compute_image_packages:

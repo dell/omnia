@@ -734,6 +734,7 @@ name={repo_name} repo
 baseurl={base_url}
 enabled=1
 gpgcheck=0
+sslverify=0
 """
             repo_content += repo_entry.strip() + "\n\n"
 
