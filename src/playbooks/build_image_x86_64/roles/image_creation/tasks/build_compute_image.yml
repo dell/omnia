@@ -58,8 +58,9 @@
       podman run --rm --device /dev/fuse --network host \
         -e S3_ACCESS={{ s3_access }} -e S3_SECRET={{ s3_secret }} \
         {{ aws_checksum_env }} --user 0 --privileged \
-        -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z \
-        -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z \
+        --cap-add=SYS_ADMIN --cap-add=SETUID --cap-add=SETGID \
+        --security-opt seccomp=unconfined --security-opt label=disable \
+        -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/config.yaml:z \
         {{ ochami_x86_64_image | join(' ') }} \
         {{ ochami_base_command | join(' ') }} \
         > '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
@@ -101,6 +102,84 @@
     - name: Verify x86_64 compute osimages output
       ansible.builtin.debug:
         msg: "{{ verify_compute_osimages.stdout_lines }}"
+
+    - name: Restructure squashfs to LiveOS format for dracut dmsquash-live
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          IMAGE_NAME="rhel-{{ item.key }}{{ omnia_suffix }}{% if (item.key is match('service_kube_')) %}{{ k8s_suffix }}{% endif %}{{ compute_image_suffix }}"
+          SQUASHFS_PATH="boot-images/{{ item.key }}/${IMAGE_NAME}/rhel-${IMAGE_NAME}-{{ rhel_tag }}"
+          TEMP_DIR="/tmp/liveos-restructure-{{ item.key }}{{ compute_image_suffix }}"
+          SQUASHFS_FILE="$TEMP_DIR/original.squashfs"
+          ROOTFS_IMG="$TEMP_DIR/LiveOS/rootfs.img"
+          MINIO_URL="{{ s3_endpoint }}/${SQUASHFS_PATH}"
+          NEW_SQUASHFS="/tmp/new-squashfs-{{ item.key }}{{ compute_image_suffix }}.img"
+          UPLOAD_NAME="new-squashfs-{{ item.key }}{{ compute_image_suffix }}.img"
+
+          rm -rf "$TEMP_DIR" "$NEW_SQUASHFS"
+          mkdir -p "$TEMP_DIR/LiveOS"
+
+          # Download squashfs from MinIO using curl
+          echo "Downloading squashfs from $MINIO_URL"
+          curl -sf -o "$SQUASHFS_FILE" "$MINIO_URL"
+          echo "Downloaded $(du -sh "$SQUASHFS_FILE" | awk '{print $1}')"
+
+          # Calculate size needed (original uncompressed + 20% headroom, min 4GB)
+          SQUASHFS_SIZE=$(unsquashfs -stat "$SQUASHFS_FILE" 2>/dev/null | grep 'Filesystem size' | awk '{print $3}' || du -sb "$SQUASHFS_FILE" | awk '{print $1}')
+          ROOTFS_SIZE=$((SQUASHFS_SIZE * 12 / 10))
+          if [ "$ROOTFS_SIZE" -lt 4294967296 ]; then
+            ROOTFS_SIZE=4294967296
+          fi
+          echo "Creating ext4 rootfs.img of size $((ROOTFS_SIZE / 1048576)) MiB"
+
+          # Create ext4 filesystem image
+          truncate -s "$ROOTFS_SIZE" "$ROOTFS_IMG"
+          mkfs.ext4 -F "$ROOTFS_IMG" >/dev/null 2>&1
+
+          # Mount ext4 image and extract squashfs content into it
+          mkdir -p "$TEMP_DIR/ext4_mount" "$TEMP_DIR/squashfs_mount"
+          mount -o loop "$ROOTFS_IMG" "$TEMP_DIR/ext4_mount"
+          mount -o loop,ro "$SQUASHFS_FILE" "$TEMP_DIR/squashfs_mount"
+          cp -a "$TEMP_DIR/squashfs_mount"/. "$TEMP_DIR/ext4_mount/"
+          sync
+
+          # Cleanup mounts
+          umount "$TEMP_DIR/squashfs_mount"
+          umount "$TEMP_DIR/ext4_mount"
+          rmdir "$TEMP_DIR/squashfs_mount" "$TEMP_DIR/ext4_mount"
+          rm "$SQUASHFS_FILE"
+
+          # Create new squashfs from the entire temp dir (which contains LiveOS/ subdirectory)
+          echo "Creating LiveOS squashfs wrapper"
+          mksquashfs "$TEMP_DIR" "$NEW_SQUASHFS" -comp gzip -noappend
+          echo "New squashfs size: $(du -sh "$NEW_SQUASHFS" | awk '{print $1}')"
+
+          # Verify the new squashfs has correct structure
+          mkdir -p "$TEMP_DIR/verify"
+          mount -o loop,ro "$NEW_SQUASHFS" "$TEMP_DIR/verify"
+          if [ ! -f "$TEMP_DIR/verify/LiveOS/rootfs.img" ]; then
+            echo "ERROR: LiveOS/rootfs.img not found in new squashfs!"
+            ls -laR "$TEMP_DIR/verify/"
+            umount "$TEMP_DIR/verify"
+            exit 1
+          fi
+          echo "Verified: LiveOS/rootfs.img exists in new squashfs"
+          umount "$TEMP_DIR/verify"
+          rmdir "$TEMP_DIR/verify"
+
+          # Upload restructured squashfs back to MinIO
+          echo "Uploading to minio/$SQUASHFS_PATH"
+          podman cp "$NEW_SQUASHFS" minio-server:/tmp/"$UPLOAD_NAME"
+          podman exec minio-server sh -c "mc alias set m http://localhost:9000 {{ s3_access }} {{ s3_secret }} 2>/dev/null && mc cp /tmp/$UPLOAD_NAME m/$SQUASHFS_PATH && rm /tmp/$UPLOAD_NAME"
+          echo "Upload complete"
+
+          # Cleanup
+          rm -rf "$TEMP_DIR" "$NEW_SQUASHFS"
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: item
+      register: squashfs_restructure
+      changed_when: true
 
   rescue:
     - name: Identify failed image builds

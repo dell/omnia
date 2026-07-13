@@ -37,22 +37,11 @@
     oim_pxe_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
     cacheable: true
 
-# Copy pulp certificate and update CA trust
-- name: Copy pulp webserver certificate to anchors
-  ansible.builtin.copy:
-    src: "{{ pulp_webserver_cert_path }}"
-    dest: "{{ anchors_path }}"
-    mode: "{{ dir_permissions_644 }}"
-  become: true
-
-- name: Update CA trust
-  ansible.builtin.command: update-ca-trust
-  register: update_ca
-  changed_when: false
+# Image-thrillhouse doesn't require CA trust setup - removed
 
 - name: Build full Podman image path for x86_64
   ansible.builtin.set_fact:
-    pulp_x86_image: "{{ oim_pxe_ip }}:2225/{{ pulp_x86_64_image_name }}"
+    pulp_x86_image: "{{ pulp_x86_64_image_name if '.' in pulp_x86_64_image_name.split('/')[0] else oim_pxe_ip + ':2225/' + pulp_x86_64_image_name }}"
 
 - name: Pull and tag x86_64 image
   block:

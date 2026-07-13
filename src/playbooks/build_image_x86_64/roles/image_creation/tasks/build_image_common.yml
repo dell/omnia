@@ -31,6 +31,8 @@
     rhel_x86_64_repos: "{{ hostvars['localhost']['rhel_x86_64_repos'] }}"
     x86_64_base_image_packages: "{{ hostvars['localhost']['x86_64_base_image_packages'] }}"
     compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] }}"
+    rhel_subscription_enabled: "{{ hostvars['localhost']['rhel_subscription_enabled'] | default(false) }}"
+    rhel_subscription_repo_config_x86_64: "{{ hostvars['localhost']['rhel_subscription_repo_config_x86_64'] | default([]) }}"
 
 - name: Normalize build stream inputs for base image
   ansible.builtin.set_fact:

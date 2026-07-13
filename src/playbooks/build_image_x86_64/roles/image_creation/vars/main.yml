@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.2"
-x86_64_local_tag: "x86_64-image-builder/ochami"
+pulp_x86_64_image_name: "ghcr.io/openchami/image-thrillhouse:latest"
+x86_64_local_tag: "image-thrillhouse/ochami"
 pull_image_retries: "5"
 pull_image_delay: "10"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
@@ -29,18 +29,27 @@ anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
 ochami_mounts:
   - --user 0 --privileged
-  - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z
-  - -v {{ openchami_work_dir }}/images/{{ rhel_x86_64_base_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
+  - --device /dev/fuse
+  - --cap-add=SYS_ADMIN
+  - --cap-add=SETUID
+  - --cap-add=SETGID
+  - --security-opt seccomp=unconfined
+  - --security-opt label=disable
+  - -v {{ openchami_work_dir }}/images/{{ rhel_x86_64_base_image_name }}-{{ rhel_tag }}.yaml:/config.yaml:z
 ochami_compute_mounts:
   - --user 0 --privileged
-  - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z
-  - -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
+  - --device /dev/fuse
+  - --cap-add=SYS_ADMIN
+  - --cap-add=SETUID
+  - --cap-add=SETGID
+  - --security-opt seccomp=unconfined
+  - --security-opt label=disable
+  - -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/config.yaml:z
 
 ochami_x86_64_image:
-  - --entrypoint /bin/bash
   - "localhost/{{ x86_64_local_tag }}"
 ochami_base_command:
-  - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
+  - image-thrillhouse build --config /config.yaml --log-level info
 
 # build_base_image.yml
 openchami_log_dir: "{{ oim_shared_path }}/omnia/log/openchami"

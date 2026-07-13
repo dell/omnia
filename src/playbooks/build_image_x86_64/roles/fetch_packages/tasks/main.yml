@@ -52,6 +52,19 @@
     default_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/default_packages.json"   # noqa: yaml[line-length]
     additional_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/additional_packages.json"   # noqa: yaml[line-length]
     admin_debug_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/admin_debug_packages.json"  # noqa: yaml[line-length]
+    local_repo_config_path: "{{ input_project_dir }}/local_repo_config.yml"
+
+- name: Load local_repo_config.yml for subscription config
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_config_path }}"
+    name: local_repo_config
+  when: fg_x86_64 or enable_build_stream
+
+- name: Set subscription variables
+  ansible.builtin.set_fact:
+    rhel_subscription_enabled: "{{ local_repo_config.rhel_subscription_repo_config_x86_64 is defined and local_repo_config.rhel_subscription_repo_config_x86_64 | length > 0 }}"
+    rhel_subscription_repo_config_x86_64: "{{ local_repo_config.rhel_subscription_repo_config_x86_64 | default([]) }}"
+  when: fg_x86_64 or enable_build_stream
 
 - name: Fetch pulp endpoint repos
   ansible.builtin.include_tasks: fetch_pulp_repos.yml

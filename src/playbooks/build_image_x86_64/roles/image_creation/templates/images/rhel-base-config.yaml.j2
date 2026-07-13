@@ -1,33 +1,45 @@
-options:
-  layer_type: 'base'
+meta:
   name: '{{ rhel_x86_64_base_image_name }}'
-  publish_tags: '{{ rhel_tag }}'
-  pkg_manager: 'dnf'
-  parent: 'scratch'
-  publish_registry: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
-  registry_opts_push:
-    - '--tls-verify=false'
+  tags:
+    - '{{ rhel_tag }}'
+  from: scratch
 
-repos:
+layer:
+  manager:
+    name: dnf
+    options:
+      releasever: "{{ rhel_tag }}"
+  repos:
 {% for repo in rhel_x86_64_repos %}
-{% if repo.base_url | length > 1 %}
-  - alias: '{{ repo.name }}'
-    url: '{{ repo.base_url }}'
-{% endif %}
-{% if repo.gpg | length > 1 %}
-    gpg: '{{ repo.gpg }}'
+{% if repo.base_url is defined and repo.base_url %}
+    - path: /etc/yum.repos.d/{{ repo.name }}.repo
+      content: |
+        [{{ repo.name }}]
+        name={{ repo.name }}
+        baseurl={{ repo.base_url }}
+        gpgcheck=0
+        sslverify=0
 {% endif %}
 {% endfor %}
-
-package_groups:
-  - 'Minimal Install'
-  - 'Development Tools'
-packages:
+  actions:
+    install:
+      groups:
+        - Minimal Install
+        - Development Tools
+      packages:
 {% for pkg in x86_64_base_image_packages %}
-  - {{ pkg }}
+        - {{ pkg }}
 {% endfor %}
-
-cmds:
+{% if base_image_commands %}
+    commands:
 {% for cmd in base_image_commands %}
-  - cmd: "{{ cmd }}"
+      - script: |
+          #!/bin/bash
+          {{ cmd }}
 {% endfor %}
+{% endif %}
+
+publish:
+  - type: registry
+    url: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
+    tls-verify: false
