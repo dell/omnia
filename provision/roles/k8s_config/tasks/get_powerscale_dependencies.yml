@@ -129,6 +129,7 @@
         url: "{{ offline_git_path }}/{{ csi_powerscale_dir }}/{{ csi_powerscale_dir }}.tar.gz"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}.tar.gz"
         mode: "{{ permission_644 }}"
+        validate_certs: false
 
     - name: Extract csi-powerscale tar file
       ansible.builtin.unarchive:
@@ -141,12 +142,14 @@
         url: "{{ offline_git_path }}/{{ helm_charts_dir }}/{{ helm_charts_dir }}.tar.gz"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
+        validate_certs: false
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
         url: "{{ offline_git_path }}/{{ external_snapshotter_dir }}/{{ external_snapshotter_dir }}.tar.gz"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
+        validate_certs: false
 
     - name: Transfer storage class template to nfs share (inside versioned directory)
       ansible.builtin.template:

@@ -252,6 +252,7 @@
     url: "{{ calico_manifest_yaml_url }}"
     dest: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # metallb
 - name: Download metallb-native manifest
@@ -259,6 +260,7 @@
     url: "{{ metallb_manifest_yaml_url }}"
     dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # multus
 # - name: Download multus manifest
@@ -273,6 +275,7 @@
     url: "{{ helm_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 - name: Extract helm version from package name
   ansible.builtin.set_fact:
@@ -299,6 +302,7 @@
     url: "{{ nfs_client_provisioner_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # whereabouts
 # - name: Get whereabouts plugin git folder

@@ -158,6 +158,7 @@
     url: "{{ offline_manifest_path }}/{{ compute_metallb_package }}/{{ compute_metallb_package }}.yml"
     dest: "{{ compute_k8s_client_mount_path }}/metallb/{{ compute_metallb_package }}.yml"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # helm
 - name: Download helm tarball for compute cluster
@@ -165,6 +166,7 @@
     url: "{{ offline_tarball_path }}/{{ compute_helm_package }}/{{ compute_helm_package }}.tar.gz"
     dest: "{{ compute_k8s_client_mount_path }}/helm/{{ compute_helm_package }}.tar.gz"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 - name: Untar helm tarball repo for compute cluster
   ansible.builtin.unarchive:
@@ -178,6 +180,7 @@
     url: "{{ offline_tarball_path }}/{{ compute_nfs_subdir_external_provisioner_pkg }}/{{ compute_nfs_subdir_external_provisioner_pkg }}.tar.gz"
     dest: "{{ compute_k8s_client_mount_path }}/nfs-client-provisioner/{{ compute_nfs_subdir_external_provisioner_pkg }}.tar.gz"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # RKE2 airgap system images (core + selected CNI)
 - name: Download RKE2 airgap image tarballs to compute NFS share
@@ -185,6 +188,7 @@
     url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.zst"
     dest: "{{ compute_k8s_client_mount_path }}/rke2/images/{{ item }}.tar.zst"
     mode: "{{ file_mode }}"
+    validate_certs: false
   loop:
     - "{{ compute_rke2_images_core_pkg }}"
     - "{{ compute_rke2_images_cni_pkg }}"

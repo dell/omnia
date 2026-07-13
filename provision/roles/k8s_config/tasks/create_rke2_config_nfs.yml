@@ -247,6 +247,7 @@
     url: "{{ metallb_manifest_yaml_url }}"
     dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # helm
 - name: Download helm tarball
@@ -254,6 +255,7 @@
     url: "{{ helm_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 - name: Untar helm tarball repo
   ansible.builtin.unarchive:
@@ -267,6 +269,7 @@
     url: "{{ nfs_client_provisioner_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
     mode: "{{ file_mode }}"
+    validate_certs: false
 
 # RKE2 airgap system images (core + selected CNI)
 # RKE2 auto-imports any *.tar.zst found in /var/lib/rancher/rke2/agent/images/
@@ -276,6 +279,7 @@
     url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.zst"
     dest: "{{ k8s_client_mount_path }}/rke2/images/{{ item }}.tar.zst"
     mode: "{{ file_mode }}"
+    validate_certs: false
   loop:
     - "{{ rke2_images_core_pkg }}"
     - "{{ rke2_images_cni_pkg }}"
