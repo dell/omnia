@@ -40,17 +40,37 @@
       ansible.builtin.pause:
         seconds: 30
 
-    # ── Recover any failed services before health check ─────────────────
+    # ── Recover any failed/inactive services before health check ────────
     - name: Recover any failed openchami services
       ansible.builtin.shell: |
         set -o pipefail
-        systemctl reset-failed 2>/dev/null || true
+        RECOVERED=""
+        # Step 1: Ensure openchami.target itself is active
+        if ! systemctl is-active --quiet openchami.target 2>/dev/null; then
+          echo "Starting openchami.target (was inactive)"
+          systemctl reset-failed 2>/dev/null || true
+          systemctl start openchami.target 2>/dev/null || true
+          RECOVERED="yes"
+          sleep 15
+        fi
+        # Step 2: Restart failed or unexpectedly inactive services
         for svc in $(systemctl list-dependencies openchami.target --plain --no-pager 2>/dev/null); do
-          if systemctl is-failed "$svc" 2>/dev/null; then
+          state=$(systemctl is-active "$svc" 2>/dev/null || true)
+          if [ "$state" = "failed" ]; then
             echo "Restarting failed service: $svc"
+            systemctl reset-failed "$svc" 2>/dev/null || true
             systemctl restart "$svc" 2>/dev/null || true
+            RECOVERED="yes"
+          elif [ "$state" = "inactive" ]; then
+            svc_type=$(systemctl show -p Type --value "$svc" 2>/dev/null || true)
+            if [ "$svc_type" != "oneshot" ]; then
+              echo "Restarting inactive service: $svc (type=$svc_type)"
+              systemctl restart "$svc" 2>/dev/null || true
+              RECOVERED="yes"
+            fi
           fi
         done
+        [ -z "$RECOVERED" ] && echo "ALL_SERVICES_OK" || true
       register: svc_recovery_result
       changed_when: false
       failed_when: false
@@ -61,12 +81,12 @@
     - name: Display recovered services
       ansible.builtin.debug:
         msg: "{{ svc_recovery_result.stdout_lines | default([]) }}"
-      when: svc_recovery_result.stdout | default('') | trim | length > 0
+      when: "'ALL_SERVICES_OK' not in svc_recovery_result.stdout | default('')"
 
     - name: Wait for recovered services to stabilize
       ansible.builtin.pause:
         seconds: 15
-      when: svc_recovery_result.stdout | default('') | trim | length > 0
+      when: "'ALL_SERVICES_OK' not in svc_recovery_result.stdout | default('')"
 
     # ── Verify ALL post-upgrade containers are running ─────────────────
     # After upgrade, every container in the post-upgrade list must be up.

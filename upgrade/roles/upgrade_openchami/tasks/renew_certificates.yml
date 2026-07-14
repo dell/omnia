@@ -86,6 +86,47 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
+    # ── Recover any services that failed from target restart race ──────
+    - name: Recover any failed services after certificate renewal
+      ansible.builtin.shell: |
+        set -o pipefail
+        RECOVERED=""
+        if ! systemctl is-active --quiet openchami.target 2>/dev/null; then
+          echo "Starting openchami.target (was inactive)"
+          systemctl reset-failed 2>/dev/null || true
+          systemctl start openchami.target 2>/dev/null || true
+          RECOVERED="yes"
+          sleep 15
+        fi
+        for svc in $(systemctl list-dependencies openchami.target --plain --no-pager 2>/dev/null); do
+          state=$(systemctl is-active "$svc" 2>/dev/null || true)
+          if [ "$state" = "failed" ]; then
+            echo "Restarting failed service: $svc"
+            systemctl reset-failed "$svc" 2>/dev/null || true
+            systemctl restart "$svc" 2>/dev/null || true
+            RECOVERED="yes"
+          elif [ "$state" = "inactive" ]; then
+            svc_type=$(systemctl show -p Type --value "$svc" 2>/dev/null || true)
+            if [ "$svc_type" != "oneshot" ]; then
+              echo "Restarting inactive service: $svc (type=$svc_type)"
+              systemctl restart "$svc" 2>/dev/null || true
+              RECOVERED="yes"
+            fi
+          fi
+        done
+        [ -z "$RECOVERED" ] && echo "ALL_SERVICES_OK" || true
+      register: cert_recovery_result
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for recovered services to stabilize after cert renewal
+      ansible.builtin.pause:
+        seconds: 15
+      when: "'ALL_SERVICES_OK' not in cert_recovery_result.stdout | default('')"
+
     - name: Stop HAProxy to clear stale backend DNS cache
       ansible.builtin.systemd:
         name: haproxy.service
@@ -105,14 +146,6 @@
     - name: Wait for HAProxy to stabilize after restart
       ansible.builtin.pause:
         seconds: 10
-
-    - name: Reset any failed services after certificate renewal
-      ansible.builtin.command: systemctl reset-failed
-      changed_when: true
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
 
     - name: Display certificate renewal status
       ansible.builtin.debug:

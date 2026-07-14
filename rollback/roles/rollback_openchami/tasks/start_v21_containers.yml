@@ -62,28 +62,48 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
-    # ── Recover any failed services ─────────────────────────────────────
-    - name: Reset any failed services
-      ansible.builtin.command: systemctl reset-failed
-      changed_when: true
+    # ── Recover any failed services individually ────────────────────────
+    # Instead of restarting openchami.target (which causes race conditions),
+    # detect and restart only the specific services that failed.
+    - name: Recover any failed services after v2.1 container start
+      ansible.builtin.shell: |
+        set -o pipefail
+        RECOVERED=""
+        if ! systemctl is-active --quiet openchami.target 2>/dev/null; then
+          echo "Starting openchami.target (was inactive)"
+          systemctl reset-failed 2>/dev/null || true
+          systemctl start openchami.target 2>/dev/null || true
+          RECOVERED="yes"
+          sleep 15
+        fi
+        for svc in $(systemctl list-dependencies openchami.target --plain --no-pager 2>/dev/null); do
+          state=$(systemctl is-active "$svc" 2>/dev/null || true)
+          if [ "$state" = "failed" ]; then
+            echo "Restarting failed service: $svc"
+            systemctl reset-failed "$svc" 2>/dev/null || true
+            systemctl restart "$svc" 2>/dev/null || true
+            RECOVERED="yes"
+          elif [ "$state" = "inactive" ]; then
+            svc_type=$(systemctl show -p Type --value "$svc" 2>/dev/null || true)
+            if [ "$svc_type" != "oneshot" ]; then
+              echo "Restarting inactive service: $svc (type=$svc_type)"
+              systemctl restart "$svc" 2>/dev/null || true
+              RECOVERED="yes"
+            fi
+          fi
+        done
+        [ -z "$RECOVERED" ] && echo "ALL_SERVICES_OK" || true
+      register: start_recovery_result
+      changed_when: false
       failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
-    - name: Restart openchami.target to recover failed services
-      ansible.builtin.systemd:
-        name: openchami.target
-        state: restarted
-        enabled: true
-        daemon_reload: true
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Wait for restarted services to stabilize
+    - name: Wait for recovered services to stabilize
       ansible.builtin.pause:
-        seconds: "{{ wait_time }}"
+        seconds: 15
+      when: "'ALL_SERVICES_OK' not in start_recovery_result.stdout | default('')"
 
     - name: Stop HAProxy to clear stale backend DNS cache
       ansible.builtin.systemd:
