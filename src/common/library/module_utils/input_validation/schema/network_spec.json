@@ -25,6 +25,7 @@
                   "netmask_bits",
                   "primary_oim_admin_ip",
                   "primary_oim_bmc_ip",
+                  "router",
                   "dynamic_range"
                 ],
                 "properties": {
@@ -52,6 +53,10 @@
                       "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                     }
                     ]
+                  },
+                  "router": {
+                    "type": "string",
+                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                   },
                   "dynamic_range": {
                     "type": "string",

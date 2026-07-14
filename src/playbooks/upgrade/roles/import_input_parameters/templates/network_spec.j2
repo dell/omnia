@@ -24,6 +24,8 @@
 # - 'primary_oim_bmc_ip': The iDRAC  IP address of the OIM server,
 #     Mandatory only if idrac_telemetry is set to true and telemetry data needs to be collected from the OIM server.
 #     Optional — can be omitted if iDRAC telemetry for the OIM server is not required.
+# - 'router': The gateway/router IP for the admin network (used as DHCP option 3).
+#     Mandatory. If no dedicated router is available, use 'primary_oim_admin_ip'.
 # - 'dynamic_range': The range of dynamic IP addresses available on the admin network.
 # - 'dns': The list of external DNS server IP address for the admin network.
 # - 'ntp_servers': The list of NTP servers for the admin network. Each NTP server entry should include: 
@@ -69,6 +71,7 @@ Networks:
     netmask_bits: "{{ admin_network.netmask_bits | default(network_default_netmask_bits) }}"
     primary_oim_admin_ip: "{{ admin_network.primary_oim_admin_ip | default('') }}"
     primary_oim_bmc_ip: "{{ admin_network.primary_oim_bmc_ip | default('') }}"
+    router: "{{ admin_network.router | default(admin_network.primary_oim_admin_ip | default('')) }}"
     dynamic_range: "{{ admin_network.dynamic_range | default('') }}"
     dns: {{ admin_network.dns | default([], true) }}
     ntp_servers: {{ admin_network.ntp_servers | default([], true) }}

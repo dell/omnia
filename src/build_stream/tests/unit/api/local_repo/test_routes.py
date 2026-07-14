@@ -22,7 +22,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from api.local_repo.routes import router
-from core.jobs.exceptions import JobNotFoundError
+from core.jobs.exceptions import (
+    JobNotFoundError,
+    StageAlreadyCompletedError,
+    TerminalStateViolationError,
+    UpstreamStageNotCompletedError,
+)
 from core.jobs.value_objects import JobId
 from core.localrepo.exceptions import (
     InputDirectoryInvalidError,
@@ -296,3 +301,84 @@ class TestCreateLocalRepositoryRoute:
         assert response.status_code == 202
         response_data = response.json()
         assert response_data["correlation_id"] == correlation_id
+
+    def test_stage_already_completed_returns_409(self, mock_use_case, job_id):
+        """Test that StageAlreadyCompletedError returns 409.
+
+        Regression test for commit c1c9aa6 — this handler was missing and
+        caused 500 errors when a user retried a stage that was already completed.
+        """
+        mock_use_case.execute.side_effect = StageAlreadyCompletedError(
+            job_id=job_id,
+            stage_name="create-local-repository",
+            correlation_id=str(uuid.uuid4()),
+        )
+
+        from api.local_repo.dependencies import get_create_local_repo_use_case
+        from api.dependencies import verify_token
+        app = FastAPI()
+        app.include_router(router, prefix="/api/v1")
+        app.dependency_overrides[get_create_local_repo_use_case] = lambda: mock_use_case
+        app.dependency_overrides[verify_token] = lambda: {"sub": "test-client", "client_id": "test-client-id", "scopes": ["job:write"]}
+        client = TestClient(app)
+
+        response = client.post(
+            f"/api/v1/jobs/{job_id}/stages/create-local-repository",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+        assert response.status_code == 409
+        response_data = response.json()
+        assert response_data["detail"]["error"] == "STAGE_ALREADY_COMPLETED"
+
+    def test_upstream_stage_not_completed_returns_412(self, mock_use_case, job_id):
+        """Test that UpstreamStageNotCompletedError returns 412."""
+        mock_use_case.execute.side_effect = UpstreamStageNotCompletedError(
+            job_id=job_id,
+            required_stage="parse-catalog",
+            actual_state="PENDING",
+            correlation_id=str(uuid.uuid4()),
+        )
+
+        from api.local_repo.dependencies import get_create_local_repo_use_case
+        from api.dependencies import verify_token
+        app = FastAPI()
+        app.include_router(router, prefix="/api/v1")
+        app.dependency_overrides[get_create_local_repo_use_case] = lambda: mock_use_case
+        app.dependency_overrides[verify_token] = lambda: {"sub": "test-client", "client_id": "test-client-id", "scopes": ["job:write"]}
+        client = TestClient(app)
+
+        response = client.post(
+            f"/api/v1/jobs/{job_id}/stages/create-local-repository",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+        assert response.status_code == 412
+        response_data = response.json()
+        assert response_data["detail"]["error"] == "UPSTREAM_STAGE_NOT_COMPLETED"
+
+    def test_terminal_state_violation_returns_409(self, mock_use_case, job_id):
+        """Test that TerminalStateViolationError returns 409."""
+        mock_use_case.execute.side_effect = TerminalStateViolationError(
+            entity_type="Job",
+            entity_id=job_id,
+            state="COMPLETED",
+            correlation_id=str(uuid.uuid4()),
+        )
+
+        from api.local_repo.dependencies import get_create_local_repo_use_case
+        from api.dependencies import verify_token
+        app = FastAPI()
+        app.include_router(router, prefix="/api/v1")
+        app.dependency_overrides[get_create_local_repo_use_case] = lambda: mock_use_case
+        app.dependency_overrides[verify_token] = lambda: {"sub": "test-client", "client_id": "test-client-id", "scopes": ["job:write"]}
+        client = TestClient(app)
+
+        response = client.post(
+            f"/api/v1/jobs/{job_id}/stages/create-local-repository",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+        assert response.status_code == 412
+        response_data = response.json()
+        assert response_data["detail"]["error"] == "TERMINAL_STATE_VIOLATION"

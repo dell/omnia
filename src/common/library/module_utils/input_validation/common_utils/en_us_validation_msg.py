@@ -604,6 +604,12 @@ IB_SUBNET_IN_ADMIN_RANGE_MSG = (
     "primary_oim_admin_ip/netmask_bits in network_spec.yml."
 )
 
+ADMIN_ROUTER_INVALID_MSG = (
+    "admin_network.router is mandatory and must be a valid IPv4 address "
+    "(Example: 192.168.1.1). If no dedicated router is available, "
+    "primary_oim_admin_ip can be used as the router."
+)
+
 # additional_subnets (multi-subnet / multi-RAC support)
 ADDITIONAL_SUBNET_ROUTER_INVALID_MSG = (
     "router must be a valid IPv4 address within the subnet."

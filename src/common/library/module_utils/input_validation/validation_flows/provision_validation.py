@@ -1607,6 +1607,17 @@ def _validate_admin_network(network):
                 )
             )
 
+    # Validate admin_network.router (mandatory, must be a valid IPv4 address)
+    router = admin_net.get("router", "")
+    if not router or not validation_utils.validate_ipv4(router):
+        errors.append(
+            create_error_msg(
+                "admin_network.router",
+                router,
+                en_us_validation_msg.ADMIN_ROUTER_INVALID_MSG,
+            )
+        )
+
     #  Admin and BMC IP should not be the same
     errors.extend(validate_admin_bmc_ip_not_same(primary_oim_admin_ip, primary_oim_bmc_ip))
 

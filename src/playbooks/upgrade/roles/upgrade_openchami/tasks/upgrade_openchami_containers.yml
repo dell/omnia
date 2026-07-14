@@ -280,6 +280,7 @@
                 {{ (network_data.admin_network.primary_oim_admin_ip | default('0.0.0.0')
                 + '/' + (network_data.admin_network.netmask_bits | default('24') | string))
                 | ansible.utils.ipaddr('netmask') }}
+              coredhcp_router: "{{ network_data.admin_network.router | default(network_data.admin_network.primary_oim_admin_ip | default('')) }}"
               coredhcp_lease_duration: "{{ default_lease_time | default('86400') }}s"
               cluster_shortname: "nid"
               cluster_nidlength: 3
@@ -322,6 +323,7 @@
         cluster_nidlength: "{{ cluster_config.cluster_nidlength | default('3') }}"
         ochami_base_url: "https://{{ cluster_config.cluster_name }}.{{ cluster_config.cluster_domain }}:8443"
         coredhcp_netmask: "{{ cluster_config.coredhcp_netmask | default('255.255.255.0') }}"
+        coredhcp_router: "{{ cluster_config.coredhcp_router | default(cluster_config.cluster_boot_ip | default('')) }}"
         coredhcp_lease_duration: "{{ cluster_config.coredhcp_lease_duration | default('86400s') }}"
         coredhcp_dhcp_pool: "{{ cluster_config.coredhcp_dhcp_pool | default('') }}"
       when:

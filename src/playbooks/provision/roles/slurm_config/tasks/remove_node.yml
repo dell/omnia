@@ -95,3 +95,18 @@
     merged_conf: "{{ merged_conf | combine({'results': updated_merged_results}) }}"
   when:
     - updated_merged_results is defined
+
+# TODO: This should be done by provision_validation role - idempotency
+- name: Remove entries from /etc/hosts
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -Ev '[[:space:]]{{ item }}$' {{ hosts_file_path }} > {{ hosts_file_path }}.tmp
+    cat {{ hosts_file_path }}.tmp > {{ hosts_file_path }}
+    rm -f {{ hosts_file_path }}.tmp
+  loop: "{{ nodes_in_normal_not_in_cmpt }}"
+  when:
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+  changed_when: true
+  failed_when: false
+  delegate_to: localhost

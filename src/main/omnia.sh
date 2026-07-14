@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -298,14 +298,21 @@ validate_container_image() {
         echo -e "${YELLOW}Required image:${NC} omnia_core:$target_container_tag"
         echo ""
         echo -e "${YELLOW}Omnia does not pull images from Docker Hub.${NC}"
-        echo -e "${YELLOW}You must build the container image locally before proceeding.${NC}"
+        echo -e "${YELLOW}You must build or load the container image locally before proceeding.${NC}"
         echo ""
-        echo -e "${BLUE}Build the required image using:${NC}"
+        echo -e "${BLUE}Build the required image using the following commands:${NC}"
         echo ""
-        echo -e "   ${BLUE}./omnia.sh --build${NC}"
+        echo -e "git clone https://github.com/dell/omnia-artifactory.git -b omnia-container-<version>"
+        echo -e "${YELLOW}Note: Replace <version> with the target Omnia version (e.g., v2.2.0.0)${NC}"
+        echo ""
+        echo -e "cd omnia-artifactory"
+        echo ""
+        echo -e "./build_images.sh core core_tag=<tag> omnia_branch=<branch>"
+        echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.2.0.0)${NC}"
+        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.2 for v2.2.0.0)${NC}"
         echo ""
         echo -e "${BLUE}After the image is built successfully, re-run:${NC}"
-        echo -e "   ${BLUE}./omnia.sh --$operation${NC}"
+        echo -e "./omnia.sh --$operation"
         echo ""
         echo -e "${RED}================================================================================${NC}"
         return 1
@@ -385,10 +392,10 @@ show_post_upgrade_instructions() {
     echo -e "${YELLOW}You must now run the upgrade playbooks inside the omnia_core container:${NC}"
     echo ""
     echo -e "${GREEN}Step 1: Prepare upgrade (transform inputs, restore credentials)${NC}"
-    echo -e "${GREEN}  ansible-playbook /omnia/src/playbooks/upgrade/prepare_upgrade.yml${NC}"
+    echo -e "${GREEN}  ansible-playbook /omnia/upgrade/prepare_upgrade.yml${NC}"
     echo ""
     echo -e "${GREEN}Step 2: Execute upgrade${NC}"
-    echo -e "${GREEN}  ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml${NC}"
+    echo -e "${GREEN}  ansible-playbook /omnia/upgrade/upgrade.yml${NC}"
     echo ""
     echo -e "${YELLOW}Note: Run these commands after the container is fully healthy and stable${NC}"
     echo -e "${YELLOW}================================================================================${NC}"
@@ -777,8 +784,8 @@ init_container_config() {
                         echo -e "${BLUE} Please provide the external NFS server share path:${NC}"
                         read -p "External NFS share path: " nfs_server_share_path
 
-                        echo -e "${BLUE} Please provide the OIM client share path (mount target):${NC}"
-                        read -p "Omnia shared path: " omnia_path
+                        echo -e "${BLUE} Please provide the directory to store Omnia cluster configuration files:${NC}"
+                        read -p "Omnia config path: " omnia_path
 
                         # Validate Omnia shared path is absolute
                         if [[ "$omnia_path" != /* ]]; then
@@ -1284,12 +1291,14 @@ post_setup_config() {
         } >> "$OMNIA_INPUT_DIR/default.yml"
     fi
 
-    # Copy input files from /omnia/src/input to /opt/omnia/project_default/ inside omnia_core container
-    echo -e "${BLUE} Moving input files from /omnia/src/input to project_default folder.${NC}"
+    # Copy input files from /omnia to /opt/omnia/project_default/ inside omnia_core container
+    podman exec -u root omnia_core bash -c "cd /omnia && git pull"
+    echo -e "${BLUE} Moving input files from /omnia dir to project_default folder.${NC}"
     podman exec -u root omnia_core bash -c "
     mkdir -p /opt/omnia/input/project_default
-    cp -r /omnia/src/input/* /opt/omnia/input/project_default
-    rm -rf /omnia/src/input"
+    cp -r /omnia/input/* /opt/omnia/input/project_default
+    rm -rf /omnia/input
+    rm -rf /omnia/omnia.sh"
 }
 
 validate_nfs_server() {
@@ -1349,8 +1358,8 @@ init_ssh_config() {
 }
 
 remove_container_omnia_sh() {
-    podman exec -u root omnia_core bash -c 'if [ -f /omnia/src/main ]; then rm -rf /omnia/src/main; fi' >/dev/null 2>&1 || true
-    podman exec -u root omnia_core bash -c 'if [ -d /omnia/src/input ]; then rm -rf /omnia/src/input; fi' >/dev/null 2>&1 || true
+    podman exec -u root omnia_core bash -c 'if [ -f /omnia/omnia.sh ]; then rm -f /omnia/omnia.sh; fi' >/dev/null 2>&1 || true
+    podman exec -u root omnia_core bash -c 'if [ -d /omnia/input ]; then rm -rf /omnia/input; fi' >/dev/null 2>&1 || true
 }
 
 start_container_session() {
@@ -1377,7 +1386,7 @@ start_container_session() {
 
             It's important to note:
                 - Files placed in the shared directory should not be manually deleted.
-                - Use the playbook /omnia/src/playbooks/utils/oim_cleanup.yml to safely remove the shared directory and Omnia containers (except the core container).
+                - Use the playbook /omnia/utils/oim_cleanup.yml to safely remove the shared directory and Omnia containers (except the core container).
                 - If you need to delete the core container, please run the omnia.sh script with --uninstall option.
                 - If you need to  redeploy the core container with new input configs, please rerun the omnia.sh script with --install option.
                 - Provide any file paths (ISO, mapping files, etc.) that are mentioned in input files in the /opt/omnia directory.
@@ -1394,43 +1403,13 @@ start_container_session() {
 }
 
 show_help() {
-    echo "Usage: $0 [--install | --uninstall | --upgrade | --rollback | --build | --version | --help]"
+    echo "Usage: $0 [--install | --uninstall | --upgrade | --rollback | --version | --help]"
     echo "  -i, --install     Install and start the Omnia core container"
     echo "  -u, --uninstall   Uninstall the Omnia core container and clean up configuration"
     echo "      --upgrade     Upgrade the Omnia core container to newer version"
     echo "      --rollback    Rollback the Omnia core container to previous version"
-    echo "  -b, --build       Build the Omnia core container image locally"
     echo "  -v, --version     Display Omnia version information"
     echo "  -h, --help        More information about usage"
-}
-
-build_omnia_core_image() {
-    local OMNIA_SH_DIR
-    OMNIA_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local BUILD_SCRIPT="${OMNIA_SH_DIR}/../containers/build_images.sh"
-
-    if [ ! -f "$BUILD_SCRIPT" ]; then
-        echo -e "${RED}Error: build_images.sh not found at ${BUILD_SCRIPT}${NC}"
-        echo -e "${YELLOW}Ensure src/containers/ directory exists with build_images.sh and omnia_core/ Dockerfile.${NC}"
-        exit 1
-    fi
-
-    echo -e "${BLUE}=== Building Omnia Core Container Image ===${NC}"
-    echo -e "${YELLOW}Invoking build_images.sh with 'core' target...${NC}"
-    echo ""
-
-    bash "$BUILD_SCRIPT" core
-    local rc=$?
-
-    if [ $rc -eq 0 ]; then
-        echo ""
-        echo -e "${GREEN}Omnia core image built successfully.${NC}"
-        echo -e "${YELLOW}Next step: Run './omnia.sh --install' to deploy the container.${NC}"
-    else
-        echo ""
-        echo -e "${RED}Omnia core image build failed (exit code: ${rc}).${NC}"
-        exit $rc
-    fi
 }
 
 install_omnia_core() {
@@ -2460,7 +2439,7 @@ display_cleanup_instructions() {
     echo ""
     echo -e "${GREEN}CASE 1: If you can log into omnia_core container:${NC}"
     echo -e "${YELLOW}1. Enter omnia_core container: podman exec -it omnia_core bash${NC}"
-    echo -e "${YELLOW}2. Run oim cleanup: ansible-playbook /omnia/src/playbooks/utils/oim_cleanup.yml${NC}"
+    echo -e "${YELLOW}2. Run oim cleanup: ansible-playbook /omnia/oim_cleanup.yml${NC}"
     echo -e "${YELLOW}3. Run uninstall inside container: ./omnia.sh --uninstall${NC}"
     echo -e "${YELLOW}4. Exit container: exit${NC}"
     echo -e "${YELLOW}5. Clean shared path: rm -rf <omnia_shared_path>${NC}"
@@ -2878,9 +2857,6 @@ main() {
             ;;
         --rollback)
             rollback_omnia_core
-            ;;
-        --build|-b)
-            build_omnia_core_image
             ;;
         --version|-v)
             display_version

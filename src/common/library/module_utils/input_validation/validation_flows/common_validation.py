@@ -1497,6 +1497,15 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
                             k8s_nfs,
                             f"{k8s_nfs} not found in storage_config.yml"
                         ))
+                else:
+                    k8s_mnt = [st for st in st_config.get('mounts') if st.get('name') == k8s_nfs][0]
+                    if not k8s_mnt.get('mount_on_oim'):
+                        errors.append(
+                            create_error_msg(
+                                f"Cluster - {cluster_name} - nfs_storage_name not mounted on OIM",
+                                k8s_nfs,
+                                f"Mount {k8s_nfs} - mount_on_oim should be true for k8s operations"
+                            ))
                 if cluster_name not in ha_config.get(k8s_cluster_type+"_ha", []):
                     errors.append(
                         create_error_msg(
@@ -1634,16 +1643,24 @@ def validate_omnia_config(
     # slurm L2
     if (("slurm" in sw_list or "slurm_custom" in sw_list) and "slurm" in tag_names):
         slurm_nfs = [clst.get('nfs_storage_name') for clst in data.get('slurm_cluster')]
-        nfs_names = [st.get('name') for st in st_config.get('mounts')]
-
-        diff_set = set(slurm_nfs).difference(set(nfs_names))
-        if diff_set:
+        slurm_mounts = [st for st in st_config.get('mounts') if st.get('name') in slurm_nfs]
+        if not slurm_mounts:
             errors.append(
                 create_error_msg(
                     input_file_path,
                     "slurm NFS not provided",
-                    f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
+                    f"NFS name {', '.join(slurm_nfs)} required for slurm is not defined in {storage_config}"
                     ))
+        else:
+            slurm_mnt = slurm_mounts[0]
+            if not slurm_mnt.get('mount_on_oim'):
+                errors.append(
+                    create_error_msg(
+                        input_file_path,
+                        "slurm NFS should be mounted on OIM",
+                        f"NFS name {slurm_mnt.get('name')} - mount_on_oim should be true for slurm operations"
+                        ))
+            # mnt.functional_group_prefix validation
 
         # Validate vast_storage_name if provided
         slurm_vast = [clst.get('vast_storage_name') for clst in data.get('slurm_cluster') if clst.get('vast_storage_name')]
