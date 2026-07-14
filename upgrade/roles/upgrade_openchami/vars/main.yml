@@ -83,6 +83,10 @@ openchami_post_upgrade_critical_containers:
   - haproxy
   - coresmd-coredhcp
   - coresmd-coredns
+  - opaal
+  - opaal-idp
+  - hydra
+  - step-ca
   - registry
 
 # Legacy containers from omnia-2.1 that must be removed during upgrade
@@ -259,6 +263,18 @@ wait_time: 30
 api_readiness_retries: 20
 api_readiness_delay: 15
 # Total wait: 20 × 15s = 300 seconds (5 minutes) max for API endpoints to respond
+
+# Certificate recovery settings (mirrors common/vars/openchami_vars.yml)
+cert_wait_time: 10
+cert_restart_fail_msg: "Failed to restart acme-deploy service"
+cert_gate_failure_msg: >-
+  Certificate recovery gate FAILED. Services still unreachable after
+  acme-deploy restart.
+  cloud-init: {{ 'OK' if cert_gate_ci_ok | default(false) | bool else 'UNREACHABLE' }},
+  BSS: {{ 'OK' if cert_gate_bss_ok | default(false) | bool else 'UNREACHABLE' }}.
+  Debug: systemctl status acme-deploy.service,
+  systemctl list-dependencies openchami.target,
+  podman logs cloud-init-server, podman logs haproxy
 
 # Upgrade messages
 upgrade_messages:

@@ -57,6 +57,8 @@
       ansible.builtin.set_fact:
         reload_oim_shared_path: "{{ (reload_oim_metadata_raw.content | b64decode | from_yaml).oim_shared_path | regex_replace('/$', '') }}"
         reload_cluster_name: "{{ (reload_oim_metadata_raw.content | b64decode | from_yaml).oim_node_name | default(cluster_name | default(ansible_hostname)) }}"
+        reload_share_option: "{{ (reload_oim_metadata_raw.content | b64decode | from_yaml).omnia_share_option | default('') }}"
+        reload_nfs_type: "{{ (reload_oim_metadata_raw.content | b64decode | from_yaml).nfs_type | default('') }}"
 
     - name: Compute OIM host-side cloud-init paths
       ansible.builtin.set_fact:
@@ -110,10 +112,14 @@
       when: not (ci_dir_stat.stat.exists | default(false))
 
     # ── Main reload block (only if workdir exists) ─────────────────────
+    # NOTE: All service restarts are completed in renew_certificates.yml.
+    # This block is restart-free — it only reads/writes cloud-init data.
     - name: Reload cloud-init data from workdir
       when: ci_dir_stat.stat.exists | default(false)
       block:
         # ── Wait for cloud-init-server API readiness ───────────────────
+        # renew_certificates.yml already verified cloud-init-server is
+        # reachable. This retry is a safety net, NOT a recovery mechanism.
         - name: Wait for cloud-init-server to accept requests
           ansible.builtin.shell: |
             set -o pipefail
@@ -237,6 +243,7 @@
             {{ reload_oim_shared_path }}/omnia/openchami
           changed_when: true
           failed_when: false
+          when: reload_share_option == 'Local' or (reload_share_option == 'NFS' and reload_nfs_type == 'internal')
           delegate_to: oim
           delegate_facts: true
           connection: ssh

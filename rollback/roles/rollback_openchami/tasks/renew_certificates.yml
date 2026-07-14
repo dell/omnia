@@ -74,14 +74,222 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
-    - name: Reset any failed services after certificate renewal
-      ansible.builtin.command: systemctl reset-failed
-      changed_when: true
+    # ── Recover any services that failed from target restart race ──────
+    - name: Recover any failed services after certificate renewal
+      ansible.builtin.script: recover_failed_services.sh
+      register: cert_recovery_result
+      changed_when: false
       failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
+    - name: Wait for recovered services to stabilize after cert renewal
+      ansible.builtin.pause:
+        seconds: 15
+      when: "'ALL_SERVICES_OK' not in cert_recovery_result.stdout | default('')"
+
+    # ── HAProxy restart to pick up renewed certificate ──────────────────
+    - name: Stop HAProxy to clear stale TLS cert and backend DNS cache
+      ansible.builtin.systemd:
+        name: haproxy.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Start HAProxy with renewed certificate
+      ansible.builtin.systemd:
+        name: haproxy.service
+        state: started
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for HAProxy to stabilize after restart
+      ansible.builtin.pause:
+        seconds: 10
+
+    # ── Restart coresmd (v2.1) — depends on HAProxy ────────────────────
+    # coresmd has After=haproxy.service and Wants=haproxy.service.
+    # After HAProxy stop/start, it loses connectivity and needs restart.
+    # Reset failed state first — systemd rate-limiting may have left
+    # coresmd in 'failed' state from earlier start attempts.
+    - name: Reset failed state for coresmd before start
+      ansible.builtin.command: systemctl reset-failed coresmd.service
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Start coresmd after HAProxy restart
+      ansible.builtin.systemd:
+        name: coresmd.service
+        state: started
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for coresmd to stabilize
+      ansible.builtin.pause:
+        seconds: 10
+
+    # ── Second-pass service health check ─────────────────────────────
+    # The first recovery pass may miss services that fail again
+    # due to dependency timing. This second pass catches them.
+    - name: Second-pass recovery of any still-failed services
+      ansible.builtin.script: check_service_health.sh
+      register: svc_health_check
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display service health status
+      ansible.builtin.debug:
+        msg: "{{ svc_health_check.stdout_lines | default([]) }}"
+      when: "'ALL_SERVICES_HEALTHY' not in svc_health_check.stdout | default('')"
+
+    # ── Cert verification gate ──────────────────────────────────────────
+    # Check BSS/cloud-init status. If unreachable, restart acme-deploy + HAProxy.
+
+    - name: Check ochami bss service status
+      ansible.builtin.command: /usr/bin/ochami bss service status
+      register: cert_bss_gate
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Regenerate certificate if BSS unreachable
+      when: cert_bss_gate.rc != 0
+      block:
+        - name: Restart acme-deploy service
+          block:
+            - name: Restart acme-deploy service
+              ansible.builtin.systemd_service:
+                name: acme-deploy
+                state: restarted
+              delegate_to: oim
+              delegate_facts: true
+              connection: ssh
+          rescue:
+            - name: Failed to restart acme-deploy service
+              ansible.builtin.fail:
+                msg: "{{ cert_restart_fail_msg }}"
+
+        - name: Wait for cert wait time seconds before checking again {{ cert_wait_time }}
+          ansible.builtin.wait_for:
+            timeout: "{{ cert_wait_time }}"
+
+        - name: Stop HAProxy to pick up renewed certificate
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: stopped
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Start HAProxy with renewed certificate
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: started
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for HAProxy to stabilize
+          ansible.builtin.pause:
+            seconds: 10
+
+        - name: Reset failed state for coresmd before start
+          ansible.builtin.command: systemctl reset-failed coresmd.service
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Start coresmd after HAProxy restart (v2.1)
+          ansible.builtin.systemd:
+            name: coresmd.service
+            state: started
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for coresmd to stabilize
+          ansible.builtin.pause:
+            seconds: 10
+
+        - name: Recheck ochami bss service status
+          ansible.builtin.command: /usr/bin/ochami bss service status
+          register: cert_bss_recheck
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+    - name: Check ochami cloud-init service status
+      ansible.builtin.command: /usr/bin/ochami cloud-init service status
+      register: cert_ci_gate
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── cloud-init recovery ────────────────────────────────────────────
+    # cloud-init-server may return 404 if its routes are not registered.
+    # Restarting the container forces re-initialization of endpoints.
+    # Pattern mirrors provision/roles/configure_ochami/tasks/provision_mapping_nodes.yml.
+    - name: Recover cloud-init-server if unreachable
+      when: cert_ci_gate.rc != 0
+      block:
+        - name: Restart cloud-init-server to re-register endpoints
+          ansible.builtin.systemd:
+            name: cloud-init-server.service
+            state: restarted
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for cloud-init-server to initialize
+          ansible.builtin.pause:
+            seconds: 15
+
+        - name: Recheck ochami cloud-init service status after restart
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: cert_ci_recheck
+          changed_when: false
+          failed_when: false
+          retries: 3
+          delay: 10
+          until: cert_ci_recheck.rc == 0
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+    - name: Set final gate status
+      ansible.builtin.set_fact:
+        cert_gate_ci_ok: "{{ (cert_ci_recheck.rc | default(cert_ci_gate.rc) | default(1)) == 0 }}"
+        cert_gate_bss_ok: "{{ (cert_bss_recheck.rc | default(cert_bss_gate.rc) | default(1)) == 0 }}"
+
     - name: Display certificate renewal status
       ansible.builtin.debug:
-        msg: "OpenCHAMI certificates renewed for {{ rollback_cluster_fqdn }}. All services restarted."
+        msg: >-
+          OpenCHAMI certificates renewed for {{ rollback_cluster_fqdn }}.
+          cloud-init: {{ 'OK' if cert_gate_ci_ok | bool else 'UNREACHABLE' }},
+          BSS: {{ 'OK' if cert_gate_bss_ok | bool else 'UNREACHABLE' }}
+
+    - name: Fail if cloud-init or BSS still unreachable after cert recovery
+      ansible.builtin.fail:
+        msg: "{{ cert_gate_failure_msg }}"
+      when: not (cert_gate_ci_ok | bool) or not (cert_gate_bss_ok | bool)

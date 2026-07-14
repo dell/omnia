@@ -59,3 +59,14 @@ no_input_files_msg: >
   ci_common_file_path, or hostname_file_path must be provided.
   Pass them as extra variables:
   -e bss_file_path=/path/to/bss.yaml -e cloud_init_file_path=/path/to/ci-group.yaml
+
+# Pre-flight OpenCHAMI service recovery timings
+acme_register_wait_seconds: 15
+acme_deploy_wait_seconds: 10
+haproxy_stabilize_wait_seconds: 10
+ochami_recheck_retries: 3
+ochami_recheck_delay: 10
+openchami_unreachable_fail_msg: >
+  OpenCHAMI services are unreachable after certificate renewal and HAProxy restart.
+  Check: ochami cloud-init service status, systemctl status haproxy.service,
+  and podman logs cloud-init-server for details.

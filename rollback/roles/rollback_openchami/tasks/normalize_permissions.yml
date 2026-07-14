@@ -87,7 +87,9 @@
       register: normalize_backup_selinux
       changed_when: true
       failed_when: false
-      when: normalize_backup_root_stat.stat.exists | default(false)
+      when:
+        - normalize_backup_root_stat.stat.exists | default(false)
+        - rollback_share_option | default('') == 'Local' or (rollback_share_option | default('') == 'NFS' and rollback_nfs_type | default('') == 'internal')
       delegate_to: oim
       delegate_facts: true
       connection: ssh
