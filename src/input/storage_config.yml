@@ -289,5 +289,5 @@ mount_params:
 #   - For "minio" provider: s3_access_id defaults to "admin" it will not be prompted
 #   - For "powerscale" provider: s3_access_id is prompted as conditional mandatory
 s3_configurations:
-  provider: "minio"
+  provider: "powerscale"
   endpoint_url: ""
