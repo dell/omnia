@@ -439,7 +439,7 @@ def download_omnia_sh(
     """
     Download ``omnia.sh`` with branch → tag fallback.
 
-    Shared utility for upgrade, rollback, and oim-prereq-check.
+    Shared utility for upgrade, rollback, and oim-prereq-test.
     Tries *branch_url* first; if that fails, tries *tag_url*.
     On success the file is made executable.
 

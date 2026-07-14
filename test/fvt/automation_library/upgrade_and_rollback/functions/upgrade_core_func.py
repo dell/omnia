@@ -401,7 +401,7 @@ def clone_upgrade_repo(host) -> Dict[str, Any]:
     """
     Delete any existing clone directory and clone omnia-artifactory fresh.
 
-    Same pattern as oim-prereq-check repository.clone_omnia_repo().
+    Same pattern as oim-prereq-test repository.clone_omnia_repo().
 
     Args:
         host: Testinfra host object

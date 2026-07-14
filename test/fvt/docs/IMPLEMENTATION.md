@@ -118,7 +118,7 @@ run_on_remote_node(host, "kubectl get nodes", admin_ip="10.0.0.5")
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  STEP 2: PREREQUISITE CHECK (optional)                                  │
 │  ─────────────────────────────────────                                  │
-│  Run: oim-prereq-check                                                  │
+│  Run: oim-prereq-test                                                  │
 │    - Validates hardware (CPU, memory, disk)                             │
 │    - Validates OS and kernel version                                    │
 │    - Validates network interfaces                                       │

@@ -21,7 +21,7 @@ If required fields are missing the test will fail explicitly.
 
 Uses ``OMNIA_GIT_RAW_BASE_URL`` from core vars (``dell/omnia`` repo) for
 omnia.sh download with branch → tag fallback, same pattern as the
-oim-prereq-check and upgrade modules.
+oim-prereq-test and upgrade modules.
 """
 
 from typing import Dict, Any

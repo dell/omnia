@@ -218,8 +218,18 @@ class PlaybookRunner:
         skip_tags: Optional[str] = None,
         verbosity: Optional[int] = None,
         timeout: Optional[int] = None,
+        sync: bool = True,
     ) -> Dict[str, Any]:
         """Run an Ansible playbook and stream output live.
+
+        Before executing the playbook, the dataset is synced into the
+        container when ``sync_dataset_to_core`` is enabled in
+        ``omnia_test_config.yml`` (see :meth:`sync_dataset`). This copies the
+        dataset input files — including the vault-encrypted
+        ``omnia_config_credentials.yml`` — into
+        ``/opt/omnia/input/project_default/`` so the playbook consumes the
+        dataset provided by the automation repo. The sync is a no-op when the
+        flag is disabled.
 
         Args:
             playbook: Absolute path to playbook **inside** the container
@@ -231,6 +241,9 @@ class PlaybookRunner:
             skip_tags: Comma-separated Ansible skip tags (``--skip-tags``).
             verbosity: Override instance verbosity for this run.
             timeout: Override instance timeout for this run.
+            sync: When True (default), sync the dataset into the container
+                  before running the playbook. Set False for playbooks that
+                  must not receive synced project inputs.
 
         Returns:
             Dict with keys:
@@ -252,6 +265,12 @@ class PlaybookRunner:
         # --- Pre-flight checks ---------------------------------------------------
         if not self._local_mode and not shutil.which("sshpass"):
             return self._fail(playbook, 0.0, RUNNER_ASSERT_MSGS["sshpass_missing"])
+
+        # --- Sync dataset into container before deployment -----------------------
+        if sync:
+            sync_result = self.sync_dataset()
+            if not sync_result["success"]:
+                return self._fail(playbook, 0.0, sync_result["error"])
 
         # --- Build command --------------------------------------------------------
         podman_cmd = self._build_podman_cmd(playbook, workdir, v, extra_vars, tags, skip_tags)

@@ -202,6 +202,7 @@ run_config_mode() {
 
     # Share ONE report ID across all scenarios in this batch
     export OMNIA_REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    export CONFIG_FILE
 
     echo -e "${BLUE}=================================================================${NC}"
     echo -e "${BLUE}  Batch Execution from test_run_config.yml${NC}"
@@ -209,16 +210,82 @@ run_config_mode() {
     echo -e "${BLUE}=================================================================${NC}"
     echo ""
 
-    local total=0 passed=0 failed=0 skipped=0
+    # -------------------------------------------------------------------------
+    # Validate scenario ordering and get names sorted by "order" value.
+    # Duplicate or missing "order" values are a configuration error and abort
+    # the batch before anything runs.
+    # -------------------------------------------------------------------------
     local scenario_names
-    scenario_names=$(python3 -c "
-import yaml, sys
-with open('${CONFIG_FILE}') as f:
-    cfg = yaml.safe_load(f) or {}
-for name in cfg.get('scenarios', {}):
-    print(name)
-")
+    if ! scenario_names=$(python3 - <<'PY'
+import os
+import sys
 
+import yaml
+
+with open(os.environ["CONFIG_FILE"]) as fh:
+    cfg = yaml.safe_load(fh) or {}
+
+scenarios = cfg.get("scenarios", {}) or {}
+seen = {}
+dups = {}
+for name, sc in scenarios.items():
+    sc = sc or {}
+    order = sc.get("order")
+    if order is None:
+        sys.stderr.write(
+            "Scenario '%s' is missing the required 'order' field\n" % name
+        )
+        sys.exit(2)
+    if order in seen:
+        dups.setdefault(order, [seen[order]]).append(name)
+    else:
+        seen[order] = name
+
+if dups:
+    for order in sorted(dups):
+        sys.stderr.write(
+            "Duplicate order %s shared by: %s\n" % (order, ", ".join(dups[order]))
+        )
+    sys.exit(3)
+
+for name, sc in sorted(
+    scenarios.items(), key=lambda kv: (kv[1] or {}).get("order", 0)
+):
+    print(name)
+PY
+    ); then
+        echo -e "${RED}Error: Invalid scenario ordering in ${CONFIG_FILE}${NC}"
+        echo -e "${YELLOW}Each scenario needs a unique 'order' value.${NC}"
+        exit 1
+    fi
+
+    # -------------------------------------------------------------------------
+    # Prerequisite gate: when oim_prereq_test is true, run oim-prereq-test
+    # FIRST. If it fails, abort the batch before any scenario executes.
+    # -------------------------------------------------------------------------
+    local prereq_flag
+    prereq_flag=$(python3 - <<'PY'
+import os
+
+import yaml
+
+with open(os.environ["CONFIG_FILE"]) as fh:
+    cfg = yaml.safe_load(fh) or {}
+print(str(cfg.get("oim_prereq_test", False)).lower())
+PY
+    )
+    if [[ "$prereq_flag" == "true" ]]; then
+        echo -e "  ${CYAN}PREREQ${NC} Running oim-prereq-test (gate)..."
+        if python3 "${SCRIPT_DIR}/run_prereq_test.py"; then
+            echo -e "  ${GREEN}PASS${NC}  oim-prereq-test"
+        else
+            echo -e "  ${RED}FAIL${NC}  oim-prereq-test -- aborting batch"
+            exit 1
+        fi
+        echo ""
+    fi
+
+    local total=0 passed=0 failed=0 skipped=0
     for name in $scenario_names; do
         local run_flag command suite marker_cfg
         eval "$(python3 -c "
@@ -239,18 +306,6 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
         fi
 
         echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
-
-        # Special handling: oim_server_setup runs the prereq check script
-        if [[ "$name" == "oim_server_setup" ]]; then
-            if python3 "${SCRIPT_DIR}/run_prereq_check.py"; then
-                echo -e "  ${GREEN}PASS${NC}  ${name}"
-                passed=$((passed + 1))
-            else
-                echo -e "  ${RED}FAIL${NC}  ${name}"
-                failed=$((failed + 1))
-            fi
-            continue
-        fi
 
         local extra_args=""
         [[ -n "$suite" ]] && extra_args="$extra_args --suite $suite"

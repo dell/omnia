@@ -278,9 +278,12 @@ KPI cards include Total, Passed, Failed, Skipped, Pass Rate, Runs, and Duration.
 All report presentation helpers live in `report_func.py` — never inline HTML/CSS
 in test files.
 
-The `oim_server_setup` scenario results are **excluded from test KPI counts** and
-rendered as a separate graphical **Server Setup** panel with per-check pass/fail
-indicators, so prerequisite/setup outcomes never distort the deploy/verify totals.
+Server-setup module results (if any are recorded) are **excluded from test KPI
+counts** and rendered as a separate graphical **Server Setup** panel with
+per-check pass/fail indicators, so setup outcomes never distort the
+deploy/verify totals. Note the `oim-prereq-test` prerequisite tool runs as a
+standalone gate (top-level `oim_prereq_test` flag in `test_run_config.yml`),
+not as a pytest scenario, and writes its own `oim_prereq_report.txt`.
 
 ### 3.10 Core Constants (`vars/`)
 
@@ -1013,6 +1016,12 @@ When adding a new validation scenario:
 - **verify** — pytest-testinfra tests. Must handle missing infrastructure gracefully with `pytest.skip()`.
 - **test** — Runs deploy followed by verify sequentially.
 
+**Deploy sync + container rules:**
+
+- `PlaybookRunner.run()` automatically syncs the dataset into the container (via `sync_dataset()`) **before** running the playbook when `sync_dataset_to_core: true`. Pass `sync=False` to opt out. The `omnia_test_credentials.yml` is decrypted in memory at runner init, and the dataset's `omnia_config_credentials.yml` is vault-encrypted before the rsync.
+- `omnia_sh_install` uses `run_shell()` (`omnia.sh --build`/`--install`), **not** `run()`, so it never syncs project inputs — the container is being created.
+- Cleanup/uninstall scenarios (`oim_cleanup`, `omnia_sh_uninstall`) combine the container pre-check and playbook execution into a **single deploy test case**: if the container is not running there is nothing to do, so the test is **skipped and reported as passed**. Normal deploy scenarios instead **fail** when the container is not running.
+
 ### 15.1 Validation Scenario Structure (MANDATORY)
 
 ```
@@ -1054,8 +1063,13 @@ def test_deploy(host):
 
 ### 16.2 test_run_config.yml
 
+- A top-level `oim_prereq_test: true/false` flag (defined **above** `scenarios:`)
+  gates the `oim-prereq-test` prerequisite tool. It is not a scenario.
 - Keep all scenarios listed even if disabled (`run: false`).
-- Each scenario entry must have exactly three fields: `run`, `command`, `suite`.
+- Each scenario entry must have exactly five fields: `order`, `run`,
+  `command`, `suite`, `marker`.
+- `order` values must be **unique** across scenarios (duplicates abort the
+  batch) but need not be contiguous.
 - Group scenarios with section comments (e.g., `# --- Install & Setup ---`).
 - This file is tracked in git — keep it minimal and clean.
 
@@ -1063,7 +1077,8 @@ def test_deploy(host):
 
 The `run_validation.sh --config` command validates `test_run_config.yml` **before** executing any scenarios. Validation checks:
 
-- **Scenario names** must match the supported list (defined in `SUPPORTED_SCENARIOS` at the top of `run_validation.sh`).
+- **Prerequisite gate** — when `oim_prereq_test: true`, `oim-prereq-test` runs first; a failure aborts the batch before any scenario runs.
+- **Scenario order** — every scenario needs an `order` value; missing or duplicate order values abort the batch. Scenarios execute in ascending `order`.
 - **`run` values** must be `true` or `false` (YAML booleans).
 - **`command` values** must be one of: `test`, `verify`, `deploy`.
 - **`suite` values** must be one of: `sanity`, `negative`, `regression`, `smoke`, `stress`, `performance`, `build_auto`, `deploy_auto`, `build_manual`, `deploy_manual`, `cleanup_manual`, or empty string (all tests).

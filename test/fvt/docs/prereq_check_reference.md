@@ -14,18 +14,18 @@ limitations under the License. -->
 
 # Prerequisite Check Reference
 
-The `oim-prereq-check` command validates that the OIM server meets all hardware, OS, network, and software requirements before deploying Omnia.
+The `oim-prereq-test` command validates that the OIM server meets all hardware, OS, network, and software requirements before deploying Omnia.
 
 ---
 
 ## Usage
 
 ```bash
-oim-prereq-check                       # Run all checks
-oim-prereq-check --debug               # Verbose output
-oim-prereq-check --stop-on-failure     # Stop on first failure
-oim-prereq-check --continue-on-failure # Continue even if a check fails
-oim-prereq-check --no-report           # Skip HTML report generation
+oim-prereq-test                       # Run all checks
+oim-prereq-test --debug               # Verbose output
+oim-prereq-test --stop-on-failure     # Stop on first failure
+oim-prereq-test --continue-on-failure # Continue even if a check fails
+oim-prereq-test --no-report           # Skip HTML report generation
 ```
 
 The command reads all configuration from `omnia_test_config.yml`. See [input_reference.md](input_reference.md) for parameter details.
@@ -169,4 +169,4 @@ The prerequisite checks are implemented in `automation_library/checks/`:
 | `repository.py` | RHEL repo, git, artifactory clone |
 | `services.py` | Container image build |
 
-The entry point is `run_prereq_check.py`, which is registered as `oim-prereq-check` via `setup.py`.
+The entry point is `run_prereq_test.py`, which is registered as `oim-prereq-test` via `setup.py`.

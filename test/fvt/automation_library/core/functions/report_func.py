@@ -629,7 +629,7 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
     else:
         html += '<div class="lay"><div class="side"><div class="srv-list"><h3>Targets</h3>'
 
-        _SETUP_MODULE = "oim_server_setup"
+        _SETUP_MODULE = "oim_prereq_test"
 
         first_server = True
         for sip, sd in servers.items():

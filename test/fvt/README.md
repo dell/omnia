@@ -41,7 +41,7 @@ This framework automates testing of Omnia Infrastructure Manager (OIM) deploymen
 
 1. **`omnia_test_config.yml`** drives all automation — it defines the OIM server connection, hardware thresholds, deployment options, and dataset selection.
 2. **`omnia_test_credentials.yml`** stores sensitive credentials (passwords) separately — automatically encrypted with Ansible Vault on first run.
-3. **`setup_env.sh`** creates a Python virtual environment, installs dependencies, and registers the `oim-prereq-check` CLI and `run_validation` shell function.
+3. **`setup_env.sh`** creates a Python virtual environment, installs dependencies, and registers the `oim-prereq-test` CLI and `run_validation` shell function.
 4. **Validation scenarios** follow a `deploy → verify` lifecycle:
    - **deploy** — Executes the target Ansible playbook inside `omnia_core` via `podman exec` with live streaming output using the `playbook_runner` module.
    - **verify** — Runs pytest-testinfra tests that use `automation_library` functions to validate deployment state.
@@ -94,7 +94,7 @@ vi datasets/project_default/network_spec.yml
 vi datasets/project_default/software_config.json
 
 # 7. Run prerequisite checks
-oim-prereq-check
+oim-prereq-test
 
 # 8. Run validation tests
 ./run_validation.sh telemetry verify --suite sanity   # Single scenario
@@ -177,11 +177,11 @@ source .venv/bin/activate     # Activates the virtual environment
 Validates the OIM server before deployment. See [docs/prereq_check_reference.md](docs/prereq_check_reference.md) for details.
 
 ```bash
-oim-prereq-check                       # Run all checks
-oim-prereq-check --debug               # Verbose output
-oim-prereq-check --stop-on-failure     # Stop on first failure
-oim-prereq-check --continue-on-failure # Continue even if a check fails
-oim-prereq-check --no-report           # Skip HTML report generation
+oim-prereq-test                       # Run all checks
+oim-prereq-test --debug               # Verbose output
+oim-prereq-test --stop-on-failure     # Stop on first failure
+oim-prereq-test --continue-on-failure # Continue even if a check fails
+oim-prereq-test --no-report           # Skip HTML report generation
 ```
 
 ### Running Validation Tests
@@ -258,6 +258,12 @@ Tests can be filtered by **suite** (folder-based), **marker** (decorator-based),
 
 Batch mode generates a **single unified report** across all scenarios using a shared `OMNIA_REPORT_ID`.
 
+**Batch behavior (`--config`):**
+
+- **Prerequisite gate** — when `oim_prereq_test: true` in `test_run_config.yml`, `oim-prereq-test` runs first. If it fails, the batch aborts before any scenario runs.
+- **Ordering** — scenarios run in ascending `order` value. Duplicate or missing `order` values are a configuration error and abort the batch.
+- **Dataset sync** — when `sync_dataset_to_core: true` in `omnia_test_config.yml`, playbook deploy steps sync the selected dataset (including the vault-encrypted `omnia_config_credentials.yml`) into the container before execution. The `omnia_sh_install` scenario is exempt — it builds the container and does not receive synced project inputs.
+
 ### Test Reports
 
 Reports are generated in `reports/` after execution:
@@ -276,7 +282,7 @@ Report features:
 - **Slowest Scenarios duration bars** — per-run horizontal bars ranking scenarios by execution time to surface performance hot-spots
 - **Deploy / Verify sections** — each scenario splits results into Deploy (playbook logs + deploy tests) and Verify (verification tests)
 - **Suite & marker badges** — shows which `--suite` and `--marker` were used per scenario
-- **Server Setup panel** — separate graphical status panel for `oim_server_setup` checks (not counted in test totals)
+- **Server Setup panel** — separate graphical status panel for server-setup checks when present (not counted in test totals)
 - **KPI cards** — Total, Passed, Failed, Skipped, Pass Rate, Runs, and Duration with hover effects
 - **ANSI-clean output** — color codes from playbook logs are stripped automatically
 - **Collapsible sections** — runs, modules, tests, and playbook logs are expandable
@@ -287,9 +293,19 @@ Report features:
 
 ## Scenarios
 
+Scenarios are defined in `test_run_config.yml`. Each scenario has an
+`order` value that controls execution sequence in batch mode — orders must
+be **unique** (duplicate orders abort the batch) but need not be contiguous.
+The `#` column below matches the default `order` values shipped in
+`test_run_config.yml`.
+
+The prerequisite tool (`oim-prereq-test`) is **not** a scenario. It is a gate
+controlled by the top-level `oim_prereq_test: true/false` flag in
+`test_run_config.yml`. When enabled, it validates and configures the OIM
+server first; if it fails, the batch aborts before any scenario runs.
+
 | # | Scenario | Omnia Playbook (inside container) | Description |
 |---|----------|----------------------------------|-------------|
-| 0 | `oim_server_setup` | `run_prereq_check.py` | Prerequisite checks, IP configuration, hostname setup (shown as a separate report panel) |
 | 1 | `omnia_sh_install` | `omnia.sh --build` + `omnia.sh --install` | Builds container image and installs `omnia_core` (live streaming) |
 | 2 | `prepare_oim` | `/omnia/src/playbooks/prepare_oim/prepare_oim.yml` | Prepares OIM — OpenCHAMI, firewall, NTP, NFS |
 | 3 | `gitlab_install` | `/omnia/src/playbooks/gitlab/gitlab.yml` | Deploys GitLab for BuildStream CI/CD |
@@ -328,7 +344,7 @@ omnia/test/fvt/
 ├── setup.py                           # Package setup (omnia-automation)
 ├── setup_env.sh                       # Environment setup script
 ├── run_validation.sh                  # Validation test runner
-├── run_prereq_check.py                # Prerequisite check entry point
+├── run_prereq_test.py                # Prerequisite check entry point
 ├── pytest.ini                         # Pytest configuration and custom markers
 │
 ├── datasets/                          # Deployment input datasets
@@ -344,7 +360,7 @@ omnia/test/fvt/
 │   │   ├── functions/                 # SSH, config loading, container exec, PXE, reports
 │   │   ├── vars/                      # Shared constants (paths, container, SSH, groups)
 │   │   └── messages/                  # Shared log/assertion messages
-│   ├── checks/                        # Prerequisite checks (oim-prereq-check CLI)
+│   ├── checks/                        # Prerequisite checks (oim-prereq-test CLI)
 │   ├── playbook_runner/               # Playbook execution engine (PlaybookRunner)
 │   └── <module>/                      # Per-scenario modules — telemetry, slurm, kubernetes,
 │       ├── __init__.py                #   dcgm, discovery, provision, vast_storage, etc.
@@ -375,7 +391,7 @@ omnia/test/fvt/
 |----------|-------------|
 | [docs/input_reference.md](docs/input_reference.md) | Complete `omnia_test_config.yml` parameter reference with types, defaults, and usage |
 | [docs/dataset_reference.md](docs/dataset_reference.md) | All dataset files, which Omnia playbooks consume them, and how input files flow into the container |
-| [docs/prereq_check_reference.md](docs/prereq_check_reference.md) | Detailed prerequisite check descriptions and `oim-prereq-check` usage |
+| [docs/prereq_check_reference.md](docs/prereq_check_reference.md) | Detailed prerequisite check descriptions and `oim-prereq-test` usage |
 | [docs/migration_molecule_to_pytest.md](docs/migration_molecule_to_pytest.md) | Migration guide from Molecule to the new validation framework |
 
 ---

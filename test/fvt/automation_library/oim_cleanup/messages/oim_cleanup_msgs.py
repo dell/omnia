@@ -19,6 +19,32 @@ All user-facing messages for OIM cleanup verification tests.
 """
 
 # =============================================================================
+# Deploy Test Names / Messages (playbook execution stage)
+# =============================================================================
+DEPLOY_TEST_NAMES = {
+    "run_oim_cleanup": "Deploy: oim_cleanup.yml playbook",
+}
+
+DEPLOY_LOG_MSGS = {
+    "container_check": "Checking if omnia_core container is running",
+    "container_running": "omnia_core container is running — proceeding with cleanup",
+    "playbook_running": "Running playbook: {playbook}",
+    "playbook_success": (
+        "Playbook completed successfully (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "playbook_failed": (
+        "Playbook failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+}
+
+DEPLOY_SKIP_MSGS = {
+    "container_not_running": (
+        "omnia_core container is not running — nothing to clean up. "
+        "Skipping oim_cleanup playbook execution."
+    ),
+}
+
+# =============================================================================
 # Test Names (displayed as test headers)
 # =============================================================================
 TEST_NAMES = {

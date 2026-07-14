@@ -45,7 +45,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/dell/omnia",
     packages=find_packages(),
-    py_modules=["run_prereq_check"],
+    py_modules=["run_prereq_test"],
     include_package_data=True,
     package_data={
         "automation_library": ["*.yml", "*.yaml"],
@@ -56,7 +56,7 @@ setup(
     entry_points={
         "console_scripts": [
             # Prerequisite check tool
-            "oim-prereq-check=run_prereq_check:main",
+            "oim-prereq-test=run_prereq_test:main",
             # Future tools will be added here:
             # "oim-deploy=automation_library.oim_deploy:main",
             # "oim-configure=automation_library.oim_configure:main",
