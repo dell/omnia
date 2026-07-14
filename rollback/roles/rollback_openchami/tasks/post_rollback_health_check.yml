@@ -32,6 +32,34 @@
       ansible.builtin.pause:
         seconds: 30
 
+    # ── Recover any failed services before health check ─────────────────
+    - name: Recover any failed openchami services
+      ansible.builtin.shell: |
+        set -o pipefail
+        systemctl reset-failed 2>/dev/null || true
+        for svc in $(systemctl list-dependencies openchami.target --plain --no-pager 2>/dev/null); do
+          if systemctl is-failed "$svc" 2>/dev/null; then
+            echo "Restarting failed service: $svc"
+            systemctl restart "$svc" 2>/dev/null || true
+          fi
+        done
+      register: svc_recovery_result
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display recovered services
+      ansible.builtin.debug:
+        msg: "{{ svc_recovery_result.stdout_lines | default([]) }}"
+      when: svc_recovery_result.stdout | default('') | trim | length > 0
+
+    - name: Wait for recovered services to stabilize
+      ansible.builtin.pause:
+        seconds: 15
+      when: svc_recovery_result.stdout | default('') | trim | length > 0
+
     # ── Verify all v2.1 critical containers are running ─────────────────
     - name: Verify all v2.1 critical containers are running
       ansible.builtin.shell: |

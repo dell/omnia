@@ -582,6 +582,26 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
+    - name: Stop HAProxy to clear stale backend DNS cache
+      ansible.builtin.systemd:
+        name: haproxy.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Start HAProxy with fresh backend DNS resolution
+      ansible.builtin.systemd:
+        name: haproxy.service
+        state: started
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for HAProxy to stabilize after restart
+      ansible.builtin.pause:
+        seconds: 10
+
     - name: Display container upgrade success
       ansible.builtin.debug:
         msg: "{{ upgrade_messages.container_upgrade.success }}"

@@ -83,7 +83,7 @@
       when: not (rb_ci_dir_stat.stat.exists | default(false))
 
     # ── Main reload block ───────────────────────────────────────────────
-    - name: Reload cloud-init data from backup
+    - name: Wait for cloud-init data from backup to be available
       when: rb_ci_dir_stat.stat.exists | default(false)
       block:
         # ── Wait for cloud-init-server API readiness ────────────────────
@@ -100,7 +100,30 @@
           delegate_to: oim
           delegate_facts: true
           connection: ssh
+      rescue:
+        - name: Stop HAProxy to clear stale backend DNS cache
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: stopped
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
 
+        - name: Start HAProxy with fresh backend DNS resolution
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: started
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for HAProxy to stabilize after restart
+          ansible.builtin.pause:
+            seconds: 10
+
+    - name: Reload cloud-init data from backup
+      when: rb_ci_dir_stat.stat.exists | default(false)
+      block:
         # ── Discover cloud-init YAML files in backup ────────────────────
         - name: Check ci-defaults.yaml exists in backup
           ansible.builtin.stat:

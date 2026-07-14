@@ -45,6 +45,71 @@
         (hostname_file_path is defined and hostname_file_path | length > 0)
     fail_msg: "{{ no_input_files_msg }}"
 
+- name: Ensure OpenCHAMI services are reachable before ochami commands
+  block:
+    - name: Check ochami cloud-init service status
+      ansible.builtin.command: /usr/bin/ochami cloud-init service status
+      register: ci_preflight_check
+      changed_when: false
+      failed_when: false
+
+    - name: Recover OpenCHAMI services if unreachable
+      when: ci_preflight_check.rc != 0
+      block:
+        - name: Restart acme-register to re-issue TLS certificate from step-ca
+          ansible.builtin.systemd:
+            name: acme-register.service
+            state: restarted
+          failed_when: false
+
+        - name: Wait for certificate issuance from step-ca
+          ansible.builtin.pause:
+            seconds: "{{ acme_register_wait_seconds }}"
+
+        - name: Restart acme-deploy to deploy renewed certificate to HAProxy
+          ansible.builtin.systemd:
+            name: acme-deploy.service
+            state: restarted
+          failed_when: false
+
+        - name: Wait for certificate deployment to HAProxy volume
+          ansible.builtin.pause:
+            seconds: "{{ acme_deploy_wait_seconds }}"
+
+        - name: Check ochami cloud-init service status
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_preflight_check
+          changed_when: false
+          failed_when: false
+      rescue:
+        - name: Stop HAProxy to clear stale backend DNS cache
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: stopped
+
+        - name: Start HAProxy with fresh backend DNS resolution
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: started
+
+        - name: Wait for HAProxy to stabilize
+          ansible.builtin.pause:
+            seconds: "{{ haproxy_stabilize_wait_seconds }}"
+
+        - name: Recheck ochami cloud-init service status after recovery
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_recheck
+          changed_when: false
+          failed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_recheck.rc == 0
+
+        - name: Fail if OpenCHAMI services still unreachable
+          ansible.builtin.fail:
+            msg: "{{ openchami_unreachable_fail_msg }}"
+          when: ci_recheck.rc != 0
+
 - name: Update ci-defaults configuration
   ansible.builtin.include_tasks: update_ci_defaults.yml
   when:
