@@ -66,7 +66,7 @@
     compute_enable_k8s_ha: "{{ compute_rke2_k8s_cluster_ha[0].enable_k8s_ha | default(false) }}"
     compute_kube_vip: "{{ compute_rke2_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
   when: compute_rke2_k8s_cluster_ha is defined
-  ignore_errors: true
+  failed_when: false
 
 - name: Set default HA facts when compute_rke2_k8s_cluster_ha is not defined
   ansible.builtin.set_fact:
