@@ -83,10 +83,14 @@
       when: not (rb_ci_dir_stat.stat.exists | default(false))
 
     # ── Main reload block ───────────────────────────────────────────────
+    # NOTE: All service restarts are completed in renew_certificates.yml.
+    # This block is restart-free — it only reads/writes cloud-init data.
     - name: Reload cloud-init data from backup
       when: rb_ci_dir_stat.stat.exists | default(false)
       block:
         # ── Wait for cloud-init-server API readiness ────────────────────
+        # renew_certificates.yml already verified cloud-init-server is
+        # reachable. This retry is a safety net, NOT a recovery mechanism.
         - name: Wait for cloud-init-server to accept requests
           ansible.builtin.shell: |
             set -o pipefail
@@ -199,6 +203,7 @@
             {{ rollback_oim_shared_path }}/omnia/openchami
           changed_when: true
           failed_when: false
+          when: rollback_share_option == 'Local' or (rollback_share_option == 'NFS' and rollback_nfs_type == 'internal')
           delegate_to: oim
           delegate_facts: true
           connection: ssh

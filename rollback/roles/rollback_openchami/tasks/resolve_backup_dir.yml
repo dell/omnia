@@ -66,6 +66,12 @@
     rollback_cluster_name: >-
       {{ (rollback_oim_metadata_raw.content | b64decode | from_yaml).oim_node_name
          | default(ansible_hostname) }}
+    rollback_share_option: >-
+      {{ (rollback_oim_metadata_raw.content | b64decode | from_yaml).omnia_share_option
+         | default('') }}
+    rollback_nfs_type: >-
+      {{ (rollback_oim_metadata_raw.content | b64decode | from_yaml).nfs_type
+         | default('') }}
 
 - name: Compute OIM host-side backup directory
   ansible.builtin.set_fact:
