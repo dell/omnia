@@ -29,7 +29,6 @@ from .hardware import check_ipmi_tool, validate_hardware
 from .network import (validate_network_interfaces, configure_pxe_nic,
                       check_internet, check_pxe_is_public_interface)
 from .services import check_nfs_reachable
-from .repository import ensure_git_installed
 
 
 class PrereqReport:

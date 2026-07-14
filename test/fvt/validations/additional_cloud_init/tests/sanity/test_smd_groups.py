@@ -29,7 +29,6 @@ from automation_library.core import (
 )
 from automation_library.additional_cloud_init.functions import (
     load_additional_cloud_init_config,
-    get_functional_groups_from_config,
     skip_if_additional_cloud_init_disabled,
     verify_smd_group_creation,
     get_xnames_for_fg,

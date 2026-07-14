@@ -41,7 +41,6 @@ from automation_library.core import TestLogger
 from automation_library.telemetry.messages.victoria_logs_msgs import (
     VICTORIA_LOGS_TEST_NAMES,
     VICTORIA_LOGS_LOG_MSGS,
-    VICTORIA_LOGS_ASSERT_MSGS,
 )
 from automation_library.telemetry.functions.shared_func import (
     get_admin_ip,

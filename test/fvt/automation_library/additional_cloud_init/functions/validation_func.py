@@ -20,7 +20,7 @@ Validation functions for additional cloud-init configuration and constraints.
 
 import base64
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from automation_library.core import run_in_container, get_functional_groups_from_pxe_mapping
 from ..vars.common_vars import PROHIBITED_CLOUD_INIT_KEYS, ALLOWED_CLOUD_INIT_KEYS

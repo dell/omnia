@@ -35,10 +35,8 @@ Author: Dell Technologies
 """
 
 import os
-import subprocess
 from typing import Dict, Any
 
-import yaml
 
 from automation_library.core import OIM_SHARED_PATH as _CORE_OIM_SHARED_PATH
 from automation_library.core import load_omnia_test_config, load_omnia_test_credentials

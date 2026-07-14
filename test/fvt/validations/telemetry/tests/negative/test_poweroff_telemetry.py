@@ -44,7 +44,6 @@ Test cases (mirrors sanity tests after poweroff):
 18. Verify iDRAC data in VictoriaMetrics
 """
 
-import time
 import pytest
 
 from automation_library.core import TestLogger
@@ -83,9 +82,6 @@ from automation_library.telemetry.functions.shared_func import (
     is_ldms_enabled,
     is_victoria_enabled,
     is_idrac_telemetry_enabled,
-    skip_if_kafka_not_enabled,
-    skip_if_ldms_not_enabled,
-    skip_if_victoria_not_enabled,
 )
 from automation_library.telemetry.vars import NODE_POWEROFF_WAIT_SECONDS
 from automation_library.telemetry.vars.victoria_vars import (
@@ -103,8 +99,6 @@ from automation_library.telemetry.messages.victoria_msgs import (
 )
 from automation_library.telemetry.messages.delete_node_msgs import (
     DELETE_NODE_TEST_NAMES,
-    DELETE_NODE_LOG_MSGS,
-    DELETE_NODE_ASSERT_MSGS,
 )
 from automation_library.telemetry.functions.delete_node_func import (
     get_deleted_nodes_cached,

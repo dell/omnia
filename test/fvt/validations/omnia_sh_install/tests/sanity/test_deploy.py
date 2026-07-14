@@ -30,7 +30,7 @@ import os
 import pytest
 
 from automation_library.core import TestLogger, OMNIA_SH_PATH
-from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
+from automation_library.playbook_runner import PlaybookRunner
 from automation_library.omnia_sh.vars.omnia_sh_vars import OMNIA_SH_VARS
 from automation_library.omnia_sh.messages.omnia_sh_msgs import (
     TEST_NAMES, TEST_LOG_MSGS as LOG_MSGS, TEST_ASSERT_MSGS as ASSERT_MSGS, SKIP_MSGS

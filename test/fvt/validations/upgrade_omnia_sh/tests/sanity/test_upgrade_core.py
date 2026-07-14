@@ -39,7 +39,6 @@ from automation_library.upgrade_and_rollback.functions import (
     validate_versions,
     validate_config,
     validate_clone_path_conflict,
-    check_backup_exists,
     check_pre_upgrade_container,
     clone_upgrade_repo,
     build_core_image,

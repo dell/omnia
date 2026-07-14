@@ -24,15 +24,12 @@ These tests execute the provision playbook tasks multiple times to verify idempo
 """
 
 import pytest
-from automation_library.core import TestLogger, get_functional_groups_from_pxe_mapping
+from automation_library.core import TestLogger
 from automation_library.additional_cloud_init.functions import (
     load_additional_cloud_init_config,
     skip_if_additional_cloud_init_disabled,
     verify_smd_group_creation,
-    verify_smd_group_deletion,
     verify_bss_group_registration,
-    get_all_nodes_for_common,
-    get_nodes_by_functional_group,
     get_xnames_for_fg,
     get_all_xnames,
 )
@@ -43,7 +40,6 @@ from automation_library.additional_cloud_init.vars import (
 from automation_library.additional_cloud_init.messages import (
     TEST_NAMES,
     TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS,
     SKIP_MSGS,
 )
 

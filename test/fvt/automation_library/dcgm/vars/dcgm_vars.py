@@ -18,7 +18,7 @@ DCGM Automation - Configuration Variables.
 Constants, paths, and command templates for DCGM GPU telemetry tests.
 """
 
-from typing import Dict, Any
+from typing import Dict
 
 from ...core.vars import (
     SLURM_NODE_FUNCTIONAL_GROUP as _SLURM_NODE_FG,

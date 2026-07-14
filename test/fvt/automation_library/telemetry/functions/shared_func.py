@@ -32,7 +32,6 @@ from ...core import (
     get_node_info,
     load_input_file,
     get_input_value,
-    get_input_bool,
     clear_input_cache,
     K8S_CONTROL_PLANE_FUNCTIONAL_GROUP,
     TELEMETRY_CONFIG_FILE,

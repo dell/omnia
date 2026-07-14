@@ -194,6 +194,143 @@ def _scenario_bar_chart(modules: List[Dict[str, Any]]) -> str:
     return f'<div class="scenario-bars">{rows}</div>'
 
 
+def _sparkline_svg(rates: List[float], w: int = 120, h: int = 28) -> str:
+    """Inline SVG sparkline of pass-rate history (0-100) across runs.
+
+    Renders a smooth line with a subtle fill and an emphasized last point so a
+    reader can see whether a scenario is trending up, flat, or regressing.
+    """
+    if not rates:
+        return ""
+    if len(rates) == 1:
+        rates = [rates[0], rates[0]]
+    n = len(rates)
+    pad = 3
+    span_w = w - 2 * pad
+    span_h = h - 2 * pad
+    pts = []
+    for i, r in enumerate(rates):
+        x = pad + (span_w * i / (n - 1))
+        y = pad + span_h * (1 - max(0.0, min(100.0, r)) / 100.0)
+        pts.append((x, y))
+    line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    area = f"{pad},{h - pad} " + line + f" {w - pad},{h - pad}"
+    last_x, last_y = pts[-1]
+    last_rate = rates[-1]
+    stroke = "#3fb950" if last_rate >= 99.9 else ("#e3b341" if last_rate >= 50 else "#f85149")
+    return (
+        f'<svg class="spark" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
+        f'<polygon points="{area}" fill="{stroke}" opacity="0.12"/>'
+        f'<polyline points="{line}" fill="none" stroke="{stroke}" '
+        f'stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<circle cx="{last_x:.1f}" cy="{last_y:.1f}" r="2.6" fill="{stroke}"/>'
+        f'</svg>'
+    )
+
+
+def _aggregate_scenarios(runs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Collapse all runs into per-scenario history (chronological order).
+
+    Returns a list of dicts per scenario name with pass-rate history, latest
+    counts, total duration, and run count — used by the Scenario Trends panel.
+    """
+    order: List[str] = []
+    agg: Dict[str, Dict[str, Any]] = {}
+    for run in runs:
+        modules = run.get("modules", [])
+        if not modules and "results" in run:
+            modules = [{
+                "module": run.get("module", "unknown"),
+                "summary": run.get("summary", {}),
+                "duration_seconds": run.get("total_duration_seconds", 0),
+            }]
+        for m in modules:
+            name = m.get("module", "unknown")
+            s = m.get("summary") or {}
+            p, f, sk = s.get("passed", 0), s.get("failed", 0), s.get("skipped", 0)
+            executed = p + f
+            rate = (p / executed * 100) if executed else (100.0 if sk > 0 else 0.0)
+            if name not in agg:
+                order.append(name)
+                agg[name] = {
+                    "module": name, "history": [], "runs": 0,
+                    "passed": 0, "failed": 0, "skipped": 0, "duration": 0.0,
+                    "suite": m.get("suite", "all"), "marker": m.get("marker", ""),
+                }
+            entry = agg[name]
+            entry["history"].append(round(rate, 1))
+            entry["runs"] += 1
+            entry["passed"], entry["failed"], entry["skipped"] = p, f, sk
+            entry["duration"] += m.get("duration_seconds", 0) or 0
+    return [agg[n] for n in order]
+
+
+def _scenario_trends(runs: List[Dict[str, Any]]) -> str:
+    """Scenario-centric trend panel: sparkline of pass-rate history per scenario."""
+    scenarios = _aggregate_scenarios(runs)
+    if not scenarios:
+        return ""
+    rows = ""
+    for sc in scenarios:
+        name = sc["module"]
+        hist = sc["history"]
+        latest = hist[-1] if hist else 0.0
+        prev = hist[-2] if len(hist) > 1 else latest
+        delta = latest - prev
+        if delta > 0.05:
+            trend_cls, trend_sym = "tr-up", "&#9650;"
+        elif delta < -0.05:
+            trend_cls, trend_sym = "tr-down", "&#9660;"
+        else:
+            trend_cls, trend_sym = "tr-flat", "&#9644;"
+        rate_cls = "c-pass" if latest >= 99.9 else ("c-skip" if latest >= 50 else "c-fail")
+        rows += (
+            f'<div class="trend-row">'
+            f'<span class="trend-name">{name}</span>'
+            f'<span class="trend-suite">{sc["suite"]}</span>'
+            f'{_sparkline_svg(hist)}'
+            f'<span class="trend-rate {rate_cls}">{latest:.0f}%</span>'
+            f'<span class="trend-delta {trend_cls}">{trend_sym} {abs(delta):.0f}%</span>'
+            f'<span class="trend-runs">{sc["runs"]} run(s)</span>'
+            f'</div>'
+        )
+    return (
+        '<div class="trend-card">'
+        '<div class="trend-hdr"><span>Scenario Trends</span>'
+        '<span class="trend-sub">pass-rate history across runs</span></div>'
+        f'<div class="trend-body">{rows}</div>'
+        '</div>'
+    )
+
+
+def _duration_bars(modules: List[Dict[str, Any]], top: int = 8) -> str:
+    """Horizontal bar chart of the slowest scenarios in a run (by duration)."""
+    if not modules:
+        return ""
+    items = [(m.get("module", "unknown"), float(m.get("duration_seconds", 0) or 0)) for m in modules]
+    items = [it for it in items if it[1] > 0]
+    if not items:
+        return ""
+    items.sort(key=lambda x: x[1], reverse=True)
+    items = items[:top]
+    peak = items[0][1] or 1
+    rows = ""
+    for name, dur in items:
+        pct = dur / peak * 100
+        rows += (
+            f'<div class="dur-row">'
+            f'<span class="dur-name">{name}</span>'
+            f'<div class="dur-track"><div class="dur-fill" style="width:{pct:.1f}%"></div></div>'
+            f'<span class="dur-val">{dur:.1f}s</span>'
+            f'</div>'
+        )
+    return (
+        '<div class="dur-chart">'
+        '<div class="dur-hdr">Slowest Scenarios</div>'
+        f'{rows}</div>'
+    )
+
+
 def _fmt_run_id(rid: str) -> str:
     """Format compact run ID 20260708131458 into 2026-07-08 13:14:58."""
     if len(rid) == 14 and rid.isdigit():
@@ -416,6 +553,32 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
 .legend-item{{display:flex;align-items:center;gap:5px}}
 .legend-dot{{width:10px;height:10px;border-radius:50%}}
 
+/* ── Scenario Trends ── */
+.trend-card{{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:22px;overflow:hidden;box-shadow:0 1px 4px var(--shadow)}}
+.trend-hdr{{display:flex;align-items:baseline;gap:10px;padding:14px 20px;background:var(--bg-header);border-bottom:1px solid var(--border)}}
+.trend-hdr span:first-child{{font-weight:700;font-size:.95em}}
+.trend-sub{{color:var(--fg-muted);font-size:.78em}}
+.trend-body{{padding:6px 12px}}
+.trend-row{{display:flex;align-items:center;gap:12px;padding:8px 8px;border-bottom:1px solid var(--border)}}
+.trend-row:last-child{{border-bottom:none}}
+.trend-row:hover{{background:var(--bg-hover)}}
+.trend-name{{width:200px;flex-shrink:0;font-family:'Cascadia Code',monospace;font-size:.85em;color:var(--blue);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.trend-suite{{width:70px;flex-shrink:0;font-size:.72em;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.4px}}
+.spark{{flex-shrink:0}}
+.trend-rate{{width:52px;text-align:right;font-weight:800;font-size:.95em;font-family:monospace}}
+.trend-delta{{width:64px;text-align:right;font-size:.78em;font-weight:700;font-family:monospace}}
+.tr-up{{color:var(--green)}} .tr-down{{color:var(--red)}} .tr-flat{{color:var(--fg-muted)}}
+.trend-runs{{margin-left:auto;font-size:.76em;color:var(--fg-muted)}}
+
+/* ── Duration bars ── */
+.dur-chart{{flex:1;min-width:260px}}
+.dur-hdr{{font-size:.82em;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}}
+.dur-row{{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:.82em}}
+.dur-name{{width:150px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Cascadia Code',monospace;font-size:.9em;color:var(--fg)}}
+.dur-track{{flex:1;height:8px;background:var(--bg-hover);border-radius:4px;overflow:hidden}}
+.dur-fill{{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:4px;transition:width .4s ease}}
+.dur-val{{width:60px;text-align:right;font-family:monospace;font-size:.85em;color:var(--fg-muted);flex-shrink:0}}
+
 /* ── Footer ── */
 .ft{{text-align:center;padding:20px;color:var(--fg-muted);font-size:.82em;border-top:1px solid var(--border);margin-top:32px}}
 
@@ -480,6 +643,15 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
             ttl = tp + tf + tsk
             act = "act" if first_server else ""
 
+            executed_total = tp + tf
+            pass_rate = int(tp / executed_total * 100) if executed_total else (100 if tsk > 0 else 0)
+            total_dur = sum(
+                sum(m.get("duration_seconds", 0) or 0 for m in (
+                    r.get("modules") or [{"duration_seconds": r.get("total_duration_seconds", 0)}]
+                ))
+                for r in runs
+            )
+
             html += (
                 f'<div class="panel {act}" id="p-{sip.replace(".","-")}">'
                 f'<div class="cards">'
@@ -487,8 +659,11 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
                 f'<div class="kpi kp"><div class="n">{tp}</div><div class="l">Passed</div></div>'
                 f'<div class="kpi kf"><div class="n">{tf}</div><div class="l">Failed</div></div>'
                 f'<div class="kpi ks"><div class="n">{tsk}</div><div class="l">Skipped</div></div>'
+                f'<div class="kpi kp"><div class="n">{pass_rate}%</div><div class="l">Pass Rate</div></div>'
                 f'<div class="kpi kt"><div class="n">{len(runs)}</div><div class="l">Runs</div></div>'
+                f'<div class="kpi kt"><div class="n">{total_dur:.0f}s</div><div class="l">Duration</div></div>'
                 f'</div>'
+                f'{_scenario_trends(runs)}'
             )
 
             run_idx = 0
@@ -533,6 +708,7 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
                     f'<div class="overview">'
                     f'<div>{_donut_svg(rp, rf, rsk)}</div>'
                     f'{_scenario_bar_chart(modules)}'
+                    f'{_duration_bars(modules)}'
                     f'</div>'
                 )
 

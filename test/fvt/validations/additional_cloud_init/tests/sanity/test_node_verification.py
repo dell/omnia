@@ -30,12 +30,9 @@ import pytest
 from automation_library.core import (
     TestLogger,
     check_nodes_reachability,
-    get_functional_groups_from_pxe_mapping,
-    get_nodes_info,
 )
 from automation_library.additional_cloud_init.functions import (
     load_additional_cloud_init_config,
-    get_functional_groups_from_config,
     skip_if_additional_cloud_init_disabled,
     verify_cloud_init_files_on_nodes,
     verify_runcmd_execution_on_nodes,

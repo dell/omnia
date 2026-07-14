@@ -18,21 +18,17 @@ Telemetry Failover Test Functions.
 Functions for verifying telemetry pod rescheduling after node poweroff/reboot.
 """
 
-import sys
 import time
 from typing import Dict, Any, List
 
 from ...core import (
     run_on_remote_node,
     run_in_container,
-    is_software_enabled,
 )
 from ..vars import TELEMETRY_NAMESPACE
 from ..vars.failover_vars import (
     POD_RESCHEDULE_RETRY_LIMIT,
     POD_RESCHEDULE_RETRY_INTERVAL,
-    NODE_POWEROFF_WAIT_SECONDS,
-    NODE_REBOOT_WAIT_SECONDS,
     NODE_ONLINE_TIMEOUT_SECONDS,
     POD_RUNNING_STATUSES,
     CMD_GET_WORKER_NODES,
@@ -41,8 +37,6 @@ from ..vars.failover_vars import (
     CMD_SSH_POWEROFF,
     CMD_SSH_REBOOT,
     CMD_PING_NODE,
-    CMD_SSH_CHECK,
-    CMD_CLOUDINIT_STATUS,
     CLOUDINIT_RETRY_LIMIT,
     CLOUDINIT_RETRY_INTERVAL,
     CLOUDINIT_PASSED_STATUSES,

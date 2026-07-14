@@ -29,7 +29,6 @@ get_build_stream_job_id(host, stage_name)              -> Dict
 check_build_stream_stage(host, stage_name, job_id)     -> Dict
 """
 
-import os
 from typing import Dict, Any, Optional
 
 import yaml

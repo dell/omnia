@@ -44,7 +44,6 @@ import pytest
 from automation_library.core import TestLogger
 from automation_library.hpc_benchmarks import (
     TEST_NAMES,
-    TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
     verify_json_parsing,
     verify_local_repo_sync,

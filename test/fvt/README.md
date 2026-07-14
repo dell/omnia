@@ -271,9 +271,11 @@ Report features:
 - **Dark / Light theme toggle** — switch between themes in the header
 - **Donut chart** per test run showing pass rate (excludes skipped from calculation)
 - **Scenario bar chart** with hover tooltips showing mini donut + suite/marker info
+- **Scenario Trends panel** — per-scenario pass-rate sparklines across historical runs on the same server, with up/down/flat trend deltas so flaky or regressing scenarios stand out
+- **Slowest Scenarios duration bars** — per-run horizontal bars ranking scenarios by execution time to surface performance hot-spots
 - **Deploy / Verify sections** — each scenario splits results into Deploy (playbook logs + deploy tests) and Verify (verification tests)
 - **Suite & marker badges** — shows which `--suite` and `--marker` were used per scenario
-- **KPI cards** — Total, Passed, Failed, Skipped counts with hover effects
+- **KPI cards** — Total, Passed, Failed, Skipped, Pass Rate, Runs, and Duration with hover effects
 - **ANSI-clean output** — color codes from playbook logs are stripped automatically
 - **Collapsible sections** — runs, modules, tests, and playbook logs are expandable
 - **Self-contained** — all CSS/JS inline, shareable as a single HTML file
@@ -335,16 +337,24 @@ omnia/test/fvt/
 │       └── config/                    # Per-architecture package lists
 │
 ├── automation_library/                # Python automation library
-│   ├── core/                          # Shared infrastructure
-│   ├── checks/                        # Prerequisite checks
-│   ├── playbook_runner/               # Playbook execution engine
-│   └── <module>/                      # Per-scenario modules
+│   ├── core/                          # Shared infrastructure & single source of truth
+│   │   ├── functions/                 # SSH, config loading, container exec, PXE, reports
+│   │   ├── vars/                      # Shared constants (paths, container, SSH, groups)
+│   │   └── messages/                  # Shared log/assertion messages
+│   ├── checks/                        # Prerequisite checks (oim-prereq-check CLI)
+│   ├── playbook_runner/               # Playbook execution engine (PlaybookRunner)
+│   └── <module>/                      # Per-scenario modules — telemetry, slurm, kubernetes,
+│       ├── __init__.py                #   dcgm, discovery, provision, vast_storage, etc.
+│       ├── functions/                 # Verification logic ONLY (component_func.py, common_func.py)
+│       ├── vars/                      # Module constants — reuse core vars, no duplication
+│       └── messages/                  # Test names, log messages, assertion messages
 │
 ├── validations/                       # Validation test scenarios (pytest-native)
 │   ├── conftest.py                    # Global pytest fixtures, markers, report hooks
 │   └── <scenario>/tests/              # Per-scenario test directories
-│       ├── sanity/                    # Sanity suite tests
-│       ├── test_deploy.py             # Playbook deployment test (@pytest.mark.deploy)
+│       ├── sanity/                    # Sanity suite tests (call functions, assert only)
+│       ├── negative/                  # Negative / failure-path tests
+│       └── test_deploy.py             # Playbook deployment test (@pytest.mark.deploy)
 │
 ├── docs/                              # Detailed reference documentation
 │   ├── input_reference.md             # omnia_test_config.yml parameter reference

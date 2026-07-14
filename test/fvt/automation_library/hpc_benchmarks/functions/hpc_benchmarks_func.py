@@ -55,20 +55,16 @@ Spec: TSPEC-HPCBENCH-2026-001 v1.0.0
 
 import json
 import re
-import time
 from typing import Dict, Any, List, Optional
 
 from ...core import (
     run_on_remote_node,
     run_in_container,
     get_nodes_info,
-    get_node_info,
 )
 from ..vars.hpc_benchmarks_vars import (
     X86_64_NODE_FUNCTIONAL_GROUP,
     AARCH64_NODE_FUNCTIONAL_GROUP,
-    LOGIN_NODE_X86_64_FUNCTIONAL_GROUP,
-    LOGIN_NODE_AARCH64_FUNCTIONAL_GROUP,
     LOGIN_COMPILER_X86_64_FUNCTIONAL_GROUP,
     LOGIN_COMPILER_AARCH64_FUNCTIONAL_GROUP,
     SLURM_CUSTOM_JSON_X86_64,
@@ -78,12 +74,10 @@ from ..vars.hpc_benchmarks_vars import (
     HPC_TOOLS_BASE,
     X86_64_BENCHMARK_DIRS,
     AARCH64_BENCHMARK_DIRS,
-    X86_64_ONLY_DIRS,
     PRE_EXISTING_HPC_DIRS,
     X86_64_BENCHMARK_PACKAGES,
     AARCH64_BENCHMARK_PACKAGES,
     CONTAINER_FIRST_PACKAGE,
-    CONTAINER_FIRST_PACKAGE_TAG,
     TOOL_TO_DIR,
     BENCHMARK_TARBALL_PACKAGES,
     PULL_BENCHMARKS_SCRIPT,

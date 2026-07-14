@@ -75,7 +75,6 @@ from automation_library.apptainer.functions.apptainer_func import (
     verify_sif_image_integrity,
     verify_execute_multiple_apptainer_jobs_concurrently,
     verify_job_with_invalid_sif_file,
-    verify_sif_permission_600_fails_job,
     verify_gpu_accessible_in_apptainer_container,
     verify_gpu_count_correct_in_container,
     verify_execute_cuda_workload_in_container,

@@ -24,7 +24,6 @@ Compatibility test cases:
 import pytest
 from automation_library.core import (
     TestLogger,
-    run_on_oim,
     get_functional_groups_from_pxe_mapping,
     get_input_value,
 )
@@ -36,9 +35,6 @@ from automation_library.additional_cloud_init.functions import (
 )
 from automation_library.additional_cloud_init.messages import (
     TEST_NAMES,
-    TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS,
-    SKIP_MSGS,
 )
 
 

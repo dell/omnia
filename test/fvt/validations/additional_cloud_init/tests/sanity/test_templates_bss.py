@@ -25,7 +25,7 @@ Test cases for template rendering and BSS integration:
 """
 
 import pytest
-from automation_library.core import TestLogger, run_on_oim
+from automation_library.core import TestLogger
 from automation_library.additional_cloud_init.functions import (
     load_additional_cloud_init_config,
     skip_if_additional_cloud_init_disabled,

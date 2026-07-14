@@ -29,7 +29,6 @@ import time
 from typing import Dict, Any, List
 
 from automation_library.core import (
-    load_omnia_test_config,
     load_omnia_test_credentials,
 )
 # LDAP user creation skipped - using existing credentials from omnia_test_credentials.yml

@@ -16,7 +16,18 @@
 Kubernetes variables for OMNIA test automation.
 
 This module contains constants and variables used for Kubernetes testing.
+Shared paths, functional group names, and metadata paths are sourced from the
+core module (single source of truth) instead of being redefined locally.
 """
+
+from automation_library.core import (
+    K8S_CONTROL_PLANE_FUNCTIONAL_GROUP as _CORE_CONTROL_PLANE_GROUP,
+    K8S_WORKER_NODE_FUNCTIONAL_GROUP as _CORE_WORKER_NODE_GROUP,
+    HA_CONFIG_PATH as _CORE_HA_CONFIG_PATH,
+    SERVICE_CLUSTER_METADATA_PATH as _CORE_SERVICE_CLUSTER_METADATA_PATH,
+    PXE_MAPPING_FILE_PATH as _CORE_PXE_MAPPING_FILE_PATH,
+    TELEMETRY_CONFIG_PATH as _CORE_TELEMETRY_CONFIG_PATH,
+)
 
 # Default SSH settings for Kubernetes nodes
 NODE_SSH_USER = "root"
@@ -29,16 +40,16 @@ CRIO_SERVICE = "crio"
 CRI_O_SERVICE = "cri-o"
 CHRONYD_SERVICE = "chronyd"
 
-# Kubernetes node types
-CONTROL_PLANE_GROUP = "service_kube_control_plane_x86_64"
-WORKER_NODE_GROUP = "service_kube_node_x86_64"
+# Kubernetes node types (sourced from core functional groups)
+CONTROL_PLANE_GROUP = _CORE_CONTROL_PLANE_GROUP
+WORKER_NODE_GROUP = _CORE_WORKER_NODE_GROUP
 
-# HA configuration
-HA_CONFIG_FILE = "/opt/omnia/input/project_default/high_availability_config.yml"
+# HA configuration (sourced from core)
+HA_CONFIG_FILE = _CORE_HA_CONFIG_PATH
 
 # Container runtime configuration
 EXPECTED_CONTAINER_RUNTIME = "cri-o"
-SERVICE_CLUSTER_METADATA_PATH = "/opt/omnia/.data/service_cluster_metadata.yml"
+SERVICE_CLUSTER_METADATA_PATH = _CORE_SERVICE_CLUSTER_METADATA_PATH
 DEFAULT_STORAGE_CLASS = "ps01"
 READY_STATE_MAX_RETRIES = 6
 READY_STATE_RETRY_DELAY_SECONDS = 10
@@ -54,10 +65,10 @@ K8S_VIP_FAILOVER_TIMEOUT = 120           # seconds to wait for VIP to move
 K8S_VIP_FAILOVER_POLL = 10              # poll interval while waiting for VIP failover
 
 # =============================================================================
-# Input File Paths (inside omnia_core container)
+# Input File Paths (inside omnia_core container) - sourced from core
 # =============================================================================
-PXE_MAPPING_FILE_PATH = "/opt/omnia/input/project_default/pxe_mapping_file.csv"
-TELEMETRY_CONFIG_PATH = "/opt/omnia/input/project_default/telemetry_config.yml"
+PXE_MAPPING_FILE_PATH = _CORE_PXE_MAPPING_FILE_PATH
+TELEMETRY_CONFIG_PATH = _CORE_TELEMETRY_CONFIG_PATH
 
 # =============================================================================
 # NFS Provisioner Constants

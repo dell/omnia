@@ -20,7 +20,7 @@ Functions for connecting to OME and retrieving static groups under Custom Groups
 
 import base64
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from automation_library.core import (
     run_in_container,

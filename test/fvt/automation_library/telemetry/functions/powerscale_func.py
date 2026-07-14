@@ -23,13 +23,12 @@ import json
 import time
 import re
 import urllib.parse
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 from ...core import run_on_remote_node
 from ..vars.shared_vars import TELEMETRY_NAMESPACE
 from ..vars.powerscale_vars import (
     DEPLOYMENT_MODE_OMNIA,
-    DEPLOYMENT_MODE_OPERATOR,
     CSM_METRICS_POWERSCALE,
     OTEL_COLLECTOR,
     CERT_MANAGER,
@@ -37,20 +36,16 @@ from ..vars.powerscale_vars import (
     VLAGENT,
     POWERSCALE_METRIC_CATEGORIES,
     POWERSCALE_REQUIRED_LABELS,
-    POWERSCALE_HEALTH_METRICS,
     CREDENTIAL_PATTERNS,
     POWERSCALE_CMD_TEMPLATES,
     POWERSCALE_VM_QUERY_TEMPLATES,
     SCRAPE_INTERVAL_MIN_SECONDS,
     SCRAPE_INTERVAL_MAX_SECONDS,
-    SCRAPE_INTERVAL_TOLERANCE_SECONDS,
     POD_RESTART_WAIT_SECONDS,
     POD_RESTART_MAX_RETRIES,
-    SYSLOG_MAX_WAIT_SECONDS,
 )
 from ..vars.victoria_vars import (
     VICTORIA_CLUSTER,
-    VICTORIA_TLS_SECRET,
     VICTORIA_API_ENDPOINTS,
 )
 from .shared_func import get_telemetry_config, is_idrac_telemetry_enabled

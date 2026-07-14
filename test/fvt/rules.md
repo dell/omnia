@@ -270,6 +270,14 @@ Stage constants: `STAGE_BUILD_IMAGE_X86_64`, `STAGE_BUILD_IMAGE_AARCH64`, `STAGE
 | `get_current_report()` | Returns the active `TestReport` instance. |
 | `set_current_report(report)` | Sets the active `TestReport` instance. |
 
+The generated HTML report is scenario-centric and self-contained. In addition
+to per-run donut and scenario bar charts, each server panel renders a
+**Scenario Trends** panel (per-scenario pass-rate sparklines across historical
+runs with up/down/flat deltas) and a **Slowest Scenarios** duration-bar chart.
+KPI cards include Total, Passed, Failed, Skipped, Pass Rate, Runs, and Duration.
+All report presentation helpers live in `report_func.py` — never inline HTML/CSS
+in test files.
+
 ### 3.10 Core Constants (`vars/`)
 
 Key path constants (all strings):
@@ -294,12 +302,28 @@ from automation_library.core import (
     get_nodes_info,
     is_software_enabled,
     K8S_CONTROL_PLANE_FUNCTIONAL_GROUP,
+    K8S_WORKER_NODE_FUNCTIONAL_GROUP,
+    HA_CONFIG_PATH,
+    SERVICE_CLUSTER_METADATA_PATH,
+    PXE_MAPPING_FILE_PATH,
+    TELEMETRY_CONFIG_PATH,
     INPUT_BASE_PATH,
 )
 
 # WRONG — Duplicating core constants or functions
 K8S_CONTROL_PLANE_FUNCTIONAL_GROUP = "service_kube_control_plane_x86_64"
 INPUT_BASE_PATH = "/opt/omnia/input/project_default"
+HA_CONFIG_FILE = "/opt/omnia/input/project_default/high_availability_config.yml"
+PXE_MAPPING_FILE_PATH = "/opt/omnia/input/project_default/pxe_mapping_file.csv"
+```
+
+If a module needs a core value under a local name, alias it — do not re-hardcode
+the literal:
+
+```python
+# CORRECT — module keeps its own public name but sources the value from core
+from automation_library.core import HA_CONFIG_PATH as _CORE_HA_CONFIG_PATH
+HA_CONFIG_FILE = _CORE_HA_CONFIG_PATH
 ```
 
 ---
@@ -1072,15 +1096,40 @@ Common ansible-lint issues to avoid:
 - `risky-shell-pipe` — Use `set -o pipefail` for shell pipes
 - `no-changed-when` — Add `changed_when` to shell/command tasks
 
-### 18.2 Pre-Commit Quality Checks
+### 18.2 Python Import & Dead-Code Rules (MANDATORY)
+
+- **No unused imports.** Every import must be used in the file. The only
+  exception is a re-export: a name imported purely so a package/module
+  `__init__.py` (or an aggregating module) can expose it. Re-exported names MUST
+  appear in that file's `__all__`.
+- **No `import *`.** Always import specific names, even when a matching `__all__`
+  already exists (convert star imports to explicit imports).
+- **No dead / duplicate functions.** Do not keep superseded implementations
+  alongside their replacements. When a testinfra-based function replaces a legacy
+  subprocess-based one, delete the legacy version and update all `__init__.py`
+  exports — never leave two functions with the same name in one module.
+
+Verify with `pyflakes` before committing:
+
+```bash
+python3 -m pyflakes automation_library/ validations/ utility/
+```
+
+Only re-export lines (imported-but-unused names that are listed in `__all__`)
+are acceptable findings; all other unused imports must be removed.
+
+### 18.3 Pre-Commit Quality Checks
 
 Before committing any code, run these checks:
 
 ```bash
-# 1. Run tests
+# 1. Lint for unused imports / dead code
+python3 -m pyflakes automation_library/ validations/ utility/
+
+# 2. Run tests
 ./run_validation.sh <scenario> verify
 
-# 2. Verify scenario listing
+# 3. Verify scenario listing
 ./run_validation.sh list
 ```
 

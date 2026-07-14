@@ -33,7 +33,6 @@ from automation_library.kubernetes.functions.k8s_func import get_oim_operations
 from automation_library.kubernetes.vars.k8s_vars import (
     DEFAULT_STORAGE_CLASS,
     EXPECTED_CONTAINER_RUNTIME,
-    SERVICE_CLUSTER_METADATA_PATH,
 )
 
 # Path to sample manifests (go up to project root, then into automation_library)

@@ -45,8 +45,6 @@ from automation_library.additional_cloud_init.functions import (
 )
 from automation_library.additional_cloud_init.messages import (
     TEST_NAMES,
-    TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS,
 )
 
 

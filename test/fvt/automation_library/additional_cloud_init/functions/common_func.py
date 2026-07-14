@@ -20,7 +20,7 @@ Common utilities for additional cloud-init configuration handling.
 
 import os
 import pytest
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 from automation_library.core import (
     TestLogger,
@@ -29,7 +29,6 @@ from automation_library.core import (
     get_functional_groups_from_pxe_mapping,
     get_nodes_info,
 )
-from ..vars.common_vars import ADDITIONAL_CLOUD_INIT_CONFIG_PATH
 
 
 # Configuration cache

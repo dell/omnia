@@ -54,7 +54,6 @@ from ...core import (
     get_node_info,
 )
 from ..vars.dcgm_vars import (
-    GPU_NODE_FUNCTIONAL_GROUP,
     LOGIN_COMPILER_FUNCTIONAL_GROUP,
     DCGM_PACKAGE_NAME,
     DCGM_SERVICE_NAME,

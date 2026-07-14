@@ -57,7 +57,6 @@ from automation_library.telemetry.functions import (
     wait_for_node_online,
     wait_for_cloudinit_done,
     wait_for_node_rejoin_cluster,
-    get_telemetry_pods_on_node,
     get_all_telemetry_pods,
     verify_all_telemetry_pods_running,
     verify_idrac_telemetry_pod_count,
@@ -70,7 +69,6 @@ from automation_library.telemetry.functions import (
     verify_ldms_services_ports,
     verify_idrac_data_in_kafka,
     verify_ldms_data_in_kafka,
-    get_victoria_config,
     verify_victoria_persistence_size,
     verify_victoria_cluster_pods,
     verify_vmagent_pod,
@@ -86,9 +84,6 @@ from automation_library.telemetry.functions.shared_func import (
     is_ldms_enabled,
     is_victoria_enabled,
     is_idrac_telemetry_enabled,
-    skip_if_kafka_not_enabled,
-    skip_if_ldms_not_enabled,
-    skip_if_victoria_not_enabled,
 )
 from automation_library.telemetry.vars import (
     NODE_REBOOT_WAIT_SECONDS,
@@ -99,18 +94,13 @@ from automation_library.telemetry.vars.victoria_vars import (
 )
 from automation_library.telemetry.messages import (
     TEST_NAMES,
-    TEST_LOG_MSGS as LOG_MSGS,
-    TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
 from automation_library.telemetry.messages.victoria_msgs import (
     VICTORIA_TEST_NAMES,
     VICTORIA_LOG_MSGS,
-    VICTORIA_ASSERT_MSGS,
 )
 from automation_library.telemetry.messages.delete_node_msgs import (
     DELETE_NODE_TEST_NAMES,
-    DELETE_NODE_LOG_MSGS,
-    DELETE_NODE_ASSERT_MSGS,
 )
 from automation_library.telemetry.functions.delete_node_func import (
     get_deleted_nodes_cached,

@@ -16,7 +16,11 @@
 Slurm variables for OMNIA test automation.
 
 This module contains constants and variables used for Slurm testing.
+The PXE mapping file path is sourced from the core module (single source of
+truth).
 """
+
+from automation_library.core import PXE_MAPPING_FILE_PATH as _CORE_PXE_MAPPING_FILE_PATH
 
 # =============================================================================
 # Functional Group Names (from PXE mapping file)
@@ -45,9 +49,9 @@ MUNGE_REQUIRED_GROUPS = [
 ]
 
 # =============================================================================
-# PXE Mapping File Path (inside omnia_core container)
+# PXE Mapping File Path (inside omnia_core container) - sourced from core
 # =============================================================================
-PXE_MAPPING_FILE_PATH = "/opt/omnia/input/project_default/pxe_mapping_file.csv"
+PXE_MAPPING_FILE_PATH = _CORE_PXE_MAPPING_FILE_PATH
 
 # =============================================================================
 # Sbatch Job Configuration

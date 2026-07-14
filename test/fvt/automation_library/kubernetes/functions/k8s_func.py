@@ -39,9 +39,7 @@ from paramiko.ssh_exception import (
 from automation_library.core import (
     get_testinfra_host,
     is_local_execution,
-    run_in_container,
     run_on_remote_node,
-    get_nodes_info,
     FVT_ROOT,
     OMNIA_TEST_CONFIG_FILE,
     OMNIA_CORE_CONTAINER,
@@ -90,10 +88,8 @@ from automation_library.kubernetes.messages.k8s_msgs import (
     ERR_NO_CONTROL_PLANE_HOST,
     ERR_NO_NODES_IN_PXE,
     ERR_NO_CP_IN_PXE,
-    ERR_NO_CP_ADMIN_IPS,
     ERR_CP_MISSING_HOST,
     ERR_CP_MISSING_ADMIN_IP,
-    ERR_NO_VALID_CP_IPS,
     NFS_SC_NOT_FOUND,
     NFS_SC_PARSE_ERROR,
     NFS_SC_NO_DYNAMIC_PROVISIONER,
@@ -141,7 +137,6 @@ from automation_library.kubernetes.messages.k8s_msgs import (
     ETCD_MEMBER_LIST_PASSED,
     ETCD_MEMBER_LIST_FAILED,
     ETCD_LEADER_FAILED_RUN,
-    ETCD_LEADER_PARSE_FAILED,
 )
 from automation_library.kubernetes.vars.k8s_vars import (
     CRI_O_SERVICE,
@@ -163,7 +158,6 @@ from automation_library.kubernetes.vars.k8s_vars import (
     K8S_VIP_FAILOVER_POLL,
     PXE_MAPPING_FILE_PATH,
     TELEMETRY_CONFIG_PATH,
-    NFS_DEFAULT_STORAGE_CLASS,
     NFS_PROVISIONER_POD_PREFIX,
     NFS_PROVISIONER_APP_LABEL,
     NFS_SERVER_ENV_VAR,
@@ -174,7 +168,6 @@ from automation_library.kubernetes.vars.k8s_vars import (
     NFS_MOUNT_OPTIONS,
     SC_DEFAULT_ANNOTATION,
     SC_DEFAULT_ANNOTATION_BETA,
-    TELEMETRY_NAMESPACE,
     TELEMETRY_KAFKA_PVC_PATTERN,
     TELEMETRY_VMSTORAGE_PVC_PATTERN,
     TELEMETRY_VLSTORAGE_PVC_PATTERN,
@@ -184,7 +177,6 @@ from automation_library.kubernetes.vars.k8s_vars import (
     ETCD_PKI_CACERT,
     ETCD_PKI_CERT,
     ETCD_PKI_KEY,
-    ETCD_RAFT_DELTA_MAX,
     K8S_CMD_TEMPLATES,
     NFS_CMD_TEMPLATES,
 )

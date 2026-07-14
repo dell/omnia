@@ -33,7 +33,6 @@ import pytest
 from automation_library.core import TestLogger
 from automation_library.apptainer.functions.apptainer_func import (
     get_slurm_nodes,
-    get_slurm_control_nodes,
     verify_nfs_and_sif_accessible_after_reboot,
     verify_container_execution_post_reboot,
     verify_download_script_works_after_reboot,

@@ -26,7 +26,6 @@ import pytest
 from automation_library.core import TestLogger, get_input_value
 from automation_library.additional_cloud_init.functions import (
     load_additional_cloud_init_config,
-    get_functional_groups_from_config,
     validate_cloud_init_config,
 )
 from automation_library.additional_cloud_init.messages import (
