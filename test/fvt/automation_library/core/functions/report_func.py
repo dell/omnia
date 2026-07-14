@@ -579,6 +579,25 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
 .dur-fill{{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:4px;transition:width .4s ease}}
 .dur-val{{width:60px;text-align:right;font-family:monospace;font-size:.85em;color:var(--fg-muted);flex-shrink:0}}
 
+/* ── Server Setup panel ── */
+.setup-panel{{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 4px var(--shadow)}}
+.setup-hdr{{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-header)}}
+.setup-icon{{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:14px;color:#fff;flex-shrink:0}}
+.setup-icon.sok{{background:var(--green)}} .setup-icon.serr{{background:var(--red)}} .setup-icon.swarn{{background:var(--yellow)}}
+.setup-title{{font-weight:700;font-size:.95em;flex:1}}
+.setup-status{{font-size:.82em;font-weight:600;padding:4px 14px;border-radius:20px}}
+.setup-status.s-pass{{background:var(--green-bg);color:var(--green)}}
+.setup-status.s-fail{{background:var(--red-bg);color:var(--red)}}
+.setup-status.s-warn{{background:var(--yellow-bg);color:var(--yellow)}}
+.setup-body{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:16px 20px}}
+.setup-check{{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-canvas);font-size:.85em;transition:transform .12s}}
+.setup-check:hover{{transform:translateY(-1px);box-shadow:0 2px 8px var(--shadow)}}
+.setup-dot{{width:10px;height:10px;border-radius:50%;flex-shrink:0}}
+.setup-dot.dp{{background:var(--green)}} .setup-dot.df{{background:var(--red)}} .setup-dot.ds{{background:var(--yellow)}}
+.setup-cname{{flex:1;font-family:'Cascadia Code',monospace;font-size:.9em}}
+.setup-cdur{{color:var(--fg-muted);font-size:.8em;font-family:monospace}}
+.setup-summary{{display:flex;gap:16px;padding:10px 20px;border-top:1px solid var(--border);font-size:.82em;color:var(--fg-muted);background:var(--bg-header)}}
+
 /* ── Footer ── */
 .ft{{text-align:center;padding:20px;color:var(--fg-muted);font-size:.82em;border-top:1px solid var(--border);margin-top:32px}}
 
@@ -610,13 +629,27 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
     else:
         html += '<div class="lay"><div class="side"><div class="srv-list"><h3>Targets</h3>'
 
+        _SETUP_MODULE = "oim_server_setup"
+
         first_server = True
         for sip, sd in servers.items():
             hostname = sd.get("hostname", "")
             runs = sd.get("runs", [])
-            tp = sum((r.get("summary") or {}).get("passed", 0) for r in runs)
-            tf = sum((r.get("summary") or {}).get("failed", 0) for r in runs)
-            ts = sum((r.get("summary") or {}).get("skipped", 0) for r in runs)
+            # Sidebar counts exclude setup modules
+            tp = tf = ts = 0
+            for r in runs:
+                for m in (r.get("modules") or []):
+                    if m.get("module") == _SETUP_MODULE:
+                        continue
+                    ms = m.get("summary") or {}
+                    tp += ms.get("passed", 0)
+                    tf += ms.get("failed", 0)
+                    ts += ms.get("skipped", 0)
+                if not r.get("modules") and "summary" in r:
+                    s = r["summary"] or {}
+                    tp += s.get("passed", 0)
+                    tf += s.get("failed", 0)
+                    ts += s.get("skipped", 0)
             act = "act" if first_server else ""
             dip = sip if sip and sip != "localhost" else "localhost"
             html += (
@@ -637,9 +670,28 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
         for sip, sd in servers.items():
             hostname = sd.get("hostname", "")
             runs = sd.get("runs", [])
-            tp = sum((r.get("summary") or {}).get("passed", 0) for r in runs)
-            tf = sum((r.get("summary") or {}).get("failed", 0) for r in runs)
-            tsk = sum((r.get("summary") or {}).get("skipped", 0) for r in runs)
+
+            # Collect setup results (excluded from KPI totals)
+            setup_results_all = []
+            for r in runs:
+                for m in (r.get("modules") or []):
+                    if m.get("module") == _SETUP_MODULE:
+                        setup_results_all.extend(m.get("results", []))
+
+            # KPI totals exclude setup modules
+            tp = tf = tsk = 0
+            for r in runs:
+                modules = r.get("modules") or []
+                if not modules and "results" in r:
+                    modules = [{"module": r.get("module", "unknown"),
+                                "summary": r["summary"]}]
+                for m in modules:
+                    if m.get("module") == _SETUP_MODULE:
+                        continue
+                    ms = m.get("summary") or {}
+                    tp += ms.get("passed", 0)
+                    tf += ms.get("failed", 0)
+                    tsk += ms.get("skipped", 0)
             ttl = tp + tf + tsk
             act = "act" if first_server else ""
 
@@ -665,6 +717,51 @@ body{{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(-
                 f'</div>'
                 f'{_scenario_trends(runs)}'
             )
+
+            # --- Server Setup panel (separate from test counts) ---
+            if setup_results_all:
+                s_pass = sum(1 for r in setup_results_all if r.get("status") == "PASSED")
+                s_fail = sum(1 for r in setup_results_all if r.get("status") == "FAILED")
+                s_skip = sum(1 for r in setup_results_all if r.get("status") == "SKIPPED")
+                s_total = len(setup_results_all)
+                if s_fail > 0:
+                    s_icon_cls, s_icon, s_stat_cls, s_stat_txt = "serr", "&#10007;", "s-fail", f"{s_fail} check(s) failed"
+                elif s_skip > 0 and s_pass == 0:
+                    s_icon_cls, s_icon, s_stat_cls, s_stat_txt = "swarn", "&#8212;", "s-warn", "Checks skipped"
+                else:
+                    s_icon_cls, s_icon, s_stat_cls, s_stat_txt = "sok", "&#10003;", "s-pass", "All checks passed"
+
+                html += (
+                    f'<div class="setup-panel">'
+                    f'<div class="setup-hdr">'
+                    f'<div class="setup-icon {s_icon_cls}">{s_icon}</div>'
+                    f'<span class="setup-title">Server Setup</span>'
+                    f'<span class="setup-status {s_stat_cls}">{s_stat_txt}</span>'
+                    f'</div>'
+                    f'<div class="setup-body">'
+                )
+                for sr in setup_results_all:
+                    st = sr.get("status", "FAILED")
+                    dot = "dp" if st == "PASSED" else ("ds" if st == "SKIPPED" else "df")
+                    name = sr.get("test_name", "unknown").split("::")[-1].replace("test_", "").replace("_", " ").title()
+                    dur = sr.get("duration_seconds", 0)
+                    html += (
+                        f'<div class="setup-check">'
+                        f'<div class="setup-dot {dot}"></div>'
+                        f'<span class="setup-cname">{name}</span>'
+                        f'<span class="setup-cdur">{dur:.1f}s</span>'
+                        f'</div>'
+                    )
+                html += (
+                    f'</div>'
+                    f'<div class="setup-summary">'
+                    f'<span><b>{s_pass}</b> passed</span>'
+                    f'<span><b>{s_fail}</b> failed</span>'
+                    f'<span><b>{s_skip}</b> skipped</span>'
+                    f'<span style="margin-left:auto"><b>{s_total}</b> checks</span>'
+                    f'</div>'
+                    f'</div>'
+                )
 
             run_idx = 0
             for run in reversed(runs):

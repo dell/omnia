@@ -240,6 +240,18 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 
         echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
 
+        # Special handling: oim_server_setup runs the prereq check script
+        if [[ "$name" == "oim_server_setup" ]]; then
+            if python3 "${SCRIPT_DIR}/run_prereq_check.py"; then
+                echo -e "  ${GREEN}PASS${NC}  ${name}"
+                passed=$((passed + 1))
+            else
+                echo -e "  ${RED}FAIL${NC}  ${name}"
+                failed=$((failed + 1))
+            fi
+            continue
+        fi
+
         local extra_args=""
         [[ -n "$suite" ]] && extra_args="$extra_args --suite $suite"
         [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"

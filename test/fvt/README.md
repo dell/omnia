@@ -122,6 +122,7 @@ Key parameters:
 | `oim_ssh_user` | SSH username for remote mode. |
 | `dataset` | Dataset folder name under `datasets/` (default: `project_default`). |
 | `sync_dataset_to_core` | When `true`, syncs dataset files into the container before playbook execution. |
+| `reconfigure_images` | When `true`, runs `omnia.sh --build` before install. Default: `false`. |
 | `share_option` | Storage backend for omnia.sh: `NFS` or `Local`. |
 
 ### omnia\_test\_credentials.yml
@@ -275,6 +276,7 @@ Report features:
 - **Slowest Scenarios duration bars** — per-run horizontal bars ranking scenarios by execution time to surface performance hot-spots
 - **Deploy / Verify sections** — each scenario splits results into Deploy (playbook logs + deploy tests) and Verify (verification tests)
 - **Suite & marker badges** — shows which `--suite` and `--marker` were used per scenario
+- **Server Setup panel** — separate graphical status panel for `oim_server_setup` checks (not counted in test totals)
 - **KPI cards** — Total, Passed, Failed, Skipped, Pass Rate, Runs, and Duration with hover effects
 - **ANSI-clean output** — color codes from playbook logs are stripped automatically
 - **Collapsible sections** — runs, modules, tests, and playbook logs are expandable
@@ -287,6 +289,7 @@ Report features:
 
 | # | Scenario | Omnia Playbook (inside container) | Description |
 |---|----------|----------------------------------|-------------|
+| 0 | `oim_server_setup` | `run_prereq_check.py` | Prerequisite checks, IP configuration, hostname setup (shown as a separate report panel) |
 | 1 | `omnia_sh_install` | `omnia.sh --build` + `omnia.sh --install` | Builds container image and installs `omnia_core` (live streaming) |
 | 2 | `prepare_oim` | `/omnia/src/playbooks/prepare_oim/prepare_oim.yml` | Prepares OIM — OpenCHAMI, firewall, NTP, NFS |
 | 3 | `gitlab_install` | `/omnia/src/playbooks/gitlab/gitlab.yml` | Deploys GitLab for BuildStream CI/CD |

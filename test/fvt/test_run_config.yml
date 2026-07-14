@@ -1,3 +1,4 @@
+---
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,8 @@
 #
 # Each scenario has:
 #   run:     true/false              - Whether to execute this scenario
-#   command: deploy/verify/test      - What to run (deploy=playbook, verify=tests, test=both)
+#   command: deploy/verify/test      - What to run
+#            (deploy=playbook, verify=tests, test=both)
 #   suite:   sanity/negative/...     - Folder filter (empty = all folders)
 #   marker:  <pytest marker expr>    - Marker filter (empty = no marker filter)
 #
@@ -32,6 +34,17 @@
 # =============================================================================
 
 scenarios:
+
+  # --- Server Setup (prerequisite checks, IP configuration, hostname) ---
+  # Runs oim-prereq-check to validate and configure the OIM server.
+  # When run: true, this executes BEFORE all other scenarios.
+  # Results are shown as a separate setup panel in the report
+  # (not counted as tests).
+  oim_server_setup:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: ""
 
   # --- Install & Setup ---
   omnia_sh_install:

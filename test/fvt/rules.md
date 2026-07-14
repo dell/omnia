@@ -278,6 +278,10 @@ KPI cards include Total, Passed, Failed, Skipped, Pass Rate, Runs, and Duration.
 All report presentation helpers live in `report_func.py` — never inline HTML/CSS
 in test files.
 
+The `oim_server_setup` scenario results are **excluded from test KPI counts** and
+rendered as a separate graphical **Server Setup** panel with per-check pass/fail
+indicators, so prerequisite/setup outcomes never distort the deploy/verify totals.
+
 ### 3.10 Core Constants (`vars/`)
 
 Key path constants (all strings):
@@ -1082,7 +1086,21 @@ When adding a new scenario or suite, update the `SUPPORTED_*` variables at the t
 
 ## 18. Code Quality Rules (MANDATORY)
 
-### 18.1 Ansible-Lint Rules
+### 18.1 YAML Lint Rules
+
+All YAML configuration files MUST pass `yamllint` with NO errors:
+
+```bash
+yamllint omnia_test_config.yml omnia_test_credentials.yml test_run_config.yml
+```
+
+Common yamllint rules:
+- `document-start` — Files must begin with `---`
+- `line-length` — Lines must not exceed 80 characters
+- `trailing-spaces` — No trailing whitespace
+- `new-line-at-end-of-file` — Files must end with a newline
+
+### 18.2 Ansible-Lint Rules
 
 All Ansible playbook files MUST pass ansible-lint with NO errors.
 
@@ -1096,7 +1114,7 @@ Common ansible-lint issues to avoid:
 - `risky-shell-pipe` — Use `set -o pipefail` for shell pipes
 - `no-changed-when` — Add `changed_when` to shell/command tasks
 
-### 18.2 Python Import & Dead-Code Rules (MANDATORY)
+### 18.3 Python Import & Dead-Code Rules (MANDATORY)
 
 - **No unused imports.** Every import must be used in the file. The only
   exception is a re-export: a name imported purely so a package/module
@@ -1118,7 +1136,7 @@ python3 -m pyflakes automation_library/ validations/ utility/
 Only re-export lines (imported-but-unused names that are listed in `__all__`)
 are acceptable findings; all other unused imports must be removed.
 
-### 18.3 Pre-Commit Quality Checks
+### 18.4 Pre-Commit Quality Checks
 
 Before committing any code, run these checks:
 
