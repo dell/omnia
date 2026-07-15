@@ -1534,7 +1534,7 @@ def validate_network_spec(
             additional = admin_net.get("additional_subnets", [])
             if additional:
                 errors.extend(_validate_additional_subnets(
-                    additional, admin_net
+                    additional, admin_net, module
                 ))
 
     return errors
@@ -1750,13 +1750,13 @@ def _validate_ip_ranges(dynamic_range, network_type, netmask_bits):
     return errors
 
 
-def _validate_additional_subnets(additional_subnets, admin_net):
+def _validate_additional_subnets(additional_subnets, admin_net, module=None):
     """
     Validates additional_subnets entries for multi-subnet / multi-RAC DHCP support.
 
     Checks:
         - Each subnet/netmask_bits forms a valid CIDR network.
-        - Router IP is a valid IPv4 address within the subnet.
+        - Router IP is a valid IPv4 address within the subnet (warning if not).
         - dynamic_range is valid and falls within the subnet.
         - Additional subnets do not overlap with the admin network.
         - Additional subnets do not overlap with each other.
@@ -1765,6 +1765,7 @@ def _validate_additional_subnets(additional_subnets, admin_net):
     Args:
         additional_subnets (list): List of additional subnet dicts.
         admin_net (dict): The admin_network configuration dict.
+        module (AnsibleModule): Ansible module instance for issuing warnings (optional).
 
     Returns:
         list: Validation error messages.
@@ -1822,17 +1823,15 @@ def _validate_additional_subnets(additional_subnets, admin_net):
             )
             continue
 
-        # Validate router is within subnet
+        # Validate router is within subnet (warning if not)
         try:
             router_ip = ipaddress.IPv4Address(router)
             if router_ip not in subnet_network:
-                errors.append(
-                    create_error_msg(
-                        f"{prefix}.router",
-                        router,
-                        en_us_validation_msg.ADDITIONAL_SUBNET_ROUTER_NOT_IN_SUBNET_MSG,
+                if module:
+                    module.warn(
+                        f"{prefix}.router: {router} - "
+                        f"{en_us_validation_msg.ADDITIONAL_SUBNET_ROUTER_NOT_IN_SUBNET_MSG}"
                     )
-                )
         except (ValueError, TypeError):
             errors.append(
                 create_error_msg(
