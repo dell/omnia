@@ -30,15 +30,8 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import GITLAB_PLAYBOOK, GITLAB_WORKDIR
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/gitlab/gitlab.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/gitlab"
 
 
 # =============================================================================
@@ -82,10 +75,10 @@ def test_run_gitlab_install_playbook(host):
         podman exec -w /omnia/src/playbooks/gitlab omnia_core ansible-playbook gitlab.yml -v
     """
     log = TestLogger("Deploy: gitlab.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {GITLAB_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(GITLAB_PLAYBOOK, workdir=GITLAB_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -100,7 +93,7 @@ def test_run_gitlab_install_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=GITLAB_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

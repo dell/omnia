@@ -296,12 +296,47 @@ Batch mode generates a **single unified report** across all scenarios using a sh
 - **Stop on failure** — by default, if a scenario fails the batch stops immediately. Fix the issue and re-run `--config` to **resume** from where it left off.
 - **`--continue-on-failure`** — continues executing remaining scenarios even if one fails. The final exit code still reflects whether any scenario failed.
 - **`--restart`** — discards any saved progress and starts the batch from the first scenario.
-- **Resume** — batch progress is tracked in `.batch_track`. On re-run, completed steps are automatically skipped. The report ID from the previous run is reused so results append to the same report. When all scenarios pass, the track file is cleaned up.
+- **Resume** — batch progress is tracked in `.batch_track`. On re-run, completed (PASS) steps are automatically skipped while failed (FAIL) steps are re-run. The report ID from the previous run is reused so results append to the same report. When all scenarios pass, the track file is cleaned up.
+- **FAIL → PASS updates** — when a previously failed step passes on retry, the FAIL entry in `.batch_track` is replaced with PASS (not duplicated). This keeps the track file clean and accurate.
 - **Deploy / verify split tracking** — for `command: test` scenarios, deploy and verify are tracked independently. If deploy passed but verify failed, resume skips deploy and retries only verify. If deploy failed, both phases are re-run.
 - **Prerequisite tracking** — `oim-prereq-test` is also tracked; once it passes, resume skips it on subsequent runs.
 - **Ordering** — scenarios run in ascending `order` value. Duplicate or missing `order` values are a configuration error and abort the batch.
 - **Dataset sync** — when `sync_dataset_to_core: true` in `omnia_test_config.yml`, playbook deploy steps sync the selected dataset (including the vault-encrypted `omnia_config_credentials.yml`) into the container before execution. The `omnia_sh_install` scenario is exempt — it builds the container and does not receive synced project inputs.
 - **Custom report ID** — set `report_id` in `omnia_test_config.yml` to use a fixed string instead of the auto-generated timestamp. Reusing the same report ID across runs appends results to the existing report entry.
+- **Detailed summary table** — at the end of batch execution, a table shows every scenario with its deploy/verify/overall status. Failed scenarios are highlighted in red, skipped in yellow.
+
+**`.batch_track` file format:**
+
+```
+REPORT_ID=20260715121211
+prepare_oim:deploy:PASS
+prepare_oim:verify:PASS
+provision:deploy:FAIL
+```
+
+Each line after the header is `<scenario>:<phase>:<status>` where phase is `deploy` or `verify` (for `command: test`) or absent (for single-phase commands), and status is `PASS` or `FAIL`.
+
+**Manually skipping scenarios during resume:**
+
+To skip a scenario that failed (e.g., to move past a known issue), edit `.batch_track` and change `FAIL` to `PASS`:
+
+```bash
+# View current batch progress
+cat .batch_track
+
+# Change a FAIL entry to PASS using sed:
+sed -i 's/^provision:deploy:FAIL/provision:deploy:PASS/' .batch_track
+
+# For command=test scenarios, mark both deploy and verify as PASS:
+sed -i 's/^provision:deploy:FAIL/provision:deploy:PASS/' .batch_track
+sed -i 's/^provision:verify:FAIL/provision:verify:PASS/' .batch_track
+# If the verify entry doesn't exist yet (deploy failed before verify ran),
+# add it manually:
+echo "provision:verify:PASS" >> .batch_track
+
+# Then resume — provision will be skipped
+./run_validation.sh --config
+```
 
 ### Test Reports
 

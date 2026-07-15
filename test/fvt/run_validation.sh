@@ -149,8 +149,8 @@ fi
 # =============================================================================
 # Build test path and marker arguments
 # =============================================================================
-# --suite  => filters by folder  (tests/<suite>/)
-# --marker => filters by pytest marker (-m <marker>)
+# --suite  => filters by folder - tests/<suite>/
+# --marker => filters by pytest marker - -m <marker>
 # Combined => folder + marker
 # Neither  => all tests in tests/
 build_test_path() {
@@ -237,6 +237,31 @@ except Exception:
     else
         date '+%Y%m%d%H%M%S'
     fi
+}
+
+# =============================================================================
+# Batch track file helpers
+# =============================================================================
+
+# track_update <track_file> <entry_key> <status>
+# Adds or replaces an entry in the track file.  Entry key is e.g.
+# "provision:deploy", status is PASS or FAIL.
+# If an existing line matches "^<key>:(PASS|FAIL)$", it is replaced.
+# Otherwise a new line is appended.
+track_update() {
+    local track_file="$1" key="$2" status="$3"
+    if grep -q "^${key}:" "$track_file" 2>/dev/null; then
+        sed -i "s|^${key}:.*|${key}:${status}|" "$track_file"
+    else
+        echo "${key}:${status}" >> "$track_file"
+    fi
+}
+
+# track_has <track_file> <entry_key> <status>
+# Returns 0 if the track file contains "<key>:<status>".
+track_has() {
+    local track_file="$1" key="$2" status="$3"
+    grep -q "^${key}:${status}$" "$track_file" 2>/dev/null
 }
 
 # =============================================================================
@@ -485,18 +510,18 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 
         if [[ "$command" == "test" ]]; then
             # ----- DEPLOY PHASE -----
-            if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:deploy:PASS$" "$TRACK_FILE" 2>/dev/null; then
+            if [[ "$resume_mode" == "true" ]] && track_has "$TRACK_FILE" "${name}:deploy" "PASS"; then
                 echo -e "  ${GREEN}DONE${NC}  ${name}:deploy (completed in previous run)"
                 deploy_st="DONE"
             else
                 echo -e "  ${CYAN}RUN${NC}   ${name}:deploy"
                 if "$0" "$name" "deploy"; then
                     echo -e "  ${GREEN}PASS${NC}  ${name}:deploy"
-                    echo "${name}:deploy:PASS" >> "$TRACK_FILE"
+                    track_update "$TRACK_FILE" "${name}:deploy" "PASS"
                     deploy_st="PASS"
                 else
                     echo -e "  ${RED}FAIL${NC}  ${name}:deploy"
-                    echo "${name}:deploy:FAIL" >> "$TRACK_FILE"
+                    track_update "$TRACK_FILE" "${name}:deploy" "FAIL"
                     deploy_st="FAIL"
                     scenario_failed=true
                 fi
@@ -504,18 +529,18 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 
             # ----- VERIFY PHASE (only if deploy succeeded) -----
             if [[ "$scenario_failed" == "false" ]]; then
-                if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:verify:PASS$" "$TRACK_FILE" 2>/dev/null; then
+                if [[ "$resume_mode" == "true" ]] && track_has "$TRACK_FILE" "${name}:verify" "PASS"; then
                     echo -e "  ${GREEN}DONE${NC}  ${name}:verify (completed in previous run)"
                     verify_st="DONE"
                 else
                     echo -e "  ${CYAN}RUN${NC}   ${name}:verify (suite=${suite:-all}, marker=${marker_cfg:-none})"
                     if "$0" "$name" "verify" $extra_args; then
                         echo -e "  ${GREEN}PASS${NC}  ${name}:verify"
-                        echo "${name}:verify:PASS" >> "$TRACK_FILE"
+                        track_update "$TRACK_FILE" "${name}:verify" "PASS"
                         verify_st="PASS"
                     else
                         echo -e "  ${RED}FAIL${NC}  ${name}:verify"
-                        echo "${name}:verify:FAIL" >> "$TRACK_FILE"
+                        track_update "$TRACK_FILE" "${name}:verify" "FAIL"
                         verify_st="FAIL"
                         scenario_failed=true
                     fi
@@ -525,7 +550,7 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
             fi
         else
             # ----- SINGLE PHASE (deploy-only or verify-only) -----
-            if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:PASS$" "$TRACK_FILE" 2>/dev/null; then
+            if [[ "$resume_mode" == "true" ]] && track_has "$TRACK_FILE" "${name}" "PASS"; then
                 echo -e "  ${GREEN}DONE${NC}  ${name} (completed in previous run)"
                 if [[ "$command" == "deploy" ]]; then deploy_st="DONE"; else verify_st="DONE"; fi
                 passed=$((passed + 1))
@@ -539,11 +564,11 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
             echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
             if "$0" "$name" "$command" $extra_args; then
                 echo -e "  ${GREEN}PASS${NC}  ${name}"
-                echo "${name}:PASS" >> "$TRACK_FILE"
+                track_update "$TRACK_FILE" "${name}" "PASS"
                 if [[ "$command" == "deploy" ]]; then deploy_st="PASS"; else verify_st="PASS"; fi
             else
                 echo -e "  ${RED}FAIL${NC}  ${name}"
-                echo "${name}:FAIL" >> "$TRACK_FILE"
+                track_update "$TRACK_FILE" "${name}" "FAIL"
                 if [[ "$command" == "deploy" ]]; then deploy_st="FAIL"; else verify_st="FAIL"; fi
                 scenario_failed=true
             fi
@@ -833,7 +858,7 @@ export OMNIA_COMMAND_TYPE="${COMMAND}"
 case "$COMMAND" in
 
     # -------------------------------------------------------------------------
-    # DEPLOY: Run playbook only (always from tests/ root with -m deploy)
+    # DEPLOY: Run playbook only -- always from tests/ root with -m deploy
     # -------------------------------------------------------------------------
     deploy)
         run_pytest \
@@ -846,7 +871,7 @@ case "$COMMAND" in
         ;;
 
     # -------------------------------------------------------------------------
-    # VERIFY: Run verification tests only (folder + marker filtering)
+    # VERIFY: Run verification tests only -- folder + marker filtering
     # -------------------------------------------------------------------------
     verify)
         test_path=$(build_test_path "${TESTS_DIR}")
@@ -862,7 +887,7 @@ case "$COMMAND" in
         ;;
 
     # -------------------------------------------------------------------------
-    # TEST: Deploy + Verify (full flow)
+    # TEST: Deploy + Verify -- full flow
     # -------------------------------------------------------------------------
     test)
         FAILED=0

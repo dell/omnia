@@ -30,20 +30,13 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import OIM_CLEANUP_PLAYBOOK, OIM_CLEANUP_WORKDIR
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
 from automation_library.oim_cleanup.messages import (
     DEPLOY_TEST_NAMES,
     DEPLOY_LOG_MSGS,
     DEPLOY_SKIP_MSGS,
 )
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/utils/oim_cleanup.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/utils"
 
 
 # =============================================================================
@@ -78,10 +71,10 @@ def test_run_oim_cleanup_playbook(host):
     log.check(DEPLOY_LOG_MSGS["container_running"])
 
     # Run the cleanup playbook (dataset sync handled inside runner.run())
-    log.check(DEPLOY_LOG_MSGS["playbook_running"].format(playbook=PLAYBOOK_PATH))
+    log.check(DEPLOY_LOG_MSGS["playbook_running"].format(playbook=OIM_CLEANUP_PLAYBOOK))
     result = runner.run(
-        PLAYBOOK_PATH,
-        workdir=PLAYBOOK_WORKDIR,
+        OIM_CLEANUP_PLAYBOOK,
+        workdir=OIM_CLEANUP_WORKDIR,
         extra_vars={"skip_approval": "true"},
     )
 
@@ -100,7 +93,7 @@ def test_run_oim_cleanup_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=OIM_CLEANUP_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

@@ -30,15 +30,8 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import DISCOVERY_PLAYBOOK, DISCOVERY_WORKDIR
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/discovery/discovery.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/discovery"
 
 
 # =============================================================================
@@ -82,10 +75,10 @@ def test_run_discovery_playbook(host):
         podman exec -w /omnia omnia_core ansible-playbook discovery.yml -v
     """
     log = TestLogger("Deploy: discovery.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {DISCOVERY_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(DISCOVERY_PLAYBOOK, workdir=DISCOVERY_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -100,7 +93,7 @@ def test_run_discovery_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=DISCOVERY_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

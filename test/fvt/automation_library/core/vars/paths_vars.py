@@ -172,3 +172,48 @@ PXE_MAPPING_REQUIRED_COLUMNS = [
     "IB_NIC_NAME",
     "IB_IP",
 ]
+
+# =============================================================================
+# PLAYBOOK PATHS (inside omnia_core container)
+#
+# Single source of truth for all playbook paths used by test_deploy.py files.
+# If Omnia renames or moves a playbook, update only here.
+# =============================================================================
+
+_PLAYBOOKS_BASE = "/omnia/src/playbooks"
+
+PREPARE_OIM_PLAYBOOK = f"{_PLAYBOOKS_BASE}/prepare_oim/prepare_oim.yml"
+PREPARE_OIM_WORKDIR = f"{_PLAYBOOKS_BASE}/prepare_oim"
+
+PROVISION_PLAYBOOK = f"{_PLAYBOOKS_BASE}/provision/provision.yml"
+PROVISION_WORKDIR = f"{_PLAYBOOKS_BASE}/provision"
+
+SET_PXE_BOOT_PLAYBOOK = f"{_PLAYBOOKS_BASE}/utils/set_pxe_boot.yml"
+SET_PXE_BOOT_WORKDIR = f"{_PLAYBOOKS_BASE}/utils"
+
+LOCAL_REPO_PLAYBOOK = f"{_PLAYBOOKS_BASE}/local_repo/local_repo.yml"
+LOCAL_REPO_WORKDIR = f"{_PLAYBOOKS_BASE}/local_repo"
+
+TELEMETRY_PLAYBOOK = f"{_PLAYBOOKS_BASE}/telemetry/telemetry.yml"
+TELEMETRY_WORKDIR = f"{_PLAYBOOKS_BASE}/telemetry"
+
+DISCOVERY_PLAYBOOK = f"{_PLAYBOOKS_BASE}/discovery/discovery.yml"
+DISCOVERY_WORKDIR = f"{_PLAYBOOKS_BASE}/discovery"
+
+GITLAB_PLAYBOOK = f"{_PLAYBOOKS_BASE}/gitlab/gitlab.yml"
+GITLAB_WORKDIR = f"{_PLAYBOOKS_BASE}/gitlab"
+
+GITLAB_CLEANUP_PLAYBOOK = f"{_PLAYBOOKS_BASE}/gitlab/cleanup_gitlab.yml"
+GITLAB_CLEANUP_WORKDIR = f"{_PLAYBOOKS_BASE}/gitlab"
+
+OIM_CLEANUP_PLAYBOOK = f"{_PLAYBOOKS_BASE}/utils/oim_cleanup.yml"
+OIM_CLEANUP_WORKDIR = f"{_PLAYBOOKS_BASE}/utils"
+
+BUILD_IMAGE_X86_64_PLAYBOOK = f"{_PLAYBOOKS_BASE}/build_image_x86_64/build_image_x86_64.yml"
+BUILD_IMAGE_X86_64_WORKDIR = f"{_PLAYBOOKS_BASE}/build_image_x86_64"
+
+BUILD_IMAGE_AARCH64_PLAYBOOK = f"{_PLAYBOOKS_BASE}/build_image_aarch64/build_image_aarch64.yml"
+BUILD_IMAGE_AARCH64_WORKDIR = f"{_PLAYBOOKS_BASE}/build_image_aarch64"
+
+VALIDATE_CONFIG_PLAYBOOK = f"{_PLAYBOOKS_BASE}/input_validation/validate_config.yml"
+VALIDATE_CONFIG_WORKDIR = f"{_PLAYBOOKS_BASE}/input_validation"

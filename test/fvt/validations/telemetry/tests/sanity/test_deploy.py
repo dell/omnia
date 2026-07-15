@@ -30,15 +30,8 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import TELEMETRY_PLAYBOOK, TELEMETRY_WORKDIR
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/telemetry/telemetry.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/telemetry"
 
 
 # =============================================================================
@@ -82,10 +75,10 @@ def test_run_telemetry_playbook(host):
         podman exec -w /omnia/src/playbooks/telemetry omnia_core ansible-playbook telemetry.yml -v
     """
     log = TestLogger("Deploy: telemetry.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {TELEMETRY_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(TELEMETRY_PLAYBOOK, workdir=TELEMETRY_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -100,7 +93,7 @@ def test_run_telemetry_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=TELEMETRY_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

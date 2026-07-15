@@ -30,15 +30,8 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import BUILD_IMAGE_X86_64_PLAYBOOK, BUILD_IMAGE_X86_64_WORKDIR
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/build_image_x86_64/build_image_x86_64.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/build_image_x86_64"
 
 
 # =============================================================================
@@ -82,10 +75,10 @@ def test_run_build_image_x86_64_playbook(host):
         podman exec -w /omnia/src/playbooks/build_image_x86_64 omnia_core ansible-playbook build_image_x86_64.yml -v
     """
     log = TestLogger("Deploy: build_image_x86_64.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {BUILD_IMAGE_X86_64_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(BUILD_IMAGE_X86_64_PLAYBOOK, workdir=BUILD_IMAGE_X86_64_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -100,7 +93,7 @@ def test_run_build_image_x86_64_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=BUILD_IMAGE_X86_64_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

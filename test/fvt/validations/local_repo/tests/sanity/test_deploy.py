@@ -30,15 +30,8 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import LOCAL_REPO_PLAYBOOK, LOCAL_REPO_WORKDIR
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/local_repo/local_repo.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/local_repo"
 
 
 # =============================================================================
@@ -82,10 +75,10 @@ def test_run_local_repo_playbook(host):
         podman exec -w /omnia/src/playbooks/local_repo omnia_core ansible-playbook local_repo.yml -v
     """
     log = TestLogger("Deploy: local_repo.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {LOCAL_REPO_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(LOCAL_REPO_PLAYBOOK, workdir=LOCAL_REPO_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -100,7 +93,7 @@ def test_run_local_repo_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=LOCAL_REPO_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

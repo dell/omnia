@@ -30,15 +30,13 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import (
+    PROVISION_PLAYBOOK,
+    PROVISION_WORKDIR,
+    SET_PXE_BOOT_PLAYBOOK,
+    SET_PXE_BOOT_WORKDIR,
+)
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/provision/provision.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/provision"
 
 
 # =============================================================================
@@ -82,10 +80,10 @@ def test_run_provision_playbook(host):
         podman exec -w /omnia omnia_core ansible-playbook provision.yml -v
     """
     log = TestLogger("Deploy: provision.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {PROVISION_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(PROVISION_PLAYBOOK, workdir=PROVISION_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -100,7 +98,49 @@ def test_run_provision_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=PROVISION_PLAYBOOK,
+        rc=result["rc"],
+        duration=result["duration"],
+    )
+
+
+# =============================================================================
+# 2. RUN SET_PXE_BOOT PLAYBOOK (LIVE STREAMING)
+# =============================================================================
+
+@pytest.mark.deploy
+@pytest.mark.order(2)
+def test_run_set_pxe_boot_playbook(host):
+    """
+    Deploy: Run set_pxe_boot.yml playbook with live streaming output.
+
+    Initiates PXE boot on nodes via their BMC after the provision playbook
+    has configured the environment. This triggers the actual OS provisioning
+    on the compute nodes.
+
+    Equivalent to running the playbook directly:
+        podman exec -w /omnia/src/playbooks/utils omnia_core ansible-playbook set_pxe_boot.yml -v
+    """
+    log = TestLogger("Deploy: set_pxe_boot.yml")
+    log.check(f"Running playbook: {SET_PXE_BOOT_PLAYBOOK}")
+
+    runner = PlaybookRunner()
+    result = runner.run(SET_PXE_BOOT_PLAYBOOK, workdir=SET_PXE_BOOT_WORKDIR)
+
+    if result["success"]:
+        log.passed(
+            f"Playbook completed successfully (rc={result['rc']}, "
+            f"duration={result['duration']:.1f}s)"
+        )
+    else:
+        log.failed(
+            f"Playbook failed (rc={result['rc']}, "
+            f"duration={result['duration']:.1f}s)",
+            result["error"],
+        )
+
+    assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
+        playbook=SET_PXE_BOOT_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )

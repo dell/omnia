@@ -31,15 +31,11 @@ Usage:
 import pytest
 
 from automation_library.core import TestLogger
+from automation_library.core.vars import (
+    PREPARE_OIM_PLAYBOOK,
+    PREPARE_OIM_WORKDIR,
+)
 from automation_library.playbook_runner import PlaybookRunner, RUNNER_ASSERT_MSGS
-
-
-# =============================================================================
-# PLAYBOOK CONFIGURATION
-# =============================================================================
-
-PLAYBOOK_PATH = "/omnia/src/playbooks/prepare_oim/prepare_oim.yml"
-PLAYBOOK_WORKDIR = "/omnia/src/playbooks/prepare_oim"
 
 
 # =============================================================================
@@ -83,10 +79,10 @@ def test_run_prepare_oim_playbook(host):
         podman exec -t -w /omnia/src/playbooks/prepare_oim omnia_core ansible-playbook prepare_oim.yml -v
     """
     log = TestLogger("Deploy: prepare_oim.yml")
-    log.check(f"Running playbook: {PLAYBOOK_PATH}")
+    log.check(f"Running playbook: {PREPARE_OIM_PLAYBOOK}")
 
     runner = PlaybookRunner()
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(PREPARE_OIM_PLAYBOOK, workdir=PREPARE_OIM_WORKDIR)
 
     if result["success"]:
         log.passed(
@@ -101,7 +97,7 @@ def test_run_prepare_oim_playbook(host):
         )
 
     assert result["success"], RUNNER_ASSERT_MSGS["playbook_failed"].format(
-        playbook=PLAYBOOK_PATH,
+        playbook=PREPARE_OIM_PLAYBOOK,
         rc=result["rc"],
         duration=result["duration"],
     )
