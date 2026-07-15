@@ -79,7 +79,7 @@ VALIDATIONS_DIR="${SCRIPT_DIR}/validations"
 CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
 
 SUPPORTED_COMMANDS="deploy verify test"
-SUPPORTED_SUITES="sanity negative regression smoke stress performance"
+SUPPORTED_SUITES="sanity negative regression smoke stress performance input_validation"
 
 # Change to script directory
 cd "$SCRIPT_DIR"
@@ -421,14 +421,29 @@ PY
     #
     # Track file entries:
     #   <scenario>:deploy:PASS   — deploy phase completed
+    #   <scenario>:deploy:FAIL   — deploy phase failed
     #   <scenario>:verify:PASS   — verify phase completed
-    #   <scenario>:PASS          — single-phase (deploy-only or verify-only)
+    #   <scenario>:verify:FAIL   — verify phase failed
+    #   <scenario>:PASS          — single-phase completed
+    #   <scenario>:FAIL          — single-phase failed
     #
+    # Resume only skips entries ending in :PASS.
     # For command=test, deploy and verify are executed as separate phases.
     # If deploy passed but verify failed, resume skips deploy and retries
     # verify. If deploy failed, both are re-run.
     # -------------------------------------------------------------------------
+
+    # Result collection arrays for summary table
+    declare -a _r_name=()      # scenario name
+    declare -a _r_cmd=()       # command (deploy/verify/test)
+    declare -a _r_suite=()     # suite
+    declare -a _r_marker=()    # marker
+    declare -a _r_deploy=()    # PASS|FAIL|SKIP|DONE|N/A
+    declare -a _r_verify=()    # PASS|FAIL|SKIP|DONE|N/A
+    declare -a _r_overall=()   # PASS|FAIL|SKIP
+
     local total=0 passed=0 failed=0 skipped=0
+    local batch_stopped=false batch_stopped_at=""
     for name in $scenario_names; do
         local run_flag command suite marker_cfg
         eval "$(python3 -c "
@@ -442,8 +457,21 @@ print(f'suite={sc.get(\"suite\", \"\")}')
 print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 ")"
         total=$((total + 1))
+
+        # If batch was stopped, mark remaining scenarios as SKIP
+        if [[ "$batch_stopped" == "true" ]]; then
+            _r_name+=("$name"); _r_cmd+=("$command")
+            _r_suite+=("${suite:--}"); _r_marker+=("${marker_cfg:--}")
+            _r_deploy+=("--"); _r_verify+=("--"); _r_overall+=("STOP")
+            skipped=$((skipped + 1))
+            continue
+        fi
+
         if [[ "$run_flag" != "true" ]]; then
             echo -e "  ${YELLOW}SKIP${NC}  ${name}"
+            _r_name+=("$name"); _r_cmd+=("$command")
+            _r_suite+=("${suite:--}"); _r_marker+=("${marker_cfg:--}")
+            _r_deploy+=("--"); _r_verify+=("--"); _r_overall+=("SKIP")
             skipped=$((skipped + 1))
             continue
         fi
@@ -453,18 +481,23 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
         [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
 
         local scenario_failed=false
+        local deploy_st="N/A" verify_st="N/A"
 
         if [[ "$command" == "test" ]]; then
             # ----- DEPLOY PHASE -----
             if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:deploy:PASS$" "$TRACK_FILE" 2>/dev/null; then
                 echo -e "  ${GREEN}DONE${NC}  ${name}:deploy (completed in previous run)"
+                deploy_st="DONE"
             else
                 echo -e "  ${CYAN}RUN${NC}   ${name}:deploy"
                 if "$0" "$name" "deploy"; then
                     echo -e "  ${GREEN}PASS${NC}  ${name}:deploy"
                     echo "${name}:deploy:PASS" >> "$TRACK_FILE"
+                    deploy_st="PASS"
                 else
                     echo -e "  ${RED}FAIL${NC}  ${name}:deploy"
+                    echo "${name}:deploy:FAIL" >> "$TRACK_FILE"
+                    deploy_st="FAIL"
                     scenario_failed=true
                 fi
             fi
@@ -473,22 +506,33 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
             if [[ "$scenario_failed" == "false" ]]; then
                 if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:verify:PASS$" "$TRACK_FILE" 2>/dev/null; then
                     echo -e "  ${GREEN}DONE${NC}  ${name}:verify (completed in previous run)"
+                    verify_st="DONE"
                 else
                     echo -e "  ${CYAN}RUN${NC}   ${name}:verify (suite=${suite:-all}, marker=${marker_cfg:-none})"
                     if "$0" "$name" "verify" $extra_args; then
                         echo -e "  ${GREEN}PASS${NC}  ${name}:verify"
                         echo "${name}:verify:PASS" >> "$TRACK_FILE"
+                        verify_st="PASS"
                     else
                         echo -e "  ${RED}FAIL${NC}  ${name}:verify"
+                        echo "${name}:verify:FAIL" >> "$TRACK_FILE"
+                        verify_st="FAIL"
                         scenario_failed=true
                     fi
                 fi
+            else
+                verify_st="SKIP"
             fi
         else
             # ----- SINGLE PHASE (deploy-only or verify-only) -----
             if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:PASS$" "$TRACK_FILE" 2>/dev/null; then
                 echo -e "  ${GREEN}DONE${NC}  ${name} (completed in previous run)"
+                if [[ "$command" == "deploy" ]]; then deploy_st="DONE"; else verify_st="DONE"; fi
                 passed=$((passed + 1))
+                _r_name+=("$name"); _r_cmd+=("$command")
+                _r_suite+=("${suite:--}"); _r_marker+=("${marker_cfg:--}")
+                _r_deploy+=("$deploy_st"); _r_verify+=("$verify_st")
+                _r_overall+=("PASS")
                 continue
             fi
 
@@ -496,29 +540,36 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
             if "$0" "$name" "$command" $extra_args; then
                 echo -e "  ${GREEN}PASS${NC}  ${name}"
                 echo "${name}:PASS" >> "$TRACK_FILE"
+                if [[ "$command" == "deploy" ]]; then deploy_st="PASS"; else verify_st="PASS"; fi
             else
                 echo -e "  ${RED}FAIL${NC}  ${name}"
+                echo "${name}:FAIL" >> "$TRACK_FILE"
+                if [[ "$command" == "deploy" ]]; then deploy_st="FAIL"; else verify_st="FAIL"; fi
                 scenario_failed=true
             fi
         fi
 
+        # Record result
+        local overall_st="PASS"
         if [[ "$scenario_failed" == "true" ]]; then
+            overall_st="FAIL"
             failed=$((failed + 1))
-            if [[ "$CONTINUE_ON_FAILURE" != "true" ]]; then
-                echo ""
-                echo -e "  ${RED}Batch stopped due to failure in '${name}'.${NC}"
-                echo -e "  ${YELLOW}Fix the issue and re-run './run_validation.sh --config' to resume.${NC}"
-                echo -e "  ${YELLOW}Use --restart to start from the beginning.${NC}"
-                echo ""
-                echo -e "${BLUE}=================================================================${NC}"
-                echo -e "  Total: ${total}  ${GREEN}Passed: ${passed}${NC}  ${RED}Failed: ${failed}${NC}  ${YELLOW}Skipped: ${skipped}${NC}"
-                echo -e "  ${CYAN}Report: reports/test_report.json${NC}"
-                echo -e "  ${CYAN}Report: reports/test_report.html${NC}"
-                echo -e "${BLUE}=================================================================${NC}"
-                exit 1
-            fi
         else
             passed=$((passed + 1))
+        fi
+        _r_name+=("$name"); _r_cmd+=("$command")
+        _r_suite+=("${suite:--}"); _r_marker+=("${marker_cfg:--}")
+        _r_deploy+=("$deploy_st"); _r_verify+=("$verify_st")
+        _r_overall+=("$overall_st")
+
+        # Stop on failure unless --continue-on-failure
+        if [[ "$scenario_failed" == "true" && "$CONTINUE_ON_FAILURE" != "true" ]]; then
+            echo ""
+            echo -e "  ${RED}Batch stopped due to failure in '${name}'.${NC}"
+            echo -e "  ${YELLOW}Fix the issue and re-run './run_validation.sh --config' to resume.${NC}"
+            echo -e "  ${YELLOW}Use --restart to start from the beginning.${NC}"
+            batch_stopped=true
+            batch_stopped_at="$name"
         fi
     done
 
@@ -527,9 +578,54 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
         rm -f "$TRACK_FILE"
     fi
 
+    # -------------------------------------------------------------------------
+    # Print detailed summary table
+    # -------------------------------------------------------------------------
     echo ""
     echo -e "${BLUE}=================================================================${NC}"
+    echo -e "${BLUE}  Batch Execution Summary${NC}"
+    echo -e "${BLUE}  Report ID : ${OMNIA_REPORT_ID}${NC}"
+    echo -e "${BLUE}=================================================================${NC}"
+    echo ""
+
+    # Table header
+    printf "  %-30s %-8s %-10s %-10s %-8s %-8s\n" "SCENARIO" "CMD" "SUITE" "DEPLOY" "VERIFY" "STATUS"
+    printf "  %-30s %-8s %-10s %-10s %-8s %-8s\n" "------------------------------" "--------" "----------" "----------" "--------" "--------"
+
+    local i
+    for ((i=0; i<${#_r_name[@]}; i++)); do
+        local st_color="$NC"
+        case "${_r_overall[$i]}" in
+            PASS) st_color="$GREEN" ;;
+            FAIL) st_color="$RED" ;;
+            SKIP|STOP) st_color="$YELLOW" ;;
+        esac
+
+        local dep_color="$NC" ver_color="$NC"
+        case "${_r_deploy[$i]}" in
+            PASS|DONE) dep_color="$GREEN" ;;
+            FAIL) dep_color="$RED" ;;
+            SKIP|--) dep_color="$YELLOW" ;;
+        esac
+        case "${_r_verify[$i]}" in
+            PASS|DONE) ver_color="$GREEN" ;;
+            FAIL) ver_color="$RED" ;;
+            SKIP|--|N/A) ver_color="$YELLOW" ;;
+        esac
+
+        printf "  %-30s %-8s %-10s ${dep_color}%-10s${NC} ${ver_color}%-8s${NC} ${st_color}%-8s${NC}\n" \
+            "${_r_name[$i]}" "${_r_cmd[$i]}" "${_r_suite[$i]}" \
+            "${_r_deploy[$i]}" "${_r_verify[$i]}" "${_r_overall[$i]}"
+    done
+
+    echo ""
     echo -e "  Total: ${total}  ${GREEN}Passed: ${passed}${NC}  ${RED}Failed: ${failed}${NC}  ${YELLOW}Skipped: ${skipped}${NC}"
+
+    if [[ "$batch_stopped" == "true" ]]; then
+        echo -e "  ${RED}Stopped at: ${batch_stopped_at}${NC}"
+    fi
+
+    echo ""
     echo -e "  ${CYAN}Report: reports/test_report.json${NC}"
     echo -e "  ${CYAN}Report: reports/test_report.html${NC}"
     echo -e "${BLUE}=================================================================${NC}"

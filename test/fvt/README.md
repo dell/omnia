@@ -246,6 +246,34 @@ Tests can be filtered by **suite** (folder-based), **marker** (decorator-based),
 | `compatibility` | Compatibility tests |
 | `vast_telemetry` | VAST storage telemetry tests |
 | `ufm_telemetry` | UFM telemetry tests |
+| `input_validation` | Input file validation tests (mutate → fail → revert) |
+
+### Input Validation Tests
+
+Input validation tests verify that Omnia playbooks correctly reject invalid input values. Each test case mutates a specific field in an input file, runs the validation playbook, and asserts the playbook fails with the expected error message. After verification, the file is reverted and the original dataset re-synced.
+
+```bash
+# Run input validation tests for prepare_oim
+./run_validation.sh prepare_oim verify --suite input_validation
+
+# Run with full deploy + verify (including input validation)
+./run_validation.sh prepare_oim test --suite input_validation
+```
+
+**Prerequisites:**
+- `sync_dataset_to_core: true` must be set in `omnia_test_config.yml` (mandatory — tests modify dataset files)
+- `omnia_core` container must be running
+- Dataset files (e.g., `network_spec.yml`, `software_config.json`) must exist in the active dataset
+
+**How it works:**
+1. Backup the target input file
+2. Mutate a field to an invalid value (e.g., `oim_nic_name: "INVALID_NIC_999"`)
+3. Sync the mutated dataset into the container
+4. Run the playbook — expected to **fail** with a specific error message
+5. Verify the error message appears in playbook output → test **PASS**
+6. Revert the file to original and re-sync the dataset
+
+**Adding new test cases:** Add entries to `ALL_VALIDATION_CASES` in `validations/prepare_oim/tests/input_validation/test_input_validation.py`. Each entry specifies the file, field path, invalid value, expected error fragment, and which playbook to run. Error messages are defined in `automation_library/input_validation/vars/input_validation_vars.py`.
 
 ### Batch Execution
 
