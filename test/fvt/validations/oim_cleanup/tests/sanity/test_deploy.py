@@ -79,7 +79,11 @@ def test_run_oim_cleanup_playbook(host):
 
     # Run the cleanup playbook (dataset sync handled inside runner.run())
     log.check(DEPLOY_LOG_MSGS["playbook_running"].format(playbook=PLAYBOOK_PATH))
-    result = runner.run(PLAYBOOK_PATH, workdir=PLAYBOOK_WORKDIR)
+    result = runner.run(
+        PLAYBOOK_PATH,
+        workdir=PLAYBOOK_WORKDIR,
+        extra_vars={"skip_approval": "true"},
+    )
 
     if result["success"]:
         log.passed(

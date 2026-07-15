@@ -264,11 +264,13 @@ Batch mode generates a **single unified report** across all scenarios using a sh
 
 **Batch behavior (`--config`):**
 
+- **Upfront validation** — before any scenario runs, the config is validated: duplicate/missing `order` values and invalid `command` values (must be `deploy`, `verify`, or `test`) are caught immediately with a clear error.
 - **Stop on failure** — by default, if a scenario fails the batch stops immediately. Fix the issue and re-run `--config` to **resume** from where it left off.
 - **`--continue-on-failure`** — continues executing remaining scenarios even if one fails. The final exit code still reflects whether any scenario failed.
 - **`--restart`** — discards any saved progress and starts the batch from the first scenario.
-- **Resume** — batch progress is tracked in `.batch_track`. On re-run, scenarios that completed successfully in a previous run are automatically skipped. The track file is keyed by report ID; if the report ID changes, a fresh run starts automatically. When all scenarios pass, the track file is cleaned up.
-- **Prerequisite gate** — when `oim_prereq_test: true` in `test_run_config.yml`, `oim-prereq-test` runs first. If it fails, the batch aborts before any scenario runs.
+- **Resume** — batch progress is tracked in `.batch_track`. On re-run, completed steps are automatically skipped. The report ID from the previous run is reused so results append to the same report. When all scenarios pass, the track file is cleaned up.
+- **Deploy / verify split tracking** — for `command: test` scenarios, deploy and verify are tracked independently. If deploy passed but verify failed, resume skips deploy and retries only verify. If deploy failed, both phases are re-run.
+- **Prerequisite tracking** — `oim-prereq-test` is also tracked; once it passes, resume skips it on subsequent runs.
 - **Ordering** — scenarios run in ascending `order` value. Duplicate or missing `order` values are a configuration error and abort the batch.
 - **Dataset sync** — when `sync_dataset_to_core: true` in `omnia_test_config.yml`, playbook deploy steps sync the selected dataset (including the vault-encrypted `omnia_config_credentials.yml`) into the container before execution. The `omnia_sh_install` scenario is exempt — it builds the container and does not receive synced project inputs.
 - **Custom report ID** — set `report_id` in `omnia_test_config.yml` to use a fixed string instead of the auto-generated timestamp. Reusing the same report ID across runs appends results to the existing report entry.

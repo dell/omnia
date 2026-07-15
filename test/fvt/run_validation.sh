@@ -252,12 +252,6 @@ run_config_mode() {
     local TRACK_FILE="${SCRIPT_DIR}/.batch_track"
 
     # -------------------------------------------------------------------------
-    # Resolve report ID: prefer report_id from omnia_test_config.yml, fall
-    # back to an auto-generated timestamp.
-    # -------------------------------------------------------------------------
-    export OMNIA_REPORT_ID=$(resolve_report_id)
-
-    # -------------------------------------------------------------------------
     # Handle --restart: clear the track file to start fresh.
     # -------------------------------------------------------------------------
     if [[ "$RESTART" == "true" ]]; then
@@ -267,22 +261,48 @@ run_config_mode() {
     fi
 
     # -------------------------------------------------------------------------
-    # Resume mode: if a track file exists with the same report ID, skip
-    # previously completed scenarios.
+    # Resolve report ID:
+    #   1. Custom report_id from omnia_test_config.yml → use it.
+    #   2. Existing track file (resume) → reuse its report ID so results
+    #      append to the same report.
+    #   3. Neither → generate a new timestamp.
+    # -------------------------------------------------------------------------
+    local custom_report_id
+    custom_report_id=$(python3 -c "
+import yaml
+try:
+    with open('${SCRIPT_DIR}/omnia_test_config.yml') as f:
+        c = yaml.safe_load(f) or {}
+    r = str(c.get('report_id', '') or '').strip()
+    print(r)
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+
+    if [[ -n "$custom_report_id" ]]; then
+        export OMNIA_REPORT_ID="$custom_report_id"
+    elif [[ -f "$TRACK_FILE" ]]; then
+        # Reuse the report ID from the existing track file so resume appends
+        local track_rid
+        track_rid=$(head -1 "$TRACK_FILE" | sed -n 's/^REPORT_ID=//p')
+        if [[ -n "$track_rid" ]]; then
+            export OMNIA_REPORT_ID="$track_rid"
+        else
+            export OMNIA_REPORT_ID=$(date '+%Y%m%d%H%M%S')
+        fi
+    else
+        export OMNIA_REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    fi
+
+    # -------------------------------------------------------------------------
+    # Resume mode: if a track file exists, skip previously completed steps.
     # -------------------------------------------------------------------------
     local resume_mode=false
     if [[ -f "$TRACK_FILE" ]]; then
-        local track_rid
-        track_rid=$(head -1 "$TRACK_FILE" | sed -n 's/^REPORT_ID=//p')
-        if [[ "$track_rid" == "$OMNIA_REPORT_ID" ]]; then
-            resume_mode=true
-            echo -e "  ${CYAN}RESUME${NC} Found previous batch progress (.batch_track)"
-            echo -e "  ${CYAN}RESUME${NC} Completed scenarios will be skipped (use --restart to start fresh)"
-            echo ""
-        else
-            # Different report ID — start fresh
-            rm -f "$TRACK_FILE"
-        fi
+        resume_mode=true
+        echo -e "  ${CYAN}RESUME${NC} Found previous batch progress (.batch_track)"
+        echo -e "  ${CYAN}RESUME${NC} Completed steps will be skipped (use --restart to start fresh)"
+        echo ""
     fi
 
     echo -e "${BLUE}=================================================================${NC}"
@@ -298,9 +318,9 @@ run_config_mode() {
     echo ""
 
     # -------------------------------------------------------------------------
-    # Validate scenario ordering and get names sorted by "order" value.
-    # Duplicate or missing "order" values are a configuration error and abort
-    # the batch before anything runs.
+    # Validate scenario ordering, commands, and get names sorted by "order".
+    # Invalid order, duplicate order, or bad command values abort the batch
+    # before anything runs.
     # -------------------------------------------------------------------------
     local scenario_names
     if ! scenario_names=$(python3 - <<'PY'
@@ -309,31 +329,43 @@ import sys
 
 import yaml
 
+VALID_COMMANDS = {"deploy", "verify", "test"}
+
 with open(os.environ["CONFIG_FILE"]) as fh:
     cfg = yaml.safe_load(fh) or {}
 
 scenarios = cfg.get("scenarios", {}) or {}
+errors = []
 seen = {}
 dups = {}
 for name, sc in scenarios.items():
     sc = sc or {}
     order = sc.get("order")
     if order is None:
-        sys.stderr.write(
-            "Scenario '%s' is missing the required 'order' field\n" % name
-        )
-        sys.exit(2)
-    if order in seen:
-        dups.setdefault(order, [seen[order]]).append(name)
+        errors.append("Scenario '%s' is missing the required 'order' field" % name)
     else:
-        seen[order] = name
+        if order in seen:
+            dups.setdefault(order, [seen[order]]).append(name)
+        else:
+            seen[order] = name
+
+    cmd = str(sc.get("command", "test")).strip()
+    if cmd not in VALID_COMMANDS:
+        errors.append(
+            "Scenario '%s' has invalid command '%s' (must be one of: %s)"
+            % (name, cmd, ", ".join(sorted(VALID_COMMANDS)))
+        )
 
 if dups:
     for order in sorted(dups):
-        sys.stderr.write(
-            "Duplicate order %s shared by: %s\n" % (order, ", ".join(dups[order]))
+        errors.append(
+            "Duplicate order %s shared by: %s" % (order, ", ".join(dups[order]))
         )
-    sys.exit(3)
+
+if errors:
+    for e in errors:
+        sys.stderr.write(e + "\n")
+    sys.exit(1)
 
 for name, sc in sorted(
     scenarios.items(), key=lambda kv: (kv[1] or {}).get("order", 0)
@@ -341,14 +373,15 @@ for name, sc in sorted(
     print(name)
 PY
     ); then
-        echo -e "${RED}Error: Invalid scenario ordering in ${CONFIG_FILE}${NC}"
-        echo -e "${YELLOW}Each scenario needs a unique 'order' value.${NC}"
+        echo -e "${RED}Error: Invalid configuration in ${CONFIG_FILE}${NC}"
+        echo -e "${YELLOW}Fix the errors above and re-run.${NC}"
         exit 1
     fi
 
     # -------------------------------------------------------------------------
     # Prerequisite gate: when oim_prereq_test is true, run oim-prereq-test
     # FIRST. If it fails, abort the batch before any scenario executes.
+    # Track PREREQ:PASS so it is skipped on resume.
     # -------------------------------------------------------------------------
     local prereq_flag
     prereq_flag=$(python3 - <<'PY'
@@ -361,22 +394,40 @@ with open(os.environ["CONFIG_FILE"]) as fh:
 print(str(cfg.get("oim_prereq_test", False)).lower())
 PY
     )
-    if [[ "$prereq_flag" == "true" ]]; then
-        echo -e "  ${CYAN}PREREQ${NC} Running oim-prereq-test (gate)..."
-        if python3 "${SCRIPT_DIR}/run_prereq_test.py"; then
-            echo -e "  ${GREEN}PASS${NC}  oim-prereq-test"
-        else
-            echo -e "  ${RED}FAIL${NC}  oim-prereq-test -- aborting batch"
-            exit 1
-        fi
-        echo ""
-    fi
 
     # Initialize track file for this batch run
     if [[ ! -f "$TRACK_FILE" ]]; then
         echo "REPORT_ID=${OMNIA_REPORT_ID}" > "$TRACK_FILE"
     fi
 
+    if [[ "$prereq_flag" == "true" ]]; then
+        if [[ "$resume_mode" == "true" ]] && grep -q "^PREREQ:PASS$" "$TRACK_FILE" 2>/dev/null; then
+            echo -e "  ${GREEN}DONE${NC}  oim-prereq-test (completed in previous run)"
+        else
+            echo -e "  ${CYAN}PREREQ${NC} Running oim-prereq-test (gate)..."
+            if python3 "${SCRIPT_DIR}/run_prereq_test.py"; then
+                echo -e "  ${GREEN}PASS${NC}  oim-prereq-test"
+                echo "PREREQ:PASS" >> "$TRACK_FILE"
+            else
+                echo -e "  ${RED}FAIL${NC}  oim-prereq-test -- aborting batch"
+                exit 1
+            fi
+        fi
+        echo ""
+    fi
+
+    # -------------------------------------------------------------------------
+    # Scenario loop — deploy and verify are tracked independently.
+    #
+    # Track file entries:
+    #   <scenario>:deploy:PASS   — deploy phase completed
+    #   <scenario>:verify:PASS   — verify phase completed
+    #   <scenario>:PASS          — single-phase (deploy-only or verify-only)
+    #
+    # For command=test, deploy and verify are executed as separate phases.
+    # If deploy passed but verify failed, resume skips deploy and retries
+    # verify. If deploy failed, both are re-run.
+    # -------------------------------------------------------------------------
     local total=0 passed=0 failed=0 skipped=0
     for name in $scenario_names; do
         local run_flag command suite marker_cfg
@@ -397,25 +448,61 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
             continue
         fi
 
-        # Resume: skip scenarios already completed in a previous run
-        if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:PASS$" "$TRACK_FILE" 2>/dev/null; then
-            echo -e "  ${GREEN}DONE${NC}  ${name} (completed in previous run)"
-            passed=$((passed + 1))
-            continue
-        fi
-
-        echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
-
         local extra_args=""
         [[ -n "$suite" ]] && extra_args="$extra_args --suite $suite"
         [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
 
-        if "$0" "$name" "$command" $extra_args; then
-            echo -e "  ${GREEN}PASS${NC}  ${name}"
-            passed=$((passed + 1))
-            echo "${name}:PASS" >> "$TRACK_FILE"
+        local scenario_failed=false
+
+        if [[ "$command" == "test" ]]; then
+            # ----- DEPLOY PHASE -----
+            if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:deploy:PASS$" "$TRACK_FILE" 2>/dev/null; then
+                echo -e "  ${GREEN}DONE${NC}  ${name}:deploy (completed in previous run)"
+            else
+                echo -e "  ${CYAN}RUN${NC}   ${name}:deploy"
+                if "$0" "$name" "deploy"; then
+                    echo -e "  ${GREEN}PASS${NC}  ${name}:deploy"
+                    echo "${name}:deploy:PASS" >> "$TRACK_FILE"
+                else
+                    echo -e "  ${RED}FAIL${NC}  ${name}:deploy"
+                    scenario_failed=true
+                fi
+            fi
+
+            # ----- VERIFY PHASE (only if deploy succeeded) -----
+            if [[ "$scenario_failed" == "false" ]]; then
+                if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:verify:PASS$" "$TRACK_FILE" 2>/dev/null; then
+                    echo -e "  ${GREEN}DONE${NC}  ${name}:verify (completed in previous run)"
+                else
+                    echo -e "  ${CYAN}RUN${NC}   ${name}:verify (suite=${suite:-all}, marker=${marker_cfg:-none})"
+                    if "$0" "$name" "verify" $extra_args; then
+                        echo -e "  ${GREEN}PASS${NC}  ${name}:verify"
+                        echo "${name}:verify:PASS" >> "$TRACK_FILE"
+                    else
+                        echo -e "  ${RED}FAIL${NC}  ${name}:verify"
+                        scenario_failed=true
+                    fi
+                fi
+            fi
         else
-            echo -e "  ${RED}FAIL${NC}  ${name}"
+            # ----- SINGLE PHASE (deploy-only or verify-only) -----
+            if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:PASS$" "$TRACK_FILE" 2>/dev/null; then
+                echo -e "  ${GREEN}DONE${NC}  ${name} (completed in previous run)"
+                passed=$((passed + 1))
+                continue
+            fi
+
+            echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
+            if "$0" "$name" "$command" $extra_args; then
+                echo -e "  ${GREEN}PASS${NC}  ${name}"
+                echo "${name}:PASS" >> "$TRACK_FILE"
+            else
+                echo -e "  ${RED}FAIL${NC}  ${name}"
+                scenario_failed=true
+            fi
+        fi
+
+        if [[ "$scenario_failed" == "true" ]]; then
             failed=$((failed + 1))
             if [[ "$CONTINUE_ON_FAILURE" != "true" ]]; then
                 echo ""
@@ -430,6 +517,8 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
                 echo -e "${BLUE}=================================================================${NC}"
                 exit 1
             fi
+        else
+            passed=$((passed + 1))
         fi
     done
 

@@ -1087,6 +1087,9 @@ When adding a new scenario or suite, update the `SUPPORTED_*` variables at the t
 
 ### 16.4 Batch Execution Behavior
 
+- **Upfront validation** — before any scenario executes, the config is
+  validated: duplicate/missing `order` values and invalid `command` values
+  (must be `deploy`, `verify`, or `test`) are caught immediately.
 - **Stop on failure** — by default, `--config` mode stops the batch when any
   scenario fails. The user is expected to fix the issue and re-run; the batch
   automatically resumes from where it left off (see below).
@@ -1094,9 +1097,15 @@ When adding a new scenario or suite, update the `SUPPORTED_*` variables at the t
   remaining scenarios even if one fails. The final exit code still reflects
   whether any scenario failed.
 - **Resume with track file** — batch progress is recorded in `.batch_track`.
-  On re-run, scenarios that completed successfully in a previous run are
-  skipped. The track file is keyed by report ID: if the report ID changes,
-  a fresh run starts automatically.
+  On re-run, completed steps are skipped. The report ID from the previous
+  run is reused so results append to the same report.
+- **Deploy / verify split tracking** — for `command: test` scenarios, deploy
+  and verify are executed and tracked as separate phases. If deploy passed
+  but verify failed, resume skips deploy and retries only verify. Track
+  file entries: `<scenario>:deploy:PASS`, `<scenario>:verify:PASS`,
+  `<scenario>:PASS` (single-phase).
+- **Prerequisite tracking** — `oim-prereq-test` is tracked as `PREREQ:PASS`;
+  once it passes, resume skips it on subsequent runs.
 - **`--restart`** — discards the `.batch_track` file and starts the batch
   from the first scenario regardless of previous progress.
 - **Track file cleanup** — when all scenarios pass, the track file is
