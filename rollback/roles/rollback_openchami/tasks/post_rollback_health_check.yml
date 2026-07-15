@@ -28,9 +28,6 @@
 
 - name: Post-rollback health check
   block:
-    # NOTE: This health check is READ-ONLY. No service restarts occur here.
-    # All restarts were completed in renew_certificates.yml to ensure
-    # cloud-init/BSS data is never affected by post-reload restarts.
     - name: Wait for service initialization after rollback
       ansible.builtin.pause:
         seconds: 30

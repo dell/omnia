@@ -576,49 +576,10 @@
         seconds: 15
       when: "'ALL_SERVICES_OK' not in upgrade_recovery_result.stdout | default('')"
 
-    # ── HAProxy restart to clear stale backend DNS cache ────────────────
-    - name: Stop HAProxy to clear stale backend DNS cache
-      ansible.builtin.systemd:
-        name: haproxy.service
-        state: stopped
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Start HAProxy with fresh backend DNS resolution
-      ansible.builtin.systemd:
-        name: haproxy.service
-        state: started
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Wait for HAProxy to stabilize after restart
-      ansible.builtin.pause:
-        seconds: 10
-
-    # ── Restart coredhcp/coredns (v2.2) — depends on HAProxy ──────────
-    - name: Start coresmd-coredhcp after HAProxy restart
-      ansible.builtin.systemd:
-        name: coresmd-coredhcp.service
-        state: started
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Start coresmd-coredns after HAProxy restart
-      ansible.builtin.systemd:
-        name: coresmd-coredns.service
-        state: started
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Wait for coresmd services to stabilize
-      ansible.builtin.pause:
-        seconds: 10
+    # NOTE: Do NOT unconditionally stop/start HAProxy here.
+    # openchami.target start above already started HAProxy and all services.
+    # An extra stop/start kills HAProxy and cascades failures to coresmd,
+    # cloud-init-server, and BSS. The recovery script handles any stragglers.
 
     - name: Display container upgrade success
       ansible.builtin.debug:

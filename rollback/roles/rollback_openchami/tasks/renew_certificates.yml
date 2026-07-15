@@ -89,72 +89,11 @@
         seconds: 15
       when: "'ALL_SERVICES_OK' not in cert_recovery_result.stdout | default('')"
 
-    # ── HAProxy restart to pick up renewed certificate ──────────────────
-    - name: Stop HAProxy to clear stale TLS cert and backend DNS cache
-      ansible.builtin.systemd:
-        name: haproxy.service
-        state: stopped
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Start HAProxy with renewed certificate
-      ansible.builtin.systemd:
-        name: haproxy.service
-        state: started
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Wait for HAProxy to stabilize after restart
-      ansible.builtin.pause:
-        seconds: 10
-
-    # ── Restart coresmd (v2.1) — depends on HAProxy ────────────────────
-    # coresmd has After=haproxy.service and Wants=haproxy.service.
-    # After HAProxy stop/start, it loses connectivity and needs restart.
-    # Reset failed state first — systemd rate-limiting may have left
-    # coresmd in 'failed' state from earlier start attempts.
-    - name: Reset failed state for coresmd before start
-      ansible.builtin.command: systemctl reset-failed coresmd.service
-      changed_when: false
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Start coresmd after HAProxy restart
-      ansible.builtin.systemd:
-        name: coresmd.service
-        state: started
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Wait for coresmd to stabilize
-      ansible.builtin.pause:
-        seconds: 10
-
-    # ── Second-pass service health check ─────────────────────────────
-    # The first recovery pass may miss services that fail again
-    # due to dependency timing. This second pass catches them.
-    - name: Second-pass recovery of any still-failed services
-      ansible.builtin.script: check_service_health.sh
-      register: svc_health_check
-      changed_when: false
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Display service health status
-      ansible.builtin.debug:
-        msg: "{{ svc_health_check.stdout_lines | default([]) }}"
-      when: "'ALL_SERVICES_HEALTHY' not in svc_health_check.stdout | default('')"
-
     # ── Cert verification gate ──────────────────────────────────────────
-    # Check BSS/cloud-init status. If unreachable, restart acme-deploy + HAProxy.
+    # Check BSS/cloud-init status. Only restart HAProxy if unreachable.
+    # openchami.target restart above already restarted HAProxy and all
+    # services. Do NOT unconditionally stop/start HAProxy — it causes
+    # cascading failures (coresmd, cloud-init, BSS all lose connectivity).
 
     - name: Check ochami bss service status
       ansible.builtin.command: /usr/bin/ochami bss service status
