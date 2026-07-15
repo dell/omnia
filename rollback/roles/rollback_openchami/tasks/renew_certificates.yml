@@ -74,20 +74,13 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
-    # ── Recover any services that failed from target restart race ──────
-    - name: Recover any failed services after certificate renewal
-      ansible.builtin.script: recover_failed_services.sh
-      register: cert_recovery_result
-      changed_when: false
+    - name: Reset any failed services after certificate renewal
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: true
       failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
-
-    - name: Wait for recovered services to stabilize after cert renewal
-      ansible.builtin.pause:
-        seconds: 15
-      when: "'ALL_SERVICES_OK' not in cert_recovery_result.stdout | default('')"
 
     # ── Cert verification gate ──────────────────────────────────────────
     # Check BSS/cloud-init status. Only restart HAProxy if unreachable.
