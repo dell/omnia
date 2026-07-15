@@ -53,6 +53,22 @@ dataset: "project_default"
 # Default: false
 sync_dataset_to_core: false
 
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Custom report ID for test report identification.
+# When set, this string is used as the report ID instead of the
+# auto-generated timestamp (e.g., "20260715103000").
+#
+# If the same report_id is reused across multiple runs, results are
+# APPENDED to the existing report entry instead of creating a new one.
+# This is useful for accumulating results across resumed batch runs
+# or grouping multiple manual runs under a single logical execution.
+#
+# Format: String (e.g., "sprint-42-regression", "nightly-build-001")
+# Leave empty ("") to auto-generate a timestamp-based ID (default).
+report_id: ""
+
 # #############################################################################
 #                                                                             #
 #                      OIM PREREQUISITE CONFIGURATION                         #

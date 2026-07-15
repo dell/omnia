@@ -122,6 +122,7 @@ Key parameters:
 | `oim_ssh_user` | SSH username for remote mode. |
 | `dataset` | Dataset folder name under `datasets/` (default: `project_default`). |
 | `sync_dataset_to_core` | When `true`, syncs dataset files into the container before playbook execution. |
+| `report_id` | Custom report ID string. When set, replaces the auto-generated timestamp. Reusing the same ID appends results to the existing report. Default: `""` (auto-generate). |
 | `reconfigure_images` | When `true`, runs `omnia.sh --build` before install. Default: `false`. |
 | `share_option` | Storage backend for omnia.sh: `NFS` or `Local`. |
 
@@ -249,20 +250,28 @@ Tests can be filtered by **suite** (folder-based), **marker** (decorator-based),
 ### Batch Execution
 
 ```bash
-./run_validation.sh --config                              # Run scenarios from test_run_config.yml
-./run_validation.sh all test                               # Run ALL scenarios (deploy + verify)
-./run_validation.sh all verify --suite sanity               # Verify all with sanity suite
-./run_validation.sh all verify --marker smoke               # Verify all with smoke marker
-./run_validation.sh all verify --suite sanity --marker smoke # Verify all: sanity + smoke
+./run_validation.sh --config                                        # Batch from config (stop on failure)
+./run_validation.sh --config --continue-on-failure                   # Continue despite failures
+./run_validation.sh --config --restart                               # Discard progress, start fresh
+./run_validation.sh --config --restart --continue-on-failure         # Fresh start + continue on failure
+./run_validation.sh all test                                         # Run ALL scenarios (deploy + verify)
+./run_validation.sh all verify --suite sanity                        # Verify all with sanity suite
+./run_validation.sh all verify --marker smoke                        # Verify all with smoke marker
+./run_validation.sh all verify --suite sanity --marker smoke         # Verify all: sanity + smoke
 ```
 
-Batch mode generates a **single unified report** across all scenarios using a shared `OMNIA_REPORT_ID`.
+Batch mode generates a **single unified report** across all scenarios using a shared report ID.
 
 **Batch behavior (`--config`):**
 
+- **Stop on failure** — by default, if a scenario fails the batch stops immediately. Fix the issue and re-run `--config` to **resume** from where it left off.
+- **`--continue-on-failure`** — continues executing remaining scenarios even if one fails. The final exit code still reflects whether any scenario failed.
+- **`--restart`** — discards any saved progress and starts the batch from the first scenario.
+- **Resume** — batch progress is tracked in `.batch_track`. On re-run, scenarios that completed successfully in a previous run are automatically skipped. The track file is keyed by report ID; if the report ID changes, a fresh run starts automatically. When all scenarios pass, the track file is cleaned up.
 - **Prerequisite gate** — when `oim_prereq_test: true` in `test_run_config.yml`, `oim-prereq-test` runs first. If it fails, the batch aborts before any scenario runs.
 - **Ordering** — scenarios run in ascending `order` value. Duplicate or missing `order` values are a configuration error and abort the batch.
 - **Dataset sync** — when `sync_dataset_to_core: true` in `omnia_test_config.yml`, playbook deploy steps sync the selected dataset (including the vault-encrypted `omnia_config_credentials.yml`) into the container before execution. The `omnia_sh_install` scenario is exempt — it builds the container and does not receive synced project inputs.
+- **Custom report ID** — set `report_id` in `omnia_test_config.yml` to use a fixed string instead of the auto-generated timestamp. Reusing the same report ID across runs appends results to the existing report entry.
 
 ### Test Reports
 

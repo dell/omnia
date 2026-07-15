@@ -1085,6 +1085,32 @@ The `run_validation.sh --config` command validates `test_run_config.yml` **befor
 
 When adding a new scenario or suite, update the `SUPPORTED_*` variables at the top of `run_validation.sh`.
 
+### 16.4 Batch Execution Behavior
+
+- **Stop on failure** — by default, `--config` mode stops the batch when any
+  scenario fails. The user is expected to fix the issue and re-run; the batch
+  automatically resumes from where it left off (see below).
+- **`--continue-on-failure`** — when passed, the batch continues executing
+  remaining scenarios even if one fails. The final exit code still reflects
+  whether any scenario failed.
+- **Resume with track file** — batch progress is recorded in `.batch_track`.
+  On re-run, scenarios that completed successfully in a previous run are
+  skipped. The track file is keyed by report ID: if the report ID changes,
+  a fresh run starts automatically.
+- **`--restart`** — discards the `.batch_track` file and starts the batch
+  from the first scenario regardless of previous progress.
+- **Track file cleanup** — when all scenarios pass, the track file is
+  automatically deleted.
+
+### 16.5 Custom Report ID
+
+- `report_id` in `omnia_test_config.yml` sets a custom report identifier.
+  When empty (default), a timestamp-based ID is auto-generated.
+- When the same `report_id` is reused across runs, results are **appended**
+  to the existing report entry instead of creating a new run.
+- The report ID is shared across all scenarios in a batch run and drives
+  both the JSON/HTML report grouping and the resume track file.
+
 ---
 
 ## 17. Dependencies and Git Workflow
@@ -1101,19 +1127,21 @@ When adding a new scenario or suite, update the `SUPPORTED_*` variables at the t
 
 ## 18. Code Quality Rules (MANDATORY)
 
-### 18.1 YAML Lint Rules
+### 18.1 Ansible-Lint Rules (Configuration Files)
 
-All YAML configuration files MUST pass `yamllint` with NO errors:
+All YAML configuration and playbook files MUST pass `ansible-lint` with NO errors:
 
 ```bash
-yamllint omnia_test_config.yml omnia_test_credentials.yml test_run_config.yml
+ansible-lint omnia_test_config.yml test_run_config.yml
+podman exec omnia_core ansible-lint /omnia/<playbook_dir>/<playbook>.yml
 ```
 
-Common yamllint rules:
-- `document-start` — Files must begin with `---`
-- `line-length` — Lines must not exceed 80 characters
-- `trailing-spaces` — No trailing whitespace
-- `new-line-at-end-of-file` — Files must end with a newline
+Common ansible-lint issues to avoid:
+- `yaml[truthy]` — Use `true`/`false` not `yes`/`no`
+- `yaml[line-length]` — Lines must not exceed 160 characters
+- `yaml[trailing-spaces]` — No trailing whitespace
+- `yaml[new-line-at-end-of-file]` — Files must end with a newline
+- `name[missing]` — All tasks MUST have a `name`
 
 ### 18.2 Ansible-Lint Rules
 

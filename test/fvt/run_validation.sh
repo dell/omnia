@@ -33,9 +33,13 @@
 #   --config  - Run scenarios from test_run_config.yml
 #
 # Options:
-#   --suite <name>    Filter by test folder (sanity, negative, regression, smoke, stress)
-#   --marker <expr>   Filter by pytest marker expression (e.g., deploy, build_stream)
-#   -v, --verbose     Increase pytest verbosity
+#   --suite <name>         Filter by test folder (sanity, negative, regression, smoke, stress)
+#   --marker <expr>        Filter by pytest marker expression (e.g., deploy, build_stream)
+#   -v, --verbose          Increase pytest verbosity
+#
+# Config mode options (--config only):
+#   --continue-on-failure  Continue running remaining scenarios even if one fails
+#   --restart              Discard resume progress and start from the first scenario
 #
 # Filtering:
 #   --suite selects tests from the matching folder (e.g., tests/sanity/)
@@ -93,9 +97,31 @@ COMMAND="$2"
 SUITE=""
 MARKER=""
 VERBOSE=""
+CONTINUE_ON_FAILURE=false
+RESTART=false
 
-# Parse optional arguments
-if [[ $# -gt 2 ]]; then
+# Parse arguments based on mode
+if [[ "$SCENARIO" == "--config" ]]; then
+    # Config mode: parse --continue-on-failure and --restart flags
+    shift 1
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --continue-on-failure)
+                CONTINUE_ON_FAILURE=true
+                shift
+                ;;
+            --restart)
+                RESTART=true
+                shift
+                ;;
+            *)
+                echo -e "${RED}Unknown option for --config: $1${NC}"
+                echo "Usage: $0 --config [--continue-on-failure] [--restart]"
+                exit 1
+                ;;
+        esac
+    done
+elif [[ $# -gt 2 ]]; then
     shift 2
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -192,6 +218,28 @@ run_pytest() {
 }
 
 # =============================================================================
+# Resolve report ID from omnia_test_config.yml or generate timestamp
+# =============================================================================
+resolve_report_id() {
+    local custom_rid
+    custom_rid=$(python3 -c "
+import yaml
+try:
+    with open('${SCRIPT_DIR}/omnia_test_config.yml') as f:
+        c = yaml.safe_load(f) or {}
+    r = str(c.get('report_id', '') or '').strip()
+    print(r)
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+    if [[ -n "$custom_rid" ]]; then
+        echo "$custom_rid"
+    else
+        date '+%Y%m%d%H%M%S'
+    fi
+}
+
+# =============================================================================
 # Run batch config mode
 # =============================================================================
 run_config_mode() {
@@ -200,13 +248,52 @@ run_config_mode() {
         exit 1
     fi
 
-    # Share ONE report ID across all scenarios in this batch
-    export OMNIA_REPORT_ID=$(date '+%Y%m%d%H%M%S')
     export CONFIG_FILE
+    local TRACK_FILE="${SCRIPT_DIR}/.batch_track"
+
+    # -------------------------------------------------------------------------
+    # Resolve report ID: prefer report_id from omnia_test_config.yml, fall
+    # back to an auto-generated timestamp.
+    # -------------------------------------------------------------------------
+    export OMNIA_REPORT_ID=$(resolve_report_id)
+
+    # -------------------------------------------------------------------------
+    # Handle --restart: clear the track file to start fresh.
+    # -------------------------------------------------------------------------
+    if [[ "$RESTART" == "true" ]]; then
+        rm -f "$TRACK_FILE"
+        echo -e "  ${YELLOW}RESTART${NC} Cleared batch progress — starting fresh"
+        echo ""
+    fi
+
+    # -------------------------------------------------------------------------
+    # Resume mode: if a track file exists with the same report ID, skip
+    # previously completed scenarios.
+    # -------------------------------------------------------------------------
+    local resume_mode=false
+    if [[ -f "$TRACK_FILE" ]]; then
+        local track_rid
+        track_rid=$(head -1 "$TRACK_FILE" | sed -n 's/^REPORT_ID=//p')
+        if [[ "$track_rid" == "$OMNIA_REPORT_ID" ]]; then
+            resume_mode=true
+            echo -e "  ${CYAN}RESUME${NC} Found previous batch progress (.batch_track)"
+            echo -e "  ${CYAN}RESUME${NC} Completed scenarios will be skipped (use --restart to start fresh)"
+            echo ""
+        else
+            # Different report ID — start fresh
+            rm -f "$TRACK_FILE"
+        fi
+    fi
 
     echo -e "${BLUE}=================================================================${NC}"
     echo -e "${BLUE}  Batch Execution from test_run_config.yml${NC}"
     echo -e "${BLUE}  Report ID : ${OMNIA_REPORT_ID}${NC}"
+    if [[ "$CONTINUE_ON_FAILURE" == "true" ]]; then
+        echo -e "${BLUE}  Mode      : continue-on-failure${NC}"
+    fi
+    if [[ "$resume_mode" == "true" ]]; then
+        echo -e "${BLUE}  Resume    : yes (from previous run)${NC}"
+    fi
     echo -e "${BLUE}=================================================================${NC}"
     echo ""
 
@@ -285,6 +372,11 @@ PY
         echo ""
     fi
 
+    # Initialize track file for this batch run
+    if [[ ! -f "$TRACK_FILE" ]]; then
+        echo "REPORT_ID=${OMNIA_REPORT_ID}" > "$TRACK_FILE"
+    fi
+
     local total=0 passed=0 failed=0 skipped=0
     for name in $scenario_names; do
         local run_flag command suite marker_cfg
@@ -305,6 +397,13 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
             continue
         fi
 
+        # Resume: skip scenarios already completed in a previous run
+        if [[ "$resume_mode" == "true" ]] && grep -q "^${name}:PASS$" "$TRACK_FILE" 2>/dev/null; then
+            echo -e "  ${GREEN}DONE${NC}  ${name} (completed in previous run)"
+            passed=$((passed + 1))
+            continue
+        fi
+
         echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
 
         local extra_args=""
@@ -314,11 +413,30 @@ print(f'marker_cfg={sc.get(\"marker\", \"\")}')
         if "$0" "$name" "$command" $extra_args; then
             echo -e "  ${GREEN}PASS${NC}  ${name}"
             passed=$((passed + 1))
+            echo "${name}:PASS" >> "$TRACK_FILE"
         else
             echo -e "  ${RED}FAIL${NC}  ${name}"
             failed=$((failed + 1))
+            if [[ "$CONTINUE_ON_FAILURE" != "true" ]]; then
+                echo ""
+                echo -e "  ${RED}Batch stopped due to failure in '${name}'.${NC}"
+                echo -e "  ${YELLOW}Fix the issue and re-run './run_validation.sh --config' to resume.${NC}"
+                echo -e "  ${YELLOW}Use --restart to start from the beginning.${NC}"
+                echo ""
+                echo -e "${BLUE}=================================================================${NC}"
+                echo -e "  Total: ${total}  ${GREEN}Passed: ${passed}${NC}  ${RED}Failed: ${failed}${NC}  ${YELLOW}Skipped: ${skipped}${NC}"
+                echo -e "  ${CYAN}Report: reports/test_report.json${NC}"
+                echo -e "  ${CYAN}Report: reports/test_report.html${NC}"
+                echo -e "${BLUE}=================================================================${NC}"
+                exit 1
+            fi
         fi
     done
+
+    # Batch completed successfully — clean up track file
+    if [[ $failed -eq 0 ]]; then
+        rm -f "$TRACK_FILE"
+    fi
 
     echo ""
     echo -e "${BLUE}=================================================================${NC}"
@@ -336,7 +454,7 @@ run_all_scenarios() {
     local cmd="$1"
 
     # Share ONE report ID across all scenarios
-    export OMNIA_REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    export OMNIA_REPORT_ID=$(resolve_report_id)
 
     echo -e "${BLUE}=================================================================${NC}"
     echo -e "${BLUE}  Running ALL Scenarios: ${cmd}${NC}"
@@ -410,7 +528,7 @@ case "$SCENARIO" in
         echo ""
         echo "Usage: $0 <scenario> <command> [options]"
         echo "       $0 all <command> [options]"
-        echo "       $0 --config"
+        echo "       $0 --config [--continue-on-failure] [--restart]"
         echo ""
         echo "Commands:"
         echo "  deploy    - Run the Ansible playbook only (live streaming output)"
@@ -421,6 +539,10 @@ case "$SCENARIO" in
         echo "  --suite <name>    Filter by test folder (sanity, negative, regression, smoke, stress)"
         echo "  --marker <expr>   Filter by pytest marker decorator"
         echo "  -v, --verbose     Increase pytest verbosity"
+        echo ""
+        echo "Config mode options (--config only):"
+        echo "  --continue-on-failure  Continue running scenarios even if one fails"
+        echo "  --restart              Discard resume progress and start from the first scenario"
         echo ""
         echo "Filtering:"
         echo "  --suite sanity                     -> tests in tests/sanity/ folder"
@@ -433,7 +555,9 @@ case "$SCENARIO" in
         echo "  $0 prepare_oim verify --suite sanity       # Sanity tests only"
         echo "  $0 prepare_oim test                       # Deploy + verify"
         echo "  $0 all test                               # All scenarios"
-        echo "  $0 --config                               # Batch from config"
+        echo "  $0 --config                               # Batch from config (stop on failure)"
+        echo "  $0 --config --continue-on-failure         # Batch, continue despite failures"
+        echo "  $0 --config --restart                     # Batch, discard progress, start fresh"
         echo "  $0 list                                   # List scenarios"
         echo ""
         exit 0
@@ -490,7 +614,7 @@ fi
 # Generate report ID (reuse if already set by batch/all mode)
 # =============================================================================
 if [[ -z "${OMNIA_REPORT_ID:-}" ]]; then
-    export OMNIA_REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    export OMNIA_REPORT_ID=$(resolve_report_id)
 fi
 
 # =============================================================================
@@ -626,7 +750,7 @@ _run_validation_completions() {
     suites="sanity negative regression smoke stress performance"
 
     case "${COMP_CWORD}" in
-        1) COMPREPLY=($(compgen -W "$scenarios all list help --config" -- "$cur")) ;;
+        1) COMPREPLY=($(compgen -W "$scenarios all list help --config --continue-on-failure --restart" -- "$cur")) ;;
         2) COMPREPLY=($(compgen -W "$commands" -- "$cur")) ;;
         *)
             case "$prev" in

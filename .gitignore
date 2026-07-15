@@ -36,8 +36,8 @@ test/fvt/.backup/
 test/fvt/.backups/
 test/fvt/.omnia_test_credentials.key
 test/fvt/oim_prereq_report.txt
-test/fvt/omnia_test_config.yml
-test/fvt/omnia_test_credentials.yml
+test/fvt/.batch_track
+
 test/fvt/*.backup
 test/fvt/build/
 test/fvt/dist/
