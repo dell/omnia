@@ -115,6 +115,9 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+      retries: "{{ ochami_recheck_retries }}"
+      delay: "{{ ochami_recheck_delay }}"
+      until: cert_bss_gate.rc == 0
 
     - name: Regenerate certificate if BSS unreachable
       when: cert_bss_gate.rc != 0
@@ -196,6 +199,9 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+      retries: "{{ ochami_recheck_retries }}"
+      delay: "{{ ochami_recheck_delay }}"
+      until: cert_ci_gate.rc == 0
 
     # ── cloud-init recovery ────────────────────────────────────────────
     # cloud-init-server may return 404 if its routes are not registered.
@@ -204,9 +210,9 @@
     - name: Recover cloud-init-server if unreachable
       when: cert_ci_gate.rc != 0
       block:
-        - name: Restart cloud-init-server to re-register endpoints
+        - name: Restart openchami to re-register endpoints
           ansible.builtin.systemd:
-            name: cloud-init-server.service
+            name: openchami.target
             state: restarted
           failed_when: false
           delegate_to: oim
@@ -222,8 +228,8 @@
           register: cert_ci_recheck
           changed_when: false
           failed_when: false
-          retries: 3
-          delay: 10
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
           until: cert_ci_recheck.rc == 0
           delegate_to: oim
           delegate_facts: true

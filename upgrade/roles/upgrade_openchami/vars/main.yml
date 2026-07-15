@@ -258,6 +258,8 @@ pull_image_delay: 10
 max_retries: 10
 max_delay: 10
 wait_time: 30
+ochami_recheck_retries: 3
+ochami_recheck_delay: 10
 
 # API readiness retry settings (SMD/BSS must be reachable)
 api_readiness_retries: 20

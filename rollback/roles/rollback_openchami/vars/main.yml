@@ -123,6 +123,8 @@ max_delay: 10
 wait_time: 30
 api_readiness_retries: 20
 api_readiness_delay: 15
+ochami_recheck_retries: 3
+ochami_recheck_delay: 10
 # Total wait: 20 × 15s = 300 seconds (5 minutes) max for API endpoints
 
 # Certificate recovery settings (mirrors common/vars/openchami_vars.yml)
