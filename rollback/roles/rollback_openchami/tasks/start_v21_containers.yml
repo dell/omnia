@@ -30,40 +30,6 @@
 
 - name: Start v2.1 containers
   block:
-    # ── Ensure v2.2 split services are fully stopped (port 69 conflict) ─
-    # coresmd (v2.1) and coresmd-coredhcp (v2.2) both bind TFTP UDP :69.
-    # If any v2.2 process still holds port 69, coresmd will fail with
-    # "listen udp :69: bind: address already in use".
-    - name: Stop coresmd-coredhcp to release TFTP port 69
-      ansible.builtin.systemd:
-        name: coresmd-coredhcp.service
-        state: stopped
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Stop coresmd-coredns to release DNS port
-      ansible.builtin.systemd:
-        name: coresmd-coredns.service
-        state: stopped
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Reset failed state for coresmd to allow fresh start
-      ansible.builtin.command: systemctl reset-failed coresmd.service
-      changed_when: false
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Wait for ports to be released
-      ansible.builtin.pause:
-        seconds: 5
-
     # ── Start all OpenCHAMI services ────────────────────────────────────
     - name: Start openchami.target with v2.1 containers
       ansible.builtin.systemd:
@@ -96,28 +62,28 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
-    # ── Recover any failed services individually ────────────────────────
-    # Instead of restarting openchami.target (which causes race conditions),
-    # detect and restart only the specific services that failed.
-    - name: Recover any failed services after v2.1 container start
-      ansible.builtin.script: recover_failed_services.sh
-      register: start_recovery_result
-      changed_when: false
+    # ── Recover any failed services ─────────────────────────────────────
+    - name: Reset any failed services
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: true
       failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
-    - name: Wait for recovered services to stabilize
-      ansible.builtin.pause:
-        seconds: 15
-      when: "'ALL_SERVICES_OK' not in start_recovery_result.stdout | default('')"
+    - name: Restart openchami.target to recover failed services
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
 
-    # NOTE: Do NOT unconditionally stop/start HAProxy here.
-    # openchami.target start above already started HAProxy and all services
-    # including coresmd. An extra stop/start kills HAProxy and cascades
-    # failures to coresmd, cloud-init-server, and BSS.
-    # The recovery script handles any stragglers.
+    - name: Wait for restarted services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
 
     - name: Display v2.1 container start status
       ansible.builtin.debug:

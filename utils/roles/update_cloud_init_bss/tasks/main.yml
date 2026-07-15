@@ -52,6 +52,9 @@
       register: ci_preflight_check
       changed_when: false
       failed_when: false
+      retries: "{{ ochami_recheck_retries }}"
+      delay: "{{ ochami_recheck_delay }}"
+      until: ci_preflight_check.rc == 0
 
     - name: Recover OpenCHAMI services if unreachable
       when: ci_preflight_check.rc != 0
@@ -119,16 +122,14 @@
           delay: "{{ ochami_recheck_delay }}"
           until: ci_recheck.rc == 0
 
-        # cloud-init-server may return 404 if routes not registered.
-        # Restart the container to force re-initialization.
-        - name: Restart cloud-init-server if still unreachable
+        - name: Restart openchami.target if still unreachable
           ansible.builtin.systemd:
-            name: cloud-init-server.service
+            name: openchami.target
             state: restarted
           failed_when: false
           when: ci_recheck.rc != 0
 
-        - name: Wait for cloud-init-server to initialize
+        - name: Wait for openchami to initialize
           ansible.builtin.pause:
             seconds: 15
           when: ci_recheck.rc != 0
@@ -138,8 +139,8 @@
           register: ci_final_recheck
           changed_when: false
           failed_when: false
-          retries: 3
-          delay: 10
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
           until: ci_final_recheck.rc == 0
           when: ci_recheck.rc != 0
 

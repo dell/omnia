@@ -36,9 +36,6 @@
     - name: Retrieve PostgreSQL credentials
       ansible.builtin.include_tasks: retrieve_postgres_credentials.yml
 
-    # NOTE: This health check is READ-ONLY. No service restarts occur here.
-    # All restarts were completed in renew_certificates.yml to ensure
-    # cloud-init/BSS data is never affected by post-reload restarts.
     - name: Wait for service initialization after container restart
       ansible.builtin.pause:
         seconds: 30
