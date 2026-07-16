@@ -81,11 +81,13 @@
           ansible.builtin.systemd:
             name: haproxy.service
             state: stopped
+          failed_when: false
 
         - name: Start HAProxy with renewed certificate
           ansible.builtin.systemd:
             name: haproxy.service
             state: started
+          failed_when: false
 
         - name: Wait for HAProxy to stabilize
           ansible.builtin.pause:
@@ -149,7 +151,7 @@
         - name: Fail if OpenCHAMI services still unreachable
           ansible.builtin.fail:
             msg: "{{ openchami_unreachable_fail_msg }}"
-          when: (ci_final_recheck.rc | default(ci_recheck.rc) | default(1)) != 0
+          when: (ci_final_recheck.rc | default(ci_recheck.rc | default(1))) != 0
 
 - name: Update ci-defaults configuration
   ansible.builtin.include_tasks: update_ci_defaults.yml
