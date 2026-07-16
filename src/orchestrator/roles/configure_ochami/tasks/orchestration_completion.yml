@@ -1,4 +1,4 @@
-#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 #  limitations under the License.
 ---
 
-provision_config_file: "{{ orchestrator_config_file | default('provision_config.yml') }}"
-omnia_config_file: "omnia_config.yml"
-omnia_config_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] | default(input_project_dir) }}"
-functional_groups_config_path: "/opt/omnia/.data/functional_groups_config.yml"
+- name: Orchestration completion
+  ansible.builtin.debug:
+    msg: "{{ orchestration_completion_msg.splitlines() | join(' ') }}"

@@ -1451,6 +1451,128 @@ def validate_provision_config(
 
     return errors
 
+
+def validate_orchestrator_config(
+    input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+):
+    """
+    Validates the orchestrator configuration.
+    Subset of validate_provision_config — skips software_config and build_stream
+    validation since the orchestrator does not own those files.
+    """
+    errors = []
+
+    # Validate language setting
+    language = data.get("language", "")
+    if not language:
+        errors.append(
+            create_error_msg("language", input_file_path, en_us_validation_msg.LANGUAGE_EMPTY_MSG)
+        )
+    elif "en_US.UTF-8" not in language:
+        errors.append(
+            create_error_msg("language", input_file_path, en_us_validation_msg.LANGUAGE_FAIL_MSG)
+        )
+
+    pxe_mapping_file_path = data.get("pxe_mapping_file_path", "")
+    if pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
+        try:
+            validate_mapping_file_entries(pxe_mapping_file_path)
+            validate_functional_groups_in_mapping_file(pxe_mapping_file_path)
+            validate_duplicate_service_tags_in_mapping_file(pxe_mapping_file_path)
+            validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path)
+            validate_duplicate_admin_ips_in_mapping_file(pxe_mapping_file_path)
+            validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path)
+            validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path)
+            validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path)
+            validate_functional_groups_separation(pxe_mapping_file_path)
+            validate_parent_service_tag_hierarchy(pxe_mapping_file_path)
+            validate_slurm_login_compiler_prefix(pxe_mapping_file_path)
+            validate_aarch64_local_path_compatibility(pxe_mapping_file_path)
+            dns_enabled = data.get("dns_enabled", False)
+            if isinstance(dns_enabled, str):
+                dns_enabled = dns_enabled.lower() in ("true", "yes", "1")
+            validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, bool(dns_enabled))
+
+            # Validate ADMIN_IPs against network_spec.yml subnets
+            network_spec_path = create_file_path(input_file_path, file_names["network_spec"])
+            if os.path.isfile(network_spec_path):
+                try:
+                    with open(network_spec_path, "r", encoding="utf-8") as f:
+                        network_spec_json = yaml.safe_load(f)
+
+                    admin_netmaskbits = None
+                    oim_admin_ip = None
+                    additional_subnets = []
+
+                    for network in (network_spec_json or {}).get("Networks", []):
+                        if "admin_network" in network and isinstance(network["admin_network"], dict):
+                            admin_net = network["admin_network"]
+                            admin_netmaskbits = admin_net.get("netmask_bits")
+                            oim_admin_ip = admin_net.get("primary_oim_admin_ip")
+                            additional_subnets = admin_net.get("additional_subnets") or []
+                            break
+
+                    if admin_netmaskbits and oim_admin_ip:
+                        validate_pxe_admin_ips_subnet_consistency(
+                            errors, pxe_mapping_file_path,
+                            oim_admin_ip, admin_netmaskbits,
+                            additional_subnets
+                        )
+                except (yaml.YAMLError, IOError) as e:
+                    errors.append(
+                        create_error_msg(
+                            "network_spec.yml",
+                            network_spec_path,
+                            f"Failed to load or parse network_spec.yml: {str(e)}"
+                        )
+                    )
+        except ValueError as e:
+            errors.append(
+                create_error_msg(
+                    "pxe_mapping_file_path",
+                    pxe_mapping_file_path,
+                    str(e),
+                )
+            )
+    else:
+        errors.append(
+            create_error_msg(
+                "pxe_mapping_file_path",
+                pxe_mapping_file_path,
+                en_us_validation_msg.PXE_MAPPING_FILE_PATH_FAIL_MSG,
+            )
+        )
+
+    default_lease_time = data["default_lease_time"]
+    if not validation_utils.validate_default_lease_time(default_lease_time):
+        errors.append(
+            create_error_msg(
+                "default_lease_time",
+                default_lease_time,
+                en_us_validation_msg.DEFAULT_LEASE_TIME_FAIL_MSG,
+            )
+        )
+
+    kernel_version_override = data.get("kernel_version_override", "")
+    if kernel_version_override:
+        if not re.match(r"^[0-9]+\.[0-9]+\.[0-9]+-.+$", kernel_version_override):
+            errors.append(
+                create_error_msg(
+                    "kernel_version_override",
+                    kernel_version_override,
+                    en_us_validation_msg.KERNEL_VERSION_OVERRIDE_FAIL_MSG,
+                )
+            )
+
+    # Validate additional cloud-init config file
+    aci_path = data.get("additional_cloud_init_config_file", "")
+    if aci_path:
+        aci_errors = validate_additional_cloud_init_config(aci_path, pxe_mapping_file_path)
+        errors.extend(aci_errors)
+
+    return errors
+
+
 def validate_network_spec(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
 ):

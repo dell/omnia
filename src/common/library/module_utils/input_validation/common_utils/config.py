@@ -52,6 +52,7 @@ files = {
     "network_spec": "network_spec.yml",
     "omnia_config": "omnia_config.yml",
     "provision_config": "provision_config.yml",
+    "orchestrator_config": "orchestrator_config.yml",
     "security_config": "security_config.yml",
     "software_config": "software_config.json",
     "storage_config": "storage_config.yml",
@@ -81,6 +82,10 @@ input_file_inventory = {
         files["network_spec"],
         files["software_config"],
         # files["high_availability_config"]
+    ],
+    "orchestrator": [
+        files["orchestrator_config"],
+        files["network_spec"],
     ],
     "security": [
         files["security_config"]

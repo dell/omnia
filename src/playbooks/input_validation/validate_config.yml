@@ -19,6 +19,8 @@
   tags: &common_tags
     - scheduler
     - provision
+    - orchestrator
+    - discovery
     - security
     - local_repo
     - compute_k8s
@@ -58,7 +60,9 @@
       when: run_subscription_check is not defined and omnia_run_tags is not defined
 
     - name: Run subscription validation tasks
-      when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or 'all' in (ansible_run_tags | default([]) | list)"
+      when:
+        - not (skip_subscription_check | default(false) | bool)
+        - "'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or 'all' in (ansible_run_tags | default([]) | list)"
       block:
         - name: Include metadata vars
           ansible.builtin.include_vars: "/opt/omnia/.data/oim_metadata.yml"
@@ -101,7 +105,9 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: check_rhel_subscription.yml
-      when: "hostvars['localhost']['run_subscription_check'] | default(false) | bool"
+      when:
+        - not (hostvars['localhost']['skip_subscription_check'] | default(false) | bool)
+        - "hostvars['localhost']['run_subscription_check'] | default(false) | bool"
 
 - name: Configure RHEL repository URLs
   hosts: localhost
@@ -114,7 +120,9 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: configure_rhel_os_urls.yml
-      when: "run_subscription_check | default(false) | bool"
+      when:
+        - not (skip_subscription_check | default(false) | bool)
+        - "run_subscription_check | default(false) | bool"
 
 - name: Validate omnia input config
   hosts: localhost
