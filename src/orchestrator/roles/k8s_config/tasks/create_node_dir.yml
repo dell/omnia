@@ -1,0 +1,94 @@
+# Copyright 2025 Dell Inc. or its subsidiaries.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Slurp nodes.yaml
+  ansible.builtin.slurp:
+    src: "{{ nodes_yaml }}"
+  register: slurped_yaml
+
+- name: Parse nodes.yaml into a variable
+  ansible.builtin.set_fact:
+    parsed_yaml: "{{ slurped_yaml.content | b64decode | from_yaml }}"
+
+- name: Extract service_kube_control_plane_first_x86_64 IPs
+  ansible.builtin.set_fact:
+    cp_first_ip_list: >-
+      {{
+        parsed_yaml.nodes
+        | selectattr('group', 'equalto', 'service_kube_control_plane_first_x86_64')
+        | map(attribute='interfaces') | map('first')
+        | map(attribute='ip_addrs')   | map('first')
+        | map(attribute='ip_addr')
+        | list
+      }}
+
+- name: Extract service_kube_control_plane_x86_64 IPs
+  ansible.builtin.set_fact:
+    cp_ip_list: >-
+      {{
+        parsed_yaml.nodes
+        | selectattr('group', 'equalto', 'service_kube_control_plane_x86_64')
+        | map(attribute='interfaces') | map('first')
+        | map(attribute='ip_addrs')   | map('first')
+        | map(attribute='ip_addr')
+        | list
+      }}
+
+- name: Extract service_kube_node_x86_64 IPs
+  ansible.builtin.set_fact:
+    worker_ip_list: >-
+      {{
+        parsed_yaml.nodes
+        | selectattr('group', 'equalto', 'service_kube_node_x86_64')
+        | map(attribute='interfaces') | map('first')
+        | map(attribute='ip_addrs')   | map('first')
+        | map(attribute='ip_addr')
+        | list
+      }}
+
+- name: Create persistent folders for control-plane nodes (etcd, kubernetes, kubelet)
+  block:
+    - name: Create control-plane node folders
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item.0 }}/{{ item.1 }}"
+        state: directory
+        mode: "{{ folder_mode }}"
+        owner: root
+        group: root
+      loop: "{{ cp_ips | product(cp_components) | list }}"
+      loop_control:
+        label: "{{ item.0 }}/{{ item.1 }}"
+  rescue:
+    - name: Fail with NFS export advice
+      ansible.builtin.fail:
+        msg: "{{ nfs_export_help_msg }}"
+
+- name: Create persistent folders for worker nodes (kubernetes, kubelet)
+  block:
+    - name: Create worker node folders
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item.0 }}/{{ item.1 }}"
+        state: directory
+        mode: "{{ folder_mode }}"
+        owner: root
+        group: root
+      loop: "{{ worker_ips | product(worker_components) | list }}"
+      loop_control:
+        label: "{{ item.0 }}/{{ item.1 }}"
+  rescue:
+    - name: Fail with NFS export advice
+      ansible.builtin.fail:
+        msg: "{{ nfs_export_help_msg }}"

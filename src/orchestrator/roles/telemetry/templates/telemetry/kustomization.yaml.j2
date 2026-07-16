@@ -1,0 +1,96 @@
+resources:
+  - telemetry_secret_creation.yaml
+{% if victoria_metrics_support | default(false) %}
+# victoria_metrics Resources (Metrics Only)
+  - victoria-vmagent-rbac.yaml
+{% if victoria_cluster.tls_enabled | default(false) %}
+  # TLS secret for Victoria components (shared by metrics and logs)
+  - victoria-tls-secret.yaml
+{% endif %}
+  # victoria_metrics Operator-based Deployment (mode: {{ victoria_deployment_mode }})
+{% if victoria_deployment_mode == 'cluster' %}
+  # Cluster Mode: VMCluster CR (operator manages StatefulSets)
+  - victoria-operator-vmcluster.yaml
+{% else %}
+  # Single-Node Mode: VMSingle CR (operator manages StatefulSet)
+  - victoria-operator-vmsingle.yaml
+{% endif %}
+  # VMAgent CR (operator-managed scraper for metrics)
+  - victoria-operator-vmagent.yaml
+  # VMScrape CR (native operator-based service/pod discovery for metrics)
+  - victoria-operator-vmscrape.yaml
+{% endif %}
+{% if powerscale_volume_health_enabled | default(false) and telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+  # CSI Volume Exporter - PowerScale PV status metrics
+  - csi-volume-exporter.yaml
+{% endif %}
+{% if victoria_logs_support | default(false) %}
+# victoria_logs Resources (Logs Only)
+{% if victoria_cluster.tls_enabled | default(false) and not (victoria_metrics_support | default(false)) %}
+  # TLS secret for Victoria components (only if not already included by victoria_metrics)
+  - victoria-tls-secret.yaml
+{% endif %}
+  # victoria_logs Cluster Mode: VLCluster CR (operator manages vlstorage StatefulSet, vlinsert/vlselect Deployments)
+  # VLAgent CR (operator-managed log collection agent)
+  # VLAgent ConfigMap (syslog receiver and remoteWrite configuration)
+  - victorialogs-operator-vlcluster.yaml
+  - victorialogs-operator-vlagent.yaml
+  - victorialogs-vlagent-config.yaml
+{% endif %}
+{% if kafka_support %}
+# Kafka Resources
+  - kafka.kafka.yaml
+  - kafka.kafkapump_user.yaml
+{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
+  - kafka.topic_idrac.yaml
+{% endif %}
+{% if telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) %}
+  - kafka.topic_ldms.yaml
+{% endif %}
+  - kafka.kafka_bridge.yaml
+  - kafka.kafka_bridge_lb.yaml
+  # Uncomment to deploy TLS test job
+  # - test/kafka.tls_test_job.yaml
+{% endif %}
+{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) %}
+# iDRAC Telemetry Resources
+  - activemq-config.yaml
+  - idrac_telemetry_statefulset.yaml
+  - telemetry_cleaner_rbac.yaml
+  - telemetry_pod_cleanup.yaml
+{% endif %}
+{% if telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) %}
+# UFM InfiniBand Telemetry Resources
+  - ufm-telemetry-secret.yaml
+  - ufm-external-service.yaml
+{% endif %}
+{% if telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) %}
+# VAST Data Storage Telemetry Resources
+  - vast-telemetry-secret.yaml
+  - vast-external-service.yaml
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) and ldms_support | default(false) and kafka_support | default(false) and victoria_metrics_support | default(false) %}
+# Vector-LDMS Bridge Resources (Kafka-to-VictoriaMetrics pipeline)
+  - vector/vmagent-vector-deployment.yaml
+  - vector/vmagent-vector-service.yaml
+  - vector/vector-ldms-configmap.yaml
+  - vector/vector-ldms-deployment.yaml
+  - vector/vector-ldms-service.yaml
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) and victoria_logs_support | default(false) %}
+# vlagent-vector: Log write-buffer for Vector-OME (Kafka-to-VictoriaLogs pipeline)
+  - vector/vlagent-vector-deployment.yaml
+  - vector/vlagent-vector-service.yaml
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) and victoria_metrics_support | default(false) and not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) and ldms_support | default(false) and kafka_support | default(false) and victoria_metrics_support | default(false)) %}
+# vmagent-vector: Metric write-buffer for Vector-OME (Kafka-to-VictoriaMetrics pipeline)
+  - vector/vmagent-vector-deployment.yaml
+  - vector/vmagent-vector-service.yaml
+{% endif %}
+{% if (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) or telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false)) and kafka_support | default(false) %}
+# Vector-OME Bridge Resources (Kafka-to-Victoria pipeline for OME data)
+  - vector/vector-ome-kafkauser.yaml
+  - vector/vector-ome-configmap.yaml
+  - vector/vector-ome-deployment.yaml
+  - vector/vector-ome-service.yaml
+{% endif %}

@@ -1,0 +1,167 @@
+#!/bin/bash
+# Generic container image download script (SIF format) - Pulp only
+# Deployed via NFS share for all nodes
+# Reads container images from container_image.list file and downloads them as SIF files
+# Downloads from Pulp mirror only (no internet fallback)
+# Usage: download_container_image.sh
+
+LOGFILE="/var/log/container_image_download.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTAINER_IMAGE_LIST="${SCRIPT_DIR}/container_image.list"
+DOWNLOAD_DIR="/hpc_tools/container_images"
+PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+
+echo "===== Starting Container Image Download Script (Pulp Only) ====="
+echo "[INFO] Timestamp: $(date)"
+
+# Check if Apptainer is installed
+echo "[INFO] Checking Apptainer installation..."
+if ! command -v apptainer &>/dev/null; then
+    echo "[ERROR] Apptainer is not installed. Please install Apptainer first."
+    exit 1
+fi
+echo "[SUCCESS] Apptainer is installed."
+apptainer --version
+
+# Check if container image list file exists
+if [ ! -f "$CONTAINER_IMAGE_LIST" ]; then
+    echo "[ERROR] Container image list file not found: $CONTAINER_IMAGE_LIST"
+    echo "[INFO] Please create the file with one image URI per line."
+    echo "[INFO] Example format: nvcr.io/nvidia/hpc-benchmarks:25.09"
+    exit 1
+fi
+
+# Navigate to download directory
+mkdir -p "$DOWNLOAD_DIR"
+
+echo "[INFO] Download directory: $DOWNLOAD_DIR"
+
+if [ ! -d "$DOWNLOAD_DIR" ]; then
+    echo "[ERROR] Download directory does not exist: $DOWNLOAD_DIR"
+    exit 1
+fi
+
+cd "$DOWNLOAD_DIR" || {
+    echo "[ERROR] Failed to change directory to $DOWNLOAD_DIR"
+    exit 1
+}
+
+# Clear pull log at start of run
+echo "===== Container Image Pull Log =====" > /var/log/apptainer_pull.log
+echo "Started: $(date)" >> /var/log/apptainer_pull.log
+
+echo "[INFO] Processing images from list file: $CONTAINER_IMAGE_LIST"
+
+TOTAL_IMAGES=0
+SUCCESS_COUNT=0
+FAILED_COUNT=0
+FAILED_IMAGES=""
+
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip empty lines and comments
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    
+    # Trim whitespace
+    line=$(echo "$line" | xargs)
+    
+    # Add docker:// prefix if not present
+    if [[ ! "$line" =~ ^docker:// ]]; then
+        CONTAINER_REGISTRY="docker://$line"
+    else
+        CONTAINER_REGISTRY="$line"
+    fi
+    
+    # Auto-generate SIF filename from image URI
+    TAG=$(echo "$CONTAINER_REGISTRY" | grep -oP '(?<=:)[^:]+$' || echo "latest")
+    IMAGE_NAME=$(echo "$CONTAINER_REGISTRY" | sed 's|docker://||' | rev | cut -d'/' -f1 | rev | cut -d':' -f1)
+    CONTAINER_IMAGE="${IMAGE_NAME}_${TAG}.sif"
+    
+    ((TOTAL_IMAGES++))
+    
+    echo ""
+    echo "===== Processing Image $TOTAL_IMAGES: $line ====="
+    echo "[INFO] Image URI: $CONTAINER_REGISTRY"
+    echo "[INFO] Output file: $CONTAINER_IMAGE"
+    echo "[INFO] Destination: $DOWNLOAD_DIR/$CONTAINER_IMAGE"
+    
+    # Pull container image from Pulp mirror only
+    echo "[INFO] Pulling container image from Pulp mirror..."
+    echo "[INFO] Pulp mirror: $PULP_SERVER"
+
+    if [ -f "$DOWNLOAD_DIR/$CONTAINER_IMAGE" ]; then
+        echo "[WARN] Container image already exists: $CONTAINER_IMAGE"
+        echo "[INFO] Skipping download. Remove the file to re-download."
+        ((SUCCESS_COUNT++))
+    else
+        # Append separator and timestamp to pull log
+        echo "" >> /var/log/apptainer_pull.log
+        echo "========================================" >> /var/log/apptainer_pull.log
+        echo "Image: $line" >> /var/log/apptainer_pull.log
+        echo "Timestamp: $(date)" >> /var/log/apptainer_pull.log
+        echo "========================================" >> /var/log/apptainer_pull.log
+
+        # Extract registry and path from image URI
+        # e.g., docker://nvcr.io/nvidia/hpc-benchmarks:25.09 -> nvcr.io/nvidia/hpc-benchmarks:25.09
+        IMAGE_PATH="${CONTAINER_REGISTRY#docker://}"
+
+        # Strip registry prefix (e.g., nvcr.io/, ghcr.io/, docker.io/) for Pulp URL
+        # Pulp stores images without the registry prefix
+        # e.g., nvcr.io/nvidia/hpc-benchmarks:25.09 -> nvidia/hpc-benchmarks:25.09
+        IMAGE_PATH_NO_REGISTRY=$(echo "$IMAGE_PATH" | sed 's|^[^/]*/||')
+
+        # Construct Pulp mirror URL (without registry prefix)
+        PULP_IMAGE="docker://${PULP_SERVER}/${IMAGE_PATH_NO_REGISTRY}"
+
+        echo "[INFO] Pulling from Pulp mirror..."
+        echo "[INFO] Pulp URL: $PULP_IMAGE"
+
+        # Pull from Pulp only
+        echo "Trying: PULP ($PULP_IMAGE)" >> /var/log/apptainer_pull.log
+        echo "[INFO] Starting pull (this may take several minutes for large images)..."
+
+        # Use timeout to prevent hanging (30 minutes)
+        timeout 1800 apptainer pull --disable-cache --name "$CONTAINER_IMAGE" --dir "$DOWNLOAD_DIR" --tmpdir "$DOWNLOAD_DIR" "$PULP_IMAGE" 2>&1 | tee -a /var/log/apptainer_pull.log
+        PULL_EXIT_CODE=$?
+
+        # Check the actual exit code from timeout command
+        if [ $PULL_EXIT_CODE -eq 124 ]; then
+            echo "[ERROR] Pull timed out after 30 minutes."
+            echo "[INFO] Large images may require more time. Try pulling manually or increase timeout."
+            echo "Result: TIMEOUT" >> /var/log/apptainer_pull.log
+            ((FAILED_COUNT++))
+            FAILED_IMAGES="${FAILED_IMAGES}\n  - ${line} (TIMEOUT)"
+        elif [ $PULL_EXIT_CODE -eq 0 ] && [ -f "$CONTAINER_IMAGE" ]; then
+            echo "[SUCCESS] Container image pulled successfully from Pulp mirror"
+            echo "[SOURCE] Downloaded from: PULP MIRROR ($PULP_SERVER)"
+            echo "Result: SUCCESS (PULP)" >> /var/log/apptainer_pull.log
+            ls -lh "$CONTAINER_IMAGE"
+            ((SUCCESS_COUNT++))
+        else
+            echo "[ERROR] Failed to pull container image from Pulp mirror (exit code: $PULL_EXIT_CODE)."
+            echo "[INFO] Image may not be available in Pulp or download was interrupted."
+            echo "Result: FAILED" >> /var/log/apptainer_pull.log
+            ((FAILED_COUNT++))
+            FAILED_IMAGES="${FAILED_IMAGES}\n  - ${line}"
+        fi
+    fi
+done < "$CONTAINER_IMAGE_LIST"
+
+echo ""
+echo "===== Container Image Download Summary ====="
+echo "[INFO] Total images processed: $TOTAL_IMAGES"
+echo "[INFO] Successful downloads: $SUCCESS_COUNT"
+echo "[INFO] Failed downloads: $FAILED_COUNT"
+
+if [ $FAILED_COUNT -gt 0 ]; then
+    echo -e "[ERROR] Failed images:$FAILED_IMAGES"
+    EXIT_CODE=1
+else
+    EXIT_CODE=0
+fi
+
+echo ""
+echo "===== Container Image Download Completed ====="
+exit ${EXIT_CODE:-0}

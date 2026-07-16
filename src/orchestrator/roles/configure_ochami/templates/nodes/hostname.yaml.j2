@@ -1,0 +1,4 @@
+{% for item in nodes | sort(attribute='value.XNAME') %}
+- id: {{ item.value.XNAME }}
+  local-hostname: {{ item.value.HOSTNAME }}.{{ hostvars['localhost']['domain_name'] }}
+{% endfor %}

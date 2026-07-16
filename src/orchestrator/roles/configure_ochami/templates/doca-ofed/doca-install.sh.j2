@@ -1,0 +1,85 @@
+#!/bin/bash
+set -euo pipefail
+
+# Optimize firewall ports declaration later
+DOCA_FIREWALL_PORTS=(
+  "18515-18520/tcp"
+  "18515-18520/udp"
+  "18515/tcp"
+  "18515/udp"
+)
+
+echo "Checking for Mellanox / ConnectX / InfiniBand card..."
+
+if ! lspci | grep -i 'mellanox'; then
+    echo "No Mellanox RDMA hardware detected. Skipping DOCA-OFED installation."
+    exit 0
+fi
+
+echo "Mellanox RDMA hardware detected. Proceeding with DOCA-OFED installation."
+
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *)
+        echo "Unsupported architecture: ${sys_arch}"
+        exit 1
+        ;;
+esac
+
+echo "Check if kernel-devel package is present"
+if rpm -q kernel-devel-$(uname -r) >/dev/null 2>&1; then
+    echo "kernel-devel package is already installed."
+else
+    echo "kernel-devel package is not installed. Installing..."
+    dnf install -y kernel-devel-$(uname -r)
+fi
+
+echo "Check if kernel-headers package is present"
+if rpm -q kernel-headers-$(uname -r) >/dev/null 2>&1; then
+    echo "kernel-headers package is already installed."
+else
+    echo "kernel-headers package is not installed. Installing..."
+    dnf install -y kernel-headers-$(uname -r)
+fi
+
+echo "Installing doca-ofed..."
+if rpm -q doca-ofed >/dev/null 2>&1; then
+    echo "doca-ofed package is already installed."
+else
+    echo "doca-ofed package is not installed. Installing..."
+    dnf install -y doca-ofed
+fi
+
+# NOTE: Removed module unload/reload sequence - DKMS handles module installation automatically
+# The modprobe commands were causing module dependency issues and are not needed
+# DOCA DKMS installation automatically handles kernel module replacement
+
+# NOTE: Remove MLNX OFED kernel modules to preserve standard RDMA compatibility
+# This ensures rpcrdma and other standard RDMA functionality works correctly
+echo "Removing MLNX OFED kernel modules to ensure standard RDMA compatibility"
+if dkms status mlnx-ofa_kernel/25.10 -k $(uname -r) >/dev/null 2>&1; then
+    dkms uninstall mlnx-ofa_kernel/25.10 -k $(uname -r) || true
+    dkms remove mlnx-ofa_kernel/25.10 --all || true
+    depmod -a
+    echo "MLNX OFED kernel modules removed successfully, standard kernel modules restored"
+else
+    echo "MLNX OFED kernel modules not found, skipping removal"
+fi
+
+if command -v firewall-cmd &>/dev/null; then
+    echo "Adding firewall ports..."
+
+    for port in "${DOCA_FIREWALL_PORTS[@]}"; do
+        firewall-cmd --zone=public --add-port="$port" --permanent || true
+    done
+
+    firewall-cmd --reload || true
+else
+    echo "firewalld not running. Skipping firewall configuration."
+fi
+
+echo "DOCA-OFED installation completed successfully."
+
+ 

@@ -1,0 +1,6 @@
+- label: {{ common_group_name }}
+  members:
+    ids:
+{% for item in nodes | sort(attribute='value.XNAME') %}
+      - {{ item.value.XNAME }}
+{% endfor %}

@@ -1,0 +1,16 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: {{ topic_name }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    strimzi.io/cluster: "kafka"
+spec:
+{% if topic_partitions is defined %}
+  partitions: {{ topic_partitions }}
+{% else %}
+  partitions: {{ kafka_topic_partitions[topic_key] }}
+{% endif %}
+  replicas: 2
+  config:
+    cleanup.policy: delete

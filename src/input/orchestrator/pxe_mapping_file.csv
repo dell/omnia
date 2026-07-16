@@ -1,0 +1,4 @@
+FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
+# Copy the discovery output (bmc_pxe_mapping_file.csv) here before running orchestrator.yml
+# Example:
+# slurm_node_aarch64,grp0,ABC1234,,nid00001,AA:BB:CC:DD:EE:01,172.16.0.1,AA:BB:CC:DD:EE:02,10.5.0.1,InfiniBand.Slot.7-1,192.168.0.1

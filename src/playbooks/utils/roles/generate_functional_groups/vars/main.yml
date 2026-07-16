@@ -13,6 +13,7 @@
 #  limitations under the License.
 ---
 
-provision_config_file: "provision_config.yml"
+provision_config_file: "{{ orchestrator_config_file | default('provision_config.yml') }}"
 omnia_config_file: "omnia_config.yml"
+omnia_config_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] | default(input_project_dir) }}"
 functional_groups_config_path: "/opt/omnia/.data/functional_groups_config.yml"

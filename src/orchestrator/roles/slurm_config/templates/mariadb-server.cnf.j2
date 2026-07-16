@@ -1,0 +1,9 @@
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+log-error=/var/log/mariadb/mariadb.log
+pid-file=/run/mariadb/mariadb.pid
+
+# SlurmDBD recommended settings
+innodb_buffer_pool_size={{ innodb_buffer_pool_size }}
+innodb_lock_wait_timeout={{ innodb_lock_wait_timeout }}

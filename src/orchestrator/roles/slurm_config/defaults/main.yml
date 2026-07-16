@@ -1,0 +1,99 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+slurm_db_port_default: 3306
+slurm_db_type_default: mariadb
+slurm_db_username_default: root
+slurmctld_service_default_path: '/usr/lib/systemd/system/slurmctld.service'
+slurmd_service_default_path: '/usr/lib/systemd/system/slurmd.service'
+slurmdbd_service_default_path: '/usr/lib/systemd/system/slurmdbd.service'
+sys_env_path: '/etc/environment'
+default_real_memory: 864
+default_threadspercore: 1
+default_corespersocket: 72
+default_sockets: 2
+share_prefix: "/"
+conf_path_items: {}
+conf_dict_items: {}
+
+__default_config:
+  cgroup:
+    CgroupPlugin: autodetect
+    ConstrainCores: 'yes'
+    ConstrainDevices: 'yes'
+    ConstrainRAMSpace: 'yes'
+    ConstrainSwapSpace: 'yes'
+  slurm:
+    SlurmUser: "{{ slurm_user }}"
+    SlurmctldPort: 6817
+    SlurmdPort: 6818
+    SrunPortRange: "60001-63000"
+    StateSaveLocation: "/var/spool/slurmctld"
+    SlurmdSpoolDir: "/var/spool/slurmd"
+    SlurmctldParameters: "{{ slurm_ctld_parameters | join(',') }}"
+    ReturnToService: 2
+    SchedulerType: sched/backfill
+    MpiDefault: none
+    TaskPlugin: task/cgroup
+    ProctrackType: proctrack/cgroup
+    PrologFlags: contain
+    JobAcctGatherType: jobacct_gather/linux
+    JobAcctGatherFrequency: 30
+    SelectType: select/cons_tres
+    GresTypes: gpu
+    SelectTypeParameters: CR_Core_Memory
+    SlurmdParameters: l3cache_as_socket # Requires hwloc v2.
+    SlurmctldLogFile: "/var/log/slurm/slurmctld.log"
+    SlurmdLogFile: "/var/log/slurm/slurmd.log"
+    SlurmctldPidFile: /var/run/slurmctld.pid
+    SlurmdPidFile: /var/run/slurmd.pid
+    AuthType: auth/munge
+    CredType: cred/munge
+    SlurmctldTimeout: 120
+    SlurmdTimeout: 300
+    Epilog: "/etc/slurm/epilog.d/logout_user.sh"
+    PluginDir: "{{ plugin_slurm_dir }}"
+    MaxNodeCount: 65000
+    NodeSet:
+      - NodeSet: "{{ slurm_partition_name }}"
+        Feature: "{{ slurm_partition_name }}"
+    NodeName:
+      - NodeName: DEFAULT
+        State: UNKNOWN
+    PartitionName:
+      - PartitionName: DEFAULT
+        Nodes: ALL
+        MaxTime: INFINITE
+        State: UP
+  slurmdbd:
+    AuthType: auth/munge
+    LogFile: "/var/log/slurm/slurmdbd.log"
+    PidFile: /var/run/slurmdbd.pid
+    SlurmUser: "{{ slurm_user }}"
+    StorageType: accounting_storage/mysql
+    StorageLoc: slurm_acct_db
+    StoragePort: "{{ slurm_db_port }}"
+    StorageUser: "{{ slurm_dbd_db_username }}"
+    StoragePass: "{{ slurm_db_password }}"
+    PluginDir: "{{ plugin_slurm_dir }}"
+    DbdPort: "{{ slurm_dbd_port }}"
+  gres:
+    AutoDetect: nvml
+  acct_gather: {}
+  helpers: {}
+  job_container: {}
+  mpi: {}
+  oci: {}
+  topology: {}
+  burst_buffer: {}

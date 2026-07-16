@@ -1,0 +1,162 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Configure S3 access on the OIM for boot image storage.
+#
+# This task bridges orchestrator_config.yml S3 settings into the two
+# structures that the rest of the playbook expects:
+#
+#   1. s3_configurations  (dict with provider + endpoint_url)
+#      → used by BSS template (bss.yaml.j2) to construct PXE boot HTTP URLs
+#      → used by deploy_openchami to decide MinIO vs PowerScale backend
+#
+#   2. s3_access_id / s3_secret_key  (string facts)
+#      → used by deploy_openchami for MinIO credentials and s3cfg generation
+#
+#   3. /root/.s3cfg on OIM
+#      → used by s3cmd during image validation (validate_image.yml)
+#
+# Provider modes:
+#   "minio"      → local MinIO on OIM; endpoint auto-derived from cluster_boot_ip:9000
+#   "powerscale" → external Dell PowerScale; s3_endpoint required
+#   "external"   → any remote S3-compatible endpoint; s3_endpoint required
+
+- name: Load orchestrator config for S3 settings
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_config.yml"
+    name: _orch_s3_config
+  failed_when: false
+
+- name: Set S3 working facts from orchestrator config
+  ansible.builtin.set_fact:
+    _s3_provider: "{{ _orch_s3_config.s3_storage_provider | default('minio') | lower }}"
+    _s3_endpoint: "{{ _orch_s3_config.s3_endpoint | default('') }}"
+    _s3_access_key: "{{ _orch_s3_config.s3_access_key | default('') }}"
+    _s3_secret_key: "{{ _orch_s3_config.s3_secret_key | default('') }}"
+    _s3_bucket: "{{ _orch_s3_config.s3_boot_images_bucket | default('boot-images') }}"
+    _s3_verify_ssl: "{{ _orch_s3_config.s3_verify_ssl | default(false) | bool }}"
+
+# -------------------------------------------------------------------
+# Bridge: set s3_configurations fact (consumed by BSS template + deploy_openchami)
+# -------------------------------------------------------------------
+
+- name: Set s3_configurations for local MinIO
+  ansible.builtin.set_fact:
+    s3_configurations:
+      provider: "minio"
+      endpoint_url: ""
+  when: _s3_provider == 'minio'
+
+- name: Set s3_configurations for PowerScale
+  ansible.builtin.set_fact:
+    s3_configurations:
+      provider: "powerscale"
+      endpoint_url: "{{ _s3_endpoint }}"
+  when: _s3_provider == 'powerscale'
+
+- name: Set s3_configurations for external S3
+  ansible.builtin.set_fact:
+    s3_configurations:
+      provider: "external"
+      endpoint_url: "{{ _s3_endpoint }}"
+  when: _s3_provider == 'external'
+
+# Bridge: set s3_access_id / s3_secret_key (consumed by deploy_openchami)
+- name: Set S3 credential facts for deploy_openchami
+  ansible.builtin.set_fact:
+    s3_access_id: "{{ _s3_access_key | default('admin', true) }}"
+    s3_secret_key: "{{ _s3_secret_key }}"
+  no_log: true
+  delegate_to: localhost
+  delegate_facts: true
+
+# -------------------------------------------------------------------
+# Configure s3cmd on OIM for external endpoint
+# -------------------------------------------------------------------
+- name: Configure s3cmd for external S3 endpoint
+  when: _s3_provider in ['powerscale', 'external']
+  block:
+    - name: Validate external S3 endpoint is provided
+      ansible.builtin.fail:
+        msg: >-
+          s3_storage_provider is '{{ _s3_provider }}' but s3_endpoint is empty.
+          Set s3_endpoint in orchestrator_config.yml to the S3 endpoint URL.
+      when: _s3_endpoint | length == 0
+
+    - name: Install s3cmd if not present
+      ansible.builtin.dnf:
+        name: s3cmd
+        state: present
+
+    - name: Derive S3 host_base from endpoint URL
+      ansible.builtin.set_fact:
+        _s3_host_base: "{{ _s3_endpoint | regex_replace('^https?://', '') }}"
+        _s3_use_https: "{{ _s3_endpoint.startswith('https') }}"
+
+    - name: Write /root/.s3cfg with orchestrator S3 settings
+      ansible.builtin.copy:
+        dest: /root/.s3cfg
+        mode: "0600"
+        content: |
+          [default]
+          access_key = {{ _s3_access_key }}
+          secret_key = {{ _s3_secret_key }}
+          host_base = {{ _s3_host_base }}
+          host_bucket = {{ _s3_host_base }}
+          use_https = {{ 'True' if _s3_use_https else 'False' }}
+          check_ssl_certificate = {{ 'True' if _s3_verify_ssl else 'False' }}
+          check_ssl_hostname = {{ 'True' if _s3_verify_ssl else 'False' }}
+          signature_v2 = False
+          bucket_location = us-east-1
+          human_readable_sizes = True
+          multipart_chunk_size_mb = 50
+      no_log: true
+
+    - name: Verify S3 connectivity
+      ansible.builtin.command: s3cmd ls s3://{{ _s3_bucket }}
+      register: _s3_verify_result
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if S3 endpoint is unreachable
+      ansible.builtin.fail:
+        msg: >-
+          Cannot access S3 bucket 's3://{{ _s3_bucket }}' at endpoint '{{ _s3_endpoint }}'.
+          Verify s3_endpoint, s3_access_key, and s3_secret_key in orchestrator_config.yml.
+          Error: {{ _s3_verify_result.stderr | default('unknown') }}
+      when: _s3_verify_result.rc != 0
+
+    - name: Display S3 connectivity status
+      ansible.builtin.debug:
+        msg: "S3 endpoint '{{ _s3_endpoint }}' is reachable. Bucket 's3://{{ _s3_bucket }}' accessible."
+
+# -------------------------------------------------------------------
+# Verify local s3cmd for MinIO provider
+# -------------------------------------------------------------------
+- name: Verify local s3cmd when MinIO provider is configured
+  when: _s3_provider == 'minio'
+  block:
+    - name: Verify s3cmd is available (local MinIO from deploy_openchami)
+      ansible.builtin.command: s3cmd ls
+      register: _s3_local_check
+      changed_when: false
+      failed_when: false
+
+    - name: Warn if local s3cmd is not configured
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: s3_storage_provider is 'minio' but local s3cmd returned
+          rc={{ _s3_local_check.rc }}. This is expected if deploy_openchami
+          has not yet run. Image validation may fail if s3cmd is not configured.
+      when: _s3_local_check.rc != 0

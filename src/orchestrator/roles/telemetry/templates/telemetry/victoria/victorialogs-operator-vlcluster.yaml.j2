@@ -1,0 +1,279 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# VLCluster - VictoriaLogs cluster deployment via operator
+# Managed by victoria-metrics-operator (>= v0.59.0)
+
+apiVersion: operator.victoriametrics.com/v1
+kind: VLCluster
+metadata:
+  name: victoria-logs-cluster
+  namespace: {{ telemetry_namespace }}
+spec:
+  # Single image version for all cluster components
+  # Operator determines component role (vlstorage, vlinsert, vlselect) internally
+  clusterVersion: {{ victoria_logs_cluster.vlstorage.image.split(':')[1] }}
+
+  # ========================
+  # vlstorage — Persistent log storage (StatefulSet, 3 replicas)
+  # ========================
+  vlstorage:
+    replicaCount: {{ victoria_logs_cluster.vlstorage.replicas }}
+    replicationFactor: 2  # Data redundancy: each log written to 2 of 3 nodes
+    image:
+      repository: {{ victoria_logs_cluster.vlstorage.image.split(':')[0] }}
+      tag: {{ victoria_logs_cluster.vlstorage.image.split(':')[1] }}
+      pullPolicy: IfNotPresent
+
+    # Graceful shutdown - gives storage engine time to flush data and clean up lock files
+    terminationGracePeriodSeconds: {{ victoria_logs_cluster.vlstorage.termination_grace_period }}
+
+    # Init container to remove stale lock files after node reboot
+    initContainers:
+      - name: remove-stale-locks
+        image: "{{ telemetry_images['docker.io/library/busybox'] | default('docker.io/library/busybox:1.36') }}"
+        command: ["sh", "-c", "rm -f /vlstorage-data/flock.lock || true"]
+        volumeMounts:
+          - name: vlstorage-db
+            mountPath: /vlstorage-data
+
+    # Ports are managed by operator defaults (9491, 9400, 9401)
+
+    storageDataPath: /vlstorage-data
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ telemetry_config.telemetry_sinks.victoria_logs.storage_size }}
+
+    # Resource limits - Guaranteed QoS to prevent OOM on reconnection
+    resources:
+      requests:
+        memory: {{ victoria_logs_cluster.vlstorage.resources.requests.memory }}
+        cpu: {{ victoria_logs_cluster.vlstorage.resources.requests.cpu }}
+      limits:
+        memory: {{ victoria_logs_cluster.vlstorage.resources.limits.memory }}
+        cpu: {{ victoria_logs_cluster.vlstorage.resources.limits.cpu }}
+
+    # Startup probe - gives pod up to 300s to initialize (30 x 10s)
+    startupProbe:
+      httpGet:
+        path: /health
+        port: 9491
+        scheme: HTTPS
+      initialDelaySeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.initial_delay }}
+      periodSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.period }}
+      failureThreshold: {{ victoria_logs_cluster.vlstorage.startup_probe.failure_threshold }}
+      timeoutSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.timeout }}
+{% if victoria_logs_cluster.tls_enabled %}
+      tlsConfig:
+        insecureSkipVerify: true
+{% endif %}
+
+    # Readiness probe - increased tolerance for WAL replay
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 9491
+        scheme: HTTPS
+      initialDelaySeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.initial_delay }}
+      periodSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.period }}
+      failureThreshold: {{ victoria_logs_cluster.vlstorage.readiness_probe.failure_threshold }}
+      timeoutSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.timeout }}
+{% if victoria_logs_cluster.tls_enabled %}
+      tlsConfig:
+        insecureSkipVerify: true
+{% endif %}
+
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - vlstorage
+              topologyKey: "kubernetes.io/hostname"
+
+    tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: {{ victoria_logs_cluster.vlstorage.toleration_seconds }}
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: {{ victoria_logs_cluster.vlstorage.toleration_seconds }}
+
+    extraArgs:
+      retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoria_logs.retention_period }}h"
+{% if victoria_logs_cluster.tls_enabled %}
+      tls: "true"
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+{% endif %}
+{% if victoria_logs_cluster.tls_enabled %}
+
+    volumes:
+      - name: victoria-tls-certs
+        secret:
+          secretName: victoria-tls-certs
+          items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: ca.crt
+    volumeMounts:
+      - name: victoria-tls-certs
+        mountPath: /etc/victoria/certs
+        readOnly: true
+{% endif %}
+
+  # ========================
+  # vlinsert — Log ingestion gateway (Deployment, 2 replicas)
+  # ========================
+  vlinsert:
+    replicaCount: {{ victoria_logs_cluster.vlinsert.replicas }}
+    image:
+      repository: {{ victoria_logs_cluster.vlinsert.image.split(':')[0] }}
+      tag: {{ victoria_logs_cluster.vlinsert.image.split(':')[1] }}
+      pullPolicy: IfNotPresent
+
+    # Ports are managed by operator defaults (9481)
+
+    resources:
+      requests:
+        memory: {{ victoria_logs_cluster.vlinsert.resources.requests.memory }}
+        cpu: {{ victoria_logs_cluster.vlinsert.resources.requests.cpu }}
+      limits:
+        memory: {{ victoria_logs_cluster.vlinsert.resources.limits.memory }}
+        cpu: {{ victoria_logs_cluster.vlinsert.resources.limits.cpu }}
+
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - vlinsert
+              topologyKey: "kubernetes.io/hostname"
+{% if victoria_logs_cluster.tls_enabled %}
+
+    extraArgs:
+      tls: "true"
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+      storageNode.tls: "true"
+      storageNode.tlsCAFile: "/etc/victoria/certs/ca.crt"
+#      storageNode.tlsInsecureSkipVerify: "true"
+
+    volumes:
+      - name: victoria-tls-certs
+        secret:
+          secretName: victoria-tls-certs
+          items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: ca.crt
+    volumeMounts:
+      - name: victoria-tls-certs
+        mountPath: /etc/victoria/certs
+        readOnly: true
+{% endif %}
+{% if victoria_logs_cluster.vlinsert.external_access %}
+
+    serviceSpec:
+      useAsDefault: true
+      spec:
+        type: LoadBalancer
+{% endif %}
+
+  # ========================
+  # vlselect — Log query gateway (Deployment, 2 replicas)
+  # ========================
+  vlselect:
+    replicaCount: {{ victoria_logs_cluster.vlselect.replicas }}
+    image:
+      repository: {{ victoria_logs_cluster.vlselect.image.split(':')[0] }}
+      tag: {{ victoria_logs_cluster.vlselect.image.split(':')[1] }}
+      pullPolicy: IfNotPresent
+
+    # Ports are managed by operator defaults (9471)
+
+    serviceSpec:
+      useAsDefault: true
+      spec:
+        type: LoadBalancer
+
+    resources:
+      requests:
+        memory: {{ victoria_logs_cluster.vlselect.resources.requests.memory }}
+        cpu: {{ victoria_logs_cluster.vlselect.resources.requests.cpu }}
+      limits:
+        memory: {{ victoria_logs_cluster.vlselect.resources.limits.memory }}
+        cpu: {{ victoria_logs_cluster.vlselect.resources.limits.cpu }}
+
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - vlselect
+              topologyKey: "kubernetes.io/hostname"
+{% if victoria_logs_cluster.tls_enabled %}
+
+    extraArgs:
+      tls: "true"
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+      storageNode.tls: "true"
+      storageNode.tlsCAFile: "/etc/victoria/certs/ca.crt"
+      storageNode.tlsInsecureSkipVerify: "true"
+
+    volumes:
+      - name: victoria-tls-certs
+        secret:
+          secretName: victoria-tls-certs
+          items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: ca.crt
+    volumeMounts:
+      - name: victoria-tls-certs
+        mountPath: /etc/victoria/certs
+        readOnly: true
+{% endif %}

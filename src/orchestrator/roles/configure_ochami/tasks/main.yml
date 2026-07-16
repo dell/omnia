@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Refresh SMD access token before ochami operations
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/openchami_auth.yml"
+  vars:
+    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+- name: Configure the ochami
+  environment: "{{ hostvars['oim']['ochami_env'] }}"
+  block:
+    - name: Create groups
+      ansible.builtin.include_tasks: create_groups.yml
+      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
+
+    - name: Fecth image of additional_packages.json file
+      ansible.builtin.include_tasks: fetch_additional_images.yml
+
+    - name: Create groups common
+      ansible.builtin.include_tasks: create_groups_common.yml
+      loop: "{{ common_cloud_init_groups }}"
+
+    - name: Validate additional cloud-init configuration
+      ansible.builtin.include_tasks: validate_additional_cloud_init.yml
+
+    - name: Create SMD group for additional_cloud_init common
+      ansible.builtin.include_tasks: create_groups_common.yml
+      loop:
+        - "{{ additional_cloud_init_common_group_name }}"
+      when: additional_cloud_init_common_enabled | default(false) | bool
+
+    - name: Create SMD groups for per-FG additional cloud-init
+      ansible.builtin.include_tasks: create_groups_additional_fg.yml
+      with_items: "{{ additional_cloud_init_fg_names | default([]) }}"
+      when: additional_cloud_init_groups_enabled | default(false) | bool
+
+    - name: Configure bss and cloud-init
+      ansible.builtin.include_tasks: configure_bss_cloud_init.yml
+
+    - name: Orchestration completion
+      ansible.builtin.include_tasks: orchestration_completion.yml

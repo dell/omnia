@@ -1,0 +1,63 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Get current OIM timezone
+  ansible.builtin.command: >
+    timedatectl show -p Timezone --value
+  register: current_oim_tz_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Read OIM metadata file
+  ansible.builtin.slurp:
+    path: "{{ oim_metadata_file_path }}"
+  register: oim_metadata_raw
+  failed_when: false
+
+- name: Parse OIM metadata YAML
+  ansible.builtin.set_fact:
+    oim_metadata: >-
+      {{ (oim_metadata_raw.content | default('') | b64decode | from_yaml)
+         if oim_metadata_raw is defined and oim_metadata_raw.content is defined
+         else {} }}
+
+- name: Extract stored and current OIM timezone
+  ansible.builtin.set_fact:
+    stored_oim_timezone: "{{ oim_metadata.oim_timezone | default('') }}"
+    current_oim_timezone: "{{ current_oim_tz_cmd.stdout | default('') }}"
+
+- name: Handle OIM timezone change
+  when:
+    - stored_oim_timezone | length > 0
+    - current_oim_timezone | length > 0
+    - (stored_oim_timezone | trim | lower)
+      != (current_oim_timezone | trim | lower)
+  block:
+    - name: Warn if OIM timezone changed after omnia_core deployment
+      ansible.builtin.pause:
+        seconds: "{{ pause_time_15 }}"
+        prompt: "{{ oim_timezone_changed_warning_msg }}"
+
+    - name: Update OIM metadata timezone if changed
+      ansible.builtin.lineinfile:
+        path: "{{ oim_metadata_file_path }}"
+        regexp: '^oim_timezone:'
+        line: "oim_timezone: {{ current_oim_timezone | trim }}"
+        create: false
+
+- name: Update OIM metadata vars
+  ansible.builtin.include_vars: "{{ oim_metadata_file_path }}"
+  register: include_oim_metadata
+  no_log: true

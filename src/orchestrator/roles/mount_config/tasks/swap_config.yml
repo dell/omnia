@@ -1,0 +1,44 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# Process swap configurations from storage_config.yml and add to cloud_init_groups_dict
+# Swap entries are converted to cloud-init swap module format: {filename, size, maxsize}
+
+- name: Process swap configurations
+  when: swap is defined and swap | length > 0
+  block:
+    - name: Initialize swap entries in cloud_init_groups_dict for all functional groups
+      ansible.builtin.set_fact:
+        cloud_init_groups_dict: >-
+          {{
+            cloud_init_groups_dict | combine({
+              item: (cloud_init_groups_dict[item] | default({}) | combine({
+                'swap': {}
+              }, recursive=True))
+            }, recursive=True)
+          }}
+      loop: "{{ cloud_init_groups_dict.keys() | list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Process each swap entry
+      ansible.builtin.include_tasks: process_single_swap.yml
+      loop: "{{ swap }}"
+      loop_control:
+        loop_var: swap_item
+        label: "{{ swap_item.filename | default('unnamed') }}"
+
+    - name: Debug cloud_init_groups_dict swap entries
+      ansible.builtin.debug:
+        msg: "Swap configuration added to cloud_init_groups_dict"

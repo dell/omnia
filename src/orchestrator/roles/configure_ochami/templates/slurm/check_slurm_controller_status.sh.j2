@@ -1,0 +1,38 @@
+#!/bin/bash
+CONTROLLER_IP="{{ hostvars['oim']['controller_ip'] }}"
+MARKER="/var/log/track/slurm_controller_track"
+SERVICE_FILE="/usr/lib/systemd/system/slurmd.service"
+
+echo "Reading slurm controller port from $SERVICE_FILE ..."
+EXEC_LINE=$(grep -E "^ExecStart=" "$SERVICE_FILE")
+CONTROLLER_PORT=$(echo "$EXEC_LINE" | grep -oP '(?<=--conf-server\s)[^ ]+' | cut -d':' -f2)
+
+if [[ -z "$CONTROLLER_PORT" ]]; then
+    echo "WARNING: Could not parse port from service file. Defaulting to 6817."
+    CONTROLLER_PORT=6817
+fi
+
+echo "Controller port identified as $CONTROLLER_PORT"
+echo "Waiting for slurm controller to be reachable..."
+
+while true; do
+    if ping -c1 -W1 "$CONTROLLER_IP" &>/dev/null && \
+      bash -c "cat < /dev/tcp/$CONTROLLER_IP/$CONTROLLER_PORT" &>/dev/null; then
+        echo "Slurm controller reachable and port $CONTROLLER_PORT is open."
+        break
+    else
+        echo "Controller not ready. Retrying in 5 seconds..."
+        sleep 5
+    fi
+done
+
+echo "Waiting for marker file: $MARKER"
+while true; do
+    if [ -f "$MARKER" ]; then
+        echo "Marker file found. Proceeding."
+        break
+    else
+        echo "Marker file not found. Retrying in 5 seconds..."
+        sleep 5
+    fi
+done

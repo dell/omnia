@@ -58,6 +58,7 @@ def validate_input_logic(
     # Based on the file_name, run validation function
     validation_functions = {
         "provision_config.yml": provision_validation.validate_provision_config,
+        "orchestrator_config.yml": provision_validation.validate_orchestrator_config,
         "software_config.json": common_validation.validate_software_config,
         "network_spec.yml": provision_validation.validate_network_spec,
         "omnia_config.yml": common_validation.validate_omnia_config,

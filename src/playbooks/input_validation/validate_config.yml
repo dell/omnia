@@ -19,6 +19,7 @@
   tags: &common_tags
     - scheduler
     - provision
+    - orchestrator
     - security
     - local_repo
     - compute_k8s

@@ -1,0 +1,84 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+
+# Orchestrator Configuration (formerly provision_config.yml)
+
+# Path to the PXE mapping file produced by the discovery domain.
+# This is the primary data contract between discovery and orchestrator.
+# Copy the discovery output to this path before running orchestrator.yml.
+pxe_mapping_file_path: "/opt/omnia/input/project_default/pxe_mapping_file.csv"
+
+# Language setting for provisioned nodes
+language: "en_US.UTF-8"
+
+# Default DHCP lease time (seconds)
+default_lease_time: 86400
+
+# Enable DNS configuration via CoreDNS
+dns_enabled: false
+
+# Override kernel version for boot images.
+# Leave empty to auto-select the latest available image.
+kernel_version_override: ""
+
+# Path to additional cloud-init configuration file (optional)
+additional_cloud_init_config_file: ""
+
+# -----------------------------------------------------------------------
+# S3 Image Storage Configuration
+# -----------------------------------------------------------------------
+# These settings tell the orchestrator where to find the OS boot images
+# that were built by the build_image pipeline (or uploaded manually).
+#
+# The orchestrator uses S3 in two ways:
+#   1. Image validation: s3cmd queries the bucket to verify kernel/initrd exist
+#   2. PXE boot URLs:    BSS tells nodes to HTTP-fetch kernel/initrd/rootfs
+#                         from this endpoint at boot time
+#
+# Storage provider options:
+#   "minio"      - Use MinIO deployed locally on OIM by OpenCHAMI (default)
+#                   s3_endpoint can be left empty; auto-derived from cluster_boot_ip:9000
+#   "powerscale" - Use Dell PowerScale as external S3 storage
+#                   s3_endpoint is required (e.g. "https://10.43.1.11:9021")
+#   "external"   - Any other S3-compatible endpoint (e.g. remote MinIO on build server)
+#                   s3_endpoint is required (e.g. "http://10.5.0.100:9000")
+s3_storage_provider: "minio"
+
+# S3-compatible endpoint URL where boot images are stored.
+# Required when s3_storage_provider is "powerscale" or "external".
+# Leave empty for "minio" (auto-configured to http://<cluster_boot_ip>:9000).
+# Examples:
+#   "http://10.5.0.100:9000"              (remote MinIO on build server)
+#   "https://powerscale.example.com:9021"  (Dell PowerScale)
+s3_endpoint: ""
+
+# S3 access key (username for MinIO, access key ID for AWS/PowerScale)
+s3_access_key: ""
+
+# S3 secret key (password for MinIO, secret access key for AWS/PowerScale)
+s3_secret_key: ""
+
+# S3 bucket name containing boot images.
+# Default: "boot-images" (standard OpenCHAMI bucket name)
+s3_boot_images_bucket: "boot-images"
+
+# Whether to verify SSL certificates when connecting to S3.
+# Set to false for self-signed certificates (common with PowerScale).
+s3_verify_ssl: false

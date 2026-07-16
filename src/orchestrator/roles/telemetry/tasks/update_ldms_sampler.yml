@@ -1,0 +1,45 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Create LDMS directory in NFS share path
+  ansible.builtin.file:
+    path: "{{ share_path }}/ldms/samplers"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ common_mode }}"
+
+- name: Copy LDMS sampler configuration files to NFS share
+  ansible.builtin.template:
+    src: "telemetry/ldms/sampler.conf.j2"
+    dest: "{{ share_path }}/ldms/samplers/sampler.conf"
+    owner: root
+    group: root
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+
+- name: Load ldmsauth.conf to ldms dir
+  ansible.builtin.template:
+    src: "telemetry/ldms/ldmsauth.conf.j2"
+    dest: "{{ share_path }}/ldms/samplers/ldmsauth.conf"
+    owner: root
+    group: root
+    mode: "{{ hostvars['localhost']['file_permissions_600'] }}"
+
+- name: Copy ldmsd.sampler.env to LDMS samplers directory
+  ansible.builtin.template:
+    src: "telemetry/ldms/ldmsd.sampler.env.j2"
+    dest: "{{ share_path }}/ldms/samplers/ldmsd.sampler.env"
+    owner: root
+    group: root
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
