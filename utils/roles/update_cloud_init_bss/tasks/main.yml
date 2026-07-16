@@ -73,7 +73,6 @@
           ansible.builtin.command: /usr/bin/ochami cloud-init service status
           register: ci_preflight_check
           changed_when: false
-          failed_when: false
           retries: "{{ ochami_recheck_retries }}"
           delay: "{{ ochami_recheck_delay }}"
           until: ci_preflight_check.rc == 0
