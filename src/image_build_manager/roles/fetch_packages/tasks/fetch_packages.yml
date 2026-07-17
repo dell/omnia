@@ -1,0 +1,79 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Fetch {{ build_arch }} default_packages.json and additional_packages.json software packages
+  block:
+    - name: Collect base image RPM packages (default + additional + admin_debug)
+      base_image_package_collector:
+        default_json_path: "{{ default_json_path }}"
+        additional_json_path: "{{ additional_json_path | default('') }}"
+        admin_debug_json_path: "{{ admin_debug_json_path | default('') }}"
+        software_config_path: "{{ software_config_file_path }}"
+      register: base_image_output
+
+    - name: Set base_image_packages for {{ build_arch }}
+      ansible.builtin.set_fact:
+        base_image_packages: "{{ base_image_output.base_image_packages }}"
+
+    - name: Debug package base_image_packages
+      ansible.builtin.debug:
+        var: base_image_packages
+        verbosity: 2
+
+    - name: Parse functional_group_config.yml to list
+      functional_group_parser:
+        functional_groups_file: "{{ functional_groups_file_path }}"
+      register: functional_group_parser_list
+      when: not enable_build_stream
+
+    - name: Set fact for functional_group_list
+      ansible.builtin.set_fact:
+        functional_group_list: "{{ functional_group_parser_list.functional_groups }}"
+      when: not enable_build_stream
+
+    - name: Debug full functional group parser output
+      ansible.builtin.debug:
+        var: functional_group_list
+        verbosity: 2
+
+    - name: Read packages for compute image softwares
+      image_package_collector:
+        functional_groups: "{{ functional_group_list }}"
+        software_config_file: "{{ software_config_file_path }}"
+        input_project_dir: "{{ input_project_dir }}"
+        additional_json_path: "{{ additional_json_path }}"
+      register: compute_images_output
+
+    - name: Save packages for {{ build_arch }} keys in compute_images_dict
+      ansible.builtin.set_fact:
+        compute_images_dict: >-
+          {{
+            compute_images_output.compute_images_dict
+            | dict2items
+            | selectattr('key', 'search', '_' + build_arch + '$')
+            | items2dict
+          }}
+
+    - name: Extract service_k8s_version from software_config.json
+      ansible.builtin.set_fact:
+        service_k8s_version: >-
+          {{ (lookup('file', software_config_file_path) | from_json).softwares
+             | selectattr('name', 'equalto', 'service_k8s')
+             | map(attribute='version') | first | default('') }}
+
+    - name: Debug software directory compute_images_dict
+      ansible.builtin.debug:
+        var: compute_images_dict
+        verbosity: 2

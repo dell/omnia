@@ -1,0 +1,78 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# SAMPLE: repo_status.yml — repo_manager output contract
+# ============================================================================
+# Location (NFS):
+#   /opt/omnia/output/repo_manager/repo_status.yml
+#
+# Producer: repo_manager domain (repo_manager.yml)
+# Consumer: image_build_manager domain (image_build_manager.yml Step 4)
+#
+# image_build_manager pre-check validates:
+#   1. File exists at repo_manager_output path
+#   2. overall_status == "success"
+#   3. rpm_repos contains valid URLs for the target architectures
+#   4. repo_manager section contains certificate and port
+# ============================================================================
+overall_status: "success"
+
+# Base URLs for other content types
+tarball_base_url: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/tarballs/"
+manifest_base_url: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/manifests/"
+pip_base_url: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/pip/"
+git_base_url: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/git/"
+
+repo_manager:
+  port: 2225
+  certificates:
+    server_crt: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+    server_key: "/opt/omnia/pulp/settings/certs/pulp_webserver.key"
+    certs_dir: "/opt/omnia/pulp/settings/certs"
+
+# RPM Repository Base URLs
+rpm_repos:
+  x86_64:
+    # Base RHEL Repositories
+    baseos: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_baseos/"
+    appstream: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_appstream/"
+    codeready_builder: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_codeready-builder/"
+    # Additional Repositories
+    epel: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_epel/"
+    doca: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_doca/"
+    # Additional repos from production
+    omnia-additional: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_omnia-additional/"
+    nvidia-hpc-sdk: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_nvidia-hpc-sdk/"
+    cuda: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cuda/"
+    cri-o-v1-35: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cri-o-v1-35/"
+    kubernetes-v1-35: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_kubernetes-v1-35/"
+    docker-ce: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_docker-ce/"
+    cri-o: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cri-o/"
+    kubernetes: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_kubernetes/"
+  aarch64:
+    # Base RHEL Repositories
+    baseos: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_baseos/"
+    appstream: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_appstream/"
+    codeready_builder: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_codeready-builder/"
+    # Additional Repositories
+    epel: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_epel/"
+    doca: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_doca/"
+
+# User-Defined Repositories (from local_repo_config.yml)
+user_repos:
+  x86_64:
+    slurm_custom: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_slurm_custom/"
+  aarch64:
+    slurm_custom: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_slurm_custom/"

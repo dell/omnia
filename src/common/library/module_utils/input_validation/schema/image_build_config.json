@@ -1,0 +1,71 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "image_build_config",
+    "description": "Schema for image_build_config.yml — consolidated configuration for the image_build_manager domain.",
+    "type": "object",
+    "properties": {
+        "s3_configurations": {
+            "type": "object",
+            "description": "S3 storage backend configuration for OS image storage.",
+            "properties": {
+                "provider": {
+                    "type": "string",
+                    "enum": ["minio", "powerscale"],
+                    "description": "S3 provider: 'minio' (deployed by image_build_manager) or 'powerscale' (external)."
+                },
+                "endpoint_url": {
+                    "type": "string",
+                    "description": "S3 endpoint URL. Required for 'powerscale' provider; auto-set for 'minio'."
+                }
+            },
+            "required": ["provider"],
+            "additionalProperties": false
+        },
+        "aarch64_inventory_host_ip": {
+            "type": "string",
+            "description": "IP address of the ARM admin node for aarch64 image builds. Leave empty to skip aarch64 builds.",
+            "pattern": "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        },
+        "aarch64_ssh_user": {
+            "type": "string",
+            "description": "SSH user for connecting to the ARM build host.",
+            "default": "root",
+            "minLength": 1,
+            "maxLength": 64
+        },
+        "repo_manager_output_path": {
+            "type": "string",
+            "description": "Path to repo_manager output file (repo_status.yml). Default: {{ output_project_dir }}/repo_manager/repo_status.yml"
+        },
+        "build_image": {
+            "type": "object",
+            "description": "Build image async job settings.",
+            "properties": {
+                "job_async": {
+                    "type": "integer",
+                    "description": "Max async wait for image build (seconds).",
+                    "minimum": 600,
+                    "maximum": 86400,
+                    "default": 7200
+                },
+                "job_retry": {
+                    "type": "integer",
+                    "description": "Max retries for async status check.",
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "default": 240
+                },
+                "job_delay": {
+                    "type": "integer",
+                    "description": "Delay between async status checks (seconds).",
+                    "minimum": 5,
+                    "maximum": 300,
+                    "default": 30
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["s3_configurations"],
+    "additionalProperties": false
+}

@@ -26,3 +26,9 @@ credential_files:
     file_mode: 600
     vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
     condition: "{{ enable_build_stream | default(false) | bool }}"
+  - credential_type: "Image Build"
+    template: "{{ role_path }}/templates/image_build_credential.j2"
+    file_path: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+    file_mode: 600
+    vault_path: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
+    condition: true

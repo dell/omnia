@@ -25,6 +25,11 @@ credential_files:
     condition: "{{ enable_build_stream | default(false) | bool }}"
     mode: 600
     template: "{{ role_path }}/../create_config/templates/build_stream_credential.j2"
+  - credential_type: "Image Build"
+    file_path: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+    vault_path: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
+    condition: true
+    template: "{{ role_path }}/../create_config/templates/image_build_credential.j2"
 
 # Usage: fetch_mandatory_credentials.yml
 mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty. Please provide valid inputs."
@@ -73,11 +78,7 @@ omnia_credentials:
       - { username: docker_username, password: docker_password }
     mandatory:
       - { password: pulp_password }
-      - { password: s3_secret_key }
     conditional_mandatory:
-      # PowerScale S3 Access Key -- only prompted when storage provider is 'powerscale'
-      - username: s3_access_id
-        condition: "{{ s3_configurations.provider == 'powerscale' }}"
       - username: build_stream_auth_username
         password: build_stream_auth_password
         condition: "{{ enable_build_stream | default(false) | bool }}"
@@ -114,6 +115,16 @@ omnia_credentials:
   build_aarch_image:
     mandatory:
       - { password: provision_password }
+  image_build_manager:
+    mandatory:
+      - password: s3_secret_key
+        file: "{{ credential_files[2].file_path }}"
+      - password: provision_password
+        file: "{{ credential_files[2].file_path }}"
+    conditional_mandatory:
+      - username: s3_access_id
+        condition: "{{ s3_configurations.provider | default('minio') == 'powerscale' }}"
+        file: "{{ credential_files[2].file_path }}"
   ldms:
     mandatory:
       - { password: ldms_sampler_password }

@@ -1,0 +1,173 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Set compute image suffix when build stream inputs present
+  ansible.builtin.set_fact:
+    compute_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
+  when:
+    - enable_build_stream | bool
+    - (build_stream_job_id | default('') | length) > 0
+    - (image_key | default('') | length) > 0
+
+- name: Ensure log directory exists
+  ansible.builtin.file:
+    path: "{{ oim_shared_path }}/omnia/log/openchami"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+
+- name: Create aarch64 compute image log files
+  ansible.builtin.file:
+    path: "{{ oim_shared_path }}/omnia/log/openchami/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
+    state: touch
+    mode: "{{ dir_permissions_644 }}"
+  loop: "{{ compute_images_dict | dict2items }}"
+  loop_control:
+    loop_var: item
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+
+- name: Render compute image build configs
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
+    dest: "{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml"
+    mode: "{{ dir_permissions_644 }}"
+  vars:
+    _fg_k8s_sfx: "{{ (item.key is match('service_kube_')) | ternary(k8s_suffix, '') }}"
+    rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ _fg_k8s_sfx }}{{ compute_image_suffix }}"
+    group_name: "{{ item.key }}"
+    compute_packages: "{{ item.value.packages }}"
+    functional_group: "{{ item.value.functional_group }}"
+  loop: "{{ compute_images_dict | dict2items }}"
+  loop_control:
+    loop_var: item
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+
+- name: Build aarch64 compute osimages in parallel
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      podman run --rm --device /dev/fuse --network host \
+        -e S3_ACCESS={{ s3_access }} -e S3_SECRET={{ s3_secret }} \
+        {{ aws_checksum_env }} --user 0 --privileged \
+        -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z \
+        -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z \
+        {{ ochami_image | join(' ') }} \
+        {{ ochami_base_command | join(' ') }} \
+        > '{{ oim_shared_path }}/omnia/log/openchami/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
+  async: "{{ job_async }}"
+  poll: 0
+  loop: "{{ compute_images_dict | dict2items }}"
+  loop_control:
+    loop_var: item
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+  register: compute_image_build_job
+  changed_when: true
+
+- name: Wait for all compute image builds to finish
+  block:
+    - name: Display image build jobs status
+      ansible.builtin.debug:
+        msg: "Waiting for image build: {{ item.item.key }} (Job ID: {{ item.ansible_job_id }})"
+      loop: "{{ compute_image_build_job.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Wait for all compute image builds to complete
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+      register: job_result
+      until: job_result.finished
+      no_log: true
+      retries: "{{ job_retry }}"
+      delay: "{{ job_delay }}"
+      loop: "{{ compute_image_build_job.results }}"
+      loop_control:
+        label: "Building: {{ item.item.key }}"
+
+    - name: Verify aarch64 compute osimages in registry
+      ansible.builtin.command:
+        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ oim_node_name }}.{{ domain_name }}:5000"
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+      changed_when: false
+      register: verify_compute_osimages
+
+    - name: Verify aarch64 compute osimages output
+      ansible.builtin.debug:
+        msg: "{{ verify_compute_osimages.stdout_lines }}"
+
+  rescue:
+    - name: Identify failed image builds
+      ansible.builtin.set_fact:
+        failed_images: >
+          {{ job_result.results
+          | selectattr('failed', 'defined')
+          | selectattr('failed', 'equalto', true)
+          | map(attribute='item.item.key')
+          | list }}
+      when: job_result.results is defined
+
+    - name: Build failure message list
+      ansible.builtin.set_fact:
+        failure_msg_list:
+          - "aarch64 compute image build job did not complete successfully."
+          - "Check logs at {{ oim_shared_path }}/omnia/log/openchami on OIM host for respective functional group for more details."
+          - ""
+          - "Failed images:"
+
+    - name: Add failed image names to message
+      ansible.builtin.set_fact:
+        failure_msg_list: "{{ failure_msg_list + ['  - ' + item] }}"
+      loop: "{{ failed_images | default(['Unknown - check all logs']) }}"
+
+    - name: Add log paths section to message
+      ansible.builtin.set_fact:
+        failure_msg_list: "{{ failure_msg_list + ['', 'Check logs at ' + oim_shared_path + '/omnia/log/openchami on OIM host for details:'] }}"
+
+    - name: Add log file paths to message
+      ansible.builtin.set_fact:
+        failure_msg_list: "{{ failure_msg_list + ['  - ' + oim_shared_path + '/omnia/log/openchami/' + item + log_suffix + '_compute_image.log'] }}"
+      vars:
+        log_suffix: "{{ compute_image_suffix }}"
+      loop: "{{ failed_images | default([]) }}"
+
+    - name: Display aarch64 compute image build failure details
+      ansible.builtin.debug:
+        msg: "{{ failure_msg_list }}"
+
+    - name: Failed to build the aarch64 compute image
+      ansible.builtin.fail:
+        msg: "aarch64 compute image build failed. See details above."
+
+  always:
+    - name: Set openchami SELinux context for Local flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ oim_shared_path }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: omnia_share_option == 'Local'
+
+    - name: Set openchami SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ nfs_server_share_path }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: omnia_share_option == 'NFS' and nfs_type | default('') == 'internal'

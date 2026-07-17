@@ -1,0 +1,33 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load functional_group_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ functional_groups_config_path }}"
+    name: functional_group_cfg
+
+- name: Check for {{ build_arch }} functional groups
+  ansible.builtin.set_fact:
+    fg_present: >-
+      {{ functional_group_cfg.functional_groups
+         | selectattr('name', 'search', '_' + build_arch + '$')
+         | list
+         | length > 0 }}
+    cacheable: true
+
+- name: Fail if {{ build_arch }} functional groups are not present
+  ansible.builtin.fail:
+    msg: "{{ functional_group_absent_msg.splitlines() | join(' ') }}"
+  when: not fg_present

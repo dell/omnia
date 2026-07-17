@@ -298,21 +298,14 @@ validate_container_image() {
         echo -e "${YELLOW}Required image:${NC} omnia_core:$target_container_tag"
         echo ""
         echo -e "${YELLOW}Omnia does not pull images from Docker Hub.${NC}"
-        echo -e "${YELLOW}You must build or load the container image locally before proceeding.${NC}"
+        echo -e "${YELLOW}You must build the container image locally before proceeding.${NC}"
         echo ""
-        echo -e "${BLUE}Build the required image using the following commands:${NC}"
+        echo -e "${BLUE}Build the required image using:${NC}"
         echo ""
-        echo -e "git clone https://github.com/dell/omnia-artifactory.git -b omnia-container-<version>"
-        echo -e "${YELLOW}Note: Replace <version> with the target Omnia version (e.g., v2.2.0.0)${NC}"
-        echo ""
-        echo -e "cd omnia-artifactory"
-        echo ""
-        echo -e "./build_images.sh core core_tag=<tag> omnia_branch=<branch>"
-        echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.2.0.0)${NC}"
-        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.2 for v2.2.0.0)${NC}"
+        echo -e "   ${BLUE}./omnia.sh --build${NC}"
         echo ""
         echo -e "${BLUE}After the image is built successfully, re-run:${NC}"
-        echo -e "./omnia.sh --$operation"
+        echo -e "   ${BLUE}./omnia.sh --$operation${NC}"
         echo ""
         echo -e "${RED}================================================================================${NC}"
         return 1
@@ -1202,7 +1195,15 @@ EOF
 
     # Get version from git tag or use default
     local metadata_version=$(get_metadata_version "$omnia_release")
-    
+
+    # Prompt for admin NIC IP (primary non-loopback IP of the OIM host)
+    local admin_nic_ip
+    read -p "Enter the admin NIC IP address of the OIM host: " admin_nic_ip
+    while [ -z "$admin_nic_ip" ]; do
+        echo -e "${RED} Admin NIC IP cannot be empty.${NC}"
+        read -p "Enter the admin NIC IP address of the OIM host: " admin_nic_ip
+    done
+
     if [ ! -f "$oim_metadata_file" ]; then
         echo -e "${GREEN} Creating oim_metadata file${NC}"
         {
@@ -1215,6 +1216,7 @@ EOF
             echo "oim_timezone: $oim_timezone"
             echo "omnia_core_hashed_passwd: $hashed_passwd"
             echo "omnia_share_option: $share_option"
+            echo "admin_nic_ip: $admin_nic_ip"
         } >> "$oim_metadata_file"
         if [ "$share_option" = "NFS" ]; then
             {
@@ -1229,6 +1231,10 @@ EOF
             sed -i "s/^omnia_version:.*/omnia_version: $metadata_version/" "$oim_metadata_file" >/dev/null 2>&1 || true
         else
             echo "omnia_version: $metadata_version" >> "$oim_metadata_file"
+        fi
+        # Only add admin_nic_ip if missing (do not refresh on re-runs)
+        if ! grep -q '^admin_nic_ip:' "$oim_metadata_file"; then
+            echo "admin_nic_ip: $admin_nic_ip" >> "$oim_metadata_file"
         fi
     fi
 
@@ -1299,6 +1305,21 @@ post_setup_config() {
     cp -r /omnia/input/* /opt/omnia/input/project_default
     rm -rf /omnia/input
     rm -rf /omnia/omnia.sh"
+
+    # Copy image_build_manager input files to project_default/image_build_manager/ subdir
+    # NOTE: Credential files are NOT copied here — they are loaded dynamically
+    # by the credential utility at runtime.
+    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
+    podman exec -u root omnia_core bash -c "
+    if [ -d /omnia/image_build_manager/input ]; then
+        mkdir -p /opt/omnia/input/project_default/image_build_manager
+        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
+    fi"
+
+    # Create the output directory for project_default
+    echo -e "${GREEN} Creating the output directory.${NC}"
+    podman exec -u root omnia_core bash -c "
+    mkdir -p /opt/omnia/output/project_default"
 }
 
 validate_nfs_server() {
@@ -1402,12 +1423,53 @@ start_container_session() {
     ssh omnia_core
 }
 
+# Function to build Omnia core container image
+build_omnia_core_image() {
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local build_script="$script_dir/containers/build_images.sh"
+
+    if [ ! -f "$build_script" ]; then
+        echo -e "${RED}ERROR: Build script not found: $build_script${NC}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}Building Omnia core container image...${NC}"
+    echo -e "${BLUE}Build script: $build_script${NC}"
+    echo ""
+
+    # Execute the build script
+    bash "$build_script" core
+    local build_exit_code=$?
+
+    if [ $build_exit_code -eq 0 ]; then
+        echo ""
+        echo -e "${GREEN}================================================================================${NC}"
+        echo -e "${GREEN}                    BUILD COMPLETED SUCCESSFULLY${NC}"
+        echo -e "${GREEN}================================================================================${NC}"
+        echo ""
+        echo -e "${GREEN}✓ Omnia core container image built successfully${NC}"
+        echo -e "${GREEN}✓ You can now run: ./omnia.sh --install${NC}"
+        echo ""
+    else
+        echo ""
+        echo -e "${RED}================================================================================${NC}"
+        echo -e "${RED}                    BUILD FAILED${NC}"
+        echo -e "${RED}================================================================================${NC}"
+        echo ""
+        echo -e "${RED}Build script exited with error code: $build_exit_code${NC}"
+        echo ""
+        exit $build_exit_code
+    fi
+}
+
 show_help() {
-    echo "Usage: $0 [--install | --uninstall | --upgrade | --rollback | --version | --help]"
+    echo "Usage: $0 [--install | --uninstall | --upgrade | --rollback | --build | --version | --help]"
     echo "  -i, --install     Install and start the Omnia core container"
     echo "  -u, --uninstall   Uninstall the Omnia core container and clean up configuration"
     echo "      --upgrade     Upgrade the Omnia core container to newer version"
     echo "      --rollback    Rollback the Omnia core container to previous version"
+    echo "  -b, --build       Build the Omnia core container image"
     echo "  -v, --version     Display Omnia version information"
     echo "  -h, --help        More information about usage"
 }
@@ -2857,6 +2919,9 @@ main() {
             ;;
         --rollback)
             rollback_omnia_core
+            ;;
+        --build|-b)
+            build_omnia_core_image
             ;;
         --version|-v)
             display_version

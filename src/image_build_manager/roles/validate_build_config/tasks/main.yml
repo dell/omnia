@@ -1,0 +1,87 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_build_config/tasks/main.yml — Validate image_build_manager domain inputs.
+# Called by build_image_x86_64.yml and build_image_aarch64.yml after loading configs.
+
+- name: Validate S3 provider
+  ansible.builtin.assert:
+    that:
+      - s3_configurations is defined
+      - s3_configurations.provider is defined
+      - s3_configurations.provider in ['minio', 'powerscale']
+    fail_msg: >
+      {{ validate_s3_provider_fail_msg }}
+    quiet: true
+
+- name: Set fixed S3 bucket names (NOT user-modifiable)
+  ansible.builtin.set_fact:
+    s3_boot_bucket: "{{ s3_boot_images_bucket }}"
+    s3_efi_bucket: "{{ s3_efi_images_bucket }}"
+
+- name: Run PowerScale S3 endpoint validation
+  ansible.builtin.include_tasks: powerscale_check.yml
+
+- name: Validate software_config.json exists
+  ansible.builtin.stat:
+    path: "{{ software_config_file_path }}"
+  register: sw_config_file
+
+- name: Fail if software_config.json not found
+  ansible.builtin.fail:
+    msg: "{{ validate_software_config_fail_msg }}"
+  when: not sw_config_file.stat.exists
+
+- name: Validate JSON syntax of software_config.json
+  ansible.builtin.command: "jq . {{ software_config_file_path }}"
+  register: json_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if software_config.json has invalid JSON
+  ansible.builtin.fail:
+    msg: |
+      JSON validation failed for software_config.json.
+      File: {{ software_config_file_path }}
+      {{ json_check.stderr | default('Unknown jq error') }}
+      Please fix the JSON syntax.
+  when: json_check.rc | default(1) != 0
+
+- name: Validate functional groups config exists
+  ansible.builtin.stat:
+    path: "{{ functional_groups_file_path }}"
+  register: fg_config_file
+
+- name: Fail if functional_groups_config.yml not found
+  ansible.builtin.fail:
+    msg: "{{ validate_fg_config_fail_msg }}"
+  when:
+    - not fg_config_file.stat.exists
+    - enable_build_stream | default(false) | bool
+
+- name: Validate aarch64 host IP (if aarch64 build requested)
+  ansible.builtin.assert:
+    that:
+      - aarch64_inventory_host_ip | default('') | length > 0
+    fail_msg: "{{ validate_aarch64_host_fail_msg }}"
+    quiet: true
+  when: build_arch | default('x86_64') == 'aarch64'
+
+- name: Validate repo_status.yml was loaded (pre-check passed)
+  ansible.builtin.assert:
+    that:
+      - overall_status | default('') == 'synced'
+    fail_msg: "{{ validate_repo_status_fail_msg }}"
+    quiet: true
+  when: validate_repo_precheck | default(false) | bool

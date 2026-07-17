@@ -15,6 +15,7 @@
 
 # Usage: main.yml
 omnia_input_dir: /opt/omnia/input
+omnia_output_dir: /opt/omnia/output
 omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
 omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
 omnia_input_config_syntax_fail_msg: |
