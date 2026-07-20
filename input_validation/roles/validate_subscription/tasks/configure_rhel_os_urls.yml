@@ -84,7 +84,7 @@
         sub_rhel_x86_64_urls: []
         sub_rhel_aarch64_urls: []
         sub_policy_default: "{{ sw_config.repo_config | default('on_demand') }}"
-        sub_caching_default: true
+        sub_caching_default: "{{ false if (sw_config.repo_config | default('on_demand')) == 'always' else true }}"
         sub_x86_64_override_config: "{{ local_config.rhel_subscription_repo_config_x86_64 | default([]) }}"
         sub_aarch64_override_config: "{{ local_config.rhel_subscription_repo_config_aarch64 | default([]) }}"
 

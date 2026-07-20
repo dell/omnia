@@ -865,10 +865,18 @@ def process_sync_results(sync_results, rpm_config, resync_repos, log):
     """
     Process sync results and determine which repos need publication/distribution.
 
+    This function handles two scenarios:
+    1. Repos with version changes from current sync - need new publication/distribution
+    2. Repos that were synced previously but missing publication/distribution (crash recovery)
+       - This check is performed for ALL repos regardless of resync_repos setting
+       - Ensures that if a previous run synced repos A, B, C but failed before creating
+         pub/dist, a subsequent run (even with resync_repos=["D"]) will still create
+         the missing pub/dist for A, B, C
+
     Args:
         sync_results (list): Results from sync_rpm_repository (success, name, actually_synced, version_changed).
         rpm_config (list): List of repository configurations.
-        resync_repos (str/list): Controls which repos to process.
+        resync_repos (str/list): Controls which repos to sync (not which repos to check for pub/dist).
         log (logging.Logger): Logger instance.
 
     Returns:
@@ -882,112 +890,72 @@ def process_sync_results(sync_results, rpm_config, resync_repos, log):
     version_changed_repos = [name for success, name, actually_synced, version_changed in sync_results if success and actually_synced and version_changed]
     log.info(f"Repos with version change: {len(version_changed_repos)} - {version_changed_repos}")
 
-    # If no versions changed, check for missing publication/distribution
-    # This handles the crash recovery case: process failed after sync but before pub/dist
-    if not version_changed_repos:
-        log.info("No version changes detected. Checking for missing publication/distribution.")
-
-        # Check all synced repos (including previously synced) for missing pub/dist
-        repos_missing_pub_dist = []
-        all_repo_names = []
-        for repo in rpm_config:
-            repo_name = repo["package"]
-            version = repo.get("version")
-            if version and version != "null":
-                repo_name = f"{repo_name}_{version}"
-            all_repo_names.append(repo_name)
-
-            # If resync_repos is a specific list, only check those repos
-            if resync_repos and resync_repos != "all":
-                resync_list = resync_repos if isinstance(resync_repos, list) else [r.strip() for r in resync_repos.split(",")]
-                if repo_name not in resync_list:
-                    continue
-
-            pub_exists = check_publication_exists(repo_name, log)
-            dist_exists = check_distribution_exists(repo_name, log)
-
-            if not pub_exists or not dist_exists:
-                log.info(f"{repo_name} missing publication={not pub_exists}, distribution={not dist_exists}. Including for pub/dist creation.")
-                repo_copy = repo.copy()
-                repo_copy["_version_changed"] = False
-                repos_missing_pub_dist.append(repo_copy)
-
-        if repos_missing_pub_dist:
-            missing_names = [r["package"] for r in repos_missing_pub_dist]
-            log.info(f"Found {len(repos_missing_pub_dist)} repo(s) missing publication/distribution: {missing_names}")
-            return repos_missing_pub_dist, False, ""
-
-        # All repos have publication and distribution - safe to skip
-        log.info("All repos have existing publication and distribution. Skipping.")
-        if actually_synced_repos:
-            # Repos were synced but no metadata change
-            synced_list = ", ".join(actually_synced_repos)
-            skip_msg = f"Sync successful for {len(actually_synced_repos)} repo(s): {synced_list}. No metadata changes detected - existing publication/distribution retained"
-        else:
-            # No repos were synced at all (already up to date)
-            skip_msg = "All repositories already synced - no updates required"
-        return [], True, skip_msg
-
     repos_for_pub_dist = []
+    repos_for_pub_dist_names = set()  # Track names to avoid duplicates
 
-    if resync_repos == "all":
-        log.info("resync_repos='all' - Processing publication and distribution for repos with version change")
-        for repo in rpm_config:
-            repo_name = repo["package"]
-            version = repo.get("version")
-            if version and version != "null":
-                repo_name = f"{repo_name}_{version}"
-            # Only include repos with version change
-            if repo_name in version_changed_repos:
-                repo_copy = repo.copy()
-                repo_copy["_version_changed"] = True
-                repos_for_pub_dist.append(repo_copy)
+    # Step 1: Add repos with version changes (these definitely need new publication)
+    for repo in rpm_config:
+        repo_name = repo["package"]
+        version = repo.get("version")
+        if version and version != "null":
+            repo_name = f"{repo_name}_{version}"
+
+        if repo_name in version_changed_repos:
+            repo_copy = repo.copy()
+            repo_copy["_version_changed"] = True
+            repos_for_pub_dist.append(repo_copy)
+            repos_for_pub_dist_names.add(repo_name)
+            log.info(f"{repo_name} has version change. Including for pub/dist creation.")
+
+    # Step 2: Check ALL repos for missing publication/distribution (crash recovery)
+    # This is independent of resync_repos - we always want to ensure all synced repos
+    # have their publication/distribution created
+    log.info("Checking all repos for missing publication/distribution (crash recovery check).")
+
+    for repo in rpm_config:
+        repo_name = repo["package"]
+        version = repo.get("version")
+        if version and version != "null":
+            repo_name = f"{repo_name}_{version}"
+
+        # Skip if already added due to version change
+        if repo_name in repos_for_pub_dist_names:
+            continue
+
+        # Check if repo is synced (has content) but missing publication or distribution
+        # First verify the repo has been synced at least once (version > 0)
+        repo_version = get_repo_version(repo_name, log)
+        if repo_version == 0:
+            # Repo has never been synced, skip it
+            log.debug(f"{repo_name} has never been synced (version=0). Skipping pub/dist check.")
+            continue
+
+        pub_exists = check_publication_exists(repo_name, log)
+        dist_exists = check_distribution_exists(repo_name, log)
+
+        if not pub_exists or not dist_exists:
+            log.info(f"{repo_name} is synced (version={repo_version}) but missing publication={not pub_exists}, distribution={not dist_exists}. Including for pub/dist creation.")
+            repo_copy = repo.copy()
+            repo_copy["_version_changed"] = False  # No version change, just missing pub/dist
+            repos_for_pub_dist.append(repo_copy)
+            repos_for_pub_dist_names.add(repo_name)
+
+    # Determine if we should skip or process
+    if repos_for_pub_dist:
+        pub_dist_names = [r["package"] for r in repos_for_pub_dist]
+        log.info(f"Found {len(repos_for_pub_dist)} repo(s) needing publication/distribution: {pub_dist_names}")
         return repos_for_pub_dist, False, ""
+
+    # All repos have publication and distribution - safe to skip
+    log.info("All synced repos have existing publication and distribution. Skipping pub/dist creation.")
+    if actually_synced_repos:
+        # Repos were synced but no metadata change
+        synced_list = ", ".join(actually_synced_repos)
+        skip_msg = f"Sync successful for {len(actually_synced_repos)} repo(s): {synced_list}. No metadata changes detected - existing publication/distribution retained"
     else:
-        # If no repos were actually synced, check for missing pub/dist (crash recovery)
-        if not actually_synced_repos:
-            log.info("No repos were actually synced. Checking for missing publication/distribution.")
-            repos_missing_pub_dist = []
-            for repo in rpm_config:
-                repo_name = repo["package"]
-                version = repo.get("version")
-                if version and version != "null":
-                    repo_name = f"{repo_name}_{version}"
-
-                # If resync_repos is a specific list, only check those repos
-                if resync_repos and resync_repos != "all":
-                    resync_list = resync_repos if isinstance(resync_repos, list) else [r.strip() for r in resync_repos.split(",")]
-                    if repo_name not in resync_list:
-                        continue
-
-                pub_exists = check_publication_exists(repo_name, log)
-                dist_exists = check_distribution_exists(repo_name, log)
-
-                if not pub_exists or not dist_exists:
-                    log.info(f"{repo_name} missing publication={not pub_exists}, distribution={not dist_exists}. Including for pub/dist creation.")
-                    repo_copy = repo.copy()
-                    repo_copy["_version_changed"] = False
-                    repos_missing_pub_dist.append(repo_copy)
-
-            if repos_missing_pub_dist:
-                missing_names = [r["package"] for r in repos_missing_pub_dist]
-                log.info(f"Found {len(repos_missing_pub_dist)} repo(s) missing publication/distribution: {missing_names}")
-                return repos_missing_pub_dist, False, ""
-
-            log.info("All repos have existing publication and distribution. No updates required.")
-            return [], True, "All repositories already synced - no updates required"
-
-        # Filter rpm_config to only include repos with version change
-        for repo in rpm_config:
-            repo_name = repo["package"]
-            version = repo.get("version")
-            if version and version != "null":
-                repo_name = f"{repo_name}_{version}"
-            if repo_name in actually_synced_repos and repo_name in version_changed_repos:
-                repo_copy = repo.copy()
-                repo_copy["_version_changed"] = True
-                repos_for_pub_dist.append(repo_copy)
-        return repos_for_pub_dist, False, ""
+        # No repos were synced at all (already up to date)
+        skip_msg = "All repositories already synced - no updates required"
+    return [], True, skip_msg
 
 # ============================================================================
 # AGGREGATED REPOS FUNCTIONS

@@ -399,7 +399,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            caching_given = url_.get("caching", True)
+            caching_given = url_.get("caching", repo_config != "always")
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
@@ -444,7 +444,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            caching_given = url_.get("caching", True)
+            caching_given = url_.get("caching", repo_config != "always")
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
@@ -497,7 +497,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             url = repo.get("url", "")
             gpgkey = repo.get("gpgkey", "")
             policy_given = repo.get("policy", repo_config)
-            caching_given = repo.get("caching", True)
+            caching_given = repo.get("caching", repo_config != "always")
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
