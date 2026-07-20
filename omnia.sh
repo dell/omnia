@@ -853,6 +853,28 @@ init_container_config() {
         echo -e "${BLUE} Creating omnia shared path directory if it does not exist.${NC}"
         mkdir -p $omnia_path
 
+        # Remove any stale mount or fstab entry for omnia_path before reuse
+        echo -e "${BLUE} Checking for existing mount at $omnia_path.${NC}"
+        if mountpoint -q "$omnia_path" 2>/dev/null; then
+            echo -e "${YELLOW} Existing mount found at $omnia_path. Unmounting before reuse.${NC}"
+            if ! umount "$omnia_path" 2>/dev/null && ! umount -l "$omnia_path" 2>/dev/null; then
+                echo -e "${RED} Failed to unmount existing share at $omnia_path. Please unmount manually and retry.${NC}"
+                exit 1
+            fi
+        fi
+
+        fstab_file="/etc/fstab"
+        if [ -f "$fstab_file" ]; then
+            omnia_path_trimmed="${omnia_path%/}"
+            if awk -v mp="$omnia_path_trimmed" '$2 == mp {found=1} END {exit !found}' "$fstab_file"; then
+                echo -e "${YELLOW} Removing stale /etc/fstab entry for $omnia_path.${NC}"
+                if [ ! -f "$fstab_file.bak" ]; then
+                    cp "$fstab_file" "$fstab_file.bak"
+                fi
+                awk -v mp="$omnia_path_trimmed" '$2 != mp' "$fstab_file" > "${fstab_file}.tmp" && mv "${fstab_file}.tmp" "$fstab_file"
+            fi
+        fi
+
         # Mount NFS server share path in Omnia share path
         if [[ "$nfs_type" == "external" ]]; then
 
