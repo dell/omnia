@@ -21,24 +21,22 @@
 - name: Include include_high_availability_config vars
   ansible.builtin.include_vars: "{{ ha_config_file }}"
 
-- name: Set facts for service_k8s
+- name: Set facts for service_rke2_k8s_cluster
   ansible.builtin.set_fact:
-    cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
-    k8s_cni: "{{ service_k8s_cluster[0].k8s_cni }}"
-    pod_external_ip_range: "{{ service_k8s_cluster[0].pod_external_ip_range }}"
-    k8s_service_addresses: "{{ service_k8s_cluster[0].k8s_service_addresses }}"
-    k8s_pod_network_cidr: "{{ service_k8s_cluster[0].k8s_pod_network_cidr }}"
-    csi_powerscale_driver_secret_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_secret_file_path }}"
-    csi_powerscale_driver_values_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
-    nfs_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
-    k8s_crio_storage_size: "{{ service_k8s_cluster[0].k8s_crio_storage_size }}"
-    etcd_on_local_disk: "{{ service_k8s_cluster[0].etcd_on_local_disk | default(false) }}"
+    cluster_name: "{{ service_rke2_k8s_cluster[0].cluster_name }}"
+    k8s_distro: "rke2"
+    k8s_cni: "{{ service_rke2_k8s_cluster[0].k8s_cni }}"
+    pod_external_ip_range: "{{ service_rke2_k8s_cluster[0].pod_external_ip_range }}"
+    k8s_service_addresses: "{{ service_rke2_k8s_cluster[0].k8s_service_addresses }}"
+    k8s_pod_network_cidr: "{{ service_rke2_k8s_cluster[0].k8s_pod_network_cidr }}"
+    csi_powerscale_driver_secret_file_path: "{{ service_rke2_k8s_cluster[0].csi_powerscale_driver_secret_file_path }}"
+    csi_powerscale_driver_values_file_path: "{{ service_rke2_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
+    nfs_storage_name: "{{ service_rke2_k8s_cluster[0].nfs_storage_name }}"
 
 - name: Read the service_k8s mount point
   ansible.builtin.set_fact:
     k8s_client_mount_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).mount_point }}"
     k8s_nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source.split(':')[0] }}"
-    # k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
     k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
 
 - name: Ensure SSH key directory exists on K8s share
@@ -66,47 +64,7 @@
   ansible.builtin.set_fact:
     admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
 
-- name: Read PXE mapping to find control plane node subnet
-  community.general.read_csv:
-    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
-  register: pxe_data_for_cidr
-  delegate_to: localhost
-  connection: local
-  run_once: true
-
-- name: Determine Calico CIDRs from all K8s node subnets
-  ansible.builtin.set_fact:
-    calico_cidr: >-
-      {%- set kcp_ips = pxe_data_for_cidr.list
-          | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^service_kube_control_plane')
-          | map(attribute='ADMIN_IP') | list -%}
-      {%- set worker_ips = pxe_data_for_cidr.list
-          | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^service_kube_node')
-          | map(attribute='ADMIN_IP') | list -%}
-      {%- set all_node_ips = kcp_ips + worker_ips -%}
-      {%- set primary_net = (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
-      {%- set additional = hostvars['localhost']['network_data']['admin_network']['additional_subnets'] | default([]) -%}
-      {%- set found_subnets = [] -%}
-      {%- if all_node_ips | length > 0 -%}
-        {%- for ip in all_node_ips -%}
-          {%- if ip | ansible.utils.ipaddr(primary_net) and primary_net not in found_subnets -%}
-            {%- set _ = found_subnets.append(primary_net) -%}
-          {%- endif -%}
-        {%- endfor -%}
-        {%- for s in additional -%}
-          {%- set subnet_cidr = (s.subnet + '/' + s.netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
-          {%- for ip in all_node_ips -%}
-            {%- if ip | ansible.utils.ipaddr(subnet_cidr) and subnet_cidr not in found_subnets -%}
-              {%- set _ = found_subnets.append(subnet_cidr) -%}
-            {%- endif -%}
-          {%- endfor -%}
-        {%- endfor -%}
-        {{ found_subnets | join(',') if found_subnets else primary_net }}
-      {%- else -%}
-        {{ primary_net }}
-      {%- endif -%}
-
-- name: Fetch server_ip and server_share_path from list when nfs sever is localhost
+- name: Fetch server_ip and server_share_path from list when nfs server is localhost
   ansible.builtin.set_fact:
     nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
   when: k8s_nfs_server_ip == "localhost"
@@ -126,7 +84,7 @@
     csi_driver_powerscale_support: "{{ hostvars['localhost']['csi_driver_powerscale_support'] | string | lower }}"
     service_k8s_version: "{{ hostvars['localhost']['service_k8s_version'] }}"
 
-- name: Create required share directories on NFS
+- name: Create required share directories on NFS for RKE2
   block:
     - name: Create subdirectories on NFS share
       ansible.builtin.file:
@@ -136,12 +94,22 @@
         owner: root
         group: root
       loop:
-        - calico
         - metallb
-        # - multus
         - nfs-client-provisioner
         - helm
-        # - whereabouts
+        - rke2
+        - rke2/images
+
+    - name: Create subdirectories on NFS share for CSI
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item }}"
+        state: directory
+        mode: "{{ folder_mode }}"
+        owner: root
+        group: root
+      loop:
+        - csi-driver-powerscale
+      when: hostvars['localhost']['csi_driver_powerscale_support']
 
   rescue:
     - name: Fail with NFS export advice
@@ -227,18 +195,39 @@
 - name: Include local repo access variable file
   ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
 
-- name: Load service_k8s_v<version>.json
+- name: Load service_rke2.json
   ansible.builtin.set_fact:
-    k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+    k8s_packages_json: "{{ lookup('file', rke2_packages_file) | from_json }}"
 
-- name: Extract and set facts for tarball URLs
+- name: Extract and set facts for tarball URLs (RKE2) # noqa: yaml[line-length]
+  vars:
+    cp_first_cluster: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] }}"
   ansible.builtin.set_fact:
-    calico_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'calico') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-    metallb_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'metallb-native') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-    multus_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'multus-daemonset-thick') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-    helm_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'helm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-    nfs_subdir_external_provisioner_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nfs-subdir-external-provisioner') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-    whereabouts_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'whereabouts') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+    metallb_package: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'manifest')
+       | selectattr('package', 'search', 'metallb-native')
+       | map(attribute='package') | join }}
+    helm_package: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'helm')
+       | map(attribute='package') | join }}
+    nfs_subdir_external_provisioner_pkg: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'nfs-subdir-external-provisioner')
+       | map(attribute='package') | join }}
+
+- name: Extract RKE2 airgap image tarball package names # noqa: yaml[line-length]
+  vars:
+    rke2_cluster: "{{ k8s_packages_json['service_rke2']['cluster'] }}"
+  ansible.builtin.set_fact:
+    rke2_images_core_pkg: >-
+      {{ rke2_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'rke2-images-core')
+       | map(attribute='package') | join }}
+    rke2_images_cni_pkg: >-
+      {{ rke2_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'rke2-images-' ~ k8s_cni)
+       | map(attribute='package') | join }}
 
 - name: Copy pulp webserver certificate to target host
   ansible.builtin.copy:
@@ -252,14 +241,6 @@
   register: update_ca
   changed_when: false
 
-# Calico
-- name: Download Calico manifest
-  ansible.builtin.get_url:
-    url: "{{ calico_manifest_yaml_url }}"
-    dest: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
-    mode: "{{ file_mode }}"
-    validate_certs: false
-
 # metallb
 - name: Download metallb-native manifest
   ansible.builtin.get_url:
@@ -267,13 +248,6 @@
     dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
     mode: "{{ file_mode }}"
     validate_certs: false
-
-# multus
-# - name: Download multus manifest
-#   ansible.builtin.get_url:
-#     url: "{{ multus_manifest_yaml_url }}"
-#     dest: "{{ k8s_client_mount_path }}/multus/{{ multus_package }}.yml"
-#     mode: "{{ file_mode }}"
 
 # helm
 - name: Download helm tarball
@@ -283,24 +257,11 @@
     mode: "{{ file_mode }}"
     validate_certs: false
 
-- name: Extract helm version from package name
-  ansible.builtin.set_fact:
-    helm_version: "{{ helm_package | regex_replace('^helm-v', '') | regex_replace('-amd64$', '') }}"
-
-- name: Ensure helm version directory exists
-  ansible.builtin.file:
-    path: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}"
-    state: directory
-    mode: '0755'
-
-- name: Untar helm tarball to version-specific directory
+- name: Untar helm tarball repo
   ansible.builtin.unarchive:
     src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     dest: "{{ k8s_client_mount_path }}/helm/"
     remote_src: true
-    extra_opts:
-      - "--transform"
-      - "s|^linux-amd64|linux-amd64-helm-v{{ helm_version }}|"
 
 # nfs client provisioner
 - name: Download nfs-client-provisioner tarball
@@ -310,19 +271,18 @@
     mode: "{{ file_mode }}"
     validate_certs: false
 
-# whereabouts
-# - name: Get whereabouts plugin git folder
-#   ansible.builtin.get_url:
-#     url: "{{ whereabouts_git_url }}"
-#     dest: "{{ k8s_client_mount_path }}/whereabouts/{{ whereabouts_pkg }}.tar.gz"
-#     mode: "{{ file_mode }}"
-
-# - name: Unarchive whereabouts git folder
-#   ansible.builtin.unarchive:
-#     src: "{{ k8s_client_mount_path }}/whereabouts/{{ whereabouts_pkg }}.tar.gz"
-#     dest: "{{ k8s_client_mount_path }}/whereabouts"
-#     mode: "{{ file_mode }}"
-#     remote_src: true
+# RKE2 airgap system images (core + selected CNI)
+# RKE2 auto-imports any *.tar.zst found in /var/lib/rancher/rke2/agent/images/
+# on the nodes; the cloud-init templates copy these from the NFS share.
+- name: Download RKE2 airgap image tarballs to NFS share
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}.tar.gz"
+    dest: "{{ k8s_client_mount_path }}/rke2/images/{{ item }}.tar.gz"
+    mode: "{{ file_mode }}"
+    validate_certs: false
+  loop:
+    - "{{ rke2_images_core_pkg }}"
+    - "{{ rke2_images_cni_pkg }}"
 
 - name: Copy pulp webserver certificate to client_share_path
   ansible.builtin.copy:
@@ -331,6 +291,6 @@
     mode: "{{ file_mode }}"
   become: true
 
-- name: Get CSI PowerScale driver dependencies
-  when: hostvars['localhost']['csi_driver_powerscale_support']
+- name: Include PowerScale CSI dependency tasks
   ansible.builtin.include_tasks: get_powerscale_dependencies.yml
+  when: hostvars['localhost']['csi_driver_powerscale_support'] | bool

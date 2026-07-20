@@ -109,6 +109,20 @@ slurm_cluster_ip_patterns: "{{ hostvars['localhost']['slurm_cluster_ip_patterns'
 # SSH Host patterns precomputed on OIM by passwordless_ssh/read_nodes_yaml.yml
 slurm_control_ssh_patterns: "{{ hostvars['oim']['slurm_ssh_patterns'] | default('*') }}"
 k8s_control_ssh_patterns: "{{ hostvars['oim']['k8s_ssh_patterns'] | default('*') }}"
+k8s_distro: "{{ hostvars['oim']['k8s_distro'] | default('kubeadm') }}"
+compute_rke2_support: "{{ hostvars['localhost']['compute_rke2_support'] | default(false) }}"
+
+# Compute RKE2 cluster variables (set by k8s_config/create_compute_rke2_config_nfs.yml on OIM)
+compute_k8s_client_mount_path: "{{ hostvars['oim']['compute_k8s_client_mount_path'] | default('') }}"
+compute_k8s_nfs_server_path: "{{ hostvars['oim']['compute_k8s_nfs_server_path'] | default('') }}"
+compute_k8s_nfs_server_ip: "{{ hostvars['oim']['compute_k8s_nfs_server_ip'] | default('') }}"
+compute_kube_vip: "{{ hostvars['oim']['compute_kube_vip'] | default('') }}"
+compute_k8s_cni: "{{ hostvars['oim']['compute_k8s_cni'] | default('calico') }}"
+compute_k8s_service_addresses: "{{ hostvars['oim']['compute_k8s_service_addresses'] | default('10.234.0.0/18') }}"
+compute_k8s_pod_network_cidr: "{{ hostvars['oim']['compute_k8s_pod_network_cidr'] | default('10.234.64.0/18') }}"
+compute_pod_external_ip_range: "{{ hostvars['oim']['compute_pod_external_ip_range'] | default('') }}"
+compute_metallb_package: "{{ hostvars['oim']['compute_metallb_package'] | default('') }}"
+compute_nfs_subdir_external_provisioner_pkg: "{{ hostvars['oim']['compute_nfs_subdir_external_provisioner_pkg'] | default('') }}"
 
 # Passwordless SSH mode flag derived from nodes.yaml (set on OIM by passwordless_ssh role)
 all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | default(false) }}"

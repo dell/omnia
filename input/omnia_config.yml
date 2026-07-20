@@ -190,3 +190,40 @@ service_k8s_cluster:
     k8s_crio_storage_size: "20G"
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
+
+# ----------------------------SERVICE RKE2 K8S--------------------------------------------------
+# To deploy RKE2 instead of vanilla Kubernetes (kubeadm), configure this block
+# and add "service_rke2" to software_config.json softwares list instead of "service_k8s".
+# RKE2 bundles its own container runtime (containerd) and manages the CNI lifecycle.
+# k8s_cni supports "calico", "canal", "cilium", and "flannel".
+# Only one of service_k8s_cluster or service_rke2_k8s_cluster should have deployment: true.
+# Please ensure corresponding cluster entry is added to high_availability_config.yml.
+
+# service_rke2_k8s_cluster:
+#   - cluster_name: service_cluster
+#     deployment: true
+#     k8s_cni: "calico"
+#     pod_external_ip_range: "172.16.107.170-172.16.107.200"
+#     k8s_service_addresses: "10.233.0.0/18"
+#     k8s_pod_network_cidr: "10.233.64.0/18"
+#     nfs_storage_name: "nfs_k8s"
+#     csi_powerscale_driver_secret_file_path: ""
+#     csi_powerscale_driver_values_file_path: ""
+
+# ----------------------------COMPUTE RKE2 K8S-------------------------------------------------
+# To deploy a separate RKE2-based compute Kubernetes cluster, configure this block
+# and add "compute_rke2" to software_config.json softwares list.
+# The compute RKE2 cluster is independent of the service cluster and can coexist
+# with service_k8s (kubeadm), service_rke2, and slurm clusters.
+# k8s_cni supports "calico", "canal", "cilium", and "flannel".
+# Please ensure a corresponding cluster entry is added to high_availability_config.yml.
+# CIDRs must not overlap with the service cluster CIDRs.
+
+# compute_rke2_k8s_cluster:
+#   - cluster_name: compute_cluster
+#     deployment: false
+#     k8s_cni: "calico"
+#     pod_external_ip_range: ""
+#     k8s_service_addresses: "10.234.0.0/18"
+#     k8s_pod_network_cidr: "10.234.64.0/18"
+#     nfs_storage_name: "nfs_compute_k8s"

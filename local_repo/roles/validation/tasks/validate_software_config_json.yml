@@ -31,16 +31,28 @@
 - name: Check if service k8s support is true
   ansible.builtin.set_fact:
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+    service_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_rke2') | list | length > 0 }}"
+    compute_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'compute_rke2') | list | length > 0 }}"
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
 
 - name: Build software JSON file list
   ansible.builtin.set_fact:
     software_json_list: "{{ software_names | map('regex_replace', '$', '.json') | list }}"
 
+- name: Set service_k8s_support true when rke2 is selected
+  ansible.builtin.set_fact:
+    service_k8s_support: true
+  when: service_rke2_support | bool
+
 - name: Get k8s archs
   ansible.builtin.set_fact:
     service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | first).arch | default(['x86_64']) }}"
-  when: service_k8s_support
+  when: service_k8s_support and not (service_rke2_support | bool)
+
+- name: Get rke2 archs
+  ansible.builtin.set_fact:
+    service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_rke2') | first).arch | default(['x86_64']) }}"
+  when: service_rke2_support | bool
 
 - name: Get k8s archs
   ansible.builtin.set_fact:
@@ -94,4 +106,5 @@
     msg: "{{ fail_msg }}"
   when:
     - service_k8s_support
+    - not (service_rke2_support | default(false) | bool)
     - service_k8s_version not in supported_k8s_versions

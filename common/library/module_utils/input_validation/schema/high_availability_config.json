@@ -34,6 +34,39 @@
         ],
         "additionalProperties": false
       }
+    },
+    "compute_rke2_k8s_cluster_ha": {
+      "type": "array",
+      "description": "High Availability (HA) configuration for the compute RKE2 Kubernetes cluster.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "cluster_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Required. Name of the compute RKE2 cluster. Must match the cluster name in omnia_config.yml."
+          },
+          "enable_k8s_ha": {
+            "type": "boolean",
+            "description": "Mandatory. Enable HA for the compute RKE2 cluster."
+          },
+          "virtual_ip_address": {
+            "type": "string",
+            "description": "Mandatory. Virtual IP address for the compute RKE2 cluster API endpoint.",
+            "allOf": [
+              { "pattern": "^[0-9.]+$" },
+              { "format": "ipv4" }
+            ]
+          }
+        },
+        "required": [
+          "cluster_name",
+          "enable_k8s_ha",
+          "virtual_ip_address"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [

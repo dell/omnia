@@ -109,8 +109,14 @@ def collect_packages_from_json(sw_data, fg_name=None,
     elif service_k8s_defined:
         fg_name = fg_name.replace("_aarch64", "").replace("_x86_64", "")
 
-        if "service_k8s" in sw_data and "cluster" in sw_data["service_k8s"]:
-            for entry in sw_data["service_k8s"]["cluster"]:
+        k8s_top_key = (
+            "compute_rke2" if "compute_rke2" in sw_data
+            else "service_rke2" if "service_rke2" in sw_data
+            else "service_k8s"
+        )
+
+        if k8s_top_key in sw_data and "cluster" in sw_data[k8s_top_key]:
+            for entry in sw_data[k8s_top_key]["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
                     packages.append(entry["package"])
 
@@ -157,6 +163,7 @@ def process_functional_group(fg_name, arch, os_version, input_project_dir,
         # Remove version suffix for versioned files (e.g., service_k8s_v1.35.1 -> service_k8s)
         if sw_name.startswith("service_k8s_v"):
             sw_name = "service_k8s"
+        # compute_rke2.json -> compute_rke2 (already handled by replace above)
         if sw_name not in allowed_softwares:
             continue
 
@@ -175,8 +182,8 @@ def process_functional_group(fg_name, arch, os_version, input_project_dir,
                     sw_data, fg_name=fg_name, slurm_defined=True
                 )
             )
-        elif json_file.startswith("service_k8s_v"):
-            # Handle versioned service_k8s_v<version>.json files
+        elif json_file.startswith("service_k8s_v") or json_file == "service_rke2.json" or json_file == "compute_rke2.json":
+            # Handle versioned service_k8s_v<version>.json or service_rke2.json
             packages.extend(
                 collect_packages_from_json(
                     sw_data, fg_name=fg_name, service_k8s_defined=True
@@ -251,17 +258,36 @@ def run_module():
         "service_kube_control_plane_x86_64"
     }
 
+    # Compute RKE2 functional groups
+    compute_k8s_functional_groups = {
+        "compute_kube_node_x86_64",
+        "compute_kube_control_plane_first_x86_64",
+        "compute_kube_control_plane_x86_64"
+    }
+
     # Check if any k8s functional groups are being processed
     needs_service_k8s = any(fg in k8s_functional_groups for fg in functional_groups)
+    needs_compute_rke2 = any(fg in compute_k8s_functional_groups for fg in functional_groups)
 
     # Only validate service_k8s version if k8s functional groups are present
     service_k8s_json = None
-    if needs_service_k8s:
+    if needs_service_k8s and "service_rke2" not in allowed_softwares:
         if not service_k8s_version:
             module.fail_json(msg="service_k8s version not found in software_config.json")
         service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
 
     # pylint: disable=line-too-long
+    # Determine which K8s package JSON to use based on software_config.json
+    if "service_rke2" in allowed_softwares:
+        k8s_json = "service_rke2.json"
+    elif service_k8s_json:
+        k8s_json = service_k8s_json
+    else:
+        k8s_json = None
+
+    # Determine compute RKE2 package JSON
+    compute_rke2_json = "compute_rke2.json" if "compute_rke2" in allowed_softwares else None
+
     # Functional group → json files mapping
     software_map = {
         "os_x86_64": ["default_packages.json", "ldms.json"],
@@ -280,12 +306,18 @@ def run_module():
         ],
     }
 
-    # Add k8s functional groups to software_map only if service_k8s_json is available
-    if service_k8s_json:
+    if k8s_json:
         software_map.update({
-            "service_kube_node_x86_64": [service_k8s_json],
-            "service_kube_control_plane_first_x86_64": [service_k8s_json],
-            "service_kube_control_plane_x86_64": [service_k8s_json],
+            "service_kube_node_x86_64": [k8s_json],
+            "service_kube_control_plane_first_x86_64": [k8s_json],
+            "service_kube_control_plane_x86_64": [k8s_json],
+        })
+
+    if compute_rke2_json:
+        software_map.update({
+            "compute_kube_node_x86_64": [compute_rke2_json],
+            "compute_kube_control_plane_first_x86_64": [compute_rke2_json],
+            "compute_kube_control_plane_x86_64": [compute_rke2_json],
         })
 
     compute_images_dict = {}

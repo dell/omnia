@@ -38,6 +38,7 @@ ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS = {
     "x86_64": [
         "slurm_control_node", "slurm_node", "login_node", "login_compiler_node",
         "service_kube_control_plane", "service_kube_control_plane_first", "service_kube_node",
+        "compute_kube_control_plane", "compute_kube_control_plane_first", "compute_kube_node",
         "os"
     ],
     "aarch64": [
@@ -92,6 +93,11 @@ input_file_inventory = {
         # files["high_availability_config"]
     ],
     "service_k8s": [
+        files["omnia_config"],
+        files["storage_config"],
+        files["high_availability_config"],
+    ],
+    "compute_rke2": [
         files["omnia_config"],
         files["storage_config"],
         files["high_availability_config"],
@@ -191,6 +197,9 @@ FUNCTIONAL_GROUP_LAYER_MAP = {
     "service_kube_control_plane_first_x86_64": "management",
     "service_kube_control_plane_x86_64": "management",
     "service_kube_node_x86_64": "management",
+    "compute_kube_control_plane_first_x86_64": "compute",
+    "compute_kube_control_plane_x86_64": "compute",
+    "compute_kube_node_x86_64": "compute",
     "login_node_x86_64": "management",
     "login_node_aarch64": "management",
     "login_compiler_node_x86_64": "management",
