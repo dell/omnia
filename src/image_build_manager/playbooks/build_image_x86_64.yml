@@ -86,7 +86,7 @@
         - repo_manager_output_path | default('') | length > 0
         - rpm_repos is defined
 
-    - name: Build x86_64 repo list
+    - name: Build x86_64 repo list from rpm_repos
       ansible.builtin.set_fact:
         repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
       loop: "{{ (rpm_repos.x86_64 | default({})) | dict2items }}"
@@ -95,6 +95,16 @@
       when:
         - repo_manager_output_path | default('') | length > 0
         - rpm_repos is defined
+
+    - name: Build x86_64 repo list from user_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (user_repos.x86_64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+      when:
+        - repo_manager_output_path | default('') | length > 0
+        - user_repos is defined
 
     - name: Make repo list cacheable
       ansible.builtin.set_fact:

@@ -10,7 +10,7 @@ name: Pylint
       - pub/build_stream
       - pub/telemetry
       - pub/q2_upgrade
-      - q3_main
+      - pub/q3_main
 
 jobs:
   build:
