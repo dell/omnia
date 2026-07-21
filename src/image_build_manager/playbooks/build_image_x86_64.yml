@@ -1,0 +1,227 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../../playbooks/utils/upgrade_checkup.yml
+
+- name: Set build architecture and tags for x86_64
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set build architecture
+      ansible.builtin.set_fact:
+        build_arch: "x86_64"
+        omnia_run_tags: "{{ omnia_run_tags | default(['image_build_manager']) }}"
+        cacheable: true
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations
+  ansible.builtin.import_playbook: ../../playbooks/input_validation/validate_config.yml
+  tags: always
+
+- name: Invoke get_config_credentials.yml
+  ansible.builtin.import_playbook: ../../playbooks/utils/credential_utility/get_config_credentials.yml
+  vars:
+    omnia_run_tags: ["image_build_manager"]
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
+  vars:
+    openchami_vars_suppport: true
+    omnia_metadata_support: true
+
+- name: Pre-check repo_manager status and load RPM repo URLs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars:
+    _repo_status_path: "{{ repo_manager_output_path | default('') | ternary(repo_manager_output_path, output_project_dir + '/repo_manager/repo_status.yml') }}"
+  tasks:
+    - name: Check if repo_status.yml exists
+      ansible.builtin.stat:
+        path: "{{ _repo_status_path }}"
+      register: repo_status_file
+
+    - name: Load repo_status.yml from repo_manager output
+      ansible.builtin.include_vars:
+        file: "{{ _repo_status_path }}"
+      when: repo_status_file.stat.exists
+
+    - name: Fail if repo_manager has not completed
+      ansible.builtin.fail:
+        msg: >
+          repo_status.yml not found at {{ _repo_status_path }} or overall_status != 'success'.
+          Run repo_manager first: cd ../repo_manager && ansible-playbook repo_manager.yml
+      when: >
+        repo_manager_output_path | default('') | length > 0 and
+        (not repo_status_file.stat.exists or overall_status | default('') != 'success')
+
+    - name: Set repo_manager facts from repo_status.yml
+      ansible.builtin.set_fact:
+        pulp_webserver_cert_path: "{{ repo_manager.certificates.server_crt | default('') }}"
+        pulp_port: "{{ repo_manager.port | default(2225) }}"
+        cacheable: true
+      when:
+        - repo_manager_output_path | default('') | length > 0
+        - repo_manager is defined
+
+    - name: Build repo lists from repo_manager output
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: []
+      when:
+        - repo_manager_output_path | default('') | length > 0
+        - rpm_repos is defined
+
+    - name: Build x86_64 repo list from rpm_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (rpm_repos.x86_64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+      when:
+        - repo_manager_output_path | default('') | length > 0
+        - rpm_repos is defined
+
+    - name: Build x86_64 repo list from user_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (user_repos.x86_64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+      when:
+        - repo_manager_output_path | default('') | length > 0
+        - user_repos is defined
+
+    - name: Make repo list cacheable
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 }}"
+        cacheable: true
+      when:
+        - repo_manager_output_path | default('') | length > 0
+        - rpm_repos is defined
+
+- name: Load image_build_manager configuration for x86_64
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Load image_build_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/image_build_manager/image_build_config.yml"
+
+    - name: Set build_stream variables from extra_vars
+      ansible.builtin.set_fact:
+        build_stream_job_id: "{{ job_id | default('') }}"
+        build_stream_image_key: "{{ image_key | default('') }}"
+        build_stream_functional_groups: "{{ functional_groups | default([]) }}"
+        enable_build_stream_flag: "{{ enable_build_stream | default(false) | bool }}"
+
+    - name: Debug - Show build_stream variables
+      ansible.builtin.debug:
+        msg:
+          - "build_stream_job_id: {{ build_stream_job_id }}"
+          - "build_stream_image_key: {{ build_stream_image_key }}"
+          - "build_stream_functional_groups: {{ build_stream_functional_groups }}"
+          - "enable_build_stream_flag: {{ enable_build_stream_flag }}"
+        verbosity: 2
+
+    - name: Fetch build_stream prerequisites
+      ansible.builtin.include_role:
+        name: fetch_packages
+        tasks_from: build_stream_prerequisite.yml
+      vars:
+        job_id: "{{ build_stream_job_id }}"
+        image_key: "{{ build_stream_image_key }}"
+        functional_groups: "{{ build_stream_functional_groups }}"
+        enable_build_stream: "{{ enable_build_stream_flag }}"
+      when: enable_build_stream_flag
+
+- name: Validate image_build_manager inputs for x86_64
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run image_build_manager input validation
+      ansible.builtin.include_role:
+        name: validate_build_config
+
+- name: Create oim group and provision group
+  ansible.builtin.import_playbook: ../../playbooks/utils/create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+- name: Pre-flight SELinux policy fix on OIM node
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Install SELinux policy module for container runtime
+      ansible.builtin.include_role:
+        name: image_creation
+        tasks_from: preflight_selinux_check.yml
+
+- name: Configure auth for OpenCHAMI
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: OpenCHAMI cluster authentication
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/tasks/common/openchami_auth.yml"
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+- name: Generate functional groups configuration when enable_build_stream is false
+  ansible.builtin.import_playbook: ../../playbooks/utils/generate_functional_groups.yml
+  tags: always
+  when: not enable_build_stream
+
+- name: Verify x86_64 functional_group presnt
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Fetch x86_64 functional_groups
+      ansible.builtin.include_role:
+        name: fetch_packages
+        tasks_from: check_functional_group.yml
+      when: not enable_build_stream
+
+- name: Fetch packages for x86_64
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - fetch_packages
+
+- name: OpenCHAMI build image for x86_64
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  roles:
+    - role: image_creation
+      vars:
+        build_arch: "{{ hostvars['localhost']['build_arch'] }}"
+        s3_configurations: "{{ hostvars['localhost']['s3_configurations'] }}"
+
+- name: Build x86_64 image completion
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Build Image completion
+      ansible.builtin.include_role:
+        name: fetch_packages
+        tasks_from: build_image_completion.yml

@@ -23,6 +23,10 @@ credential_files:
     file_path: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
     vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
     condition: "{{ enable_build_stream | default(false) | bool }}"
+  - credential_type: "Image Build"
+    file_path: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+    vault_path: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
+    condition: true
 
 # Usage: pre_requisite.yml
 ansible_vault_search_key: "$ANSIBLE_VAULT;"

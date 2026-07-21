@@ -1,0 +1,44 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# build_status.yml — image_build_manager output
+# ============================================================================
+# Location (NFS):
+#   /opt/omnia/output/project_default/build_status.yml          (latest)
+#   /opt/omnia/output/project_default/image_build_manager/
+#     build_status_<version>_<timestamp>.yml                    (versioned)
+#
+# Consumed by:
+#   - provision domain (BSS template rendering)
+#   - provision/roles/provision_validations/tasks/validate_image.yml
+#   - provision/roles/configure_ochami/tasks/configure_bss_group.yml
+# ============================================================================
+
+overall_status: "success"
+
+s3_configurations:
+  endpoint_url: "{{ s3_endpoint | default('http://' + admin_nic_ip + ':9000') }}"
+  bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
+
+functional_group_images:
+{% for arch_item in build_completed_images | dict2items %}
+  - {{ arch_item.key }}:
+{% for image in arch_item.value %}
+    - functional_group: "{{ image.functional_group }}"
+      kernel: "{{ image.kernel }}"
+      initrd: "{{ image.initrd }}"
+      image: "{{ image.image }}"
+{% endfor %}
+{% endfor %}

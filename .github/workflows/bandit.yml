@@ -12,7 +12,7 @@ name: Bandit Security Scan
       - pub/telemetry
       - pub/q2_upgrade
       - pub/q2_ansible
-      - q3_main
+      - pub/q3_main
 
 jobs:
   bandit:

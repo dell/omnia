@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Writes build_status.yml to {{ output_project_dir }}/
+# This output file is consumed by the provision domain for BSS template
+# rendering (S3 paths for kernel, initrd, image per functional group).
+#
+# Expected build_completed_images structure (populated by image_creation role):
+#   { "x86_64": [
+#       { "functional_group": "slurm_control_node_x86_64",
+#         "kernel": "boot-images/efi-images/.../vmlinuz",
+#         "initrd": "boot-images/efi-images/.../initramfs.img",
+#         "image": "boot-images/.../rhel-..." }
+#     ],
+#     "aarch64": [ ... ]
+#   }
+
+- name: Set output paths
+  ansible.builtin.set_fact:
+    _output_base: "{{ output_project_dir | default('/opt/omnia/output/project_default') }}"
+    _output_domain: "{{ output_project_dir | default('/opt/omnia/output/project_default') }}/image_build_manager"
+    _omnia_version: "{{ omnia_version | default('2.2.0.0') }}"
+
+- name: Ensure output directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ _output_base }}"
+    - "{{ _output_domain }}"
+
+- name: Write build_status.yml (latest — always overwritten)
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/build_status.yml.j2"
+    dest: "{{ _output_base }}/build_status.yml"
+    mode: "0644"
+  vars:
+    build_completed_images: "{{ hostvars['oim']['build_completed_images'] | default({}) }}"
+
+- name: Write versioned build_status copy
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/build_status.yml.j2"
+    dest: "{{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"
+    mode: "0644"
+  vars:
+    build_completed_images: "{{ hostvars['oim']['build_completed_images'] | default({}) }}"
+
+- name: Display build status output locations
+  ansible.builtin.debug:
+    msg:
+      - "Latest: {{ _output_base }}/build_status.yml"
+      - "Versioned: {{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"

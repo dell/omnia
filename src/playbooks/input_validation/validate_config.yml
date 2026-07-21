@@ -32,6 +32,8 @@
     - telemetry
     - additional_software
     - gitlab
+    - build_image
+    - image_build_manager
 
 - name: Create oim group
   when:

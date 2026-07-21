@@ -24,9 +24,10 @@
       ansible.builtin.fail:
         msg: "{{ omnia_input_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
 
-- name: Set input_project_dir
+- name: Set input_project_dir and output_project_dir
   ansible.builtin.set_fact:
     input_project_dir: "{{ omnia_input_dir }}/{{ project_name }}"
+    output_project_dir: "{{ omnia_output_dir }}/{{ project_name }}"
     cacheable: true
   tags: always
 

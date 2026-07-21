@@ -153,16 +153,6 @@
     dns_forwarders: "{{ network_data.admin_network.dns }}"
   when: (network_data.admin_network.dns | default([])) | length > 0
 
-- name: Set s3_access_id and s3_secret_key
-  ansible.builtin.set_fact:
-    s3_access_id: "{{ hostvars['localhost']['s3_access_id'] | default('admin', true) }}"
-    s3_secret_key: "{{ hostvars['localhost']['s3_secret_key'] }}"
-  no_log: true
-
-- name: Set storage backend fact
-  ansible.builtin.set_fact:
-    storage_backend: "{{ s3_configurations.provider | lower }}"
-
 - name: Deploy openchami configs
   block:
     - name: Install and configure openchami

@@ -40,6 +40,40 @@
         build_stream_auth_password_hash: "{{ auth_registration.password_hash | default('') }}"
       no_log: true
 
+- name: Pre-load image build credentials into namespaced variable
+  when:
+    - credential_files[2].file_path is file
+  block:
+    - name: Set variables for image build credential task
+      ansible.builtin.set_fact:
+        cred_file_path: "{{ credential_files[2].file_path }}"
+        cred_vault_path: "{{ credential_files[2].vault_path }}"
+
+    - name: Decrypt image build credentials
+      ansible.builtin.command: >-
+        ansible-vault decrypt {{ cred_file_path }}
+        --vault-password-file {{ cred_vault_path }}
+      changed_when: false
+      failed_when: false
+
+    - name: Load image build credentials into namespace
+      ansible.builtin.include_vars:
+        file: "{{ cred_file_path }}"
+        name: image_build_creds
+      no_log: true
+
+    - name: Re-encrypt image build credentials
+      ansible.builtin.command: >-
+        ansible-vault encrypt {{ cred_file_path }}
+        --vault-password-file {{ cred_vault_path }}
+      changed_when: false
+      failed_when: false
+
+- name: Initialize image_build_creds if not loaded
+  ansible.builtin.set_fact:
+    image_build_creds: {}
+  when: image_build_creds is not defined
+
 - name: Fetch credentials
   ansible.builtin.include_tasks: fetch_credentials.yml
   loop: "{{ omnia_credentials | dict2items }}"
