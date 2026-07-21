@@ -45,6 +45,114 @@
         (hostname_file_path is defined and hostname_file_path | length > 0)
     fail_msg: "{{ no_input_files_msg }}"
 
+- name: Ensure OpenCHAMI services are reachable before ochami commands
+  block:
+    - name: Check ochami cloud-init service status
+      ansible.builtin.command: /usr/bin/ochami cloud-init service status
+      register: ci_preflight_check
+      changed_when: false
+      failed_when: false
+      retries: "{{ ochami_recheck_retries }}"
+      delay: "{{ ochami_recheck_delay }}"
+      until: ci_preflight_check.rc == 0
+
+    - name: Recover OpenCHAMI services if unreachable
+      when: ci_preflight_check.rc != 0
+      block:
+        - name: Restart acme-deploy to deploy renewed certificate to HAProxy
+          ansible.builtin.systemd:
+            name: acme-deploy.service
+            state: restarted
+          failed_when: false
+
+        - name: Wait for certificate deployment to HAProxy volume
+          ansible.builtin.pause:
+            seconds: "{{ acme_deploy_wait_seconds }}"
+
+        - name: Check ochami cloud-init service status
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_preflight_check
+          changed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_preflight_check.rc == 0
+      rescue:
+        - name: Stop HAProxy to clear stale backend DNS cache
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: stopped
+          failed_when: false
+
+        - name: Start HAProxy with renewed certificate
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: started
+          failed_when: false
+
+        - name: Wait for HAProxy to stabilize
+          ansible.builtin.pause:
+            seconds: "{{ haproxy_stabilize_wait_seconds }}"
+
+        # Start coresmd (v2.1) or coredhcp/coredns (v2.2) — depends on HAProxy
+        # Try both; only the version-appropriate service will exist.
+        - name: Start coresmd after HAProxy Start (v2.1)
+          ansible.builtin.systemd:
+            name: coresmd.service
+            state: started
+          failed_when: false
+
+        - name: Start coresmd-coredhcp after HAProxy Start (v2.2)
+          ansible.builtin.systemd:
+            name: coresmd-coredhcp.service
+            state: started
+          failed_when: false
+
+        - name: Start coresmd-coredns after HAProxy Start (v2.2)
+          ansible.builtin.systemd:
+            name: coresmd-coredns.service
+            state: started
+          failed_when: false
+
+        - name: Wait for coresmd services to stabilize
+          ansible.builtin.pause:
+            seconds: 10
+
+        - name: Recheck ochami cloud-init service status after recovery
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_recheck
+          changed_when: false
+          failed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_recheck.rc == 0
+
+        - name: Restart openchami.target if still unreachable
+          ansible.builtin.systemd:
+            name: openchami.target
+            state: restarted
+          failed_when: false
+          when: ci_recheck.rc != 0
+
+        - name: Wait for openchami to initialize
+          ansible.builtin.pause:
+            seconds: 15
+          when: ci_recheck.rc != 0
+
+        - name: Final recheck ochami cloud-init service status
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_final_recheck
+          changed_when: false
+          failed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_final_recheck.rc == 0
+          when: ci_recheck.rc != 0
+
+        - name: Fail if OpenCHAMI services still unreachable
+          ansible.builtin.fail:
+            msg: "{{ openchami_unreachable_fail_msg }}"
+          when: (ci_final_recheck.rc | default(ci_recheck.rc | default(1))) != 0
+
 - name: Update ci-defaults configuration
   ansible.builtin.include_tasks: update_ci_defaults.yml
   when:

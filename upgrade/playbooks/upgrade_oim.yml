@@ -15,18 +15,19 @@
 # ============================================================================
 # upgrade_oim.yml — Internal playbook (imported by upgrade.yml --tags oim)
 # ============================================================================
-# Upgrades OIM components: OpenCHAMI containers.
+# Upgrades OIM components: Pulp container and OpenCHAMI containers.
 # Prerequisites: prepare_upgrade.yml must have been run first.
 # Reads upgrade_manifest.yml and skips if oim already completed.
 #
 # Flow:
 #   1. Pre-flight: read manifest, check idempotency
-#   2. OpenCHAMI container upgrade (pg_dump, deployment-recipes, image pull,
-#      ordered restart, DB migration, validation)
-#   3. Mark OIM as completed in manifest
+#   2. Phase 1: Pulp container upgrade (3.80 → 3.113)
+#   3. Phase 2: OpenCHAMI container upgrade (pg_dump, deployment-recipes,
+#      image pull, ordered restart, DB migration, validation)
+#   4. Mark OIM as completed in manifest
 # ============================================================================
 
-- name: Upgrade OIM (OpenCHAMI)
+- name: Upgrade OIM (Pulp and OpenCHAMI)
   hosts: localhost
   connection: local
   gather_facts: true
@@ -64,7 +65,55 @@
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # ── Phase 1: OpenCHAMI Container Upgrade (ESpec §4.4) ──────────────
+    # ── Phase 1: Pulp Container Upgrade ─────────────────────────────────
+    # The upgrade_pulp role handles the full lifecycle:
+    #   resolve_admin_ip → pre_upgrade_health_check → upgrade_pulp_container → post_upgrade_health_check
+    # It delegates all container operations to the 'oim' host via SSH.
+    # Pulp data is preserved on shared storage during the upgrade.
+    - name: "Phase 1 — Pulp Container Upgrade"
+      block:
+        - name: Upgrade Pulp container
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../roles/upgrade_pulp"
+
+        - name: Display Pulp upgrade outcome
+          ansible.builtin.debug:
+            msg: >-
+              Pulp Phase 1 result —
+              deployed={{ pulp_deployed | default(false) }},
+              upgrade_needed={{ pulp_upgrade_needed | default(true) }}
+
+      rescue:
+        - name: Re-read upgrade_manifest.yml after Pulp failure
+          ansible.builtin.slurp:
+            src: "{{ manifest_path }}"
+          register: pulp_rescue_raw_manifest
+
+        - name: Parse current manifest state
+          ansible.builtin.set_fact:
+            pulp_rescue_manifest: "{{ pulp_rescue_raw_manifest.content | b64decode | from_yaml }}"
+
+        - name: Pulp upgrade failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ pulp_rescue_manifest | combine({
+                   'component_status': pulp_rescue_manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+
+        - name: Fail with Pulp upgrade error
+          ansible.builtin.fail:
+            msg: >-
+              Pulp upgrade failed
+              ({{ pulp_rescue_manifest.source_version | default('N/A') }} →
+              {{ pulp_rescue_manifest.target_version | default('N/A') }}).
+              Check logs: podman logs pulp
+              Consider running rollback.
+
+    # ── Phase 2: OpenCHAMI Container Upgrade (ESpec §4.4) ──────────────
     # The upgrade_openchami role handles the full lifecycle:
     #   pre_upgrade_health_check → upgrade_openchami_containers → post_upgrade_health_check
     # It delegates all container operations to the 'oim' host via SSH.
@@ -72,7 +121,7 @@
     # which lands in the rescue block below.
     # On skip (not deployed / already at target), the role completes normally
     # and sets openchami_deployed / upgrade_needed facts accordingly.
-    - name: "Phase 1 — OpenCHAMI Container Upgrade"
+    - name: "Phase 2 — OpenCHAMI Container Upgrade"
       block:
         - name: Upgrade OpenCHAMI containers and services
           ansible.builtin.include_role:
@@ -81,7 +130,7 @@
         - name: Display OpenCHAMI upgrade outcome
           ansible.builtin.debug:
             msg: >-
-              OpenCHAMI Phase 1 result —
+              OpenCHAMI Phase 2 result —
               deployed={{ openchami_deployed | default(false) }},
               upgrade_needed={{ upgrade_needed | default(true) }},
               failed={{ openchami_upgrade_failed | default(false) }}

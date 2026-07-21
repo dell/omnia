@@ -151,6 +151,54 @@ def validate_slurm_login_compiler_prefix(pxe_mapping_file_path):
             "Ensure both use the same suffix (_x86_64 or _aarch64)."
         )
 
+def validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, dns_enabled):
+    """
+    Validates that all hostnames in the PXE mapping file follow the NID format
+    (e.g., nid001, nid00001) when dns_enabled is true.
+
+    When DNS is enabled, CoreDNS handles hostname resolution and expects NID-format
+    hostnames. Custom hostnames require /etc/hosts (dns_enabled=false).
+
+    Args:
+        pxe_mapping_file_path (str): Path to the PXE mapping file.
+        dns_enabled (bool): Whether DNS is enabled in provision_config.yml.
+
+    Raises:
+        ValueError: If dns_enabled is true and any hostname does not match the NID format.
+    """
+    if not dns_enabled:
+        return
+
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not hostname_col:
+        return
+
+    nid_re = re.compile(r"^nid\d+$")
+    invalid_hostnames = []
+
+    for row_idx, row in enumerate(reader, start=2):
+        hostname = row.get(hostname_col, "").strip() if row.get(hostname_col) else ""
+        if hostname and not nid_re.match(hostname):
+            invalid_hostnames.append(f"'{hostname}' (row {row_idx})")
+
+    if invalid_hostnames:
+        raise ValueError(
+            f"{en_us_validation_msg.DNS_ENABLED_NON_NID_HOSTNAME_MSG} "
+            f"Invalid hostnames: {', '.join(invalid_hostnames)}"
+        )
+
+
 def validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path):
     """
     Validates that HOSTNAME values in the mapping file are unique.
@@ -1318,6 +1366,10 @@ def validate_provision_config(
             validate_slurm_login_compiler_prefix(pxe_mapping_file_path)
             validate_aarch64_local_path_compatibility(pxe_mapping_file_path)
             validate_functional_groups_software_consistency(pxe_mapping_file_path, software_config_json, logger)
+            dns_enabled = data.get("dns_enabled", False)
+            if isinstance(dns_enabled, str):
+                dns_enabled = dns_enabled.lower() in ("true", "yes", "1")
+            validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, bool(dns_enabled))
 
             # Validate ADMIN_IPs against network_spec.yml subnets (including additional_subnets)
             network_spec_path = create_file_path(input_file_path, file_names["network_spec"])
@@ -1482,7 +1534,7 @@ def validate_network_spec(
             additional = admin_net.get("additional_subnets", [])
             if additional:
                 errors.extend(_validate_additional_subnets(
-                    additional, admin_net
+                    additional, admin_net, module
                 ))
 
     return errors
@@ -1554,6 +1606,17 @@ def _validate_admin_network(network):
                     en_us_validation_msg.RANGE_NETMASK_BOUNDARY_FAIL_MSG,
                 )
             )
+
+    # Validate admin_network.router (mandatory, must be a valid IPv4 address)
+    router = admin_net.get("router", "")
+    if not router or not validation_utils.validate_ipv4(router):
+        errors.append(
+            create_error_msg(
+                "admin_network.router",
+                router,
+                en_us_validation_msg.ADMIN_ROUTER_INVALID_MSG,
+            )
+        )
 
     #  Admin and BMC IP should not be the same
     errors.extend(validate_admin_bmc_ip_not_same(primary_oim_admin_ip, primary_oim_bmc_ip))
@@ -1687,13 +1750,13 @@ def _validate_ip_ranges(dynamic_range, network_type, netmask_bits):
     return errors
 
 
-def _validate_additional_subnets(additional_subnets, admin_net):
+def _validate_additional_subnets(additional_subnets, admin_net, module=None):
     """
     Validates additional_subnets entries for multi-subnet / multi-RAC DHCP support.
 
     Checks:
         - Each subnet/netmask_bits forms a valid CIDR network.
-        - Router IP is a valid IPv4 address within the subnet.
+        - Router IP is a valid IPv4 address within the subnet (warning if not).
         - dynamic_range is valid and falls within the subnet.
         - Additional subnets do not overlap with the admin network.
         - Additional subnets do not overlap with each other.
@@ -1702,6 +1765,7 @@ def _validate_additional_subnets(additional_subnets, admin_net):
     Args:
         additional_subnets (list): List of additional subnet dicts.
         admin_net (dict): The admin_network configuration dict.
+        module (AnsibleModule): Ansible module instance for issuing warnings (optional).
 
     Returns:
         list: Validation error messages.
@@ -1759,17 +1823,15 @@ def _validate_additional_subnets(additional_subnets, admin_net):
             )
             continue
 
-        # Validate router is within subnet
+        # Validate router is within subnet (warning if not)
         try:
             router_ip = ipaddress.IPv4Address(router)
             if router_ip not in subnet_network:
-                errors.append(
-                    create_error_msg(
-                        f"{prefix}.router",
-                        router,
-                        en_us_validation_msg.ADDITIONAL_SUBNET_ROUTER_NOT_IN_SUBNET_MSG,
+                if module:
+                    module.warn(
+                        f"{prefix}.router: {router} - "
+                        f"{en_us_validation_msg.ADDITIONAL_SUBNET_ROUTER_NOT_IN_SUBNET_MSG}"
                     )
-                )
         except (ValueError, TypeError):
             errors.append(
                 create_error_msg(

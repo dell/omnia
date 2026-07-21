@@ -443,23 +443,25 @@ def validate_service_k8s_cluster_ha(
         pxe_admin_ips = [item["ADMIN_IP"] for item in pxe_list]
         pxe_bmc_ips   = [item["BMC_IP"]   for item in pxe_list]
 
-    # Determine control plane nodes' subnet for VIP validation
+    # Determine control plane nodes' subnet for VIP validation.
+    # Use the first control plane node's ADMIN_IP from pxe_mapping_file.csv
+    # as the subnet reference instead of deriving from OIM admin IP.
     additional_subnets = network_spec_data.get("additional_subnets", [])
     kcp_ips = [item["ADMIN_IP"] for item in pxe_list
                if item.get("FUNCTIONAL_GROUP_NAME", "").startswith("service_kube_control_plane")]
     kcp_subnet_ip = None
     kcp_subnet_bits = None
     if kcp_ips:
-        ref_ip = kcp_ips[0]
-        if validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, ref_ip):
-            kcp_subnet_ip = oim_admin_ip
+        kcp_subnet_ip = kcp_ips[0]
+        # Find the netmask for the subnet this CP node belongs to
+        if validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, kcp_subnet_ip):
             kcp_subnet_bits = admin_netmaskbits
-        elif additional_subnets:
+        else:
             for subnet_entry in additional_subnets:
                 s_addr = subnet_entry.get("subnet", "")
                 s_bits = subnet_entry.get("netmask_bits", "")
-                if s_addr and s_bits and validation_utils.is_ip_in_subnet(s_addr, s_bits, ref_ip):
-                    kcp_subnet_ip = s_addr
+                if s_addr and s_bits and validation_utils.is_ip_in_subnet(
+                        s_addr, s_bits, kcp_subnet_ip):
                     kcp_subnet_bits = s_bits
                     break
 
@@ -511,6 +513,57 @@ def validate_service_k8s_cluster_ha(
                 kcp_subnet_ip,
                 kcp_subnet_bits
             )
+
+    # Validate kube-vip, control plane admin NIC IPs, and pod_external_ip_range
+    # are all in the same subnet. MetalLB L2 mode requires LoadBalancer
+    # IPs to be on the same L2 broadcast domain as the nodes advertising them.
+    if kcp_subnet_ip and kcp_subnet_bits:
+        # Collect all VIPs from ha_data for subnet check
+        ha_list = ha_data if isinstance(ha_data, list) else [ha_data]
+        for hdata in ha_list:
+            vip = hdata.get("virtual_ip_address")
+            if vip and not validation_utils.is_ip_in_subnet(
+                    kcp_subnet_ip, kcp_subnet_bits, vip):
+                errors.append(
+                    create_error_msg(
+                        f"{config_type} subnet_mismatch",
+                        vip,
+                        f"virtual_ip_address '{vip}' is not in the same subnet "
+                        f"as control plane nodes ({kcp_subnet_ip}/{kcp_subnet_bits}). "
+                        f"The kube-vip VIP must be in the control plane admin NIC subnet."))
+
+        # Check pod_external_ip_range is in CP subnet
+        for pod_ext in pod_external_ip_list:
+            if not pod_ext:
+                continue
+            if "-" in str(pod_ext):
+                range_start = str(pod_ext).split("-")[0].strip()
+                range_end = str(pod_ext).split("-")[1].strip()
+            elif "/" in str(pod_ext):
+                range_start = str(pod_ext).split("/")[0].strip()
+                range_end = range_start
+            else:
+                range_start = str(pod_ext).strip()
+                range_end = range_start
+
+            if not validation_utils.is_ip_in_subnet(
+                    kcp_subnet_ip, kcp_subnet_bits, range_start):
+                errors.append(
+                    create_error_msg(
+                        f"{config_type} subnet_mismatch",
+                        pod_ext,
+                        f"pod_external_ip_range '{pod_ext}' is not in the same subnet "
+                        f"as control plane nodes ({kcp_subnet_ip}/{kcp_subnet_bits}). "
+                        f"MetalLB LoadBalancer IPs must be in the control plane admin NIC subnet."))
+            elif not validation_utils.is_ip_in_subnet(
+                    kcp_subnet_ip, kcp_subnet_bits, range_end):
+                errors.append(
+                    create_error_msg(
+                        f"{config_type} subnet_mismatch",
+                        pod_ext,
+                        f"pod_external_ip_range '{pod_ext}' end address is not in the same subnet "
+                        f"as control plane nodes ({kcp_subnet_ip}/{kcp_subnet_bits}). "
+                        f"The entire range must be within the control plane admin NIC subnet."))
 
 
 def load_network_spec(input_file_path):

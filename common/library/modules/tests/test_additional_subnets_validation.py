@@ -151,7 +151,7 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_router_outside_subnet(self):
-        """Router IP outside the subnet triggers an error."""
+        """Router IP outside the subnet triggers a warning (not an error)."""
         additional = [{
             "subnet": TEST_SUBNET_1,
             "netmask_bits": "24",
@@ -159,7 +159,8 @@ class TestValidateAdditionalSubnets(unittest.TestCase):
             "dynamic_range": "10.40.1.100-10.40.1.200",
         }]
         errors = _validate_additional_subnets(additional, self._admin_net())
-        self.assertTrue(any("router" in str(e) for e in errors))
+        # Router outside subnet now generates a warning, not an error
+        self.assertEqual(errors, [])
 
     def test_range_outside_subnet(self):
         """dynamic_range outside the subnet triggers an error."""

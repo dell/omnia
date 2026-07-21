@@ -231,7 +231,7 @@ class TestValidateUseCaseSuccess:
 
         assert result.job_id == str(job_id)
         assert result.stage_name == "validate"
-        assert result.status == "QUEUED"
+        assert result.status == "accepted"
         assert result.attempt == 1
         assert result.submitted_at.endswith("Z")
         assert result.correlation_id == str(command.correlation_id)
@@ -408,10 +408,10 @@ class TestValidateUseCaseGuards:
         with pytest.raises(InvalidStateTransitionError):
             use_case.execute(command)
 
-    def test_pending_validate_stage_raises_409(
+    def test_pending_validate_stage_allows_retry(
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
-        """Active validate stage (PENDING) raises InvalidStateTransitionError."""
+        """PENDING validate stage is allowed — only IN_PROGRESS blocks re-submission."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
@@ -424,8 +424,9 @@ class TestValidateUseCaseGuards:
             job_repo, stage_repo, audit_repo, queue_service, uuid_gen
         )
 
-        with pytest.raises(InvalidStateTransitionError):
-            use_case.execute(command)
+        result = use_case.execute(command)
+        assert result.status == "accepted"
+        assert result.stage_name == "validate"
 
 
 class TestValidateUseCaseQueueFailure:
@@ -496,3 +497,196 @@ class TestValidateUseCaseAudit:
             job_id, StageName(StageType.VALIDATE.value)
         )
         assert saved_stage.stage_state == StageState.IN_PROGRESS
+
+
+class TestValidateUseCaseRetryLifecycle:
+    """Tests for retry scenarios — validates fixes from commits 32db335, e221562, 09d7405."""
+
+    def test_completed_validate_stage_allows_retry(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """COMPLETED validate stage should allow retry (not blocked by guard)."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
+
+        completed_validate = _make_stage(job_id, StageType.VALIDATE, StageState.COMPLETED)
+        stage_repo.save(completed_validate)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+
+        result = use_case.execute(command)
+        assert result.status == "accepted"
+        assert result.attempt == 2
+
+    def test_failed_validate_stage_allows_retry(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """FAILED validate stage should allow retry."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
+
+        failed_validate = _make_stage(job_id, StageType.VALIDATE, StageState.FAILED)
+        stage_repo.save(failed_validate)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+
+        result = use_case.execute(command)
+        assert result.status == "accepted"
+        assert result.attempt == 2
+
+    def test_error_fields_cleared_on_retry(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """Error fields should be cleared when retrying a failed validate stage.
+
+        Regression test for commit 09d7405 (clear log_file_path on retry).
+        """
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
+
+        failed_validate = _make_stage(job_id, StageType.VALIDATE, StageState.FAILED)
+        failed_validate.error_code = "PREVIOUS_ERROR"
+        failed_validate.error_summary = "Previous failure description"
+        failed_validate.log_file_path = "/old/log/path.log"
+        failed_validate.result_detail = {"old": "data"}
+        stage_repo.save(failed_validate)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+        use_case.execute(command)
+
+        saved_stage = stage_repo.find_by_job_and_name(
+            job_id, StageName(StageType.VALIDATE.value)
+        )
+        assert saved_stage.error_code is None
+        assert saved_stage.error_summary is None
+        assert saved_stage.log_file_path is None
+        assert saved_stage.result_detail is None
+
+    def test_attempt_number_increments_on_retry(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """Attempt number should increment based on existing stage's attempt count."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
+
+        existing_validate = _make_stage(job_id, StageType.VALIDATE, StageState.FAILED)
+        existing_validate.attempt = 3
+        stage_repo.save(existing_validate)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+
+        result = use_case.execute(command)
+        assert result.attempt == 4
+
+    def test_duplicate_stage_not_created_on_retry(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """Retry should update existing stage, not create a duplicate.
+
+        Regression test for commit e221562 (prevent duplicate stages).
+        """
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
+
+        existing_validate = _make_stage(job_id, StageType.VALIDATE, StageState.COMPLETED)
+        stage_repo.save(existing_validate)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+        use_case.execute(command)
+
+        all_stages = stage_repo.find_all_by_job(job_id)
+        validate_stages = [
+            s for s in all_stages
+            if str(s.stage_name) == StageType.VALIDATE.value
+        ]
+        assert len(validate_stages) == 1
+
+
+class TestValidateUseCaseGuardEdgeCases:
+    """Additional guard edge case tests — completes coverage of _enforce_stage_guard."""
+
+    def test_in_progress_restart_stage_blocks_validate(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """IN_PROGRESS restart stage should block validate (upstream not completed)."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        job = _make_job(job_id, client_id)
+        job_repo.save(job)
+
+        in_progress_restart = _make_stage(
+            job_id, StageType.RESTART, StageState.IN_PROGRESS
+        )
+        stage_repo.save(in_progress_restart)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+
+        with pytest.raises(UpstreamStageNotCompletedError):
+            use_case.execute(command)
+
+    def test_failed_restart_stage_blocks_validate(
+        self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+    ):
+        """FAILED restart stage should block validate."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        job = _make_job(job_id, client_id)
+        job_repo.save(job)
+
+        failed_restart = _make_stage(
+            job_id, StageType.RESTART, StageState.FAILED
+        )
+        stage_repo.save(failed_restart)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, queue_service, uuid_gen
+        )
+
+        with pytest.raises(UpstreamStageNotCompletedError):
+            use_case.execute(command)
+
+    def test_queue_failure_marks_stage_failed(
+        self, job_repo, stage_repo, audit_repo, uuid_gen
+    ):
+        """Queue submission failure should mark stage as FAILED."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        _setup_job_with_restart(job_repo, stage_repo, job_id, client_id)
+
+        failing_queue = MockQueueService(should_fail=True)
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(
+            job_repo, stage_repo, audit_repo, failing_queue, uuid_gen
+        )
+
+        with pytest.raises(ValidationExecutionError):
+            use_case.execute(command)
+
+        saved_stage = stage_repo.find_by_job_and_name(
+            job_id, StageName(StageType.VALIDATE.value)
+        )
+        assert saved_stage.stage_state == StageState.FAILED

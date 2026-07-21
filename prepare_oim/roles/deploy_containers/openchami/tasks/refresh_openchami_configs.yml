@@ -57,6 +57,7 @@
       {{ network_data.admin_network.dynamic_range | split('-') | last }}
     coredhcp_netmask: >-
       {{ (admin_nic_ip + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('netmask') }}
+    coredhcp_router: "{{ network_data.admin_network.router }}"
     coredhcp_lease_duration: "{{ default_lease_time }}s"
 
 - name: Set multi-subnet coredhcp facts

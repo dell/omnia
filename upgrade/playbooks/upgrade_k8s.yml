@@ -1328,6 +1328,21 @@
       ansible.builtin.set_fact:
         admin_nic_ip: "{{ pulp_server_ip }}"
 
+    - name: Load network_spec.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/network_spec.yml"
+
+    - name: Parse network_spec data
+      ansible.builtin.set_fact:
+        network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+      with_dict: "{{ Networks }}"
+
+    - name: Set admin network variables
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+        admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
+        admin_nic_cidr: "{{ (network_data.admin_network.subnet + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
+
     - name: Set cluster OS version
       ansible.builtin.set_fact:
         cluster_os_version: "{{ _software_config.cluster_os_version }}"

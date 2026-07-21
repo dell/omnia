@@ -12,19 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared pytest fixtures for Build Stream API tests.
+"""Shared pytest fixtures for Build Stream API tests."""
 
-Note: This conftest is for mock-based unit/integration tests.
-E2E integration tests use tests/integration/conftest.py which does not
-import the app directly (it runs the server as a subprocess).
-"""
-
-# pylint: disable=redefined-outer-name,global-statement,import-outside-toplevel,protected-access
+# pylint: disable=redefined-outer-name,global-statement,import-outside-toplevel,protected-access,wrong-import-position,import-error
 
 import base64
 import os
 import sys
-from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
@@ -33,7 +27,7 @@ import pytest
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 # Patch JSONB to JSON for SQLite compatibility (must be before any model imports)
-from sqlalchemy import JSON as _sa_JSON
+from sqlalchemy import JSON as _sa_JSON  # noqa: E402 pylint: disable=wrong-import-position
 
 if 'sqlalchemy.dialects.postgresql' not in sys.modules:
     _postgresql_module = type(sys)('postgresql')
@@ -43,8 +37,8 @@ sys.modules['sqlalchemy.dialects.postgresql'].JSONB = _sa_JSON
 
 # Patch infra.db.session engine creation for SQLite compatibility
 # SQLite does not support pool_size/max_overflow parameters
-import infra.db.session as _db_session_mod
-from sqlalchemy import create_engine as _sa_create_engine, event as _sa_event
+import infra.db.session as _db_session_mod  # noqa: E402 pylint: disable=wrong-import-position,ungrouped-imports
+from sqlalchemy import create_engine as _sa_create_engine, event as _sa_event  # noqa: E402 pylint: disable=wrong-import-position
 
 _sqlite_engine = _sa_create_engine("sqlite:///:memory:", echo=False)
 
@@ -59,25 +53,30 @@ _db_session_mod._session_factory = None  # pylint: disable=protected-access
 
 # Patch JWT exceptions for compatibility with newer PyJWT versions
 # This must be done before any imports of jwt.exceptions
-import jwt.exceptions
-if not hasattr(jwt.exceptions, 'DecodeError'):
-    jwt.exceptions.DecodeError = jwt.exceptions.JWTDecodeError
-if not hasattr(jwt.exceptions, 'ExpiredSignatureError'):
-    class ExpiredSignatureError(jwt.exceptions.JWTDecodeError):
-        """Alias for expired signature errors."""
-    jwt.exceptions.ExpiredSignatureError = ExpiredSignatureError
-if not hasattr(jwt.exceptions, 'InvalidAudienceError'):
-    class InvalidAudienceError(jwt.exceptions.JWTDecodeError):
-        """Alias for invalid audience errors."""
-    jwt.exceptions.InvalidAudienceError = InvalidAudienceError
-if not hasattr(jwt.exceptions, 'InvalidIssuerError'):
-    class InvalidIssuerError(jwt.exceptions.JWTDecodeError):
-        """Alias for invalid issuer errors."""
-    jwt.exceptions.InvalidIssuerError = InvalidIssuerError
-if not hasattr(jwt.exceptions, 'InvalidSignatureError'):
-    class InvalidSignatureError(jwt.exceptions.JWTDecodeError):
-        """Alias for invalid signature errors."""
-    jwt.exceptions.InvalidSignatureError = InvalidSignatureError
+try:
+    import jwt.exceptions  # noqa: E402 pylint: disable=wrong-import-position
+except ImportError:
+    # jwt module not available, skip patching
+    pass
+else:
+    if not hasattr(jwt.exceptions, 'DecodeError'):
+        jwt.exceptions.DecodeError = jwt.exceptions.JWTDecodeError
+    if not hasattr(jwt.exceptions, 'ExpiredSignatureError'):
+        class ExpiredSignatureError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
+            """Alias for expired signature errors."""
+        jwt.exceptions.ExpiredSignatureError = ExpiredSignatureError
+    if not hasattr(jwt.exceptions, 'InvalidAudienceError'):
+        class InvalidAudienceError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
+            """Alias for invalid audience errors."""
+        jwt.exceptions.InvalidAudienceError = InvalidAudienceError
+    if not hasattr(jwt.exceptions, 'InvalidIssuerError'):
+        class InvalidIssuerError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
+            """Alias for invalid issuer errors."""
+        jwt.exceptions.InvalidIssuerError = InvalidIssuerError
+    if not hasattr(jwt.exceptions, 'InvalidSignatureError'):
+        class InvalidSignatureError(jwt.exceptions.JWTDecodeError):  # pylint: disable=too-few-public-methods
+            """Alias for invalid signature errors."""
+        jwt.exceptions.InvalidSignatureError = InvalidSignatureError
 
 # Note: pythonpath is set in pytest.ini at project root
 
@@ -342,7 +341,7 @@ def generate_invalid_client_id() -> str:
 
 def generate_invalid_client_secret() -> str:
     """Generate an invalid client secret for testing.
-    
+
     Returns:
         Invalid client secret string (too short).
     """

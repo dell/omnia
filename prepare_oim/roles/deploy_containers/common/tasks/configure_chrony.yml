@@ -18,11 +18,30 @@
     name: chrony
     state: present
 
+- name: Build list of additional subnets allowed by chrony
+  ansible.builtin.set_fact:
+    chrony_additional_subnets: "{{ chrony_additional_subnets | default([]) + [item.subnet + '/' + item.netmask_bits] }}"
+  loop: "{{ hostvars['localhost']['network_data']['admin_network']['additional_subnets'] | default([]) }}"
+
+- name: Build complete list of subnets allowed by chrony
+  ansible.builtin.set_fact:
+    chrony_allowed_subnets:
+      - "{{ hostvars['localhost']['admin_net_addr'] }}/{{ hostvars['localhost']['admin_netmask_bits'] }}"
+      - "{{ chrony_additional_subnets | default([]) }}"
+
+- name: Flatten chrony allowed subnets
+  ansible.builtin.set_fact:
+    chrony_allowed_subnets: "{{ chrony_allowed_subnets | flatten | select('string') | list }}"
+
 - name: Update chrony.conf
-  ansible.builtin.lineinfile:
+  ansible.builtin.blockinfile:
     path: "{{ chrony_conf_path }}"
-    regexp: ^#allow
-    line: "allow {{ hostvars['localhost']['admin_net_addr'] }}/{{ hostvars['localhost']['admin_netmask_bits'] }}"
+    marker: "# {mark} ANSIBLE MANAGED CHRONY ALLOW SUBNETS"
+    block: |
+      {% for subnet in chrony_allowed_subnets %}
+      allow {{ subnet }}
+      {% endfor %}
+    insertafter: "^#allow"
     state: present
 
 - name: Enable and start chronyd service

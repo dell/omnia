@@ -199,7 +199,7 @@ class TestVersionStrings:
             all_arch_target_configs=configs,
         )
         entry = _software_by_name(_read_output(str(tmp_path)), "service_k8s")
-        assert entry["version"] == "1.34.1"
+        assert entry["version"] == "1.35.1"
 
     def test_csi_target_gets_version(self, tmp_path: str) -> None:
         configs = {"x86_64": {"csi_driver_powerscale.json": {
@@ -210,7 +210,7 @@ class TestVersionStrings:
             all_arch_target_configs=configs,
         )
         entry = _software_by_name(_read_output(str(tmp_path)), "csi_driver_powerscale")
-        assert entry["version"] == "v2.15.0"
+        assert entry["version"] == "v2.17.0"
 
     def test_regular_target_has_no_version(self, tmp_path: str) -> None:
         configs = {"x86_64": {"openldap.json": {
@@ -407,12 +407,12 @@ class TestRealisticScenario:
         k8s = _software_by_name(result, "service_k8s")
         assert "x86_64" in k8s["arch"]
         assert "aarch64" in k8s["arch"]
-        assert k8s["version"] == "1.34.1"
+        assert k8s["version"] == "1.35.1"
 
         # csi_driver_powerscale: x86_64 only
         csi = _software_by_name(result, "csi_driver_powerscale")
         assert csi["arch"] == ["x86_64"]
-        assert csi["version"] == "v2.15.0"
+        assert csi["version"] == "v2.17.0"
 
         # slurm_custom subgroups
         assert "slurm_custom" in result

@@ -604,6 +604,12 @@ IB_SUBNET_IN_ADMIN_RANGE_MSG = (
     "primary_oim_admin_ip/netmask_bits in network_spec.yml."
 )
 
+ADMIN_ROUTER_INVALID_MSG = (
+    "admin_network.router is mandatory and must be a valid IPv4 address "
+    "(Example: 192.168.1.1). If no dedicated router is available, "
+    "primary_oim_admin_ip can be used as the router."
+)
+
 # additional_subnets (multi-subnet / multi-RAC support)
 ADDITIONAL_SUBNET_ROUTER_INVALID_MSG = (
     "router must be a valid IPv4 address within the subnet."
@@ -883,6 +889,15 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
     "Vector-LDMS consumes LDMS metrics from Kafka topic 'ldms'. "
     "To fix: Either set telemetry_sources.ldms.metrics_enabled=true to enable LDMS data collection, "
     "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
+)
+
+# DNS hostname validation messages
+DNS_ENABLED_NON_NID_HOSTNAME_MSG = (
+    "When dns_enabled is true in provision_config.yml, all hostnames in the PXE mapping file "
+    "must follow the NID format (e.g., nid001, nid00001). "
+    "Custom hostnames are not supported with DNS enabled. "
+    "Either set dns_enabled to false to use custom hostnames with /etc/hosts, "
+    "or update the hostnames to use the NID format."
 )
 
 # CSM Observability - Unsupported metrics validation messages

@@ -148,7 +148,7 @@ packages_layout_aarch64:
 print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.dest_path }}"
 offline_path_x86_64: []
 offline_path_aarch64: []
-
+hosts_file_path: "/etc/hosts"
 ssh_private_key_path: /root/.ssh/oim_rsa
 
 # NVIDIA HPC SDK vars

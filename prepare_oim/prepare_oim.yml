@@ -32,7 +32,7 @@
           {{
             (
               ansible_run_tags | default([]) | list +
-              ['prepare_oim', 'discovery', 'provision']
+              ['prepare_oim', 'discovery', 'provision', 'slurm', 'slurm_custom']
             ) | unique
           }}
         cacheable: true

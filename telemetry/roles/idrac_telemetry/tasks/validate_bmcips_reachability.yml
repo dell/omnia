@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# Validate BMC reachability from first worker node.
+# The play runs on control plane (service_kube_cp_group) which cannot reach
+# BMC subnets, so we delegate to a worker node that has network access.
 - name: Validate BMC reachability
   update_bmc_group_entry:
     nodes: "{{ filtered_bmc_ip_dict_list }}"
@@ -19,6 +22,7 @@
     bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
     verify_bmc: true
   register: bmc_result
+  delegate_to: "{{ worker_node }}"
 
 - name: Show verified BMC entries
   when: bmc_result.verified_bmc | length > 0
@@ -69,6 +73,7 @@
         bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
         min_firmware_version_reqd: "{{ min_firmware_version_reqd }}"
       register: filter_idrac_output
+      delegate_to: "{{ worker_node }}"
       when:
         - bmc_result.verified_bmc is defined
         - bmc_result.verified_bmc | length > 0
@@ -93,6 +98,7 @@
     username: "{{ hostvars['localhost']['bmc_username'] }}"
     password: "{{ hostvars['localhost']['bmc_password'] }}"
   register: enable_telemetry_output
+  delegate_to: "{{ worker_node }}"
 
 - name: Show Enable Telemetry Service Output
   ansible.builtin.debug:

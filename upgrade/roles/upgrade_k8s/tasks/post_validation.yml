@@ -185,6 +185,85 @@
       {{ dns_test.stderr }}
   when: "'Server:' not in dns_test.stdout or dns_test.rc != 0"
 
+# ── Isilon CSI restart (if namespace exists) ──────────────────────
+- name: Check if isilon namespace exists
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get namespace isilon
+  register: isilon_namespace_check
+  changed_when: false
+  failed_when: false
+
+- name: Restart isilon-controller deployment
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl rollout restart deployment isilon-controller -n isilon
+  register: isilon_controller_restart
+  changed_when: true
+  when: isilon_namespace_check.rc == 0
+
+- name: Restart isilon-node daemonset
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl rollout restart daemonset isilon-node -n isilon
+  register: isilon_node_restart
+  changed_when: true
+  when: isilon_namespace_check.rc == 0
+
+- name: Wait for isilon-controller deployment to be ready
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl rollout status deployment isilon-controller -n isilon --timeout=300s
+  register: isilon_controller_status
+  changed_when: false
+  failed_when: false
+  when: isilon_namespace_check.rc == 0
+
+- name: Wait for isilon-node daemonset to be ready
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl rollout status daemonset isilon-node -n isilon --timeout=300s
+  register: isilon_node_status
+  changed_when: false
+  failed_when: false
+  when: isilon_namespace_check.rc == 0
+
+- name: Verify all isilon pods are Running
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n isilon --no-headers
+      --field-selector status.phase!=Running,status.phase!=Succeeded
+      2>/dev/null | head -20
+  args:
+    executable: /bin/bash
+  register: unhealthy_isilon_pods
+  changed_when: false
+  failed_when: false
+  retries: 30
+  delay: 10
+  until: unhealthy_isilon_pods.stdout | length == 0
+  when: isilon_namespace_check.rc == 0
+
+- name: Fail if isilon pods are not Running
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: Some isilon pods are not Running after restart.
+      {{ unhealthy_isilon_pods.stdout }}
+  when:
+    - isilon_namespace_check.rc == 0
+    - unhealthy_isilon_pods.stdout | length > 0
+
+- name: Display isilon restart status
+  ansible.builtin.debug:
+    msg: >-
+      Isilon CSI components restarted successfully:
+      - isilon-controller deployment restarted and ready
+      - isilon-node daemonset restarted and ready
+      - All isilon pods are Running
+  when: isilon_namespace_check.rc == 0
+
 - name: Display post-validation summary
   ansible.builtin.debug:
     msg: >-
@@ -196,4 +275,5 @@
       MetalLB pods: Running
       API server: reachable
       DNS: working
-      Cluster upgrade from {{ k8s_from_version }} to {{ k8s_target_version }} successful.
+      {% if isilon_namespace_check.rc == 0 %}Isilon CSI: restarted
+      {% endif %}Cluster upgrade from {{ k8s_from_version }} to {{ k8s_target_version }} successful.

@@ -201,8 +201,12 @@ def main():
         except Exception:
             logger.warning("Failed to check build_stream status from build_stream_config.yml")
     
+    validated_files = set()
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
+            if name in validated_files:
+                continue
+            validated_files.add(name)
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']

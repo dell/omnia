@@ -17,7 +17,7 @@
   block:
     - name: Fetch pulp endpoints for aarch64
       ansible.builtin.command: >
-        pulp rpm distribution list --field name,base_url
+        pulp rpm distribution list --field name,base_url --limit 1000
       register: pulp_endpoints
       changed_when: false
 

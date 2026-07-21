@@ -6,22 +6,25 @@ set -euo pipefail
 DRIVER_VERSION="580.159.04"
 LOGFILE="/var/log/nvidia_install.log"
 
-exec > >(tee -a "$LOGFILE") 2>&1
+# ── Ensure full PATH (non-interactive shells may miss /usr/sbin) ──
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
-echo "===== NVIDIA DRIVER INSTALL START ====="
-
-# Check GPU presence
-if ! lspci | grep -qi nvidia; then
+# ── GPU check BEFORE exec redirection to avoid pipe/buffering issues ──
+LSPCI_OUT=$(lspci 2>/dev/null || true)
+if ! echo "$LSPCI_OUT" | grep -qi nvidia; then
     echo "[INFO] No NVIDIA GPU detected. Exiting."
     exit 0
 fi
+
+# ── NOW safe to redirect output ──
+exec > >(tee -a "$LOGFILE") 2>&1
+echo "===== NVIDIA DRIVER INSTALL START ====="
 
 # Install only if nvidia-smi is missing
 if command -v nvidia-smi >/dev/null 2>&1; then
     echo "[INFO] NVIDIA driver already installed. Skipping."
 else
     echo "[INFO] Installing NVIDIA driver via dnf..."
-
     dnf install -y \
         nvidia-driver-${DRIVER_VERSION} \
         nvidia-driver-cuda-${DRIVER_VERSION}
@@ -47,6 +50,7 @@ CUDA_NFS="/hpc_tools/cuda"
 if ! mountpoint -q /usr/local/cuda; then
     mount --bind "$CUDA_NFS" /usr/local/cuda || true
 fi
+
 grep -q "$CUDA_NFS /usr/local/cuda" /etc/fstab || \
     echo "$CUDA_NFS /usr/local/cuda none bind,_netdev 0 0" >> /etc/fstab
 

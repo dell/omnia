@@ -281,18 +281,16 @@
 {% endif %}
 
         # UCX and OpenMPI auto-compilation disabled
-        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 used by default
+        # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 configured by default
 {% if hostvars['localhost']['ucx_support'] %}
         - echo "===== UCX Configuration ====="
         - echo "UCX version specified in software_config.json (available for manual compilation)"
         - echo "Default stack - DOCA UCX 1.20.0 (system default)"
 {% endif %}
-{% if hostvars['localhost']['openmpi_support'] %}
         - echo "===== OpenMPI Configuration ====="
         - echo "OpenMPI version specified in software_config.json (available for manual compilation)"
         - echo "Default stack - DOCA OpenMPI 4.1.9a1 (system default)"
         - bash /usr/local/bin/setup_doca_mpi_env.sh || echo "DOCA MPI environment setup failed (non-critical)"
-{% endif %}
 
 {% if ldms_support %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log

@@ -74,30 +74,36 @@
   connection: local
   run_once: true
 
-- name: Determine Calico CIDR from control plane nodes subnet
+- name: Determine Calico CIDRs from all K8s node subnets
   ansible.builtin.set_fact:
     calico_cidr: >-
       {%- set kcp_ips = pxe_data_for_cidr.list
           | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^service_kube_control_plane')
           | map(attribute='ADMIN_IP') | list -%}
-      {%- if kcp_ips | length > 0 -%}
-        {%- set ref_ip = kcp_ips[0] -%}
-        {%- set primary_net = (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
-        {%- if ref_ip | ansible.utils.ipaddr(primary_net) -%}
-          {{ primary_net }}
-        {%- else -%}
-          {%- set additional = hostvars['localhost']['network_data']['admin_network']['additional_subnets'] | default([]) -%}
-          {%- set ns = namespace(found='') -%}
-          {%- for s in additional if not ns.found -%}
-            {%- set subnet_cidr = (s.subnet + '/' + s.netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
-            {%- if ref_ip | ansible.utils.ipaddr(subnet_cidr) -%}
-              {%- set ns.found = subnet_cidr -%}
+      {%- set worker_ips = pxe_data_for_cidr.list
+          | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^service_kube_node')
+          | map(attribute='ADMIN_IP') | list -%}
+      {%- set all_node_ips = kcp_ips + worker_ips -%}
+      {%- set primary_net = (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
+      {%- set additional = hostvars['localhost']['network_data']['admin_network']['additional_subnets'] | default([]) -%}
+      {%- set found_subnets = [] -%}
+      {%- if all_node_ips | length > 0 -%}
+        {%- for ip in all_node_ips -%}
+          {%- if ip | ansible.utils.ipaddr(primary_net) and primary_net not in found_subnets -%}
+            {%- set _ = found_subnets.append(primary_net) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- for s in additional -%}
+          {%- set subnet_cidr = (s.subnet + '/' + s.netmask_bits) | ansible.utils.ipaddr('network/prefix') -%}
+          {%- for ip in all_node_ips -%}
+            {%- if ip | ansible.utils.ipaddr(subnet_cidr) and subnet_cidr not in found_subnets -%}
+              {%- set _ = found_subnets.append(subnet_cidr) -%}
             {%- endif -%}
           {%- endfor -%}
-          {{ ns.found if ns.found else primary_net }}
-        {%- endif -%}
+        {%- endfor -%}
+        {{ found_subnets | join(',') if found_subnets else primary_net }}
       {%- else -%}
-        {{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}
+        {{ primary_net }}
       {%- endif -%}
 
 - name: Fetch server_ip and server_share_path from list when nfs sever is localhost
