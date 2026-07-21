@@ -645,24 +645,27 @@ cleanup_config(){
     echo -e "${BLUE} Removing Omnia core configuration.${NC}"
     rm -rf $omnia_path/omnia/{hosts,input,log,pulp,provision,pcs,ssh_config,tmp,.data}
 
-    # Unmount the NFS shared path if the share option is NFS.
-    if [ "$share_option" = "NFS" ] && [ "$nfs_type" = "external" ]; then
-        umount "$omnia_path"
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN} NFS shared path has been unmounted.${NC}"
-        else
-            echo -e "${RED} Failed to unmount NFS shared path.${NC}"
+    # Remove any stale mount or fstab entry for omnia_path during uninstall.
+    if [ -n "$omnia_path" ]; then
+        echo -e "${BLUE} Checking for existing mount at $omnia_path.${NC}"
+        if mountpoint -q "$omnia_path" 2>/dev/null; then
+            if umount "$omnia_path" 2>/dev/null || umount -l "$omnia_path" 2>/dev/null; then
+                echo -e "${GREEN} Omnia shared path has been unmounted.${NC}"
+            else
+                echo -e "${RED} Failed to unmount Omnia shared path at $omnia_path.${NC}"
+            fi
         fi
+
         # Remove the entry from /etc/fstab
         fstab_file="/etc/fstab"
         if [ -f "$fstab_file" ]; then
-            # Create a backup of the fstab file.
-            cp "$fstab_file" "$fstab_file.bak"
-
-            # Remove the line from the fstab file.
-             sed -i "\#$omnia_path#d" "$fstab_file"
-             if [ $? -ne 0 ]; then
-                echo -e "${RED} Failed to remove the entry from /etc/fstab.${NC}"
+            omnia_path_trimmed="${omnia_path%/}"
+            if awk -v mp="$omnia_path_trimmed" '$2 == mp {found=1} END {exit !found}' "$fstab_file"; then
+                echo -e "${YELLOW} Removing stale /etc/fstab entry for $omnia_path.${NC}"
+                if [ ! -f "$fstab_file.bak" ]; then
+                    cp "$fstab_file" "$fstab_file.bak"
+                fi
+                awk -v mp="$omnia_path_trimmed" '$2 != mp' "$fstab_file" > "${fstab_file}.tmp" && mv "${fstab_file}.tmp" "$fstab_file"
             fi
         fi
     fi

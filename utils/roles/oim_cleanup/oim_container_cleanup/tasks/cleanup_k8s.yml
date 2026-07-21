@@ -219,3 +219,22 @@
           {% endif %}
           {% endfor %}
       when: k8s_cleanup_needed | default(false)
+
+    - name: Build list of K8s OIM mounts to unmount
+      ansible.builtin.set_fact:
+        k8s_mounts_to_unmount: >-
+          {{ k8s_storage_mounts | selectattr('mount_on_oim', 'defined') | selectattr('mount_on_oim') | list }}
+
+    - name: Unmount K8s OIM mounts
+      ansible.posix.mount:
+        path: "{{ item.mount_point }}"
+        state: unmounted
+      loop: "{{ k8s_mounts_to_unmount }}"
+      failed_when: false
+
+    - name: Remove K8s OIM mount entries from /etc/fstab
+      ansible.posix.mount:
+        path: "{{ item.mount_point }}"
+        state: absent_from_fstab
+      loop: "{{ k8s_mounts_to_unmount }}"
+      failed_when: false
