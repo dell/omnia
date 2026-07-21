@@ -1316,6 +1316,20 @@ post_setup_config() {
         cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
     fi"
 
+    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
+    podman exec -u root omnia_core bash -c "
+    if [ -d /omnia/image_build_manager/input ]; then
+        mkdir -p /opt/omnia/input/project_default/image_build_manager
+        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
+    fi"
+
+    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
+    podman exec -u root omnia_core bash -c "
+    if [ -d /omnia/image_build_manager/input ]; then
+        mkdir -p /opt/omnia/input/project_default/image_build_manager
+        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
+    fi"
+
     # Create the output directory for project_default
     echo -e "${GREEN} Creating the output directory.${NC}"
     podman exec -u root omnia_core bash -c "
