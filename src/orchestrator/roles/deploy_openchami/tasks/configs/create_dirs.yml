@@ -21,9 +21,6 @@
     owner: root
     group: root
   with_items:
-    - "{{ data_oci_dir }}"
-    - "{{ data_s3_dir }}"
     - "{{ openchami_work_dir }}"
     - "{{ openchami_config_dir }}"
     - "{{ ochami_dir }}"
-    - "{{ s3_work_dir }}"

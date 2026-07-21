@@ -18,67 +18,48 @@
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
 
-# Orchestrator Configuration (formerly provision_config.yml)
+#### Mandatory
+# This depicts the path where user has kept the PXE mapping file.
+# The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
+# Ensure that admin IPs given in mapping file are within the network defined in the network_spec.yml
+# A templates for mapping file exists in omnia/examples, namely, pxe_mapping_file.csv
+# Format of csv: FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
+pxe_mapping_file_path: "/opt/omnia/input/project_default/orchestrator/pxe_mapping_file.csv"
 
-# Path to the PXE mapping file produced by the discovery domain.
-# This is the primary data contract between discovery and orchestrator.
-# Copy the discovery output to this path before running orchestrator.yml.
-pxe_mapping_file_path: "/opt/omnia/input/project_default/pxe_mapping_file.csv"
-
-# Language setting for provisioned nodes
+#### Mandatory
+# Language that needs to be set during OS provisioning.
+# Only language supported is "en_US.UTF-8"
 language: "en_US.UTF-8"
 
-# Default DHCP lease time (seconds)
-default_lease_time: 86400
+#### Mandatory
+# Default lease time needs to be used by DHCP
+# Unit: seconds
+# Min: 21600
+# Default: 86400
+# Max: 31536000
+default_lease_time: "86400"
 
-# Enable DNS configuration via CoreDNS
+#### Optional
+# Enable DNS-based hostname resolution for compute nodes.
+# When true, nodes use coresmd (CoreDNS + OpenCHAMI SMD plugin) instead of /etc/hosts.
+# DNS records are generated automatically from SMD inventory.
+# The cluster domain is read from OIM metadata (domain_name).
+# Default: false
 dns_enabled: false
 
-# Override kernel version for boot images.
-# Leave empty to auto-select the latest available image.
+#### Optional
+# Pin a specific kernel version for boot image selection.
+# The specified version applies to both x86_64 and aarch64 architectures.
+# Leave empty ("") to auto-select the latest available image from S3.
+# Example: kernel_version_override: "6.12.0-55.76.1.el10_0"
 kernel_version_override: ""
 
-# Path to additional cloud-init configuration file (optional)
+#### Optional
+# Path to additional cloud-init configuration file for stateless node provisioning.
+# The file supports both common (all nodes) and per-functional-group cloud-init sections.
+# An example file is provided at omnia/examples/additional_cloud_init.yml
+# Leave empty ("") to disable additional cloud-init.
+# Default: "" (disabled)
 additional_cloud_init_config_file: ""
 
-# -----------------------------------------------------------------------
-# S3 Image Storage Configuration
-# -----------------------------------------------------------------------
-# These settings tell the orchestrator where to find the OS boot images
-# that were built by the build_image pipeline (or uploaded manually).
-#
-# The orchestrator uses S3 in two ways:
-#   1. Image validation: s3cmd queries the bucket to verify kernel/initrd exist
-#   2. PXE boot URLs:    BSS tells nodes to HTTP-fetch kernel/initrd/rootfs
-#                         from this endpoint at boot time
-#
-# Storage provider options:
-#   "minio"      - Use MinIO deployed locally on OIM by OpenCHAMI (default)
-#                   s3_endpoint can be left empty; auto-derived from cluster_boot_ip:9000
-#   "powerscale" - Use Dell PowerScale as external S3 storage
-#                   s3_endpoint is required (e.g. "https://10.43.1.11:9021")
-#   "external"   - Any other S3-compatible endpoint (e.g. remote MinIO on build server)
-#                   s3_endpoint is required (e.g. "http://10.5.0.100:9000")
-s3_storage_provider: "minio"
-
-# S3-compatible endpoint URL where boot images are stored.
-# Required when s3_storage_provider is "powerscale" or "external".
-# Leave empty for "minio" (auto-configured to http://<cluster_boot_ip>:9000).
-# Examples:
-#   "http://10.5.0.100:9000"              (remote MinIO on build server)
-#   "https://powerscale.example.com:9021"  (Dell PowerScale)
-s3_endpoint: ""
-
-# S3 access key (username for MinIO, access key ID for AWS/PowerScale)
-s3_access_key: ""
-
-# S3 secret key (password for MinIO, secret access key for AWS/PowerScale)
-s3_secret_key: ""
-
-# S3 bucket name containing boot images.
-# Default: "boot-images" (standard OpenCHAMI bucket name)
-s3_boot_images_bucket: "boot-images"
-
-# Whether to verify SSL certificates when connecting to S3.
-# Set to false for self-signed certificates (common with PowerScale).
-s3_verify_ssl: false
+image_build_manager_output_path: "/opt/omnia/output/project_default/image_build_manager/build_status.yml"

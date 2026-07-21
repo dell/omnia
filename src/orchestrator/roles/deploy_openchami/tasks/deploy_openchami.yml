@@ -40,10 +40,10 @@
   ansible.builtin.assert:
     that:
       - s3_configurations is defined
-      - s3_configurations.provider is defined
+      - s3_configurations.endpoint_url is defined
     fail_msg: >-
       s3_configurations not set. Ensure the 'Configure S3 access' play
-      runs before deploy_openchami. Check S3 settings in orchestrator_config.yml.
+      runs before deploy_openchami. Check image_build_manager_output_path in orchestrator_config.yml.
 
 - name: Parse network_spec data
   ansible.builtin.set_fact:
@@ -67,38 +67,10 @@
   delegate_to: localhost
   connection: local
 
-- name: Verify the openchami clone status
-  ansible.builtin.stat:
-    path: "{{ openchami_clone_path }}/dell/podman-quadlets"
-  register: clone_status
-  delegate_to: localhost
-  connection: local
-
-- name: Clone the openchami repository
-  ansible.builtin.git:
-    repo: "{{ openchami_git_repo }}"
-    dest: "{{ openchami_clone_path }}"
-    version: "{{ openchami_git_version }}"
-  register: clone_openchami
-  until: clone_openchami is not failed
-  retries: "{{ clone_retry }}"
-  delay: "{{ clone_delay }}"
-  when: not clone_status.stat.exists
-  delegate_to: localhost
-  connection: local
-
 - name: Load the openchami configs vars
   ansible.builtin.template:
     src: "{{ openchami_config_vars_template }}"
     dest: "{{ openchami_config_vars_path }}"
-    mode: "{{ file_permissions_644 }}"
-  delegate_to: localhost
-  connection: local
-
-- name: Load the openchami inventory
-  ansible.builtin.template:
-    src: "{{ openchami_inventory_template }}"
-    dest: "{{ openchami_inventory_file }}"
     mode: "{{ file_permissions_644 }}"
   delegate_to: localhost
   connection: local
@@ -154,16 +126,6 @@
   ansible.builtin.set_fact:
     dns_forwarders: "{{ network_data.admin_network.dns }}"
   when: (network_data.admin_network.dns | default([])) | length > 0
-
-- name: Set s3_access_id and s3_secret_key
-  ansible.builtin.set_fact:
-    s3_access_id: "{{ hostvars['localhost']['s3_access_id'] | default('admin', true) }}"
-    s3_secret_key: "{{ hostvars['localhost']['s3_secret_key'] }}"
-  no_log: true
-
-- name: Set storage backend fact
-  ansible.builtin.set_fact:
-    storage_backend: "{{ s3_configurations.provider | lower }}"
 
 - name: Deploy openchami configs
   block:

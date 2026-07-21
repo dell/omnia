@@ -93,21 +93,16 @@
   connection: local
   tags: always
   tasks:
-    - name: Load orchestrator S3 settings
+    - name: Load orchestrator config for image_build_manager output path
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/orchestrator_config.yml"
         name: _orch_config
       failed_when: false
 
-    - name: Set S3 facts on localhost for downstream roles
+    - name: Set image_build_manager_output_path on localhost
       ansible.builtin.set_fact:
-        s3_boot_images_bucket: "{{ _orch_config.s3_boot_images_bucket | default('boot-images') }}"
-        s3_access_id: "{{ _orch_config.s3_access_key | default('admin', true) }}"
-        s3_secret_key: "{{ _orch_config.s3_secret_key | default('') }}"
-        s3_configurations:
-          provider: "{{ _orch_config.s3_storage_provider | default('minio') }}"
+        image_build_manager_output_path: "{{ _orch_config.image_build_manager_output_path | default('/opt/omnia/output/project_default/image_build_manager/build_status.yml') }}"
         cacheable: true
-      no_log: true
 
 - name: Create oim group
   ansible.builtin.import_playbook: ../playbooks/utils/create_container_group.yml
