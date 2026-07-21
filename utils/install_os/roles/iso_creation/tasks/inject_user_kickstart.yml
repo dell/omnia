@@ -1,0 +1,86 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify user-provided Kickstart file exists
+  ansible.builtin.stat:
+    path: "{{ kickstart_file }}"
+  register: user_ks_stat
+
+- name: Fail if user-provided Kickstart file not found
+  ansible.builtin.fail:
+    msg: "{{ kickstart_file_not_found_msg }}"
+  when: not user_ks_stat.stat.exists
+
+- name: Read user-provided Kickstart content
+  ansible.builtin.slurp:
+    src: "{{ kickstart_file }}"
+  register: user_ks_content
+
+- name: Check for rootpw directive in user Kickstart
+  ansible.builtin.debug:
+    msg: "{{ user_ks_missing_rootpw_msg }}"
+  when: "'rootpw' not in (user_ks_content.content | b64decode)"
+
+- name: Check for sshkey directive in user Kickstart
+  ansible.builtin.debug:
+    msg: "{{ user_ks_missing_sshkey_msg }}"
+  when: "'sshkey' not in (user_ks_content.content | b64decode)"
+
+- name: Inject missing rootpw directive if not present and hash is available
+  when:
+    - "'rootpw' not in (user_ks_content.content | b64decode)"
+    - ks_root_password_hash | length > 0
+  block:
+    - name: Create temporary Kickstart with injected rootpw
+      ansible.builtin.copy:
+        content: |
+          {{ user_ks_content.content | b64decode }}
+          # Injected by install_os — rootpw was missing from user-provided Kickstart
+          rootpw --iscrypted {{ ks_root_password_hash }}
+        dest: "{{ kickstart_output_path }}"
+        mode: "0644"
+      register: ks_rootpw_injected
+
+- name: Inject missing sshkey directive if not present and key is available
+  when:
+    - "'sshkey' not in (user_ks_content.content | b64decode)"
+    - ks_ssh_public_key | length > 0
+    - ks_rootpw_injected is defined and ks_rootpw_injected is changed
+  block:
+    - name: Read current Kickstart content (may have rootpw injected)
+      ansible.builtin.slurp:
+        src: "{{ kickstart_output_path }}"
+      register: current_ks_content
+
+    - name: Append sshkey directive
+      ansible.builtin.copy:
+        content: |
+          {{ current_ks_content.content | b64decode }}
+          # Injected by install_os — sshkey was missing from user-provided Kickstart
+          sshkey --username=root "{{ ks_ssh_public_key }}"
+        dest: "{{ kickstart_output_path }}"
+        mode: "0644"
+
+- name: Copy user Kickstart as-is when no injection needed
+  ansible.builtin.copy:
+    src: "{{ kickstart_file }}"
+    dest: "{{ kickstart_output_path }}"
+    mode: "0644"
+    remote_src: true
+  when: ks_rootpw_injected is not defined or ks_rootpw_injected is not changed
+
+- name: Log user Kickstart injection
+  ansible.builtin.debug:
+    msg: "User-provided Kickstart copied to '{{ kickstart_output_path }}'."

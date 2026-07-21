@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set boot source to virtual CD/DVD (one-time)
+  dellemc.openmanage.idrac_boot:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    boot_source_override_mode: uefi
+    boot_source_override_target: "{{ boot_source_override_target }}"
+    boot_source_override_enabled: "{{ boot_source_override_enabled }}"
+    reset_type: "none"
+    resource_id: "System.Embedded.1"
+  register: boot_set_result
+  retries: "{{ idrac_retry_count }}"
+  delay: "{{ idrac_retry_delay }}"
+  until: boot_set_result is success
+
+- name: Power cycle target node (ForceRestart)
+  dellemc.openmanage.redfish_powerstate:
+    baseuri: "{{ target_bmc_ip }}"
+    username: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: false
+    resource_id: "System.Embedded.1"
+    reset_type: "ForceRestart"
+  register: restart_result
+  failed_when: false
+
+- name: Power on if ForceRestart did not change state
+  dellemc.openmanage.redfish_powerstate:
+    baseuri: "{{ target_bmc_ip }}"
+    username: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: false
+    resource_id: "System.Embedded.1"
+    reset_type: "On"
+  register: power_on_result
+  failed_when: false
+  when: not (restart_result is changed)
+
+- name: Fail if power operation failed
+  ansible.builtin.fail:
+    msg: "{{ boot_fail_msg }}"
+  when:
+    - not (restart_result is defined and restart_result is changed)
+    - not (power_on_result is defined and power_on_result is changed)
+
+- name: Wait for boot process to initiate
+  ansible.builtin.pause:
+    seconds: "{{ post_boot_wait_seconds }}"
+
+- name: Log boot operation success
+  ansible.builtin.debug:
+    msg: >-
+      OS installation initiated on target node via iDRAC ({{ target_bmc_ip }}).
+      The node is booting from virtual media. Installation will proceed unattended.
+      Monitor progress via iDRAC console or wait for the node to become reachable via SSH.

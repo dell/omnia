@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ─────────────────────────────────────────────────────────────────────────
+# AArch64 Unattended OS Installation Orchestrator
+#
+# This playbook automates OS installation on the admin_aarch64 builder
+# node. It fetches AArch64-specific parameters and calls the generic
+# install_os.yml playbook.
+#
+# Usage:
+#   ansible-playbook utils/install_os_arm_node/install_os_arm_node.yml
+#
+# Prerequisites:
+#   1. Omnia Core deployed (omnia.sh --install) with NFS share
+#   2. prepare_oim.yml completed
+#   3. RHEL 10.x AArch64 Server with GUI ISO pre-placed
+#   4. iso_config.yml configured (optional — defaults used otherwise)
+# ─────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 1: Pre-flight checks
+# ─────────────────────────────────────────────────────────────────────────
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../upgrade_checkup.yml
+  tags: always
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../include_input_dir.yml
+  tags: always
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 2: Fetch credentials
+# ─────────────────────────────────────────────────────────────────────────
+- name: Set run tags for credential fetch
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set dynamic run tags including 'provision'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['provision']) | unique }}"
+        cacheable: true
+
+- name: Invoke get_config_credentials.yml
+  ansible.builtin.import_playbook: ../credential_utility/get_config_credentials.yml
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 3: Validate ARM configuration and fetch parameters
+# ─────────────────────────────────────────────────────────────────────────
+- name: Validate ARM configuration and fetch parameters
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - role: validate_arm_config
+    - role: fetch_arm_params
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 4: Call generic install_os playbook
+# ─────────────────────────────────────────────────────────────────────────
+- name: Execute generic OS installation
+  ansible.builtin.import_playbook: ../install_os/install_os.yml

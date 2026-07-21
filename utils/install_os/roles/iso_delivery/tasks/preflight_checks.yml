@@ -1,0 +1,99 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate ISO HTTP share URL is provided
+  ansible.builtin.fail:
+    msg: "{{ no_iso_share_url_msg }}"
+  when: iso_http_share_url | length == 0
+
+- name: Check if target node is already reachable via SSH
+  when: target_node_ip is defined and target_node_ip | length > 0
+  block:
+    - name: Test SSH connectivity to target node
+      ansible.builtin.wait_for:
+        host: "{{ target_node_ip }}"
+        port: 22
+        timeout: 10
+        state: started
+      register: target_ssh_check
+      failed_when: false
+
+    - name: Abort if target is reachable and force_reinstall is false
+      ansible.builtin.fail:
+        msg: "{{ target_already_reachable_msg }}"
+      when:
+        - target_ssh_check is success
+        - not (force_reinstall | bool)
+
+    - name: Warn that target is reachable but force_reinstall is true
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Target node at '{{ target_node_ip }}' is reachable but
+          force_reinstall is true. Proceeding with OS reinstallation.
+      when:
+        - target_ssh_check is success
+        - force_reinstall | bool
+
+- name: Verify iDRAC reachability
+  ansible.builtin.uri:
+    url: "https://{{ target_bmc_ip }}/redfish/v1/"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    timeout: 30
+    status_code: [200]
+  register: idrac_check
+  retries: "{{ idrac_retry_count }}"
+  delay: "{{ idrac_retry_delay }}"
+  until: idrac_check.status == 200
+  failed_when: false
+
+- name: Fail if iDRAC is not reachable
+  ansible.builtin.fail:
+    msg: "{{ idrac_unreachable_msg }}"
+  when: idrac_check is failed or idrac_check.status != 200
+
+- name: Check iDRAC LC status
+  ansible.builtin.uri:
+    url: "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: POST
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    body: {}
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code: [200, 201, 202]
+  register: lc_status
+  retries: "{{ idrac_retry_count }}"
+  delay: "{{ idrac_retry_delay }}"
+  until: lc_status.status in [200, 201, 202]
+  failed_when: false
+
+- name: Log iDRAC pre-flight check success
+  ansible.builtin.debug:
+    msg: >-
+      iDRAC pre-flight checks passed.
+      BMC: {{ target_bmc_ip }},
+      LC Status: {{ lc_status.json.LCStatus | default('unknown') }}

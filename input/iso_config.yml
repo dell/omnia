@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ─────────────────────────────────────────────────────────────────────────
+# ISO Configuration for Unattended OS Installation
+#
+# This file configures the utils/install_os_arm_node playbook.
+# Copy this file to your input project directory
+# (e.g., /opt/omnia/input/project_default/iso_config.yml)
+# and customize as needed.
+# ─────────────────────────────────────────────────────────────────────────
+
+# Path to the pre-placed RHEL 10.x AArch64 Server with GUI full DVD ISO.
+# The ISO must be accessible on the OIM node.
+# Default: /opt/omnia/rhel_10.0_aarch64.iso
+# iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
+
+# SHA-256 checksum for source ISO verification (optional but recommended).
+# iso_source_checksum: ""
+
+# Output directory for the repacked ISO and manifest.
+# Default: /opt/omnia/iso_output
+# iso_target_directory: "/opt/omnia/iso_output"
+
+# User-provided Kickstart file path (optional).
+# When set, the playbook uses this Kickstart instead of the default template.
+# kickstart_file: ""
+
+# Kickstart Jinja2 template name (used when kickstart_file is not set).
+# Available templates: admin_aarch64
+# Default: admin_aarch64
+# kickstart_template: "admin_aarch64"
+
+# HTTP/HTTPS/NFS/CIFS URL where the repacked ISO will be accessible
+# for iDRAC virtual media mounting.
+# Example: http://10.10.0.1/iso_output/custom-rhel-10.0-ks.iso
+# Example: 10.10.0.1:/opt/omnia/iso_output/custom-rhel-10.0-ks.iso (NFS)
+# iso_http_share_url: ""
+
+# Force reinstallation even if the target node is already reachable via SSH.
+# Default: false
+# force_reinstall: false
+
+# Network configuration for the installed node
+# These override values derived from network_spec.yml and PXE mapping.
+# netmask: "255.255.255.0"
+# gateway: ""
+# dns: ""
+# network_device: ""
+# timezone: "UTC"

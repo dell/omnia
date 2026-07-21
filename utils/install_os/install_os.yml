@@ -1,0 +1,67 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ─────────────────────────────────────────────────────────────────────────
+# Generic OS Installation via iDRAC Virtual Media
+#
+# This playbook is designed to be called by architecture-specific
+# orchestrators (e.g., install_os_arm_node.yml). It accepts parameters
+# for ISO path, Kickstart configuration, and target node details.
+#
+# Required variables (set by the calling playbook or extra vars):
+#   - iso_source_path:      path to the pre-placed source ISO
+#   - target_bmc_ip:        BMC/iDRAC IP of the target node
+#   - bmc_username:         iDRAC username
+#   - bmc_password:         iDRAC password
+#
+# Optional variables:
+#   - iso_source_checksum:  SHA-256 checksum for source ISO verification
+#   - iso_target_directory: output directory for repacked ISO (default: /opt/omnia/iso_output)
+#   - kickstart_file:       user-provided kickstart file path
+#   - kickstart_template:   Jinja2 template name (default: admin_aarch64)
+#   - target_node_ip:       admin IP for pre-flight SSH reachability check
+#   - force_reinstall:      proceed even if target is reachable (default: false)
+#   - iso_http_share_url:   HTTP/HTTPS URL for ISO share (for virtual media mount)
+# ─────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 1: Validate ISO source and required tooling
+# ─────────────────────────────────────────────────────────────────────────
+- name: Validate ISO source and required tooling
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - role: fetch_iso
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 2: Create custom ISO with embedded Kickstart
+# ─────────────────────────────────────────────────────────────────────────
+- name: Create custom ISO with embedded Kickstart
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: iso_creation
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 3: Deliver ISO via iDRAC virtual media and boot target node
+# ─────────────────────────────────────────────────────────────────────────
+- name: Deliver ISO via iDRAC virtual media
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: iso_delivery

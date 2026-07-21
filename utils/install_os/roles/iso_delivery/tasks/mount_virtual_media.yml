@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Eject any existing virtual media
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    force: true
+    virtual_media:
+      - index: 1
+        insert: false
+      - index: 2
+        insert: false
+  register: eject_result
+  failed_when: false
+
+- name: Mount repacked ISO via iDRAC virtual media
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    force: true
+    virtual_media:
+      - index: 1
+        insert: true
+        image: "{{ iso_http_share_url }}"
+  register: mount_result
+  retries: "{{ idrac_retry_count }}"
+  delay: "{{ idrac_retry_delay }}"
+  until: mount_result is success
+
+- name: Fail if virtual media mount failed
+  ansible.builtin.fail:
+    msg: "{{ virtual_media_mount_fail_msg }}"
+  when: mount_result is failed
+
+- name: Log virtual media mount success
+  ansible.builtin.debug:
+    msg: >-
+      ISO mounted via iDRAC virtual media on '{{ target_bmc_ip }}'.
+      Image: {{ iso_http_share_url }}

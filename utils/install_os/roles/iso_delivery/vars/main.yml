@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# iDRAC configuration
+target_bmc_ip: "{{ target_bmc_ip }}"
+bmc_username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+bmc_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+force_reinstall: "{{ force_reinstall | default(false) | bool }}"
+
+# Virtual media configuration
+iso_http_share_url: "{{ iso_http_share_url | default('') }}"
+
+# Boot configuration
+boot_source_override_target: cd
+boot_source_override_enabled: once
+
+# Retry configuration
+idrac_retry_count: 3
+idrac_retry_delay: 10
+
+# Post-install wait
+post_boot_wait_seconds: 30
+
+# Error messages
+idrac_unreachable_msg: >-
+  iDRAC at '{{ target_bmc_ip }}' is not reachable.
+  Please verify network connectivity, the BMC IP address, and iDRAC status,
+  then re-run the playbook.
+idrac_auth_fail_msg: >-
+  iDRAC authentication failed for '{{ target_bmc_ip }}'.
+  Please verify the BMC username and password, then re-run the playbook.
+target_already_reachable_msg: >-
+  Target node at '{{ target_node_ip }}' is already reachable via SSH.
+  Set 'force_reinstall: true' in iso_config.yml to proceed with OS reinstallation.
+virtual_media_mount_fail_msg: >-
+  Failed to mount ISO via iDRAC virtual media on '{{ target_bmc_ip }}'.
+  Please verify iDRAC virtual media support and network share accessibility.
+boot_fail_msg: >-
+  Failed to set boot order or power cycle the target node via iDRAC.
+  Please verify iDRAC connectivity and retry.
+no_iso_share_url_msg: >-
+  No ISO HTTP share URL provided ('iso_http_share_url' is empty).
+  The repacked ISO must be accessible via HTTP/NFS/CIFS for iDRAC virtual media.
+  Set 'iso_http_share_url' in iso_config.yml.

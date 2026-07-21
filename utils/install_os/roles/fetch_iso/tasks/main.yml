@@ -1,0 +1,81 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify source ISO exists
+  ansible.builtin.stat:
+    path: "{{ iso_source_path }}"
+    get_checksum: false
+  register: iso_source_stat
+
+- name: Fail if source ISO not found
+  ansible.builtin.fail:
+    msg: "{{ iso_not_found_msg }}"
+  when: not iso_source_stat.stat.exists
+
+- name: Verify source ISO checksum (when provided)
+  when: iso_source_checksum is defined and iso_source_checksum | length > 0
+  block:
+    - name: Compute SHA-256 checksum of source ISO
+      ansible.builtin.stat:
+        path: "{{ iso_source_path }}"
+        checksum_algorithm: sha256
+      register: iso_checksum_result
+
+    - name: Fail if checksum does not match
+      ansible.builtin.fail:
+        msg: "{{ iso_checksum_mismatch_msg }}"
+      when: iso_checksum_result.stat.checksum != iso_source_checksum
+
+- name: Check required ISO tooling
+  block:
+    - name: Check for required tools
+      ansible.builtin.command: "which {{ item.name }}"
+      loop: "{{ required_iso_tools }}"
+      register: tool_check_results
+      changed_when: false
+      failed_when: false
+
+    - name: Build list of missing tools
+      ansible.builtin.set_fact:
+        missing_tools: >-
+          {{ tool_check_results.results
+             | selectattr('rc', 'ne', 0)
+             | map(attribute='item')
+             | map(attribute='name')
+             | list }}
+
+    - name: Fail if required tools are missing
+      ansible.builtin.fail:
+        msg: "{{ tool_missing_msg }}"
+      when: missing_tools | length > 0
+
+- name: Ensure ISO target directory exists
+  ansible.builtin.file:
+    path: "{{ iso_target_directory }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure ISO extract directory exists
+  ansible.builtin.file:
+    path: "{{ iso_extract_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Log ISO validation success
+  ansible.builtin.debug:
+    msg: >-
+      ISO validation passed. Source: {{ iso_source_path }}
+      ({{ iso_source_stat.stat.size | human_readable }}).
+      Output directory: {{ iso_target_directory }}

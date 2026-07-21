@@ -1,0 +1,44 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Default values
+iso_source_path: "{{ iso_source_path | default('/opt/omnia/rhel_10.0_aarch64.iso') }}"
+iso_target_directory: "{{ iso_target_directory | default('/opt/omnia/iso_output') }}"
+
+# Required ISO tooling
+required_iso_tools:
+  - name: xorrisofs
+    package: xorriso
+  - name: isomd5sum
+    package: isomd5sum
+
+# ISO mount point for extraction
+iso_mount_point: "/mnt/iso_source"
+iso_extract_dir: "{{ iso_target_directory }}/iso_extract"
+
+# Error messages
+iso_not_found_msg: >-
+  Source ISO not found at '{{ iso_source_path }}'.
+  Please place the RHEL 10.x AArch64 Server with GUI ISO at the specified path
+  and re-run the playbook.
+iso_checksum_mismatch_msg: >-
+  Source ISO checksum mismatch. Expected: {{ iso_source_checksum }}.
+  The ISO file may be corrupted or incomplete. Please re-download the ISO and retry.
+tool_missing_msg: >-
+  Required ISO tooling is missing: {{ missing_tools | join(', ') }}.
+  Install the missing packages and re-run the playbook.
+iso_mount_fail_msg: >-
+  Failed to mount the source ISO at '{{ iso_source_path }}'.
+  The ISO file may be corrupted. Please verify the ISO and retry.

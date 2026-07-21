@@ -1,0 +1,45 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Mount source ISO for extraction
+  ansible.posix.mount:
+    path: "{{ iso_mount_point }}"
+    src: "{{ iso_source_path }}"
+    fstype: iso9660
+    opts: ro,loop
+    state: mounted
+
+- name: Copy ISO contents to extract directory
+  ansible.builtin.command: >-
+    rsync -a --delete {{ iso_mount_point }}/ {{ iso_extract_dir }}/
+  changed_when: true
+
+- name: Unmount source ISO
+  ansible.posix.mount:
+    path: "{{ iso_mount_point }}"
+    state: unmounted
+
+- name: Process Kickstart file
+  block:
+    - name: Use user-provided Kickstart file
+      ansible.builtin.include_tasks: inject_user_kickstart.yml
+      when: kickstart_file | length > 0
+
+    - name: Render default Kickstart template
+      ansible.builtin.include_tasks: render_kickstart.yml
+      when: kickstart_file | length == 0
+
+- name: Repack ISO with embedded Kickstart
+  ansible.builtin.include_tasks: repack_iso.yml
