@@ -17,7 +17,7 @@
 # regression on RHEL 10.2 (crun 1.27 + kernel 6.12). SELinux stays enforcing.
 # Retire this when an updated container-selinux ships the bpf prog_run rule.
 
-- name: Install omnia-crun-bpf SELinux policy module
+- name: Verify and load omnia-crun-bpf SELinux policy module
   block:
     - name: Gather package facts for SELinux tools verification
       ansible.builtin.package_facts:
@@ -74,6 +74,6 @@
       when: selinux_module_name not in _selinux_modules.stdout
 
   rescue:
-    - name: Warn that SELinux policy module installation failed
+    - name: Warn that SELinux policy module verification failed
       ansible.builtin.debug:
-        msg: "{{ selinux_install_warn_msg }}"
+        msg: "{{ selinux_verify_warn_msg }}"

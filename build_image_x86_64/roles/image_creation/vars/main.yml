@@ -73,7 +73,7 @@ podman_verify_fail_msg: >-
   Ensure the node was rebooted after the kernel update and that the
   omnia-crun-bpf SELinux module loaded successfully
   (semodule -lfull | grep omnia-crun-bpf).
-selinux_install_warn_msg: >-
-  WARNING: Failed to install omnia-crun-bpf SELinux policy module.
+selinux_verify_warn_msg: >-
+  WARNING: Failed to verify or load omnia-crun-bpf SELinux policy module.
   Build will continue but may fail if the eBPF device filter issue is present.
   Check SELinux policy tools and audit log on this node.
