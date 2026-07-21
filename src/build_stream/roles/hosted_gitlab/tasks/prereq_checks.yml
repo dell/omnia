@@ -24,23 +24,23 @@
       ansible.builtin.fail:
         msg: "{{ gitlab_sshpass_install_fail_msg }}"
 
-- name: Load GitLab configuration inputs
+- name: Load BuildStream configuration inputs
   ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/gitlab_config.yml"
+    file: "{{ input_project_dir }}/build_stream/build_stream_config.yml"
   run_once: true
 
-- name: Ensure gitlab_host is provided in gitlab_config.yml
+- name: Ensure gitlab_host is provided in build_stream_config.yml
   ansible.builtin.assert:
     that:
       - gitlab_host is defined
       - gitlab_host | string | length > 0
-    fail_msg: "gitlab_host is not set. Provide gitlab_host in input/gitlab_config.yml"
+    fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream/build_stream_config.yml"
 
-- name: Ensure provision password is available
+- name: Ensure GitLab SSH password is available
   ansible.builtin.assert:
     that:
-      - hostvars['localhost']['provision_password'] | default('') | length > 0
-    fail_msg: "Provision password not found. Run credential utility to populate provision_password."
+      - hostvars['localhost']['gitlab_ssh_password'] | default('') | length > 0
+    fail_msg: "GitLab SSH password not found. Run credential utility to populate gitlab_ssh_password in build_stream credentials."
 
 - name: Ensure gitlab root password is available
   ansible.builtin.assert:
@@ -49,11 +49,6 @@
       - hostvars['localhost']['gitlab_root_password'] != ""
       - hostvars['localhost']['gitlab_root_password'] | length > 0
     fail_msg: "{{ gitlab_root_password_fail_msg }}"
-
-- name: Load build stream configuration
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/build_stream_config.yml"
-  run_once: true
 
 - name: Ensure build stream is enabled
   ansible.builtin.assert:
@@ -84,6 +79,6 @@
     groups: gitlab_server
     ansible_host: "{{ gitlab_host }}"
     ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-    ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
+    ansible_password: "{{ hostvars['localhost']['gitlab_ssh_password'] }}"
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
   no_log: true

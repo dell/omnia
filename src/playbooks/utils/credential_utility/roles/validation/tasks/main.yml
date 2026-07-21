@@ -20,20 +20,37 @@
 
 - name: Load build_stream_config.yml to check if enabled
   block:
-    - name: Include build_stream_config.yml
+    - name: Include build_stream_config.yml from build_stream subdirectory
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
+        file: "{{ input_project_dir }}/{{ build_stream_config_dir | default('build_stream') }}/build_stream_config.yml"
       register: include_build_stream_config
   rescue:
+    - name: Try legacy config paths
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      register: include_build_stream_config_legacy
+      failed_when: false
+
     - name: Set enable_build_stream to false if config not found
       ansible.builtin.set_fact:
         enable_build_stream: false
+      when: include_build_stream_config_legacy is failed or include_build_stream_config_legacy is skipped
 
 - name: Load storage_config.yml for backend-aware credential prompts
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/storage_config.yml"
   failed_when: false
   no_log: true
+  when: omnia_run_tags | default([]) | intersect(['build_stream']) | length == 0
+
+- name: Set default s3_configurations for BuildStream-only tags
+  ansible.builtin.set_fact:
+    s3_configurations:
+      provider: "none"
+      endpoint_url: ""
+  when:
+    - s3_configurations is not defined
+    - omnia_run_tags | default([]) | intersect(['build_stream']) | length > 0
 
 - name: Validate credential files
   ansible.builtin.include_tasks: validate_cred_file.yml
@@ -48,3 +65,4 @@
 
 - name: Include pre_requisite.yml
   ansible.builtin.include_tasks: pre_requisite.yml
+  when: omnia_run_tags | default([]) | intersect(['build_stream']) | length == 0

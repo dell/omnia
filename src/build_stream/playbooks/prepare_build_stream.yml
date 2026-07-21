@@ -1,0 +1,176 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# prepare_build_stream.yml — Deploy Postgres + GitLab + BuildStream Manager (BSM)
+#
+# This playbook brings up the infrastructure required by BuildStream:
+#   - PostgreSQL database (for BSM state)
+#   - GitLab CE (for CI/CD pipeline)
+#   - BuildStream Manager container (omnia_build_stream)
+#
+# Pre-checks: None (first build_stream step)
+# Output:     build_stream_status.yml written to output/
+
+- name: Prepare BuildStream infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    bs_cred_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/build_stream/build_stream_credentials.yml"
+    bs_vault_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/build_stream/.build_stream_credentials_key"
+  tasks:
+    - name: Load build_stream configuration
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/build_stream/build_stream_config.yml"
+
+    - name: Validate enable_build_stream is set
+      ansible.builtin.assert:
+        that:
+          - enable_build_stream is defined
+        fail_msg: "enable_build_stream must be defined in build_stream/build_stream_config.yml"
+
+    - name: Skip BuildStream setup when disabled
+      ansible.builtin.meta: end_play
+      when: not (enable_build_stream | default(false) | bool)
+
+    - name: Load build_stream credentials for Postgres
+      block:
+        - name: Check if build_stream credentials file exists
+          ansible.builtin.stat:
+            path: "{{ bs_cred_file }}"
+          register: bs_cred_stat
+
+        - name: Fail if build_stream credentials not found
+          ansible.builtin.fail:
+            msg: >-
+              Build Stream credentials file not found at {{ bs_cred_file }}.
+              Run the credential utility first: ansible-playbook build_stream.yml
+          when: not bs_cred_stat.stat.exists
+
+        - name: Check if credentials file is encrypted
+          ansible.builtin.shell: >-
+            set -o pipefail && head -n1 "{{ bs_cred_file }}" | grep -q '\$ANSIBLE_VAULT;'
+          register: bs_cred_encrypted
+          changed_when: false
+          failed_when: false
+
+        - name: Decrypt build_stream credentials
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ bs_cred_file }}"
+            --vault-password-file "{{ bs_vault_file }}"
+          when: bs_cred_encrypted.rc == 0
+          changed_when: false
+
+        - name: Load build_stream credentials
+          ansible.builtin.include_vars:
+            file: "{{ bs_cred_file }}"
+          no_log: true
+
+        - name: Re-encrypt build_stream credentials
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_cred_file }}"
+            --vault-password-file "{{ bs_vault_file }}"
+          when: bs_cred_encrypted.rc == 0
+          changed_when: false
+      rescue:
+        - name: Re-encrypt on failure
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_cred_file }}"
+            --vault-password-file "{{ bs_vault_file }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Fail with credential loading error
+          ansible.builtin.fail:
+            msg: "Failed to load build_stream credentials. Check file and vault key at {{ bs_cred_file }}."
+
+    - name: Set build_stream auth vars from auth_registration dict
+      ansible.builtin.set_fact:
+        build_stream_auth_username: "{{ auth_registration.username | default('') }}"
+        build_stream_auth_password: "{{ auth_registration.password | default('') }}"
+      no_log: true
+      when: auth_registration is defined
+
+    - name: Validate postgres credentials are set
+      ansible.builtin.assert:
+        that:
+          - postgres_user | default('') | length > 0
+          - postgres_password | default('') | length > 0
+        fail_msg: >-
+          postgres_user and postgres_password must be set in build_stream credentials.
+          Re-run the credential utility to provide these values.
+
+    - name: Load OIM metadata for shared path
+      ansible.builtin.include_vars:
+        file: "/opt/omnia/.data/oim_metadata.yml"
+
+    - name: Set SELinux option based on NFS type
+      ansible.builtin.set_fact:
+        selinux_option: "{{ '' if (omnia_share_option | default('') == 'NFS' and nfs_type | default('') == 'external') else ':z' }}"
+
+    - name: Register OIM host for BuildStream deployment
+      ansible.builtin.add_host:
+        name: oim
+        groups: oim
+        ansible_host: "{{ build_stream_host_ip }}"
+        ansible_connection: ssh
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+        postgres_user: "{{ postgres_user }}"
+        postgres_password: "{{ postgres_password }}"
+        build_stream_host_ip: "{{ build_stream_host_ip }}"
+        build_stream_port: "{{ build_stream_port | default(8010) }}"
+        oim_shared_path: "{{ oim_shared_path }}"
+        selinux_option: "{{ selinux_option }}"
+      no_log: true
+
+- name: Deploy Postgres container for BuildStream
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Deploy Postgres
+      ansible.builtin.include_role:
+        name: postgres
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+
+- name: Deploy BuildStream Manager (BSM) container and watcher service
+  hosts: oim
+  connection: ssh
+  gather_facts: true
+  tasks:
+    - name: Deploy BSM
+      ansible.builtin.include_role:
+        name: deploy_bsm
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+
+- name: Write BuildStream status
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Write build_stream_status.yml
+      ansible.builtin.copy:
+        content: |
+          ---
+          overall_status: "prepared"
+          build_stream_host: "{{ build_stream_host_ip | default('') }}"
+          build_stream_port: {{ build_stream_port | default(8010) }}
+          gitlab_host: "{{ gitlab_host | default('') }}"
+          gitlab_https_port: {{ gitlab_https_port | default(443) }}
+          gitlab_url: "https://{{ gitlab_host | default('') }}:{{ gitlab_https_port | default(443) }}"
+          bsm_api_url: "https://{{ build_stream_host_ip | default('') }}:{{ build_stream_port | default(8010) }}"
+        dest: "{{ playbook_dir }}/../output/build_stream_status.yml"
+        mode: "0644"
+      when: enable_build_stream | default(false) | bool

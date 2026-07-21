@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ---
-# upgrade_buildstream.yml — PLACEHOLDER for Omnia 3.0 upgrade flow
+# upgrade_build_stream.yml — PLACEHOLDER for Omnia 3.0 upgrade flow
 # Actual upgrade logic will be added when per-domain upgrade is implemented.
 
 - name: BuildStream upgrade placeholder

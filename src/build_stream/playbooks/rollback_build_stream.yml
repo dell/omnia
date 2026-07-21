@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ---
-# rollback_buildstream.yml — PLACEHOLDER for Omnia 3.0 rollback flow
+# rollback_build_stream.yml — PLACEHOLDER for Omnia 3.0 rollback flow
 # Actual rollback logic will be added when per-domain rollback is implemented.
 
 - name: BuildStream rollback placeholder

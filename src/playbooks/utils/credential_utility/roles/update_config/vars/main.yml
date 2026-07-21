@@ -20,8 +20,8 @@ credential_files:
     vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
     condition: true
   - credential_type: "Build Stream"
-    file_path: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
-    vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
+    file_path: "{{ input_project_dir }}/build_stream/build_stream_credentials.yml"
+    vault_path: "{{ input_project_dir }}/build_stream/.build_stream_credentials_key"
     condition: "{{ enable_build_stream | default(false) | bool }}"
     mode: 600
     template: "{{ role_path }}/../create_config/templates/build_stream_credential.j2"
@@ -83,9 +83,19 @@ omnia_credentials:
         password: build_stream_auth_password
         condition: "{{ enable_build_stream | default(false) | bool }}"
         file: "{{ credential_files[1].file_path }}"
+  build_stream:
+    mandatory:
+      - { password: gitlab_root_password }
+      - { password: gitlab_ssh_password, file: "{{ credential_files[1].file_path }}" }
+    conditional_mandatory:
+      - username: build_stream_auth_username
+        password: build_stream_auth_password
+        condition: "{{ enable_build_stream | default(false) | bool }}"
+        file: "{{ credential_files[1].file_path }}"
       - username: postgres_user
         password: postgres_password
         condition: "{{ enable_build_stream | default(false) | bool }}"
+        file: "{{ credential_files[1].file_path }}"
   local_repo:
     optional:
       - { username: docker_username, password: docker_password }

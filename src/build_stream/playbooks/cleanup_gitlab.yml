@@ -25,7 +25,7 @@
     - name: Set dynamic run tags including 'gitlab'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['provision']) | unique }}"
+        omnia_run_tags: "{{ ['build_stream', 'gitlab'] }}"
         cacheable: true
 
 - name: Include input project directory
@@ -42,16 +42,16 @@
   tasks:
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/buildstream_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
       delegate_to: localhost
       run_once: true
 
-    - name: Ensure gitlab_host is provided in buildstream_config.yml
+    - name: Ensure gitlab_host is provided in build_stream_config.yml
       ansible.builtin.assert:
         that:
           - gitlab_host is defined
           - gitlab_host | string | length > 0
-        fail_msg: "gitlab_host is not set. Provide gitlab_host in input/buildstream_config.yml"
+        fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream/build_stream_config.yml"
 
     - name: Ensure provision password is available
       ansible.builtin.assert:
@@ -77,7 +77,7 @@
   pre_tasks:
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/buildstream_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
   roles:
     - cleanup_gitlab
 

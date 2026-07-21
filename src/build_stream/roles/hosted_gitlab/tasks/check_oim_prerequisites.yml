@@ -19,7 +19,7 @@
 
 - name: Check if playbook_watcher service is running
   ansible.builtin.systemd_service:
-    name: playbook_watcher.service
+    name: playbook-watcher.service
   register: watcher_service_status
   failed_when: false
 

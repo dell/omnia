@@ -16,7 +16,7 @@
 
 - name: Load build stream configuration from input directory
   ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
   delegate_to: localhost
 
 - name: Read BSM API certificate from localhost

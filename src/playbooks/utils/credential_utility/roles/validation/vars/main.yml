@@ -20,8 +20,8 @@ credential_files:
     vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
     condition: true
   - credential_type: "Build Stream"
-    file_path: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
-    vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
+    file_path: "{{ input_project_dir }}/build_stream/build_stream_credentials.yml"
+    vault_path: "{{ input_project_dir }}/build_stream/.build_stream_credentials_key"
     condition: "{{ enable_build_stream | default(false) | bool }}"
   - credential_type: "Image Build"
     file_path: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"

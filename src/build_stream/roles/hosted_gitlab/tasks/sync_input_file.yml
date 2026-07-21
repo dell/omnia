@@ -29,6 +29,12 @@
     validate_certs: false
   register: gitlab_input_file_check
 
+- name: Ensure payload parent directory exists on GitLab host
+  ansible.builtin.file:
+    path: "{{ _gitlab_input_hosted_path | dirname }}"
+    state: directory
+    mode: '0755'
+
 - name: Copy input file to GitLab host payload directory
   ansible.builtin.copy:
     src: "{{ input_file_src }}"
