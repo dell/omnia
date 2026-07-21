@@ -13,15 +13,16 @@
 # limitations under the License.
 ---
 
-# Enable iDRAC Telemetry
+# Enable LDMS Telemetry
 # Usage: Called from telemetry.yml or standalone with kube_vip
-#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags enable_idrac_telemetry
+#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags enable_ldms
 #
 # Deploys shared infrastructure (Kafka, VictoriaMetrics) if not present,
-# then deploys iDRAC telemetry components (receiver, kafkapump, victoriapump).
+# then configures LDMS sampler/aggregator and deploys the Vector-LDMS bridge
+# (Kafka-to-VictoriaMetrics ingestion pipeline).
 # All K8s tasks execute on the kube_vip host.
 
-- name: Enable iDRAC Telemetry
+- name: Enable LDMS Telemetry
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
@@ -30,4 +31,4 @@
       when: hostvars['localhost']['kafka_support'] | default(true) | bool
     - role: deploy_victoria
       when: hostvars['localhost']['victoria_metrics_support'] | default(true) | bool
-    - role: enable_idrac_telemetry
+    - role: enable_ldms

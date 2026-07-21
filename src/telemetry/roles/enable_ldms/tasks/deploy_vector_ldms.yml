@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Deploy Vector-LDMS Pipeline
+# =============================================================================
+# Purpose: Kafka-to-VictoriaMetrics ingestion pipeline for LDMS metrics
+# Architecture: Kafka 'ldms' topic → Vector-LDMS → vmagent-vector:8429 → vminsert:8480
+# =============================================================================
+
+- name: Check if Vector-LDMS deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+  register: vector_ldms_check
+  changed_when: false
+  failed_when: false
+
+- name: Apply Vector-LDMS ConfigMap
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-configmap.yaml
+  register: vector_configmap_result
+  changed_when: "'configured' in vector_configmap_result.stdout or 'created' in vector_configmap_result.stdout"
+
+- name: Apply Vector-LDMS Deployment
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-deployment.yaml
+  register: vector_deployment_result
+  changed_when: "'configured' in vector_deployment_result.stdout or 'created' in vector_deployment_result.stdout"
+
+- name: Apply Vector-LDMS Service
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-service.yaml
+  register: vector_service_result
+  changed_when: "'configured' in vector_service_result.stdout or 'created' in vector_service_result.stdout"
+
+- name: Wait for Vector-LDMS deployment rollout
+  ansible.builtin.command: >
+    kubectl rollout status deployment/{{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+    --timeout={{ ldms_deploy_timeout }}
+  register: vector_rollout
+  changed_when: false
+
+- name: Wait for Vector-LDMS pods to be ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready
+    pod -l app={{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+    --timeout={{ ldms_verify_timeout }}
+  register: vector_pods_ready
+  changed_when: false
+  retries: "{{ pod_ready_retries }}"
+  delay: "{{ pod_ready_delay }}"
+  until: vector_pods_ready.rc == 0
+
+- name: Log Vector-LDMS deployment complete
+  ansible.builtin.debug:
+    msg: "Vector-LDMS bridge deployed successfully. Pipeline: Kafka 'ldms' → Vector-LDMS → vmagent-vector → VictoriaMetrics"

@@ -71,6 +71,16 @@
 # ============================================================================
 
 # ============================================================================
+# TELEMETRY CLUSTER CONFIGURATION
+# ============================================================================
+# K8s cluster configuration for telemetry deployment
+
+# Kubernetes control plane virtual IP address
+# Required for all telemetry deployments
+# All K8s tasks (kubectl, helm) execute on this host via SSH
+kube_vip: ""
+
+# ============================================================================
 # TELEMETRY SOURCES (Data Collectors)
 # ============================================================================
 # Each source can be independently enabled/disabled.
@@ -362,6 +372,11 @@ telemetry_sinks:
 # --------------------------------------------------------------------------
 # Storage configuration for iDRAC telemetry MySQL database
 idrac_telemetry_configurations:
+  # Path to BMC inventory CSV file for iDRAC telemetry
+  # Required when telemetry_sources.idrac.metrics_enabled is true
+  # Example: "/opt/omnia/input/bmc_group_data.csv"
+  bmc_group_data_path: ""
+
   # MySQL database storage for iDRAC telemetry
   mysqldb_storage: "1Gi"
 

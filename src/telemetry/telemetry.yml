@@ -13,12 +13,98 @@
 # limitations under the License.
 ---
 
+# =============================================================================
 # Telemetry Stack Deployment Entry Point
+# =============================================================================
 # Usage:
-#   ansible-playbook telemetry.yml                                  # Deploy all enabled telemetry
-#   ansible-playbook telemetry.yml --tags enable_idrac_telemetry    # Deploy iDRAC telemetry only
+#   ansible-playbook telemetry.yml                    # Deploy all enabled telemetry
+#
+# Configuration is read from telemetry/input/telemetry_config.yml:
+#   - kube_vip: K8s control plane VIP (required)
+#   - bmc_group_data_path: Path to BMC inventory CSV for iDRAC telemetry
+#   - telemetry_sources.<source>.metrics_enabled: true/false per source
+#
+# Only sources with metrics_enabled: true are deployed.
+# All K8s tasks (kubectl, helm) execute on the kube_vip host via SSH.
+# =============================================================================
 
-- name: Enable iDRAC Telemetry
-  ansible.builtin.import_playbook: playbooks/enable_idrac_telemetry.yml
-  tags:
-    - enable_idrac_telemetry
+# Play 1: Bootstrap — load telemetry config, derive flags, resolve kube_vip
+- name: "Telemetry bootstrap: load config and resolve kube_vip target"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Set input_project_dir default
+      ansible.builtin.set_fact:
+        input_project_dir: "{{ input_project_dir | default(playbook_dir + '/../input') }}"
+
+    - name: Load telemetry configuration
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/input/telemetry_config.yml"
+        name: telemetry_config
+
+    - name: Load telemetry storage configuration
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/input/telemetry_storage_config.yml"
+        name: telemetry_storage_config
+      failed_when: false
+
+    - name: Derive sink support flags
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: derive_sink_support_flags
+
+    - name: Set kube_vip from telemetry_config
+      ansible.builtin.set_fact:
+        kube_vip: "{{ telemetry_config.kube_vip }}"
+      when: telemetry_config.kube_vip is defined
+
+    - name: Set bmc_group_data_path from idrac_telemetry_configurations (for iDRAC)
+      ansible.builtin.set_fact:
+        bmc_group_data_path: "{{ telemetry_config.idrac_telemetry_configurations.bmc_group_data_path }}"
+      when: telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
+
+    - name: Validate kube_vip is set
+      ansible.builtin.assert:
+        that:
+          - kube_vip is defined
+          - kube_vip | length > 0
+        fail_msg: >
+          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+
+    - name: Display kube_vip target
+      ansible.builtin.debug:
+        msg: "Telemetry tasks will execute on kube_vip: {{ kube_vip }}"
+
+# Play 2: Deploy telemetry components on kube_vip (conditionally based on config)
+- name: "Deploy telemetry components"
+  hosts: kube_vip_group
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Deploy Kafka (shared infrastructure)
+      ansible.builtin.include_role:
+        name: deploy_kafka
+      when: hostvars['localhost']['kafka_support'] | default(false) | bool
+
+    - name: Deploy VictoriaMetrics (shared infrastructure)
+      ansible.builtin.include_role:
+        name: deploy_victoria
+      when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Enable iDRAC Telemetry
+      ansible.builtin.include_role:
+        name: enable_idrac_telemetry
+      when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
+
+    - name: Enable LDMS Telemetry
+      ansible.builtin.include_role:
+        name: enable_ldms
+      when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
