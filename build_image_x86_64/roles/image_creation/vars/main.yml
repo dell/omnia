@@ -65,6 +65,9 @@ storage_config_syntax_fail_msg: "Failed to load storage_config.yml due to syntax
 # preflight_selinux_check.yml
 selinux_module_name: "omnia-crun-bpf"
 selinux_policy_dir: "/etc/selinux/targeted/custom"
+selinux_tools_fail_msg: >-
+  Required SELinux policy build tools (policycoreutils, checkpolicy) are not installed.
+  Please run prepare_oim/prepare_oim.yml to install the required packages.
 podman_verify_fail_msg: >-
   Podman cannot start containers on this node.
   Ensure the node was rebooted after the kernel update and that the
