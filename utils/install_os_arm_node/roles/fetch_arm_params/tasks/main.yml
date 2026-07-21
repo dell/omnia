@@ -50,6 +50,16 @@
   changed_when: false
   no_log: true
 
+- name: Get OIM IP address for NFS share construction
+  ansible.builtin.set_fact:
+    oim_ip: "{{ ansible_default_ipv4.address }}"
+  when: oim_ip is not defined
+
+- name: Construct default NFS share path
+  ansible.builtin.set_fact:
+    default_iso_nfs_share: "{{ oim_ip }}:{{ iso_target_directory }}/custom-{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-ks.iso"
+  when: iso_config.iso_nfs_share | default('') | length == 0
+
 - name: Set install_os parameters for AArch64 node
   ansible.builtin.set_fact:
     # ISO parameters
@@ -72,8 +82,13 @@
     target_bmc_ip: "{{ arm_node_entry.BMC_IP }}"
     target_node_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
     force_reinstall: "{{ iso_config.force_reinstall | default(false) | bool }}"
-    # Virtual media share URL
-    iso_http_share_url: "{{ iso_config.iso_http_share_url | default('') }}"
+    # NFS share path for idrac_os_deployment
+    iso_nfs_share: "{{ iso_config.iso_nfs_share | default(default_iso_nfs_share) }}"
+    # Optional NFS credentials
+    nfs_share_user: "{{ iso_config.nfs_share_user | default('') }}"
+    nfs_share_password: "{{ iso_config.nfs_share_password | default('') }}"
+    # Exposure duration
+    expose_duration: "{{ iso_config.expose_duration | default(1080) }}"
     cacheable: true
 
 - name: Log fetched ARM parameters

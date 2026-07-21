@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Validate ISO HTTP share URL is provided
+- name: Validate ISO NFS share path is provided
   ansible.builtin.fail:
-    msg: "{{ no_iso_share_url_msg }}"
-  when: iso_http_share_url | length == 0
+    msg: "{{ no_iso_nfs_share_msg }}"
+  when: iso_nfs_share | length == 0
 
 - name: Check if target node is already reachable via SSH
   when: target_node_ip is defined and target_node_ip | length > 0
@@ -58,8 +58,8 @@
     timeout: 30
     status_code: [200]
   register: idrac_check
-  retries: "{{ idrac_retry_count }}"
-  delay: "{{ idrac_retry_delay }}"
+  retries: 3
+  delay: 10
   until: idrac_check.status == 200
   failed_when: false
 
@@ -86,8 +86,8 @@
       OData-Version: "4.0"
     status_code: [200, 201, 202]
   register: lc_status
-  retries: "{{ idrac_retry_count }}"
-  delay: "{{ idrac_retry_delay }}"
+  retries: 3
+  delay: 10
   until: lc_status.status in [200, 201, 202]
   failed_when: false
 

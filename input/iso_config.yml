@@ -43,11 +43,20 @@
 # Default: admin_aarch64
 # kickstart_template: "admin_aarch64"
 
-# HTTP/HTTPS/NFS/CIFS URL where the repacked ISO will be accessible
-# for iDRAC virtual media mounting.
-# Example: http://10.10.0.1/iso_output/custom-rhel-10.0-ks.iso
-# Example: 10.10.0.1:/opt/omnia/iso_output/custom-rhel-10.0-ks.iso (NFS)
-# iso_http_share_url: ""
+# NFS share path where the repacked ISO will be accessible
+# for iDRAC OS Deployment Service.
+# Format: <nfs_server_ip>:<nfs_share_path>/<iso_filename>
+# Example: 10.10.0.1:/opt/omnia/iso_output/custom-rhel-10.0-ks.iso
+# The NFS share must be exported from the OIM node.
+# iso_nfs_share: ""
+
+# Optional: NFS share credentials (if the NFS server requires authentication)
+# nfs_share_user: ""
+# nfs_share_password: ""
+
+# ISO exposure duration in minutes (how long iDRAC exposes the ISO as CD-ROM).
+# Default: 1080 minutes (18 hours)
+# expose_duration: 1080
 
 # Force reinstallation even if the target node is already reachable via SSH.
 # Default: false

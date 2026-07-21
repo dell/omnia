@@ -16,8 +16,5 @@
 - name: Run iDRAC pre-flight checks
   ansible.builtin.include_tasks: preflight_checks.yml
 
-- name: Mount ISO via iDRAC virtual media
-  ansible.builtin.include_tasks: mount_virtual_media.yml
-
-- name: Boot target node from virtual media
-  ansible.builtin.include_tasks: boot_node.yml
+- name: Deploy OS via iDRAC OS Deployment Service
+  ansible.builtin.include_tasks: deploy_os.yml

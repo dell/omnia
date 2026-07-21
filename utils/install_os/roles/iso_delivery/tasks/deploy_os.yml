@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Deploy OS via iDRAC OS Deployment Service (BootToNetworkISO)
+  dellemc.openmanage.idrac_os_deployment:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    share_name: "{{ iso_nfs_share }}"
+    iso_image: "{{ iso_nfs_share | regex_replace('.*:(.*)/(.*)', '\\2') }}"
+    share_user: "{{ nfs_share_user | default(omit) }}"
+    share_password: "{{ nfs_share_password | default(omit) }}"
+    expose_duration: "{{ expose_duration }}"
+  register: os_deployment_result
+  failed_when: false
+
+- name: Fail if OS deployment failed
+  ansible.builtin.fail:
+    msg: "{{ os_deployment_fail_msg }} Error: {{ os_deployment_result.msg | default('Unknown error') }}"
+  when: os_deployment_result is failed
+
+- name: Log OS deployment success
+  ansible.builtin.debug:
+    msg: >-
+      OS deployment initiated successfully via iDRAC OS Deployment Service.
+      BMC: {{ target_bmc_ip }},
+      NFS Share: {{ iso_nfs_share }},
+      Exposure Duration: {{ expose_duration }} minutes,
+      Job Status: {{ os_deployment_result.boot_status.JobStatus | default('Unknown') }},
+      Message: {{ os_deployment_result.boot_status.Message | default('') }}

@@ -19,38 +19,30 @@ bmc_username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) 
 bmc_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
 force_reinstall: "{{ force_reinstall | default(false) | bool }}"
 
-# Virtual media configuration
-iso_http_share_url: "{{ iso_http_share_url | default('') }}"
+# NFS share configuration for idrac_os_deployment
+# Format: <nfs_server_ip>:<nfs_share_path>/<iso_filename>
+# Example: 10.10.0.1:/opt/omnia/iso_output/custom-rhel-10.0-ks.iso
+iso_nfs_share: "{{ iso_nfs_share | default('') }}"
+# Optional: NFS share credentials (if required)
+nfs_share_user: "{{ nfs_share_user | default('') }}"
+nfs_share_password: "{{ nfs_share_password | default('') }}"
 
-# Boot configuration
-boot_source_override_target: cd
-boot_source_override_enabled: once
-
-# Retry configuration
-idrac_retry_count: 3
-idrac_retry_delay: 10
-
-# Post-install wait
-post_boot_wait_seconds: 30
+# ISO exposure duration (minutes) - how long iDRAC exposes the ISO as CD-ROM
+# Default: 1080 minutes (18 hours)
+expose_duration: "{{ expose_duration | default(1080) }}"
 
 # Error messages
 idrac_unreachable_msg: >-
   iDRAC at '{{ target_bmc_ip }}' is not reachable.
   Please verify network connectivity, the BMC IP address, and iDRAC status,
   then re-run the playbook.
-idrac_auth_fail_msg: >-
-  iDRAC authentication failed for '{{ target_bmc_ip }}'.
-  Please verify the BMC username and password, then re-run the playbook.
 target_already_reachable_msg: >-
   Target node at '{{ target_node_ip }}' is already reachable via SSH.
   Set 'force_reinstall: true' in iso_config.yml to proceed with OS reinstallation.
-virtual_media_mount_fail_msg: >-
-  Failed to mount ISO via iDRAC virtual media on '{{ target_bmc_ip }}'.
-  Please verify iDRAC virtual media support and network share accessibility.
-boot_fail_msg: >-
-  Failed to set boot order or power cycle the target node via iDRAC.
-  Please verify iDRAC connectivity and retry.
-no_iso_share_url_msg: >-
-  No ISO HTTP share URL provided ('iso_http_share_url' is empty).
-  The repacked ISO must be accessible via HTTP/NFS/CIFS for iDRAC virtual media.
-  Set 'iso_http_share_url' in iso_config.yml.
+no_iso_nfs_share_msg: >-
+  No ISO NFS share path provided ('iso_nfs_share' is empty).
+  The repacked ISO must be accessible via NFS for iDRAC OS deployment.
+  Set 'iso_nfs_share' in iso_config.yml.
+os_deployment_fail_msg: >-
+  Failed to initiate OS deployment via iDRAC on '{{ target_bmc_ip }}'.
+  Please verify NFS share accessibility and iDRAC OS Deployment Service support.
