@@ -32,3 +32,9 @@ credential_files:
     file_mode: 600
     vault_path: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
     condition: true
+  - credential_type: "Telemetry"
+    template: "{{ role_path }}/templates/telemetry_credentials.j2"
+    file_path: "{{ input_project_dir }}/telemetry_credentials.yml"
+    file_mode: 600
+    vault_path: "{{ input_project_dir }}/.telemetry_credentials_key"
+    condition: true

@@ -13,30 +13,20 @@
 # limitations under the License.
 ---
 
-# Provision credentials
-provision_password: ""
-bmc_username: ""
-bmc_password: ""
+# Enable iDRAC Telemetry
+# Usage: ansible-playbook playbooks/enable_idrac_telemetry.yml
+#
+# Deploys shared infrastructure (Kafka, VictoriaMetrics) if not present,
+# then deploys iDRAC telemetry components (receiver, kafkapump, victoriapump).
 
-# Prepare_oim credentials
-pulp_password: ""
-docker_username: ""
-docker_password: ""
-
-# Omnia credentials
-slurm_db_password: ""
-
-# Security credentials
-openldap_db_username: ""
-openldap_db_password: ""
-
-# postgres credentials
-postgres_user: ""
-postgres_password: ""
-
-# Gitlab credentials
-gitlab_root_password: ""
-
-# OME discovery credentials
-ome_username: ""
-ome_password: ""
+- name: Enable iDRAC Telemetry
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: deploy_kafka
+      when: kafka_support | default(true) | bool
+    - role: deploy_victoria
+      when: victoria_metrics_support | default(true) | bool
+    - role: enable_idrac_telemetry
