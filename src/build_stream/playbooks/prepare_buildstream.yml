@@ -1,0 +1,61 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# prepare_buildstream.yml — Deploy Postgres + GitLab + BuildStream Manager (BSM)
+#
+# This playbook brings up the infrastructure required by BuildStream:
+#   - PostgreSQL database (for BSM state)
+#   - GitLab CE (for CI/CD pipeline)
+#   - BuildStream Manager container (omnia_build_stream)
+#
+# Pre-checks: None (first buildstream step)
+# Output:     buildstream_status.yml written to output/
+
+- name: Prepare BuildStream infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Load buildstream configuration
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../input/buildstream_config.yml"
+
+    - name: Validate enable_build_stream is set
+      ansible.builtin.assert:
+        that:
+          - enable_build_stream is defined
+        fail_msg: "enable_build_stream must be defined in buildstream_config.yml"
+
+    - name: Skip BuildStream setup when disabled
+      ansible.builtin.meta: end_play
+      when: not (enable_build_stream | default(false) | bool)
+
+    # TODO: Add Postgres deployment tasks
+    # TODO: Add BSM container deployment tasks (omnia_build_stream)
+
+    - name: Write buildstream_status.yml
+      ansible.builtin.copy:
+        content: |
+          ---
+          overall_status: "prepared"
+          build_stream_host: "{{ build_stream_host_ip | default('') }}"
+          build_stream_port: {{ build_stream_port | default(8010) }}
+          gitlab_host: "{{ gitlab_host | default('') }}"
+          gitlab_https_port: {{ gitlab_https_port | default(443) }}
+          gitlab_url: "https://{{ gitlab_host | default('') }}:{{ gitlab_https_port | default(443) }}"
+          bsm_api_url: "https://{{ build_stream_host_ip | default('') }}:{{ build_stream_port | default(8010) }}"
+        dest: "{{ playbook_dir }}/../output/buildstream_status.yml"
+        mode: "0644"
+      when: enable_build_stream | default(false) | bool

@@ -1,0 +1,239 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# GitLab Omnibus paths
+gitlab_rb_path: "/etc/gitlab/gitlab.rb"
+gitlab_ctl_command: "gitlab-ctl"
+gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
+
+# Host prerequisites
+gitlab_hosted_prereq_packages:
+  - curl
+  - policycoreutils
+  - policycoreutils-python-utils
+  - openssl
+  - firewalld
+  - podman
+  - podman-docker
+
+# Runner container
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v18.8.0"
+gitlab_runner_default_image: "docker.io/library/alpine:3.23.3"
+gitlab_runner_helper_image_registry: "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper"
+gitlab_runner_helper_image_version: "v18.8.0"
+gitlab_runner_container_name: "gitlab-runner"
+gitlab_runner_service_name: "gitlab-runner"
+gitlab_runner_systemd_service_file: "/etc/systemd/system/gitlab-runner.service"
+gitlab_runner_config_path: "/srv/gitlab-runner/config"
+gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
+
+# GitLab CI/CD
+gitlab_ci_templates_path: "/opt/gitlab/ci_templates"
+
+# GitLab cleanup directories
+gitlab_cleanup_core_directories:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+  - "/opt/gitlab"
+
+# Quadlet configuration
+quadlet_dir: "/etc/containers/systemd"
+
+# GitLab cleanup packages
+gitlab_cleanup_packages:
+  - gitlab-ce
+  - gitlab-ee
+  - gitlab-ci
+  - gitlab-runner
+
+# GitLab cleanup timeouts
+gitlab_cleanup_service_retries: 3
+gitlab_cleanup_service_delay: 30
+gitlab_systemd_service_path: "/etc/systemd/system"
+gitlab_directory_check_paths:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+gitlab_cleanup_preserve_structure_directories:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+gitlab_cleanup_custom_directories:
+  - "/opt/gitlab"
+  - "/var/lib/gitlab"
+  - "/home/git"
+  - "/srv/gitlab"
+gitlab_cleanup_backup_directories:
+  - "/var/opt/gitlab/backups"
+  - "/opt/gitlab_backup"
+gitlab_cleanup_temp_directories:
+  - "/tmp/gitlab"
+  - "/var/tmp/gitlab"
+gitlab_cleanup_socket_directories:
+  - "/var/run/gitlab"
+  - "/run/gitlab"
+gitlab_cleanup_logrotate_config_path: "/etc/logrotate.d/gitlab"
+gitlab_cleanup_cron_jobs:
+  - gitlab-backup
+  - gitlab-cleanup
+
+# GitLab credentials cleanup
+gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
+gitlab_old_password_files:
+  - "/etc/gitlab/old_root_password"
+  - "/tmp/gitlab_old_password"
+  - "/var/opt/gitlab/old_password"
+gitlab_ssh_host_key_files:
+  - "/etc/gitlab/ssh_host_rsa_key"
+  - "/etc/gitlab/ssh_host_rsa_key.pub"
+  - "/etc/gitlab/ssh_host_ecdsa_key"
+  - "/etc/gitlab/ssh_host_ecdsa_key.pub"
+  - "/etc/gitlab/ssh_host_ed25519_key"
+  - "/etc/gitlab/ssh_host_ed25519_key.pub"
+gitlab_database_encryption_key_files:
+  - "/etc/gitlab/gitlab-secrets.json"
+  - "/var/opt/gitlab/.gitlab_shell_secret"
+  - "/var/opt/gitlab/gitlab-rails/etc/secret"
+
+# GitLab TLS/CA trust cleanup
+gitlab_ssl_certs_dir: "/etc/gitlab/ssl"
+gitlab_cert_dir: "/root/gitlab-certs"
+gitlab_tls_certificate_files:
+  - "/etc/gitlab/ssl/{{ gitlab_host }}.crt"
+  - "/etc/gitlab/ssl/{{ gitlab_host }}.key"
+  - "/etc/gitlab/ssl/ca.crt"
+  - "/etc/gitlab/ssl/ca.key"
+gitlab_ca_trust_store_files:
+  - "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
+  - "/usr/local/share/ca-certificates/gitlab-ca.crt"
+gitlab_ca_trust_update_command: update-ca-trust
+
+# GitLab CI/CD cleanup
+gitlab_cicd_template_directories:
+  - "/etc/gitlab/ci_templates"
+  - "/opt/gitlab/ci_templates"
+  - "{{ gitlab_ci_templates_path }}"
+gitlab_trigger_directories:
+  - "/etc/gitlab/triggers"
+  - "/opt/gitlab/triggers"
+gitlab_api_token_files:
+  - "/root/.gitlab_root_token"
+
+# Debug messages
+gitlab_cleanup_complete_msg:
+  - "============================================"
+  - "GitLab Cleanup Complete"
+  - "============================================"
+  - ""
+  - "Quick Verification Tests:"
+  - ""
+  - "No GitLab packages:"
+  - "  rpm -qa | grep gitlab || echo 'Clean'"
+  - ""
+  - "No GitLab directories:"
+  - "  ls /etc/gitlab /var/opt/gitlab 2>/dev/null || echo 'Clean'"
+  - ""
+  - "No GitLab processes:"
+  - "  ps aux | grep gitlab | grep -v grep || echo 'Clean'"
+  - ""
+  - "No GitLab containers:"
+  - "  podman ps -a | grep gitlab || echo 'Clean'"
+  - ""
+  - "Components cleaned:"
+  - "  - GitLab Configuration & Services"
+  - "  - Custom Directories & Paths"
+  - "  - Projects & API Tokens"
+  - "  - Pipeline Triggers & Webhooks"
+  - "  - Runner Containers & Configs"
+  - "  - TLS Certificates & CA Trust"
+  - "  - GitLab Packages & Repositories"
+  - "  - CI/CD Templates & Files"
+  - "  - Password Files & Credentials"
+  - ""
+  - "System status:"
+  - "  - All GitLab data removed"
+  - "  - Ready for smooth reinstallation"
+  - ""
+  - "Ready to reinstall:"
+  - "  ansible-playbook gitlab.yml"
+  - ""
+  - "============================================"
+
+gitlab_comprehensive_cleanup_msg:
+  - "============================================"
+  - "GitLab Comprehensive Cleanup Mode"
+  - "============================================"
+  - ""
+  - "This will clean up ALL GitLab configurations:"
+  - ""
+  - "Components being cleaned:"
+  - "  - GitLab Configuration & Services"
+  - "  - Custom Directories & Paths"
+  - "  - GitLab Projects & API Tokens"
+  - "  - Pipeline Triggers & Webhooks"
+  - "  - GitLab Runner Containers & Configs"
+  - "  - TLS Certificates & CA Trust"
+  - "  - GitLab Packages & Repositories"
+  - "  - System Packages (Docker/Podman)"
+  - "  - CI/CD Templates & Pipeline Files"
+  - "  - Password Configurations"
+  - ""
+  - "Note: Firewall rules are preserved for system access"
+  - "Result: Clean slate for fresh GitLab installation"
+  - "============================================"
+
+gitlab_webhook_cleanup_note: "Note: Webhooks and triggers are cleaned up when GitLab data is removed"
+
+gitlab_project_cleanup_note: "Note: Projects and repositories are cleaned up when GitLab data is removed"
+
+gitlab_password_cleanup_note: |
+  Note: Only old password files removed.
+  Password prompting system remains intact for fresh install.
+  New root password will be prompted during next installation.
+
+gitlab_preserved_packages_msg:
+  - "System packages preserved for fresh install:"
+  - "  - curl"
+  - "  - policycoreutils"
+  - "  - openssl"
+  - "  - firewalld"
+  - "  - podman"
+  - "  - podman-docker"
+  - ""
+  - "Only GitLab-specific packages removed"
+
+gitlab_cicd_cache_directories:
+  - "/var/opt/gitlab/gitlab-ci"
+  - "/var/cache/gitlab"
+
+# GitLab services and packages cleanup
+gitlab_systemd_services:
+  - gitlab-runsvdir
+gitlab_systemd_slices:
+  - gitlab.slice
+gitlab_systemd_service_files:
+  - gitlab-runsvdir.service
+gitlab_gpg_key_files:
+  - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
+  - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ce"
+  - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ee"
+  - "/etc/apt/trusted.gpg.d/gitlab.gpg"
+gitlab_cleanup_find_roots:
+  - /opt
+  - /etc
+  - /var
+  - /root
+  - /home

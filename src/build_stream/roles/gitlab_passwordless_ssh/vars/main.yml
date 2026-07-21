@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Script path
+check_gitlab_port_script: "/tmp/check_gitlab_port.sh"
+
+# Port validation error message
+gitlab_https_port_in_use_msg: >
+  GitLab HTTPS port {{ gitlab_https_port }} is already in use by another service.
+  Please stop the conflicting service or configure GitLab to use a different port.
+  You can check which process is using the port with: 'ss -tulpn | grep :{{ gitlab_https_port }}'
+
+# Usage: prereq_checks.yml
+gitlab_sshpass_install_fail_msg: >
+  Failed to install sshpass. Ensure AppStream and BaseOS repositories
+  are configured and enabled on this host before running this playbook.
+
+
+gitlab_repo_check_fail_msg:
+  - "========================================"
+  - "Repository Check Failed"
+  - "========================================"
+  - ""
+  - "One or more repositories in /etc/yum.repos.d/ are not reachable."
+  - ""
+  - "Command 'dnf makecache' failed with return code: {{ repo_check.rc }}"
+  - ""
+  - "Error output:"
+  - "{{ repo_check.stderr | default('No stderr output') }}"
+  - ""
+  - "Please check:"
+  - "- Network connectivity to repository servers"
+  - "- Repository configuration in /etc/yum.repos.d/"
+  - "- DNS resolution"
+  - ""
+  - "Run 'dnf makecache' manually to see detailed error messages."
+  - "Fix repository issues before re-running gitlab.yml."
+  - ""
+  - "Additional solutions:"
+  - "- Disable problematic repositories: dnf config-manager --set-disabled <repo-name>"
+  - "- Verify proxy settings if applicable"
+  - "- Run 'dnf clean all && dnf makecache' to refresh"
+  - ""
+  - "========================================"
+
+gitlab_repo_fail_msg: "Repository check failed. See above error details."
+
+# Usage: generate_keypair. yml
+ssh_key_path: "/root/.ssh/omnia_gitlab"
+ssh_key_comment: "omnia_gitlab"
+
+# Usage: validate_ssh.yml
+ssh_connection_failure_msg: 'Passwordless SSH to {{ gitlab_host }} failed. Verify connectivity manually.'

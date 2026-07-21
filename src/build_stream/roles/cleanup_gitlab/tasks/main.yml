@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# GitLab Comprehensive Cleanup Tasks
+# This role cleans up ALL configurations created by GitLab playbook
+
+- name: Display comprehensive cleanup mode message
+  ansible.builtin.debug:
+    msg: "{{ gitlab_comprehensive_cleanup_msg }}"
+
+- name: Check if GitLab is installed
+  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  register: gitlab_status_check
+  failed_when: false
+  changed_when: false
+
+- name: Check for GitLab packages
+  ansible.builtin.package_facts:
+    manager: auto
+  failed_when: false
+
+- name: Check for GitLab directories
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: gitlab_dirs_check
+  loop: "{{ gitlab_directory_check_paths }}"
+  failed_when: false
+
+# Include all cleanup tasks
+- name: Cleanup GitLab services and packages
+  ansible.builtin.include_tasks: cleanup_services.yml
+
+- name: Cleanup TLS certificates
+  ansible.builtin.include_tasks: cleanup_tls.yml
+
+- name: Cleanup GitLab runner
+  ansible.builtin.include_tasks: cleanup_runner.yml
+
+- name: Cleanup directories and data
+  ansible.builtin.include_tasks: cleanup_directories.yml
+
+- name: Cleanup CI/CD configurations
+  ansible.builtin.include_tasks: cleanup_cicd.yml
+
+- name: Cleanup system packages
+  ansible.builtin.include_tasks: cleanup_packages.yml
+
+- name: Cleanup passwords and credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+
+- name: Cleanup build stream OAuth credentials on OIM
+  ansible.builtin.include_tasks: cleanup_buildstream_oauth.yml
+
+- name: Display cleanup summary and checklist
+  ansible.builtin.include_tasks: cleanup_summary.yml

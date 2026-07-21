@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Check existing triggers
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/triggers"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: 200
+  register: existing_triggers
+  no_log: true
+
+- name: Check if trigger exists
+  ansible.builtin.set_fact:
+    trigger_exists: "{{ existing_triggers.json | selectattr('description', 'equalto', gitlab_trigger_description) | list | length > 0 }}"
+
+- name: Create pipeline trigger
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/triggers"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      description: "{{ gitlab_trigger_description }}"
+    status_code: [200, 201]
+    validate_certs: false
+  register: new_trigger
+  no_log: true
+  when: not trigger_exists
+
+- name: Set trigger token fact
+  ansible.builtin.set_fact:
+    gitlab_trigger_token: >-
+      {{
+        new_trigger.json.token
+        if not trigger_exists
+        else (
+          existing_triggers.json
+          | selectattr('description', 'equalto', gitlab_trigger_description)
+          | first
+        ).token
+      }}
+  no_log: true
+
+- name: Save trigger token to file
+  ansible.builtin.copy:
+    content: "{{ gitlab_trigger_token }}"
+    dest: "/root/.gitlab_trigger_token"
+    mode: '0600'
+  no_log: true

@@ -1,0 +1,12 @@
+[req]
+default_bits = {{ gitlab_server_key_bits }}
+prompt = no
+default_md = sha256
+req_extensions = req_ext
+distinguished_name = dn
+
+[dn]
+CN = {{ gitlab_host }}
+
+[req_ext]
+subjectAltName = DNS:{{ gitlab_host }}{% if gitlab_host | regex_search('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') %},IP:{{ gitlab_host }}{% endif %}{% for dns in gitlab_additional_dns_sans %},DNS:{{ dns }}{% endfor %}{% for ip in gitlab_additional_ip_sans %},IP:{{ ip }}{% endfor %}

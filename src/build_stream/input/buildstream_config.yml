@@ -1,0 +1,94 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+#
+# BuildStream Domain — Consolidated Configuration
+# Merged from: build_stream_config.yml + gitlab_config.yml
+# See also:    INPUT_CONTRACT.md  (full input specification)
+#              OUTPUT_CONTRACT.md (output artifacts specification)
+# ***********************************************************************
+
+# ==========================================================================
+# Section 1 — BuildStream Manager (BSM) API Settings
+#   Source: build_stream_config.yml
+# ==========================================================================
+
+# Mandatory: Enable or disable the BuildStream CI/CD pipeline
+# Accepted values: true | false  (or yes | no)
+# Default: false
+enable_build_stream: false
+
+# Mandatory: BuildStream API server host IP
+# Accepted values: public IP address or admin IP of the OIM server
+build_stream_host_ip: ""
+
+# Mandatory: BuildStream API server port
+# Accepted values: valid port number (1-65535) which is free
+# Default: 8010
+build_stream_port: 8010
+
+# ==========================================================================
+# Section 2 — GitLab Settings
+#   Source: gitlab_config.yml
+# ==========================================================================
+
+# Mandatory: Target host for GitLab deployment / cleanup
+# Accepted values: IP address of the server where GitLab will be installed
+# Notes:
+#   - Must be accessible from the OIM server
+gitlab_host: ""
+
+# Name of the GitLab project Omnia will create / manage
+# Default: "omnia-catalog"
+gitlab_project_name: "omnia-catalog"
+
+# Visibility: private | internal | public
+# Default: "private"
+gitlab_project_visibility: "private"
+
+# Default branch used for repository and API operations
+# Default: "main"
+gitlab_default_branch: "main"
+
+# --------------------------------------------------------------------------
+# GitLab Advanced / Default Variables (change only if needed)
+# --------------------------------------------------------------------------
+
+# HTTPS port exposed via GitLab NGINX (1-65535, must not conflict)
+# Default: 443
+gitlab_https_port: 443
+
+# Minimum free disk (GB) validated before install
+# Default: 20
+gitlab_min_storage_gb: 20
+
+# Minimum memory (GB) — adjust upward for production
+# Default: 4
+gitlab_min_memory_gb: 4
+
+# Minimum CPU core count
+# Default: 2
+gitlab_min_cpu_cores: 2
+
+# Puma web worker count — scale with CPU (1-2 per core)
+# Default: 2
+gitlab_puma_workers: 2
+
+# Sidekiq background job concurrency
+# Default: 10
+gitlab_sidekiq_concurrency: 10
