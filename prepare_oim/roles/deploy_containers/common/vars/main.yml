@@ -34,6 +34,8 @@ oim_packages:
   - nfs4-acl-tools
   - git
   - make
+  - policycoreutils
+  - checkpolicy
 prepare_oim_pkg_fail_msg: |
   Failed to install required packages. Please ensure the repository is
   configured on OIM and rerun the playbook.
