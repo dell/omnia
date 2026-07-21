@@ -1,0 +1,836 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: generate_service_cluster_metadata.yml
+functional_groups_config_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+functional_groups_config_syntax_fail_msg: "Failed. Syntax errors present in functional_groups_config.yml. Fix errors and re-run playbook again."
+service_cluster_metadata_path: "/opt/omnia/.data/service_cluster_metadata.yml"
+metadata_perm: "0644"
+
+# Usage: read_software_config.yml
+# Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
+k8s_packages_file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
+
+# Telemetry storage configuration file
+telemetry_storage_config_file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/telemetry_storage_config.yml"
+
+# Usage: secrets_creation.yml
+mysqldb_secrets_name: mysqldb-credentials
+
+# iDRAC Telemetry MySQL storage
+mysqldb_storage: "{{ telemetry_config.idrac_telemetry_configurations.mysqldb_storage | default('1Gi') }}"
+mysqldb_pvc_name: mysqldb-storage-claim
+
+# Usage: idrac_telemetry_deployment.yml
+service_cluster_idrac_telemetry_dir_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/idrac_telemetry"
+dir_permissions_755: "0755"
+telemetry_namespace: "telemetry"
+idrac_telemetry_k8s_name: idrac-telemetry
+
+# iDRAC Telemetry scripting repository
+idrac_telemetry_scripting_src_path: "{{ oim_shared_path }}/omnia/telemetry/iDRAC-Telemetry-Scripting"
+idrac_telemetry_scripting_git_clone_path: "{{ service_cluster_idrac_telemetry_dir_path }}/iDRAC-Telemetry-Scripting"
+idrac_telemetry_scripting_copy_fail_msg: |
+  Failed to copy iDRAC Telemetry Scripting from {{ idrac_telemetry_scripting_src_path }}
+  to {{ idrac_telemetry_scripting_git_clone_path }}. Please ensure prepare_oim.yml has been
+  executed successfully before running orchestrator.
+
+# Pre-built container images for iDRAC telemetry components
+# These default to your published images but can be overridden via telemetry_images
+idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idrac_telemetry_receiver'] | default('docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.2') }}" # noqa: yaml[line-length]
+kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}"
+victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}"
+
+activemq_image: "{{ telemetry_images['rmohr/activemq'] | default('docker.io/rmohr/activemq:5.15.9') }}"
+activemq_http_port_1: 8161
+activemq_http_port_2: 61616
+messagebus_http_port: 61613
+configui_http_port: 8082
+mysqldb_k8s_name: mysqldb
+mysqldb_name: "idrac_telemetrydb"
+idrac_telemetry_service_name: "idrac-telemetry-service"
+mysqldb_container_port1: 3306
+mysqldb_container_port2: 33060
+mysql_image: "{{ telemetry_images['library/mysql'] | default('docker.io/library/mysql:9.3.0') }}"
+pod_wait_timeout: "10m"
+kafka_skip_verify: true
+
+# ============================================================================
+# iDRAC Telemetry Container Resource Limits
+# ============================================================================
+# Usage: idrac_telemetry_statefulset.yaml.j2
+idrac_telemetry_resources:
+  mysqldb:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.cpu | default('100m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.memory | default('256Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.cpu | default('500m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.memory | default('512Mi') }}"
+  activemq:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.cpu | default('100m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.memory | default('512Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.cpu | default('500m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.limits.memory | default('1.5Gi') }}"
+  receiver:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.requests.cpu | default('100m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.requests.memory | default('128Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.limits.cpu | default('500m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.receiver.resources.limits.memory | default('256Mi') }}"
+  kafka_pump:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.cpu | default('50m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.requests.memory | default('128Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.cpu | default('200m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.kafka_pump.resources.limits.memory | default('512Mi') }}"
+  victoria_pump:
+    requests:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.cpu | default('50m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.requests.memory | default('128Mi') }}"
+    limits:
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.cpu | default('200m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.victoria_pump.resources.limits.memory | default('512Mi') }}"
+
+# Usage: kafka_deployment.yml
+kafka:
+  app_name: "kafka"
+  container_name: "kafka-controller"
+  service_name: "kafka-headless"
+  lb_service_name: "kafka-loadbalancer"
+  container_port1: 9093
+  # Kafka images from service_k8s_v<version>.json
+  operator_image: "{{ telemetry_images['strimzi/operator'] | default('quay.io/strimzi/operator:1.0.1') }}"
+  kafka_image: "{{ telemetry_images['strimzi/kafka'] | default('quay.io/strimzi/kafka:1.0.1-kafka-4.2.0') }}"
+  bridge_image: "{{ telemetry_images['strimzi/kafka-bridge'] | default('quay.io/strimzi/kafka-bridge:1.0.0') }}"
+  container_port2: 9093
+  image: "apache/kafka:4.1.0"
+  cluster_id: "kafka-cluster-id"
+
+  # Kafka topic names (FIXED - cannot be changed)
+  topics:
+    idrac:
+      name: "idrac"
+      consumer_group: "idrac-consumer-group"
+    ldms:
+      name: "ldms"
+      consumer_group: "ldms-consumer-group"
+    # OME topics are pre-existing in the OME Kafka broker — NOT created by Omnia.
+    # Vector-OME subscribes to all {{ ome_identifier }}.* topics via regex pattern.
+    # Known topics: {{ ome_identifier }}.inventory, {{ ome_identifier }}.health, {{ ome_identifier }}.telemetry (→ VictoriaMetrics)
+    #               {{ ome_identifier }}.alerts, {{ ome_identifier }}.auditlogs, {{ ome_identifier }}.logs (→ VictoriaLogs)
+
+# Dynamic image configuration from service_k8s_v<version>.json
+# Images and versions are read dynamically from input/config/x86_64/rhel/10.0/service_k8s_v<version>.json
+telemetry_images: "{{ service_k8s_images | default({}) }}"
+
+# Usage: victoriametric_deployment.yml
+# Single-node VictoriaMetrics (deprecated - use cluster mode)
+victoria:
+  app_name: "victoriametrics"
+  container_name: "victoriametrics"
+  service_name: "victoria-loadbalancer"
+  container_port: 8443
+  image: "{{ telemetry_images['victoriametrics/victoria-metrics'] | default('victoriametrics/victoria-metrics:v1.128.0') }}"
+  vmsingle:
+    replicas: 2
+
+# VictoriaMetrics Cluster Configuration
+# Deployment mode is controlled by victoria_deployment_mode variable (default: cluster)
+# Supported modes: "single-node" or "cluster"
+victoria_deployment_mode: "cluster"  # Default deployment mode for VictoriaMetrics
+victoria_cluster:
+  # Auto-configured based on victoria_deployment_mode variable
+  # true = cluster mode, false = single-node mode
+  enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
+  tls_enabled: true   # Set to true to enable TLS for cluster components
+  # Health probe and timing configuration
+  termination_grace_period: 120
+  startup_probe:
+    initial_delay: 30
+    period: 10
+    failure_threshold: 30
+    timeout: 5
+  readiness_probe:
+    initial_delay: 15
+    period: 5
+    failure_threshold: 10
+    timeout: 5
+  toleration_seconds: 5
+  # VMStorage: Stores raw data and returns query results
+  vmstorage:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.replicas | default(3) }}"
+    replication_factor: 2  # Data redundancy: each metric written to 2 of 3 nodes
+    image: "{{ telemetry_images['victoriametrics/vmstorage'] | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
+    dedup_min_scrape_interval: "1m"  # Deduplication interval
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.requests.memory | default('1Gi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.requests.cpu | default('250m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.limits.memory | default('2Gi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.limits.cpu | default('1000m') }}"
+  # VMInsert: Accepts data ingestion and routes to vmstorage
+  vminsert:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/vminsert'] | default('victoriametrics/vminsert:v1.128.0-cluster') }}"
+    # External access configuration
+    external_access: true  # Enable LoadBalancer service for external data ingestion
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.requests.cpu | default('100m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.limits.cpu | default('500m') }}"
+  # VMSelect: Performs queries against vmstorage nodes
+  vmselect:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/vmselect'] | default('victoriametrics/vmselect:v1.128.0-cluster') }}"
+    max_query_duration: "5m"
+    max_concurrent_requests: "8"
+    cache_data_path: true  # Enable query result caching
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.requests.cpu | default('100m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.limits.cpu | default('500m') }}"
+
+  vmagent:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.resources.requests.memory | default('128Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.resources.requests.cpu | default('50m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.resources.limits.cpu | default('250m') }}"
+
+# ============================================================================
+# VictoriaLogs Cluster Configuration
+# ============================================================================
+# Deployed alongside VictoriaMetrics when 'victoria' is in telemetry_collection_type.
+# Managed by the same VictoriaMetrics operator via VLCluster and VLAgent CRs.
+# See VL_cluster_component_spec.md and VL_Agent_component_spec.md for full design.
+victoria_logs_cluster:
+  tls_enabled: true   # Enable TLS for all inter-component communication (shared victoria-tls-certs secret)
+
+  # vlstorage: Persistent log storage nodes (StatefulSet managed by operator via VLCluster CR)
+  vlstorage:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/victoria-logs'] | default('docker.io/victoriametrics/victoria-logs:v1.49.0') }}"
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.resources.requests.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.resources.requests.cpu | default('100m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.resources.limits.memory | default('1Gi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.resources.limits.cpu | default('500m') }}"
+    termination_grace_period: 120
+    startup_probe:
+      initial_delay: 30
+      period: 10
+      failure_threshold: 30
+      timeout: 5
+    readiness_probe:
+      initial_delay: 15
+      period: 5
+      failure_threshold: 10
+      timeout: 5
+    toleration_seconds: 5
+
+  # vlinsert: Log ingestion gateway (Deployment managed by operator via VLCluster CR)
+  vlinsert:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/victoria-logs'] | default('docker.io/victoriametrics/victoria-logs:v1.49.0') }}"
+    external_access: true   # Expose vlinsert via LoadBalancer service for external log ingestion
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.resources.requests.cpu | default('100m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.resources.limits.cpu | default('500m') }}"
+    liveness_probe:
+      initial_delay: 30
+      period: 30
+      failure_threshold: 3
+      timeout: 5
+    readiness_probe:
+      initial_delay: 5
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    termination_grace_period: 30
+
+  # vlselect: Log query gateway (Deployment managed by operator via VLCluster CR)
+  vlselect:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/victoria-logs'] | default('docker.io/victoriametrics/victoria-logs:v1.49.0') }}"
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.resources.requests.cpu | default('100m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.resources.limits.cpu | default('500m') }}"
+
+  # VLAgent: Platform-managed log forwarding agent (Deployment managed by operator via VLAgent CR)
+  vlagent:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlagent.replicas | default(2) }}"
+    image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
+    # Buffer storage for retry during vlinsert unavailability
+    pvc_size: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlagent.pvc_size | default('5Gi') }}"
+    termination_grace_period: 30
+    liveness_probe:
+      initial_delay: 30
+      period: 30
+      failure_threshold: 3
+      timeout: 5
+    readiness_probe:
+      initial_delay: 5
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    toleration_seconds: 5
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+# ============================================================================
+# Kafka Storage Configuration
+# ============================================================================
+# Usage: kafka.kafka.yaml.j2
+# Resource limits for Kafka brokers
+kafka_storage:
+  kafka:
+    resources:
+      requests:
+        memory: "{{ telemetry_storage_config.kafka_storage.kafka.resources.requests.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.kafka_storage.kafka.resources.requests.cpu | default('200m') }}"
+      limits:
+        memory: "{{ telemetry_storage_config.kafka_storage.kafka.resources.limits.memory | default('1Gi') }}"
+        cpu: "{{ telemetry_storage_config.kafka_storage.kafka.resources.limits.cpu | default('1000m') }}"
+  entity_operator:
+    user_operator:
+      resources:
+        requests:
+          memory: "{{ telemetry_storage_config.kafka_storage.entity_operator.user_operator.resources.requests.memory | default('512Mi') }}"
+          cpu: "{{ telemetry_storage_config.kafka_storage.entity_operator.user_operator.resources.requests.cpu | default('200m') }}"
+        limits:
+          memory: "{{ telemetry_storage_config.kafka_storage.entity_operator.user_operator.resources.limits.memory | default('512Mi') }}"
+          cpu: "{{ telemetry_storage_config.kafka_storage.entity_operator.user_operator.resources.limits.cpu | default('1000m') }}"
+
+# Telemetry shared path configuration
+telemetry_share_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/telemetry"
+
+# VictoriaMetrics TLS Configuration
+victoria_tls_cert_days: 3650
+victoria_cert_dir: "{{ telemetry_share_path }}/victoria-certs"
+syslog_tls_cert_dir: "{{ telemetry_share_path }}/syslog-tls-certs"
+
+# PowerScale VictoriaLogs validation fail message
+powerscale_victoria_logs_validation_fail_msg: >-
+  PowerScale log collection requires 'victoria_logs' in
+  telemetry_sources.powerscale.collection_targets.
+
+# ============================================================================
+# CSI Volume Exporter Configuration
+# ============================================================================
+# Usage: powerscale/csi-volume-exporter.yaml.j2, victoria-operator-vmscrape.yaml.j2
+# Deployed when telemetry_sources.powerscale.metrics_enabled: true
+# Exposes PowerScale PersistentVolume status as Prometheus metrics
+csi_volume_exporter:
+  app_name: "csi-volume-exporter"
+  service_name: "csi-volume-exporter"
+  service_account_name: "csi-volume-exporter"
+  cluster_role_name: "csi-volume-exporter"
+  cluster_role_binding_name: "csi-volume-exporter"
+  image: "{{ telemetry_images['library/python'] | default('docker.io/library/python:3.11-slim') }}"
+  metrics_port: 9090
+  scrape_interval: "30s"
+  scrape_interval_seconds: 30
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+# Usage: victoria-operator-vmagent.yaml.j2 (operator-native)
+vmagent:
+  global:
+    scrape_interval: "10s"
+  job_name: "idrac-telemetry"
+  kubernetes_sd_namespace: "{{ telemetry_namespace }}"
+  target_pod_label: "{{ idrac_telemetry_k8s_name }}"
+  metrics_container_name: "victoria-pump"
+  metrics_port: 2112
+  service_account_name: "vmagent"
+  role_name: "vmagent-sd"
+  rolebinding_name: "vmagent-sd-binding"
+  app_name: "vmagent"
+  container_name: "vmagent"
+  image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
+  # Single-node URL
+  remote_write_url: "https://victoria-loadbalancer.telemetry.svc.cluster.local:8443/api/v1/write"
+  # Cluster URL (used when victoria_cluster.enabled: true)
+  # Operator creates service as vminsert-victoria-cluster (not vminsert)
+  # Protocol depends on tls_enabled: https when TLS is on, http otherwise
+  # Use service name only since vmagent and vminsert are in same namespace
+  remote_write_url_cluster: >-
+    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster:8480/insert/0/prometheus/api/v1/write
+
+strmzi_kafka_tarball_url: "{{ offline_tarball_path }}/{{ strimzi_kafka_pkg }}/{{ strimzi_kafka_pkg }}.tar.gz"
+
+# Victoria Metrics operator tarball configuration
+# Version must match the Helm chart entry in service_k8s (versioned) (victoria-metrics-operator-0.59.3)
+# Required for VLCluster and VLAgent CRD support (minimum v0.59.0)
+victoria_operator_pkg: "victoria-metrics-operator-0.59.3"
+victoria_operator_tarball_url: "{{ offline_tarball_path }}/{{ victoria_operator_pkg }}/{{ victoria_operator_pkg }}.tar.gz"
+
+# Usage: validate_idrac_inventory.yml
+bmc_group_data_filename: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/bmc_group_data.csv"
+bmc_group_data_headers: "BMC_IP,GROUP_NAME,PARENT"
+openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir"
+nodes_dir: "{{ openchami_work_dir }}/nodes"
+openchami_nodes_vars_path: "{{ nodes_dir }}/nodes.yaml"
+
+# Usage: update_ldms_sampler.yml
+telemetry_config_file_path: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/telemetry_config.yml"
+common_mode: "0755"
+
+# Usage: generate_telemetry_deployments.yml - Template lists for different components
+# Victoria templates - conditional based on victoria_cluster.enabled
+victoria_templates_common:
+  - src: 'telemetry/victoria/victoria-vmagent-rbac.yaml.j2'
+    dest: 'victoria-vmagent-rbac.yaml'
+
+# Operator-based templates (new default)
+# Single-node operator template (used when victoria_cluster.enabled: false)
+victoria_templates_operator_single:
+  - src: 'telemetry/victoria/victoria-operator-vmsingle.yaml.j2'
+    dest: 'victoria-operator-vmsingle.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
+    dest: 'victoria-operator-vmagent.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmscrape.yaml.j2'
+    dest: 'victoria-operator-vmscrape.yaml'
+
+# Cluster operator template (used when victoria_cluster.enabled: true)
+victoria_templates_operator_cluster:
+  - src: 'telemetry/victoria/victoria-operator-vmcluster.yaml.j2'
+    dest: 'victoria-operator-vmcluster.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
+    dest: 'victoria-operator-vmagent.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmscrape.yaml.j2'
+    dest: 'victoria-operator-vmscrape.yaml'
+
+# Legacy manual deployment templates (removed - use operator-based templates above)
+# Raw victoria-cluster-vminsert/vmselect/vmstorage.yaml.j2 files have been removed
+# in favor of the operator-managed victoria-operator-vmcluster.yaml.j2
+
+idrac_telemetry_statefulset_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
+
+# Single-node templates (used when victoria_cluster.enabled: false)
+victoria_templates_single:
+  - src: 'telemetry/victoria/victoria-tls-secret.yaml.j2'
+    dest: 'victoria-tls-secret.yaml'
+  - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
+    dest: 'victoria-statefulset.yaml'
+  - src: 'telemetry/victoria/victoria-agent-deployment.yaml.j2'
+    dest: 'victoria-agent-deployment.yaml'
+
+# Test job template (optional)
+victoria_templates_test:
+  - src: 'telemetry/victoria/victoria-tls-test-job.yaml.j2'
+    dest: 'test/victoria-tls-test-job.yaml'
+
+# Combined victoria_templates for backward compatibility
+# Note: victoria_templates_test is commented out by default in kustomization.yaml.j2
+victoria_templates: >
+  {{ victoria_templates_common +
+     (victoria_templates_operator_cluster if victoria_cluster.enabled else victoria_templates_operator_single) +
+     victoria_templates_test }}
+
+# ============================================================================
+# VictoriaLogs Template Lists
+# ============================================================================
+# VictoriaLogs operator CR templates (used when 'victoria' in telemetry_collection_type)
+# These are applied alongside VictoriaMetrics templates in the same kustomize deployment.
+victorialogs_templates:
+  - src: 'telemetry/victoria/victorialogs-operator-vlcluster.yaml.j2'
+    dest: 'victorialogs-operator-vlcluster.yaml'
+  - src: 'telemetry/victoria/victorialogs-operator-vlagent.yaml.j2'
+    dest: 'victorialogs-operator-vlagent.yaml'
+  - src: 'telemetry/victoria/victorialogs-vlagent-config.yaml.j2'
+    dest: 'victorialogs-vlagent-config.yaml'
+
+kafka_templates:
+  - src: 'telemetry/kafka/kafka.kafka.yaml.j2'
+    dest: 'kafka.kafka.yaml'
+  - src: 'telemetry/kafka/kafka.kafkapump_user.yaml.j2'
+    dest: 'kafka.kafkapump_user.yaml'
+  - src: 'telemetry/kafka/kafka.kafka_bridge.yaml.j2'
+    dest: 'kafka.kafka_bridge.yaml'
+  - src: 'telemetry/kafka/kafka.kafka_bridge_lb.yaml.j2'
+    dest: 'kafka.kafka_bridge_lb.yaml'
+  - src: 'telemetry/kafka/kafka.tls_test_job.yaml.j2'
+    dest: 'test/kafka.tls_test_job.yaml'
+
+common_templates:
+  - src: 'telemetry/common/telemetry_cleaner_rbac.yaml.j2'
+    dest: 'telemetry_cleaner_rbac.yaml'
+  - src: 'telemetry/common/telemetry_pod_cleanup.yaml.j2'
+    dest: 'telemetry_pod_cleanup.yaml'
+  - src: 'telemetry/common/telemetry_namespace_creation.yaml.j2'
+    dest: 'telemetry_namespace_creation.yaml'
+  - src: 'telemetry/common/telemetry_secret_creation.yaml.j2'
+    dest: 'telemetry_secret_creation.yaml'
+    skip_when: "{{ cluster_id_present | default(false) }}"
+  - src: 'telemetry/kustomization.yaml.j2'
+    dest: 'kustomization.yaml'
+
+# Usage: check_pxe_changes.yml
+backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+pxe_first_run_msg: "First orchestration run detected. Saving PXE mapping backup. LDMS restart not required."
+pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
+pxe_changed_msg: "PXE mapping file has changed. LDMS restart will be triggered."
+
+# Usage: restart_ldms_configs.yml
+kube_vip_unreachable_msg: >-
+  Kube VIP ({{ kube_vip }}) is not reachable via SSH.
+  There might be issues with the k8s cluster.
+  LDMS aggregator restart will be skipped.
+
+  After orchestration completes, manually restart the LDMS aggregator pod with:
+
+  ssh {{ kube_vip }}
+  kubectl rollout restart statefulset nersc-ldms-aggr -n {{ telemetry_namespace }}
+  kubectl get pods -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr -w
+
+ldms_pod_ready_msg: "LDMS aggregator pod is ready."
+ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."
+ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is ready"
+ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout"
+ldms_store_restart_wait_seconds: 10
+
+# ============================================================================
+# PowerScale Telemetry Configuration
+# ============================================================================
+# Usage: deploy_powerscale_metrics.yml
+# PowerScale telemetry is deployed via Helm chart (karavi-observability).
+# The Helm chart deploys CSM Metrics PowerScale, OTEL Collector, and all
+# associated Kubernetes resources. No per-cluster Kustomize manifests needed.
+# PowerScale metrics are scraped by the existing shared vmagent.
+
+# Karavi Observability offline installer variables
+# All files are on the NFS share at {{ k8s_client_mount_path }}/karavi-observability/
+karavi_observability_git: "karavi-observability.tar.gz"
+karavi_helm_charts_git: "helm-charts.tar.gz"
+karavi_helm_chart_path: "{{ k8s_client_mount_path }}/karavi-observability/helm-charts/charts/karavi-observability"
+permission_644: "0644"
+
+# Internal namespace constants (not user-configurable)
+csm_namespace: "telemetry"
+
+# CSM Metrics PowerScale resource limits
+csm_metrics_powerscale_resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# Usage: deploy_powerscale_metrics.yml - messages
+ps_csi_driver_not_configured_msg: >-
+  PowerScale telemetry requires csi_driver_powerscale to be configured in software_config.json.
+  Please add csi_driver_powerscale to software_config.json and re-run.
+ps_helm_values_path_missing_msg: >-
+  csm_observability_values_file_path is required in telemetry_config.yml when telemetry_sources.powerscale.metrics_enabled is true.
+  Provide the path to your customized karavi-observability Helm values file.
+ps_helm_values_file_not_found_msg: >-
+  Helm values file not found at '{{ ps_helm_values_file | default('') }}'.
+  Please create a values file following the Dell CSM Observability documentation
+  and set the path in telemetry_config.yml (csm_observability_values_file_path).
+ps_helm_values_parse_fail_msg: >-
+  Failed to parse Helm values file at '{{ ps_helm_values_file | default('') }}'.
+  Please verify the file contains valid YAML.
+ps_cert_manager_disabled_msg: >-
+  cert-manager must be enabled in the CSM Observability Helm values file.
+  Set 'cert-manager.enabled: true' in {{ ps_helm_values_file | default('') }}.
+  cert-manager is required for automatic TLS certificate management (otel-collector-tls secret).
+ps_auth_mode_direct_msg: "PowerScale telemetry authentication mode: Direct Authentication (Mode A)"
+ps_auth_mode_karavi_msg: "PowerScale telemetry authentication mode: Karavi Authorization (Mode B)"
+ps_csi_secret_read_fail_msg: >-
+  Failed to load CSI PowerScale driver secret from '{{ ps_csi_secret_path | default('') }}'.
+  Please verify the file exists and contains valid isilonClusters configuration.
+ps_no_clusters_found_msg: >-
+  No PowerScale clusters found in CSI driver secret.yaml.
+  Please define at least one cluster in isilonClusters.
+ps_clusters_found_msg: >-
+  Found {{ ps_clusters | default([]) | length }} PowerScale cluster(s) for telemetry deployment.
+ps_telemetry_prepared_msg: >-
+  PowerScale telemetry files prepared on NFS share.
+  Helm chart: {{ karavi_helm_chart_path }}
+  Values file: {{ k8s_client_mount_path }}/karavi-observability/csm_metrics_values.yaml
+  Deployment will occur during cloud-init (PXE boot) on the control plane node.
+ps_cert_manager_pkg_msg: >-
+  cert-manager package from service_k8s (versioned): {{ cert_manager_package | default('') }} ({{ cert_manager_chart_tgz | default('') }})
+ps_cert_manager_required_msg: "cert-manager dependency download: REQUIRED"
+ps_cert_manager_skipped_msg: "cert-manager dependency download: SKIPPED (disabled in values file)"
+ps_cert_manager_staged_msg: >-
+  cert-manager ({{ cert_manager_package | default('') }}) extracted to
+  {{ karavi_helm_chart_path }}/charts/cert-manager/.
+  Helm will resolve this dependency during install on the control plane node.
+ps_cert_manager_skipped_detail_msg: >-
+  cert-manager dependency skipped (disabled in values file).
+  CRDs are bundled in karavi-observability chart and will be applied automatically.
+ps_cert_manager_extract_fail_msg: >-
+  cert-manager chart was not extracted correctly to
+  {{ karavi_helm_chart_path }}/charts/cert-manager/.
+  The archive {{ cert_manager_chart_tgz | default('') }} may be corrupt.
+ps_cert_manager_missing_msg: >-
+  cert-manager Helm chart ({{ cert_manager_chart_tgz | default('') }}) was not found in
+  {{ karavi_helm_chart_path }}/charts/. This chart is required for TLS certificate
+  management. Ensure the Jetstack cert-manager entry exists in service_k8s (versioned)
+  and run local_repo.yml to download it to Pulp.
+ps_dependency_fail_msg: >-
+  Failed to get karavi-observability dependencies from Pulp.
+  Ensure the following entries exist in service_k8s (versioned) and run local_repo.yml:
+    - karavi-observability (git)
+    - helm-charts (git)
+    - {{ cert_manager_package | default('cert-manager') }} (tarball from Jetstack Helm repo)
+
+# ============================================================================
+# Vector Kafka-to-Victoria Ingestion Pipeline Configuration
+# ============================================================================
+# Usage: deploy_vector_ldms.yml, deploy_vector_ome.yml
+# Vector pods consume from Kafka topics and route to VictoriaMetrics/VictoriaLogs
+# via dedicated write-buffer agents (vmagent-vector, vlagent-vector).
+#
+# Architecture:
+#   Kafka topics → Vector pods → vmagent-vector/vlagent-vector → Victoria sinks
+# Vector image (shared by all Vector pods: vector-ldms, vector-ome)
+# Registered in service_k8s (versioned)
+vector:
+  image: "{{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}"
+
+  # Vector-LDMS configuration
+  ldms:
+    app_name: "vector-ldms"
+    service_name: "vector-ldms"
+    container_name: "vector-ldms"
+    kafka_topic: "ldms"
+    consumer_group: "vector-ldms-group"
+    kafka_user: "kafkapump"  # Shared with LDMS store_avro_kafka
+    health_port: 8687
+    metrics_port: 9599
+    replicas: "{{ telemetry_storage_config.vector_storage.ldms.replicas | default(2) }}"
+    resources:
+      requests:
+        cpu: "{{ telemetry_storage_config.vector_storage.ldms.resources.requests.cpu | default('100m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.ldms.resources.requests.memory | default('256Mi') }}"
+      limits:
+        cpu: "{{ telemetry_storage_config.vector_storage.ldms.resources.limits.cpu | default('500m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.ldms.resources.limits.memory | default('512Mi') }}"
+
+  # Vector-OME configuration
+  ome:
+    app_name: "vector-ome"
+    service_name: "vector-ome"
+    container_name: "vector-ome"
+    # Dynamic pattern based on ome_identifier from telemetry_config.yml
+    # Example: if ome_identifier="ome", pattern="^ome\\..*$" (matches ome.inventory, ome.health, etc.)
+    # Example: if ome_identifier="OME-637-2-100.100.5.8", pattern matches OME-637-2-100.100.5.8.* topics
+    kafka_topics_pattern: "^{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') | regex_escape }}\\..*$"
+    consumer_group: "vector-ome-group"
+    kafka_user: "vector-ome-user"  # Dedicated KafkaUser for OME
+    health_port: 8688
+    metrics_port: 9600
+    replicas: "{{ telemetry_storage_config.vector_storage.ome.replicas | default(2) }}"
+    resources:
+      requests:
+        cpu: "{{ telemetry_storage_config.vector_storage.ome.resources.requests.cpu | default('250m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.ome.resources.requests.memory | default('512Mi') }}"
+      limits:
+        cpu: "{{ telemetry_storage_config.vector_storage.ome.resources.limits.cpu | default('1000m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.ome.resources.limits.memory | default('1Gi') }}"
+
+  # vmagent-vector: Write-buffer for Vector → VictoriaMetrics
+  # Accepts prometheus_remote_write from Vector pods on port 8429
+  vmagent_vector:
+    app_name: "vmagent-vector"
+    service_name: "vmagent-vector"
+    port: 8429  # prometheus_remote_write receiver
+    metrics_port: 8429  # vmagent self-metrics
+    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('docker.io/victoriametrics/vmagent:v1.128.0') }}"
+    replicas: "{{ telemetry_storage_config.vector_storage.vmagent_vector.replicas | default(2) }}"
+    pvc_size: "{{ telemetry_storage_config.vector_storage.vmagent_vector.pvc_size | default('5Gi') }}"  # Disk WAL buffer
+    remote_write_url: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
+    tmp_data_path: "/vmagent-buffer"
+    resources:
+      requests:
+        cpu: "{{ telemetry_storage_config.vector_storage.vmagent_vector.resources.requests.cpu | default('100m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.vmagent_vector.resources.requests.memory | default('256Mi') }}"
+      limits:
+        cpu: "{{ telemetry_storage_config.vector_storage.vmagent_vector.resources.limits.cpu | default('500m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.vmagent_vector.resources.limits.memory | default('512Mi') }}"
+
+  # vlagent-vector: Write-buffer for Vector → VictoriaLogs
+  # Accepts JSON Lines from Vector pods on port 9427
+  vlagent_vector:
+    app_name: "vlagent-vector"
+    service_name: "vlagent-vector"
+    port: 9427  # JSON Lines receiver
+    metrics_port: 9427  # vlagent self-metrics
+    image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
+    replicas: "{{ telemetry_storage_config.vector_storage.vlagent_vector.replicas | default(2) }}"
+    pvc_size: "{{ telemetry_storage_config.vector_storage.vlagent_vector.pvc_size | default('5Gi') }}"  # Disk buffer
+    remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert"
+    tmp_data_path: "/vlagent-buffer"
+    resources:
+      requests:
+        cpu: "{{ telemetry_storage_config.vector_storage.vlagent_vector.resources.requests.cpu | default('100m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.vlagent_vector.resources.requests.memory | default('256Mi') }}"
+      limits:
+        cpu: "{{ telemetry_storage_config.vector_storage.vlagent_vector.resources.limits.cpu | default('500m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.vlagent_vector.resources.limits.memory | default('512Mi') }}"
+
+# ============================================================================
+# UFM Telemetry Configuration
+# ============================================================================
+# Usage: deploy_ufm_telemetry.yml
+# UFM telemetry collects InfiniBand fabric metrics from NVIDIA UFM appliances
+# using Prometheus scraping via the shared vmagent instance.
+
+# Kubernetes resource names
+ufm_credentials_secret_name: "ufm-telemetry-credentials"
+ufm_grafana_dashboard_configmap_name: "grafana-dashboard-ufm"
+
+# UFM telemetry defaults
+ufm_deploy_grafana_dashboard: true
+ufm_endpoint_test_timeout: 10
+
+# Validation messages
+ufm_endpoint_empty_msg: >-
+  UFM telemetry is enabled but ufm_endpoint is empty.
+  Set telemetry_sources.ufm.ufm_endpoint in telemetry_config.yml.
+
+ufm_credentials_missing_msg: >-
+  UFM auth_mode is 'basic' but ufm_username or ufm_password is not set.
+  Provide UFM credentials in omnia_config_credentials.yml.
+
+ufm_ca_cert_not_found_msg: >-
+  UFM tls_mode is 'ca_signed' but the CA certificate file was not found
+  at the path specified in ufm_ca_cert_path. Provide a valid PEM certificate file.
+
+ufm_port_range_msg: >-
+  UFM metrics port must be between 1 and 65535.
+
+ufm_tls_mode_invalid_msg: >-
+  UFM tls_mode must be 'self_signed' or 'ca_signed'.
+
+ufm_auth_mode_invalid_msg: >-
+  UFM auth_mode must be 'basic' or 'none'.
+
+ufm_endpoint_unreachable_msg: >-
+  WARNING: UFM endpoint is not reachable. UFM telemetry configuration will
+  proceed, but VMAgent will not be able to scrape metrics until UFM is accessible.
+
+ufm_secret_created_msg: >-
+  UFM credentials Kubernetes Secret created in namespace '{{ telemetry_namespace }}'.
+
+ufm_victoria_logs_validation_fail_msg: >-
+  UFM log collection requires 'victoria_logs' in
+  telemetry_sources.ufm.collection_targets.
+
+
+ufm_integration_summary_msg: >-
+  UFM telemetry integration complete.
+  {% if _ufm_config.metrics_enabled | default(false) | bool %}
+  Metrics: https://{{ _ufm_detailed_config.ufm_endpoint }}:{{ _ufm_detailed_config.ufm_metrics_port | default(9001) }}
+  TLS mode: {{ _ufm_detailed_config.tls_mode | default('self_signed') }}
+  Auth mode: {{ _ufm_detailed_config.auth_mode | default('basic') }}
+  Scrape interval: {{ _ufm_detailed_config.scrape_interval | default('30s') }}
+  {% endif %}
+
+# ============================================================================
+# VAST Telemetry Configuration
+# ============================================================================
+# Usage: deploy_vast_telemetry.yml
+# VAST telemetry collects storage metrics from VAST Data clusters
+# using Prometheus scraping via the shared vmagent instance.
+
+# Kubernetes resource names
+vast_credentials_secret_name: "vast-telemetry-credentials"
+
+# VAST telemetry defaults
+vast_endpoint_test_timeout: 10
+
+# Validation messages
+vast_endpoint_empty_msg: >-
+  VAST telemetry is enabled but vast_endpoint is empty.
+  Set vast_configuration.vast_endpoint in telemetry_config.yml.
+
+vast_credentials_missing_msg: >-
+  VAST auth_mode is 'basic' but vast_username or vast_password is not set.
+  Provide VAST credentials in omnia_config_credentials.yml.
+
+vast_ca_cert_not_found_msg: >-
+  VAST tls_mode is 'ca_signed' but the CA certificate file was not found
+  at the path specified in vast_ca_cert_path. Provide a valid PEM certificate file.
+
+vast_port_range_msg: >-
+  VAST metrics port must be between 1 and 65535.
+
+vast_tls_mode_invalid_msg: >-
+  VAST tls_mode must be 'self_signed' or 'ca_signed'.
+
+vast_auth_mode_invalid_msg: >-
+  VAST auth_mode must be 'basic' or 'none'.
+
+vast_endpoint_unreachable_msg: >-
+  WARNING: VAST endpoint is not reachable. VAST telemetry configuration will
+  proceed, but VMAgent will not be able to scrape metrics until VAST is accessible.
+
+vast_secret_created_msg: >-
+  VAST credentials Kubernetes Secret created in namespace '{{ telemetry_namespace }}'.
+
+vast_victoria_logs_validation_fail_msg: >-
+  VAST log collection requires 'victoria_logs' in
+  telemetry_sources.vast.collection_targets.
+
+vast_integration_summary_msg: >-
+  VAST telemetry integration complete.
+  {% if _vast_config.metrics_enabled | default(false) | bool %}
+  Metrics: https://{{ _vast_detailed_config.vast_endpoint }}:{{ _vast_detailed_config.vast_metrics_port | default(443) }}
+  Metrics path: {{ _vast_detailed_config.metrics_path | default('/api/prometheusmetrics/all') }}
+  TLS mode: {{ _vast_detailed_config.tls_mode | default('self_signed') }}
+  Auth mode: {{ _vast_detailed_config.auth_mode | default('basic') }}
+  Scrape interval: {{ _vast_detailed_config.scrape_interval | default('30s') }}
+  {% endif %}

@@ -1,0 +1,242 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Configure the ochami
+  environment: "{{ hostvars['oim']['ochami_env'] }}"
+  block:
+    - name: Set openchami SELinux context for Local flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
+      changed_when: true
+      failed_when: false
+      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+    - name: Set openchami SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+      changed_when: true
+      failed_when: false
+      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
+
+    - name: Include openchami vars
+      ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
+
+    - name: Create ochami nodes directory
+      ansible.builtin.file:
+        path: "{{ nodes_dir }}"
+        state: directory
+        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
+    - name: Load the openchami nodes.yaml
+      ansible.builtin.template:
+        src: "{{ openchami_nodes_template }}"
+        dest: "{{ openchami_nodes_vars_path }}"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+      vars:
+        nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+
+    - name: Create telemetry directory
+      ansible.builtin.file:
+        path: "{{ telemetry_share_path }}"
+        state: directory
+        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
+    - name: Create orchestrator output directory on OIM
+      ansible.builtin.file:
+        path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        state: directory
+        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
+    - name: Create orchestrator output directory on localhost
+      ansible.builtin.file:
+        path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        state: directory
+        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+      delegate_to: localhost
+
+    - name: Load BMC-group data file
+      ansible.builtin.template:
+        src: "{{ bmc_group_data_template }}"
+        dest: "{{ bmc_group_data_file }}"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+      vars:
+        nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+        group_data: "{{ (lookup('file', hostvars['localhost']['functional_groups_config_path']) | from_yaml).groups }}"
+
+    - name: Copy BMC-group data file to localhost
+      ansible.builtin.fetch:
+        src: "{{ bmc_group_data_file }}"
+        dest: "{{ bmc_group_data_file }}"
+        flat: true
+
+    - name: Generate orchestrator inventory file
+      ansible.builtin.template:
+        src: "{{ orchestrator_inventory_template }}"
+        dest: "{{ orchestrator_inventory_file }}"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+      vars:
+        nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+
+    - name: Copy orchestrator inventory file to localhost
+      ansible.builtin.fetch:
+        src: "{{ orchestrator_inventory_file }}"
+        dest: "{{ orchestrator_inventory_file }}"
+        flat: true
+
+    - name: Delete smd configuration
+      ansible.builtin.include_tasks: delete_smd_config.yml
+
+    - name: Restart the cloud-init service to refresh node instance data
+      ansible.builtin.systemd:
+        name: cloud-init-server
+        state: restarted
+        daemon_reload: true
+
+    - name: Check if cloud-init-server is running
+      ansible.builtin.systemd:
+        name: cloud-init-server
+        state: started
+      register: cloud_init_server_status
+      retries: "{{ service_retries }}"
+      delay: "{{ service_retry_interval }}"
+      until: cloud_init_server_status is success
+
+    - name: Verify cloud-init-server is reachable
+      block:
+        - name: Wait for cloud-init-server to be ready
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: cloud_init_status
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: cloud_init_status.rc == 0
+          changed_when: false
+      rescue:
+        - name: Restart openchami.target to recover container networking
+          ansible.builtin.systemd:
+            name: openchami.target
+            state: restarted
+            daemon_reload: true
+
+        - name: Wait for openchami.target to be ready after restart
+          ansible.builtin.systemd:
+            name: openchami.target
+            state: started
+          register: openchami_target_recovery
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: openchami_target_recovery is success
+
+        - name: Retry cloud-init-server readiness check after openchami restart
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: cloud_init_status
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: cloud_init_status.rc == 0
+          failed_when: false
+          changed_when: false
+
+        - name: Fail if cloud-init-server is still not reachable
+          ansible.builtin.fail:
+            msg: "{{ cloud_init_failed_msg }}"
+          when: cloud_init_status.rc != 0
+
+    - name: Check whether openchami.target is up
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: started
+      register: openchami_target_status
+      retries: "{{ service_retries }}"
+      delay: "{{ service_retry_interval }}"
+      until: openchami_target_status is success
+
+    - name: Fail if openchami.target is not up
+      ansible.builtin.fail:
+        msg: "{{ openchami_target_failed_msg }}"
+      when:
+        - openchami_target_status is defined
+        - openchami_target_status is not success
+
+    - name: Discover ochami nodes with retries
+      block:
+        - name: Discover ochami nodes
+          ansible.builtin.command: /usr/bin/ochami discover static -f yaml -d @"{{ openchami_nodes_vars_path }}" --overwrite
+          register: openchami_orchestration
+          changed_when: openchami_orchestration.rc == 0
+          failed_when: openchami_orchestration.rc != 0
+      rescue:
+        - name: Check if smd service is running
+          ansible.builtin.service:
+            name: smd
+            state: started
+          register: smd_service_status
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: smd_service_status is success
+
+        - name: Fail if smd service is not running
+          ansible.builtin.fail:
+            msg: "smd service is not running"
+          when:
+            - smd_service_status is defined
+            - smd_service_status is not success
+
+        - name: Wait for SMD API to be ready
+          ansible.builtin.command: /usr/bin/ochami smd service status
+          register: smd_api_ready
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: smd_api_ready.rc == 0
+          changed_when: false
+
+        - name: Retry discover ochami nodes
+          ansible.builtin.command: /usr/bin/ochami discover static -f yaml -d @"{{ openchami_nodes_vars_path }}" --overwrite
+          register: openchami_orchestration
+          changed_when: openchami_orchestration.rc == 0
+          failed_when: openchami_orchestration.rc != 0
+          retries: 2
+          delay: "{{ service_retry_interval }}"
+          until: openchami_orchestration.rc == 0
+
+        - name: Fail if ochami discovery still unsuccessful
+          ansible.builtin.fail:
+            msg: "{{ ochami_discovery_failed_msg }}"
+          when: openchami_orchestration.rc != 0
+
+    - name: Verify node created in smd
+      ansible.builtin.shell: |
+        set -o pipefail && \
+        /usr/bin/ochami smd component get | jq '.Components[] | select(.Type == "Node")'
+      changed_when: true
+      register: openchami_smd_status
+
+    - name: Openchami smd status output
+      ansible.builtin.debug:
+        msg: "{{ openchami_smd_status.stdout_lines }}"
+        verbosity: 2
+
+    - name: Load the openchami hostname.yaml
+      ansible.builtin.template:
+        src: "{{ openchami_hostname_template }}"
+        dest: "{{ openchami_hostname_vars_path }}"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+      vars:
+        nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+
+    - name: Configure the hostname
+      ansible.builtin.command: /usr/bin/ochami cloud-init node set -f yaml -d @"{{ openchami_hostname_vars_path }}"
+      changed_when: true
+
+    - name: Create cloud-init groups dict
+      ansible.builtin.set_fact:
+        cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: {}}) }}"
+      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"

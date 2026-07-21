@@ -1,0 +1,4 @@
+# Cloned dependencies (synced at runtime by clone_dependencies.yml)
+# When orchestrator becomes an independent repository, these will be
+# managed as git submodules or cloned via Makefile/setup script.
+common/

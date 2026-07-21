@@ -1,0 +1,92 @@
+#!/bin/bash
+# PowerScale Syslog UT Verification Script
+# Run on Kubernetes control plane node to verify syslog ingestion pipeline
+
+NAMESPACE="telemetry"
+VLAGENT_SVC="vlagent-vlagent"
+PS_HOSTNAME="powerscale"  # PowerScale hostname for log query (update if needed)
+
+echo "=========================================="
+echo "PowerScale Syslog Feature UT Verification"
+echo "=========================================="
+echo ""
+
+# ============================================================================
+# Test 1: VLAgent Service Status
+# ============================================================================
+echo "Test 1: VLAgent Service Status"
+kubectl get svc "$VLAGENT_SVC" -n "$NAMESPACE"
+VLAGENT_CLUSTERIP=$(kubectl get svc "$VLAGENT_SVC" -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
+VLAGENT_LBIP=$(kubectl get svc "$VLAGENT_SVC" -n "$NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "✓ VLAgent ClusterIP: $VLAGENT_CLUSTERIP"
+echo "✓ VLAgent LoadBalancer IP: $VLAGENT_LBIP"
+echo ""
+
+# ============================================================================
+# Test 2: VLAgent Pod Status
+# ============================================================================
+echo "Test 2: VLAgent Pod Status"
+kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=vlagent
+POD_STATUS=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=vlagent -o jsonpath='{.items[0].status.phase}')
+if [ "$POD_STATUS" == "Running" ]; then
+    echo "✓ VLAgent pod is Running"
+else
+    echo "✗ VLAgent pod status: $POD_STATUS"
+fi
+echo ""
+
+# ============================================================================
+# Test 3: kube-proxy iptables Rules for VLAgent ClusterIP
+# ============================================================================
+echo "Test 3: kube-proxy iptables Rules for VLAgent ClusterIP"
+if iptables -t nat -L KUBE-SERVICES -n 2>/dev/null | grep -q "$VLAGENT_CLUSTERIP"; then
+    echo "✓ iptables rules exist for ClusterIP routing"
+    iptables -t nat -L KUBE-SERVICES -n | grep "$VLAGENT_CLUSTERIP" | head -3
+else
+    echo "✗ No iptables rules found for ClusterIP: $VLAGENT_CLUSTERIP"
+fi
+echo ""
+
+# ============================================================================
+# Test 4: Port 514 Firewall Rules
+# ============================================================================
+echo "Test 4: Port 514 Firewall Rules"
+if command -v firewall-cmd &>/dev/null; then
+    if firewall-cmd --list-ports 2>/dev/null | grep -q 514; then
+        echo "✓ Port 514 open in firewalld"
+        firewall-cmd --list-ports
+    else
+        echo "⚠ Port 514 may not be open in firewalld"
+    fi
+else
+    echo "⚠ firewalld not configured, assuming iptables/ufw"
+fi
+echo ""
+
+# ============================================================================
+# Test 5: VLAgent Logs (check for syslog ingestion)
+# ============================================================================
+echo "Test 5: VLAgent Logs (syslog ingestion check)"
+VLAGENT_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=vlagent -o name 2>/dev/null | head -1)
+if [ -n "$VLAGENT_POD" ]; then
+    echo "Checking VLAgent logs for syslog ingestion (last 5 minutes)..."
+    SYSLOG_COUNT=$(kubectl logs -n "$NAMESPACE" "$VLAGENT_POD" --since=5m 2>/dev/null | grep -c "syslog" || echo "0")
+    if [ "$SYSLOG_COUNT" -gt 0 ]; then
+        echo "✓ Syslog messages detected in VLAgent logs (count: $SYSLOG_COUNT)"
+        kubectl logs -n "$NAMESPACE" "$VLAGENT_POD" --since=5m 2>/dev/null | grep "syslog" | tail -3
+    else
+        echo "⚠ No syslog messages detected in VLAgent logs (last 5 minutes)"
+        echo "  This may indicate PowerScale is not sending syslog or network/firewall issue"
+    fi
+else
+    echo "✗ VLAgent pod not found"
+fi
+echo ""
+
+# ============================================================================
+# Summary
+# ============================================================================
+echo "=========================================="
+echo "VLAgent Verification Complete"
+echo "=========================================="
+echo ""

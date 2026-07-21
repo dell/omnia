@@ -1,0 +1,7 @@
+BMC_IP,GROUP_NAME,PARENT
+{% if hostvars['localhost']['Networks'][0].admin_network.primary_oim_bmc_ip %}
+{{ hostvars['localhost']['Networks'][0].admin_network.primary_oim_bmc_ip }},,
+{% endif %}
+{% for item in nodes | sort(attribute='value.XNAME') %}
+{{ item.value.BMC_IP }},{{ item.value.GROUP_NAME }},{{ group_data[item.value.GROUP_NAME].parent | default('') }}
+{% endfor %}

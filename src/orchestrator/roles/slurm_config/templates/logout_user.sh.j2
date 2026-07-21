@@ -1,0 +1,49 @@
+#!/bin/bash
+
+USER="${SLURM_JOB_USER:-$1}"
+LOGFILE="/var/log/slurm_epilog.log"
+TIMEOUT=10  # Max seconds to wait before force logout
+
+log() {
+    echo "[$(date)] $1" >> "$LOGFILE"
+}
+
+# Skip epilog for root or other system users
+if [ "$USER" == "root" ] || [ "$USER" == "slurm" ]; then
+    log "Skipping epilog for system user $USER on $(hostname)"
+    exit 0
+fi
+
+log "Epilog started for $USER on $(hostname)"
+
+# Wait for Slurm to release the job and user's other jobs to end
+for i in $(seq 1 $TIMEOUT); do
+    user_jobs=$(pgrep -u "$USER" | wc -l)
+    if [ "$user_jobs" -eq 0 ]; then
+        log "No remaining processes for $USER. Proceeding to logout."
+        break
+    fi
+    log "Attempt $i: $USER still has $user_jobs process(es). Waiting..."
+    sleep 1
+done
+
+# Final check
+user_jobs=$(pgrep -u "$USER" | wc -l)
+if [ "$user_jobs" -gt 0 ]; then
+    log "Timeout reached. Killing remaining processes for $USER"
+    pkill -KILL -u "$USER"
+    sleep 1
+fi
+
+# Now check if session exists and terminate it
+SESSION_ID=$(loginctl list-sessions --no-legend | awk -v user="$USER" '$3 == user { print $1 }')
+if [ -n "$SESSION_ID" ]; then
+    log "Found lingering session $SESSION_ID for $USER. Terminating via loginctl."
+    loginctl terminate-session "$SESSION_ID" >/dev/null 2>&1 || true
+else
+    log "No session found for $USER — already logged out."
+fi
+
+log "Epilog complete for $USER"
+exit 0
+

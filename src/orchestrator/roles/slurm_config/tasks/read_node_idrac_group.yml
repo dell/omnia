@@ -1,0 +1,239 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Initialize group discovery variables
+  ansible.builtin.set_fact:
+    group_name: "{{ group_item.key }}"
+    group_nodes: "{{ group_item.value }}"
+    discovered_specs: {}
+    responsive_node: ""
+
+- name: Try each node in group until iDRAC responds
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[item] }}/redfish/v1/Systems/System.Embedded.1"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  loop: "{{ group_nodes }}"
+  when: responsive_node == ""
+  register: idrac_results
+
+- name: Set responsive node from successful iDRAC call
+  ansible.builtin.set_fact:
+    responsive_node: "{{ item.item }}"
+  loop: "{{ idrac_results.results }}"
+  when:
+    - responsive_node == ""
+    - item.status == 200
+
+- name: Read Processor information from responsive node
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[responsive_node] }}/redfish/v1/Systems/System.Embedded.1/Processors?$expand=*($levels=1)"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  register: proc_info
+  when: responsive_node != ""
+
+- name: Read Memory information from responsive node
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[responsive_node] }}/redfish/v1/Systems/System.Embedded.1"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  register: mem_info
+  when: responsive_node != ""
+
+- name: Extract CPU and GPU information
+  ansible.builtin.set_fact:
+    cpus: "{{ proc_info.json.Members | default([]) | selectattr('ProcessorType', 'equalto', 'CPU') | list }}"
+    gpus: "{{ proc_info.json.Members | default([])
+     | selectattr('ProcessorType', 'equalto', 'GPU')
+     | selectattr('Manufacturer', 'search', '(?i)nvidia') | list }}"
+  when: responsive_node != ""
+
+- name: Fallback - Get PCIe devices for GPU detection
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[responsive_node] }}/redfish/v1/Systems/System.Embedded.1/PCIeDevices"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  register: pcie_devices
+  failed_when: false
+  when: responsive_node != "" and gpus | length == 0
+
+- name: Fallback - Extract PCIe device URLs
+  ansible.builtin.set_fact:
+    pcie_device_urls: "{{ pcie_devices.json.Members | default([]) | json_query('[*].\"@odata.id\"') }}"
+  when: responsive_node != "" and gpus | length == 0
+
+- name: Fallback - Get PCIe Device details for GPU detection
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[responsive_node] }}{{ item }}"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  register: pcie_device_details
+  loop: "{{ pcie_device_urls | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  failed_when: false
+  when: responsive_node != "" and gpus | length == 0 and pcie_device_urls is defined and pcie_device_urls | length > 0
+
+- name: Fallback - Detect GPUs from PCIe devices
+  ansible.builtin.set_fact:
+    fallback_gpus: "{{ pcie_device_details.results | default([])
+      | selectattr('json', 'defined')
+      | map(attribute='json')
+      | selectattr('ClassCode', 'defined')
+      | selectattr('VendorId', 'defined')
+      | selectattr('ClassCode', 'equalto', '0x0300') | list }}"
+  when: responsive_node != "" and gpus | length == 0
+
+- name: Fallback - Detect GPUs from PCIe devices (additional criteria)
+  ansible.builtin.set_fact:
+    fallback_gpus_additional: "{{ pcie_device_details.results | default([])
+      | selectattr('json', 'defined')
+      | map(attribute='json')
+      | selectattr('ClassCode', 'defined')
+      | selectattr('VendorId', 'defined')
+      | selectattr('ClassCode', 'equalto', '0x0302') | list }}"
+  when: responsive_node != "" and gpus | length == 0 and fallback_gpus | default([]) | length == 0
+
+- name: Fallback - Detect GPUs from Manufacturer/Name (NVIDIA only)
+  ansible.builtin.set_fact:
+    fallback_gpus_manufacturer: "{{ pcie_device_details.results | default([])
+      | selectattr('json', 'defined')
+      | map(attribute='json')
+      | selectattr('Manufacturer', 'defined')
+      | selectattr('Name', 'defined')
+      | selectattr('Manufacturer', 'search', '(?i)NVIDIA')
+      | selectattr('Name', 'search', '(?i)GPU|RTX|TESLA|A100|H100|L40|GB') | list }}"
+  when: responsive_node != "" and gpus | length == 0 and fallback_gpus | default([]) | length == 0 and fallback_gpus_additional | default([]) | length == 0
+
+- name: Fallback - Update GPUs list if PCIe detection found GPUs
+  ansible.builtin.set_fact:
+    gpus: "{{ (fallback_gpus | default([])) or (fallback_gpus_additional | default([])) or (fallback_gpus_manufacturer | default([])) }}"
+  when: responsive_node != "" and gpus | length == 0
+
+- name: Calculate total memory in MB (GiB → MB)
+  ansible.builtin.set_fact:
+    total_memory_mb: "{{ (mem_info.json.MemorySummary.TotalSystemMemoryGiB | default(default_real_memory)) * 1024 | int }}"
+  when: responsive_node != ""
+
+- name: Calculate 90% of real memory
+  ansible.builtin.set_fact:
+    real_memory: "{{ ((total_memory_mb | float) * 0.90) | int }}"
+  when: responsive_node != ""
+
+- name: Build discovered hardware specs
+  ansible.builtin.set_fact:
+    discovered_specs: "{{ {
+      'sockets': (1 if (cpus | length == 0) else (cpus | length)),
+      'cores_per_socket': (cpus[0].TotalEnabledCores | default(default_corespersocket)),
+      'threads_per_core': ((cpus[0].TotalThreads | default(default_threadspercore)) // (cpus[0].TotalCores | default(1))),
+      'real_memory': real_memory | default(default_real_memory),
+      'gres': ('gpu:' ~ (gpus | default([1]) | length | string) if (gpus | default([])) else '')
+    } }}"
+  when: responsive_node != ""
+
+- name: Apply discovered specs to all nodes in group
+  ansible.builtin.set_fact:
+    node_params: >-
+      {{
+        node_params + [
+          {'NodeName': hostname,
+           'Sockets': discovered_specs.sockets,
+           'CoresPerSocket': discovered_specs.cores_per_socket,
+           'ThreadsPerCore': discovered_specs.threads_per_core,
+           'RealMemory': discovered_specs.real_memory}
+          | combine({'Gres': discovered_specs.gres} if discovered_specs.gres != '' else {})
+        ]
+      }}
+  loop: "{{ group_nodes }}"
+  loop_control:
+    loop_var: hostname
+  when: discovered_specs | length > 0
+
+- name: Use default values for all nodes in group (iDRAC failed)
+  ansible.builtin.set_fact:
+    node_params: >-
+      {{
+        node_params + [{
+          'NodeName': hostname,
+          'Sockets': default_corespersocket,
+          'CoresPerSocket': default_corespersocket,
+          'ThreadsPerCore': default_threadspercore,
+          'RealMemory': default_real_memory
+        }]
+      }}
+  loop: "{{ group_nodes }}"
+  loop_control:
+    loop_var: hostname
+  when: discovered_specs | length == 0

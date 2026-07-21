@@ -1,0 +1,136 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# tasks/read_nodes_yaml.yml
+---
+
+- name: DEBUG passwordless_ssh facts from PXE mapping flow
+  ansible.builtin.debug:
+    msg:
+      k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | default([]) }}"
+      slurm_cluster_hostnames: "{{ hostvars['localhost']['slurm_cluster_hostnames'] | default([]) }}"
+      k8s_cluster_ip_patterns: "{{ hostvars['localhost']['k8s_cluster_ip_patterns'] | default([]) }}"
+      slurm_cluster_ip_patterns: "{{ hostvars['localhost']['slurm_cluster_ip_patterns'] | default([]) }}"
+      omnia_cluster_ip_patterns: "{{ hostvars['localhost']['omnia_cluster_ip_patterns'] | default([]) }}"
+      omnia_hosts_map: "{{ hostvars['localhost']['omnia_hosts_map'] | default({}) }}"
+
+- name: Set nodes.yaml path for nodes.yaml debugging
+  ansible.builtin.set_fact:
+    omnia_nodes_yaml_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+
+- name: Read nodes.yaml for group/host/IP data
+  ansible.builtin.slurp:
+    src: "{{ omnia_nodes_yaml_path }}"
+  register: omnia_nodes_yaml_raw
+
+- name: Parse nodes.yaml content
+  ansible.builtin.set_fact:
+    omnia_nodes_data: "{{ omnia_nodes_yaml_raw.content | b64decode | from_yaml }}"
+
+- name: Build groups, hostnames and admin IPs from nodes.yaml
+  ansible.builtin.set_fact:
+    omnia_nodes_groups_from_yaml: >-
+      {{
+        (omnia_nodes_data.nodes | default([]))
+        | map(attribute='group')
+        | list
+        | unique
+      }}
+
+- name: Initialize all_group_names_present flag
+  ansible.builtin.set_fact:
+    all_group_names_present: false
+
+- name: Set all_group_names_present when all required and optional groups are present
+  ansible.builtin.set_fact:
+    all_group_names_present: true
+  when: >-
+    (
+      omnia_required_groups_from_nodes_yaml
+      | difference(omnia_nodes_groups_from_yaml | default([]))
+    ) | length == 0
+
+- name: Build SSH Host pattern strings for k8s and slurm based on nodes.yaml completeness
+  ansible.builtin.set_fact:
+    k8s_ssh_patterns: >-
+      {{
+        '*'
+        if (all_group_names_present | default(false))
+        else (
+          (
+            (hostvars['localhost']['k8s_cluster_hostnames'] | default([]))
+            | map('regex_replace', '[0-9]+$', '*')
+            | list
+            | unique
+          )
+          + (hostvars['localhost']['k8s_cluster_ip_patterns'] | default([]))
+        )
+        | unique
+        | join(' ')
+      }}
+    slurm_ssh_patterns: >-
+      {{
+        '*'
+        if (all_group_names_present | default(false))
+        else (
+          (
+            (hostvars['localhost']['slurm_cluster_hostnames'] | default([]))
+            | map('regex_replace', '[0-9]+$', '*')
+            | list
+            | unique
+          )
+          + (hostvars['localhost']['slurm_cluster_ip_patterns'] | default([]))
+        )
+        | unique
+        | join(' ')
+      }}
+
+- name: Configure SSH on OIM with Host * when all groups are present in nodes.yaml
+  ansible.builtin.blockinfile:
+    path: "{{ ssh_private_key_path }}"
+    create: true
+    mode: '0600'
+    marker: "# {mark} OMNIA_CLUSTER_SSH"
+    block: |
+      Host *
+          IdentityFile ~/.ssh/oim_rsa
+          IdentitiesOnly yes
+  when: all_group_names_present
+
+- name: Configure SSH on OIM with derived hostname/IP patterns when groups are incomplete
+  ansible.builtin.blockinfile:
+    path: "{{ ssh_private_key_path }}"
+    create: true
+    mode: '0600'
+    marker: "# {mark} OMNIA_CLUSTER_SSH"
+    block: |
+      Host {{ omnia_cluster_ssh_matches
+               | default([])
+               | list
+               | unique
+               | join(' ') }}
+          IdentityFile ~/.ssh/oim_rsa
+          IdentitiesOnly yes
+  when:
+    - not all_group_names_present | default(false) | bool
+    - omnia_cluster_ssh_matches | default([]) | length > 0
+
+# - name: DEBUG summary from read_nodes_yaml flow
+  # ansible.builtin.debug:
+    # msg:
+      # omnia_nodes_yaml_path: "{{ omnia_nodes_yaml_path }}"
+      # omnia_nodes_groups_from_yaml: "{{ omnia_nodes_groups_from_yaml | default([]) }}"
+      # all_group_names_present: "{{ all_group_names_present | default(false) }}"
+      # omnia_cluster_ssh_matches: "{{ omnia_cluster_ssh_matches | default([]) }}"
+      # k8s_ssh_patterns: "{{ k8s_ssh_patterns | default('') }}"
+      # SLURM_SSH_patterns: "{{ slurm_ssh_patterns | default('') }}"

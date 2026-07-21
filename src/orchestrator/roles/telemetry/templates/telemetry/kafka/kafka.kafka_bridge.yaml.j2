@@ -1,0 +1,23 @@
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaBridge
+metadata:
+  name: bridge
+  namespace: telemetry
+spec:
+  bootstrapServers: kafka-kafka-bootstrap:9093
+  http:
+    port: 8080
+  # Enable TLS for Kafka connection
+  tls:
+    trustedCertificates:
+      - secretName: kafka-cluster-ca-cert
+        certificate: ca.crt
+  # Enable mTLS authentication (required for port 9093)
+  authentication:
+    type: tls
+    certificateAndKey:
+      secretName: kafkapump
+      certificate: user.crt
+      key: user.key
+  replicas: 1

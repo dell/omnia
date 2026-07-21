@@ -1,0 +1,16 @@
+#!/bin/bash
+# Create scratch directory on first user login
+
+if [ ! -d "/scratch/$USER" ]; then
+    echo "Creating scratch directory for $USER..."
+
+    # Create directory structure
+    mkdir -p "/scratch/$USER"/{jobs,temp,data,results}
+
+    # Set proper ownership and permissions
+    chown -R "$USER":"$(id -g $USER)" "/scratch/$USER"
+    chmod 700 "/scratch/$USER"
+    chmod 755 "/scratch/$USER"/{jobs,temp,data,results}
+
+    echo "Scratch directory created: /scratch/$USER"
+fi

@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+TYPE="{{ connection_type }}"
+FILE="{{ ldap_conf_dest }}"
+
+if [[ "$TYPE" == "tls" ]]; then
+  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nBASE    {{ ldap_search_base }}|" "$FILE"
+  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nURI     ldap://{{ ldap_server_ip }}|" "$FILE"
+  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nTLS_CACERT {{ tls_cert_path }}|" "$FILE"
+elif [[ "$TYPE" == "ssl" ]]; then
+  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nURI     ldap://{{ ldap_server_ip }}:636|" "$FILE"
+fi

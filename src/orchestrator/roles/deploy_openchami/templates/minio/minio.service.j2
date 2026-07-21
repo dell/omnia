@@ -1,0 +1,27 @@
+[Unit]
+Description=Minio S3
+After=local-fs.target network-online.target
+Wants=local-fs.target network-online.target
+
+[Container]
+ContainerName=minio-server
+Image=docker.io/pgsty/minio:{{ minio_release_tag }}
+# Volumes
+Volume={{ data_s3_dir }}:/data:Z
+
+# Ports
+PublishPort=9000:9000
+PublishPort=9001:9001
+
+# Environemnt Variables
+Environment=MINIO_ROOT_USER={{ s3_access_id }}
+Environment=MINIO_ROOT_PASSWORD={{ s3_secret_key }}
+
+# Command to run in container
+Exec=server /data --console-address :9001
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

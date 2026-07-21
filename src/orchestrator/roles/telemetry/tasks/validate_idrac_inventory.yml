@@ -1,0 +1,40 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Read BMC group data
+  ansible.builtin.set_fact:
+    bmc_group_data: "{{ lookup('file', bmc_group_data_filename).splitlines() }}"
+
+- name: Include nodes vars
+  ansible.builtin.slurp:
+    src: "{{ openchami_nodes_vars_path }}"
+  register: nodes_vars
+
+- name: Decode and parse nodes_vars YAML
+  ansible.builtin.set_fact:
+    node_parsed_yaml: "{{ nodes_vars.content | b64decode | from_yaml }}"
+
+- name: Validate BMC group data file
+  validate_bmc_group_data:
+    nodes_bmc_ips: "{{ node_parsed_yaml.nodes | map(attribute='bmc_ip') | list }}"
+    bmc_group_data_headers: "{{ bmc_group_data_headers }}"
+    bmc_group_data: "{{ bmc_group_data }}"
+    bmc_group_data_file: "{{ bmc_group_data_filename }}"
+  register: bmc_ip_data
+
+- name: Set validated BMC ips
+  ansible.builtin.set_fact:
+    bmc_dict_list: "{{ bmc_ip_data.bmc_dict_list }}"
+    bmc_ips: "{{ bmc_ip_data.bmc_ips }}"

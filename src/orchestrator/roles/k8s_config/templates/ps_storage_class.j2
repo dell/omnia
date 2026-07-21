@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ps01
+provisioner: csi-isilon.dellemc.com
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  AccessZone: {{ ps_access_zone }}
+  Isipath: {{ ps_isipath }}
+  RootClientEnabled: "true"
+  AzServiceIP: {{ ps_azserviceip }}
+  csi.storage.k8s.io/fstype: "nfs"
