@@ -19,12 +19,12 @@
 
 - name: Install omnia-crun-bpf SELinux policy module
   block:
-    - name: Ensure SELinux policy build tools are present
-      ansible.builtin.package:
-        name:
-          - policycoreutils
-          - checkpolicy
-        state: present
+    - name: Verify SELinux policy build tools are present
+      ansible.builtin.command: "rpm -q policycoreutils checkpolicy"
+      register: _selinux_tools_check
+      changed_when: false
+      failed_when: >-
+        _selinux_tools_check.rc != 0
 
     - name: Check if omnia-crun-bpf SELinux module is loaded
       ansible.builtin.command: semodule -lfull
