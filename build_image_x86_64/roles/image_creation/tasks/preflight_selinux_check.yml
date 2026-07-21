@@ -29,7 +29,6 @@
           - "'policycoreutils' in ansible_facts.packages"
           - "'checkpolicy' in ansible_facts.packages"
         fail_msg: "{{ selinux_tools_fail_msg }}"
-        quiet: true
 
     - name: Check if omnia-crun-bpf SELinux module is loaded
       ansible.builtin.command: semodule -lfull
