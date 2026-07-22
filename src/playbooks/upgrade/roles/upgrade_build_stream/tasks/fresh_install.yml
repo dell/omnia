@@ -29,9 +29,9 @@
 # (handles: stop existing, image pull, quadlet, start, DB init)
 # ══════════════════════════════════════════════════════════════════
 
-- name: Deploy Postgres container (reuse prepare_oim)  # noqa:role-name[path]
+- name: Deploy Postgres container (reuse build_stream role)  # noqa:role-name[path]
   ansible.builtin.include_role:
-    name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/postgres"
+    name: "{{ playbook_dir }}/../../../build_stream/roles/postgres"
 
 # ══════════════════════════════════════════════════════════════════
 # Step 2: Deploy BuildStream via prepare_oim role
@@ -39,6 +39,6 @@
 #  JWT keys, quadlet, Alembic migrations, firewall, health check)
 # ══════════════════════════════════════════════════════════════════
 
-- name: Deploy BuildStream container (reuse prepare_oim)  # noqa:role-name[path]
+- name: Deploy BuildStream container (reuse build_stream role)  # noqa:role-name[path]
   ansible.builtin.include_role:
-    name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/build_stream"
+    name: "{{ playbook_dir }}/../../../build_stream/roles/deploy_bsm"

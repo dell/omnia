@@ -18,11 +18,11 @@
 # Per ESpec §4.6.4: Handles both upgrade_existing (in-place upgrade) and
 # fresh_install (BuildStream on cluster where it was not enabled in 2.1).
 #
-# Reuses prepare_oim roles for:
+# Reuses roles for:
 #   - Credential loading (utils/credential_utility)
 #   - OIM group creation (utils/create_container_group)
-#   - Postgres deployment (prepare_oim/roles/deploy_containers/postgres)
-#   - BuildStream deployment (prepare_oim/roles/deploy_containers/build_stream)
+#   - Postgres deployment (build_stream/roles/postgres)
+#   - BuildStream deployment (build_stream/roles/deploy_bsm)
 #
 # Constraints: BS-01 through BS-08
 # ============================================================================
