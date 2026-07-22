@@ -90,3 +90,8 @@
 - name: Check if openmpi support is true
   ansible.builtin.set_fact:
     openmpi_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openmpi') | list | length > 0 }}"
+
+- name: Set NVIDIA driver version from omnia_config
+  ansible.builtin.set_fact:
+    nvidia_driver_version_x86_64: "{{ slurm_cluster[0].nvidia_driver_version_x86_64 | default('580.159.04') }}"
+    nvidia_driver_version_aarch64: "{{ slurm_cluster[0].nvidia_driver_version_aarch64 | default('580.159.04') }}"

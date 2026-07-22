@@ -137,11 +137,24 @@
 #   cgroup: /opt/omnia/input/project_default/cgroup.conf
 #   slurmdbd: /opt/omnia/input/project_default/slurmdbd.conf
 
+# nvidia_driver_version
+# NVIDIA CUDA driver version to install on compute nodes.
+# These driver versions are used by install_cuda_driver.sh on Slurm nodes.
+# Two versions can be specified per cluster:
+#   - nvidia_driver_version_x86_64: driver version for x86_64 compute nodes
+#   - nvidia_driver_version_aarch64: driver version for aarch64 compute nodes
+# Default: "580.159.04" if not specified.
+# 580.159.04 is the NVIDIA CUDA driver version.
+# This version was validated on x86_64 and aarch64 compute nodes
+# running RHEL 10.0.
+
 slurm_cluster:
 {% set _slurm_cluster = omnia_slurm_cluster | default([], true) %}
 {% if (_slurm_cluster | length) > 0 %}
 {% for _cluster in _slurm_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
+    nvidia_driver_version_x86_64: {{ _cluster.nvidia_driver_version_x86_64 | default('580.159.04') }}
+    nvidia_driver_version_aarch64: {{ _cluster.nvidia_driver_version_aarch64 | default('580.159.04') }}
     nfs_storage_name: {{ _cluster.nfs_storage_name | default('') }}
     # vast_storage_name: "vast_storage"
     

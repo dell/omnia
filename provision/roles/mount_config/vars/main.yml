@@ -19,7 +19,7 @@ storage_to_be_mounted: []
 software_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
 # Usage: nfs_client.yml
 mounted_dir_perm: "0755"
-default_client_mount_options: "nosuid,rw,sync,hard,intr"
+default_client_mount_options: 'nosuid,rw,sync,hard,intr,context="system_u:object_r:nfs_t:s0"'
 slurm_nfs_fail_msg: "Failed to mount NFS share. Please check if the NFS server is reachable or NFS is configured properly."
 oim_nfs_fail_msg: "Failed to mount NFS share on OIM node. Verify NFS server connectivity, mount options, and fstab configuration."
 default_oim_mount_options: "nosuid,rw,sync,hard,intr"

@@ -72,6 +72,14 @@
             },
             "additionalProperties": false
           },
+          "nvidia_driver_version_x86_64": {
+            "type": "string",
+            "description": "NVIDIA driver version to install on x86_64 GPU nodes"
+          },
+          "nvidia_driver_version_aarch64": {
+            "type": "string",
+            "description": "NVIDIA driver version to install on aarch64 GPU nodes"
+          },
           "config_sources": {
             "type": "object",
             "description": "Config can be a file path or inline mapping",
