@@ -37,16 +37,16 @@
   tasks:
     - name: Set input_project_dir default
       ansible.builtin.set_fact:
-        input_project_dir: "{{ input_project_dir | default(playbook_dir + '/../input') }}"
+        input_project_dir: "{{ input_project_dir | default(playbook_dir + '/input') }}"
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/input/telemetry_config.yml"
+        file: "{{ playbook_dir }}/telemetry/telemetry_config.yml"
         name: telemetry_config
 
     - name: Load telemetry storage configuration
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/input/telemetry_storage_config.yml"
+        file: "{{ input_project_dir }}/telemetry/telemetry_storage_config.yml"
         name: telemetry_storage_config
       failed_when: false
 
@@ -99,12 +99,29 @@
         name: deploy_victoria
       when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
 
-    - name: Enable iDRAC Telemetry
-      ansible.builtin.include_role:
-        name: enable_idrac_telemetry
-      when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
+    - name: Enable or Disable iDRAC Telemetry
+      block:
+        - name: Enable iDRAC Telemetry
+          ansible.builtin.include_role:
+            name: enable_idrac_telemetry
+          when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
+
+        - name: Disable iDRAC Telemetry (scale down to 0)
+          ansible.builtin.include_role:
+            name: disable_idrac_telemetry
+          when: not (hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool)
 
     - name: Enable LDMS Telemetry
       ansible.builtin.include_role:
         name: enable_ldms
       when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
+
+    - name: Scale down Kafka if no sources need it
+      when: not (hostvars['localhost']['kafka_support'] | default(false) | bool)
+      ansible.builtin.include_role:
+        name: disable_kafka
+
+    - name: Scale down VictoriaMetrics if no sources need it
+      when: not (hostvars['localhost']['victoria_metrics_support'] | default(false) | bool)
+      ansible.builtin.include_role:
+        name: disable_victoria

@@ -16,7 +16,7 @@
 # =============================================================================
 # Generate iDRAC telemetry K8s manifests
 # =============================================================================
-# Uses local templates in this role (no dependency on provision role).
+# Uses local templates in this role.
 # Renders: activemq-config.yaml, idrac_telemetry_statefulset.yaml
 
 - name: Create telemetry deployments directory
