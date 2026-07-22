@@ -53,7 +53,7 @@
   connection: ssh
   gather_facts: false
   roles:
-    - cleanup_image_build_manager
+    - cleanup_build_artifacts
 
 # Display post-cleanup notes
 - name: Show cleanup instructions
@@ -63,5 +63,5 @@
   tasks:
     - name: Display image_build_manager post-cleanup notes
       ansible.builtin.include_role:
-        name: cleanup_image_build_manager
+        name: cleanup_build_artifacts
         tasks_from: cleanup_note.yml

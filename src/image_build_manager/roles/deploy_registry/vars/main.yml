@@ -15,8 +15,8 @@
 # OIM metadata (loaded on localhost via include_input_dir with omnia_metadata_support)
 oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
 
-# Directory paths (mirrored from prepare_oim openchami vars)
-data_oci_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/oci"
+# Directory paths (image_build_manager domain-specific)
+data_oci_dir: "{{ oim_shared_path }}/omnia/image_build_manager/oci/data"
 
 # Registry container settings
 registry_port: 5000

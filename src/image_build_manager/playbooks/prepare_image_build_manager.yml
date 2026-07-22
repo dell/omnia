@@ -33,9 +33,9 @@
         name: image_build_setup
       when: not (image_build_setup_done | default(false) | bool)
 
-    - name: Run image_build_credentials role (standalone only)
+    - name: Run collect_build_credentials role (standalone only)
       ansible.builtin.include_role:
-        name: image_build_credentials
+        name: collect_build_credentials
       when: not (image_build_setup_done | default(false) | bool)
 
     - name: Run input validation (standalone only)
@@ -58,7 +58,7 @@
 
     - name: Install SELinux policy module for container runtime
       ansible.builtin.include_role:
-        name: image_creation
+        name: build_os_images
         tasks_from: preflight_selinux_check.yml
 
     - name: Update omnia.target with image_build_manager services

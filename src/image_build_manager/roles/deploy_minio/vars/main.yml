@@ -29,9 +29,9 @@ storage_backend: "{{ hostvars['localhost']['storage_backend'] | default('minio')
 # S3 configuration from image_build_config.yml (loaded on localhost)
 s3_configurations: "{{ hostvars['localhost']['s3_configurations'] | default({}) }}"
 
-# Directory paths (mirrored from prepare_oim openchami vars)
-data_s3_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/s3"
-s3_work_dir: "{{ oim_shared_path }}/omnia/openchami/s3"
+# Directory paths (image_build_manager domain-specific)
+data_s3_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3/data"
+s3_work_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3"
 
 # File permissions
 file_perm_rw: "0644"

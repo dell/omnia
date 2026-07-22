@@ -50,3 +50,50 @@ job_delay: "30"
 # --- OIM group ---
 oim_host_port: "22"
 oim_host_group: "oim"
+
+# --- Tag validation ---
+# Supported tags for image_build_manager.yml
+supported_tags:
+  - prepare
+  - build
+  - cleanup
+  - validate
+  - upgrade
+  - rollback
+
+# Tags that skip credential prompting
+skip_credential_tags:
+  - cleanup
+  - validate
+
+# Invalid tag combinations (mutually exclusive)
+invalid_tag_combinations:
+  - [prepare, cleanup]
+  - [build, cleanup]
+  - [prepare, upgrade]
+  - [build, upgrade]
+  - [cleanup, upgrade]
+  - [prepare, rollback]
+  - [build, rollback]
+  - [cleanup, rollback]
+  - [upgrade, rollback]
+
+# Tag validation messages
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  
+  Supported tags: {{ supported_tags | join(', ') }}
+  
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  
+  Please use only supported tags.
+
+tag_combination_fail_msg: |
+  Invalid tag combination detected: {{ ansible_run_tags | join(', ') }}
+  
+  The following tag combinations are not allowed:
+  {% for combo in invalid_tag_combinations %}
+  - {{ combo | join(' + ') }}
+  {% endfor %}
+  
+  Please run with only ONE tag at a time (or no tags for default flow).

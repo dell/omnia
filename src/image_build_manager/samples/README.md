@@ -65,7 +65,7 @@ user_repos:
 
 **Notes**:
 - The `{{ admin_nic_ip }}` template variable is resolved by repo_manager at runtime
-- `rpm_repos.aarch64` is used by `prepare_arm_node` to dynamically generate `pulp.repo` on ARM build hosts
+- `rpm_repos.aarch64` is used by `prepare_aarch64_node` to dynamically generate `pulp.repo` on ARM build hosts
 - `aarch64_repo_store_path` was removed in Omnia 2.2 — AArch64 repo is now generated dynamically
 
 ---

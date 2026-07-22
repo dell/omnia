@@ -21,22 +21,29 @@
 #   ansible-playbook image_build_manager.yml                        # Default: prepare + build
 #   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
 #   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
-#   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup MinIO, registry, artifacts
+#   ansible-playbook image_build_manager.yml --tags validate        # Validate config only (no credentials)
+#   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup (no credentials)
 #   ansible-playbook image_build_manager.yml --tags upgrade         # Upgrade flow (placeholder)
 #   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
 #
 # Tags (mutually exclusive — pick ONE):
-#   (none)   — Default flow: always + prepare + build
-#   prepare  — Deploy MinIO + Registry
-#   build    — Build OS images (x86_64 + aarch64) + write build_status
-#   cleanup  — Remove MinIO, registry, build artifacts, omnia.target entries
+#   (none)   — Default flow: always + prepare + build (with credentials)
+#   prepare  — Deploy MinIO + Registry (with credentials)
+#   build    — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
+#   validate — Validate configuration only (skips credentials)
+#   cleanup  — Remove MinIO, registry, build artifacts, omnia.target entries (skips credentials)
 #   upgrade  — Upgrade flow (placeholder — Omnia 3.0)
 #   rollback — Rollback flow (placeholder — Omnia 3.0)
 #
+# Tag Validation:
+#   - Invalid tags will fail with error message
+#   - Invalid combinations (e.g., prepare + cleanup) will fail
+#   - cleanup and validate tags skip credential prompting
+#
 # Internal steps (always):
-#   Step 0: Upgrade check
+#   Step 0: Tag validation + upgrade check
 #   Step 1: Input project directory
-#   Step 2: Credential collection (self-contained image_build_credentials)
+#   Step 2: Credential collection (skipped for cleanup/validate tags)
 #   Step 3: Load image_build_config.yml
 #   Step 4: Pre-check repo_status.yml
 
@@ -56,9 +63,11 @@
     - always
     - validate
 
-# Step 2: Credential collection (self-contained image_build_credentials)
-- name: Image build credential management
-  ansible.builtin.import_playbook: playbooks/image_build_credentials.yml
+# Step 2: Credential collection (collect_build_credentials role)
+# Skipped when cleanup or validate tags are used
+- name: Get build credentials
+  ansible.builtin.import_playbook: playbooks/get_build_credentials.yml
+  when: not (skip_build_credentials | default(false) | bool)
   tags: always
 
 
@@ -212,7 +221,6 @@
   ansible.builtin.import_playbook: playbooks/prepare_image_build_manager.yml
   tags:
     - prepare
-    - build
 
 # =========================================================================
 # FLOW: build — Build OS images and write build_status.yml
@@ -247,7 +255,7 @@
   tasks:
     - name: Write build status
       ansible.builtin.include_role:
-        name: image_creation
+        name: build_os_images
         tasks_from: write_build_status.yml
 
 # =========================================================================

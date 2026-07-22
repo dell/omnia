@@ -20,3 +20,8 @@
     path: "{{ s3cmd_config }}"
     state: absent
   when: s3_provider != 'powerscale'
+
+- name: Remove image build workdir
+  ansible.builtin.file:
+    path: "{{ image_build_work_dir }}"
+    state: absent

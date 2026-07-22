@@ -50,22 +50,22 @@ src/image_build_manager/
 │   ├── build_image_x86_64.yml
 │   ├── build_image_aarch64.yml
 │   ├── cleanup_image_build_manager.yml
-│   ├── image_build_credentials.yml
+│   ├── get_build_credentials.yml
 │   ├── validate_image_build_config.yml  # Standalone validation
 │   ├── upgrade_image_build_manager.yml
 │   └── rollback_image_build_manager.yml
 ├── roles/
 │   ├── image_build_setup/               # Upgrade guard, input dir, OIM group, guard facts
 │   ├── validate_image_build_input/      # L1 schema + L2 logic validation
-│   ├── image_build_credentials/         # Credential prompt, encrypt, vault
-│   ├── image_build_functional_groups/   # Generate functional_groups_config.yml
-│   ├── validate_build_config/           # Runtime L2/L3 pre-checks
+│   ├── collect_build_credentials/        # Credential prompt, encrypt, vault
+│   ├── generate_functional_groups/      # Generate functional_groups_config.yml
+│   ├── validate_build_runtime/          # Runtime L2/L3 pre-checks
 │   ├── deploy_minio/                    # MinIO Quadlet container service
 │   ├── deploy_registry/                 # Container registry Quadlet service
-│   ├── fetch_packages/                  # Package collection + repo fetch
-│   ├── image_creation/                  # Build base + compute images
-│   ├── prepare_arm_node/                # aarch64 build host setup
-│   └── cleanup_image_build_manager/     # Full cleanup (MinIO, registry, creds, artifacts)
+│   ├── fetch_build_packages/            # Package collection + repo fetch
+│   ├── build_os_images/                 # Build base + compute images
+│   ├── prepare_aarch64_node/            # aarch64 build host setup
+│   └── cleanup_build_artifacts/         # Full cleanup (MinIO, registry, creds, artifacts)
 ├── vars/
 │   ├── image_vars.yml                   # S3 bucket constants
 │   └── openchami_image_cmd.yml          # OpenCHAMI build commands
@@ -162,7 +162,7 @@ Figure: image_build_manager.yml orchestration flow
 |------|------|------|-------------|
 | 0 | Setup | localhost | `image_build_setup` role — upgrade guard, dirs, metadata, OIM group |
 | 1 | Validate | localhost | `validate_image_build_config.yml` — L1 schema + L2 logic |
-| 2 | Credentials | localhost | `image_build_credentials.yml` — prompt, encrypt, vault |
+| 2 | Credentials | localhost | `get_build_credentials.yml` — prompt, encrypt, vault |
 | 3 | Config | localhost | Load `image_build_config.yml` + S3 endpoint resolution |
 | 4 | Pre-check | localhost | Load `repo_status.yml` → Pulp repos + certs |
 | 5 | Prepare | oim (SSH) | Deploy MinIO + Registry + SELinux policy |
@@ -221,7 +221,7 @@ The image_build_manager uses a **two-tier validation architecture**:
 |-------|------|-------|------|
 | **L1 — Schema** | JSON Schema type/required/enum checks | `validate_image_build_config.py` + `schema/*.json` | Always (Step 1) |
 | **L2 — Logic** | Cross-field business rules | `image_build_validation_flow.py` | Always (Step 1) |
-| **L3 — Runtime** | File existence, S3 reachability, cert validity | `validate_build_config` role | Before build (in build playbooks) |
+| **L3 — Runtime** | File existence, S3 reachability, cert validity | `validate_build_runtime` role | Before build (in build playbooks) |
 
 ### 5.3 Validated Files
 
@@ -284,8 +284,8 @@ Other domains can adopt this pattern:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│           image_build_credentials role                  │
-│   (roles/image_build_credentials/tasks/main.yml)        │
+│           collect_build_credentials role                 │
+│   (roles/collect_build_credentials/tasks/main.yml)      │
 ├─────────────────────────────────────────────────────────┤
 │  Step 1: Resolve credential file path                   │
 │  Step 2: Check if credential file exists                │
@@ -312,7 +312,7 @@ Other domains can adopt this pattern:
 2. Prompt fills:     Interactive prompts for empty mandatory fields
 3. Vault encrypts:   ansible-vault encrypt with .image_build_credentials_key
 4. Runtime reads:    Ansible decrypts at playbook execution time
-5. Cleanup removes:  cleanup_image_build_manager role deletes cred + key files
+5. Cleanup removes:  cleanup_build_artifacts role deletes cred + key files
 ```
 
 ### 6.4 Ownership Transfer
@@ -337,10 +337,10 @@ input/project_default/
 
 To create credentials for another domain:
 
-1. Create `roles/<domain>_credentials/` with same task structure
+1. Create `roles/collect_<domain>_credentials/` with same task structure
 2. Create a Jinja2 template `<domain>_credential.j2` listing fields
 3. Define `<domain>_cred_config.mandatory` and `<domain>_cred_config.conditional_mandatory` in vars
-4. Use `prompt_credentials.yml` pattern (loop over fields, prompt empty, re-encrypt)
+4. Use `prompt_credential_field.yml` pattern (loop over fields, prompt empty, re-encrypt)
 5. Register vault password mapping in `config.py` → `get_vault_password()`
 
 ---
@@ -356,7 +356,7 @@ All modules, module_utils, callback plugins, and roles are local.
 |-----------------|-----------|-----|
 | `common/callback_plugins/omnia_default.py` | `callback_plugins/omnia_default.py` | Stdout callback — needed by ansible.cfg |
 | `common/library/module_utils/build_image/` | `library/module_utils/build_image/` | Used by `base_image_package_collector.py`, `image_package_collector.py` |
-| `common/library/modules/generate_functional_groups.py` | `library/modules/generate_functional_groups.py` | Used by `image_build_functional_groups` role |
+| `common/library/modules/generate_functional_groups.py` | `library/modules/generate_functional_groups.py` | Used by `generate_functional_groups` role |
 | `common/library/module_utils/input_validation/common_utils/config.py` → `FUNCTIONAL_GROUP_LAYER_MAP` | Inlined into `library/module_utils/build_image/config.py` | Used by `generate_functional_groups.py` |
 
 ### 7.2 What Was Eliminated (Not Needed)
@@ -370,7 +370,7 @@ All modules, module_utils, callback plugins, and roles are local.
 | `../playbooks/utils/upgrade_checkup.yml` | Replaced by `image_build_setup` role (Step 1) |
 | `../playbooks/utils/include_input_dir.yml` | Replaced by `image_build_setup` role (Step 2) |
 | `../playbooks/utils/create_container_group.yml` | Replaced by `image_build_setup` role (Step 4) |
-| `../playbooks/utils/generate_functional_groups.yml` | Replaced by `image_build_functional_groups` role |
+| `../playbooks/utils/generate_functional_groups.yml` | Replaced by `generate_functional_groups` role |
 
 ### 7.3 Verification
 
@@ -432,6 +432,39 @@ functional_group_images:
 - `image_build_config.yml` is **required** — no legacy fallback.
 - Sub-playbooks work independently with standalone setup guards.
 - Container build is self-contained in `src/image_build_manager/containers/`.
+
+
+## 10. Naming Convention
+
+### Rules
+
+| Component | Convention | Example |
+|-----------|-----------|---------|
+| **Playbook** | `verb_noun.yml` (user action) | `get_build_credentials.yml`, `build_image_x86_64.yml` |
+| **Role** | `verb_noun` (what the role does) | `collect_build_credentials`, `deploy_minio` |
+| **Data file** | `noun.yml` (artifact) | `image_build_credentials.yml`, `build_status.yml` |
+| **Task file** | `verb_noun.yml` (action) | `prompt_credential_field.yml`, `cleanup_minio.yml` |
+
+### Applied Renames
+
+| Old | New | Why |
+|-----|-----|-----|
+| `roles/image_build_credentials/` | `roles/collect_build_credentials/` | Role *collects* credentials — verb differentiates from data file |
+| `playbooks/image_build_credentials.yml` | `playbooks/get_build_credentials.yml` | User *gets* credentials — matches `get_config_credentials.yml` pattern |
+| `tasks/prompt_credentials.yml` | `tasks/prompt_credential_field.yml` | More specific — prompts one field per loop iteration |
+
+### Completed Renames (Batch 2)
+
+| Old | New | Rationale |
+|-----|-----|-----------|
+| `roles/validate_build_config/` | `roles/validate_build_runtime/` | Distinguishes from `validate_image_build_input` (schema) |
+| `roles/image_build_functional_groups/` | `roles/generate_functional_groups/` | Verb-first — role *generates* FGs |
+| `roles/image_creation/` | `roles/build_os_images/` | Verb-first + domain-specific |
+| `roles/fetch_packages/` | `roles/fetch_build_packages/` | Add domain prefix |
+| `roles/prepare_arm_node/` | `roles/prepare_aarch64_node/` | Consistent arch naming |
+| `roles/cleanup_image_build_manager/` | `roles/cleanup_build_artifacts/` | Shorter, action-focused |
+
+---
 
 
 #### Testing

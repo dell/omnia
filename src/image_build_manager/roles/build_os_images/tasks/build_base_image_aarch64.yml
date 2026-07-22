@@ -30,9 +30,17 @@
   delegate_to: "{{ aarch64_build_host }}"
   connection: ssh
 
+- name: Ensure log directory exists
+  ansible.builtin.file:
+    path: "{{ image_build_log_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+
 - name: Create aarch64 base image log file
   ansible.builtin.file:
-    path: "{{ openchami_base_image_log_path }}"
+    path: "{{ image_build__base_image_log_path }}"
     state: touch
     mode: "{{ dir_permissions_644 }}"
   delegate_to: "{{ aarch64_build_host }}"
@@ -56,7 +64,7 @@
             {{ ochami_mounts | join(' ') }} \
             {{ ochami_image | join(' ') }} \
             {{ ochami_base_command | join(' ') }} \
-            > '{{ openchami_base_image_log_path }}' 2>&1
+            > '{{ image_build__base_image_log_path }}' 2>&1
       delegate_to: "{{ aarch64_build_host }}"
       connection: ssh
       async: "{{ job_async }}"

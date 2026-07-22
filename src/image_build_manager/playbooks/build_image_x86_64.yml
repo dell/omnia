@@ -23,9 +23,9 @@
         name: image_build_setup
       when: not (image_build_setup_done | default(false) | bool)
 
-    - name: Run image_build_credentials role (standalone only)
+    - name: Run collect_build_credentials role (standalone only)
       ansible.builtin.include_role:
-        name: image_build_credentials
+        name: collect_build_credentials
       when: not (image_build_setup_done | default(false) | bool)
 
     - name: Run input validation (standalone only)
@@ -135,7 +135,7 @@
 
     - name: Fetch build_stream prerequisites
       ansible.builtin.include_role:
-        name: fetch_packages
+        name: fetch_build_packages
         tasks_from: build_stream_prerequisite.yml
       vars:
         job_id: "{{ build_stream_job_id }}"
@@ -150,7 +150,7 @@
   tasks:
     - name: Run image_build_manager input validation
       ansible.builtin.include_role:
-        name: validate_build_config
+        name: validate_build_runtime
 
 - name: Generate and verify x86_64 functional groups
   hosts: localhost
@@ -159,12 +159,12 @@
   tasks:
     - name: Generate functional groups from mapping.csv
       ansible.builtin.include_role:
-        name: image_build_functional_groups
+        name: generate_functional_groups
       when: not (enable_build_stream | default(false) | bool)
 
     - name: Fetch x86_64 functional_groups
       ansible.builtin.include_role:
-        name: fetch_packages
+        name: fetch_build_packages
         tasks_from: check_functional_group.yml
       when: not (enable_build_stream | default(false) | bool)
 
@@ -173,14 +173,14 @@
   connection: local
   gather_facts: false
   roles:
-    - fetch_packages
+    - fetch_build_packages
 
 - name: OpenCHAMI build image for x86_64
   hosts: oim
   connection: ssh
   gather_facts: false
   roles:
-    - role: image_creation
+    - role: build_os_images
       vars:
         build_arch: "{{ hostvars['localhost']['build_arch'] }}"
         s3_configurations: "{{ hostvars['localhost']['s3_configurations'] }}"
@@ -191,5 +191,5 @@
   tasks:
     - name: Build Image completion
       ansible.builtin.include_role:
-        name: fetch_packages
+        name: fetch_build_packages
         tasks_from: build_image_completion.yml

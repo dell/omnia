@@ -16,11 +16,50 @@
 # Replaces: upgrade_checkup.yml + include_input_dir.yml + create_container_group.yml
 #
 # What it does:
+#   0. Validate tags and tag combinations
 #   1. Guard: block if upgrade is in progress
 #   2. Load omnia project config (input/output dirs)
 #   3. Load OIM metadata
 #   4. Create oim inventory group
 #   5. Set image_build_main_flow and skip_subscription_check facts
+
+# --- Step 0: Tag validation ---
+- name: Get provided tags (excluding 'always' and 'all')
+  ansible.builtin.set_fact:
+    provided_tags: "{{ ansible_run_tags | difference(['always', 'all']) }}"
+
+- name: Identify invalid tags
+  ansible.builtin.set_fact:
+    invalid_tags: "{{ provided_tags | difference(supported_tags) }}"
+  when: provided_tags | length > 0
+
+- name: Fail if invalid tags are provided
+  ansible.builtin.fail:
+    msg: "{{ tag_validation_fail_msg }}"
+  when:
+    - provided_tags | length > 0
+    - invalid_tags | default([]) | length > 0
+
+- name: Check for invalid tag combinations
+  ansible.builtin.set_fact:
+    has_invalid_combination: true
+  when:
+    - provided_tags | length > 1
+    - item | difference(provided_tags) | length == 0
+  loop: "{{ invalid_tag_combinations }}"
+
+- name: Fail if invalid tag combination is detected
+  ansible.builtin.fail:
+    msg: "{{ tag_combination_fail_msg }}"
+  when: has_invalid_combination | default(false) | bool
+
+- name: Set skip_credentials flag for cleanup/validate tags
+  ansible.builtin.set_fact:
+    skip_build_credentials: true
+    cacheable: true
+  when:
+    - provided_tags | length > 0
+    - (provided_tags | intersect(skip_credential_tags)) | length > 0
 
 # --- Step 1: Upgrade guard ---
 - name: Check upgrade lock file

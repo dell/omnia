@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Self-contained credential flow for image_build_manager.
+# collect_build_credentials — Self-contained credential flow for image_build_manager.
 # Handles: validate → create → prompt → encrypt
 # Idempotent — skips if credentials are already loaded in this run.
+#
+# Naming Convention:
+#   Role:     collect_build_credentials  (verb — what the role does: collects)
+#   Playbook: get_build_credentials.yml  (verb — what the user gets)
+#   Data:     image_build_credentials.yml (noun — the artifact)
 
 - name: Skip credential flow if already loaded
   ansible.builtin.debug:
@@ -110,14 +115,14 @@
 
     # Step 5: Prompt for mandatory credentials (only if value is empty)
     - name: Prompt for mandatory image build credentials
-      ansible.builtin.include_tasks: prompt_credentials.yml
+      ansible.builtin.include_tasks: prompt_credential_field.yml
       loop: "{{ image_build_cred_config.mandatory }}"
       loop_control:
         loop_var: cred_field
 
     # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
     - name: Prompt for conditional mandatory image build credentials
-      ansible.builtin.include_tasks: prompt_credentials.yml
+      ansible.builtin.include_tasks: prompt_credential_field.yml
       loop: "{{ image_build_cred_config.conditional_mandatory }}"
       loop_control:
         loop_var: cred_field

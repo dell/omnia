@@ -27,8 +27,8 @@ s3_provider: "{{ s3_configurations.provider | default('minio') }}"
 # ---------------------------------------------------------------------------
 minio_service_name: "minio"
 minio_quadlet_file: "/etc/containers/systemd/minio.container"
-minio_s3_data_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/s3"
-minio_s3_work_dir: "{{ oim_shared_path }}/omnia/openchami/s3"
+minio_s3_data_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3/data"
+minio_s3_work_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3"
 minio_cleanup_directories:
   - "{{ minio_s3_data_dir }}"
   - "{{ minio_s3_work_dir }}"
@@ -42,7 +42,7 @@ minio_firewall_ports:
 registry_service_name: "registry"
 registry_quadlet_file: "/etc/containers/systemd/registry.container"
 registry_storage_dir: "/opt/omnia/registry/data"
-registry_oci_data_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/oci"
+registry_oci_data_dir: "{{ oim_shared_path }}/omnia/image_build_manager/oci/data"
 registry_cleanup_directories:
   - "{{ registry_storage_dir }}"
   - "{{ registry_oci_data_dir }}"
@@ -52,7 +52,7 @@ registry_firewall_ports:
 # ---------------------------------------------------------------------------
 # OpenCHAMI image artifacts cleanup
 # ---------------------------------------------------------------------------
-openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami"
+image_build_work_dir: "{{ oim_shared_path }}/omnia/image_build_manager"
 
 # ---------------------------------------------------------------------------
 # Output files cleanup
@@ -65,8 +65,8 @@ build_status_versioned_dir: "{{ output_project_dir }}/image_build_manager"
 # Credential cleanup
 # ---------------------------------------------------------------------------
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
-image_build_credentials_file: "{{ input_project_dir }}/image_build_credentials.yml"
-image_build_credentials_key: "{{ input_project_dir }}/.image_build_credentials_key"
+image_build_credentials_file: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+image_build_credentials_key: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
 
 # ---------------------------------------------------------------------------
 # omnia.target service entries to remove
