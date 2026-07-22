@@ -1,0 +1,180 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_victoria — Shared VictoriaMetrics/VictoriaLogs deployment role
+# =============================================================================
+# Deploys VictoriaMetrics operator + VMCluster/VMLogs CRs into telemetry namespace.
+# Idempotent: skips if already deployed, upgrades if present.
+#
+# Consumed by: enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Condition: victoria_metrics_support == true (set by derive_sink_support_flags.yml)
+# =============================================================================
+
+- name: Check if VictoriaMetrics operator is deployed
+  ansible.builtin.command: >
+    helm status victoria-metrics-operator -n {{ telemetry_namespace }}
+  register: victoria_operator_status
+  changed_when: false
+  failed_when: false
+
+- name: Check if VMCluster is already deployed
+  ansible.builtin.command: >
+    kubectl get vmcluster -n {{ telemetry_namespace }} -o name
+  register: vmcluster_existing
+  changed_when: false
+  failed_when: false
+
+- name: Skip VictoriaMetrics deployment if already running
+  ansible.builtin.debug:
+    msg: "VictoriaMetrics already deployed in {{ telemetry_namespace }}: {{ vmcluster_existing.stdout | default('operator present') }}"
+  when:
+    - victoria_operator_status.rc == 0
+    - vmcluster_existing.rc == 0
+    - vmcluster_existing.stdout | length > 0
+
+- name: Deploy VictoriaMetrics
+  when: victoria_operator_status.rc != 0 or vmcluster_existing.stdout | default('') | length == 0
+  block:
+    - name: Ensure telemetry namespace exists
+      ansible.builtin.command: >
+        kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
+      register: ns_yaml
+      changed_when: false
+
+    - name: Apply telemetry namespace
+      ansible.builtin.command: kubectl apply -f -
+      args:
+        stdin: "{{ ns_yaml.stdout }}"
+      register: ns_result
+      changed_when: "'created' in ns_result.stdout | default('')"
+
+    - name: Install VictoriaMetrics operator
+      ansible.builtin.command: >
+        helm -n {{ telemetry_namespace }} install victoria-metrics-operator
+        {{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz
+      when: victoria_operator_status.rc != 0
+
+    - name: Upgrade VictoriaMetrics operator
+      ansible.builtin.command: >
+        helm -n {{ telemetry_namespace }} upgrade victoria-metrics-operator
+        {{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz
+      when: victoria_operator_status.rc == 0
+
+    - name: Wait for VictoriaMetrics operator deployment
+      ansible.builtin.command: >
+        kubectl wait --for=condition=available --timeout=300s
+        deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+      changed_when: false
+
+    - name: Wait for VictoriaMetrics CRDs
+      ansible.builtin.command: kubectl get crd {{ item }}
+      loop:
+        - vmclusters.operator.victoriametrics.com
+        - vmagents.operator.victoriametrics.com
+        - vmpodscrapes.operator.victoriametrics.com
+      register: vm_crd_check
+      retries: "{{ victoria_crd_wait_retries }}"
+      delay: "{{ victoria_crd_wait_delay }}"
+      until: vm_crd_check.rc == 0
+      changed_when: false
+
+    - name: Wait for VictoriaLogs CRDs
+      ansible.builtin.command: kubectl get crd {{ item }}
+      loop:
+        - vlclusters.operator.victoriametrics.com
+        - vlagents.operator.victoriametrics.com
+      register: vl_crd_check
+      retries: "{{ victoria_crd_wait_retries }}"
+      delay: "{{ victoria_crd_wait_delay }}"
+      until: vl_crd_check.rc == 0
+      changed_when: false
+      when: victoria_logs_support | default(false) | bool
+
+    - name: Apply VictoriaMetrics TLS secret
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victoria-tls-secret.yaml
+      register: tls_apply
+      changed_when: "'created' in tls_apply.stdout or 'configured' in tls_apply.stdout"
+      when: (telemetry_deployments_dir + '/victoria-tls-secret.yaml') is file
+      failed_when: false
+
+    - name: Apply VictoriaMetrics RBAC
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml
+      register: rbac_apply
+      changed_when: "'created' in rbac_apply.stdout or 'configured' in rbac_apply.stdout"
+      when: (telemetry_deployments_dir + '/victoria-vmagent-rbac.yaml') is file
+      failed_when: false
+
+    - name: Apply VMCluster CR
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml
+      register: vmcluster_apply
+      changed_when: "'created' in vmcluster_apply.stdout or 'configured' in vmcluster_apply.stdout"
+      when: (telemetry_deployments_dir + '/victoria-operator-vmcluster.yaml') is file
+
+    - name: Apply VMAgent CR
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml
+      register: vmagent_apply
+      changed_when: "'created' in vmagent_apply.stdout or 'configured' in vmagent_apply.stdout"
+      when: (telemetry_deployments_dir + '/victoria-operator-vmagent.yaml') is file
+
+    - name: Apply VMPodScrape CR
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml
+      register: vmscrape_apply
+      changed_when: "'created' in vmscrape_apply.stdout or 'configured' in vmscrape_apply.stdout"
+      when: (telemetry_deployments_dir + '/victoria-operator-vmscrape.yaml') is file
+
+    - name: Apply VLCluster CR
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-operator-vlcluster.yaml
+      register: vlcluster_apply
+      changed_when: "'created' in vlcluster_apply.stdout or 'configured' in vlcluster_apply.stdout"
+      when:
+        - victoria_logs_support | default(false) | bool
+        - (telemetry_deployments_dir + '/victorialogs-operator-vlcluster.yaml') is file
+
+    - name: Apply VLAgent CR
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-operator-vlagent.yaml
+      register: vlagent_apply
+      changed_when: "'created' in vlagent_apply.stdout or 'configured' in vlagent_apply.stdout"
+      when:
+        - victoria_logs_support | default(false) | bool
+        - (telemetry_deployments_dir + '/victorialogs-operator-vlagent.yaml') is file
+
+- name: Verify VMCluster is ready
+  ansible.builtin.command: >
+    kubectl get vmcluster -n {{ telemetry_namespace }}
+    -o jsonpath='{.items[0].status.clusterStatus}'
+  register: vmcluster_status
+  changed_when: false
+  failed_when: false
+  retries: 30
+  delay: 10
+  until: "'operational' in vmcluster_status.stdout | default('')"
+  when: victoria_metrics_support | default(false) | bool
+
+- name: Set victoria_deployed fact
+  ansible.builtin.set_fact:
+    victoria_deployed: "{{ vmcluster_status.rc | default(1) == 0 }}"
+    cacheable: true
+
+- name: Log VictoriaMetrics deployment result
+  ansible.builtin.debug:
+    msg: "VictoriaMetrics deployment: {{ 'READY' if victoria_deployed else 'PENDING (cluster may still be initializing)' }}"

@@ -1,0 +1,101 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Paths — relative to telemetry repo root
+telemetry_repo_root: "{{ playbook_dir }}/.."
+telemetry_input_dir: "{{ telemetry_repo_root }}/input"
+telemetry_output_dir: "{{ telemetry_repo_root }}/output"
+telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
+
+# Input files
+telemetry_config_file: "{{ telemetry_input_dir }}/telemetry_config.yml"
+telemetry_storage_config_file: "{{ telemetry_input_dir }}/telemetry_storage_config.yml"
+
+# Namespace
+telemetry_namespace: "telemetry"
+
+# Deploy directory on NFS share (where manifests are staged)
+telemetry_deploy_dir: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry"
+telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# LDMS NFS share path
+ldms_share_path: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry/ldms"
+
+# File permissions
+file_permissions_644: "0644"
+file_permissions_600: "0600"
+file_permissions_400: "0400"
+common_mode: "0755"
+
+# LDMS K8s identifiers
+ldms_aggregator_name: "nersc-ldms-aggr"
+ldms_store_name: "nersc-ldms-store"
+
+# Slurm config path (for munge key)
+slurm_config_path: "/etc/slurm"
+
+# LDMS backup path for PXE change detection
+backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+
+# Dynamic image configuration from service_k8s_v<version>.json
+telemetry_images: "{{ service_k8s_images | default({}) }}"
+
+# Kafka topic names (FIXED - cannot be changed)
+kafka:
+  topics:
+    ldms:
+      name: "ldms"
+      consumer_group: "ldms-consumer-group"
+
+# Vector-LDMS configuration
+vector:
+  image: "{{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}"
+  ldms:
+    app_name: "vector-ldms"
+    service_name: "vector-ldms"
+    container_name: "vector-ldms"
+    kafka_topic: "ldms"
+    consumer_group: "vector-ldms-group"
+    kafka_user: "kafkapump"
+    health_port: 8687
+    metrics_port: 9599
+    replicas: "{{ telemetry_storage_config.vector_storage.ldms.replicas | default(2) }}"
+    resources:
+      requests:
+        cpu: "{{ telemetry_storage_config.vector_storage.ldms.resources.requests.cpu | default('100m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.ldms.resources.requests.memory | default('256Mi') }}"
+      limits:
+        cpu: "{{ telemetry_storage_config.vector_storage.ldms.resources.limits.cpu | default('500m') }}"
+        memory: "{{ telemetry_storage_config.vector_storage.ldms.resources.limits.memory | default('512Mi') }}"
+  # vmagent-vector reference (shared write-buffer agent)
+  vmagent_vector:
+    service_name: "vmagent-vector"
+    port: 8429
+
+# Verification timeouts
+ldms_deploy_timeout: "600s"
+ldms_verify_timeout: "300s"
+pod_ready_retries: 30
+pod_ready_delay: 10
+ldms_store_restart_wait_seconds: 10
+
+# Messages
+pxe_first_run_msg: "First provision run detected. Saving PXE mapping backup. LDMS restart not required."
+pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
+pxe_changed_msg: "PXE mapping file has changed. LDMS restart will be triggered."
+ldms_pod_ready_msg: "LDMS aggregator pod is ready."
+ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."
+ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is ready."
+ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout."

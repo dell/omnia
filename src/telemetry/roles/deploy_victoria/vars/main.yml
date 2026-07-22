@@ -13,30 +13,19 @@
 # limitations under the License.
 ---
 
-# Provision credentials
-provision_password: ""
-bmc_username: ""
-bmc_password: ""
+# Shared VictoriaMetrics deployment role
+# Invoked by any telemetry enablement that has 'victoria_metrics' in collection_targets
 
-# Prepare_oim credentials
-pulp_password: ""
-docker_username: ""
-docker_password: ""
+telemetry_namespace: "telemetry"
 
-# Omnia credentials
-slurm_db_password: ""
+# Resolve from playbook_dir
+telemetry_repo_root: "{{ playbook_dir }}/.."
 
-# Security credentials
-openldap_db_username: ""
-openldap_db_password: ""
+# Deploy directory
+telemetry_deploy_dir: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry"
+telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
-# postgres credentials
-postgres_user: ""
-postgres_password: ""
-
-# Gitlab credentials
-gitlab_root_password: ""
-
-# OME discovery credentials
-ome_username: ""
-ome_password: ""
+# Timeouts
+victoria_deploy_timeout: "600s"
+victoria_crd_wait_retries: 60
+victoria_crd_wait_delay: 2

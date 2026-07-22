@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Configure LDMS sampler on compute nodes
+# =============================================================================
+# Renders sampler configuration files to NFS share for compute node consumption.
+# Files: sampler.conf, ldmsauth.conf, ldmsd.sampler.env
+# =============================================================================
+
+- name: Create LDMS samplers directory in NFS share
+  ansible.builtin.file:
+    path: "{{ ldms_share_path }}/samplers"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ common_mode }}"
+
+- name: Render LDMS sampler configuration
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/ldms/sampler.conf.j2"
+    dest: "{{ ldms_share_path }}/samplers/sampler.conf"
+    owner: root
+    group: root
+    mode: "{{ file_permissions_644 }}"
+
+- name: Render LDMS authentication configuration
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/ldms/ldmsauth.conf.j2"
+    dest: "{{ ldms_share_path }}/samplers/ldmsauth.conf"
+    owner: root
+    group: root
+    mode: "{{ file_permissions_600 }}"
+
+- name: Render LDMS sampler environment file
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/ldms/ldmsd.sampler.env.j2"
+    dest: "{{ ldms_share_path }}/samplers/ldmsd.sampler.env"
+    owner: root
+    group: root
+    mode: "{{ file_permissions_644 }}"
+
+- name: Log LDMS sampler configuration complete
+  ansible.builtin.debug:
+    msg: "LDMS sampler configuration rendered to {{ ldms_share_path }}/samplers/"
