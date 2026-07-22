@@ -281,8 +281,9 @@ mount_params:
 #   - "minio": Use MinIO container deployed locally on OIM
 #
 # endpoint_url: S3 endpoint URL.
-#   - Required when provider is "powerscale" (e.g., "https://10.43.1.11:9021")
+#   - Required when provider is "powerscale" (e.g., "http://10.43.1.11:9020")
 #   - Leave empty ("") when provider is "minio" (auto-configured to local MinIO)
+#   - NOTE: Only HTTP protocol is supported for PowerScale endpoint.
 #
 # Credentials:
 #   - s3_access_id and s3_secret_key are prompted during prepare_oim credential setup
