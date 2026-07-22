@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_discovery_input — L1 schema + L2 logic validation for discovery.
+#
+# Validates:
+#   - discovery_config.yml (required)
+#
+# Uses the domain-specific validate_discovery_config module (lean, no
+# dependency on the central input_validation framework).
+
+- name: Display validation start
+  ansible.builtin.debug:
+    msg: "{{ discovery_validation_start_msg }}"
+
+# Pre-check: ensure discovery_config.yml exists
+- name: Check discovery_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/discovery_config.yml"
+  register: discovery_config_stat
+
+- name: Fail if discovery_config.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ discovery_config_missing_msg }}"
+  when: not discovery_config_stat.stat.exists
+
+# Run the validate_discovery_config module (L1 + L2)
+- name: Run discovery configuration validation
+  validate_discovery_config:
+    input_project_dir: "{{ input_project_dir }}"
+    schema_dir: "{{ discovery_schema_dir }}"
+  register: discovery_validation_result
+
+# Report results
+- name: Display validation log path
+  ansible.builtin.debug:
+    msg: "Validation log: {{ discovery_validation_result.log_file }}"
+
+- name: Display valid files
+  ansible.builtin.debug:
+    msg: "Valid: {{ discovery_validation_result.valid_files }}"
+  when: discovery_validation_result.valid_files | length > 0
+
+- name: Display validation errors
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop: "{{ discovery_validation_result.errors }}"
+  when: discovery_validation_result.validation_failed
+
+- name: Fail on validation errors
+  ansible.builtin.fail:
+    msg: "{{ discovery_validation_fail_msg }} Errors: {{ discovery_validation_result.errors }}"
+  when: discovery_validation_result.validation_failed
+
+- name: Validation passed
+  ansible.builtin.debug:
+    msg: "{{ discovery_validation_pass_msg }}"
+  when: not discovery_validation_result.validation_failed
