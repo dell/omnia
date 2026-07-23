@@ -20,7 +20,9 @@
     show_softwares_status: false
 
 - name: Include oim metadata vars
-  ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
+  ansible.builtin.include_vars:
+    file: "{{ omnia_metadata_file }}"
+    name: oim_shared_path_from_metadata
 
 - name: Migrate Pulp repo names from old to new naming convention
   ansible.builtin.include_tasks: pulp_repo_name_migration.yml

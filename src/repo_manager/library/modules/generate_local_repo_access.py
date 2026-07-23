@@ -69,6 +69,11 @@ options:
         description: Path to repo_manager_config.yml
         required: false
         type: str
+    repo_config:
+        description: Repository configuration type (partial, always, on_demand)
+        required: false
+        type: str
+        default: "partial"
     overall_status:
         description: Overall status of the playbook (success/failed)
         required: false
@@ -109,6 +114,7 @@ class LocalRepoAccessGenerator:
         self.output_path = module.params['output_path']
         self.certs_dir = module.params['certs_dir']
         self.local_repo_config_path = module.params.get('local_repo_config_path', '')
+        self.repo_config = module.params.get('repo_config', 'partial')
         self.overall_status = module.params.get('overall_status', 'success')
 
         self.base_url = "{}://{}:{}".format(
@@ -383,6 +389,9 @@ class LocalRepoAccessGenerator:
 
         data = {
             'overall_status': str(self.overall_status).lower(),
+            'cluster_os_type': str(self.cluster_os_type),
+            'cluster_os_version': str(self.cluster_os_version),
+            'repo_config': str(self.repo_config),
             'repo_manager': {
                 'port': self.pulp_server_port,
                 'certificates': {
@@ -409,7 +418,29 @@ class LocalRepoAccessGenerator:
             ),
         }
 
-        content = yaml.safe_dump(data, sort_keys=False, default_flow_style=False)
+        # Custom YAML dumper that quotes string values but not keys
+        class QuotedValueDumper(yaml.SafeDumper):
+            pass
+        
+        def quoted_mapping_representer(dumper, data):
+            pairs = []
+            for key, value in data.items():
+                key_node = dumper.represent_data(key)
+                # Force keys to be unquoted (plain style)
+                if isinstance(key, str):
+                    key_node = dumper.represent_scalar('tag:yaml.org,2002:str', key, style=None)
+                value_node = dumper.represent_data(value)
+                pairs.append((key_node, value_node))
+            return yaml.MappingNode('tag:yaml.org,2002:map', pairs)
+        
+        def quoted_str_representer(dumper, data):
+            # Use double quotes for string values
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        
+        QuotedValueDumper.add_representer(dict, quoted_mapping_representer)
+        QuotedValueDumper.add_representer(str, quoted_str_representer)
+        
+        content = yaml.dump(data, Dumper=QuotedValueDumper, sort_keys=False, default_flow_style=False)
         return content, len(self.rpm_distributions), len(self.file_distributions) + len(self.python_distributions)
 
     def write_yaml(self, content):
@@ -435,6 +466,7 @@ def main():
             output_path=dict(type='str', required=True),
             certs_dir=dict(type='str', required=True),
             local_repo_config_path=dict(type='str', default=''),
+            repo_config=dict(type='str', default='partial'),
             overall_status=dict(type='str', default='success')
         ),
         supports_check_mode=True

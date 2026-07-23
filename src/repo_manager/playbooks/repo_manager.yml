@@ -69,7 +69,9 @@
         run_subscription_check: true
 
     - name: Include metadata vars
-      ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
+      ansible.builtin.include_vars:
+        file: "{{ omnia_metadata_file }}"
+        name: oim_shared_path_from_metadata
       register: include_metadata
       tags: always
 
@@ -81,6 +83,7 @@
       ansible.builtin.set_fact:
         cluster_os_version: "{{ software_config.cluster_os_version }}"
         cluster_os_type: "{{ software_config.cluster_os_type }}"
+        repo_config: "{{ software_config.repo_config }}"
 
 - name: "Phase 1.2: Include input project directory"
   when: not project_dir_status | default(false) | bool
@@ -229,7 +232,29 @@
       ansible.builtin.include_role:
         name: ../roles/parse_and_download
         tasks_from: localrepo_completion.yml
-      when: final_status == 'SUCCESS'
+      when: final_status | lower == 'success'
+
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ omnia_base_dir }}/output/project_default/repo_manager"
+        state: directory
+        mode: "0755"
+        recurse: true
+      when: final_status is defined
+
+    - name: Generate repo_status.yml with final status
+      generate_local_repo_access:
+        pulp_server_ip: "{{ pulp_server_ip }}"
+        pulp_server_port: "{{ pulp_server_port | int }}"
+        pulp_protocol: "{{ pulp_protocol }}"
+        cluster_os_type: "{{ cluster_os_type }}"
+        cluster_os_version: "{{ cluster_os_version }}"
+        repo_config: "{{ repo_config }}"
+        output_path: "{{ omnia_base_dir }}/output/project_default/repo_manager/repo_status.yml"
+        certs_dir: "{{ pulp_certs_dir }}"
+        local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
+        overall_status: "{{ 'success' if final_status | lower == 'success' else 'failed' }}"
+      when: final_status is defined
 
     - name: Display final status
       ansible.builtin.debug:

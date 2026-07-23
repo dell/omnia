@@ -37,6 +37,8 @@
 
 
 - name: Include repo_manager metadata vars
-  ansible.builtin.include_vars: "{{ repo_manager_metadata_file_path }}"
+  ansible.builtin.include_vars:
+    file: "{{ repo_manager_metadata_file_path }}"
+    name: oim_shared_path_from_metadata
   when: repo_manager_metadata_support | default(false)
   tags: always

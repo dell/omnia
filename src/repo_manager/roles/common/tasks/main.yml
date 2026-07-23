@@ -15,7 +15,9 @@
 ---
 
 - name: Include metadata vars
-  ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
+  ansible.builtin.include_vars:
+    file: "{{ omnia_metadata_file }}"
+    name: oim_shared_path_from_metadata
   register: include_metadata
   tags: always
 

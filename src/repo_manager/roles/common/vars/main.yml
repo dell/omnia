@@ -14,7 +14,7 @@
 ---
 
 # Usage: main.yml
-omnia_metadata_file: "{{ playbook_dir | dirname }}/.data/oim_metadata.yml"
+omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 
 # Usage: firewall_settings.yml
 oim_os_repo_fail_msg: |

@@ -89,6 +89,7 @@
       ansible.builtin.set_fact:
         cluster_os_type: "{{ software_config.cluster_os_type }}"
         cluster_os_version: "{{ software_config.cluster_os_version }}"
+        repo_config: "{{ software_config.repo_config }}"
 
     - name: Display Pulp connection info
       ansible.builtin.debug:
@@ -98,6 +99,7 @@
           - "IP: {{ pulp_server_ip }}"
           - "Port: {{ pulp_server_port }}"
           - "Cluster OS: {{ cluster_os_type }} {{ cluster_os_version }}"
+          - "Repo Config: {{ repo_config }}"
           - "======================================"
 
 # -----------------------------------------------------------------------------
@@ -112,14 +114,15 @@
   vars_files:
     - "{{ playbook_dir | dirname }}/vars/default.yml"
   vars:
-    output_file: "{{ playbook_dir | dirname }}/output/repo_status.yml"
+    output_file: "{{ omnia_base_dir }}/output/project_default/repo_manager/repo_status.yml"
     certs_dir: "{{ pulp_certs_dir }}"
   tasks:
     - name: Ensure output directory exists
       ansible.builtin.file:
-        path: "{{ playbook_dir | dirname }}/output"
+        path: "{{ omnia_base_dir }}/output/project_default/repo_manager"
         state: directory
         mode: "0755"
+        recurse: true
 
     - name: Generate repo_status.yml
       generate_local_repo_access:
@@ -128,6 +131,7 @@
         pulp_protocol: "{{ pulp_protocol }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
+        repo_config: "{{ repo_config }}"
         output_path: "{{ output_file }}"
         certs_dir: "{{ certs_dir }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"

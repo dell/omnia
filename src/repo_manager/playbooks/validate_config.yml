@@ -51,7 +51,9 @@
         'all' in (ansible_run_tags | default([]) | list)
       block:
         - name: Include metadata vars
-          ansible.builtin.include_vars: "{{ repo_manager_metadata_file_path | default(omnia_metadata_file) }}"
+          ansible.builtin.include_vars:
+            file: "{{ repo_manager_metadata_file_path | default(omnia_metadata_file) }}"
+            name: oim_shared_path_from_metadata
           when: repo_manager_metadata_support | default(false) | bool
 
         - name: Validate JSON before loading
