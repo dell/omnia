@@ -19,21 +19,37 @@
 telemetry_credential_file:
   credential_type: "Telemetry"
   template: "{{ role_path }}/templates/telemetry_credential.j2"
-  file_path: "{{ input_project_dir }}/telemetry/input/telemetry_credentials.yml"
+  file_path: "{{ input_project_dir }}/telemetry/telemetry_credentials.yml"
   file_mode: "0600"
-  vault_path: "{{ input_project_dir }}/telemetry/input/.telemetry_credentials_key"
+  vault_path: "{{ input_project_dir }}/telemetry/.telemetry_credentials_key"
 
 # Credential prompt definitions
 telemetry_cred_config:
-  mandatory:
-    - username: mysqldb_user
-    - password: mysqldb_password
-    - password: mysqldb_root_password
   conditional_mandatory:
+    - username: mysqldb_user
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: mysqldb_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: mysqldb_root_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
     - username: bmc_username
       condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
     - password: bmc_password
       condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: ldms_sampler_password
+      condition: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+    - username: csi_username
+      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"
+    - password: csi_password
+      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"
+    - username: ufm_username
+      condition: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+    - password: ufm_password
+      condition: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+    - username: vast_username
+      condition: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
+    - password: vast_password
+      condition: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
 
 # Messages
 telemetry_mandatory_warning_msg: "WARNING: The following are mandatory telemetry credentials and cannot be left empty."

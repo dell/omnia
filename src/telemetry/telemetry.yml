@@ -85,6 +85,12 @@
   gather_facts: true
   any_errors_fatal: true
   tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
     - name: Deploy Kafka (shared infrastructure)
       ansible.builtin.include_role:
         name: deploy_kafka

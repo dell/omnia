@@ -113,14 +113,7 @@
         telemetry_loaded_creds: {}
       when: telemetry_loaded_creds is not defined
 
-    # Step 5: Prompt for mandatory credentials (only if value is empty)
-    - name: Prompt for mandatory telemetry credentials
-      ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ telemetry_cred_config.mandatory }}"
-      loop_control:
-        loop_var: cred_field
-
-    # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
+    # Step 5: Prompt for conditional mandatory credentials (only if value is empty)
     - name: Prompt for conditional mandatory telemetry credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
       loop: "{{ telemetry_cred_config.conditional_mandatory }}"
@@ -128,9 +121,8 @@
         loop_var: cred_field
       when: cred_field.condition | default(false) | bool
 
-    # Step 7: Expose credentials as facts for downstream roles
+    # Step 6: Expose credentials as facts for downstream roles
     - name: Reload final credentials
-      when: telemetry_credential_file.file_path is file
       block:
         - name: Decrypt for final load
           ansible.builtin.command: >-
@@ -142,6 +134,7 @@
         - name: Load final credentials
           ansible.builtin.include_vars:
             file: "{{ telemetry_credential_file.file_path }}"
+            name: telemetry_credentials
           no_log: true
 
         - name: Re-encrypt after final load
