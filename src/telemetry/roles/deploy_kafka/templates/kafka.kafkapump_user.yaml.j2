@@ -80,7 +80,7 @@ spec:
           - Read
         host: "*"
 {% endif %}
-{% if ldms_support %}
+{% if hostvars['localhost']['ldms_support'] | default(false) %}
       # Producer and consumer permissions for ldms topic
       - resource:
           type: topic

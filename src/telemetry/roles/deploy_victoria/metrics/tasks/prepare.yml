@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_victoria/metrics — Prepare: download operator package + generate manifests
+# =============================================================================
+
+- name: Prepare VictoriaMetrics operator package (common)
+  ansible.builtin.include_tasks: ../../common/tasks/prepare_operator.yml
+
+- name: Generate VictoriaMetrics TLS secret manifest
+  ansible.builtin.template:
+    src: victoria-tls-secret.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
+    mode: '0644'
+  failed_when: false
+
+- name: Generate VictoriaMetrics RBAC manifest
+  ansible.builtin.template:
+    src: victoria-vmagent-rbac.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml"
+    mode: '0644'
+  failed_when: false
+
+- name: Generate VMCluster CR manifest
+  ansible.builtin.template:
+    src: victoria-operator-vmcluster.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml"
+    mode: '0644'
+
+- name: Generate VMAgent CR manifest
+  ansible.builtin.template:
+    src: victoria-operator-vmagent.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml"
+    mode: '0644'
+
+- name: Generate VMPodScrape CR manifest
+  ansible.builtin.template:
+    src: victoria-operator-vmscrape.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml"
+    mode: '0644'

@@ -1316,18 +1316,12 @@ post_setup_config() {
         cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
     fi"
 
-    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
+    # Copy telemetry input files to project_default/telemetry/ subdir
+    echo -e "${BLUE} Copying telemetry input files to project_default/telemetry/.${NC}"
     podman exec -u root omnia_core bash -c "
-    if [ -d /omnia/image_build_manager/input ]; then
-        mkdir -p /opt/omnia/input/project_default/image_build_manager
-        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
-    fi"
-
-    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
-    podman exec -u root omnia_core bash -c "
-    if [ -d /omnia/image_build_manager/input ]; then
-        mkdir -p /opt/omnia/input/project_default/image_build_manager
-        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
+    if [ -d /omnia/telemetry/input ]; then
+        mkdir -p /opt/omnia/input/project_default/telemetry
+        cp -r /omnia/telemetry/input/* /opt/omnia/input/project_default/telemetry/
     fi"
 
     # Create the output directory for project_default

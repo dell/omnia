@@ -1,0 +1,84 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# disable_kafka — Scale down Kafka infrastructure
+# =============================================================================
+# Scales down Kafka StatefulSet and Kafka Operator Deployment to 0 replicas
+# when no telemetry sources require Kafka.
+#
+# This stops Kafka infrastructure but preserves PVCs for future re-enablement.
+# =============================================================================
+
+- name: Load telemetry configuration
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+
+- name: Check if Kafka StatefulSet exists
+  kubernetes.core.k8s_info:
+    kind: StatefulSet
+    name: "{{ kafka_statefulset_name }}"
+    namespace: "{{ telemetry_namespace }}"
+  register: kafka_sts_info
+  ignore_errors: true
+
+- name: Scale down Kafka StatefulSet to 0
+  when:
+    - kafka_sts_info.resources | length > 0
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: "{{ kafka_statefulset_name }}"
+        namespace: "{{ telemetry_namespace }}"
+      spec:
+        replicas: 0
+  register: scale_down_kafka_result
+
+- name: Display Kafka scale down result
+  ansible.builtin.debug:
+    msg: "{{ kafka_scale_down_msg }}"
+  when:
+    - kafka_sts_info.resources | length > 0
+
+- name: Scale down Kafka Operator Deployment to 0
+  when:
+    - kafka_sts_info.resources | length > 0
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ kafka_operator_deployment_name }}"
+        namespace: "{{ telemetry_namespace }}"
+      spec:
+        replicas: 0
+  register: scale_down_operator_result
+
+- name: Display Kafka Operator scale down result
+  ansible.builtin.debug:
+    msg: "{{ kafka_operator_scale_down_msg }}"
+  when:
+    - kafka_sts_info.resources | length > 0
+
+- name: Kafka StatefulSet not found - nothing to scale down
+  ansible.builtin.debug:
+    msg: "{{ kafka_not_found_msg }}"
+  when:
+    - kafka_sts_info.resources | length == 0
