@@ -15,4 +15,4 @@ metadata:
     managed-by: omnia
 data:
   vector.toml: |
-{{ lookup('template', 'telemetry/vector/vector-ldms-config.toml.j2') | indent(4, first=True) }}
+{{ lookup('template', 'vector/vector-ldms-config.toml.j2') | indent(4, first=True) }}

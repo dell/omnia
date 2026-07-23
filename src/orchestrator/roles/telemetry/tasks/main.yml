@@ -115,15 +115,6 @@
           ldms_support | default(false) | bool
       ansible.builtin.include_tasks: generate_telemetry_deployments.yml
 
-    - name: Deploy Vector-LDMS bridge (Kafka-to-VictoriaMetrics pipeline)
-      ansible.builtin.include_tasks: deploy_vector_ldms.yml
-      when:
-        - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
-        - victoria_metrics_support | default(false) | bool
-      tags:
-        - telemetry_deployment
-        - vector_ldms
-
     - name: Deploy Vector-OME bridge (Kafka-to-Victoria pipeline for OME data)
       ansible.builtin.include_tasks: deploy_vector_ome.yml
       when:
@@ -143,24 +134,6 @@
 
         - name: Generate service cluster metadata
           ansible.builtin.include_tasks: generate_service_cluster_metadata.yml
-
-    - name: Include update_ldms_sampler.yml
-      ansible.builtin.include_tasks: update_ldms_sampler.yml
-      when: ldms_support
-
-    - name: Update ldms agg configuration
-      ansible.builtin.include_tasks: update_ldms_agg_config.yml
-      when: ldms_support
-
-    - name: Check if PXE mapping has changed since last run
-      ansible.builtin.include_tasks: check_pxe_changes.yml
-      when: ldms_support
-
-    - name: Restart LDMS configs for node addition and deletion
-      ansible.builtin.include_tasks: restart_ldms_configs.yml
-      when:
-        - ldms_support
-        - pxe_changed | default(false) | bool
 
     - name: Generate telemetry deployment script
       ansible.builtin.include_tasks: generate_telemetry_script.yml

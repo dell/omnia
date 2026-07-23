@@ -13,30 +13,9 @@
 # limitations under the License.
 ---
 
-# Provision credentials
-provision_password: ""
-bmc_username: ""
-bmc_password: ""
-
-# Prepare_oim credentials
-pulp_password: ""
-docker_username: ""
-docker_password: ""
-
-# Omnia credentials
-slurm_db_password: ""
-
-# Security credentials
-openldap_db_username: ""
-openldap_db_password: ""
-
-# postgres credentials
-postgres_user: ""
-postgres_password: ""
-
-# Gitlab credentials
-gitlab_root_password: ""
-
-# OME discovery credentials
-ome_username: ""
-ome_password: ""
+telemetry_namespace: "telemetry"
+kafka_statefulset_name: "kafka"
+kafka_operator_deployment_name: "strimzi-cluster-operator"
+kafka_scale_down_msg: "Scaling down Kafka StatefulSet to 0 replicas"
+kafka_operator_scale_down_msg: "Scaling down Kafka Operator Deployment to 0 replicas"
+kafka_not_found_msg: "Kafka StatefulSet not found, nothing to scale down"
