@@ -66,6 +66,7 @@ configui_http_port: 8082
 
 # Kafka topic names (FIXED - cannot be changed)
 kafka:
+  cluster_id: "kafka-cluster-id"
   topics:
     idrac:
       name: "idrac"

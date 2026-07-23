@@ -36,6 +36,7 @@ kafka_topic_partitions: "{{ hostvars['localhost']['telemetry_config'].telemetry_
 
 # Kafka topic names (FIXED - cannot be changed)
 kafka:
+  cluster_id: "kafka-cluster-id"
   topics:
     idrac:
       name: "idrac"

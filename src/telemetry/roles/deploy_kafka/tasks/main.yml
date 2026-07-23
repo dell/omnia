@@ -28,6 +28,18 @@
 - name: Prepare Kafka packages and manifests
   ansible.builtin.include_tasks: prepare.yml
 
+- name: Generate Kafka cluster ID
+  ansible.builtin.command: uuidgen
+  register: cluster_id
+  changed_when: false
+  no_log: true
+
+- name: Render Kafka cluster ID secret
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/kafka_cluster_id_secret.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/kafka_cluster_id_secret.yaml"
+    mode: "0644"
+
 - name: Check if Kafka is already deployed
   ansible.builtin.command: >
     kubectl get kafka -n {{ telemetry_namespace }} -o name

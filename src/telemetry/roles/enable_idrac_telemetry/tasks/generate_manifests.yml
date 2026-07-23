@@ -45,10 +45,9 @@
 
 - name: Render telemetry secrets
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/common/telemetry_secret_creation.yaml.j2"
+    src: "{{ role_path }}/templates/telemetry_secret_creation.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/telemetry_secret_creation.yaml"
     mode: "0644"
-  when: not (cluster_id_present | default(false))
 
 - name: Log manifest generation complete
   ansible.builtin.debug:
