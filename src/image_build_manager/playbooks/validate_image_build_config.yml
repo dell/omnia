@@ -1,0 +1,45 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_image_build_config.yml — Standalone image_build_manager validation.
+#
+# Runs L1 (JSON schema) and L2 (cross-field logic) validation on:
+#   - image_build_config.yml
+#   - image_build_credentials.yml (if present and decrypted)
+#
+# Usage:
+#   cd src/image_build_manager
+#   ansible-playbook playbooks/validate_image_build_config.yml
+#
+# When run standalone, image_build_setup handles upgrade guard, input dir, oim group.
+# When imported from image_build_manager.yml (image_build_setup_done=true), setup is skipped.
+
+# Standalone: run image_build_setup
+- name: Standalone setup for validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run image_build_setup role (standalone only)
+      ansible.builtin.include_role:
+        name: image_build_setup
+      when: not (image_build_setup_done | default(false) | bool)
+
+# Run image_build-specific validation
+- name: Image build configuration validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - validate_image_build_input

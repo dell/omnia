@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Self-contained credential definition for image_build_manager.
+# This role can operate independently of the central credential_utility.
+
+# Credential file definition (standalone — no dependency on credential_utility index)
+image_build_credential_file:
+  credential_type: "Image Build"
+  template: "{{ role_path }}/templates/image_build_credential.j2"
+  file_path: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+  file_mode: "0600"
+  vault_path: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
+
+# Credential prompt definitions
+image_build_cred_config:
+  mandatory:
+    - password: s3_secret_key
+    - password: provision_password
+  conditional_mandatory:
+    - username: s3_access_id
+      condition: "{{ s3_configurations.provider | default('minio') == 'powerscale' }}"
+
+# Messages
+image_build_mandatory_warning_msg: "WARNING: The following are mandatory image build credentials and cannot be left empty."
+image_build_conditional_warning_msg: "WARNING: Conditional image build credentials will be prompted based on storage configuration."
+image_build_password_fail_msg: "Failed. Password is required for mandatory image build credential."
+image_build_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+image_build_credential_encrypt_fail_msg: "Failed to encrypt image build credential file."
+image_build_cred_file_missing_msg: |
+  Image build credential file not found at {{ image_build_credential_file.file_path }}.
+  It will be created from template.

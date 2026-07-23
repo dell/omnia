@@ -1,0 +1,158 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# collect_build_credentials — Self-contained credential flow for image_build_manager.
+# Handles: validate → create → prompt → encrypt
+# Idempotent — skips if credentials are already loaded in this run.
+#
+# Naming Convention:
+#   Role:     collect_build_credentials  (verb — what the role does: collects)
+#   Playbook: get_build_credentials.yml  (verb — what the user gets)
+#   Data:     image_build_credentials.yml (noun — the artifact)
+
+- name: Skip credential flow if already loaded
+  ansible.builtin.debug:
+    msg: "Image build credentials already loaded — skipping."
+  when: image_build_credentials_loaded | default(false) | bool
+
+- name: Image build credential flow
+  when: not (image_build_credentials_loaded | default(false) | bool)
+  block:
+    # Step 1: Validate existing credential file
+    - name: Check if image build credential file exists
+      ansible.builtin.stat:
+        path: "{{ image_build_credential_file.file_path }}"
+      register: image_build_cred_file_stat
+
+    - name: Check if vault key exists
+      ansible.builtin.stat:
+        path: "{{ image_build_credential_file.vault_path }}"
+      register: image_build_vault_key_stat
+
+    # Step 2: Create credential file from template if missing
+    - name: Create credential file if missing
+      when: not image_build_cred_file_stat.stat.exists
+      block:
+        - name: Ensure parent directory exists
+          ansible.builtin.file:
+            path: "{{ image_build_credential_file.file_path | dirname }}"
+            state: directory
+            mode: "0755"
+
+        - name: Create credential file from template
+          ansible.builtin.template:
+            src: "{{ image_build_credential_file.template }}"
+            dest: "{{ image_build_credential_file.file_path }}"
+            mode: "{{ image_build_credential_file.file_mode }}"
+          register: image_build_file_created
+
+        - name: Create vault key file
+          ansible.builtin.lineinfile:
+            path: "{{ image_build_credential_file.vault_path }}"
+            line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+            mode: "0600"
+            owner: root
+            create: true
+          when: not image_build_vault_key_stat.stat.exists
+
+        - name: Encrypt newly created credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ image_build_credential_file.file_path }}"
+            --vault-password-file "{{ image_build_credential_file.vault_path }}"
+          changed_when: false
+
+    # Step 3: Create vault key if file exists but key is missing
+    - name: Ensure vault key exists for existing credential file
+      ansible.builtin.lineinfile:
+        path: "{{ image_build_credential_file.vault_path }}"
+        line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+        mode: "0600"
+        owner: root
+        create: true
+      when:
+        - image_build_cred_file_stat.stat.exists
+        - not image_build_vault_key_stat.stat.exists
+
+    # Step 4: Decrypt and load existing credentials
+    - name: Load existing credentials
+      when: image_build_cred_file_stat.stat.exists
+      block:
+        - name: Decrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ image_build_credential_file.file_path }}"
+            --vault-password-file "{{ image_build_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Load credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ image_build_credential_file.file_path }}"
+            name: image_build_loaded_creds
+          no_log: true
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ image_build_credential_file.file_path }}"
+            --vault-password-file "{{ image_build_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+
+    - name: Default image_build_loaded_creds if not loaded
+      ansible.builtin.set_fact:
+        image_build_loaded_creds: {}
+      when: image_build_loaded_creds is not defined
+
+    # Step 5: Prompt for mandatory credentials (only if value is empty)
+    - name: Prompt for mandatory image build credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ image_build_cred_config.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+
+    # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
+    - name: Prompt for conditional mandatory image build credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ image_build_cred_config.conditional_mandatory }}"
+      loop_control:
+        loop_var: cred_field
+      when: cred_field.condition | default(false) | bool
+
+    # Step 7: Expose credentials as facts for downstream roles
+    - name: Reload final credentials
+      when: image_build_credential_file.file_path is file
+      block:
+        - name: Decrypt for final load
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ image_build_credential_file.file_path }}"
+            --vault-password-file "{{ image_build_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Load final credentials
+          ansible.builtin.include_vars:
+            file: "{{ image_build_credential_file.file_path }}"
+          no_log: true
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ image_build_credential_file.file_path }}"
+            --vault-password-file "{{ image_build_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+
+    # Step 8: Mark credentials as loaded to prevent re-prompting
+    - name: Set credentials loaded guard
+      ansible.builtin.set_fact:
+        image_build_credentials_loaded: true
+        cacheable: true

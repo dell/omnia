@@ -1,0 +1,42 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# cleanup_omnia_target.yml — Remove minio.service and registry.service from omnia.target.
+
+- name: Check if omnia.target exists
+  ansible.builtin.stat:
+    path: "{{ omnia_target_path }}"
+  register: omnia_target_check
+
+- name: Remove image_build_manager services from omnia.target
+  when: omnia_target_check.stat.exists
+  block:
+    - name: Remove minio.service from omnia.target Requires line
+      ansible.builtin.replace:
+        path: "{{ omnia_target_path }}"
+        regexp: '\s*minio\.service'
+        replace: ''
+      register: minio_target_removed
+
+    - name: Remove registry.service from omnia.target Requires line
+      ansible.builtin.replace:
+        path: "{{ omnia_target_path }}"
+        regexp: '\s*registry\.service'
+        replace: ''
+      register: registry_target_removed
+
+    - name: Reload systemd after target update
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: minio_target_removed.changed or registry_target_removed.changed

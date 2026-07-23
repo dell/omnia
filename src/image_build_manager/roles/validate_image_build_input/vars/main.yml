@@ -1,0 +1,27 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Path to the image_build-specific JSON schemas (domain-level library)
+image_build_schema_dir: "{{ playbook_dir }}/../library/module_utils/image_build_validation/schema"
+
+# Validation messages
+image_build_validation_start_msg: "Starting image_build_manager input validation (L1 schema + L2 logic)."
+image_build_validation_pass_msg: "Image build configuration validation passed."
+image_build_validation_fail_msg: >-
+  Image build configuration validation failed.
+  Review the errors below and fix the configuration files before re-running.
+image_build_config_missing_msg: >-
+  image_build_config.yml not found at {{ input_project_dir }}/image_build_manager/image_build_config.yml.
+  Please create this file before running image_build_manager.

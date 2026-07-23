@@ -48,13 +48,23 @@
     - name: Flush handlers to reload systemd
       ansible.builtin.meta: flush_handlers
 
-    - name: Start registry service
-      ansible.builtin.systemd:
+    - name: Enable and start registry service
+      ansible.builtin.systemd_service:
         name: registry
         state: started
         enabled: true
 
-    - name: Wait for registry to be ready
+    - name: Verify registry container is running
+      containers.podman.podman_container_info:
+        name: registry
+      register: registry_container_status
+      retries: "{{ max_retries }}"
+      delay: "{{ delay_count }}"
+      until:
+        - registry_container_status.containers | length > 0
+        - registry_container_status.containers[0].State.Status == 'running'
+
+    - name: Wait for registry health endpoint to be ready
       ansible.builtin.uri:
         url: "http://localhost:{{ registry_port }}/v2/"
         method: GET

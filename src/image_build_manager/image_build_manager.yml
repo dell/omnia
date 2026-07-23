@@ -16,38 +16,58 @@
 # Reads repo_status.yml from repo_manager output for Pulp URLs.
 # Deploys MinIO + Registry, then builds OS images for x86_64 and aarch64.
 #
-# Usage:
+# Usage (run ONE tag at a time — no comma-separated tags):
 #   cd src/image_build_manager
-#   ansible-playbook image_build_manager.yml                        # Full run (all steps)
-#   ansible-playbook image_build_manager.yml --tags x86_64          # x86_64 only (+ always steps)
-#   ansible-playbook image_build_manager.yml --tags aarch64         # aarch64 only (+ always steps)
+#   ansible-playbook image_build_manager.yml                        # Default: prepare + build
 #   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
-#   ansible-playbook image_build_manager.yml --skip-tags aarch64    # Skip aarch64
+#   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
+#   ansible-playbook image_build_manager.yml --tags validate        # Validate config only (no credentials)
+#   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup (no credentials)
+#   ansible-playbook image_build_manager.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
 #
-# Tags (one per flow):
-#   always   — Steps 0-4 (upgrade check, credentials, input dir, pre-check, config load)
-#   prepare  — Step 5: Deploy MinIO + Registry
-#   x86_64   — Step 6: Build x86_64 images + write build_status
-#   aarch64  — Step 7: Build aarch64 images + write build_status
+# Tags (mutually exclusive — pick ONE):
+#   (none)   — Default flow: always + prepare + build (with credentials)
+#   prepare  — Deploy MinIO + Registry (with credentials)
+#   build    — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
+#   validate — Validate configuration only (skips credentials)
+#   cleanup  — Remove MinIO, registry, build artifacts, omnia.target entries (skips credentials)
+#   upgrade  — Upgrade flow (placeholder — Omnia 3.0)
+#   rollback — Rollback flow (placeholder — Omnia 3.0)
+#
+# Tag Validation:
+#   - Invalid tags will fail with error message
+#   - Invalid combinations (e.g., prepare + cleanup) will fail
+#   - cleanup and validate tags skip credential prompting
+#
+# Internal steps (always):
+#   Step 0: Tag validation + upgrade check
+#   Step 1: Input project directory
+#   Step 2: Credential collection (skipped for cleanup/validate tags)
+#   Step 3: Load image_build_config.yml
+#   Step 4: Pre-check repo_status.yml
 
-# Step 0: Check if upgrade is in progress
-- name: Check if upgrade is in progress
-  ansible.builtin.import_playbook: ../playbooks/utils/upgrade_checkup.yml
+# Step 0: Self-contained setup — upgrade guard, input dir, oim group, guard facts
+- name: Image build manager setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
   tags: always
+  roles:
+    - image_build_setup
 
-# Step 1: Credential collection (image_build_manager tag)
-- name: Invoke get_config_credentials.yml
-  ansible.builtin.import_playbook: ../playbooks/utils/credential_utility/get_config_credentials.yml
-  vars:
-    omnia_run_tags: ["image_build_manager"]
-  tags: always
+# Step 1: Image build input validation (domain-specific L1 schema + L2 logic)
+- name: Validate image build configuration
+  ansible.builtin.import_playbook: playbooks/validate_image_build_config.yml
+  tags:
+    - always
+    - validate
 
-# Step 2: Resolve input project directory
-- name: Include input project directory
-  ansible.builtin.import_playbook: ../playbooks/utils/include_input_dir.yml
-  vars:
-    openchami_vars_suppport: true
-    omnia_metadata_support: true
+# Step 2: Credential collection (collect_build_credentials role)
+# Skipped when cleanup or validate tags are used
+- name: Get build credentials
+  ansible.builtin.import_playbook: playbooks/get_build_credentials.yml
+  when: not (skip_build_credentials | default(false) | bool)
   tags: always
 
 
@@ -118,8 +138,8 @@
 
     - name: Set repo_manager facts from repo_status.yml
       ansible.builtin.set_fact:
-        pulp_webserver_cert_path: "{{ repo_manager.certificates.server_crt }}"
         pulp_port: "{{ repo_manager.port }}"
+        pulp_cert_oim_path: "{{ repo_manager.certificates.server_crt | regex_replace('^/opt/omnia/', oim_shared_path + '/omnia/') }}"
         cacheable: true
       when:
         - repo_manager_output_path | default('') | length > 0
@@ -187,33 +207,39 @@
       ansible.builtin.debug:
         msg:
           - "Repo manager status: {{ overall_status }}"
-          - "Pulp cert: {{ pulp_webserver_cert_path }}"
+          - "Pulp cert: {{ pulp_cert_oim_path | default('not set') }}"
           - "x86_64 repos: {{ repo_manager_repos_x86_64 | length }} loaded"
           - "aarch64 repos: {{ repo_manager_repos_aarch64 | length }} loaded"
         verbosity: 1
       when: repo_manager_output_path | default('') | length > 0
 
 
-# Step 5: Deploy MinIO + Registry (idempotent)
+# =========================================================================
+# FLOW: prepare — Deploy MinIO + Registry (idempotent)
+# =========================================================================
 - name: Prepare build infrastructure (MinIO + Registry)
   ansible.builtin.import_playbook: playbooks/prepare_image_build_manager.yml
   tags:
     - prepare
 
+# =========================================================================
+# FLOW: build — Build OS images and write build_status.yml
+# =========================================================================
 # Step 6: Build x86_64 images
 - name: Build x86_64 images
   ansible.builtin.import_playbook: playbooks/build_image_x86_64.yml
   tags:
     - x86_64
+    - build
 
 # Step 7: Build aarch64 images
 # NOTE: The aarch64 playbook has its own internal checks for ARM host availability.
-# Tag filtering allows skipping via: --skip-tags aarch64
 - name: Build aarch64 images
   ansible.builtin.import_playbook: playbooks/build_image_aarch64.yml
   when: hostvars['localhost']['aarch64_inventory_host_ip'] | default('') | length > 0
   tags:
     - aarch64
+    - build
 
 # Step 8: Write build_status.yml output
 # Output: {{ output_project_dir }}/build_status.yml (NFS-shared)
@@ -225,8 +251,36 @@
   tags:
     - x86_64
     - aarch64
+    - build
   tasks:
     - name: Write build status
       ansible.builtin.include_role:
-        name: image_creation
+        name: build_os_images
         tasks_from: write_build_status.yml
+
+# =========================================================================
+# FLOW: cleanup — Remove MinIO, registry, build artifacts (opt-in only)
+# =========================================================================
+- name: Cleanup image_build_manager
+  ansible.builtin.import_playbook: playbooks/cleanup_image_build_manager.yml
+  tags:
+    - never
+    - cleanup
+
+# =========================================================================
+# FLOW: upgrade — Upgrade flow placeholder (opt-in only)
+# =========================================================================
+- name: Upgrade image_build_manager
+  ansible.builtin.import_playbook: playbooks/upgrade_image_build_manager.yml
+  tags:
+    - never
+    - upgrade
+
+# =========================================================================
+# FLOW: rollback — Rollback flow placeholder (opt-in only)
+# =========================================================================
+- name: Rollback image_build_manager
+  ansible.builtin.import_playbook: playbooks/rollback_image_build_manager.yml
+  tags:
+    - never
+    - rollback

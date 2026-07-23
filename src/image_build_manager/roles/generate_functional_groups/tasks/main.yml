@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# image_build_functional_groups — Generate functional_groups_config.yml from mapping.csv.
+# Replaces: ../playbooks/utils/generate_functional_groups.yml
+# Only runs when enable_build_stream is false.
+
+- name: Include vars from provision_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/{{ provision_config_file }}"
+
+- name: Set fact for functional groups file path
+  ansible.builtin.set_fact:
+    functional_groups_config_path: "{{ functional_groups_config_path }}"
+
+- name: Generate functional groups from mapping.csv
+  generate_functional_groups:
+    mapping_file_path: "{{ pxe_mapping_file_path }}"
+    functional_groups_file_path: "{{ functional_groups_config_path }}"
+    omnia_config_path: "{{ omnia_config_dir }}/{{ omnia_config_file }}"
+
+- name: Check the functional_groups_config.yml file is created in /opt/omnia/.data
+  ansible.builtin.stat:
+    path: "{{ functional_groups_config_path }}"
+  register: functional_groups_file
+
+- name: Fail if functional groups file is not created
+  ansible.builtin.fail:
+    msg: "Failed to create functional groups file at {{ functional_groups_config_path }}"
+  when: not functional_groups_file.stat.exists

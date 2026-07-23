@@ -12,18 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# OIM metadata (loaded on localhost via include_input_dir with omnia_metadata_support)
-oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
+# cleanup_note.yml — Display post-cleanup instructions.
 
-# Directory paths (image_build_manager domain-specific)
-data_oci_dir: "{{ oim_shared_path }}/omnia/image_build_manager/oci/data"
-
-# Registry container settings
-registry_port: 5000
-registry_storage_dir: "/opt/omnia/registry/data"
-registry_image: "docker.io/library/registry:2"
-registry_tag: "2"
-
-# Retry and delay settings
-max_retries: 10
-delay_count: 5
+- name: Display image_build_manager post-cleanup notes
+  ansible.builtin.debug:
+    msg: "{{ cleanup_completed_msg }}"

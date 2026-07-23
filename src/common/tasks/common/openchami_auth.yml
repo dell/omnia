@@ -1,0 +1,76 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Set openchami auth variables
+  ansible.builtin.set_fact:
+    cluster_env_key: "{{ oim_node_name | upper }}_ACCESS_TOKEN"
+    cert_wait_time: 10
+    cert_restart_fail_msg: "Failed to restart acme-deploy service"
+    openchami_auth_retries: 5
+    openchami_auth_delay: 5
+
+- name: Gather facts for services
+  ansible.builtin.service_facts:
+
+- name: Generate access token
+  ansible.builtin.command: sudo bash -lc 'gen_access_token'
+  register: access_token_result
+  changed_when: false
+  failed_when: false
+  retries: "{{ openchami_auth_retries }}"
+  delay: "{{ openchami_auth_delay }}"
+  until: access_token_result.rc == 0 and access_token_result.stdout not in ["", "null"]
+
+- name: Set ochami_env
+  ansible.builtin.set_fact:
+    ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
+  when: access_token_result.rc == 0
+
+- name: Check ochami bss status
+  ansible.builtin.command: ochami bss service status
+  register: bss_status_result
+  changed_when: false
+  failed_when: false
+
+- name: Regenerate certificate
+  when:
+    - bss_status_result.rc != 0
+  block:
+    - name: Restart acme-deploy service
+      block:
+        - name: Restart acme-deploy service
+          ansible.builtin.systemd_service:
+            name: acme-deploy
+            state: restarted
+          failed_when: false
+      rescue:
+        - name: Failed to restart acme-deploy service
+          ansible.builtin.fail:
+            msg: "{{ cert_restart_fail_msg }}"
+
+    - name: Wait for {{ cert_wait_time }} seconds before checking again # noqa: name[template]
+      ansible.builtin.wait_for:
+        timeout: "{{ cert_wait_time }}"
+
+    - name: Check ochami bss status
+      ansible.builtin.command: ochami bss service status
+      register: bss_status_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: Display bss status
+      ansible.builtin.debug:
+        msg: "{{ bss_status_recheck.stdout }}"
+        verbosity: 2

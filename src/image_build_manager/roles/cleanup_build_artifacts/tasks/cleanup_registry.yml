@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# cleanup_registry.yml — Stop and remove local container registry, Quadlet unit, data directories.
+
+- name: Check if registry service exists
+  ansible.builtin.systemd:
+    name: "{{ registry_service_name }}"
+  register: registry_service_check
+  failed_when: false
+
+- name: Stop and disable registry service
+  ansible.builtin.systemd:
+    name: "{{ registry_service_name }}"
+    state: stopped
+    enabled: false
+  when: registry_service_check.status.ActiveState | default('') != 'inactive'
+  failed_when: false
+
+- name: Remove registry Quadlet service file
+  ansible.builtin.file:
+    path: "{{ registry_quadlet_file }}"
+    state: absent
+
+- name: Reload systemd after removing registry Quadlet
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Remove registry container image
+  ansible.builtin.command: podman rmi --force registry:2
+  failed_when: false
+  changed_when: true
+
+- name: Remove registry data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ registry_cleanup_directories }}"
+
+- name: Remove registry firewall ports
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: disabled
+  loop: "{{ registry_firewall_ports }}"
+  failed_when: false
+
+- name: Reload firewall after registry port removal
+  ansible.builtin.command: firewall-cmd --reload
+  failed_when: false
+  changed_when: true

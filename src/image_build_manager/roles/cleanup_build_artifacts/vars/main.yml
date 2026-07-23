@@ -1,0 +1,105 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# cleanup_image_build_manager/vars/main.yml — Variables for image_build_manager cleanup.
+
+# OIM metadata (loaded on localhost via include_input_dir with omnia_metadata_support)
+oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"
+
+# S3 configuration from image_build_config.yml (loaded on localhost)
+s3_configurations: "{{ hostvars['localhost']['s3_configurations'] | default({}) }}"
+s3_provider: "{{ s3_configurations.provider | default('minio') }}"
+
+# ---------------------------------------------------------------------------
+# MinIO cleanup
+# ---------------------------------------------------------------------------
+minio_service_name: "minio"
+minio_quadlet_file: "/etc/containers/systemd/minio.container"
+minio_s3_data_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3/data"
+minio_s3_work_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3"
+minio_cleanup_directories:
+  - "{{ minio_s3_data_dir }}"
+  - "{{ minio_s3_work_dir }}"
+minio_firewall_ports:
+  - 9000/tcp
+  - 9001/tcp
+
+# ---------------------------------------------------------------------------
+# Registry cleanup
+# ---------------------------------------------------------------------------
+registry_service_name: "registry"
+registry_quadlet_file: "/etc/containers/systemd/registry.container"
+registry_storage_dir: "/opt/omnia/registry/data"
+registry_oci_data_dir: "{{ oim_shared_path }}/omnia/image_build_manager/oci/data"
+registry_cleanup_directories:
+  - "{{ registry_storage_dir }}"
+  - "{{ registry_oci_data_dir }}"
+registry_firewall_ports:
+  - 5000/tcp
+
+# ---------------------------------------------------------------------------
+# OpenCHAMI image artifacts cleanup
+# ---------------------------------------------------------------------------
+image_build_work_dir: "{{ oim_shared_path }}/omnia/image_build_manager"
+
+# ---------------------------------------------------------------------------
+# Output files cleanup
+# ---------------------------------------------------------------------------
+output_project_dir: "{{ hostvars['localhost']['output_project_dir'] | default('/opt/omnia/output/project_default') }}"
+build_status_latest: "{{ output_project_dir }}/build_status.yml"
+build_status_versioned_dir: "{{ output_project_dir }}/image_build_manager"
+
+# ---------------------------------------------------------------------------
+# Credential cleanup
+# ---------------------------------------------------------------------------
+input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
+image_build_credentials_file: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+image_build_credentials_key: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
+
+# ---------------------------------------------------------------------------
+# omnia.target service entries to remove
+# ---------------------------------------------------------------------------
+omnia_target_path: "/etc/systemd/system/omnia.target"
+cleanup_services:
+  - "minio.service"
+  - "registry.service"
+
+# ---------------------------------------------------------------------------
+# s3cmd cleanup
+# ---------------------------------------------------------------------------
+s3cmd_config: "/root/.s3cfg"
+
+# ---------------------------------------------------------------------------
+# Retry settings
+# ---------------------------------------------------------------------------
+max_retries: 5
+
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+cleanup_started_msg: "Starting image_build_manager cleanup..."
+cleanup_completed_msg:
+  - "[image_build_manager Cleanup Complete]"
+  - ""
+  - "The following components have been cleaned up:"
+  - "  - MinIO S3 container and data (if provider was 'minio')"
+  - "  - Local container registry and data"
+  - "  - Build status output files"
+  - "  - S3 bucket data and work directories"
+  - "  - Firewall ports (9000, 9001, 5000)"
+  - "  - omnia.target service entries (minio.service, registry.service)"
+  - "  - s3cmd configuration"
+  - "  - image_build_credentials.yml and vault key"
+minio_skip_msg: "S3 provider is '{{ s3_provider }}' — skipping MinIO cleanup (external S3)."

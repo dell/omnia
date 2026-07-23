@@ -19,29 +19,29 @@
 #   cd src/image_build_manager/playbooks
 #   ansible-playbook prepare_image_build_manager.yml
 #
-# When run standalone, credentials and input dir are loaded here.
-# When imported from image_build_manager.yml, those steps run in the parent (tags: always).
+# When run standalone, image_build_setup handles upgrade guard, input dir, oim group.
+# When imported from image_build_manager.yml (image_build_setup_done=true), setup is skipped.
 
-# Standalone: load credentials via credential utility
-- name: Invoke credential utility for prepare_image_build_manager (standalone)
-  ansible.builtin.import_playbook: ../../playbooks/utils/credential_utility/get_config_credentials.yml
-  vars:
-    omnia_run_tags: ["image_build_manager"]
-  tags: always
+# Standalone: run image_build_setup + credentials
+- name: Standalone setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run image_build_setup role (standalone only)
+      ansible.builtin.include_role:
+        name: image_build_setup
+      when: not (image_build_setup_done | default(false) | bool)
 
-- name: Include input project directory (standalone)
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
-  vars:
-    openchami_vars_suppport: true
-    omnia_metadata_support: true
-  tags: always
+    - name: Run collect_build_credentials role (standalone only)
+      ansible.builtin.include_role:
+        name: collect_build_credentials
+      when: not (image_build_setup_done | default(false) | bool)
 
-- name: Create oim group
-  ansible.builtin.import_playbook: ../../playbooks/utils/create_container_group.yml
-  vars:
-    oim_group: true
-  tags: always
+    - name: Run input validation (standalone only)
+      ansible.builtin.include_role:
+        name: validate_image_build_input
+      when: not (image_build_setup_done | default(false) | bool)
 
 - name: Deploy MinIO and Registry on OIM
   hosts: oim
@@ -55,3 +55,53 @@
     - name: Deploy local container registry
       ansible.builtin.include_role:
         name: deploy_registry
+
+    - name: Install SELinux policy module for container runtime
+      ansible.builtin.include_role:
+        name: build_os_images
+        tasks_from: preflight_selinux_check.yml
+
+    - name: Update omnia.target with image_build_manager services
+      block:
+        - name: Check if omnia.target exists
+          ansible.builtin.stat:
+            path: /etc/systemd/system/omnia.target
+          register: omnia_target_file
+
+        - name: Read existing omnia.target content
+          ansible.builtin.slurp:
+            src: /etc/systemd/system/omnia.target
+          register: omnia_target_content
+          when: omnia_target_file.stat.exists
+
+        - name: Parse existing Requires line
+          ansible.builtin.set_fact:
+            omnia_target_requires: "{{ (omnia_target_content.content | b64decode | regex_search('Requires=(.+)', '\\1'))[0] | default('') }}"
+          when: omnia_target_file.stat.exists
+
+        - name: Append registry.service to omnia.target if missing
+          ansible.builtin.replace:
+            path: /etc/systemd/system/omnia.target
+            regexp: '^(Requires=.*)$'
+            replace: '\1 registry.service'
+          when:
+            - omnia_target_file.stat.exists
+            - "'registry.service' not in omnia_target_requires"
+          notify: Reload systemd for omnia target
+
+        - name: Append minio.service to omnia.target if missing (minio provider only)
+          ansible.builtin.replace:
+            path: /etc/systemd/system/omnia.target
+            regexp: '^(Requires=.*)$'
+            replace: '\1 minio.service'
+          when:
+            - omnia_target_file.stat.exists
+            - "'minio.service' not in omnia_target_requires"
+            - hostvars['localhost']['s3_configurations']['provider'] | default('minio') != 'powerscale'
+          notify: Reload systemd for omnia target
+
+  handlers:
+    - name: Reload systemd for omnia target
+      ansible.builtin.systemd:
+        daemon_reload: true
+      listen: Reload systemd for omnia target
