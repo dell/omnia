@@ -1,0 +1,144 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# GENERATE LOCAL REPO ACCESS PLAYBOOK
+# =============================================================================
+# This playbook generates repo_status.yml with comprehensive repository URLs.
+#
+# The generated file contains:
+#   - Pulp server configuration
+#   - Base URLs for content types (tarball, manifest, pip, git)
+#   - Certificate paths
+#   - RPM repository URLs by architecture
+#   - File repository URLs (tarballs, manifests, git)
+#   - User-defined repositories
+#   - Legacy offline paths for backward compatibility
+#
+# Usage:
+#   ansible-playbook playbooks/generate_repo_status.yml -e 'project_name=project_default'
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# PHASE 1: PRE-FLIGHT SETUP
+# -----------------------------------------------------------------------------
+
+- name: "Phase 1.1: Include input project directory"
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+  tags: always
+
+- name: "Phase 1.2: Create OIM host group"
+  when: not oim_group_status | default(false) | bool
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+# -----------------------------------------------------------------------------
+# PHASE 2: GET PULP STATUS
+# -----------------------------------------------------------------------------
+
+- name: "Phase 2: Get Pulp server status"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Read endpoint configuration
+      ansible.builtin.include_role:
+        name: ../roles/pulp_validation
+        tasks_from: read_endpoint_config.yml
+
+    - name: Run pulp status command
+      ansible.builtin.command: /usr/local/bin/pulp status
+      register: pulp_status_output
+      changed_when: false
+
+    - name: Parse pulp status
+      ansible.builtin.set_fact:
+        pulp_status: "{{ pulp_status_output.stdout | from_json }}"
+
+    - name: Set pulp connection facts
+      ansible.builtin.set_fact:
+        pulp_content_origin: "{{ pulp_status.content_settings.content_origin }}"
+        pulp_protocol: "{{ pulp_status.content_settings.content_origin | urlsplit('scheme') | lower }}"
+        pulp_server_ip: "{{ pulp_status.content_settings.content_origin | urlsplit('hostname') }}"
+        pulp_server_port: "{{ pulp_status.content_settings.content_origin | urlsplit('port') }}"
+
+    - name: Load software_config.json
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/software_config.json"
+        name: software_config
+
+    - name: Set cluster OS facts
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ software_config.cluster_os_type }}"
+        cluster_os_version: "{{ software_config.cluster_os_version }}"
+
+    - name: Display Pulp connection info
+      ansible.builtin.debug:
+        msg:
+          - "========== PULP SERVER INFO =========="
+          - "Protocol: {{ pulp_protocol }}"
+          - "IP: {{ pulp_server_ip }}"
+          - "Port: {{ pulp_server_port }}"
+          - "Cluster OS: {{ cluster_os_type }} {{ cluster_os_version }}"
+          - "======================================"
+
+# -----------------------------------------------------------------------------
+# PHASE 3: GENERATE LOCAL REPO ACCESS FILE
+# -----------------------------------------------------------------------------
+
+- name: "Phase 3: Generate repo_status.yml"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  vars:
+    output_file: "{{ playbook_dir | dirname }}/output/repo_status.yml"
+    certs_dir: "{{ pulp_certs_dir }}"
+  tasks:
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir | dirname }}/output"
+        state: directory
+        mode: "0755"
+
+    - name: Generate repo_status.yml
+      generate_local_repo_access:
+        pulp_server_ip: "{{ pulp_server_ip }}"
+        pulp_server_port: "{{ pulp_server_port | int }}"
+        pulp_protocol: "{{ pulp_protocol }}"
+        cluster_os_type: "{{ cluster_os_type }}"
+        cluster_os_version: "{{ cluster_os_version }}"
+        output_path: "{{ output_file }}"
+        certs_dir: "{{ certs_dir }}"
+        local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
+      register: generate_result
+
+    - name: Display generation result
+      ansible.builtin.debug:
+        msg:
+          - "========== GENERATION COMPLETE =========="
+          - "Output file: {{ generate_result.output_file }}"
+          - "RPM repositories: {{ generate_result.rpm_repos_count }}"
+          - "File repositories: {{ generate_result.file_repos_count }}"
+          - "{{ generate_result.msg }}"
+          - "=========================================="

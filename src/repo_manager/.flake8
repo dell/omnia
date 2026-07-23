@@ -1,0 +1,49 @@
+# =============================================================================
+# Flake8 Configuration for Omnia repo_manager
+# =============================================================================
+# This configuration defines the style rules for Python code in repo_manager.
+#
+# Last updated: 2026-07-23
+# =============================================================================
+
+[flake8]
+# Maximum line length
+max-line-length = 160
+
+# Ignore the following rules:
+#
+# E265: block comment should start with '# '
+#   False positive for shebang lines after license headers (#!/usr/bin/python)
+#
+# E402: module level import not at top of file
+#   Intentional for conditional imports and imports after path setup
+#
+# W503: line break before binary operator
+#   Conflicts with W504; PEP 8 now recommends breaks before operators
+#
+# W504: line break after binary operator
+#   Acceptable style, not enforced
+#
+# E127, E128: continuation line indentation
+#   Many false positives with complex expressions; not enforced strictly
+#
+# E501: line too long
+#   Already handled by max-line-length setting
+#
+ignore = E265,E402,W503,W504,E127,E128,E501
+
+# Exclude directories
+exclude =
+    __pycache__,
+    .git,
+    output,
+    input_test,
+    .data,
+    *.pyc
+
+# Per-file ignores for specific patterns
+per-file-ignores =
+    # Ansible modules have imports after license headers
+    library/modules/*.py: E402
+    # Module utils may have conditional imports
+    library/module_utils/**/*.py: E402

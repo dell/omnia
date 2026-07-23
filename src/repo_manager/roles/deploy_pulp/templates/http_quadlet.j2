@@ -1,0 +1,25 @@
+[Unit]
+Description=Pulp http Quadlet Container
+[Container]
+Image={{ pulp_image }}
+Exec=/init
+ContainerName={{ pulp_container_name }}
+AddDevice={{ device_name }}
+HostName={{ pulp_container_name }}
+PodmanArgs=--privileged
+# Volumes
+{% for vol in volumes_http %}
+Volume={{ vol }}
+{% endfor %}
+
+# Environment
+Environment=PULP_HTTPS=false
+{% for env_arg in arg_list %}
+PodmanArgs={{ env_arg }}
+{% endfor %}
+# HTTPS Port mapping
+PublishPort={{ pulp_port }}
+[Service]
+Restart=always
+[Install]
+WantedBy=multi-user.target default.target

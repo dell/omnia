@@ -1,0 +1,128 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# PRE-FLIGHT CHECKS - Verify container and environment status before deployment
+# =============================================================================
+# This task file performs pre-deployment verification:
+#   1. Check if Pulp container exists and its status
+#   2. Verify Pulp image availability
+#   3. Check required directories
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CONTAINER STATUS CHECK
+# -----------------------------------------------------------------------------
+
+- name: Check if Pulp container exists
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: pulp_container_info
+  failed_when: false
+
+- name: Set container status facts
+  ansible.builtin.set_fact:
+    pulp_container_exists: "{{ pulp_container_info.containers | length > 0 }}"
+    pulp_container_running: >-
+      {{ (pulp_container_info.containers | length > 0) and
+         (pulp_container_info.containers[0].State.Status == 'running') }}
+    pulp_container_status: "{{ pulp_container_info.containers[0].State.Status | default('not_found') }}"
+
+- name: Display existing container status
+  ansible.builtin.debug:
+    msg:
+      - "========== PRE-FLIGHT CHECKS =========="
+      - "Container exists: {{ pulp_container_exists }}"
+      - "Container running: {{ pulp_container_running }}"
+      - "Container status: {{ pulp_container_status }}"
+      - "======================================="
+
+# -----------------------------------------------------------------------------
+# IMAGE AVAILABILITY CHECK
+# -----------------------------------------------------------------------------
+
+- name: Check if Pulp image exists locally
+  ansible.builtin.command:
+    cmd: "podman image exists {{ pulp_image }}"
+  register: image_exists_check
+  changed_when: false
+  failed_when: false
+
+- name: Set image status fact
+  ansible.builtin.set_fact:
+    pulp_image_available: "{{ image_exists_check.rc == 0 }}"
+
+- name: Display image status
+  ansible.builtin.debug:
+    msg: "Pulp image '{{ pulp_image }}' available locally: {{ pulp_image_available }}"
+
+# -----------------------------------------------------------------------------
+# DIRECTORY STATUS CHECK
+# -----------------------------------------------------------------------------
+
+- name: Check required directories exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ pulp_shared_path }}"
+    - "{{ pulp_logs_dir | default('/var/log/pulp') }}"
+  register: dir_checks
+  failed_when: false
+
+- name: Set directory status facts
+  ansible.builtin.set_fact:
+    pulp_directories_exist: >-
+      {{ dir_checks.results | map(attribute='stat.exists') | list |
+         select('equalto', true) | list | length == dir_checks.results | length }}
+
+- name: Display directory status
+  ansible.builtin.debug:
+    msg: "Directory '{{ item.item }}': {{ 'exists' if item.stat.exists else 'will be created' }}"
+  loop: "{{ dir_checks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# -----------------------------------------------------------------------------
+# SYSTEMD SERVICE CHECK
+# -----------------------------------------------------------------------------
+
+- name: Check if Pulp systemd service exists
+  ansible.builtin.stat:
+    path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+  register: quadlet_file_check
+
+- name: Set systemd service status
+  ansible.builtin.set_fact:
+    pulp_quadlet_exists: "{{ quadlet_file_check.stat.exists }}"
+
+- name: Display systemd service status
+  ansible.builtin.debug:
+    msg: "Pulp quadlet file exists: {{ pulp_quadlet_exists }}"
+
+# -----------------------------------------------------------------------------
+# PRE-FLIGHT SUMMARY
+# -----------------------------------------------------------------------------
+
+- name: Display pre-flight summary
+  ansible.builtin.debug:
+    msg:
+      - "========== PRE-FLIGHT SUMMARY =========="
+      - "Container exists: {{ pulp_container_exists }}"
+      - "Container running: {{ pulp_container_running }}"
+      - "Image available: {{ pulp_image_available }}"
+      - "Directories ready: {{ pulp_directories_exist }}"
+      - "Quadlet configured: {{ pulp_quadlet_exists }}"
+      - "========================================"
+      - ""
+      - "Deployment will {{ 'update existing' if pulp_container_exists else 'create new' }} container"

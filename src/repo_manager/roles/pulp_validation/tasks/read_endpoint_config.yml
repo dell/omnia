@@ -1,0 +1,84 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# READ REPO MANAGER ENDPOINT CONFIGURATION
+# =============================================================================
+# This task file reads the repo_manager_endpoint_config.yml and sets
+# Pulp endpoint variables for use by other playbooks.
+#
+# Variables Set:
+#   - pulp_server_ip: Pulp server IP address
+#   - pulp_server_port: Pulp server port
+#   - pulp_protocol: Protocol (https/http)
+#   - pulp_https_enabled: Whether HTTPS is enabled
+#   - ssl_certificates: SSL certificate paths
+#   - admin_nic_ip: Alias for pulp_server_ip (backward compatibility)
+#   - oim_admin_ip: Alias for pulp_server_ip (OIM SSH connection)
+# =============================================================================
+
+- name: Include repo_manager_endpoint_config.yml
+  block:
+    - name: Check if endpoint config file exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+      register: endpoint_config_file
+
+    - name: Fail if endpoint config file not found
+      ansible.builtin.fail:
+        msg: "{{ endpoint_config_file_not_found_msg }}"
+      when: not endpoint_config_file.stat.exists
+
+    - name: Include endpoint config file
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+        name: endpoint_config
+
+  rescue:
+    - name: Failed to include repo_manager_endpoint_config.yml
+      ansible.builtin.fail:
+        msg: "{{ endpoint_config_syntax_fail_msg }}"
+
+- name: Validate required fields in endpoint config
+  ansible.builtin.assert:
+    that:
+      - endpoint_config.pulp_server_ip is defined
+      - endpoint_config.pulp_server_ip | length > 0
+      - endpoint_config.pulp_server_port is defined
+      - endpoint_config.pulp_protocol is defined
+    fail_msg: "Required fields missing in repo_manager_endpoint_config.yml: pulp_server_ip, pulp_server_port, pulp_protocol"
+
+- name: Set Pulp endpoint variables from config
+  ansible.builtin.set_fact:
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip }}"
+    pulp_server_port: "{{ endpoint_config.pulp_server_port }}"
+    pulp_protocol: "{{ endpoint_config.pulp_protocol }}"
+    pulp_https_enabled: "{{ endpoint_config.pulp_https_enabled | default(true) }}"
+    ssl_certificates: "{{ endpoint_config.ssl_certificates | default({}) }}"
+    cacheable: true
+
+- name: Set backward compatibility variables
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ endpoint_config.pulp_server_ip }}"
+    oim_admin_ip: "{{ endpoint_config.pulp_server_ip }}"
+    cacheable: true
+
+- name: Display endpoint configuration
+  ansible.builtin.debug:
+    msg:
+      - "Pulp Server IP: {{ pulp_server_ip }}"
+      - "Pulp Server Port: {{ pulp_server_port }}"
+      - "Pulp Protocol: {{ pulp_protocol }}"
+      - "HTTPS Enabled: {{ pulp_https_enabled }}"
+    verbosity: 1
