@@ -22,7 +22,7 @@
 # =============================================================================
 
 # Pulp server IP address (also used for OIM SSH connection)
-pulp_server_ip: "168.10.0.10"
+pulp_server_ip: "172.16.107.254"
 
 # Pulp server port
 pulp_server_port: 2225
