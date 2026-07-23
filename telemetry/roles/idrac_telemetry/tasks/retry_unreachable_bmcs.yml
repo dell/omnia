@@ -69,3 +69,10 @@
     idrac_unreachable: "{{ retry_bmc_result.unreachable_bmc | default([]) }}"
     idrac_invalid_creds: "{{ (idrac_invalid_creds | default([])) + (retry_bmc_result.invalid_creds | default([])) }}"
     idrac_redfish_disabled: "{{ (idrac_redfish_disabled | default([])) + (retry_bmc_result.redfish_disabled | default([])) }}"
+
+- name: Recalculate invalid_idrac_count and invalid_idrac_list after retry
+  ansible.builtin.set_fact:
+    invalid_idrac_count: >-
+      {{ (idrac_invalid_creds | default([]) | length) + (idrac_unreachable | default([]) | length) + (idrac_redfish_disabled | default([]) | length) }}
+    invalid_idrac_list: >-
+      {{ (idrac_invalid_creds | default([])) + (idrac_unreachable | default([])) + (idrac_redfish_disabled | default([])) }}
