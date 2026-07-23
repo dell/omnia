@@ -645,27 +645,30 @@ cleanup_config(){
     echo -e "${BLUE} Removing Omnia core configuration.${NC}"
     rm -rf $omnia_path/omnia/{hosts,input,log,pulp,provision,pcs,ssh_config,tmp,.data}
 
-    # Remove any stale mount or fstab entry for omnia_path during uninstall.
+    # Remove any stale NFS mount or fstab entry for omnia_path during uninstall.
+    # Only external NFS shares are mounted by Omnia; local/internal paths are not mounted.
     if [ -n "$omnia_path" ]; then
-        echo -e "${BLUE} Checking for existing mount at $omnia_path.${NC}"
+        omnia_path_trimmed="${omnia_path%/}"
+        echo -e "${BLUE} Checking for existing NFS mount at $omnia_path.${NC}"
         if mountpoint -q "$omnia_path" 2>/dev/null; then
-            if umount "$omnia_path" 2>/dev/null || umount -l "$omnia_path" 2>/dev/null; then
-                echo -e "${GREEN} Omnia shared path has been unmounted.${NC}"
-            else
-                echo -e "${RED} Failed to unmount Omnia shared path at $omnia_path.${NC}"
+            if awk -v mp="$omnia_path_trimmed" '$2 == mp && ($3 == "nfs" || $3 == "nfs4") {found=1} END {exit !found}' /proc/mounts; then
+                if umount "$omnia_path" 2>/dev/null || umount -l "$omnia_path" 2>/dev/null; then
+                    echo -e "${GREEN} Omnia shared path has been unmounted.${NC}"
+                else
+                    echo -e "${RED} Failed to unmount Omnia shared path at $omnia_path.${NC}"
+                fi
             fi
         fi
 
-        # Remove the entry from /etc/fstab
+        # Remove the NFS entry from /etc/fstab
         fstab_file="/etc/fstab"
         if [ -f "$fstab_file" ]; then
-            omnia_path_trimmed="${omnia_path%/}"
-            if awk -v mp="$omnia_path_trimmed" '$2 == mp {found=1} END {exit !found}' "$fstab_file"; then
+            if awk -v mp="$omnia_path_trimmed" '$2 == mp && ($3 == "nfs" || $3 == "nfs4") {found=1} END {exit !found}' "$fstab_file"; then
                 echo -e "${YELLOW} Removing stale /etc/fstab entry for $omnia_path.${NC}"
                 if [ ! -f "$fstab_file.bak" ]; then
                     cp "$fstab_file" "$fstab_file.bak"
                 fi
-                awk -v mp="$omnia_path_trimmed" '$2 != mp' "$fstab_file" > "${fstab_file}.tmp" && mv "${fstab_file}.tmp" "$fstab_file"
+                awk -v mp="$omnia_path_trimmed" '$2 == mp && ($3 == "nfs" || $3 == "nfs4") {next} {print}' "$fstab_file" > "${fstab_file}.tmp" && mv "${fstab_file}.tmp" "$fstab_file"
             fi
         fi
     fi
@@ -856,25 +859,27 @@ init_container_config() {
         echo -e "${BLUE} Creating omnia shared path directory if it does not exist.${NC}"
         mkdir -p $omnia_path
 
-        # Remove any stale mount or fstab entry for omnia_path before reuse
-        echo -e "${BLUE} Checking for existing mount at $omnia_path.${NC}"
+        # Remove any stale NFS mount or fstab entry for omnia_path before reuse
+        omnia_path_trimmed="${omnia_path%/}"
+        echo -e "${BLUE} Checking for existing NFS mount at $omnia_path.${NC}"
         if mountpoint -q "$omnia_path" 2>/dev/null; then
-            echo -e "${YELLOW} Existing mount found at $omnia_path. Unmounting before reuse.${NC}"
-            if ! umount "$omnia_path" 2>/dev/null && ! umount -l "$omnia_path" 2>/dev/null; then
-                echo -e "${RED} Failed to unmount existing share at $omnia_path. Please unmount manually and retry.${NC}"
-                exit 1
+            if awk -v mp="$omnia_path_trimmed" '$2 == mp && ($3 == "nfs" || $3 == "nfs4") {found=1} END {exit !found}' /proc/mounts; then
+                echo -e "${YELLOW} Existing NFS mount found at $omnia_path. Unmounting before reuse.${NC}"
+                if ! umount "$omnia_path" 2>/dev/null && ! umount -l "$omnia_path" 2>/dev/null; then
+                    echo -e "${RED} Failed to unmount existing share at $omnia_path. Please unmount manually and retry.${NC}"
+                    exit 1
+                fi
             fi
         fi
 
         fstab_file="/etc/fstab"
         if [ -f "$fstab_file" ]; then
-            omnia_path_trimmed="${omnia_path%/}"
-            if awk -v mp="$omnia_path_trimmed" '$2 == mp {found=1} END {exit !found}' "$fstab_file"; then
+            if awk -v mp="$omnia_path_trimmed" '$2 == mp && ($3 == "nfs" || $3 == "nfs4") {found=1} END {exit !found}' "$fstab_file"; then
                 echo -e "${YELLOW} Removing stale /etc/fstab entry for $omnia_path.${NC}"
                 if [ ! -f "$fstab_file.bak" ]; then
                     cp "$fstab_file" "$fstab_file.bak"
                 fi
-                awk -v mp="$omnia_path_trimmed" '$2 != mp' "$fstab_file" > "${fstab_file}.tmp" && mv "${fstab_file}.tmp" "$fstab_file"
+                awk -v mp="$omnia_path_trimmed" '$2 == mp && ($3 == "nfs" || $3 == "nfs4") {next} {print}' "$fstab_file" > "${fstab_file}.tmp" && mv "${fstab_file}.tmp" "$fstab_file"
             fi
         fi
 
