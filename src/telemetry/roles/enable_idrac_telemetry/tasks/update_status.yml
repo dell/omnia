@@ -17,6 +17,12 @@
 # Update telemetry_status.yml with iDRAC deployment result
 # =============================================================================
 
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ telemetry_output_dir }}"
+    state: directory
+    mode: "0755"
+
 - name: Load existing telemetry status
   ansible.builtin.include_vars:
     file: "{{ telemetry_status_file }}"

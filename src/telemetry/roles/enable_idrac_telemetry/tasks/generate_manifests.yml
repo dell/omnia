@@ -19,6 +19,13 @@
 # Uses local templates in this role.
 # Renders: activemq-config.yaml, idrac_telemetry_statefulset.yaml
 
+- name: Ensure telemetry credentials are available
+  ansible.builtin.set_fact:
+    telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+  when:
+    - hostvars['localhost']['telemetry_credentials'] is defined
+  no_log: true
+
 - name: Create telemetry deployments directory
   ansible.builtin.file:
     path: "{{ telemetry_deployments_dir }}"

@@ -101,6 +101,15 @@
   register: user_apply
   changed_when: "'created' in user_apply.stdout or 'configured' in user_apply.stdout"
 
+- name: Wait for kafkapump secret to be created
+  ansible.builtin.command: >
+    kubectl get secret kafkapump -n {{ telemetry_namespace }}
+  register: kafkapump_secret
+  retries: 30
+  delay: 2
+  until: kafkapump_secret.rc == 0
+  changed_when: false
+
 - name: Apply Kafka bridge manifests
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}

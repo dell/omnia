@@ -36,6 +36,13 @@
     group: root
     mode: "{{ file_permissions_644 }}"
 
+- name: Ensure ldms_sampler_password is available
+  ansible.builtin.set_fact:
+    ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+  when:
+    - hostvars['localhost']['ldms_sampler_password'] is defined
+  no_log: true
+
 - name: Render LDMS authentication configuration
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/ldmsauth.conf.j2"
