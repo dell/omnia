@@ -1,0 +1,10 @@
+# Backend dependencies for the OMNIA GUI module
+
+# Web framework
+fastapi>=0.109.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+starlette>=0.27.0
+
+# Config/data handling
+pyyaml>=6.0.1
