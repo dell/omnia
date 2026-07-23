@@ -82,9 +82,16 @@
   register: kafka_apply
   changed_when: "'created' in kafka_apply.stdout or 'configured' in kafka_apply.stdout"
 
-- name: Apply Kafka topic manifest
+- name: Find generated Kafka topic manifests
+  ansible.builtin.find:
+    paths: "{{ telemetry_deployments_dir }}"
+    patterns: "kafka.*.topic.yaml"
+  register: topic_files
+
+- name: Apply Kafka topic manifests
   ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.topic.yaml
+    kubectl apply -f {{ item.path }}
+  loop: "{{ topic_files.files }}"
   register: topic_apply
   changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
 

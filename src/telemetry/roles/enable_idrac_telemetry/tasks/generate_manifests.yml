@@ -27,13 +27,13 @@
 
 - name: Render ActiveMQ ConfigMap
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/idrac_telemetry/activemq-config.yaml.j2"
+    src: "{{ role_path }}/templates/activemq-config.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/activemq-config.yaml"
     mode: "0644"
 
 - name: Render iDRAC telemetry StatefulSet
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2"
+    src: "{{ role_path }}/templates/idrac_telemetry_statefulset.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/idrac_telemetry_statefulset.yaml"
     mode: "0644"
 

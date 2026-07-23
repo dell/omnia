@@ -66,11 +66,22 @@
     dest: "{{ telemetry_deployments_dir }}/kafka.kafka.yaml"
     mode: '0644'
 
-- name: Generate Kafka topic manifest
+- name: Generate Kafka topic manifests for idrac and ldms
   ansible.builtin.template:
     src: kafka.topic.yaml.j2
-    dest: "{{ telemetry_deployments_dir }}/kafka.topic.yaml"
+    dest: "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
     mode: '0644'
+  vars:
+    topic_name: "{{ item }}"
+    topic_key: "{{ item }}"
+  loop:
+    - idrac
+    - ldms
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - item in telemetry_config.telemetry_sources
+    - telemetry_config.telemetry_sources[item].metrics_enabled | default(false) | bool
 
 - name: Generate Kafka user manifest
   ansible.builtin.template:

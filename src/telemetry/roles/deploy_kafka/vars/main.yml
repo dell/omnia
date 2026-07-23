@@ -21,11 +21,31 @@ telemetry_namespace: "telemetry"
 # Variables from localhost (set when role runs on kube_vip_group)
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
+telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
 telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# Kafka configuration from telemetry_config.yml (read from localhost)
+kafka_log_retention_hours: "{{ hostvars['localhost']['telemetry_config'].telemetry_sinks.kafka.log_retention_hours }}"
+kafka_log_segment_bytes: "{{ hostvars['localhost']['telemetry_config'].telemetry_sinks.kafka.log_segment_bytes }}"
+kafka_log_retention_bytes: "{{ hostvars['localhost']['telemetry_config'].telemetry_sinks.kafka.log_retention_bytes }}"
+kafka_topic_partitions: "{{ hostvars['localhost']['telemetry_config'].telemetry_sinks.kafka.topic_partitions }}"
+
+# Kafka topic names (FIXED - cannot be changed)
+kafka:
+  topics:
+    idrac:
+      name: "idrac"
+      consumer_group: "idrac-consumer-group"
+    ldms:
+      name: "ldms"
+      consumer_group: "ldms-consumer-group"
+
+# Kafka storage configuration from telemetry_storage_config.yml (read from localhost)
+kafka_storage: "{{ hostvars['localhost']['telemetry_storage_config'].kafka_storage }}"
 
 # Timeouts
 kafka_deploy_timeout: "600s"

@@ -40,7 +40,6 @@
   ansible.builtin.include_vars:
     file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry/telemetry_storage_config.yml') }}"
     name: telemetry_storage_config
-  failed_when: false
 
 - name: Load telemetry packages configuration
   ansible.builtin.include_vars:
