@@ -3,10 +3,11 @@
 # Deployed via NFS share for all nodes
 # Reads container images from container_image.list file and downloads them as SIF files
 # Downloads from Pulp mirror only (no internet fallback)
-# Usage: download_container_image.sh <tmp_dir>
+# Usage: download_container_image.sh
 
 LOGFILE="/var/log/container_image_download.log"
 exec > >(tee -a "$LOGFILE") 2>&1
+set -o pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,23 +15,10 @@ CONTAINER_IMAGE_LIST="${SCRIPT_DIR}/container_image.list"
 DOWNLOAD_DIR="/hpc_tools/container_images"
 PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
 
-# Temporary/work directory for Apptainer pull (user input)
-# Accepts first positional argument or TMP_DIR environment variable
-TMP_DIR="${1:-${TMP_DIR:-}}"
-
-if [ -z "$TMP_DIR" ]; then
-    echo "[ERROR] tmp_dir is required."
-    echo "[INFO] Usage: $0 <tmp_dir>"
-    echo "[INFO] Example: $0 /tmp/apptainer_tmp"
-    exit 1
-fi
-
-# Basic sanitization: only allow absolute paths with safe characters
-if [[ "$TMP_DIR" =~ [^/A-Za-z0-9_.-] ]]; then
-    echo "[ERROR] Invalid tmp_dir: $TMP_DIR"
-    echo "[INFO] Path must be absolute and contain only letters, digits, '_', '.', '-', or '/'"
-    exit 1
-fi
+# Temporary/work directory for Apptainer pull
+# By default, use the same location as DOWNLOAD_DIR
+# Edit this value if Apptainer temp files need to go elsewhere
+TMP_DIR="/hpc_tools/container_images"
 
 echo "===== Starting Container Image Download Script (Pulp Only) ====="
 echo "[INFO] Timestamp: $(date)"
