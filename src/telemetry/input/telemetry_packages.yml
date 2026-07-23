@@ -1,0 +1,73 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================================
+# TELEMETRY REGISTRY CONFIGURATION
+# ============================================================================
+# Container registry for telemetry images.
+# If telemetry uses a different registry than the cluster-wide configuration,
+# specify it here. Otherwise, leave empty to use cluster-wide registry.
+#
+# Fields:
+#   host       : Registry IP and port in format "IP:port"
+#   cert_path  : Path to SSL certificate file (.crt) - Required only if HTTPS
+#   key_path   : Path to SSL private key file (.key) - Required only if HTTPS
+#   username   : Registry username (if authentication required)
+
+telemetry_registry:
+  host: ""
+  cert_path: ""
+  key_path: ""
+  username: ""
+
+# ============================================================================
+# TELEMETRY PACKAGES (Full Pulp / HTTP URLs)
+# ============================================================================
+# Full download URLs for telemetry Helm chart tarballs and pip modules.
+# These URLs are used to download packages to the cluster_mount NFS share.
+# Container images are pulled separately from telemetry_registry above.
+#
+# Provide complete URL including the .tar.gz filename.
+#
+# Example:
+#   http://<admin_nic_ip>:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-1.0.1/strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz
+
+telemetry_packages:
+  # Helm chart tarballs (required for operator deployment)
+  strimzi_kafka_operator: ""
+  victoria_metrics_operator: ""
+
+  # Python pip modules (if any telemetry components need them)
+  cryptography: ""
+  omsdk: ""
+  cffi: ""
+  prometheus_client: ""
+  kubernetes: ""
+
+  # Cert-manager (ONLY if you use it for Kafka TLS)
+  cert_manager_tarball: ""
+
+# ============================================================================
+# TELEMETRY PACKAGES MOUNT CONFIGURATION
+# ============================================================================
+# Local mount point path where on kubernetes clsuter.
+# This should be an already-mounted NFS share.
+# A 'telemetry' subdirectory will be created here for package storage.
+#
+# Example: /opt/omnia/k8s_mount (existing NFS mount from storage_config.yml)
+#
+# Packages will be stored at: <cluster_mount>/telemetry/<package_name>
+# For example: /opt/omnia/nfs/telemetry/strimzi-kafka-operator-1.0.1.tar.gz
+
+cluster_mount: ""

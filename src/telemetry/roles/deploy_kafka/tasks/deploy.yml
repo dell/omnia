@@ -1,0 +1,104 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_kafka — Deploy: install operator + apply manifests
+# =============================================================================
+
+- name: Ensure telemetry namespace exists
+  ansible.builtin.command: >
+    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
+  register: ns_yaml
+  changed_when: false
+
+- name: Apply telemetry namespace
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: "{{ ns_yaml.stdout }}"
+  changed_when: "'created' in ns_result.stdout | default('')"
+  register: ns_result
+
+- name: Check if Strimzi operator is installed
+  ansible.builtin.command: >
+    helm status strimzi-cluster-operator -n {{ telemetry_namespace }}
+  register: strimzi_status
+  changed_when: false
+  failed_when: false
+
+- name: Install Strimzi Kafka operator
+  ansible.builtin.command: >
+    helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
+    {{ strimzi_kafka_pkg }}
+  when: strimzi_status.rc != 0
+
+- name: Upgrade Strimzi Kafka operator
+  ansible.builtin.command: >
+    helm -n {{ telemetry_namespace }} upgrade strimzi-cluster-operator
+    {{ strimzi_kafka_pkg }}
+  when: strimzi_status.rc == 0
+
+- name: Apply Strimzi CRDs from chart
+  ansible.builtin.shell: |
+    _TMP=$(mktemp -d)
+    tar -xzf "{{ strimzi_kafka_pkg }}" -C "$_TMP"
+    kubectl apply -f "$_TMP/strimzi-kafka-operator/crds/" --server-side --force-conflicts
+    rm -rf "$_TMP"
+  changed_when: false
+
+- name: Wait for Strimzi operator deployment
+  ansible.builtin.command: >
+    kubectl wait --for=condition=available --timeout=300s
+    deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
+  changed_when: false
+
+- name: Wait for Strimzi CRDs
+  ansible.builtin.command: kubectl get crd {{ item }}
+  loop:
+    - kafkas.kafka.strimzi.io
+    - kafkatopics.kafka.strimzi.io
+    - kafkausers.kafka.strimzi.io
+    - kafkanodepools.kafka.strimzi.io
+  register: crd_check
+  retries: "{{ kafka_crd_wait_retries }}"
+  delay: "{{ kafka_crd_wait_delay }}"
+  until: crd_check.rc == 0
+  changed_when: false
+
+- name: Apply Kafka cluster manifest
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafka.yaml
+  register: kafka_apply
+  changed_when: "'created' in kafka_apply.stdout or 'configured' in kafka_apply.stdout"
+
+- name: Apply Kafka topic manifest
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.topic.yaml
+  register: topic_apply
+  changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
+
+- name: Apply Kafka user manifest
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml
+  register: user_apply
+  changed_when: "'created' in user_apply.stdout or 'configured' in user_apply.stdout"
+
+- name: Apply Kafka bridge manifests
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
+  loop:
+    - kafka.kafka_bridge.yaml
+    - kafka.kafka_bridge_lb.yaml
+  register: bridge_apply
+  changed_when: "'created' in (bridge_apply.stdout | default('')) or 'configured' in (bridge_apply.stdout | default(''))"

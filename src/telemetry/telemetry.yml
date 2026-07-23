@@ -17,7 +17,14 @@
 # Telemetry Stack Deployment Entry Point
 # =============================================================================
 # Usage:
-#   ansible-playbook telemetry.yml                    # Deploy all enabled telemetry
+#   ansible-playbook telemetry.yml   --tags <tag_name>
+#                 # <tag_name> can be precheck, validation, cleanup, deploy, upgrade, roolback
+#                 # precheck environment for telemetry - precheck
+#                 # input validation of telemetry configuration - validation
+#                 # cleanup telemetry - cleanup
+#                 # Deploy all enabled/disabled telemetry based on tag - deploy
+#                 # upgrade telemetry - upgrade
+#                 # rollback telemetry - roolback
 #
 # Configuration is read from telemetry/input/telemetry_config.yml:
 #   - kube_vip: K8s control plane VIP (required)
@@ -31,34 +38,19 @@
 # Play 1: Bootstrap — load telemetry config, derive flags, resolve kube_vip
 - name: "Telemetry bootstrap: load config and resolve kube_vip target"
   hosts: localhost
-  connection: local
+  connection: ssh
   gather_facts: true
   any_errors_fatal: true
   tasks:
-    - name: Set input_project_dir default
-      ansible.builtin.set_fact:
-        input_project_dir: "{{ input_project_dir | default(playbook_dir + '/input') }}"
-
     - name: Load telemetry configuration
-      ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/telemetry/telemetry_config.yml"
-        name: telemetry_config
-
-    - name: Load telemetry storage configuration
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/telemetry/telemetry_storage_config.yml"
-        name: telemetry_storage_config
-      failed_when: false
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
 
     - name: Derive sink support flags
       ansible.builtin.include_role:
         name: common
         tasks_from: derive_sink_support_flags
-
-    - name: Set kube_vip from telemetry_config
-      ansible.builtin.set_fact:
-        kube_vip: "{{ telemetry_config.kube_vip }}"
-      when: telemetry_config.kube_vip is defined
 
     - name: Set bmc_group_data_path from idrac_telemetry_configurations (for iDRAC)
       ansible.builtin.set_fact:
@@ -94,10 +86,17 @@
         name: deploy_kafka
       when: hostvars['localhost']['kafka_support'] | default(false) | bool
 
-    - name: Deploy VictoriaMetrics (shared infrastructure)
+    - name: Deploy VictoriaMetrics (shared metrics infrastructure)
       ansible.builtin.include_role:
         name: deploy_victoria
+        tasks_from: metrics/tasks/main
       when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Deploy VictoriaLogs (shared logs infrastructure)
+      ansible.builtin.include_role:
+        name: deploy_victoria
+        tasks_from: logs/tasks/main
+      when: hostvars['localhost']['victoria_logs_support'] | default(false) | bool
 
     - name: Enable or Disable iDRAC Telemetry
       block:

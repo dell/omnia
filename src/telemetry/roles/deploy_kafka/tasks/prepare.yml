@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_kafka — Prepare: download Strimzi package + generate manifests
+# =============================================================================
+
+- name: Create telemetry directories on kube_vip
+  block:
+    - name: Create telemetry subdirectory
+      ansible.builtin.file:
+        path: "{{ cluster_mount }}/telemetry"
+        state: directory
+        mode: '0755'
+
+    - name: Create deployments directory
+      ansible.builtin.file:
+        path: "{{ telemetry_deployments_dir }}"
+        state: directory
+        mode: '0755'
+  delegate_to: "{{ kube_vip }}"
+  when: cluster_mount | default('') != ''
+
+- name: Download Strimzi Kafka operator package
+  when:
+    - cluster_mount | default('') != ''
+    - telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | default('') != ''
+  block:
+    - name: Check if Strimzi Kafka operator tarball exists
+      ansible.builtin.stat:
+        path: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+      register: strimzi_tarball_stat
+
+    - name: Download Strimzi Kafka operator tarball
+      ansible.builtin.get_url:
+        url: "{{ telemetry_packages_config.telemetry_packages.strimzi_kafka_operator }}"
+        dest: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+        mode: '0644'
+        timeout: 300
+      when: not (strimzi_tarball_stat.stat.exists | default(false))
+      register: strimzi_download
+      failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  run_once: true
+
+- name: Set strimzi_kafka_pkg path
+  ansible.builtin.set_fact:
+    strimzi_kafka_pkg: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+  when:
+    - cluster_mount | default('') != ''
+    - telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | default('') != ''
+
+- name: Generate Kafka cluster manifest
+  ansible.builtin.template:
+    src: kafka.kafka.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/kafka.kafka.yaml"
+    mode: '0644'
+
+- name: Generate Kafka topic manifest
+  ansible.builtin.template:
+    src: kafka.topic.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/kafka.topic.yaml"
+    mode: '0644'
+
+- name: Generate Kafka user manifest
+  ansible.builtin.template:
+    src: kafka.kafkapump_user.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml"
+    mode: '0644'
+
+- name: Generate Kafka bridge manifest
+  ansible.builtin.template:
+    src: kafka.kafka_bridge.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/kafka.kafka_bridge.yaml"
+    mode: '0644'
+
+- name: Generate Kafka bridge load balancer manifest
+  ansible.builtin.template:
+    src: kafka.kafka_bridge_lb.yaml.j2
+    dest: "{{ telemetry_deployments_dir }}/kafka.kafka_bridge_lb.yaml"
+    mode: '0644'

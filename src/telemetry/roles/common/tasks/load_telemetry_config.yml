@@ -16,16 +16,40 @@
 # =============================================================================
 # Common task: Load telemetry configuration files
 # =============================================================================
-# Loads telemetry_config.yml and telemetry_storage_config.yml
-# Used by: enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Loads telemetry_config.yml, telemetry_storage_config.yml, and telemetry_packages.yml
+# Sets kube_vip, telemetry_registry, and cluster_mount variables
+# Used by: telemetry.yml, enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.include_role:
+    name: ../../playbooks/utils/roles/include_input_dir
 
 - name: Load telemetry configuration
   ansible.builtin.include_vars:
-    file: "{{ telemetry_config_file }}"
+    file: "{{ telemetry_config_file | default(input_project_dir + '/telemetry/telemetry_config.yml') }}"
     name: telemetry_config
+
+- name: Set kube_vip from telemetry_config
+  ansible.builtin.set_fact:
+    kube_vip: "{{ telemetry_config.kube_vip }}"
+  when: telemetry_config.kube_vip is defined
 
 - name: Load telemetry storage configuration
   ansible.builtin.include_vars:
-    file: "{{ telemetry_storage_config_file }}"
+    file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry/telemetry_storage_config.yml') }}"
     name: telemetry_storage_config
   failed_when: false
+
+- name: Load telemetry packages configuration
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_packages_file | default(input_project_dir + '/telemetry/telemetry_packages.yml') }}"
+    name: telemetry_packages_config
+  failed_when: false
+
+- name: Set telemetry config variables from telemetry_packages_config
+  ansible.builtin.set_fact:
+    telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
+    cluster_mount: "{{ telemetry_packages_config.cluster_mount | default('') }}"
+  when: telemetry_packages_config is defined

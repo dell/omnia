@@ -1,0 +1,67 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_victoria/logs — VictoriaLogs CRs (VLCluster + VLAgent)
+# =============================================================================
+# Deploys VictoriaLogs CRs into telemetry namespace.
+# Requires victoria-metrics-operator already installed (by deploy_victoria/metrics).
+# Idempotent: skips if already deployed.
+#
+# Consumed by: enable_powerscale (logs), enable_ufm (logs), etc.
+# Condition: victoria_logs_support == true
+#
+# Flow: prepare (generate manifests) → deploy (apply CRs)
+# =============================================================================
+
+- name: Prepare VictoriaLogs manifests
+  ansible.builtin.include_tasks: ../../logs/tasks/prepare.yml
+
+- name: Check if VLCluster is already deployed
+  ansible.builtin.command: >
+    kubectl get vlcluster -n {{ telemetry_namespace }} -o name
+  register: vlcluster_existing
+  changed_when: false
+  failed_when: false
+
+- name: Skip VictoriaLogs deployment if already running
+  ansible.builtin.debug:
+    msg: "VictoriaLogs already deployed in {{ telemetry_namespace }}: {{ vlcluster_existing.stdout }}"
+  when: vlcluster_existing.rc == 0 and vlcluster_existing.stdout | length > 0
+
+- name: Deploy VictoriaLogs
+  when: vlcluster_existing.rc != 0 or vlcluster_existing.stdout | default('') | length == 0
+  block:
+    - name: Run VictoriaLogs deployment
+      ansible.builtin.include_tasks: ../../logs/tasks/deploy.yml
+
+- name: Verify VLCluster is ready
+  ansible.builtin.command: >
+    kubectl get vlcluster -n {{ telemetry_namespace }} -o name
+  register: vlcluster_status
+  changed_when: false
+  failed_when: false
+  retries: 30
+  delay: 10
+  until: vlcluster_status.rc == 0 and vlcluster_status.stdout | length > 0
+
+- name: Set victoria_logs_deployed fact
+  ansible.builtin.set_fact:
+    victoria_logs_deployed: "{{ vlcluster_status.rc | default(1) == 0 }}"
+    cacheable: true
+
+- name: Log VictoriaLogs deployment result
+  ansible.builtin.debug:
+    msg: "VictoriaLogs deployment: {{ 'READY' if victoria_logs_deployed else 'PENDING (cluster may still be initializing)' }}"
