@@ -17,7 +17,7 @@
 # deploy_kafka — Prepare: download Strimzi package + generate manifests
 # =============================================================================
 
-- name: Create telemetry directories on kube_vip
+- name: Create telemetry directories
   block:
     - name: Create telemetry subdirectory
       ansible.builtin.file:
@@ -30,7 +30,6 @@
         path: "{{ telemetry_deployments_dir }}"
         state: directory
         mode: '0755'
-  delegate_to: "{{ kube_vip }}"
   when: cluster_mount | default('') != ''
 
 - name: Download Strimzi Kafka operator package
@@ -52,7 +51,6 @@
       when: not (strimzi_tarball_stat.stat.exists | default(false))
       register: strimzi_download
       failed_when: false
-  delegate_to: "{{ kube_vip }}"
   run_once: true
 
 - name: Set strimzi_kafka_pkg path

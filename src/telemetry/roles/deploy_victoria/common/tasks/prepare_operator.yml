@@ -18,7 +18,7 @@
 # =============================================================================
 # Shared by both metrics and logs deployments
 
-- name: Create telemetry directories on kube_vip
+- name: Create telemetry directories
   block:
     - name: Create telemetry subdirectory
       ansible.builtin.file:
@@ -31,7 +31,6 @@
         path: "{{ telemetry_deployments_dir }}"
         state: directory
         mode: '0755'
-  delegate_to: "{{ kube_vip }}"
   when: cluster_mount | default('') != ''
 
 - name: Download VictoriaMetrics operator package
@@ -53,7 +52,6 @@
       when: not (victoria_tarball_stat.stat.exists | default(false))
       register: victoria_download
       failed_when: false
-  delegate_to: "{{ kube_vip }}"
   run_once: true
 
 - name: Set victoria_operator_pkg path

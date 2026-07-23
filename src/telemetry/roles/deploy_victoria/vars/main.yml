@@ -18,11 +18,13 @@
 
 telemetry_namespace: "telemetry"
 
-# Resolve from playbook_dir
-telemetry_repo_root: "{{ playbook_dir }}/.."
+# Variables from localhost (set when role runs on kube_vip_group)
+telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
+cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
-telemetry_deploy_dir: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry"
+telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # Timeouts
