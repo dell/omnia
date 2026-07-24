@@ -15,79 +15,63 @@
 # limitations under the License.
 
 # =============================================================================
-# build_images.sh — OIM Core Container Build (Self-Contained)
+# build_images.sh — Orchestrator Container Build (Self-Contained)
 # =============================================================================
-# Builds the omnia_core container.
+# Builds the omnia_auth container (OpenLDAP authentication service).
 #
 # Usage:
 #   ./build_images.sh                                        # Build (default)
-#   ./build_images.sh core_tag=2.3                            # Custom tag
+#   ./build_images.sh auth_tag=1.2                            # Custom tag
 #   ./build_images.sh build_tool=docker                       # Use docker
 #   ./build_images.sh build_tool=docker build_action=push     # Push to registry
-#
-# Other domain containers have their own build scripts:
-#   Telemetry:      src/telemetry/containers/build_images.sh
-#   BuildStream:    src/build_stream/containers/build_images.sh
-#   Image Builder:  src/image_build_manager/containers/build_images.sh
-#   Orchestrator:   src/orchestrator/containers/build_images.sh
+#   ./build_images.sh registry=myregistry.io/myrepo           # Custom registry
 #
 # Parameters:
+#   auth_tag=<tag>             Image tag (default: 1.1)
 #   build_tool=<tool>          podman | docker (default: podman)
 #   build_action=<action>      load | push (default: load)
 #   registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)
-#   core_tag=<tag>             omnia_core tag (default: 2.2)
 # =============================================================================
 
 set -euo pipefail
 
 # ── Resolve paths ──
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # ── Color codes ──
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[34m'
 YELLOW='\033[1;33m'
-MAGENTA='\033[0;35m'
 NC='\033[0m'
-
-# ── Build status tracking ──
-SUCCESSFUL_BUILDS=()
-FAILED_BUILDS=()
 
 # =============================================================================
 # Show help
 # =============================================================================
 show_help() {
-    echo -e "${GREEN}OIM Core Container Build Script${NC}"
+    echo -e "${GREEN}Orchestrator Container Build Script${NC}"
     echo -e "${GREEN}======================================${NC}"
     echo ""
     echo -e "${BLUE}USAGE:${NC}"
     echo "  ./build_images.sh [parameters]"
     echo ""
-    echo -e "${BLUE}OTHER DOMAIN CONTAINERS:${NC}"
-    echo "  Telemetry:      src/telemetry/containers/build_images.sh"
-    echo "  BuildStream:    src/build_stream/containers/build_images.sh"
-    echo "  Image Builder:  src/image_build_manager/containers/build_images.sh"
-    echo "  Orchestrator:   src/orchestrator/containers/build_images.sh"
-    echo ""
     echo -e "${BLUE}PARAMETERS (key=value format):${NC}"
+    echo "  auth_tag=<tag>             Image tag (default: 1.1)"
     echo "  build_tool=<tool>          podman | docker (default: podman)"
     echo "  build_action=<action>      load | push (default: load)"
     echo "  registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)"
-    echo "  core_tag=<tag>             omnia_core tag (default: 2.2)"
     echo ""
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
-    echo "  ./build_images.sh core_tag=2.3"
+    echo "  ./build_images.sh auth_tag=1.2"
     echo "  ./build_images.sh build_tool=docker"
     echo "  ./build_images.sh build_tool=docker build_action=push"
+    echo "  ./build_images.sh registry=myregistry.io/myrepo"
     echo ""
     echo -e "${BLUE}NOTES:${NC}"
     echo "  - build_action=push requires build_tool=docker"
     echo "  - Default registry: docker.io/dellhpcomniaaisolution"
-    echo "  - After build, run: ./omnia.sh --install"
+    echo "  - Builds the omnia_auth container (OpenLDAP)"
     exit 0
 }
 
@@ -97,8 +81,7 @@ show_help() {
 BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
-
-CORE_TAG="2.2"
+AUTH_TAG="1.1"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
@@ -108,13 +91,13 @@ for arg in "$@"; do
         build_tool=*)      BUILD_TOOL="${arg#*=}" ;;
         build_action=*)    BUILD_ACTION="${arg#*=}" ;;
         registry=*)        OMNIA_DOCKER_REGISTERY="${arg#*=}" ;;
-        core_tag=*)        CORE_TAG="${arg#*=}" ;;
+        auth_tag=*)        AUTH_TAG="${arg#*=}" ;;
         -h|--help)
             show_help
             ;;
         *)
             echo -e "${RED}Error: Unknown parameter '$arg'${NC}"
-            echo -e "${YELLOW}Valid: build_tool, build_action, registry, core_tag${NC}"
+            echo -e "${YELLOW}Valid: auth_tag, build_tool, build_action, registry${NC}"
             exit 1
             ;;
     esac
@@ -139,89 +122,47 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
 fi
 
 # =============================================================================
-# Container build function (self-contained)
-# =============================================================================
-container_build() {
-    local image_name="$1"
-    local image_tag="$2"
-    local build_dir="$3"
-    local containerfile="$4"
-    local extra_args="${5:-}"
-    local platform="${6:-linux/amd64}"
-
-    cd "$build_dir" || exit 1
-
-    local BUILD_RESULT
-
-    if [ "$BUILD_TOOL" = "podman" ]; then
-        # shellcheck disable=SC2086
-        podman build ${extra_args} -t "${image_name}:${image_tag}" -f "${containerfile}" .
-        BUILD_RESULT=$?
-    elif [ "$BUILD_TOOL" = "docker" ]; then
-        if [ "$BUILD_ACTION" = "load" ]; then
-            # shellcheck disable=SC2086
-            docker buildx build --no-cache ${extra_args} -t "${image_name}:${image_tag}" \
-                --file "${containerfile}" --platform "${platform}" --load .
-            BUILD_RESULT=$?
-        elif [ "$BUILD_ACTION" = "push" ]; then
-            # shellcheck disable=SC2086
-            docker buildx build --no-cache ${extra_args} \
-                -t "${OMNIA_DOCKER_REGISTERY}/${image_name}:${image_tag}" \
-                --file "${containerfile}" --platform "${platform}" \
-                --provenance=true --sbom=true --push .
-            BUILD_RESULT=$?
-        fi
-    fi
-
-    cd - > /dev/null || exit 1
-
-    if [ $BUILD_RESULT -eq 0 ]; then
-        echo -e "${GREEN}${image_name}:${image_tag} built successfully.${NC}"
-        SUCCESSFUL_BUILDS+=("${image_name}")
-    else
-        echo -e "${RED}${image_name}:${image_tag} build FAILED.${NC}"
-        FAILED_BUILDS+=("${image_name}")
-    fi
-}
-
-# =============================================================================
-# Build functions
-# =============================================================================
-build_omnia_core() {
-    echo -e "${BLUE}Building omnia_core (tag: ${CORE_TAG})...${NC}"
-    container_build "omnia_core" "${CORE_TAG}" \
-        "${REPO_ROOT}" "src/main/containers/omnia_core/Containerfile"
-}
-
-
-# =============================================================================
-# Build summary
-# =============================================================================
-print_build_summary() {
-    echo -e "\n${BLUE}=== OIM BUILD SUMMARY ===${NC}"
-    if [ ${#SUCCESSFUL_BUILDS[@]} -ne 0 ]; then
-        echo -e "${GREEN}Successfully built: ${YELLOW}${SUCCESSFUL_BUILDS[*]}${NC}"
-    fi
-    if [ ${#FAILED_BUILDS[@]} -ne 0 ]; then
-        echo -e "${RED}Failed: ${MAGENTA}${FAILED_BUILDS[*]}${NC}"
-        exit 1
-    fi
-    if [ ${#SUCCESSFUL_BUILDS[@]} -ne 0 ]; then
-        echo -e "\n${GREEN}Next step: ./omnia.sh --install${NC}"
-    fi
-}
-
-# =============================================================================
-# Build omnia_core container
+# Build omnia_auth container
 # =============================================================================
 echo -e "${GREEN}=======================================${NC}"
-echo -e "${GREEN} OIM Core — Container Build            ${NC}"
+echo -e "${GREEN} Orchestrator — Container Build        ${NC}"
 echo -e "${GREEN}=======================================${NC}"
 echo -e "${BLUE}Build tool:   ${BUILD_TOOL}${NC}"
 echo -e "${BLUE}Build action: ${BUILD_ACTION}${NC}"
-echo -e "${BLUE}Tag:          ${CORE_TAG}${NC}"
+echo -e "${BLUE}Tag:          ${AUTH_TAG}${NC}"
 echo ""
 
-build_omnia_core
+BUILD_DIR="${SCRIPT_DIR}/omnia_auth"
 
-print_build_summary
+cd "$BUILD_DIR" || exit 1
+
+BUILD_RESULT=0
+
+if [ "$BUILD_TOOL" = "podman" ]; then
+    podman build -t "omnia_auth:${AUTH_TAG}" -f "Containerfile" .
+    BUILD_RESULT=$?
+elif [ "$BUILD_TOOL" = "docker" ]; then
+    if [ "$BUILD_ACTION" = "load" ]; then
+        docker buildx build --no-cache -t "omnia_auth:${AUTH_TAG}" \
+            --file "Containerfile" --platform "linux/amd64" --network=host --load .
+        BUILD_RESULT=$?
+    elif [ "$BUILD_ACTION" = "push" ]; then
+        docker buildx build --no-cache \
+            -t "${OMNIA_DOCKER_REGISTERY}/omnia_auth:${AUTH_TAG}" \
+            --file "Containerfile" --platform "linux/amd64" --network=host \
+            --provenance=true --sbom=true --push .
+        BUILD_RESULT=$?
+    fi
+fi
+
+cd - > /dev/null || exit 1
+
+if [ $BUILD_RESULT -eq 0 ]; then
+    echo -e "\n${GREEN}omnia_auth:${AUTH_TAG} built successfully.${NC}"
+    if [ "$BUILD_TOOL" = "docker" ] && [ "$BUILD_ACTION" = "push" ]; then
+        echo -e "${GREEN}Pushed: ${OMNIA_DOCKER_REGISTERY}/omnia_auth:${AUTH_TAG}${NC}"
+    fi
+else
+    echo -e "\n${RED}omnia_auth:${AUTH_TAG} build FAILED.${NC}"
+    exit 1
+fi
