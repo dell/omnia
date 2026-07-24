@@ -4,3 +4,9 @@
 /.idea/
 /docs/build/
 **/__pycache__/
+
+# Generated secrets — never commit
+build_stream_credentials.yml
+.build_stream_credentials_key
+**/build_stream_credentials.yml
+**/.build_stream_credentials_key

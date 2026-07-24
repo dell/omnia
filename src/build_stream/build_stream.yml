@@ -26,14 +26,13 @@
 # Input contract:  see INPUT_CONTRACT.md
 # Output contract: see OUTPUT_CONTRACT.md
 
-- name: Check if upgrade is in progress
-  ansible.builtin.import_playbook: ../playbooks/utils/upgrade_checkup.yml
+- name: Build Stream domain setup (upgrade guard + input dirs + OIM metadata)
+  hosts: localhost
+  connection: local
+  gather_facts: false
   tags: always
-
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../playbooks/utils/include_input_dir.yml
-  tags: always
+  roles:
+    - build_stream_setup
 
 - name: Build Stream domain credential utility
   hosts: localhost

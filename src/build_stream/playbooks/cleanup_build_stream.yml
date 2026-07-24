@@ -38,36 +38,19 @@
   ansible.builtin.import_playbook: cleanup_gitlab.yml
   tags: gitlab
 
-# ── Step 2: Resolve input project directory ─────────────────────────
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
-  tags: always
-
-# ── Step 3: Create OIM host group ───────────────────────────────────
-- name: Create OIM host group
-  ansible.builtin.import_playbook: ../../playbooks/utils/create_container_group.yml
-  vars:
-    oim_group: true
-  tags: always
-
-# ── Step 4: Load OIM metadata ──────────────────────────────────────
-- name: Load OIM metadata for shared path
+# ── Step 2: Self-contained setup (input dirs + OIM group + metadata) ─
+- name: Build Stream setup (input dirs + OIM group + metadata)
   hosts: localhost
   connection: local
   gather_facts: false
   tags: always
-  tasks:
-    - name: Include OIM metadata
-      ansible.builtin.include_vars:
-        file: /opt/omnia/.data/oim_metadata.yml
-      no_log: true
+  roles:
+    - role: ../roles/build_stream_setup
+      vars:
+        create_oim_group: true
+  when: not build_stream_setup_done | default(false) | bool
 
-    - name: Set oim_shared_path fact
-      ansible.builtin.set_fact:
-        oim_shared_path: "{{ oim_shared_path | default('/opt/omnia') }}"
-
-# ── Step 5: Container, service, and NFS cleanup on OIM host ────────
+# ── Step 3: Container, service, and NFS cleanup on OIM host ────────
 - name: BuildStream domain cleanup (container, postgres, NFS)
   hosts: oim
   connection: ssh

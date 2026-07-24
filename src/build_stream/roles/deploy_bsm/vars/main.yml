@@ -82,12 +82,12 @@ build_stream_ssl_days: 365
 build_stream_ssl_file_mode: "0600"
 
 # JWT key configuration
-build_stream_jwt_keys_script: "/opt/omnia/build_stream/scripts/generate_jwt_keys.sh"
-build_stream_jwt_keys_dir: "/opt/omnia/build_stream_root/api/.auth/keys"
+build_stream_jwt_keys_script: "{{ omnia_path }}/omnia/build_stream/scripts/generate_jwt_keys.sh"
+build_stream_jwt_keys_dir: "{{ omnia_path }}/omnia/build_stream_root/api/.auth/keys"
 
 # Project configuration
-build_stream_root_dir: "/opt/omnia/build_stream_root"
-build_stream_default_file: "/opt/omnia/input/default.yml"
+build_stream_root_dir: "{{ omnia_path }}/omnia/build_stream_root"
+build_stream_default_file: "{{ omnia_path }}/omnia/input/default.yml"
 build_stream_project_default: "project_default"
 build_stream_project_build_stream: "project_build_stream"
 
