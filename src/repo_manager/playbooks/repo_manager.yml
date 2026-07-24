@@ -1,0 +1,265 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# REPO MANAGER PLAYBOOK
+# =============================================================================
+# This playbook manages local repository operations for Omnia.
+#
+# NOTE: Input validation is NOT included in this playbook.
+#       Run validation separately before repo_manager:
+#       ansible-playbook playbooks/validate_config.yml --tags local_repo
+#
+# Workflow:
+#   1. Pre-flight Setup: Load project config, create OIM group, fetch credentials
+#   2. Pre-flight Checks: Verify Pulp container and endpoint status
+#   3. Configuration: Read endpoint config, set SELinux context
+#   4. Validation: Runtime validation of software config and metadata
+#   5. Execution: Download packages, sync repositories
+#   6. Completion: Update metadata, display status
+#
+# Usage:
+#   # Run validation first (recommended)
+#   ansible-playbook playbooks/validate_config.yml --tags local_repo -e 'project_name=project_default'
+#
+#   # Then run repo_manager
+#   ansible-playbook playbooks/repo_manager.yml -e 'project_name=project_default'
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# PHASE 1: PRE-FLIGHT SETUP
+# -----------------------------------------------------------------------------
+
+- name: "Phase 1.1: Initialize repo_manager"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Set start time
+      ansible.builtin.set_fact:
+        playbook_start_time: "{{ lookup('pipe', 'date +%s') }}"
+
+    - name: Ensure repo_manager log directory exists
+      ansible.builtin.file:
+        path: "{{ repo_manager_log_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Set dynamic run tags including 'local_repo'
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['local_repo']) | unique }}"
+        cacheable: true
+
+    - name: Enable subscription check for local_repo
+      ansible.builtin.set_fact:
+        run_subscription_check: true
+
+    - name: Include metadata vars
+      ansible.builtin.include_vars:
+        file: "{{ omnia_metadata_file }}"
+        name: oim_shared_path_from_metadata
+      register: include_metadata
+      when: repo_manager_metadata_support | default(false) | bool
+      tags: always
+
+    - name: Load software_config JSON
+      ansible.builtin.set_fact:
+        software_config: "{{ lookup('file', input_project_dir + '/software_config.json') | from_json }}"
+
+    - name: Set cluster OS version
+      ansible.builtin.set_fact:
+        cluster_os_version: "{{ software_config.cluster_os_version }}"
+        cluster_os_type: "{{ software_config.cluster_os_type }}"
+        repo_config: "{{ software_config.repo_config | default('partial') }}"
+
+- name: "Phase 1.2: Include input project directory"
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+  tags: always
+
+- name: "Phase 1.3: Create OIM host group"
+  when: not oim_group_status | default(false) | bool
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+- name: "Phase 1.4: Fetch configuration credentials"
+  ansible.builtin.import_playbook: get_config_credentials.yml
+  tags: always
+
+- name: "Phase 1.5: Check RHEL subscription on OIM"
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Check rhel subscription enabled or not
+      ansible.builtin.include_role:
+        name: ../roles/validate_subscription
+        tasks_from: check_rhel_subscription.yml
+      when: "hostvars['localhost']['run_subscription_check'] | default(false) | bool"
+  tags: always
+
+- name: "Phase 1.6: Configure RHEL repository URLs"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Configure RHEL os URLS for codeready-builder baseos appstream repositories
+      ansible.builtin.include_role:
+        name: ../roles/validate_subscription
+        tasks_from: configure_rhel_os_urls.yml
+      when: "run_subscription_check | default(false) | bool"
+  tags: always
+
+# -----------------------------------------------------------------------------
+# PHASE 2: PRE-FLIGHT CHECKS
+# -----------------------------------------------------------------------------
+
+- name: "Phase 2.1: Read endpoint configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Read endpoint config vars
+      ansible.builtin.include_role:
+        name: ../roles/pulp_validation
+        tasks_from: read_endpoint_config.yml
+
+- name: "Phase 2.2: Verify Pulp container and endpoint"
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Display pre-flight check info
+      ansible.builtin.debug:
+        msg:
+          - "========== PRE-FLIGHT CHECKS =========="
+          - "Verifying Pulp container and endpoint..."
+          - "========================================"
+
+    - name: Validate Pulp Container and Endpoint
+      ansible.builtin.include_role:
+        name: ../roles/pulp_validation
+
+    - name: Pre-flight checks passed
+      ansible.builtin.debug:
+        msg: "Pre-flight checks passed. Pulp is ready for repository operations."
+
+# -----------------------------------------------------------------------------
+# PHASE 3: SELINUX CONFIGURATION
+# -----------------------------------------------------------------------------
+
+- name: "Phase 3: Set SELinux context"
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Set SELinux context for Local flow
+      ansible.builtin.command: >-
+        chcon -R system_u:object_r:container_file_t:s0
+        "{{ hostvars['localhost']['oim_shared_path'] }}/repo_manager/"
+      changed_when: true
+      failed_when: false
+      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+    - name: Set SELinux context for NFS internal flow
+      ansible.builtin.command: >-
+        chcon -R system_u:object_r:container_file_t:s0
+        "{{ hostvars['localhost']['nfs_server_share_path'] }}/repo_manager/"
+      changed_when: true
+      failed_when: false
+      when:
+        - hostvars['localhost']['omnia_share_option'] == 'NFS'
+        - hostvars['localhost']['nfs_type'] | default('') == 'internal'
+
+# -----------------------------------------------------------------------------
+# PHASE 4: VALIDATION AND EXECUTION
+# -----------------------------------------------------------------------------
+
+- name: "Phase 4: Local Repository Operations"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  pre_tasks:
+    - name: Display execution info
+      ansible.builtin.debug:
+        msg:
+          - "========== REPOSITORY OPERATIONS =========="
+          - "Starting local repository setup..."
+          - "============================================"
+  roles:
+    - ../roles/validation
+    - ../roles/parse_and_download
+
+# -----------------------------------------------------------------------------
+# PHASE 5: COMPLETION
+# -----------------------------------------------------------------------------
+
+- name: "Phase 5: Local repo completion"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Run completion tasks
+      ansible.builtin.include_role:
+        name: ../roles/parse_and_download
+        tasks_from: localrepo_completion.yml
+      when: final_status | lower == 'success'
+
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ omnia_base_dir }}/output/project_default/repo_manager"
+        state: directory
+        mode: "0755"
+        recurse: true
+      when: final_status is defined
+
+    - name: Generate repo_status.yml with final status
+      generate_local_repo_access:
+        pulp_server_ip: "{{ pulp_server_ip }}"
+        pulp_server_port: "{{ pulp_server_port | int }}"
+        pulp_protocol: "{{ pulp_protocol }}"
+        cluster_os_type: "{{ cluster_os_type }}"
+        cluster_os_version: "{{ cluster_os_version }}"
+        repo_config: "{{ repo_config | default('partial') }}"
+        output_path: "{{ omnia_base_dir }}/output/project_default/repo_manager/repo_status.yml"
+        certs_dir: "{{ pulp_certs_dir }}"
+        local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
+        overall_status: "{{ 'success' if final_status | lower == 'success' else 'failed' }}"
+      when: final_status is defined
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg:
+          - "========== REPO MANAGER COMPLETE =========="
+          - "Status: {{ final_status }}"
+          - "============================================"

@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# DEFAULT VARIABLES FOR REPO_MANAGER
+# =============================================================================
+# All paths are relative to repo_manager_base_dir so the src/ directory can be
+# copied anywhere. This file is included by all playbooks.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# BASE DIRECTORY CONFIGURATION
+# -----------------------------------------------------------------------------
+# Base directory is the parent of the running playbook directory
+# Works for playbooks/ subdirectory
+repo_manager_base_dir: "{{ playbook_dir | dirname }}"
+
+# Project default identifier
+project_default: "project_default"
+repo_manager_metadata_support: false
+
+# -----------------------------------------------------------------------------
+# DATA DIRECTORIES (relative to repo_manager_base_dir)
+# -----------------------------------------------------------------------------
+repo_manager_data_dir: "{{ repo_manager_base_dir }}/.data"
+repo_manager_log_dir: "{{ omnia_base_dir }}/log/repomanager"
+repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
+
+# -----------------------------------------------------------------------------
+# CONSTRUCTED PATHS
+# -----------------------------------------------------------------------------
+input_project_dir: "{{ omnia_base_dir }}/input/{{ project_name | default(project_default) }}/repo_manager"
+output_dir: "{{ repo_manager_base_dir }}/output"
+log_dir: "{{ repo_manager_log_dir }}"
+repo_store_path: "{{ omnia_base_dir }}"
+omnia_metadata_file: "{{ omnia_base_dir }}/.data/oim_metadata.yml"
+
+# -----------------------------------------------------------------------------
+# ENDPOINT CONFIGURATION
+# -----------------------------------------------------------------------------
+# Endpoint configuration file path
+repo_manager_endpoint_config: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+
+# Endpoint config error messages
+endpoint_config_file_not_found_msg: "repo_manager_endpoint_config.yml file not found in input folder."
+endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_endpoint_config.yml."
+
+# -----------------------------------------------------------------------------
+# OIM SHARED PATH CONFIGURATION
+# -----------------------------------------------------------------------------
+# The oim_shared_path is read from the metadata file which contains the actual
+# NFS share path from the OIM host. This is used for tasks that need to know
+# the OIM host path (e.g., for NFS exports).
+#
+# IMPORTANT: Inside the omnia_core container, the NFS share is mounted at
+# /opt/omnia, NOT at oim_shared_path. Use container paths for file operations.
+#
+# Path Mapping:
+#   OIM Host: {{ oim_shared_path }}/omnia/src/repo_manager
+#   Container: /opt/omnia/src/repo_manager (which is repo_manager_base_dir)
+
+# Container mount point for NFS share
+oim_shared_path: "{{ oim_shared_path_from_metadata.oim_shared_path | default('/home/oim_data') }}"
+
+# NFS configuration (read from metadata)
+nfs_server_share_path: "{{ oim_shared_path_from_metadata.nfs_server_share_path | default(oim_shared_path) }}"
+omnia_share_option: "{{ oim_shared_path_from_metadata.omnia_share_option | default('NFS') }}"
+nfs_type: "{{ oim_shared_path_from_metadata.nfs_type | default('') }}"
+nfs_server_ip: "{{ oim_shared_path_from_metadata.nfs_server_ip | default('') }}"
+
+# -----------------------------------------------------------------------------
+# FILE PERMISSIONS
+# -----------------------------------------------------------------------------
+dir_permissions_755: "0755"
+file_permissions_644: "0644"
+file_permissions_600: "0600"
+
+# -----------------------------------------------------------------------------
+# OMNIA BASE DIRECTORY CONFIGURATION
+# -----------------------------------------------------------------------------
+# Runtime-generated files (Pulp config, RHEL entitlement certificates) live
+# outside the repo_manager source tree at /opt/omnia.
+
+omnia_base_dir: "/opt/omnia"
+
+# Pulp server configuration and certificates
+pulp_config_dir: "{{ omnia_base_dir }}/pulp"
+pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
+pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
+pulp_crt_track_file: "{{ pulp_config_dir }}/pulp_crt_track.txt"
+
+# RHEL subscription entitlement certificates
+rhel_repo_certs_dir: "{{ omnia_base_dir }}/rhel_repo_certs"
+rhel_redhat_repo_file: "{{ rhel_repo_certs_dir }}/redhat.repo"
+rhel_uep_cert_file: "{{ rhel_repo_certs_dir }}/redhat-uep.pem"
