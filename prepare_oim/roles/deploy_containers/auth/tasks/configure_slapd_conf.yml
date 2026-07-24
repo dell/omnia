@@ -17,7 +17,45 @@
   ansible.builtin.set_fact:
     reqd_domain_name: "{{ (domain_name.split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
 
+- name: Check if auth service container is already running
+  containers.podman.podman_container_info:
+    name: "{{ auth_service_container_name }}"
+  register: slapd_auth_container_check
+  failed_when: false
+
+- name: Set auth container running status
+  ansible.builtin.set_fact:
+    auth_container_running: "{{ slapd_auth_container_check.containers | default([]) | length > 0 and
+      (slapd_auth_container_check.containers[0].State.Status | default('')) == 'running' }}"
+
+- name: Check if slapd.conf already exists on disk
+  ansible.builtin.stat:
+    path: "{{ slapd_conf_dest }}"
+  register: existing_slapd_conf
+
+- name: Skip slapd.conf update - auth container already running
+  ansible.builtin.debug:
+    msg: >-
+      Auth container {{ auth_service_container_name }} is already running.
+      Skipping slapd.conf copy to preserve existing configuration.
+      If you need to reset slapd.conf to defaults, stop and remove the container first,
+      then re-run prepare_oim.yml.
+  when: auth_container_running | bool
+
+- name: Skip slapd.conf update - existing slapd.conf found
+  ansible.builtin.debug:
+    msg: >-
+      Existing slapd.conf found at {{ slapd_conf_dest }}.
+      Skipping copy to preserve existing configuration.
+      To reset to defaults, remove the file and re-run prepare_oim.yml.
+  when:
+    - not (auth_container_running | bool)
+    - existing_slapd_conf.stat.exists
+
 - name: Update slapd.conf file auth service deployment
+  when:
+    - not (auth_container_running | bool)
+    - not existing_slapd_conf.stat.exists
   block:
 
     - name: Copy slapd.conf file
