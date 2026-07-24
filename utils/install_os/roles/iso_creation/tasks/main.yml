@@ -13,33 +13,51 @@
 # limitations under the License.
 ---
 
-- name: Mount source ISO for extraction
-  ansible.posix.mount:
-    path: "{{ iso_mount_point }}"
-    src: "{{ iso_source_path }}"
-    fstype: iso9660
-    opts: ro,loop
-    state: mounted
+# Step 1: Check if custom ISO already exists (skip rebuild if yes)
+- name: Check if custom ISO already exists
+  ansible.builtin.stat:
+    path: "{{ repacked_iso_path }}"
+  register: custom_iso_stat
 
-- name: Copy ISO contents to extract directory
-  ansible.builtin.command: >-
-    rsync -a --delete {{ iso_mount_point }}/ {{ iso_extract_dir }}/
-  changed_when: true
+- name: Log ISO rebuild decision
+  ansible.builtin.debug:
+    msg: >-
+      {% if custom_iso_stat.stat.exists %}
+      Custom ISO already exists at {{ repacked_iso_path }}. Skipping rebuild.
+      {% else %}
+      Custom ISO not found. Building new ISO with NFS kickstart reference.
+      {% endif %}
 
-- name: Unmount source ISO
-  ansible.posix.mount:
-    path: "{{ iso_mount_point }}"
-    state: unmounted
-
-- name: Process Kickstart file
+# Step 2: Render kickstart file to iso_output directory
+- name: Render kickstart file
   block:
-    - name: Use user-provided Kickstart file
-      ansible.builtin.include_tasks: inject_user_kickstart.yml
-      when: kickstart_file | length > 0
-
-    - name: Render default Kickstart template
-      ansible.builtin.include_tasks: render_kickstart.yml
+    - name: Render Kickstart from template
+      ansible.builtin.template:
+        src: "{{ kickstart_template }}.ks.j2"
+        dest: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+        mode: "0644"
       when: kickstart_file | length == 0
 
-- name: Repack ISO with embedded Kickstart
-  ansible.builtin.include_tasks: repack_iso.yml
+    - name: Copy user-provided Kickstart
+      ansible.builtin.copy:
+        src: "{{ kickstart_file }}"
+        dest: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+        mode: "0644"
+      when: kickstart_file | length > 0
+
+    - name: Log kickstart creation
+      ansible.builtin.debug:
+        msg: "Kickstart file created at {{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+
+# Step 3: Copy kickstart to NFS share (manual step documented in manifest)
+- name: Note about copying kickstart to NFS
+  ansible.builtin.debug:
+    msg: >-
+      IMPORTANT: Copy the kickstart file to the NFS share:
+      podman cp omnia_core:{{ iso_target_directory }}/{{ nfs_kickstart_filename }} {{ host_nfs_path }}
+      Or from host: cp {{ iso_target_directory }}/{{ nfs_kickstart_filename }} {{ host_nfs_path }}"
+
+# Step 3: Build custom ISO (only if it doesn't exist)
+- name: Build custom ISO with NFS kickstart reference
+  ansible.builtin.include_tasks: build_nfs_iso.yml
+  when: not custom_iso_stat.stat.exists

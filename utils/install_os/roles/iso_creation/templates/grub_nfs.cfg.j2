@@ -1,0 +1,44 @@
+set default="0"
+
+function load_video {
+  insmod efi_gop
+  insmod efi_uga
+  insmod video_bochs
+  insmod video_cirrus
+  insmod all_video
+}
+
+load_video
+set gfxpayload=keep
+insmod gzio
+insmod part_gpt
+insmod ext2
+
+set timeout=10
+
+### BEGIN /etc/grub.d/10_linux ###
+menuentry 'Install RHEL 10.0 AArch64 (Unattended - NFS Kickstart)' --class red --class gnu-linux --class gnu --class os {
+    linuxefi /images/pxeboot/vmlinuz inst.stage2=cdrom inst.ks=nfs:{{ nfs_server_ip }}:{{ nfs_kickstart_path }} quiet
+    initrdefi /images/pxeboot/initrd.img
+}
+
+menuentry 'Install RHEL 10.0 AArch64 (Interactive)' --class red --class gnu-linux --class gnu --class os {
+    linuxefi /images/pxeboot/vmlinuz inst.stage2=cdrom quiet
+    initrdefi /images/pxeboot/initrd.img
+}
+
+menuentry 'Test this media & install RHEL 10.0 AArch64' --class red --class gnu-linux --class gnu --class os {
+    linuxefi /images/pxeboot/vmlinuz inst.stage2=cdrom rd.live.check quiet
+    initrdefi /images/pxeboot/initrd.img
+}
+
+submenu 'Troubleshooting -->' {
+    menuentry 'Install RHEL 10.0 AArch64 in basic graphics mode' --class red --class gnu-linux --class gnu --class os {
+        linuxefi /images/pxeboot/vmlinuz inst.stage2=cdrom nomodeset quiet
+        initrdefi /images/pxeboot/initrd.img
+    }
+    menuentry 'Rescue a RHEL system' --class red --class gnu-linux --class gnu --class os {
+        linuxefi /images/pxeboot/vmlinuz inst.stage2=cdrom inst.rescue quiet
+        initrdefi /images/pxeboot/initrd.img
+    }
+}

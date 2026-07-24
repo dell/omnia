@@ -16,7 +16,7 @@
 # ─────────────────────────────────────────────────────────────────────────
 # AArch64 Unattended OS Installation Orchestrator
 #
-# This playbook automates OS installation on the admin_aarch64 builder
+# This playbook automates OS installation on the os_aarch64 builder
 # node. It fetches AArch64-specific parameters and calls the generic
 # install_os.yml playbook.
 #

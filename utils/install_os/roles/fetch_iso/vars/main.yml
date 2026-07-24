@@ -19,9 +19,9 @@ iso_target_directory: "{{ iso_target_directory | default('/opt/omnia/iso_output'
 
 # Required ISO tooling
 required_iso_tools:
-  - name: xorrisofs
+  - name: xorriso
     package: xorriso
-  - name: isomd5sum
+  - name: implantisomd5
     package: isomd5sum
 
 # ISO mount point for extraction

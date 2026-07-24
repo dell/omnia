@@ -39,9 +39,9 @@
 # kickstart_file: ""
 
 # Kickstart Jinja2 template name (used when kickstart_file is not set).
-# Available templates: admin_aarch64
-# Default: admin_aarch64
-# kickstart_template: "admin_aarch64"
+# Available templates: os_aarch64
+# Default: os_aarch64
+# kickstart_template: "os_aarch64"
 
 # NFS share path where the repacked ISO will be accessible
 # for iDRAC OS Deployment Service.

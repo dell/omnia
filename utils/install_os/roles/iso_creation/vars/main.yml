@@ -13,16 +13,26 @@
 # limitations under the License.
 ---
 
+# NFS-hosted kickstart configuration
+# Extract NFS server and path from iso_nfs_share (format: "server:/path")
+nfs_server_ip: "{{ iso_nfs_share.split(':')[0] }}"
+nfs_share_dir: "{{ iso_nfs_share.split(':')[1] }}"
+nfs_kickstart_filename: "kickstart.cfg"
+nfs_kickstart_path: "{{ nfs_share_dir }}/{{ nfs_kickstart_filename }}"
+
+# Host path for NFS share (mounted on host at /opt/omnia-core-shared)
+# This is used to write the kickstart file from the playbook
+host_nfs_path: "/opt/omnia-core-shared/{{ nfs_kickstart_filename }}"
+
+# Temporary files for ISO modification
+temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
+
 # Kickstart configuration
 kickstart_file: "{{ kickstart_file | default('') }}"
-kickstart_template: "{{ kickstart_template | default('admin_aarch64') }}"
-kickstart_output_path: "{{ iso_extract_dir }}/kickstart.ks"
+kickstart_template: "{{ kickstart_template | default('os_aarch64') }}"
 
-# GRUB2 configuration
-grub_cfg_path: "{{ iso_extract_dir }}/EFI/BOOT/grub.cfg"
-
-# Repacked ISO output
-repacked_iso_name: "custom-{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-ks.iso"
+# Repacked ISO output (one-time build with grub.cfg modification)
+repacked_iso_name: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
 repacked_iso_path: "{{ iso_target_directory }}/{{ repacked_iso_name }}"
 iso_volume_id: "RHEL-10-0-BaseOS-aarch64"
 
@@ -32,7 +42,7 @@ manifest_path: "{{ iso_target_directory }}/install_manifest.yml"
 # Kickstart template variables (passed by the calling orchestrator)
 ks_root_password_hash: "{{ ks_root_password_hash | default('') }}"
 ks_ssh_public_key: "{{ ks_ssh_public_key | default('') }}"
-ks_hostname: "{{ ks_hostname | default('admin-aarch64') }}"
+ks_hostname: "{{ ks_hostname | default('os-aarch64') }}"
 ks_static_ip: "{{ ks_static_ip | default('') }}"
 ks_netmask: "{{ ks_netmask | default('255.255.255.0') }}"
 ks_gateway: "{{ ks_gateway | default('') }}"

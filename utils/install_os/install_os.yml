@@ -30,7 +30,7 @@
 #   - iso_source_checksum:  SHA-256 checksum for source ISO verification
 #   - iso_target_directory: output directory for repacked ISO (default: /opt/omnia/iso_output)
 #   - kickstart_file:       user-provided kickstart file path
-#   - kickstart_template:   Jinja2 template name (default: admin_aarch64)
+#   - kickstart_template:   Jinja2 template name (default: os_aarch64)
 #   - target_node_ip:       admin IP for pre-flight SSH reachability check
 #   - force_reinstall:      proceed even if target is reachable (default: false)
 #   - iso_http_share_url:   HTTP/HTTPS URL for ISO share (for virtual media mount)

@@ -22,7 +22,7 @@ force_reinstall: "{{ force_reinstall | default(false) | bool }}"
 # NFS share configuration for idrac_os_deployment
 # Format: <nfs_server_ip>:<nfs_share_path>/<iso_filename>
 # Example: 10.10.0.1:/opt/omnia/iso_output/custom-rhel-10.0-ks.iso
-iso_nfs_share: "{{ iso_nfs_share | default('') }}"
+# This is set by fetch_arm_params role
 # Optional: NFS share credentials (if required)
 nfs_share_user: "{{ nfs_share_user | default('') }}"
 nfs_share_password: "{{ nfs_share_password | default('') }}"

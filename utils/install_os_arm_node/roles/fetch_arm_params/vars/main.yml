@@ -16,5 +16,5 @@
 # Password hashing
 password_hash_algorithm: "sha512"
 
-# Default network device for the admin_aarch64 node (empty = auto-detect)
+# Default network device for the os_aarch64 node (empty = auto-detect)
 default_network_device: ""

@@ -24,7 +24,7 @@ oim_ssh_key_path: "/root/.ssh/id_rsa.pub"
 # Default ISO config values
 default_iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
 default_iso_target_directory: "/opt/omnia/iso_output"
-default_kickstart_template: "admin_aarch64"
+default_kickstart_template: "os_aarch64"
 
 # Error messages
 iso_config_not_found_msg: >-
@@ -32,7 +32,7 @@ iso_config_not_found_msg: >-
   Using default configuration values.
 pxe_mapping_not_found_msg: >-
   PXE mapping file not found at '{{ pxe_mapping_file_path }}'.
-  The PXE mapping file is required to determine the admin_aarch64 node's BMC IP
+  The PXE mapping file is required to determine the os_aarch64 node's BMC IP
   and admin IP. Please create the PXE mapping file and re-run the playbook.
 network_spec_not_found_msg: >-
   network_spec.yml not found at '{{ network_spec_file }}'.
@@ -42,9 +42,9 @@ oim_ssh_key_not_found_msg: >-
   OIM SSH public key not found at '{{ oim_ssh_key_path }}'.
   Generate an SSH key pair with 'ssh-keygen -t rsa' and re-run the playbook.
 no_aarch64_node_msg: >-
-  No admin_aarch64 node found in the PXE mapping file.
-  Please add an entry with FUNCTIONAL_GROUP containing 'admin_aarch64'
-  or HOSTNAME matching 'admin_aarch64' to the PXE mapping file.
+  No os_aarch64 node found in the PXE mapping file.
+  Please add an entry with FUNCTIONAL_GROUP_NAME containing 'os_aarch64'
+  or HOSTNAME matching 'os_aarch64' to the PXE mapping file.
 provision_password_missing_msg: >-
   provision_password is not set. Please run the credential utility
   (utils/credential_utility/get_config_credentials.yml) to set the provision_password.

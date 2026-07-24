@@ -13,16 +13,32 @@
 # limitations under the License.
 ---
 
+- name: Set NFS share path for custom ISO
+  ansible.builtin.set_fact:
+    nfs_iso_server: "{{ iso_nfs_share.split(':')[0] }}"
+    nfs_iso_base_dir: "{{ iso_nfs_share.split(':')[1] | dirname }}"
+    nfs_iso_filename: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
+
+- name: Set full NFS share directory for iDRAC
+  ansible.builtin.set_fact:
+    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/omnia/iso_output"
+
+- name: Log deployment parameters
+  ansible.builtin.debug:
+    msg: >-
+      Deploying OS via iDRAC. BMC: {{ target_bmc_ip }},
+      NFS Share: {{ nfs_iso_share_dir }},
+      ISO: {{ nfs_iso_filename }},
+      Exposure: {{ expose_duration }} minutes
+
 - name: Deploy OS via iDRAC OS Deployment Service (BootToNetworkISO)
   dellemc.openmanage.idrac_os_deployment:
     idrac_ip: "{{ target_bmc_ip }}"
     idrac_user: "{{ bmc_username }}"
     idrac_password: "{{ bmc_password }}"
     validate_certs: false
-    share_name: "{{ iso_nfs_share }}"
-    iso_image: "{{ iso_nfs_share | regex_replace('.*:(.*)/(.*)', '\\2') }}"
-    share_user: "{{ nfs_share_user | default(omit) }}"
-    share_password: "{{ nfs_share_password | default(omit) }}"
+    share_name: "{{ nfs_iso_share_dir }}"
+    iso_image: "{{ nfs_iso_filename }}"
     expose_duration: "{{ expose_duration }}"
   register: os_deployment_result
   failed_when: false
@@ -37,7 +53,7 @@
     msg: >-
       OS deployment initiated successfully via iDRAC OS Deployment Service.
       BMC: {{ target_bmc_ip }},
-      NFS Share: {{ iso_nfs_share }},
+      NFS Share: {{ nfs_iso_share_dir }}/{{ nfs_iso_filename }},
       Exposure Duration: {{ expose_duration }} minutes,
       Job Status: {{ os_deployment_result.boot_status.JobStatus | default('Unknown') }},
       Message: {{ os_deployment_result.boot_status.Message | default('') }}

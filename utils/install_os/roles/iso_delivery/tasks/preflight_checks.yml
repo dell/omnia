@@ -46,54 +46,37 @@
         - target_ssh_check is success
         - force_reinstall | bool
 
-- name: Verify iDRAC reachability
-  ansible.builtin.uri:
-    url: "https://{{ target_bmc_ip }}/redfish/v1/"
-    user: "{{ bmc_username }}"
-    password: "{{ bmc_password }}"
-    method: GET
-    force_basic_auth: true
-    validate_certs: false
-    return_content: true
-    timeout: 30
-    status_code: [200]
-  register: idrac_check
-  retries: 3
-  delay: 10
-  until: idrac_check.status == 200
+- name: Verify iDRAC reachability using curl (workaround for Python urllib timeout)
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -o /dev/null -w '%{http_code}' "https://{{ target_bmc_ip }}/redfish/v1/"
+  register: idrac_curl_check
+  changed_when: false
   failed_when: false
+  no_log: true
 
 - name: Fail if iDRAC is not reachable
   ansible.builtin.fail:
     msg: "{{ idrac_unreachable_msg }}"
-  when: idrac_check is failed or idrac_check.status != 200
+  when: idrac_curl_check.stdout | trim != '200'
 
-- name: Check iDRAC LC status
-  ansible.builtin.uri:
-    url: "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus"
-    user: "{{ bmc_username }}"
-    password: "{{ bmc_password }}"
-    method: POST
-    force_basic_auth: true
-    validate_certs: false
-    return_content: true
-    body_format: json
-    body: {}
-    timeout: 60
-    headers:
-      Accept: "application/json"
-      Content-Type: "application/json"
-      OData-Version: "4.0"
-    status_code: [200, 201, 202]
-  register: lc_status
-  retries: 3
-  delay: 10
-  until: lc_status.status in [200, 201, 202]
+- name: Log iDRAC reachability success
+  ansible.builtin.debug:
+    msg: "iDRAC at {{ target_bmc_ip }} is reachable (HTTP {{ idrac_curl_check.stdout | trim }})"
+
+- name: Check iDRAC LC status using curl
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
+      -H "Content-Type: application/json" -H "Accept: application/json" \
+      -d '{}' \
+      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus"
+  register: lc_status_curl
+  changed_when: false
   failed_when: false
+  no_log: true
 
 - name: Log iDRAC pre-flight check success
   ansible.builtin.debug:
     msg: >-
       iDRAC pre-flight checks passed.
       BMC: {{ target_bmc_ip }},
-      LC Status: {{ lc_status.json.LCStatus | default('unknown') }}
+      LC Status: {{ (lc_status_curl.stdout | from_json).LCStatus | default('unknown') }}

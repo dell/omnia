@@ -18,22 +18,22 @@
     path: "{{ pxe_mapping_file_path }}"
   register: pxe_mapping_data
 
-- name: Find admin_aarch64 node in PXE mapping
+- name: Find os_aarch64 node in PXE mapping
   ansible.builtin.set_fact:
     arm_node_entry: >-
       {{ pxe_mapping_data.list
-         | selectattr('FUNCTIONAL_GROUP', 'search', 'admin_aarch64')
+         | selectattr('FUNCTIONAL_GROUP_NAME', 'search', 'os_aarch64')
          | list
          | first
          | default(
              pxe_mapping_data.list
-             | selectattr('HOSTNAME', 'search', 'admin_aarch64')
+             | selectattr('HOSTNAME', 'search', 'os_aarch64')
              | list
              | first
              | default(None)
            ) }}
 
-- name: Fail if no admin_aarch64 node found
+- name: Fail if no os_aarch64 node found
   ansible.builtin.fail:
     msg: "{{ no_aarch64_node_msg }}"
   when: arm_node_entry is none or arm_node_entry | length == 0
@@ -43,22 +43,23 @@
     src: "{{ oim_ssh_key_path }}"
   register: oim_ssh_key_content
 
-- name: Generate SHA-512 hash of provision_password
-  ansible.builtin.command: >-
-    python3 -c "import crypt; print(crypt.crypt('{{ provision_password }}', crypt.mksalt(crypt.METHOD_SHA512)))"
-  register: password_hash_result
-  changed_when: false
+- name: Check if provision_password is set
+  ansible.builtin.assert:
+    that:
+      - provision_password is defined
+      - provision_password | length > 0
+    fail_msg: "provision_password is not set or empty. Please run the credential utility to set it."
+    quiet: true
+
+- name: Generate SHA-512 hash of provision_password using Ansible filter
+  ansible.builtin.set_fact:
+    ks_root_password_hash: "{{ provision_password | password_hash('sha512') }}"
   no_log: true
 
 - name: Get OIM IP address for NFS share construction
   ansible.builtin.set_fact:
     oim_ip: "{{ ansible_default_ipv4.address }}"
   when: oim_ip is not defined
-
-- name: Construct default NFS share path
-  ansible.builtin.set_fact:
-    default_iso_nfs_share: "{{ oim_ip }}:{{ iso_target_directory }}/custom-{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-ks.iso"
-  when: iso_config.iso_nfs_share | default('') | length == 0
 
 - name: Set install_os parameters for AArch64 node
   ansible.builtin.set_fact:
@@ -69,9 +70,9 @@
     # Kickstart parameters
     kickstart_file: "{{ iso_config.kickstart_file | default('') }}"
     kickstart_template: "{{ iso_config.kickstart_template | default(default_kickstart_template) }}"
-    ks_root_password_hash: "{{ password_hash_result.stdout }}"
+    ks_root_password_hash: "{{ ks_root_password_hash }}"
     ks_ssh_public_key: "{{ oim_ssh_key_content.content | b64decode | trim }}"
-    ks_hostname: "{{ arm_node_entry.HOSTNAME | default('admin-aarch64') }}"
+    ks_hostname: "{{ arm_node_entry.HOSTNAME | default('os-aarch64') }}"
     ks_static_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
     ks_netmask: "{{ iso_config.netmask | default('255.255.255.0') }}"
     ks_gateway: "{{ iso_config.gateway | default('') }}"
@@ -82,8 +83,17 @@
     target_bmc_ip: "{{ arm_node_entry.BMC_IP }}"
     target_node_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
     force_reinstall: "{{ iso_config.force_reinstall | default(false) | bool }}"
-    # NFS share path for idrac_os_deployment
-    iso_nfs_share: "{{ iso_config.iso_nfs_share | default(default_iso_nfs_share) }}"
+    # NFS share path (server:/path format from iso_config.yml nfs_share_path)
+    iso_nfs_share: "{{ iso_config.nfs_share_path | default('') }}"
+    cacheable: true
+
+- name: Construct default NFS share path if not provided
+  ansible.builtin.set_fact:
+    iso_nfs_share: "{{ oim_ip }}:{{ iso_target_directory }}"
+  when: iso_nfs_share | length == 0
+
+- name: Set remaining install_os parameters
+  ansible.builtin.set_fact:
     # Optional NFS credentials
     nfs_share_user: "{{ iso_config.nfs_share_user | default('') }}"
     nfs_share_password: "{{ iso_config.nfs_share_password | default('') }}"
