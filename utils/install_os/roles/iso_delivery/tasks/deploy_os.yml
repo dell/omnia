@@ -13,47 +13,154 @@
 # limitations under the License.
 ---
 
+# ── Step 1: Compute NFS ISO path ────────────────────────────────────────
 - name: Set NFS share path for custom ISO
   ansible.builtin.set_fact:
     nfs_iso_server: "{{ iso_nfs_share.split(':')[0] }}"
-    nfs_iso_base_dir: "{{ iso_nfs_share.split(':')[1] | dirname }}"
+    nfs_iso_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
     nfs_iso_filename: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
 
-- name: Set full NFS share directory for iDRAC
+- name: Set full NFS ISO URI for iDRAC virtual media
   ansible.builtin.set_fact:
-    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/omnia/iso_output"
+    nfs_iso_output_dir: "{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
+    nfs_iso_uri: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}/{{ nfs_iso_filename }}"
+    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
 
 - name: Log deployment parameters
   ansible.builtin.debug:
     msg: >-
       Deploying OS via iDRAC. BMC: {{ target_bmc_ip }},
-      NFS Share: {{ nfs_iso_share_dir }},
-      ISO: {{ nfs_iso_filename }},
+      NFS ISO: {{ nfs_iso_uri }},
+      Target IP: {{ target_node_ip }},
       Exposure: {{ expose_duration }} minutes
 
-- name: Deploy OS via iDRAC OS Deployment Service (BootToNetworkISO)
-  dellemc.openmanage.idrac_os_deployment:
-    idrac_ip: "{{ target_bmc_ip }}"
-    idrac_user: "{{ bmc_username }}"
-    idrac_password: "{{ bmc_password }}"
-    validate_certs: false
-    share_name: "{{ nfs_iso_share_dir }}"
-    iso_image: "{{ nfs_iso_filename }}"
-    expose_duration: "{{ expose_duration }}"
-  register: os_deployment_result
+# ── Step 2: Eject any existing virtual media ────────────────────────────
+- name: Eject existing virtual media if mounted
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
+      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" \
+      -H "Content-Type: application/json" -d '{}'
+  changed_when: false
   failed_when: false
+  no_log: true
 
-- name: Fail if OS deployment failed
+# ── Step 3: Insert ISO as virtual media ─────────────────────────────────
+- name: Mount ISO via iDRAC virtual media
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
+      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.InsertMedia" \
+      -H "Content-Type: application/json" \
+      -d '{"Image":"{{ nfs_iso_uri }}","Inserted":true,"WriteProtected":true}'
+  register: insert_result
+  changed_when: true
+  no_log: true
+
+- name: Verify virtual media is mounted
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s \
+      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD" \
+      | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("Inserted","false"))'
+  register: vm_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+  retries: 3
+  delay: 5
+  until: vm_check.stdout | trim | lower == 'true'
+
+- name: Fail if virtual media not mounted
   ansible.builtin.fail:
-    msg: "{{ os_deployment_fail_msg }} Error: {{ os_deployment_result.msg | default('Unknown error') }}"
-  when: os_deployment_result is failed
+    msg: >-
+      Failed to mount virtual media on iDRAC at {{ target_bmc_ip }}.
+      ISO: {{ nfs_iso_uri }}.
+      Please verify NFS share is accessible from the iDRAC network.
+  when: vm_check.stdout | trim | lower != 'true'
 
-- name: Log OS deployment success
+# ── Step 4: Set one-time boot from CD and reboot ────────────────────────
+- name: Set boot override to CD (one-time)
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X PATCH \
+      "https://{{ target_bmc_ip }}/redfish/v1/Systems/System.Embedded.1" \
+      -H "Content-Type: application/json" \
+      -d '{"Boot":{"BootSourceOverrideTarget":"Cd","BootSourceOverrideEnabled":"Once"}}'
+  register: boot_override_result
+  changed_when: true
+  no_log: true
+
+- name: Reboot server to boot from ISO
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
+      "https://{{ target_bmc_ip }}/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset" \
+      -H "Content-Type: application/json" \
+      -d '{"ResetType":"ForceRestart"}'
+  register: reboot_result
+  changed_when: true
+  no_log: true
+
+- name: Log OS deployment initiated
   ansible.builtin.debug:
     msg: >-
-      OS deployment initiated successfully via iDRAC OS Deployment Service.
-      BMC: {{ target_bmc_ip }},
-      NFS Share: {{ nfs_iso_share_dir }}/{{ nfs_iso_filename }},
-      Exposure Duration: {{ expose_duration }} minutes,
-      Job Status: {{ os_deployment_result.boot_status.JobStatus | default('Unknown') }},
-      Message: {{ os_deployment_result.boot_status.Message | default('') }}
+      OS deployment initiated. Server is rebooting from virtual CD.
+      BMC: {{ target_bmc_ip }}, ISO: {{ nfs_iso_uri }}.
+      Waiting for installation to complete...
+
+# ── Step 5: Wait for OS installation to complete ────────────────────────
+- name: Wait for target node to become unreachable (reboot in progress)
+  ansible.builtin.wait_for:
+    host: "{{ target_node_ip }}"
+    port: 22
+    state: stopped
+    timeout: 300
+  when: target_node_ip is defined and target_node_ip | length > 0
+  failed_when: false
+
+- name: Wait for OS installation to complete (target node SSH up)
+  ansible.builtin.wait_for:
+    host: "{{ target_node_ip }}"
+    port: 22
+    state: started
+    delay: 120
+    timeout: "{{ (expose_duration | int * 60) | int }}"
+  register: install_wait
+  when: target_node_ip is defined and target_node_ip | length > 0
+
+- name: Fail if OS installation timed out
+  ansible.builtin.fail:
+    msg: >-
+      OS installation timed out. Target node {{ target_node_ip }} did not
+      become reachable via SSH within {{ expose_duration }} minutes.
+      Check the iDRAC virtual console for installation status.
+  when:
+    - target_node_ip is defined and target_node_ip | length > 0
+    - install_wait is failed
+
+# ── Step 6: Verify installed OS ─────────────────────────────────────────
+- name: Verify SSH access to installed OS
+  ansible.builtin.shell: |
+    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@{{ target_node_ip }} \
+      'hostname && cat /etc/redhat-release && cat /root/.ks-complete 2>/dev/null'
+  register: os_verify
+  changed_when: false
+  failed_when: false
+  when: target_node_ip is defined and target_node_ip | length > 0
+
+- name: Log OS installation result
+  ansible.builtin.debug:
+    msg: >-
+      {% if os_verify is defined and os_verify.rc == 0 %}
+      OS installation completed successfully!
+      {{ os_verify.stdout_lines | join(', ') }}
+      {% else %}
+      OS deployment initiated. Target node may still be installing.
+      Monitor via iDRAC virtual console.
+      {% endif %}
+
+# ── Step 7: Cleanup — eject virtual media ───────────────────────────────
+- name: Eject virtual media after installation
+  ansible.builtin.shell: |
+    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
+      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" \
+      -H "Content-Type: application/json" -d '{}'
+  changed_when: true
+  failed_when: false
+  no_log: true

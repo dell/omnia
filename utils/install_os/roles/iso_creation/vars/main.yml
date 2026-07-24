@@ -14,15 +14,13 @@
 ---
 
 # NFS-hosted kickstart configuration
-# Extract NFS server and path from iso_nfs_share (format: "server:/path")
+# iso_nfs_share format: "server:/nfs_path" mapping to /opt/omnia
 nfs_server_ip: "{{ iso_nfs_share.split(':')[0] }}"
-nfs_share_dir: "{{ iso_nfs_share.split(':')[1] }}"
+nfs_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
 nfs_kickstart_filename: "kickstart.cfg"
-nfs_kickstart_path: "{{ nfs_share_dir }}/{{ nfs_kickstart_filename }}"
-
-# Host path for NFS share (mounted on host at /opt/omnia-core-shared)
-# This is used to write the kickstart file from the playbook
-host_nfs_path: "/opt/omnia-core-shared/{{ nfs_kickstart_filename }}"
+# Compute the sub-path of iso_target_directory relative to /opt/omnia
+nfs_iso_output_dir: "{{ nfs_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
+nfs_kickstart_path: "{{ nfs_iso_output_dir }}/{{ nfs_kickstart_filename }}"
 
 # Temporary files for ISO modification
 temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
@@ -34,7 +32,7 @@ kickstart_template: "{{ kickstart_template | default('rhel10') }}"
 # Repacked ISO output (one-time build with grub.cfg modification)
 repacked_iso_name: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
 repacked_iso_path: "{{ iso_target_directory }}/{{ repacked_iso_name }}"
-iso_volume_id: "RHEL-10-0-BaseOS-aarch64"
+iso_volume_id: "{{ iso_volume_id | default('') }}"
 
 # Manifest file
 manifest_path: "{{ iso_target_directory }}/install_manifest.yml"
@@ -49,6 +47,7 @@ ks_gateway: "{{ ks_gateway | default('') }}"
 ks_dns: "{{ ks_dns | default('') }}"
 ks_network_device: "{{ ks_network_device | default('') }}"
 ks_timezone: "{{ ks_timezone | default('UTC') }}"
+ks_install_disk: "{{ ks_install_disk | default('') }}"
 
 # Error messages
 kickstart_file_not_found_msg: >-

@@ -56,10 +56,13 @@
     ks_root_password_hash: "{{ provision_password | password_hash('sha512') }}"
   no_log: true
 
-- name: Get OIM IP address for NFS share construction
-  ansible.builtin.set_fact:
-    oim_ip: "{{ ansible_default_ipv4.address }}"
-  when: oim_ip is not defined
+- name: Detect NFS mount backing /opt/omnia
+  ansible.builtin.shell: |
+    set -o pipefail
+    mount | grep ' /opt/omnia ' | awk '{print $1}'
+  register: nfs_mount_result
+  changed_when: false
+  failed_when: false
 
 - name: Set install_os parameters for AArch64 node
   ansible.builtin.set_fact:
@@ -79,24 +82,24 @@
     ks_dns: "{{ iso_config.dns | default('') }}"
     ks_network_device: "{{ iso_config.network_device | default(default_network_device) }}"
     ks_timezone: "{{ iso_config.timezone | default('UTC') }}"
+    ks_install_disk: "{{ iso_config.install_disk | default('') }}"
     # iDRAC parameters
     target_bmc_ip: "{{ arm_node_entry.BMC_IP }}"
     target_node_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
     force_reinstall: "{{ iso_config.force_reinstall | default(false) | bool }}"
-    # NFS share path (server:/path format from iso_config.yml nfs_share_path)
-    iso_nfs_share: "{{ iso_config.nfs_share_path | default('') }}"
+    # NFS share path (server:/path) — auto-detected from mount or user-provided
+    iso_nfs_share: "{{ nfs_mount_result.stdout | default('') }}"
     cacheable: true
 
-- name: Construct default NFS share path if not provided
-  ansible.builtin.set_fact:
-    iso_nfs_share: "{{ oim_ip }}:{{ iso_target_directory }}"
+- name: Fail if NFS mount for /opt/omnia not found
+  ansible.builtin.fail:
+    msg: >-
+      Could not detect NFS mount for /opt/omnia.
+      The container must have /opt/omnia backed by NFS for iDRAC virtual media.
   when: iso_nfs_share | length == 0
 
 - name: Set remaining install_os parameters
   ansible.builtin.set_fact:
-    # Optional NFS credentials
-    nfs_share_user: "{{ iso_config.nfs_share_user | default('') }}"
-    nfs_share_password: "{{ iso_config.nfs_share_password | default('') }}"
     # Exposure duration
     expose_duration: "{{ iso_config.expose_duration | default(1080) }}"
     cacheable: true

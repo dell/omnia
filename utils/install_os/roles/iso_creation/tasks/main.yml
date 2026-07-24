@@ -49,14 +49,6 @@
       ansible.builtin.debug:
         msg: "Kickstart file created at {{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
 
-# Step 3: Copy kickstart to NFS share (manual step documented in manifest)
-- name: Note about copying kickstart to NFS
-  ansible.builtin.debug:
-    msg: >-
-      IMPORTANT: Copy the kickstart file to the NFS share:
-      podman cp omnia_core:{{ iso_target_directory }}/{{ nfs_kickstart_filename }} {{ host_nfs_path }}
-      Or from host: cp {{ iso_target_directory }}/{{ nfs_kickstart_filename }} {{ host_nfs_path }}"
-
 # Step 3: Build custom ISO (only if it doesn't exist)
 - name: Build custom ISO with NFS kickstart reference
   ansible.builtin.include_tasks: build_nfs_iso.yml

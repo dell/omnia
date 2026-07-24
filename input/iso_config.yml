@@ -39,20 +39,12 @@
 # kickstart_file: ""
 
 # Kickstart Jinja2 template name (used when kickstart_file is not set).
-# Available templates: os_aarch64
-# Default: os_aarch64
+# Available templates: rhel10
+# Default: rhel10
 # kickstart_template: "rhel10"
 
-# NFS share path where the repacked ISO will be accessible
-# for iDRAC OS Deployment Service.
-# Format: <nfs_server_ip>:<nfs_share_path>/<iso_filename>
-# Example: 10.10.0.1:/opt/omnia/iso_output/custom-rhel-10.0-ks.iso
-# The NFS share must be exported from the OIM node.
-# iso_nfs_share: ""
-
-# Optional: NFS share credentials (if the NFS server requires authentication)
-# nfs_share_user: ""
-# nfs_share_password: ""
+# NFS share path is auto-detected from the container's /opt/omnia mount.
+# No manual configuration is needed.
 
 # ISO exposure duration in minutes (how long iDRAC exposes the ISO as CD-ROM).
 # Default: 1080 minutes (18 hours)
@@ -61,6 +53,10 @@
 # Force reinstallation even if the target node is already reachable via SSH.
 # Default: false
 # force_reinstall: false
+
+# Target install disk (e.g., "sda", "nvme0n1"). When set, Anaconda will
+# only use this disk and ignore all others. Leave empty to auto-detect.
+# install_disk: ""
 
 # Network configuration for the installed node
 # These override values derived from network_spec.yml and PXE mapping.

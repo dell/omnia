@@ -54,12 +54,21 @@ sshkey --username=root "{{ ks_ssh_public_key }}"
 {% endif %}
 
 # Bootloader — auto-detect, works on x86_64 and AArch64
-bootloader --append="crashkernel=auto" --boot-drive=sda
+{% if ks_install_disk is defined and ks_install_disk | length > 0 %}
+bootloader --append="crashkernel=auto" --boot-drive={{ ks_install_disk }}
+{% else %}
+bootloader --append="crashkernel=auto"
+{% endif %}
 
-# Disk — ignore nvme0n1, only use sda
-ignoredisk --only-use=sda
+# Disk partitioning
+{% if ks_install_disk is defined and ks_install_disk | length > 0 %}
+ignoredisk --only-use={{ ks_install_disk }}
 zerombr
-clearpart --all --initlabel --drives=sda
+clearpart --all --initlabel --drives={{ ks_install_disk }}
+{% else %}
+zerombr
+clearpart --all --initlabel
+{% endif %}
 autopart --type=lvm
 
 # System
