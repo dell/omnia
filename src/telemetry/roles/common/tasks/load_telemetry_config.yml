@@ -21,10 +21,9 @@
 # Used by: telemetry.yml, enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.include_role:
-    name: ../../playbooks/utils/roles/include_input_dir
+- name: Set default input project directory if not provided
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
 
 - name: Load telemetry configuration
   ansible.builtin.include_vars:

@@ -45,9 +45,11 @@
 
 - name: Configure LDMS sampler
   ansible.builtin.include_tasks: configure_ldms_sampler.yml
+  when: not skip_sampler_config | default(false) | bool
 
 - name: Configure LDMS aggregator
   ansible.builtin.include_tasks: configure_ldms_aggregator.yml
+  when: not skip_aggregator_config | default(false) | bool
 
 - name: Generate Vector-LDMS manifests
   ansible.builtin.include_tasks: generate_vector_ldms_manifests.yml

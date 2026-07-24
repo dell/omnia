@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_victoria/common — Install Operator: Helm install/upgrade + wait for CRDs
+# =============================================================================
+# Separated from metrics/deploy.yml to support the kustomization flow:
+#   1. install_operator (this file) — helm + CRD registration
+#   2. generate manifests (metrics/prepare.yml, logs/prepare.yml) — render to NFS
+#   3. kubectl apply -k deployments/ (in telemetry.yml) — single apply
+#
+# Shared by both victoria-metrics and victoria-logs deployments.
+# =============================================================================
+
+- name: Check if VictoriaMetrics operator is installed
+  ansible.builtin.command: >
+    helm status victoria-metrics-operator -n {{ telemetry_namespace }}
+  register: victoria_operator_status
+  changed_when: false
+  failed_when: false
+
+- name: Install VictoriaMetrics operator
+  ansible.builtin.command: >
+    helm -n {{ telemetry_namespace }} install victoria-metrics-operator
+    {{ victoria_operator_pkg }}
+  when: victoria_operator_status.rc != 0
+
+- name: Upgrade VictoriaMetrics operator
+  ansible.builtin.command: >
+    helm -n {{ telemetry_namespace }} upgrade victoria-metrics-operator
+    {{ victoria_operator_pkg }}
+  when: victoria_operator_status.rc == 0
+
+- name: Wait for VictoriaMetrics operator deployment to be available
+  ansible.builtin.command: >
+    kubectl wait --for=condition=available --timeout=300s
+    deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+  changed_when: false
+
+- name: Wait for VictoriaMetrics CRDs to be registered
+  ansible.builtin.command: kubectl get crd {{ item }}
+  loop:
+    - vmclusters.operator.victoriametrics.com
+    - vmagents.operator.victoriametrics.com
+    - vmpodscrapes.operator.victoriametrics.com
+    - vlclusters.operator.victoriametrics.com
+    - vlagents.operator.victoriametrics.com
+  register: vm_crd_check
+  retries: "{{ victoria_crd_wait_retries }}"
+  delay: "{{ victoria_crd_wait_delay }}"
+  until: vm_crd_check.rc == 0
+  changed_when: false
+
+- name: Log VictoriaMetrics operator ready
+  ansible.builtin.debug:
+    msg: "VictoriaMetrics operator installed and CRDs registered in namespace {{ telemetry_namespace }}"

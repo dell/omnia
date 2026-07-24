@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Deploy OME Telemetry (Metrics + Logs via Vector-OME Bridge)
+# Gated by: telemetry_sources.ome.metrics_enabled or telemetry_sources.ome.logs_enabled
+#
+# DATA PIPELINE:
+#   OME Kafka Broker → Vector-OME → vmagent-vector → victoria_metrics (metrics)
+#   OME Kafka Broker → Vector-OME → vlagent-vector → victoria_logs (logs)
+#
+# Gate Logic:
+#   - Feature flag: telemetry_bridges.vector_ome.metrics_enabled OR logs_enabled
+#   - Requires: kafka_support=true
+#   - Metrics path requires: victoria_metrics_support=true
+#   - Logs path requires: victoria_logs_support=true
+#   - KafkaUser: Dedicated vector-ome-user (NOT shared kafkapump)
+#
+# What Omnia does:
+#   - Renders Vector-OME KafkaUser CR
+#   - Renders Vector-OME ConfigMap (TOML configuration)
+#   - Renders Vector-OME Deployment
+#   - Renders Vector-OME Service
+#
+# What Omnia does NOT do:
+#   - Omnia does NOT deploy or configure OME itself
+#   - OME Kafka topics are pre-existing — NOT created by Omnia
+
+- name: Set OME configuration facts
+  ansible.builtin.set_fact:
+    _ome_config: "{{ telemetry_config.telemetry_sources.ome }}"
+    _ome_bridge_config: "{{ telemetry_config.telemetry_bridges.vector_ome }}"
+
+- name: Validate OME bridge requires Kafka
+  ansible.builtin.fail:
+    msg: "{{ ome_kafka_required_msg }}"
+  when:
+    - _ome_bridge_config.metrics_enabled | default(false) | bool or
+      _ome_bridge_config.logs_enabled | default(false) | bool
+    - not (hostvars['localhost']['kafka_support'] | default(false) | bool)
+
+- name: Validate OME metrics bridge requires VictoriaMetrics
+  ansible.builtin.fail:
+    msg: "{{ ome_victoria_metrics_required_msg }}"
+  when:
+    - _ome_bridge_config.metrics_enabled | default(false) | bool
+    - not (hostvars['localhost']['victoria_metrics_support'] | default(false) | bool)
+
+- name: Validate OME logs bridge requires VictoriaLogs
+  ansible.builtin.fail:
+    msg: "{{ ome_victoria_logs_required_msg }}"
+  when:
+    - _ome_bridge_config.logs_enabled | default(false) | bool
+    - not (hostvars['localhost']['victoria_logs_support'] | default(false) | bool)
+
+- name: Display OME bridge configuration
+  ansible.builtin.debug:
+    msg:
+      - "OME metrics bridge: {{ _ome_bridge_config.metrics_enabled | default(false) }}"
+      - "OME logs bridge: {{ _ome_bridge_config.logs_enabled | default(false) }}"
+      - "OME identifier: {{ _ome_bridge_config.ome_identifier | default('ome') }}"
+    verbosity: 2
+
+# --- Generate Vector-OME deployment manifests ---
+
+- name: Generate Vector-OME manifests
+  ansible.builtin.include_tasks: generate_manifests.yml
+  when:
+    - _ome_bridge_config.metrics_enabled | default(false) | bool or
+      _ome_bridge_config.logs_enabled | default(false) | bool
+
+- name: Display OME telemetry integration summary
+  ansible.builtin.debug:
+    msg: >
+      Vector-OME templates generated successfully.
+      Deployment will occur via kubectl apply -k during full-stack kustomize apply.
+    verbosity: 2

@@ -1,3 +1,4 @@
+---
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,23 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
-
-# Enable iDRAC Telemetry
-# Usage: Called from telemetry.yml or standalone with kube_vip
-#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags enable_idrac_telemetry
-#
-# Deploys shared infrastructure (Kafka, VictoriaMetrics) if not present,
-# then deploys iDRAC telemetry components (receiver, kafkapump, victoriapump).
-# All K8s tasks execute on the kube_vip host.
-
-- name: Enable iDRAC Telemetry
+- name: Cleanup VAST Telemetry
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
-  roles:
-    - role: deploy_kafka
-      when: hostvars['localhost']['kafka_support'] | default(true) | bool
-    - role: deploy_victoria
-      when: hostvars['localhost']['victoria_metrics_support'] | default(true) | bool
-    - role: enable_idrac_telemetry
+
+  tasks:
+    - name: Placeholder task for VAST telemetry cleanup
+      ansible.builtin.debug:
+        msg: "VAST telemetry cleanup - to be implemented"

@@ -1,0 +1,35 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_victoria — Shared VictoriaMetrics deployment orchestrator
+# =============================================================================
+# Invoked by any telemetry enablement that has 'victoria_metrics' or
+# 'victoria_logs' in collection_targets.
+# Conditionally runs metrics/ and logs/ sub-roles.
+#
+# Variables expected from hostvars['localhost']:
+#   - telemetry_config
+#   - telemetry_packages_config
+#   - cluster_mount
+# =============================================================================
+
+- name: Deploy VictoriaMetrics metrics stack
+  ansible.builtin.include_tasks: "{{ role_path }}/metrics/tasks/main.yml"
+  when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+- name: Deploy VictoriaLogs logs stack
+  ansible.builtin.include_tasks: "{{ role_path }}/logs/tasks/main.yml"
+  when: hostvars['localhost']['victoria_logs_support'] | default(false) | bool

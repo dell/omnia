@@ -14,52 +14,67 @@
 ---
 
 # =============================================================================
-# Deploy iDRAC telemetry components to K8s
+# Deploy iDRAC telemetry — enable or disable based on telemetry_config.yml flag
 # =============================================================================
-# Deploys: namespace, secrets, activemq configmap, iDRAC statefulset
-# Assumes: Kafka and VictoriaMetrics already running in telemetry namespace.
+# Enable  (idrac.metrics_enabled: true):
+#   kubectl apply -k deployments/idrac/   ← fast kustomization apply
+#
+# Disable (idrac.metrics_enabled: false):
+#   kubectl scale sts → 0 replicas        ← graceful scale-down
+#
+# Called by:
+#   - enable_idrac_telemetry/tasks/main.yml  (standalone playbook)
+#   - telemetry.yml Phase C                  (orchestrator, disable path only)
+# Assumes: generate_manifests.yml has already rendered deployments/idrac/
 
-- name: Create telemetry namespace
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/telemetry_namespace_creation.yaml
-  register: ns_result
-  changed_when: "'created' in ns_result.stdout"
+# ── Enable path ──────────────────────────────────────────────────────────────
+- name: Apply iDRAC telemetry via kustomization (enable)
+  ansible.builtin.command: >
+    kubectl apply -k {{ telemetry_deployments_dir }}/idrac/
+  register: idrac_kustomize_result
+  changed_when: >
+    'created' in idrac_kustomize_result.stdout
+    or 'configured' in idrac_kustomize_result.stdout
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
 
-- name: Apply telemetry secrets
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/telemetry_secret_creation.yaml
-  register: secret_result
-  changed_when: "'created' in secret_result.stdout"
-  when: (telemetry_deployments_dir + '/telemetry_secret_creation.yaml') is file
-
-- name: Apply ActiveMQ ConfigMap
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/activemq-config.yaml
-  register: activemq_result
-  changed_when: "'created' in activemq_result.stdout or 'configured' in activemq_result.stdout"
-
-- name: Check if iDRAC telemetry StatefulSet already exists
-  ansible.builtin.command: kubectl get statefulset {{ idrac_telemetry_k8s_name }} -n {{ telemetry_namespace }}
-  register: idrac_sts_check
-  changed_when: false
-  failed_when: false
-
-- name: Deploy iDRAC telemetry StatefulSet (fresh)
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/idrac_telemetry_statefulset.yaml
-  register: idrac_deploy_result
-  changed_when: "'created' in idrac_deploy_result.stdout or 'configured' in idrac_deploy_result.stdout"
-  when: idrac_sts_check.rc != 0
-
-- name: Update iDRAC telemetry StatefulSet (existing)
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/idrac_telemetry_statefulset.yaml
-  register: idrac_update_result
-  changed_when: "'configured' in idrac_update_result.stdout"
-  when: idrac_sts_check.rc == 0
-
-- name: Wait for iDRAC telemetry StatefulSet rollout
+- name: Wait for iDRAC StatefulSet rollout (enable)
   ansible.builtin.command: >
     kubectl rollout status statefulset/{{ idrac_telemetry_k8s_name }}
     -n {{ telemetry_namespace }} --timeout={{ idrac_deploy_timeout }}
   register: rollout_result
   changed_when: false
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
 
-- name: Log deployment result
+- name: Log iDRAC enable result
   ansible.builtin.debug:
-    msg: "iDRAC telemetry StatefulSet deployed: {{ rollout_result.stdout | default('completed') }}"
+    msg: "iDRAC telemetry enabled: {{ rollout_result.stdout | default('completed') }}"
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
+
+# ── Disable path ─────────────────────────────────────────────────────────────
+- name: Check if iDRAC StatefulSet exists before scaling down
+  ansible.builtin.command: >
+    kubectl get statefulset {{ idrac_telemetry_k8s_name }} -n {{ telemetry_namespace }}
+  register: idrac_sts_exists
+  changed_when: false
+  failed_when: false
+  when: not (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool)
+
+- name: Scale down iDRAC StatefulSet to 0 (disable)
+  ansible.builtin.command: >
+    kubectl scale statefulset/{{ idrac_telemetry_k8s_name }}
+    --replicas=0 -n {{ telemetry_namespace }}
+  register: scale_result
+  changed_when: "'scaled' in scale_result.stdout"
+  when:
+    - not (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool)
+    - idrac_sts_exists.rc == 0
+
+- name: Log iDRAC disable result
+  ansible.builtin.debug:
+    msg: >
+      iDRAC telemetry disabled (scaled to 0).
+      Re-enable by setting idrac.metrics_enabled: true and re-running telemetry.yml.
+  when:
+    - not (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool)
+    - idrac_sts_exists is defined
+    - idrac_sts_exists.rc == 0
