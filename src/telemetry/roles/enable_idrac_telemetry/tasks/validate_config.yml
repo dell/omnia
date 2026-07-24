@@ -25,13 +25,13 @@
       iDRAC telemetry is not enabled in telemetry_config.yml.
       Set telemetry_sources.idrac.metrics_enabled: true
 
-- name: Validate iDRAC collection targets include kafka or victoria_metrics (or both)
+- name: Validate iDRAC collection targets include kafka and victoria_metrics
   ansible.builtin.assert:
     that:
       - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
-        or "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
+      - "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
     fail_msg: >
-      iDRAC collection_targets must include at least one of 'kafka' or 'victoria_metrics'.
+      iDRAC collection_targets must include both 'kafka' and 'victoria_metrics'.
       Current targets: {{ telemetry_config.telemetry_sources.idrac.collection_targets | default([]) }}
 
 - name: Validate MySQL storage configuration
