@@ -24,7 +24,7 @@ oim_ssh_key_path: "/root/.ssh/id_rsa.pub"
 # Default ISO config values
 default_iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
 default_iso_target_directory: "/opt/omnia/iso_output"
-default_kickstart_template: "os_aarch64"
+default_kickstart_template: "rhel10"
 
 # Error messages
 iso_config_not_found_msg: >-

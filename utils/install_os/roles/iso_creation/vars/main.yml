@@ -29,7 +29,7 @@ temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
 
 # Kickstart configuration
 kickstart_file: "{{ kickstart_file | default('') }}"
-kickstart_template: "{{ kickstart_template | default('os_aarch64') }}"
+kickstart_template: "{{ kickstart_template | default('rhel10') }}"
 
 # Repacked ISO output (one-time build with grub.cfg modification)
 repacked_iso_name: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
