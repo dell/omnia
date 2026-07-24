@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Build Stream Domain — Credential Utility
+# ============================================================================
+# Domain-specific credential handling for Build Stream.
+# Validates, creates, and updates build_stream_credentials.yml only.
+# ============================================================================
+
+# --- Step 1: Load build_stream_config.yml to check enable_build_stream ---
+- name: Load build_stream_config.yml
+  block:
+    - name: Include build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/{{ build_stream_config_dir | default('build_stream') }}/build_stream_config.yml"
+  rescue:
+    - name: Set enable_build_stream to false if config not found
+      ansible.builtin.set_fact:
+        enable_build_stream: false
+
+# --- Step 2: Validate credential file exists ---
+- name: Validate build_stream credential file
+  ansible.builtin.include_tasks: validate_cred_file.yml
+  vars:
+    credential_type: "Build Stream"
+    credential_file_path: "{{ bs_credential_file_path }}"
+    status_var_name: "bs_cred_file_status"
+
+# --- Step 3: Create credential file if it does not exist ---
+- name: Create build_stream credential file if absent
+  ansible.builtin.include_tasks: create_credential_file.yml
+  vars:
+    credential_type: "Build Stream"
+    credential_template: "{{ credential_files[0].template }}"
+    credential_file_path: "{{ credential_files[0].file_path }}"
+    credential_file_mode: "{{ credential_files[0].file_mode }}"
+    vault_password_file: "{{ credential_files[0].vault_path }}"
+    credential_condition: "{{ credential_files[0].condition | default(false) }}"
+  when: credential_files[0].file_path is not file
+
+# --- Step 4: Load existing credentials ---
+- name: Load existing build_stream credentials
+  ansible.builtin.include_tasks: decrypt_include_encrypt.yml
+  vars:
+    credential_file_path: "{{ bs_credential_file_path }}"
+    vault_password_file: "{{ bs_credential_vault_path }}"
+  when: bs_credential_file_path is file
+
+# --- Step 5: Prompt and update credentials ---
+- name: Prompt and update build_stream credentials
+  ansible.builtin.include_tasks: fetch_bs_credentials.yml
+  when: enable_build_stream | default(false) | bool

@@ -47,9 +47,11 @@ from core.localrepo.services import PlaybookQueueRequestService
 
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.dtos import RestartResponse
+from core.common.playbook_registry import get_playbook_path
 
 
 PLAYBOOK_NAME = "set_pxe_boot.yml"
+_RESTART_PLAYBOOK_PATH = get_playbook_path(PLAYBOOK_NAME) or "/omnia/utils/set_pxe_boot.yml"
 DEFAULT_TIMEOUT_MINUTES = 30
 
 

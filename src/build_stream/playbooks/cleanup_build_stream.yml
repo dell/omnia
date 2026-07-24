@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# cleanup_build_stream.yml — Full domain cleanup for BuildStream
+#
+# Undoes all tasks performed by the build_stream deployment:
+#   1. Cleans up GitLab (cleanup_gitlab.yml)
+#   2. Stops and removes omnia_build_stream container & quadlet service
+#   3. Stops and removes playbook_watcher service
+#   4. Removes automation framework (molecule/validate)
+#   5. Stops and removes omnia_postgres container & quadlet service
+#   6. Cleans up NFS directories (logs, queue, SSL, inventory, etc.)
+#   7. Removes build_stream credential files
+#
+# Usage:
+#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup_build_stream.yml
+#
+# To also delete postgres data (default: preserved):
+#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup_build_stream.yml -e postgres_backup=false
+#
+# To skip GitLab cleanup:
+#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup_build_stream.yml --skip-tags gitlab
+
+# ── Step 1: GitLab cleanup ──────────────────────────────────────────
+- name: Cleanup GitLab deployment
+  ansible.builtin.import_playbook: cleanup_gitlab.yml
+  tags: gitlab
+
+# ── Step 2: Resolve input project directory ─────────────────────────
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
+  tags: always
+
+# ── Step 3: Create OIM host group ───────────────────────────────────
+- name: Create OIM host group
+  ansible.builtin.import_playbook: ../../playbooks/utils/create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+# ── Step 4: Load OIM metadata ──────────────────────────────────────
+- name: Load OIM metadata for shared path
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Include OIM metadata
+      ansible.builtin.include_vars:
+        file: /opt/omnia/.data/oim_metadata.yml
+      no_log: true
+
+    - name: Set oim_shared_path fact
+      ansible.builtin.set_fact:
+        oim_shared_path: "{{ oim_shared_path | default('/opt/omnia') }}"
+
+# ── Step 5: Container, service, and NFS cleanup on OIM host ────────
+- name: BuildStream domain cleanup (container, postgres, NFS)
+  hosts: oim
+  connection: ssh
+  gather_facts: true
+  roles:
+    - cleanup_build_stream
+  tags: always

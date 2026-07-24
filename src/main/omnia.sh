@@ -1334,6 +1334,9 @@ post_setup_config() {
     echo -e "${GREEN} Creating the output directory.${NC}"
     podman exec -u root omnia_core bash -c "
     mkdir -p /opt/omnia/output/project_default"
+    
+    # Sync build_stream non-app files to container (domain segregation)
+    sync_build_stream_to_container
 }
 
 validate_nfs_server() {
@@ -1395,6 +1398,87 @@ init_ssh_config() {
 remove_container_omnia_sh() {
     podman exec -u root omnia_core bash -c 'if [ -f /omnia/omnia.sh ]; then rm -f /omnia/omnia.sh; fi' >/dev/null 2>&1 || true
     podman exec -u root omnia_core bash -c 'if [ -d /omnia/input ]; then rm -rf /omnia/input; fi' >/dev/null 2>&1 || true
+}
+
+# Sync build_stream non-app files to omnia_core container
+# After domain segregation, build_stream has:
+#   - app/ → EXCLUDED (stays on NFS, handled by deploy_bsm role)
+#   - playbooks/, roles/, ansible.cfg, build_stream.yml → copied to container
+#   - input/ → copied to container (default configs)
+#   - src/input/build_stream_config.yml → copied to container input directory
+sync_build_stream_to_container() {
+    echo -e "${BLUE} Syncing build_stream playbooks and roles to omnia_core container...${NC}"
+    
+    # Get script directory to find src/build_stream and src/input
+    local script_dir
+    if [ -L "${BASH_SOURCE[0]}" ]; then
+        script_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+    else
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
+    
+    local build_stream_src="$script_dir/../build_stream"
+    local input_src="$script_dir/../input"
+    
+    if [ ! -d "$build_stream_src" ]; then
+        echo -e "${YELLOW}[WARN] build_stream source directory not found at $build_stream_src${NC}"
+        return 0
+    fi
+    
+    # Create staging directory for files to copy
+    local staging_dir="/tmp/omnia_build_stream_sync_$$"
+    mkdir -p "$staging_dir"
+    
+    # Copy non-app files to staging (app/ is explicitly excluded)
+    echo -e "${BLUE}   Preparing build_stream files for container sync...${NC}"
+    
+    # Copy playbooks directory
+    if [ -d "$build_stream_src/playbooks" ]; then
+        cp -r "$build_stream_src/playbooks" "$staging_dir/"
+    fi
+    
+    # Copy roles directory
+    if [ -d "$build_stream_src/roles" ]; then
+        cp -r "$build_stream_src/roles" "$staging_dir/"
+    fi
+    
+    # Copy ansible.cfg
+    if [ -f "$build_stream_src/ansible.cfg" ]; then
+        cp "$build_stream_src/ansible.cfg" "$staging_dir/"
+    fi
+    
+    # Copy build_stream.yml
+    if [ -f "$build_stream_src/build_stream.yml" ]; then
+        cp "$build_stream_src/build_stream.yml" "$staging_dir/"
+    fi
+    
+    # Copy input directory (contains default configs)
+    if [ -d "$build_stream_src/input" ]; then
+        cp -r "$build_stream_src/input" "$staging_dir/"
+    fi
+    
+    # Use podman cp to copy staging directory contents to container
+    echo -e "${BLUE}   Copying files to container /omnia/build_stream/...${NC}"
+    podman exec -u root omnia_core mkdir -p /omnia/build_stream
+    
+    # Copy each item from staging to container
+    for item in "$staging_dir"/*; do
+        if [ -e "$item" ]; then
+            podman cp "$item" omnia_core:/omnia/build_stream/
+        fi
+    done
+    
+    # Copy default build_stream_config.yml to container input directory
+    if [ -f "$input_src/build_stream_config.yml" ]; then
+        echo -e "${BLUE}   Copying default build_stream_config.yml to container input...${NC}"
+        podman exec -u root omnia_core mkdir -p /opt/omnia/input/project_default/build_stream
+        podman cp "$input_src/build_stream_config.yml" omnia_core:/opt/omnia/input/project_default/build_stream/build_stream_config.yml
+    fi
+    
+    # Clean up staging directory
+    rm -rf "$staging_dir"
+    
+    echo -e "${GREEN}   ✓ build_stream files synced to container${NC}"
 }
 
 start_container_session() {

@@ -1,0 +1,99 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Domain-specific vars extracted from:
+#   playbooks/utils/roles/oim_cleanup/oim_container_cleanup/vars/main.yml
+#   playbooks/utils/roles/oim_cleanup/omnia_credential_cleanup/vars/main.yml
+
+# ── Container names ─────────────────────────────────────────────────
+build_stream_container_name: omnia_build_stream
+postgres_container_name: omnia_postgres
+
+# ── System paths ────────────────────────────────────────────────────
+quadlet_dir: "/etc/containers/systemd"
+omnia_target: "/etc/systemd/system/omnia.target"
+playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
+
+# ── NFS cleanup directories ────────────────────────────────────────
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia"
+build_stream_cleanup_directory:
+  - "{{ omnia_nfs_share }}/log/build_stream"
+  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/build_stream_ssl"
+  - "{{ omnia_nfs_share }}/build_stream_root"
+  - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream"
+
+# ── Postgres cleanup ───────────────────────────────────────────────
+postgres_cleanup_directory:
+  - "{{ omnia_nfs_share }}/postgres"
+
+# ── Automation framework cleanup ───────────────────────────────────
+automation_base_dir: "/opt/omnia/automation"
+automation_venv_dir: "{{ automation_base_dir }}/.venv"
+automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
+
+# ── Credential cleanup ─────────────────────────────────────────────
+bs_credential_config: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/build_stream/build_stream_credentials.yml"
+bs_credential_config_key: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/build_stream/.build_stream_credentials_key"
+bs_oauth_credential_config: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/build_stream_oauth_credentials.yml"
+bs_oauth_credential_config_key: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/.build_stream_oauth_credentials_key"
+
+# ── Retry / resilience ─────────────────────────────────────────────
+max_retries: 5
+
+# ── Messages ────────────────────────────────────────────────────────
+build_stream_cleanup_failure_msg:
+  - "Build stream cleanup failed due to directory locks."
+  - "[Manual Intervention Required]"
+  - "Logout of core container and perform below operations in OIM"
+  - "1. Force stop the playbook watcher service:"
+  - "   - systemctl stop playbook_watcher.service"
+  - "   - systemctl disable playbook_watcher.service"
+  - "2. Check for processes using the directory: Example:"
+  - "   - lsof +D {{ omnia_nfs_share }}/log/build_stream"
+  - "3. Force remove these directories:"
+  - "   - {{ build_stream_cleanup_directory | join(', ') }}"
+  - "After manual cleanup, you can safely retry the cleanup playbook."
+
+postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
+ if postgres_backup | default(true) | bool else 'DELETE data (postgres_backup=false)' }}"
+
+image_groups_cleaned_msg: >-
+  BuildStream image_groups: All records updated to CLEANED status.
+  S3 images were already removed during OpenCHAMI cleanup.
+  Database is now consistent for backup.
+image_groups_cleanup_failure_msg: >-
+  WARNING: Failed to update image_groups status to CLEANED in build_stream_db.
+  If postgres_backup is enabled, the backed-up database may contain stale image_groups records.
+  This does not affect the cleanup process. Proceeding with Postgres container removal.
+
+postgres_preserved_msg: "PRESERVED: Postgres data directories retained (postgres_backup=true): {{ postgres_cleanup_directory }}"
+postgres_preserved_volumes_msg: "PRESERVED: Postgres volumes retained (postgres_backup=true): {{ postgres_volumes | default([]) }}"
+postgres_deleted_msg:
+  - "DELETED: Postgres data directories removed (postgres_backup=false)"
+  - "Directories: {{ postgres_cleanup_directory }}"
+  - "Volumes: {{ postgres_volumes | default([]) }}"
+
+cleanup_summary_msg: |
+  BuildStream Domain Cleanup Complete
+  Cleaned:
+    - omnia_build_stream container and quadlet service
+    - playbook_watcher service
+    - automation framework
+    - omnia_postgres container and quadlet service
+    - build_stream NFS directories
+    - build_stream credential files
+  Postgres data: {{ 'PRESERVED (use -e postgres_backup=false to delete)' if postgres_backup | default(true) | bool else 'DELETED' }}
+  To redeploy run: cd /omnia/build_stream && ansible-playbook build_stream.yml

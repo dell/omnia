@@ -92,16 +92,41 @@ POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
 MAX_CONCURRENT_JOBS = int(os.getenv("MAX_CONCURRENT_JOBS", "1"))
 DEFAULT_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_TIMEOUT_MINUTES", "30"))
 
-# Playbook name to full path mapping - prevents injection from user input
-PLAYBOOK_NAME_TO_PATH = {
-    "include_input_dir.yml": "/omnia/utils/include_input_dir.yml",
-    "build_image_aarch64.yml": "/omnia/build_image_aarch64/build_image_aarch64.yml",
-    "build_image_x86_64.yml": "/omnia/build_image_x86_64/build_image_x86_64.yml",
-    "discovery.yml": "/omnia/discovery/discovery.yml",
-    "local_repo.yml": "/omnia/local_repo/local_repo.yml",
-    "provision.yml": "/omnia/provision/provision.yml",
-    "set_pxe_boot.yml": "/omnia/utils/set_pxe_boot.yml",
-}
+# Playbook name to full path mapping - prevents injection from user input.
+# Loaded once at startup from playbook_paths.yml (single source of truth).
+# The mapping file lives alongside the watcher in the NFS deployment path.
+PLAYBOOK_PATHS_CONFIG = Path(os.getenv(
+    "PLAYBOOK_PATHS_CONFIG",
+    str(Path(__file__).resolve().parent.parent / "playbook_paths.yml"),
+))
+
+
+def _load_playbook_paths(config_path: Path) -> dict:
+    """Load playbook path mapping from YAML config file.
+
+    Falls back to an empty dict if the file is missing or malformed,
+    which will cause every playbook request to be rejected by the
+    whitelist check — a safe default.
+    """
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+        with open(config_path, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+        if isinstance(data, dict) and isinstance(data.get("playbook_paths"), dict):
+            return dict(data["playbook_paths"])
+        log_secure_info("error", "playbook_paths.yml missing 'playbook_paths' key")
+        return {}
+    except FileNotFoundError:
+        log_secure_info("error", "playbook_paths.yml not found",
+                        str(config_path)[:8])
+        return {}
+    except Exception:  # pylint: disable=broad-except
+        log_secure_info("error", "Failed to load playbook_paths.yml",
+                        exc_info=True)
+        return {}
+
+
+PLAYBOOK_NAME_TO_PATH = _load_playbook_paths(PLAYBOOK_PATHS_CONFIG)
 
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

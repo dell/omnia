@@ -21,10 +21,22 @@ build_stream_container_name: "omnia_build_stream"
 # Build Stream source code location (in omnia_core container)
 build_stream_source_path: "/omnia/src/build_stream"
 
-# Rsync configuration for source code deployment
+# Rsync configuration for API/Python code deployment to NFS
+# Copies app/ contents (API server, watcher, scripts) to NFS shared path
 bs_rsync_options: "-av --checksum"
-bs_rsync_source: "{{ role_path }}/../../"
+bs_app_source: "{{ role_path }}/../../app/"
 bs_rsync_destination: "{{ omnia_path }}/omnia/build_stream/"
+
+# Rsync configuration for playbook/Ansible code to omnia_core container
+# Copies playbooks, roles, ansible.cfg, build_stream.yml into core container
+bs_playbook_source: "{{ role_path }}/../../"
+bs_playbook_destination: "/omnia/build_stream/"
+bs_playbook_includes:
+  - "ansible.cfg"
+  - "build_stream.yml"
+  - "playbooks/***"
+  - "roles/***"
+  - "input/***"
 
 # OIM metadata file path (read from omnia_core container)
 oim_metadata_file: "/opt/omnia/.data/oim_metadata.yml"

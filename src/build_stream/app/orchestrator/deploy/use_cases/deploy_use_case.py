@@ -49,8 +49,10 @@ from core.deploy.services import DeployQueueService
 
 from orchestrator.deploy.commands.deploy_command import DeployCommand
 from orchestrator.deploy.dtos.deploy_response import DeployResponseDTO
+from core.common.playbook_registry import get_playbook_path
 
 PROVISION_PLAYBOOK_NAME = "provision.yml"
+_PROVISION_PLAYBOOK_PATH = get_playbook_path(PROVISION_PLAYBOOK_NAME) or "/omnia/provision/provision.yml"
 DEFAULT_TIMEOUT_MINUTES = 60
 
 

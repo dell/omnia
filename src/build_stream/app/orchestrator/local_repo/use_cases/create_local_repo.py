@@ -54,9 +54,11 @@ from core.localrepo.value_objects import (
 
 from orchestrator.local_repo.commands import CreateLocalRepoCommand
 from orchestrator.local_repo.dtos import LocalRepoResponse
+from core.common.playbook_registry import get_playbook_path
 
 
 DEFAULT_PLAYBOOK_NAME = "local_repo.yml"
+_LOCAL_REPO_PLAYBOOK_PATH = get_playbook_path(DEFAULT_PLAYBOOK_NAME) or "/omnia/local_repo/local_repo.yml"
 
 
 class CreateLocalRepoUseCase:

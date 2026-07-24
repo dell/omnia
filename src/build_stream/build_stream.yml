@@ -17,21 +17,32 @@
 # Usage: cd src/build_stream && ansible-playbook build_stream.yml
 #
 # This playbook orchestrates the full BuildStream domain:
-#   1. Credential retrieval (filtered to build_stream tags)
-#   2. Postgres + GitLab + BSM deployment (prepare_build_stream)
-#   3. GitLab CI/CD configuration (setup_gitlab)
-#   4. Output: build_stream_status.yml
+#   1. Upgrade check + input directory resolution (shared utilities)
+#   2. Domain-specific credential validation, creation, and update
+#   3. Postgres + GitLab + BSM deployment (prepare_build_stream)
+#   4. GitLab CI/CD configuration (setup_gitlab)
+#   5. Output: build_stream_status.yml
 #
 # Input contract:  see INPUT_CONTRACT.md
 # Output contract: see OUTPUT_CONTRACT.md
 
-- name: Load BuildStream credential tags
-  ansible.builtin.import_playbook: ../playbooks/utils/credential_utility/get_config_credentials.yml
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../playbooks/utils/upgrade_checkup.yml
+  tags: always
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../playbooks/utils/include_input_dir.yml
+  tags: always
+
+- name: Build Stream domain credential utility
+  hosts: localhost
+  connection: local
+  roles:
+    - credential_utility
   vars:
-    omnia_run_tags:
-      - build_stream
-      - gitlab
     build_stream_config_dir: "build_stream"
+  tags: always
 
 - name: Prepare BuildStream infrastructure (Postgres + GitLab + BSM)
   ansible.builtin.import_playbook: playbooks/prepare_build_stream.yml

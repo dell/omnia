@@ -74,11 +74,12 @@ from core.jobs.value_objects import (
 
 from orchestrator.build_image.commands import CreateBuildImageCommand
 from orchestrator.build_image.dtos import BuildImageResponse
+from core.common.playbook_registry import get_playbook_path
 
 
 PLAYBOOK_PATHS = {
-    "x86_64": "/omnia/build_image_x86_64/build_image_x86_64.yml",
-    "aarch64": "/omnia/build_image_aarch64/build_image_aarch64.yml",
+    "x86_64": get_playbook_path("build_image_x86_64.yml") or "/omnia/build_image_x86_64/build_image_x86_64.yml",
+    "aarch64": get_playbook_path("build_image_aarch64.yml") or "/omnia/build_image_aarch64/build_image_aarch64.yml",
 }
 
 DEFAULT_TIMEOUT_MINUTES = 60
