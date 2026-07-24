@@ -1,0 +1,125 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Main Module — Test Configuration
+# =============================================================================
+# Non-sensitive settings for omnia.sh build/install/uninstall validation.
+#
+# Usage:
+#   - Set oim_server_ip to the OIM server IP address.
+#   - Leave oim_server_ip empty to run tests locally on the OIM itself.
+#   - Configure storage parameters below for omnia.sh --install.
+#   - Optionally use a dataset folder (use_dataset: true) to override
+#     storage parameters from datasets/<dataset>/install_config.yml.
+# =============================================================================
+
+# =============================================================================
+# TARGET OIM SERVER
+# =============================================================================
+# OIM server IP address.
+# Leave empty for local mode (running directly on the OIM server).
+# Set to a remote IP to run all commands over SSH.
+oim_server_ip: ""
+
+# SSH username for remote OIM server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote OIM server (only needed for remote mode).
+oim_ssh_port: 22
+
+# =============================================================================
+# OIM HOST — ADMIN NIC
+# =============================================================================
+# The admin NIC IP address of the OIM host.
+# This is the primary non-loopback IP used by omnia.sh --install to configure
+# the omnia_core container metadata (admin_nic_ip in oim_metadata.yml).
+admin_nic_ip: ""
+
+# =============================================================================
+# OMNIA.SH INSTALLATION — STORAGE CONFIGURATION
+# =============================================================================
+# These values drive the interactive omnia.sh --install prompts.
+# The automation feeds them automatically so no manual input is needed.
+#
+# PRECEDENCE:
+#   By default, values below are used directly.
+#   If use_dataset is true, values from datasets/<dataset>/install_config.yml
+#   override these values.
+
+# Storage option (REQUIRED)
+# Choose how omnia stores cluster data:
+#   "NFS"   — Use an NFS share (requires nfs_server_ip and nfs_share_path)
+#   "Local" — Use local disk storage on the OIM server
+share_option: "NFS"
+
+# NFS type (only when share_option is "NFS")
+#   "external" — External NFS server (supports HA OIM and K8s clusters)
+#   "internal" — NFS export on the OIM itself (flat provisioning only)
+nfs_type: "external"
+
+# NFS server IP address
+# Required when share_option is "NFS" and nfs_type is "external"
+nfs_server_ip: ""
+
+# NFS share path on the NFS server
+# Required for both external and internal NFS
+nfs_server_share_path: ""
+
+# Local mount point for omnia shared data (REQUIRED)
+# - For external NFS: used as the NFS mount point
+# - For Local: directory where omnia stores data directly
+omnia_shared_path: "/opt/omnia/shared"
+
+# =============================================================================
+# DATASET OVERRIDE (optional)
+# =============================================================================
+# When use_dataset is true, storage parameters above are overridden by
+# values from datasets/<dataset>/install_config.yml.
+# When false (default), the values above are used directly.
+use_dataset: false
+
+# Name of the dataset folder under datasets/ to use.
+# Only used when use_dataset is true.
+# Options: nfs_external, nfs_internal, local_storage
+dataset: nfs_external
+
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - A folder name (relative to main/): reports
+#   - An absolute path: /var/reports/omnia
+# No spaces allowed in the path.
+report_path: reports
+
+# Base name for report files (without extension).
+# Generates: main_report.json, main_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_name: main_report
+
+# Custom report ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_id: ""
+
+# =============================================================================
+# CONTAINER BUILD OPTIONS
+# =============================================================================
+# Force rebuild container images even if already present.
+# Set to false to skip rebuild when images exist.
+force_rebuild: true
