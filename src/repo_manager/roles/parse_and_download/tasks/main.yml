@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
   ansible.builtin.include_vars:
     file: "{{ omnia_metadata_file }}"
     name: oim_shared_path_from_metadata
+  when: repo_manager_metadata_support | default(false) | bool
 
 - name: Migrate Pulp repo names from old to new naming convention
   ansible.builtin.include_tasks: pulp_repo_name_migration.yml
@@ -183,5 +184,5 @@
     msg: >-
       {{ 'localrepository SUCCESS' if final_status == 'success' else
          'Local repo setup failed — some packages did not download, and dependent scripts/playbooks may also fail. '
-         'Refer to the localrepo logs for more details. Rerun local_repo.yml.' }}
+         'Refer to the localrepo logs for more details. Rerun repo_manager.yml.' }}
   failed_when: final_status != 'success'

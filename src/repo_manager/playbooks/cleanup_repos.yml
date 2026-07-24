@@ -158,6 +158,6 @@
           - "================================================CLEANUP COMPLETED==========================================================="
           - "Total: {{ cleanup_result.total }}, Success: {{ cleanup_result.success_count }}, Failed: {{ cleanup_result.failed_count }}"
           - "Status file: {{ cleanup_result.status_file }}"
-          - "NOTE: If the deleted artifact is required by any software, you must rerun local_repo.yml to sync the artifact(s) again."
+          - "NOTE: If the deleted artifact is required by any software, you must rerun repo_manager.yml to sync the artifact(s) again."
           - "If the artifact(s) is not synced in local repo, subsequent playbooks having dependency may fail"
           - "============================================================================================================================"

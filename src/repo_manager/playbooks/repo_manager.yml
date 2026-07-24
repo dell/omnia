@@ -73,6 +73,7 @@
         file: "{{ omnia_metadata_file }}"
         name: oim_shared_path_from_metadata
       register: include_metadata
+      when: repo_manager_metadata_support | default(false) | bool
       tags: always
 
     - name: Load software_config JSON
@@ -83,7 +84,7 @@
       ansible.builtin.set_fact:
         cluster_os_version: "{{ software_config.cluster_os_version }}"
         cluster_os_type: "{{ software_config.cluster_os_type }}"
-        repo_config: "{{ software_config.repo_config }}"
+        repo_config: "{{ software_config.repo_config | default('partial') }}"
 
 - name: "Phase 1.2: Include input project directory"
   when: not project_dir_status | default(false) | bool
@@ -249,7 +250,7 @@
         pulp_protocol: "{{ pulp_protocol }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
-        repo_config: "{{ repo_config }}"
+        repo_config: "{{ repo_config | default('partial') }}"
         output_path: "{{ omnia_base_dir }}/output/project_default/repo_manager/repo_status.yml"
         certs_dir: "{{ pulp_certs_dir }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"

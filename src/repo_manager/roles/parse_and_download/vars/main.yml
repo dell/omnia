@@ -16,7 +16,6 @@
 repo_manager_data_dir: "{{ repo_manager_base_dir }}/.data"
 repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 
-omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 local_repo_access_dest_path: "{{ output_dir }}/repo_status.yml"
 nfs_shared_path: "{{ omnia_base_dir }}"
 repo_store_path: "{{ omnia_base_dir }}"

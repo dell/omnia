@@ -40,10 +40,9 @@ repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 # -----------------------------------------------------------------------------
 # CONSTRUCTED PATHS
 # -----------------------------------------------------------------------------
-input_project_dir: "/opt/omnia/input/project_default/repo_manager"
+input_project_dir: "{{ omnia_base_dir }}/input/{{ project_name | default(project_default) }}/repo_manager"
 output_dir: "{{ repo_manager_base_dir }}/output"
 log_dir: "{{ repo_manager_log_dir }}"
-base_path: "{{ repo_manager_log_dir }}"
 repo_store_path: "{{ omnia_base_dir }}"
 omnia_metadata_file: "{{ omnia_base_dir }}/.data/oim_metadata.yml"
 

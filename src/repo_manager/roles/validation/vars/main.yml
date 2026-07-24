@@ -22,14 +22,14 @@ usage_message: |
   "WARNING:
   If you have modified any <software_name>.json file (e.g., `additional_software.json`),
   please run this playbook using:
-    ansible-playbook local_repo.yml -e "softwares=<list of softwares names seprated by comma>"
+    ansible-playbook repo_manager.yml -e "softwares=<list of softwares names seprated by comma>"
 
   Example:
-    ansible-playbook local_repo.yml -e "softwares=additional_software"
-    ansible-playbook local_repo.yml -e "softwares=compute_k8s,slurm"
+    ansible-playbook repo_manager.yml -e "softwares=additional_software"
+    ansible-playbook repo_manager.yml -e "softwares=compute_k8s,slurm"
 
   If you have NOT modified any software JSON files, you can run:
-    ansible-playbook local_repo.yml"
+    ansible-playbook repo_manager.yml"
 softwares_var_not_provided: "No softwares variable provided. Skipping."
 softwares_invalid_msg: "Invalid software_name(s) found: {{ softwares_list | difference(software_names) }}. Allowed values: {{ software_names }}"
 
@@ -40,7 +40,7 @@ local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
 # user_reg_key_path: "{{ project_input_path }}/.local_repo_credentials_key"
 var_mount_percentage_limit: 80
 var_mount_overuse_msg: |
-  [WARNING] local_repo.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
+  [WARNING] repo_manager.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
   Current usage: {{ var_mount_use_percentage.stdout }}%.
   This could result in failures when downloading large packages or images.
 
@@ -126,7 +126,7 @@ url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
     Also ensure that there is no indentation error in {{ project_input_path }}/repo_manager_config.yml"
 url_unreachable_fail_msg: "Failed. Unreachable url {{ ubuntu_os_url }} input provided in ubuntu_os_url.
     This can be due to intermittent internet connectivity issues as well.
-    Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run local_repo.yml."
+    Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run repo_manager.yml."
 meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 metadata_identical_msg: "Metadata is identical. No changes detected."

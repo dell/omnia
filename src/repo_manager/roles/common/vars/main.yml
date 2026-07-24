@@ -14,7 +14,6 @@
 ---
 
 # Usage: main.yml
-omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 
 # Usage: firewall_settings.yml
 oim_os_repo_fail_msg: |
@@ -45,7 +44,7 @@ podman_login_fail_msg: >
 ssh_config: "/root/.ssh/config"
 
 # Usage: configure_chrony.yml
-repo_manager_input_project_dir: "/opt/omnia/input/project_default/repo_manager"
+repo_manager_input_project_dir: "{{ omnia_base_dir }}/input/{{ project_name | default(project_default) }}/repo_manager"
 repo_manager_input_dir: "{{ repo_manager_base_dir }}/input"
 repo_manager_metadata_file_path: "{{ omnia_metadata_file }}"
 project_dir_not_exist_fail_msg: |
