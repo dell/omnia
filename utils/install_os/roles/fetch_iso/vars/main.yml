@@ -14,8 +14,9 @@
 ---
 
 # Default values
-iso_source_path: "{{ iso_source_path | default('/opt/omnia/rhel_10.0_aarch64.iso') }}"
-iso_target_directory: "{{ iso_target_directory | default('/opt/omnia/iso_output') }}"
+# These are overridden by extra vars or set_fact from the calling playbook.
+iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
+iso_target_directory: "/opt/omnia/iso_output"
 
 # Required ISO tooling
 required_iso_tools:

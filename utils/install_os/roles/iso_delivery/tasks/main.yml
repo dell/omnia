@@ -13,6 +13,25 @@
 # limitations under the License.
 ---
 
+- name: Confirm OS installation on target node
+  ansible.builtin.pause:
+    prompt: |-
+      ==============================================================
+          WARNING: ALL DATA ON THE TARGET NODE WILL BE ERASED
+          AN OPERATING SYSTEM INSTALLATION WILL BE PERFORMED
+      ==============================================================
+
+      Target Hostname : {{ ks_hostname | default('unknown') }}
+      Target Admin IP : {{ target_node_ip | default('unknown') }}
+      Target BMC IP   : {{ target_bmc_ip | default('unknown') }}
+      Install Disk    : {{ ks_install_disk | default('auto-detect') }}
+      Source ISO      : {{ iso_source_path | default('unknown') }}
+
+      ==============================================================
+      Press ENTER to continue, or Ctrl+C then 'A' to abort.
+      ==============================================================
+  when: not (silent_install | default(false) | bool)
+
 - name: Run iDRAC pre-flight checks
   ansible.builtin.include_tasks: preflight_checks.yml
 

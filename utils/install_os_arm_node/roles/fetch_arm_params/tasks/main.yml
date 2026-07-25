@@ -103,6 +103,9 @@
   ansible.builtin.set_fact:
     # Exposure duration
     expose_duration: "{{ iso_config.expose_duration | default(1080) }}"
+    # Interactive behavior
+    silent_install: "{{ iso_config.silent_install | default(false) | bool }}"
+    rebuild_iso: "{{ iso_config.rebuild_iso | default(false) | bool }}"
     cacheable: true
 
 - name: Log fetched ARM parameters

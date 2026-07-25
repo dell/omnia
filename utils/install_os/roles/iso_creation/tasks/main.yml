@@ -13,20 +13,34 @@
 # limitations under the License.
 ---
 
-# Step 1: Check if custom ISO already exists (skip rebuild if yes)
+# Step 1: Check if custom ISO already exists and prompt for action
 - name: Check if custom ISO already exists
   ansible.builtin.stat:
     path: "{{ repacked_iso_path }}"
   register: custom_iso_stat
 
-- name: Log ISO rebuild decision
-  ansible.builtin.debug:
-    msg: >-
-      {% if custom_iso_stat.stat.exists %}
-      Custom ISO already exists at {{ repacked_iso_path }}. Skipping rebuild.
-      {% else %}
-      Custom ISO not found. Building new ISO with NFS kickstart reference.
-      {% endif %}
+- name: Prompt to use existing custom ISO or rebuild
+  ansible.builtin.pause:
+    prompt: |-
+      ==============================================================
+      Custom ISO already exists at:
+        {{ repacked_iso_path }}
+
+      Press ENTER to use the existing ISO.
+      Type 'r' then ENTER to rebuild the ISO.
+      ==============================================================
+  register: iso_reuse_prompt
+  when:
+    - custom_iso_stat.stat.exists
+    - not (silent_install | bool)
+
+- name: Set rebuild flag from user input
+  ansible.builtin.set_fact:
+    rebuild_iso: true
+  when:
+    - custom_iso_stat.stat.exists
+    - not (silent_install | bool)
+    - iso_reuse_prompt.user_input | default('') | lower in ['r', 'rebuild']
 
 # Step 2: Render kickstart file to iso_output directory
 - name: Render kickstart file
@@ -49,7 +63,7 @@
       ansible.builtin.debug:
         msg: "Kickstart file created at {{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
 
-# Step 3: Build custom ISO (only if it doesn't exist)
+# Step 3: Build custom ISO (if missing or rebuild requested)
 - name: Build custom ISO with NFS kickstart reference
   ansible.builtin.include_tasks: build_nfs_iso.yml
-  when: not custom_iso_stat.stat.exists
+  when: not custom_iso_stat.stat.exists or (rebuild_iso | bool)

@@ -46,6 +46,14 @@
 # NFS share path is auto-detected from the container's /opt/omnia mount.
 # No manual configuration is needed.
 
+# Silent installation mode: when true, no interactive prompts are shown.
+# Default: false
+# silent_install: false
+
+# Force rebuild of the custom ISO when it already exists.
+# Default: false (reuses existing ISO)
+# rebuild_iso: false
+
 # ISO exposure duration in minutes (how long iDRAC exposes the ISO as CD-ROM).
 # Default: 1080 minutes (18 hours)
 # expose_duration: 1080

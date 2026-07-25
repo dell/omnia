@@ -25,16 +25,56 @@
 #   - target_bmc_ip:        BMC/iDRAC IP of the target node
 #   - bmc_username:         iDRAC username
 #   - bmc_password:         iDRAC password
+#   - target_node_ip:       admin IP of the target node (for verification)
+#   - iso_nfs_share:        NFS share path mapping to /opt/omnia
+#   - ks_root_password_hash: SHA-512 hash of the root password
+#   - ks_ssh_public_key:    SSH public key to inject
+#   - ks_hostname:          hostname for the installed node
+#   - ks_static_ip:         static IP for the installed node
 #
 # Optional variables:
 #   - iso_source_checksum:  SHA-256 checksum for source ISO verification
 #   - iso_target_directory: output directory for repacked ISO (default: /opt/omnia/iso_output)
 #   - kickstart_file:       user-provided kickstart file path
 #   - kickstart_template:   Jinja2 template name (default: rhel10)
-#   - target_node_ip:       admin IP for pre-flight SSH reachability check
+#   - ks_install_disk:      target install disk (default: auto-detect)
 #   - force_reinstall:      proceed even if target is reachable (default: false)
-#   - iso_http_share_url:   HTTP/HTTPS URL for ISO share (for virtual media mount)
+#   - silent_install:       suppress all interactive prompts (default: false)
+#   - rebuild_iso:          force ISO rebuild when it exists (default: false)
 # ─────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 0: Validate required parameters
+# ─────────────────────────────────────────────────────────────────────────
+- name: Validate required OS installation parameters
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Build list of missing mandatory parameters
+      ansible.builtin.set_fact:
+        missing_params: >-
+          {{ missing_params | default([]) + [item.name] }}
+      when: item.value | length == 0
+      loop:
+        - { name: "Source ISO path", value: "{{ iso_source_path | default('') }}" }
+        - { name: "Target BMC IP", value: "{{ target_bmc_ip | default('') }}" }
+        - { name: "BMC username", value: "{{ bmc_username | default('') }}" }
+        - { name: "BMC password", value: "{{ bmc_password | default('') }}" }
+        - { name: "Target node admin IP", value: "{{ target_node_ip | default('') }}" }
+        - { name: "NFS share for /opt/omnia", value: "{{ iso_nfs_share | default('') }}" }
+        - { name: "Root password hash", value: "{{ ks_root_password_hash | default('') }}" }
+        - { name: "SSH public key", value: "{{ ks_ssh_public_key | default('') }}" }
+        - { name: "Target hostname", value: "{{ ks_hostname | default('') }}" }
+        - { name: "Target static IP", value: "{{ ks_static_ip | default('') }}" }
+
+    - name: Fail if mandatory parameters are missing
+      ansible.builtin.fail:
+        msg: >-
+          Missing mandatory parameters: {{ missing_params | join(', ') }}.
+          Provide them via extra-vars (e.g., -e "iso_source_path=/path/to.iso")
+          or call this playbook through the appropriate orchestrator.
+      when: missing_params | default([]) | length > 0
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 1: Validate ISO source and required tooling

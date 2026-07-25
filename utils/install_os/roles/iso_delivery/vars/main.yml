@@ -14,17 +14,23 @@
 ---
 
 # iDRAC configuration
-target_bmc_ip: "{{ target_bmc_ip }}"
-bmc_username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-bmc_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
-force_reinstall: "{{ force_reinstall | default(false) | bool }}"
+# These are overridden by extra vars or set_fact from the calling playbook.
+target_bmc_ip: ""
+target_node_ip: ""
+bmc_username: "{{ hostvars['localhost']['bmc_username'] | default('') }}"
+bmc_password: "{{ hostvars['localhost']['bmc_password'] | default('') }}"
+force_reinstall: false
 
 # NFS share base path (server:/path mapping to /opt/omnia)
 # Auto-detected from container mount by fetch_arm_params role
+iso_nfs_share: ""
+
+# Silent installation mode: when true, no interactive prompts are shown
+silent_install: false
 
 # ISO exposure duration (minutes) - how long iDRAC exposes the ISO as CD-ROM
 # Default: 1080 minutes (18 hours)
-expose_duration: "{{ expose_duration | default(1080) }}"
+expose_duration: 1080
 
 # Error messages
 idrac_unreachable_msg: >-
