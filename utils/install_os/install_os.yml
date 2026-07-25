@@ -44,7 +44,23 @@
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 0: Validate required parameters
+# Play 0: Load encrypted credentials (if provided)
+# ─────────────────────────────────────────────────────────────────────────
+- name: Load encrypted BMC credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Include encrypted credentials file
+      ansible.builtin.include_vars:
+        file: "{{ encrypted_bmc_credentials_file }}"
+      when:
+        - encrypted_bmc_credentials_file is defined
+        - encrypted_bmc_credentials_file | length > 0
+      no_log: true
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 1: Validate required parameters
 # ─────────────────────────────────────────────────────────────────────────
 - name: Validate required OS installation parameters
   hosts: localhost
@@ -76,8 +92,27 @@
           or call this playbook through the appropriate orchestrator.
       when: missing_params | default([]) | length > 0
 
+    - name: Confirm OS installation on target node
+      ansible.builtin.pause:
+        prompt: |-
+          ==============================================================
+              WARNING: ALL DATA ON THE TARGET NODE WILL BE ERASED
+              AN OPERATING SYSTEM INSTALLATION WILL BE PERFORMED
+          ==============================================================
+
+          Target Hostname : {{ ks_hostname | default('unknown') }}
+          Target Admin IP : {{ target_node_ip | default('unknown') }}
+          Target BMC IP   : {{ target_bmc_ip | default('unknown') }}
+          Install Disk    : {{ ks_install_disk | default('auto-detect') }}
+          Source ISO      : {{ iso_source_path | default('unknown') }}
+
+          ==============================================================
+          Press ENTER to continue, or Ctrl+C then 'A' to abort.
+          ==============================================================
+      when: not (silent_install | default(false) | bool)
+
 # ─────────────────────────────────────────────────────────────────────────
-# Play 1: Validate ISO source and required tooling
+# Play 2: Validate ISO source and required tooling
 # ─────────────────────────────────────────────────────────────────────────
 - name: Validate ISO source and required tooling
   hosts: localhost
@@ -87,7 +122,7 @@
     - role: fetch_iso
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 2: Create custom ISO with embedded Kickstart
+# Play 3: Create custom ISO with embedded Kickstart
 # ─────────────────────────────────────────────────────────────────────────
 - name: Create custom ISO with embedded Kickstart
   hosts: localhost
@@ -97,7 +132,7 @@
     - role: iso_creation
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 3: Deliver ISO via iDRAC virtual media and boot target node
+# Play 4: Deliver ISO via iDRAC virtual media and boot target node
 # ─────────────────────────────────────────────────────────────────────────
 - name: Deliver ISO via iDRAC virtual media
   hosts: localhost
