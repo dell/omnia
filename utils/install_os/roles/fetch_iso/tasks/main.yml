@@ -24,9 +24,28 @@
     msg: "{{ iso_not_found_msg }}"
   when: not iso_source_stat.stat.exists
 
-- name: Skip ISO checksum verification (re-enable for production)
+- name: Verify source ISO checksum (if provided)
+  ansible.builtin.stat:
+    path: "{{ iso_source_path }}"
+    checksum_algorithm: sha256
+  register: iso_source_checksum_stat
+  when: iso_source_checksum | length > 0
+
+- name: Fail if source ISO checksum mismatch
+  ansible.builtin.fail:
+    msg: "{{ iso_checksum_mismatch_msg }}"
+  when:
+    - iso_source_checksum | length > 0
+    - iso_source_checksum_stat.stat.checksum != iso_source_checksum
+
+- name: Log checksum verification status
   ansible.builtin.debug:
-    msg: "Skipping ISO checksum verification for faster execution. Source ISO exists and is valid."
+    msg: >-
+      {% if iso_source_checksum | length > 0 %}
+      ISO checksum verified successfully. Expected: {{ iso_source_checksum }}
+      {% else %}
+      Skipping ISO checksum verification (no checksum provided).
+      {% endif %}
 
 - name: Check required ISO tooling
   block:
