@@ -57,11 +57,6 @@
     state: directory
     mode: "0755"
 
-- name: Ensure ISO extract directory exists
-  ansible.builtin.file:
-    path: "{{ iso_extract_dir }}"
-    state: directory
-    mode: "0755"
 
 - name: Log ISO validation success
   ansible.builtin.debug:

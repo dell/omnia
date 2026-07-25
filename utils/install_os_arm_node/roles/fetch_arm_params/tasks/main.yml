@@ -43,26 +43,27 @@
     src: "{{ oim_ssh_key_path }}"
   register: oim_ssh_key_content
 
-- name: Check if provision_password is set
-  ansible.builtin.assert:
-    that:
-      - provision_password is defined
-      - provision_password | length > 0
-    fail_msg: "provision_password is not set or empty. Please run the credential utility to set it."
-    quiet: true
-
-- name: Generate SHA-512 hash of provision_password using Ansible filter
+- name: Validate provision_password and generate SHA-512 hash
   ansible.builtin.set_fact:
     ks_root_password_hash: "{{ provision_password | password_hash('sha512') }}"
   no_log: true
+  when:
+    - provision_password is defined
+    - provision_password | length > 0
+
+- name: Fail if provision_password is not set
+  ansible.builtin.fail:
+    msg: "provision_password is not set or empty. Please run the credential utility to set it."
+  when: >
+    provision_password is not defined or
+    provision_password | length == 0
 
 - name: Detect NFS mount backing /opt/omnia
-  ansible.builtin.shell: |
-    set -o pipefail
-    mount | grep ' /opt/omnia ' | awk '{print $1}'
-  register: nfs_mount_result
+  ansible.builtin.set_fact:
+    nfs_mount_result:
+      stdout: >-
+        {{ (ansible_mounts | selectattr('mount', 'equalto', '/opt/omnia') | list | first | default({}))['device'] | default('') }}
   changed_when: false
-  failed_when: false
 
 - name: Set install_os parameters for AArch64 node
   ansible.builtin.set_fact:

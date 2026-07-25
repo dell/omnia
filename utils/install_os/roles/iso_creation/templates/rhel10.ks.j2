@@ -32,7 +32,7 @@ udevadm settle 2>/dev/null
 %end
 
 # Installation
-text
+graphical
 cdrom
 
 # Locale
@@ -76,7 +76,7 @@ eula --agreed
 firstboot --disabled
 selinux --enforcing
 firewall --enabled --ssh
-services --enabled=sshd,NetworkManager
+services --enabled=sshd,NetworkManager,gdm
 
 # Kdump
 %addon com_redhat_kdump --enable --reserve-mb='auto'
@@ -98,5 +98,6 @@ repo --name="AppStream" --baseurl=file:///run/install/repo/AppStream
 %post --log=/root/ks-post.log
 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config
+systemctl set-default graphical.target
 echo "KS_COMPLETE=$(date -u +%Y%m%dT%H%M%SZ)" > /root/.ks-complete
 %end
