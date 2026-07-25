@@ -21,11 +21,13 @@
 # for ISO path, Kickstart configuration, and target node details.
 #
 # Credential Handling:
-#   Option 1: Encrypted vault file (recommended for automation)
-#     - encrypted_credentials_file: path to ansible-vault encrypted YAML
+#   Option 1: Encrypted credentials file (recommended for automation)
+#     - encrypted_credentials_file: path to ansible-vault encrypted YAML file
 #       containing credentials (bmc_username, bmc_password, os_root_password)
+#     - vault_password_file: path to vault password file for decryption
 #     - Example: -e "encrypted_credentials_file=/opt/omnia/input/project_default/os_install_credentials.yml"
-#     - Run with: --vault-password-file /path/to/vault_password_file
+#                -e "vault_password_file=/opt/omnia/input/project_default/.os_install_credentials_key"
+#     - Note: ARM orchestrator passes credentials as facts, no file decryption needed
 #
 #   Option 2: Direct extra-vars (less secure, visible in process list)
 #     - bmc_username: iDRAC username
@@ -72,15 +74,43 @@
       when:
         - encrypted_credentials_file is defined
         - encrypted_credentials_file | length > 0
+        - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
 
-    - name: Include encrypted credentials file
-      ansible.builtin.include_vars:
-        file: "{{ encrypted_credentials_file }}"
+    - name: Decrypt and include encrypted credentials file
+      block:
+        - name: Create temporary directory for decryption
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: "os_install_decrypt_"
+          register: temp_decrypt_dir
+
+        - name: Decrypt credentials file to temporary location
+          ansible.builtin.command:
+            cmd: >-
+              ansible-vault decrypt
+              {{ encrypted_credentials_file }}
+              --output {{ temp_decrypt_dir.path }}/decrypted_creds.yml
+              --vault-password-file {{ vault_password_file }}
+          no_log: true
+          changed_when: false
+
+        - name: Include decrypted credentials
+          ansible.builtin.include_vars:
+            file: "{{ temp_decrypt_dir.path }}/decrypted_creds.yml"
+          no_log: true
+
+        - name: Remove temporary decrypted file
+          ansible.builtin.file:
+            path: "{{ temp_decrypt_dir.path }}"
+            state: absent
+          no_log: true
       when:
         - encrypted_credentials_file is defined
         - encrypted_credentials_file | length > 0
         - creds_file_stat.stat.exists | default(false)
-      no_log: true
+        - vault_password_file is defined
+        - vault_password_file | length > 0
+        - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
 
     - name: Prompt for BMC username if not provided
       ansible.builtin.pause:
@@ -206,9 +236,9 @@
     - role: fetch_iso
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 3: Create custom ISO with embedded Kickstart
+# Play 3: Create custom ISO with Kickstart
 # ─────────────────────────────────────────────────────────────────────────
-- name: Create custom ISO with embedded Kickstart
+- name: Create custom ISO with Kickstart
   hosts: localhost
   connection: local
   gather_facts: false
