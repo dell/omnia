@@ -43,27 +43,34 @@
     src: "{{ oim_ssh_key_path }}"
   register: oim_ssh_key_content
 
-- name: Validate provision_password and generate SHA-512 hash
-  ansible.builtin.set_fact:
-    ks_root_password_hash: "{{ provision_password | password_hash('sha512') }}"
-  no_log: true
-  when:
-    - provision_password is defined
-    - provision_password | length > 0
-
-- name: Fail if provision_password is not set
+- name: Validate provision_password is set
   ansible.builtin.fail:
     msg: "provision_password is not set or empty. Please run the credential utility to set it."
   when: >
     provision_password is not defined or
     provision_password | length == 0
 
-- name: Detect NFS mount backing /opt/omnia
+- name: Check if user provided nfs_share_path in iso_config.yml
+  ansible.builtin.set_fact:
+    user_nfs_share_path: "{{ iso_config.nfs_share_path | default('') }}"
+
+- name: Validate user-provided nfs_share_path format
+  ansible.builtin.fail:
+    msg: >-
+      Invalid nfs_share_path format: '{{ user_nfs_share_path }}'.
+      Expected format: 'server:/path' (e.g., '192.168.1.100:/mnt/nfs/share').
+      Do not include the ISO filename in the path.
+  when:
+    - user_nfs_share_path | length > 0
+    - "':' not in user_nfs_share_path or user_nfs_share_path.split(':') | length != 2"
+
+- name: Detect NFS mount backing /opt/omnia (fallback if not user-provided)
   ansible.builtin.set_fact:
     nfs_mount_result:
       stdout: >-
         {{ (ansible_mounts | selectattr('mount', 'equalto', '/opt/omnia') | list | first | default({}))['device'] | default('') }}
   changed_when: false
+  when: user_nfs_share_path | length == 0
 
 - name: Set install_os parameters for AArch64 node
   ansible.builtin.set_fact:
@@ -74,7 +81,6 @@
     # Kickstart parameters
     kickstart_file: "{{ iso_config.kickstart_file | default('') }}"
     kickstart_template: "{{ iso_config.kickstart_template | default(default_kickstart_template) }}"
-    ks_root_password_hash: "{{ ks_root_password_hash }}"
     ks_ssh_public_key: "{{ oim_ssh_key_content.content | b64decode | trim }}"
     ks_hostname: "{{ arm_node_entry.HOSTNAME | default('os-aarch64') }}"
     ks_static_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
@@ -88,15 +94,16 @@
     target_bmc_ip: "{{ arm_node_entry.BMC_IP }}"
     target_node_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
     force_reinstall: "{{ iso_config.force_reinstall | default(false) | bool }}"
-    # NFS share path (server:/path) — auto-detected from mount or user-provided
-    iso_nfs_share: "{{ nfs_mount_result.stdout | default('') }}"
+    # NFS share path (server:/path) — user-provided or auto-detected from mount
+    iso_nfs_share: "{{ user_nfs_share_path if user_nfs_share_path | length > 0 else nfs_mount_result.stdout | default('') }}"
     cacheable: true
 
-- name: Fail if NFS mount for /opt/omnia not found
+- name: Fail if NFS share path not available
   ansible.builtin.fail:
     msg: >-
-      Could not detect NFS mount for /opt/omnia.
-      The container must have /opt/omnia backed by NFS for iDRAC virtual media.
+      NFS share path not available.
+      Either provide 'nfs_share_path' in iso_config.yml (format: 'server:/path')
+      or ensure /opt/omnia is backed by an NFS mount for iDRAC virtual media.
   when: iso_nfs_share | length == 0
 
 - name: Set remaining install_os parameters

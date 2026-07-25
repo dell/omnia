@@ -43,8 +43,12 @@
 # Default: rhel10
 # kickstart_template: "rhel10"
 
-# NFS share path is auto-detected from the container's /opt/omnia mount.
-# No manual configuration is needed.
+# NFS share path for iDRAC virtual media and kickstart hosting.
+# Format: "server:/path" (e.g., "192.168.1.100:/mnt/nfs/omnia")
+# This should be the NFS base path that maps to /opt/omnia on the OIM container.
+# If not provided, it will be auto-detected from the container's /opt/omnia mount.
+# IMPORTANT: Do NOT include the ISO filename in this path - only the base directory.
+# nfs_share_path: "192.168.1.100:/mnt/nfs/omnia"
 
 # Silent installation mode: when true, no interactive prompts are shown.
 # Default: false

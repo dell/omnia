@@ -78,19 +78,24 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Create temporary directory for encrypted credentials
-      ansible.builtin.tempfile:
-        state: directory
-        prefix: "omnia_os_install_"
-      register: temp_creds_dir
+    - name: Set generic credentials vault file path in project directory
+      ansible.builtin.set_fact:
+        credentials_vault_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/os_install_credentials.yml"
 
-    - name: Generate encrypted extra-vars YAML with BMC credentials
+    - name: Ensure project directory exists
+      ansible.builtin.file:
+        path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
+        state: directory
+        mode: '0755'
+
+    - name: Generate encrypted extra-vars YAML with credentials
       ansible.builtin.copy:
         content: |
           ---
           bmc_username: "{{ bmc_username }}"
           bmc_password: "{{ bmc_password }}"
-        dest: "{{ temp_creds_dir.path }}/bmc_credentials.yml"
+          os_root_password: "{{ provision_password }}"
+        dest: "{{ credentials_vault_file }}"
         mode: '0600'
       no_log: true
 
@@ -98,14 +103,14 @@
       ansible.builtin.command:
         cmd: >-
           ansible-vault encrypt
-          {{ temp_creds_dir.path }}/bmc_credentials.yml
+          {{ credentials_vault_file }}
           --vault-password-file {{ vault_filename }}
       no_log: true
       changed_when: true
 
     - name: Set encrypted credentials file path for install_os playbook
       ansible.builtin.set_fact:
-        encrypted_bmc_credentials_file: "{{ temp_creds_dir.path }}/bmc_credentials.yml"
+        encrypted_credentials_file: "{{ credentials_vault_file }}"
         cacheable: true
 
 # ─────────────────────────────────────────────────────────────────────────

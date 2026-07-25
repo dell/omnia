@@ -20,14 +20,28 @@
 # orchestrators (e.g., install_os_arm_node.yml). It accepts parameters
 # for ISO path, Kickstart configuration, and target node details.
 #
+# Credential Handling:
+#   Option 1: Encrypted vault file (recommended for automation)
+#     - encrypted_credentials_file: path to ansible-vault encrypted YAML
+#       containing credentials (bmc_username, bmc_password, os_root_password)
+#     - Example: -e "encrypted_credentials_file=/opt/omnia/input/project_default/os_install_credentials.yml"
+#     - Run with: --vault-password-file /path/to/vault_password_file
+#
+#   Option 2: Direct extra-vars (less secure, visible in process list)
+#     - bmc_username: iDRAC username
+#     - bmc_password: iDRAC password
+#     - os_root_password: root password for the installed OS
+#
+#   Option 3: Interactive prompts (when silent_install=false)
+#     - If credentials not provided, playbook will prompt for them
+#     - os_root_password will be hashed internally to ks_root_password_hash
+#
 # Required variables (set by the calling playbook or extra vars):
 #   - iso_source_path:      path to the pre-placed source ISO
 #   - target_bmc_ip:        BMC/iDRAC IP of the target node
-#   - bmc_username:         iDRAC username
-#   - bmc_password:         iDRAC password
 #   - target_node_ip:       admin IP of the target node (for verification)
 #   - iso_nfs_share:        NFS share path mapping to /opt/omnia
-#   - ks_root_password_hash: SHA-512 hash of the root password
+#   - os_root_password:   root password for installed OS (will be hashed internally)
 #   - ks_ssh_public_key:    SSH public key to inject
 #   - ks_hostname:          hostname for the installed node
 #   - ks_static_ip:         static IP for the installed node
@@ -44,19 +58,89 @@
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 0: Load encrypted credentials (if provided)
+# Play 0: Load or prompt for BMC credentials
 # ─────────────────────────────────────────────────────────────────────────
-- name: Load encrypted BMC credentials
+- name: Load or prompt for BMC credentials
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
+    - name: Check if encrypted credentials file is provided
+      ansible.builtin.stat:
+        path: "{{ encrypted_credentials_file }}"
+      register: creds_file_stat
+      when:
+        - encrypted_credentials_file is defined
+        - encrypted_credentials_file | length > 0
+
     - name: Include encrypted credentials file
       ansible.builtin.include_vars:
-        file: "{{ encrypted_bmc_credentials_file }}"
+        file: "{{ encrypted_credentials_file }}"
       when:
-        - encrypted_bmc_credentials_file is defined
-        - encrypted_bmc_credentials_file | length > 0
+        - encrypted_credentials_file is defined
+        - encrypted_credentials_file | length > 0
+        - creds_file_stat.stat.exists | default(false)
+      no_log: true
+
+    - name: Prompt for BMC username if not provided
+      ansible.builtin.pause:
+        prompt: "Enter BMC/iDRAC username"
+      register: bmc_username_prompt
+      when:
+        - bmc_username is not defined or bmc_username | length == 0
+        - not (silent_install | default(false) | bool)
+      no_log: false
+
+    - name: Set BMC username from prompt
+      ansible.builtin.set_fact:
+        bmc_username: "{{ bmc_username_prompt.user_input }}"
+      when:
+        - bmc_username_prompt is defined
+        - bmc_username_prompt.user_input is defined
+      no_log: true
+
+    - name: Prompt for BMC password if not provided
+      ansible.builtin.pause:
+        prompt: "Enter BMC/iDRAC password"
+        echo: false
+      register: bmc_password_prompt
+      when:
+        - bmc_password is not defined or bmc_password | length == 0
+        - not (silent_install | default(false) | bool)
+      no_log: true
+
+    - name: Set BMC password from prompt
+      ansible.builtin.set_fact:
+        bmc_password: "{{ bmc_password_prompt.user_input }}"
+      when:
+        - bmc_password_prompt is defined
+        - bmc_password_prompt.user_input is defined
+      no_log: true
+
+    - name: Prompt for OS root password if not provided
+      ansible.builtin.pause:
+        prompt: "Enter root password for the installed OS"
+        echo: false
+      register: os_root_password_prompt
+      when:
+        - os_root_password is not defined or os_root_password | length == 0
+        - not (silent_install | default(false) | bool)
+      no_log: true
+
+    - name: Set OS root password from prompt
+      ansible.builtin.set_fact:
+        os_root_password: "{{ os_root_password_prompt.user_input }}"
+      when:
+        - os_root_password_prompt is defined
+        - os_root_password_prompt.user_input is defined
+      no_log: true
+
+    - name: Generate SHA-512 hash of OS root password
+      ansible.builtin.set_fact:
+        ks_root_password_hash: "{{ os_root_password | password_hash('sha512') }}"
+      when:
+        - os_root_password is defined
+        - os_root_password | length > 0
       no_log: true
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -79,7 +163,7 @@
         - { name: "BMC password", value: "{{ bmc_password | default('') }}" }
         - { name: "Target node admin IP", value: "{{ target_node_ip | default('') }}" }
         - { name: "NFS share for /opt/omnia", value: "{{ iso_nfs_share | default('') }}" }
-        - { name: "Root password hash", value: "{{ ks_root_password_hash | default('') }}" }
+        - { name: "OS root password", value: "{{ os_root_password | default('') }}" }
         - { name: "SSH public key", value: "{{ ks_ssh_public_key | default('') }}" }
         - { name: "Target hostname", value: "{{ ks_hostname | default('') }}" }
         - { name: "Target static IP", value: "{{ ks_static_ip | default('') }}" }
