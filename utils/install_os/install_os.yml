@@ -219,6 +219,7 @@
           Target BMC IP   : {{ target_bmc_ip | default('unknown') }}
           Install Disk    : {{ ks_install_disk | default('auto-detect') }}
           Source ISO      : {{ iso_source_path | default('unknown') }}
+          Kickstart       : {{ kickstart_file if (kickstart_file | default('')) | length > 0 else (kickstart_template | default('rhel10') + ' template') }}
 
           ==============================================================
           Press ENTER to continue, or Ctrl+C then 'A' to abort.

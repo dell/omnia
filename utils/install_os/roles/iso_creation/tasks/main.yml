@@ -52,11 +52,10 @@
         mode: "0644"
       when: kickstart_file | length == 0
 
-    - name: Copy user-provided Kickstart
-      ansible.builtin.copy:
-        src: "{{ kickstart_file }}"
-        dest: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
-        mode: "0644"
+    - name: Process user-provided Kickstart
+      ansible.builtin.include_tasks: inject_user_kickstart.yml
+      vars:
+        kickstart_output_path: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
       when: kickstart_file | length > 0
 
     - name: Log kickstart creation
