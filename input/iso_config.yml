@@ -43,6 +43,11 @@
 # Default: rhel10
 # kickstart_template: "rhel10"
 
+# Target architecture for the OS installation.
+# Supported values: x86_64, aarch64
+# If not provided, it will be inferred from the ISO filename or prompted.
+# os_arch: "x86_64"
+
 # NFS share path for iDRAC virtual media and kickstart hosting.
 # Format: "server:/path" (e.g., "192.168.1.100:/mnt/nfs/omnia")
 # This should be the NFS base path that maps to /opt/omnia on the OIM container.

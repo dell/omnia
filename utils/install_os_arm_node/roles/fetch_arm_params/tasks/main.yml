@@ -78,6 +78,8 @@
     iso_source_path: "{{ iso_config.iso_source_path | default(default_iso_source_path) }}"
     iso_source_checksum: "{{ iso_config.iso_source_checksum | default('') }}"
     iso_target_directory: "{{ iso_config.iso_target_directory | default(default_iso_target_directory) }}"
+    # Architecture
+    os_arch: "{{ iso_config.os_arch | default('') }}"
     # Kickstart parameters
     kickstart_file: "{{ iso_config.kickstart_file | default('') }}"
     kickstart_template: "{{ iso_config.kickstart_template | default(default_kickstart_template) }}"

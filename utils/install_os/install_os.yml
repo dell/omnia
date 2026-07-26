@@ -181,6 +181,38 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: Infer architecture from ISO filename
+      ansible.builtin.set_fact:
+        os_arch: "{{ (iso_source_path | basename | regex_search('(x86_64|aarch64)', ignorecase=True)) | lower }}"
+      when:
+        - os_arch is not defined or os_arch | length == 0
+        - iso_source_path is defined
+        - iso_source_path | length > 0
+
+    - name: Prompt for architecture if not provided or inferred
+      ansible.builtin.pause:
+        prompt: "Enter target architecture (x86_64 or aarch64)"
+      register: os_arch_prompt
+      when:
+        - os_arch is not defined or os_arch | length == 0
+        - not (silent_install | default(false) | bool)
+
+    - name: Set architecture from prompt
+      ansible.builtin.set_fact:
+        os_arch: "{{ os_arch_prompt.user_input | lower }}"
+      when:
+        - os_arch_prompt is defined
+        - os_arch_prompt.user_input is defined
+        - os_arch_prompt.user_input | length > 0
+
+    - name: Fail if architecture is invalid
+      ansible.builtin.fail:
+        msg: "Architecture must be 'x86_64' or 'aarch64', but got '{{ os_arch }}'"
+      when:
+        - os_arch is defined
+        - os_arch | length > 0
+        - os_arch not in ['x86_64', 'aarch64']
+
     - name: Build list of missing mandatory parameters
       ansible.builtin.set_fact:
         missing_params: >-
@@ -197,6 +229,7 @@
         - { name: "SSH public key", value: "{{ ks_ssh_public_key | default('') }}" }
         - { name: "Target hostname", value: "{{ ks_hostname | default('') }}" }
         - { name: "Target static IP", value: "{{ ks_static_ip | default('') }}" }
+        - { name: "Target architecture", value: "{{ os_arch | default('') }}" }
 
     - name: Fail if mandatory parameters are missing
       ansible.builtin.fail:
@@ -215,6 +248,7 @@
           ==============================================================
 
           Target Hostname : {{ ks_hostname | default('unknown') }}
+          Target Arch     : {{ os_arch | default('unknown') }}
           Target Admin IP : {{ target_node_ip | default('unknown') }}
           Target BMC IP   : {{ target_bmc_ip | default('unknown') }}
           Install Disk    : {{ ks_install_disk | default('auto-detect') }}
