@@ -97,7 +97,7 @@
   changed_when: true
   no_log: true
 
-- name: Log OS deployment initiated
+- name: OS deployment initiated
   ansible.builtin.debug:
     msg: >-
       OS deployment initiated. Server is rebooting from virtual CD.
@@ -105,7 +105,7 @@
       Waiting for installation to complete...
 
 # ── Step 5: Wait for OS installation to complete ────────────────────────
-- name: Wait for target node to become unreachable (reboot in progress)
+- name: Wait for target node to become offline (reboot in progress)
   ansible.builtin.wait_for:
     host: "{{ target_node_ip }}"
     port: 22
@@ -113,6 +113,11 @@
     timeout: 300
   when: target_node_ip is defined and target_node_ip | length > 0
   failed_when: false
+
+- name: OS installation in progress
+  ansible.builtin.debug:
+    msg: "Target node is offline. OS installation in progress via iDRAC virtual media."
+  when: target_node_ip is defined and target_node_ip | length > 0
 
 - name: Wait for OS installation to complete (target node SSH up)
   ansible.builtin.wait_for:

@@ -7,28 +7,6 @@
 # Stop active RAID/LVM
 mdadm --stop --scan 2>/dev/null
 vgchange -an 2>/dev/null
-
-# Clean all disks
-for disk in /dev/nvme[0-9]n[0-9] /dev/sd[a-z] /dev/vd[a-z]; do
-    if [ -b "$disk" ]; then
-        for part in ${disk}p* ${disk}[0-9]*; do
-            if [ -b "$part" ]; then
-                mdadm --zero-superblock "$part" 2>/dev/null
-                wipefs --all --force "$part" 2>/dev/null
-                dd if=/dev/zero of="$part" bs=1M count=1 2>/dev/null
-            fi
-        done
-        mdadm --zero-superblock "$disk" 2>/dev/null
-        wipefs --all --force "$disk" 2>/dev/null
-        dd if=/dev/zero of="$disk" bs=1M count=10 2>/dev/null
-        size=$(blockdev --getsz "$disk" 2>/dev/null)
-        if [ -n "$size" ]; then
-            dd if=/dev/zero of="$disk" bs=512 count=34 seek=$((size - 34)) 2>/dev/null
-        fi
-    fi
-done
-partprobe 2>/dev/null
-udevadm settle 2>/dev/null
 %end
 
 # Installation
@@ -53,23 +31,14 @@ rootpw --iscrypted {{ ks_root_password_hash }}
 sshkey --username=root "{{ ks_ssh_public_key }}"
 {% endif %}
 
-# Bootloader — auto-detect, works on x86_64 and AArch64
-{% if ks_install_disk is defined and ks_install_disk | length > 0 %}
-bootloader --append="crashkernel=auto" --boot-drive={{ ks_install_disk }}
-{% else %}
-bootloader --append="crashkernel=auto"
-{% endif %}
+# Bootloader
+bootloader --append="crashkernel=auto" --boot-drive={{ ks_install_disk | default('sda') }}
 
 # Disk partitioning
-{% if ks_install_disk is defined and ks_install_disk | length > 0 %}
-ignoredisk --only-use={{ ks_install_disk }}
-zerombr
-clearpart --all --initlabel --drives={{ ks_install_disk }}
-{% else %}
+ignoredisk --only-use={{ ks_install_disk | default('sda') }}
 zerombr
 clearpart --all --initlabel
-{% endif %}
-autopart --type=lvm
+autopart
 
 # System
 eula --agreed
