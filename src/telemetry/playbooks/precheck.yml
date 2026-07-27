@@ -50,7 +50,6 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
-  tags: [precheck]
   tasks:
     - name: Load telemetry configuration
       ansible.builtin.include_role:
@@ -80,7 +79,6 @@
   hosts: kube_vip_group
   gather_facts: false
   any_errors_fatal: true
-  tags: [precheck]
   tasks:
     - name: Check K8s control plane nodes are all Ready
       ansible.builtin.include_role:

@@ -39,13 +39,13 @@
 # Precheck — import before deploy plays so --tags precheck works
 # ---------------------------------------------------------------------------
 - ansible.builtin.import_playbook: playbooks/precheck.yml
-  # tags: [precheck]
+  tags: [precheck]
 
 # ---------------------------------------------------------------------------
 # Validation — L1 + L2 input validation for all 3 telemetry input files
 # ---------------------------------------------------------------------------
 - ansible.builtin.import_playbook: playbooks/validation.yml
-  # tags: [validation]
+  tags: [validation]
 
 # Play 1: Bootstrap — load telemetry config, derive flags, resolve kube_vip
 - name: "Telemetry bootstrap: load config and resolve kube_vip target"

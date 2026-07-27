@@ -43,7 +43,6 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
-  tags: [validation]
   tasks:
 
     - name: "Resolve paths for validate_input module"
