@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-repo_manager_data_dir: "{{ repo_manager_base_dir }}/.data"
 repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 
 local_repo_access_dest_path: "{{ output_dir }}/repo_status.yml"

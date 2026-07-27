@@ -1,0 +1,15 @@
+# Credentials and generated secrets
+input/**/repo_manager_config_credentials.yml
+input/**/.repo_manager_config_credentials_key
+
+# Generated output and logs
+output/
+log/
+*.log
+
+# Runtime data
+data/
+*.data
+
+# Ansible retry files
+*.retry

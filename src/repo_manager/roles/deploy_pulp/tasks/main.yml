@@ -31,36 +31,28 @@
 # Pre-requisites:
 #   - OIM host group created
 #   - Credentials fetched (pulp_username, pulp_password available)
-#   - Network configuration loaded (admin_nic_ip available)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # STEP 1: SET DEPLOYMENT FACTS
 # -----------------------------------------------------------------------------
 
-- name: Set hostname_enabled fact
+- name: Load repo_manager endpoint configuration
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+    name: endpoint_config
+
+- name: Set Pulp server IP and credentials from endpoint config
   ansible.builtin.set_fact:
-    hostname_enabled: false
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip }}"
+    pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin', true) }}"
+    pulp_password: "{{ hostvars['localhost']['pulp_password'] | default('') }}"
 
 - name: Propagate pulp_protocol_https to localhost
   ansible.builtin.set_fact:
     pulp_protocol_https: "{{ pulp_protocol_https }}"
   delegate_to: localhost
   run_once: true
-
-- name: Set Pulp server IP and credentials from admin NIC
-  ansible.builtin.set_fact:
-    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-    pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin') }}"
-    pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
-  when: not hostname_enabled
-
-- name: Set Pulp server hostname and credentials (when hostname_enabled)
-  ansible.builtin.set_fact:
-    pulp_server_ip: ""
-    pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin') }}"
-    pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
-  when: hostname_enabled
 
 - name: Display deployment configuration
   ansible.builtin.debug:
