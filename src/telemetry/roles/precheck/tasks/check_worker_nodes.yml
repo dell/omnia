@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# check_worker_nodes.yml — Runs on: kube_vip
+# =============================================================================
+# Verifies worker node readiness with adaptive minimum thresholds.
+#
+# Minimum Ready worker logic:
+#   - 1  worker in cluster  → all 1  must be Ready
+#   - 2  workers in cluster → all 2  must be Ready
+#   - 3+ workers in cluster → at least 2 must be Ready
+#
+# Single-node and dual-node clusters are supported.
+
+- name: Get worker node status (non-control-plane nodes)
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get nodes --selector='!node-role.kubernetes.io/control-plane' \
+        --no-headers | awk '{print $1"|"$2}'
+  args:
+    executable: /bin/bash
+  register: worker_nodes_raw
+  changed_when: false
+
+- name: Parse worker node list
+  ansible.builtin.set_fact:
+    worker_node_lines: "{{ worker_nodes_raw.stdout_lines | select('match', '.+') | list }}"
+
+- name: Fail if no worker nodes found in cluster
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] No worker nodes found in the K8s cluster.
+      At least one worker node must be joined and Ready to deploy telemetry.
+  when: worker_node_lines | length == 0
+
+- name: Identify worker nodes not in Ready state
+  ansible.builtin.set_fact:
+    worker_nodes_not_ready: >-
+      {{ worker_node_lines
+         | reject('search', '[|]Ready$')
+         | map('split', '|')
+         | map(attribute=0)
+         | list }}
+
+- name: Compute Ready worker count and minimum required
+  ansible.builtin.set_fact:
+    total_workers: "{{ worker_node_lines | length }}"
+    ready_workers: "{{ worker_node_lines | select('search', '[|]Ready$') | list | length }}"
+    min_required_workers: "{{ [worker_node_lines | length, 2] | min }}"
+
+- name: Display worker node status summary
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] Worker Node Status"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  Total worker nodes   : {{ total_workers }}"
+      - "  Ready                : {{ ready_workers }}"
+      - "  Not Ready            : {{ worker_nodes_not_ready | length }}"
+      - "  Minimum required     : {{ min_required_workers }}"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+- name: Fail if fewer than the minimum required worker nodes are Ready
+  ansible.builtin.fail:
+    msg: |
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      [PRECHECK FAIL] Insufficient Ready Worker Nodes
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Total workers in cluster  : {{ total_workers }}
+      Minimum required Ready    : {{ min_required_workers }}
+      Currently Ready           : {{ ready_workers }}
+
+      Worker nodes NOT in Ready state:
+      {% for node in worker_nodes_not_ready %}
+        - {{ node }}
+      {% endfor %}
+
+      Cannot deploy telemetry without the minimum required worker nodes Ready.
+      Diagnose with: kubectl describe node <node-name>
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  when: ready_workers | int < min_required_workers | int
+
+- name: Display worker node check — PASSED
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] Worker Nodes — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  {{ ready_workers }}/{{ total_workers }} worker node(s) Ready"
+      - "  (Minimum required: {{ min_required_workers }})  ✓"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: ready_workers | int >= min_required_workers | int

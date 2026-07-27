@@ -24,7 +24,7 @@
 #                 # cleanup telemetry - cleanup
 #                 # Deploy all enabled/disabled telemetry based on tag - deploy
 #                 # upgrade telemetry - upgrade
-#                 # rollback telemetry - roolback
+#                 # rollback telemetry - rollback
 #
 # Configuration is read from telemetry/input/telemetry_config.yml:
 #   - kube_vip: K8s control plane VIP (required)
@@ -34,6 +34,18 @@
 # Only sources with metrics_enabled: true are deployed.
 # All K8s tasks (kubectl, helm) execute on the kube_vip host via SSH.
 # =============================================================================
+
+# ---------------------------------------------------------------------------
+# Precheck — import before deploy plays so --tags precheck works
+# ---------------------------------------------------------------------------
+- ansible.builtin.import_playbook: playbooks/precheck.yml
+  # tags: [precheck]
+
+# ---------------------------------------------------------------------------
+# Validation — L1 + L2 input validation for all 3 telemetry input files
+# ---------------------------------------------------------------------------
+- ansible.builtin.import_playbook: playbooks/validation.yml
+  # tags: [validation]
 
 # Play 1: Bootstrap — load telemetry config, derive flags, resolve kube_vip
 - name: "Telemetry bootstrap: load config and resolve kube_vip target"

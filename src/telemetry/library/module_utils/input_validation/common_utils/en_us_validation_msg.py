@@ -442,75 +442,6 @@ def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_
     )
 # pylint: enable=invalid-name
 
-# PowerScale telemetry validation messages
-POWERSCALE_VICTORIA_REQUIRED_MSG = (
-    "PowerScale telemetry requires VictoriaMetrics to be deployed. "
-    "When powerscale_configurations.powerscale_telemetry_support is true, 'victoria' must be included in "
-    "telemetry_collection_type (e.g., 'victoria' or 'victoria,kafka')."
-)
-POWERSCALE_CSI_DRIVER_MISSING_MSG = (
-    "csi_driver_powerscale is not configured in software_config.json. "
-    "PowerScale telemetry requires the CSI driver for PowerScale to be configured."
-)
-POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
-    "service cluster is not defined in functional_groups_config.yml. "
-    "PowerScale telemetry requires a service cluster."
-)
-POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
-    "powerscale_configurations section is required in telemetry_config.yml and must contain powerscale_telemetry_support."
-)
-POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
-    "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
-)
-POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_observability_values_file_path is required in telemetry_config.yml when powerscale_configurations.powerscale_telemetry_support is true. "
-    "Please provide the path to the CSM Observability values.yaml file."
-)
-POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG = (
-    "karaviMetricsPowerscale.authorization.proxyHost is required in the CSM Observability values file "
-    "when karaviMetricsPowerscale.authorization.enabled is true. "
-    "Please provide the hostname or IP of the CSM Authorization Proxy server."
-)
-def powerscale_csm_values_not_found_msg(path):
-    """Returns error message when CSM Observability values.yaml file is not found."""
-    return (
-        f"CSM Observability values.yaml file not found at '{path}'. "
-        "Please verify the file path is correct in telemetry_config.yml (csm_observability_values_file_path)."
-    )
-POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
-    "CSM Observability values.yaml (path specified in telemetry_config.yml) must contain a valid YAML dictionary."
-)
-def powerscale_csm_values_parse_error_msg(error):
-    """Returns error message when CSM Observability values.yaml fails to parse."""
-    return f"Failed to parse CSM Observability values.yaml: {error}"
-POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
-    "CSM Observability values.yaml (path specified in telemetry_config.yml) is missing 'karaviMetricsPowerscale' section."
-)
-POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
-    "CSM Metrics PowerScale image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
-)
-POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
-    "OTEL Collector image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
-)
-POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_remote_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
-)
-POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG = (
-    "URL in telemetry_config.yml must start with 'http://' or 'https://'."
-)
-def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
-    """Returns error message when CSM values.yaml image version doesn't match service_k8s.json."""
-    return (
-        f"Image version mismatch for '{image_name}': "
-        f"CSM Observability values.yaml has '{values_image}' but "
-        f"service_k8s.json has '{service_k8s_image}'. "
-        f"Please update service_k8s.json to match the values.yaml version "
-        f"and re-run local_repo.yml to mirror the correct image to Pulp."
-    )
-POWERSCALE_SERVICE_K8S_JSON_NOT_FOUND_MSG = (
-    "service_k8s.json not found. Cannot validate PowerScale telemetry image versions. "
-    "Please ensure local_repo.yml has been executed."
-)
 def boolean_fail_msg(value):
     """Returns a formatted message indicating boolean_fail_msg."""
     return f"{value} must be set to either true or false."
@@ -822,6 +753,11 @@ KUBE_VIP_INVALID_IPV4_MSG = (
     "kube_vip must be a valid IPv4 address with each octet in the range 0-255 "
     "(e.g., '10.0.0.1'). Update the kube_vip value in telemetry_config.yml."
 )
+KUBE_VIP_SSH_UNREACHABLE_MSG = (
+    "kube_vip is not reachable via SSH. "
+    "Ensure the Kubernetes control plane VIP is online and SSH access is configured "
+    "from this host before running telemetry operations."
+)
 
 # telemetry_packages.yml validation messages
 CLUSTER_MOUNT_REQUIRED_MSG = (
@@ -844,6 +780,19 @@ REGISTRY_KEY_NOT_FOUND_MSG = (
 PACKAGE_URL_INVALID_MSG = (
     "Package URL in telemetry_packages.yml must start with 'http://' or 'https://'. "
     "Provide the full download URL from the Pulp repository or external source."
+)
+CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
+    "cluster_mount path does not exist on kube_vip host. "
+    "Ensure the NFS mount point exists on the Kubernetes cluster before running telemetry deployment. "
+    "Create the directory or verify the NFS mount is active."
+)
+CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
+    "Cannot validate cluster_mount path existence: kube_vip is not defined in telemetry_config.yml. "
+    "Set kube_vip in telemetry_config.yml first."
+)
+CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
+    "Failed to verify cluster_mount path on kube_vip via SSH. "
+    "Ensure SSH access to kube_vip is configured and the host is reachable."
 )
 
 # Telemetry storage configuration validation

@@ -1,0 +1,94 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Telemetry Input Validation Playbook
+# =============================================================================
+# Performs L1 (JSON schema) and L2 (logic) validation for all three telemetry
+# input files:
+#   - telemetry_config.yml      : kube_vip, sources, bridges, sinks, configs
+#   - telemetry_storage_config.yml : storage sections per enabled sinks
+#   - telemetry_packages.yml    : registry, package URLs, cluster_mount
+#
+# L1 schemas  : library/module_utils/input_validation/schema/
+# L2 logic    : library/module_utils/input_validation/validation_flows/
+#               telemetry_validation.py (validate_telemetry_config,
+#               validate_telemetry_storage_config, validate_telemetry_packages)
+#
+# Default input path: /opt/omnia/input/project_default/telemetry
+# Override for non-standard omnia install:
+#   -e "telemetry_input_base=/custom/omnia/input/project_default"
+#
+# Usage (standalone):
+#   ansible-playbook playbooks/validation.yml
+#
+# Usage (via orchestrator with tag):
+#   ansible-playbook telemetry.yml --tags validation
+# =============================================================================
+
+- name: "Telemetry Input Validation | L1 + L2 for all telemetry input files"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  tags: [validation]
+  tasks:
+
+    - name: "Resolve paths for validate_input module"
+      ansible.builtin.set_fact:
+        _telemetry_root: "{{ playbook_dir | dirname }}"
+        _telemetry_module_utils: "{{ playbook_dir | dirname }}/library/module_utils"
+        _input_base: "{{ telemetry_input_base | default('/opt/omnia/input/project_default') }}"
+        _input_project: "{{ telemetry_input_project | default('telemetry') }}"
+
+    - name: "Run L1 + L2 validation for telemetry input files"
+      validate_input:
+        omnia_base_dir: "{{ _input_base }}"
+        project_name: "{{ _input_project }}"
+        tag_names:
+          - "telemetry"
+        module_utils_path: "{{ _telemetry_module_utils }}"
+      register: telemetry_validation_result
+
+    - name: "Validation passed"
+      ansible.builtin.debug:
+        msg: "Telemetry input validation completed successfully."
+      when: telemetry_validation_result.validation_failed is defined and not telemetry_validation_result.validation_failed
+
+    - name: "Failed due to validation failure"
+      ansible.builtin.fail:
+        msg: |
+
+          Telemetry input validation failed.
+
+          {% if telemetry_validation_result.errors is defined and telemetry_validation_result.errors | length > 0 %}
+          Errors:
+          {% for err in telemetry_validation_result.errors %}
+          - {{ err }}
+          {% endfor %}
+          {% endif %}
+
+          {% if telemetry_validation_result.invalid_files is defined and telemetry_validation_result.invalid_files | length > 0 %}
+          Invalid files:
+          {% for invalid_file in telemetry_validation_result.invalid_files %}
+          - {{ invalid_file }}
+          {% endfor %}
+          {% endif %}
+
+          {% if telemetry_validation_result.log_file is defined %}
+          Log file:
+          {{ telemetry_validation_result.log_file }}
+          {% endif %}
+      when: telemetry_validation_result.validation_failed is defined and telemetry_validation_result.validation_failed

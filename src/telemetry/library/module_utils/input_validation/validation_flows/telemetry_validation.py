@@ -17,278 +17,14 @@
 """
 This module contains functions for validating telemetry configuration.
 """
-import csv
-import json
 import os
+import subprocess
 
 import yaml
-from ansible.module_utils.input_validation.validation_flows import powerscale_telemetry_validation
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
 
 
-def check_is_service_cluster_functional_groups_defined(
-    errors, input_file_path, omnia_base_dir, project_name, logger, module
-):
-    """
-    Checks if 'service_kube_node_x86_64' is configured in the mapping file.
-
-    Args:
-        errors (list): A list to store error messages.
-        input_file_path (str): The path to the input file.
-        omnia_base_dir (str): The base directory for Omnia.
-        project_name (str): The name of the project.
-        logger (object): A logger object for logging messages.
-        module (object): A module object for logging messages.
-
-    Returns:
-        True if 'service_kube_node_x86_64' is defined and valid in mapping file, else False
-    """
-    # Get the directory containing the input file
-    input_dir = os.path.dirname(input_file_path)
-    provision_config_path = os.path.join(input_dir, "provision_config.yml")
-
-    # Check if provision_config.yml exists
-    if not os.path.exists(provision_config_path):
-        errors.append(
-            create_error_msg(
-                "provision_config.yml",
-                provision_config_path,
-                en_us_validation_msg.PROVISION_CONFIG_NOT_FOUND
-            )
-        )
-        return False
-
-    try:
-        # Load provision_config.yml to get pxe_mapping_file_path
-        with open(provision_config_path, 'r', encoding='utf-8') as f:
-            provision_config = yaml.safe_load(f)
-
-        pxe_mapping_file_path = provision_config.get('pxe_mapping_file_path', '')
-
-        if not pxe_mapping_file_path or not os.path.exists(pxe_mapping_file_path):
-            errors.append(
-                create_error_msg(
-                    "pxe_mapping_file_path",
-                    pxe_mapping_file_path,
-                    en_us_validation_msg.PXE_MAPPING_FILE_NOT_FOUND
-                )
-            )
-            return False
-
-        # Read the mapping file and check for service_kube_node functional groups
-        with open(pxe_mapping_file_path, 'r', encoding='utf-8') as fh:
-            raw_lines = fh.readlines()
-
-        # Remove blank lines
-        non_comment_lines = [ln for ln in raw_lines if ln.strip()]
-
-        if not non_comment_lines:
-            errors.append(
-                create_error_msg(
-                    "pxe_mapping_file_path",
-                    pxe_mapping_file_path,
-                    en_us_validation_msg.PXE_MAPPING_FILE_EMPTY_SERVICE_CLUSTER_MSG
-                )
-            )
-            return False
-
-        # Use csv.DictReader to parse the mapping file
-        reader = csv.DictReader(non_comment_lines)
-
-        # Check if all required service cluster functional groups are present
-        # Required: service_kube_node_, service_kube_control_plane_
-        has_kube_node = False
-        has_control_plane = False
-
-        for row in reader:
-            functional_group = row.get('FUNCTIONAL_GROUP_NAME', '').strip()
-            if functional_group.startswith('service_kube_node_'):
-                has_kube_node = True
-                logger.info(f"Service cluster functional group found: {functional_group}")
-            elif functional_group.startswith('service_kube_control_plane_'):
-                has_control_plane = True
-                logger.info(f"Service cluster functional group found: {functional_group}")
-
-        # Both must be present for a complete service cluster
-        service_cluster_found = has_kube_node and has_control_plane
-
-        if not service_cluster_found:
-            missing = []
-            if not has_kube_node:
-                missing.append('service_kube_node_*')
-            if not has_control_plane:
-                missing.append('service_kube_control_plane_*')
-            logger.info(f"Service cluster incomplete. Missing functional groups: {', '.join(missing)}")
-
-        return service_cluster_found
-
-    except (yaml.YAMLError, IOError, csv.Error) as e:
-        errors.append(
-            create_error_msg(
-                "pxe_mapping_file_path",
-                pxe_mapping_file_path if 'pxe_mapping_file_path' in locals() else "unknown",
-                f"Error reading mapping file: {str(e)}"
-            )
-        )
-        return False
-
-
-def check_is_slurm_cluster_functional_groups_defined(
-    errors, input_file_path, omnia_base_dir, project_name, logger, module
-):
-    """
-    Checks if 'slurm_control_node_x86_64 and slurm_node' is configured in the mapping file.
-
-    Args:
-        errors (list): A list to store error messages.
-        input_file_path (str): The path to the input file.
-        omnia_base_dir (str): The base directory for Omnia.
-        project_name (str): The name of the project.
-        logger (object): A logger object for logging messages.
-        module (object): A module object for logging messages.
-
-    Returns:
-        True if 'slurm_control_node_x86_64 and slurm_node' is defined in mapping file, else False
-    """
-    # Get the directory containing the input file
-    input_dir = os.path.dirname(input_file_path)
-    provision_config_path = os.path.join(input_dir, "provision_config.yml")
-
-    # Check if provision_config.yml exists
-    if not os.path.exists(provision_config_path):
-        errors.append(
-            create_error_msg(
-                "provision_config.yml",
-                provision_config_path,
-                en_us_validation_msg.PROVISION_CONFIG_NOT_FOUND
-            )
-        )
-        return False
-
-    try:
-        # Load provision_config.yml to get pxe_mapping_file_path
-        with open(provision_config_path, 'r', encoding='utf-8') as f:
-            provision_config = yaml.safe_load(f)
-
-        pxe_mapping_file_path = provision_config.get('pxe_mapping_file_path', '')
-
-        if not pxe_mapping_file_path or not os.path.exists(pxe_mapping_file_path):
-            errors.append(
-                create_error_msg(
-                    "pxe_mapping_file_path",
-                    pxe_mapping_file_path,
-                    en_us_validation_msg.PXE_MAPPING_FILE_NOT_FOUND
-                )
-            )
-            return False
-
-        # Read the mapping file and check for slurm functional groups
-        with open(pxe_mapping_file_path, 'r', encoding='utf-8') as fh:
-            raw_lines = fh.readlines()
-
-        # Remove blank lines
-        non_comment_lines = [ln for ln in raw_lines if ln.strip()]
-
-        if not non_comment_lines:
-            errors.append(
-                create_error_msg(
-                    "pxe_mapping_file_path",
-                    pxe_mapping_file_path,
-                    en_us_validation_msg.PXE_MAPPING_FILE_EMPTY_SLURM_CLUSTER_MSG
-                )
-            )
-            return False
-
-        # Use csv.DictReader to parse the mapping file
-        reader = csv.DictReader(non_comment_lines)
-
-        # Check if all required slurm cluster functional groups are present
-        # Required: slurm_control_node_, slurm_node
-        has_slurm_control = False
-        has_slurm_node = False
-
-        for row in reader:
-            functional_group = row.get('FUNCTIONAL_GROUP_NAME', '').strip()
-            if functional_group.startswith('slurm_control_node_'):
-                has_slurm_control = True
-                logger.info(f"Slurm cluster functional group found: {functional_group}")
-            elif functional_group.startswith('slurm_node_'):
-                has_slurm_node = True
-                logger.info(f"Slurm cluster functional group found: {functional_group}")
-
-        # Both must be present for a complete slurm cluster
-        slurm_cluster_found = has_slurm_control and has_slurm_node
-
-        if not slurm_cluster_found:
-            missing = []
-            if not has_slurm_control:
-                missing.append('slurm_control_node_')
-            if not has_slurm_node:
-                missing.append('slurm_node_')
-            logger.info(f"Slurm cluster incomplete. Missing functional groups: {', '.join(missing)}")
-
-        return slurm_cluster_found
-
-    except (yaml.YAMLError, IOError, csv.Error) as e:
-        errors.append(
-            create_error_msg(
-                "pxe_mapping_file_path",
-                pxe_mapping_file_path if 'pxe_mapping_file_path' in locals() else "unknown",
-                f"Error reading mapping file: {str(e)}"
-            )
-        )
-        return False
-
-
-def get_config_file_paths(input_dir, data, software_config_file_path):
-    """
-    Dynamically resolves config file paths based on cluster OS type and version.
-
-    Args:
-        input_dir (str): Input directory path.
-        data (dict): Configuration data (may contain cluster_os_type, cluster_os_version).
-        software_config_file_path (str): Path to software_config.json.
-
-    Returns:
-        dict: Dictionary containing resolved file paths:
-              - service_k8s_json_path: Path to service_k8s (versioned)
-              - csi_driver_powerscale_json_path: Path to csi_driver_powerscale.json
-    """
-    # Try reading cluster_os_type/version from data first, then from software_config.json
-    cluster_os_type = data.get("cluster_os_type", "rhel")
-    cluster_os_version = data.get("cluster_os_version", "10.0")
-    service_k8s_version = None
-
-    if os.path.exists(software_config_file_path):
-        try:
-            with open(software_config_file_path, 'r', encoding='utf-8') as scf:
-                sc_data = json.load(scf)
-                cluster_os_type = sc_data.get("cluster_os_type", cluster_os_type)
-                cluster_os_version = sc_data.get("cluster_os_version", cluster_os_version)
-                # Extract service_k8s version from software_config.json
-                for sw in sc_data.get("softwares", []):
-                    if sw.get("name") == "service_k8s" and sw.get("version"):
-                        service_k8s_version = sw["version"]
-                        break
-        except (json.JSONDecodeError, IOError):
-            pass
-
-    config_base_path = os.path.join(input_dir, "config", "x86_64", cluster_os_type, cluster_os_version)
-
-    # Use versioned service_k8s file if version is available
-    # Return None paths if service_k8s is not configured (e.g., slurm-only clusters)
-    service_k8s_json_path = None
-    if service_k8s_version:
-        service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
-        service_k8s_json_path = os.path.join(config_base_path, service_k8s_json)
-
-    csi_driver_powerscale_json_path = os.path.join(config_base_path, "csi_driver_powerscale.json")
-
-    return {
-        "service_k8s_json_path": service_k8s_json_path,
-        "csi_driver_powerscale_json_path": csi_driver_powerscale_json_path
-    }
 
 
 def validate_telemetry_config(
@@ -315,6 +51,119 @@ def validate_telemetry_config(
         List of error messages (empty if validation passes)
     """
     errors = []
+
+    # =========================================================================
+    # L2: Validate kube_vip — IPv4 format + SSH reachability + cluster_mount path
+    # =========================================================================
+    kube_vip = data.get("kube_vip", "")
+    kube_vip_valid = False
+    if kube_vip and isinstance(kube_vip, str):
+        octets = kube_vip.strip().split(".")
+        if len(octets) == 4:
+            kube_vip_valid = True
+            for octet in octets:
+                try:
+                    val = int(octet)
+                    if val < 0 or val > 255:
+                        kube_vip_valid = False
+                        break
+                except ValueError:
+                    kube_vip_valid = False
+                    break
+            if not kube_vip_valid:
+                errors.append(create_error_msg(
+                    "kube_vip",
+                    kube_vip,
+                    en_us_validation_msg.KUBE_VIP_INVALID_IPV4_MSG
+                ))
+        logger.info(f"kube_vip L2 validation checked: {kube_vip}")
+
+        if kube_vip_valid:
+            # Check SSH reachability of kube_vip
+            try:
+                ssh_reach_cmd = [
+                    "ssh",
+                    "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null",
+                    "-o", "ConnectTimeout=10",
+                    "-o", "BatchMode=yes",
+                    kube_vip,
+                    "true"
+                ]
+                reach_result = subprocess.run(
+                    ssh_reach_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                    timeout=15
+                )
+                if reach_result.returncode != 0:
+                    errors.append(create_error_msg(
+                        "kube_vip",
+                        kube_vip,
+                        en_us_validation_msg.KUBE_VIP_SSH_UNREACHABLE_MSG
+                    ))
+                    logger.error(f"kube_vip '{kube_vip}' is not reachable via SSH")
+                    kube_vip_valid = False
+                else:
+                    logger.info(f"kube_vip '{kube_vip}' is reachable via SSH")
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+                errors.append(create_error_msg(
+                    "kube_vip",
+                    kube_vip,
+                    en_us_validation_msg.KUBE_VIP_SSH_UNREACHABLE_MSG
+                ))
+                logger.warning(f"SSH reachability check for kube_vip failed: {e}")
+                kube_vip_valid = False
+
+        if kube_vip_valid:
+            # Cross-file: verify cluster_mount path exists on kube_vip
+            input_dir = os.path.dirname(input_file_path)
+            packages_path = os.path.join(input_dir, "telemetry_packages.yml")
+            if os.path.exists(packages_path):
+                try:
+                    with open(packages_path, 'r', encoding='utf-8') as f:
+                        packages_data = yaml.safe_load(f)
+                    cluster_mount = packages_data.get("cluster_mount", "") if isinstance(packages_data, dict) else ""
+                    if cluster_mount and isinstance(cluster_mount, str) and cluster_mount.strip():
+                        try:
+                            ssh_mount_cmd = [
+                                "ssh",
+                                "-o", "StrictHostKeyChecking=no",
+                                "-o", "UserKnownHostsFile=/dev/null",
+                                "-o", "ConnectTimeout=10",
+                                kube_vip,
+                                f"test -d {cluster_mount}"
+                            ]
+                            mount_result = subprocess.run(
+                                ssh_mount_cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False,
+                                timeout=15
+                            )
+                            if mount_result.returncode != 0:
+                                errors.append(create_error_msg(
+                                    "cluster_mount (from telemetry_packages.yml)",
+                                    cluster_mount,
+                                    en_us_validation_msg.CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG
+                                ))
+                                logger.error(f"cluster_mount '{cluster_mount}' does not exist on kube_vip '{kube_vip}'")
+                            else:
+                                logger.info(f"cluster_mount '{cluster_mount}' exists on kube_vip '{kube_vip}'")
+                        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+                            errors.append(create_error_msg(
+                                "cluster_mount (from telemetry_packages.yml)",
+                                cluster_mount,
+                                en_us_validation_msg.CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG
+                            ))
+                            logger.warning(f"SSH check for cluster_mount failed: {e}")
+                    else:
+                        logger.info("cluster_mount is empty in telemetry_packages.yml, skipping path check")
+                except (yaml.YAMLError, IOError, OSError) as e:
+                    logger.warning(f"Failed to load telemetry_packages.yml for cluster_mount check: {e}")
+            else:
+                logger.warning("telemetry_packages.yml not found, skipping cluster_mount path check")
 
     # =========================================================================
     # Extract parameters from new three-layer structure
@@ -409,101 +258,11 @@ def validate_telemetry_config(
             "Vector-OME bridge routes to victoria_metrics/victoria_logs."
         ))
 
-    # =========================================================================
-    # Validate service cluster and slurm cluster
-    # =========================================================================
-    is_service_cluster_defined = check_is_service_cluster_functional_groups_defined(errors,
-                                input_file_path,
-                                omnia_base_dir,
-                                project_name,
-                                logger,
-                                module)
-    if idrac_telemetry_support and not is_service_cluster_defined:
-        errors.append(create_error_msg(
-            "telemetry_sources.idrac.metrics_enabled can be",
-            idrac_telemetry_support,
-            en_us_validation_msg.TELEMETRY_SERVICE_CLUSTER_ENTRY_MISSING_ROLES_CONFIG_MSG
-            )
-        )
-
-    is_slurm_cluster_defined = check_is_slurm_cluster_functional_groups_defined(errors,
-                                input_file_path,
-                                omnia_base_dir,
-                                project_name,
-                                logger,
-                                module)
-
-    # =========================================================================
-    # Bidirectional LDMS validation
-    # =========================================================================
-    ldms_enabled_in_telemetry = ldms_source.get("metrics_enabled", False)
-    ldms_support_from_software_config = False
-    input_dir = os.path.dirname(input_file_path)
-    software_config_file_path = os.path.join(input_dir, "software_config.json")
-
-    logger.info(f"Checking for LDMS software in: {software_config_file_path}")
-
-    if os.path.exists(software_config_file_path):
-        try:
-            with open(software_config_file_path, 'r', encoding='utf-8') as f:
-                software_config = json.load(f)
-                softwares = software_config.get("softwares", [])
-                ldms_support_from_software_config = any(
-                    software.get("name") == "ldms" for software in softwares
-                )
-                logger.info(f"LDMS software detected in software_config.json: {ldms_support_from_software_config}")
-                if ldms_support_from_software_config:
-                    logger.info("LDMS software found - 'ldms' topic will be required in telemetry_sinks.kafka.topic_partitions")
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warn(f"Could not load software_config.json: {e}")
-    else:
-        logger.info(f"software_config.json not found at: {software_config_file_path}")
-
-    # Bidirectional validation: LDMS in telemetry_config requires LDMS in software_config and vice versa
-    if ldms_enabled_in_telemetry and not ldms_support_from_software_config:
-        errors.append(create_error_msg(
-            "telemetry_sources.ldms.metrics_enabled",
-            "true",
-            "LDMS is enabled in telemetry_config.yml but LDMS software is not configured in software_config.json. "
-            "Please add LDMS to software_config.json or disable LDMS in telemetry_config.yml."
-        ))
-
-    if ldms_support_from_software_config and not ldms_enabled_in_telemetry:
-        errors.append(create_error_msg(
-            "telemetry_sources.ldms.metrics_enabled",
-            "false",
-            "LDMS software is configured in software_config.json but telemetry_sources.ldms.metrics_enabled is false in telemetry_config.yml. "
-            "Please enable LDMS in telemetry_config.yml or remove LDMS from software_config.json."
-        ))
-
-    if ldms_support_from_software_config and not (is_service_cluster_defined and is_slurm_cluster_defined):
-        errors.append(create_error_msg(
-            "LDMS entry in software_config.json set to ",
-            ldms_support_from_software_config,
-            en_us_validation_msg.TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG
-            )
-        )
 
     # =========================================================================
     # Validate Kafka topic_partitions (now a dict: {idrac: N, ldms: N})
     # =========================================================================
-    if not kafka_sink:
-        if ldms_support_from_software_config:
-            errors.append(create_error_msg(
-                "telemetry_sinks.kafka",
-                "not defined",
-                "LDMS software is configured in software_config.json, but telemetry_sinks.kafka section is missing in telemetry_config.yml. "
-                "Please define telemetry_sinks.kafka with at least the 'ldms' topic in topic_partitions."
-            ))
 
-    if kafka_sink and not topic_partitions:
-        if ldms_support_from_software_config:
-            errors.append(create_error_msg(
-                "telemetry_sinks.kafka.topic_partitions",
-                "not defined",
-                "LDMS software is configured in software_config.json, but telemetry_sinks.kafka.topic_partitions is not defined. "
-                "Please define at least the 'ldms' topic in topic_partitions."
-            ))
 
     if topic_partitions and isinstance(topic_partitions, dict):
         allowed_topics = {"idrac", "ldms"}
@@ -529,15 +288,17 @@ def validate_telemetry_config(
                     "idrac topic is required when telemetry_sources.idrac.metrics_enabled is true and 'kafka' is in collection_targets"
                 ))
 
-        # If LDMS software is configured, ldms topic is required
-        if ldms_support_from_software_config and 'ldms' not in present_topics:
-            logger.error(f"LDMS topic validation FAILED - 'ldms' topic is missing from present_topics: {present_topics}")
+        # If LDMS is enabled and kafka in collection_targets, ldms topic is required
+        ldms_enabled = ldms_source.get("metrics_enabled", False)
+        ldms_kafka_targets = set(ldms_source.get("collection_targets", []))
+        if ldms_enabled and 'kafka' in ldms_kafka_targets and 'ldms' not in present_topics:
             errors.append(create_error_msg(
                 "telemetry_sinks.kafka.topic_partitions",
                 "missing 'ldms' topic",
-                "ldms topic is required when LDMS software is configured in software_config.json"
+                "ldms topic is required in topic_partitions when telemetry_sources.ldms.metrics_enabled "
+                "is true and 'kafka' is in ldms collection_targets."
             ))
-        elif ldms_support_from_software_config:
+        elif ldms_enabled and 'kafka' in ldms_kafka_targets:
             logger.info(f"LDMS topic validation PASSED - 'ldms' found in present_topics: {present_topics}")
 
         # Validate partition values are positive integers
@@ -820,27 +581,128 @@ def validate_telemetry_config(
                 ))
 
     # =========================================================================
-    # Validate PowerScale telemetry configuration
+    # Validate PowerScale telemetry configuration (standalone design)
     # =========================================================================
     powerscale_enabled = powerscale_source.get("metrics_enabled", False)
     powerscale_logs_enabled = powerscale_source.get("logs_enabled", False)
     powerscale_configs = data.get("powerscale_configurations", {})
-
-    # Build data dict with powerscale flags merged for validation
-    powerscale_validation_data = dict(data)
-    powerscale_validation_data["powerscale_configurations"] = {
-        "powerscale_telemetry_support": powerscale_enabled,
-        "powerscale_log_enabled": powerscale_logs_enabled,
-        **powerscale_configs
-    }
-
     powerscale_collection_targets = powerscale_source.get("collection_targets", [])
 
-    config_paths = get_config_file_paths(input_dir, powerscale_validation_data, software_config_file_path)
-    powerscale_telemetry_validation.validate_powerscale_telemetry_config(
-        powerscale_validation_data, powerscale_collection_targets, software_config_file_path,
-        is_service_cluster_defined, config_paths, logger, errors
-    )
+    if powerscale_enabled:
+        logger.info("PowerScale metrics enabled — performing standalone PowerScale validation")
+
+        # powerscale_configurations section must exist
+        if not powerscale_configs:
+            errors.append(create_error_msg(
+                "powerscale_configurations",
+                "not defined",
+                en_us_validation_msg.POWERSCALE_CONFIGURATIONS_MISSING_MSG
+            ))
+        else:
+            # victoria_metrics must be in collection_targets
+            if 'victoria_metrics' not in powerscale_collection_targets:
+                errors.append(create_error_msg(
+                    "telemetry_sources.powerscale.collection_targets",
+                    powerscale_collection_targets,
+                    en_us_validation_msg.POWERSCALE_VICTORIA_REQUIRED_MSG
+                ))
+
+            # otel_collector_storage_size must be set
+            otel_storage = powerscale_configs.get("otel_collector_storage_size", "")
+            if not otel_storage or not isinstance(otel_storage, str):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.otel_collector_storage_size",
+                    otel_storage,
+                    en_us_validation_msg.POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG
+                ))
+
+            # csm_observability_values_file_path must be set and exist
+            csm_values_path = powerscale_configs.get("csm_observability_values_file_path", "")
+            if not csm_values_path or (isinstance(csm_values_path, str) and csm_values_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.csm_observability_values_file_path",
+                    csm_values_path,
+                    en_us_validation_msg.POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG
+                ))
+            elif not os.path.exists(csm_values_path):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.csm_observability_values_file_path",
+                    csm_values_path,
+                    en_us_validation_msg.powerscale_csm_values_not_found_msg(csm_values_path)
+                ))
+            else:
+                try:
+                    with open(csm_values_path, 'r', encoding='utf-8') as csm_f:
+                        csm_values = yaml.safe_load(csm_f)
+                    if not isinstance(csm_values, dict):
+                        errors.append(create_error_msg(
+                            "powerscale_configurations.csm_observability_values_file_path",
+                            csm_values_path,
+                            en_us_validation_msg.POWERSCALE_CSM_VALUES_INVALID_YAML_MSG
+                        ))
+                    else:
+                        karavi_metrics = csm_values.get("karaviMetricsPowerscale", {})
+                        if not karavi_metrics:
+                            errors.append(create_error_msg(
+                                "csm_observability_values_file_path",
+                                csm_values_path,
+                                en_us_validation_msg.POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG
+                            ))
+                        else:
+                            if not karavi_metrics.get("image"):
+                                errors.append(create_error_msg(
+                                    "karaviMetricsPowerscale.image",
+                                    "not defined",
+                                    en_us_validation_msg.POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG
+                                ))
+                            karavi_auth = karavi_metrics.get("authorization", {})
+                            if karavi_auth.get("enabled", False):
+                                proxy_host = karavi_auth.get("proxyHost", "")
+                                if not proxy_host or (isinstance(proxy_host, str) and proxy_host.strip() == ""):
+                                    errors.append(create_error_msg(
+                                        "karaviMetricsPowerscale.authorization.proxyHost",
+                                        proxy_host,
+                                        en_us_validation_msg.POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG
+                                    ))
+                        otel_config = csm_values.get("otelCollector", {})
+                        if not otel_config or not otel_config.get("image"):
+                            errors.append(create_error_msg(
+                                "otelCollector.image",
+                                "not defined",
+                                en_us_validation_msg.POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG
+                            ))
+                        unsupported_metrics = {
+                            "karaviMetricsPowerflex": ("PowerFlex", "karaviMetricsPowerflex"),
+                            "karaviMetricsPowerstore": ("PowerStore", "karaviMetricsPowerstore"),
+                            "karaviMetricsPowermax": ("PowerMax", "karaviMetricsPowermax"),
+                        }
+                        for section_key, (component_name, section_name) in unsupported_metrics.items():
+                            section = csm_values.get(section_key, {})
+                            if isinstance(section, dict) and section.get("enabled", False):
+                                errors.append(create_error_msg(
+                                    f"{section_name}.enabled",
+                                    "true",
+                                    en_us_validation_msg.powerscale_unsupported_metrics_enabled_msg(
+                                        component_name, section_name, csm_values_path
+                                    )
+                                ))
+                        logger.info("CSM Observability values.yaml validation passed")
+                except (yaml.YAMLError, IOError) as e:
+                    errors.append(create_error_msg(
+                        "powerscale_configurations.csm_observability_values_file_path",
+                        csm_values_path,
+                        en_us_validation_msg.powerscale_csm_values_parse_error_msg(str(e))
+                    ))
+
+    if powerscale_logs_enabled:
+        logger.info("PowerScale logs enabled — validating victoria_logs collection target")
+        if 'victoria_logs' not in powerscale_collection_targets:
+            errors.append(create_error_msg(
+                "telemetry_sources.powerscale.collection_targets",
+                powerscale_collection_targets,
+                en_us_validation_msg.POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG
+            ))
+
 
     # =========================================================================
     # Validate UFM telemetry configuration
@@ -1128,5 +990,101 @@ def validate_telemetry_storage_config(
         ))
     elif idrac_metrics_enabled:
         logger.info("idrac_telemetry_storage validation passed")
+
+    return errors
+
+
+def validate_telemetry_packages(
+    input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+):
+    """
+    Validates the telemetry packages configuration from telemetry_packages.yml.
+
+    Performs L2 logic validation:
+    - cluster_mount is non-empty
+    - cluster_mount path exists on kube_vip host (cross-file check with telemetry_config.yml)
+    - telemetry_registry.host format is correct when provided
+    - registry cert_path / key_path files exist when provided
+    - all non-empty package URLs start with http:// or https://
+
+    Args:
+        input_file_path: Path to telemetry_packages.yml
+        data: Parsed YAML data from telemetry_packages.yml
+        logger: Logger instance
+        module: Ansible module instance
+        omnia_base_dir: Base directory of Omnia installation
+        module_utils_base: Base directory of module_utils
+        project_name: Name of the project
+
+    Returns:
+        List of error messages (empty if validation passes)
+    """
+    errors = []
+
+    if not data:
+        logger.info("telemetry_packages.yml is empty, skipping L2 validation")
+        return errors
+
+    # =========================================================================
+    # Validate cluster_mount
+    # =========================================================================
+    cluster_mount = data.get("cluster_mount", "")
+    if not cluster_mount or (isinstance(cluster_mount, str) and cluster_mount.strip() == ""):
+        errors.append(create_error_msg(
+            "cluster_mount",
+            cluster_mount,
+            en_us_validation_msg.CLUSTER_MOUNT_REQUIRED_MSG
+        ))
+    else:
+        logger.info(f"cluster_mount validation PASSED: {cluster_mount}")
+
+    # =========================================================================
+    # Validate telemetry_registry (when host is configured)
+    # =========================================================================
+    registry = data.get("telemetry_registry", {})
+    registry_host = registry.get("host", "") if isinstance(registry, dict) else ""
+    if registry_host and isinstance(registry_host, str) and registry_host.strip():
+        if ":" not in registry_host:
+            errors.append(create_error_msg(
+                "telemetry_registry.host",
+                registry_host,
+                en_us_validation_msg.REGISTRY_HOST_FORMAT_MSG
+            ))
+        else:
+            logger.info(f"telemetry_registry.host format validation PASSED: {registry_host}")
+
+        cert_path = registry.get("cert_path", "")
+        if cert_path and isinstance(cert_path, str) and cert_path.strip():
+            if not os.path.exists(cert_path):
+                errors.append(create_error_msg(
+                    "telemetry_registry.cert_path",
+                    cert_path,
+                    en_us_validation_msg.REGISTRY_CERT_NOT_FOUND_MSG
+                ))
+
+        key_path = registry.get("key_path", "")
+        if key_path and isinstance(key_path, str) and key_path.strip():
+            if not os.path.exists(key_path):
+                errors.append(create_error_msg(
+                    "telemetry_registry.key_path",
+                    key_path,
+                    en_us_validation_msg.REGISTRY_KEY_NOT_FOUND_MSG
+                ))
+
+    # =========================================================================
+    # Validate telemetry_packages URL format (when URLs are provided)
+    # =========================================================================
+    packages = data.get("telemetry_packages", {})
+    if isinstance(packages, dict):
+        for pkg_name, pkg_url in packages.items():
+            if pkg_url and isinstance(pkg_url, str) and pkg_url.strip():
+                if not (pkg_url.startswith("http://") or pkg_url.startswith("https://")):
+                    errors.append(create_error_msg(
+                        f"telemetry_packages.{pkg_name}",
+                        pkg_url,
+                        en_us_validation_msg.PACKAGE_URL_INVALID_MSG
+                    ))
+                else:
+                    logger.info(f"telemetry_packages.{pkg_name} URL validation PASSED")
 
     return errors
