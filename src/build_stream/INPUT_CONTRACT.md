@@ -6,7 +6,7 @@
 
 This document defines every input the BuildStream domain requires.
 Other domains and operators reference this contract to understand what
-must be supplied before running `buildstream.yml`.
+must be supplied before running `build_stream.yml`.
 
 ---
 
@@ -14,7 +14,7 @@ must be supplied before running `buildstream.yml`.
 
 | File | Location (domain-local) | NFS runtime path |
 |------|------------------------|------------------|
-| `buildstream_config.yml` | `src/build_stream/input/buildstream_config.yml` | `/opt/omnia/input/project_default/buildstream/buildstream_config.yml` |
+| `build_stream_config.yml` | `src/build_stream/input/build_stream_config.yml` | `/opt/omnia/input/project_default/build_stream/build_stream_config.yml` |
 
 ### 1.1  BuildStream Manager (BSM) Settings
 
@@ -49,14 +49,13 @@ following tags:
 | Tag | Type | Credentials | Notes |
 |-----|------|-------------|-------|
 | `gitlab` | mandatory + optional | `gitlab_root_password`; `docker_username`, `docker_password` | Root password is mandatory. Docker creds are optional (for pulling images from private registries). |
-| `prepare_oim` | conditional | `build_stream_auth_*`, `postgres_user`, `postgres_password` | Required when BSM needs Postgres and OAuth secrets. |
+| `build_stream` | mandatory + conditional | `gitlab_root_password`; `build_stream_auth_*`, `postgres_user`, `postgres_password` | GitLab root password is mandatory. BSM auth and Postgres creds are conditional on `enable_build_stream`. |
 
 Credential source files:
 
 | File | Scope | Format |
 |------|-------|--------|
-| `omnia_config_credentials.yml` | All domains | Ansible Vault encrypted |
-| `build_stream_oauth_credentials.yml` | BuildStream only | Argon2 hashed BSM auth |
+| `build_stream/build_stream_credentials.yml` | BuildStream domain | Ansible Vault encrypted — postgres creds + GitLab root password + BSM OAuth auth |
 
 ---
 
@@ -75,7 +74,7 @@ Credential source files:
 | Target `gitlab_host` is reachable from OIM | `hosted_gitlab/prereq_checks.yml` |
 | `gitlab_host` meets min CPU / RAM / disk | `hosted_gitlab/check_oim_prerequisites.yml` |
 | SSH access to `gitlab_host` via `provision_password` | credential_utility + `add_host` |
-| PostgreSQL available for BSM state | `prepare_buildstream.yml` |
+| PostgreSQL available for BSM state | `prepare_build_stream.yml` |
 
 ---
 
@@ -83,7 +82,7 @@ Credential source files:
 
 | New (domain-local) | Old (pre-3.0 location) | Action |
 |--------------------|----------------------|--------|
-| `input/buildstream_config.yml` | `input/build_stream_config.yml` + `input/gitlab_config.yml` | **Merged** — both files consolidated into one. |
+| `input/build_stream_config.yml` | `input/build_stream_config.yml` + `input/gitlab_config.yml` | **Merged** — both files consolidated into one. |
 | `roles/hosted_gitlab/` | `playbooks/gitlab/roles/hosted_gitlab/` | **Copied** |
 | `roles/cleanup_gitlab/` | `playbooks/gitlab/roles/cleanup_gitlab/` | **Copied** |
 | `roles/gitlab_passwordless_ssh/` | `playbooks/gitlab/roles/gitlab_passwordless_ssh/` | **Copied** |

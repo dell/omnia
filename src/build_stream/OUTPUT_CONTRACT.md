@@ -6,7 +6,7 @@
 
 This document defines every output artifact the BuildStream domain
 produces. Downstream domains and operators reference this contract to
-understand what is available after a successful `buildstream.yml` run.
+understand what is available after a successful `build_stream.yml` run.
 
 ---
 
@@ -14,13 +14,13 @@ understand what is available after a successful `buildstream.yml` run.
 
 | File | Location (domain-local) | NFS runtime path |
 |------|------------------------|------------------|
-| `buildstream_status.yml` | `src/build_stream/output/buildstream_status.yml` | `/opt/omnia/output/buildstream/buildstream_status.yml` |
+| `build_stream_status.yml` | `src/build_stream/output/build_stream_status.yml` | `/opt/omnia/output/build_stream/build_stream_status.yml` |
 
 ### 1.1  Schema
 
 ```yaml
 ---
-# /opt/omnia/output/buildstream/buildstream_status.yml
+# /opt/omnia/output/build_stream/build_stream_status.yml
 overall_status: "prepared"          # prepared | running | failed
 
 # --- GitLab Endpoints ---
@@ -50,7 +50,7 @@ bsm_api_url: "https://10.0.0.100:8010"  # Full BSM API base URL
 
 ## 2  BSM REST API Endpoints
 
-Once `buildstream_status.yml` reports `overall_status: prepared`, the
+Once `build_stream_status.yml` reports `overall_status: prepared`, the
 following REST APIs are available at `bsm_api_url`:
 
 | Method | Endpoint | Purpose | Typical Consumer |
@@ -97,7 +97,7 @@ Built from: `src/build_stream/containers/omnia_build_stream/Containerfile`
 
 | Log | Path | Description |
 |-----|------|-------------|
-| Ansible playbook log | `/opt/omnia/log/core/playbooks/buildstream.log` | Ansible output from `buildstream.yml` and sub-playbooks. |
+| Ansible playbook log | `/opt/omnia/log/core/playbooks/build_stream.log` | Ansible output from `build_stream.yml` and sub-playbooks. |
 | BSM API log | `/opt/omnia/log/build_stream/build_stream.log` | FastAPI application log (via `log_secure_info`). |
 | Per-job logs | `/opt/omnia/log/build_stream/jobs/{job_id}.log` | Individual job execution logs. |
 | Playbook-watcher log | `/opt/omnia/log/build_stream/playbook_watcher.log` | Watcher service log (systemd). |
@@ -118,10 +118,10 @@ Built from: `src/build_stream/containers/omnia_build_stream/Containerfile`
 
 ## 7  Lifecycle States
 
-The `overall_status` field in `buildstream_status.yml` transitions as:
+The `overall_status` field in `build_stream_status.yml` transitions as:
 
 ```
- ┌──────────┐     prepare_buildstream.yml     ┌──────────┐
+ ┌──────────┐     prepare_build_stream.yml     ┌──────────┐
  │ (absent) │ ──────────────────────────────► │ prepared │
  └──────────┘                                 └────┬─────┘
                                                    │

@@ -33,7 +33,7 @@ EXAMPLES_CATALOG = os.path.join(
 class TestGeneratorDefaults(unittest.TestCase):
     def test_default_schema_path_points_to_resources(self):
         # The default schema path should point to the actual resources directory
-        expected_schema = os.path.join(PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json")
+        expected_schema = os.path.join(PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json")
         self.assertEqual(os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema))
 
     def test_generate_root_json_with_defaults_writes_output(self):

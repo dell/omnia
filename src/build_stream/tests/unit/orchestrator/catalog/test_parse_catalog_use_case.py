@@ -49,7 +49,7 @@ def _load_valid_catalog_bytes() -> bytes:
     """Load the test catalog fixture."""
     fixture_dir = os.path.join(
         os.path.dirname(__file__),
-        "..", "..", "..", "..", "core", "catalog", "test_fixtures",
+        "..", "..", "..", "..", "app", "core", "catalog", "test_fixtures",
     )
     # Try to find a valid catalog fixture
     for name in ("catalog.json", "test_catalog.json"):

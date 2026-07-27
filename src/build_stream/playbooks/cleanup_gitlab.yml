@@ -28,13 +28,38 @@
         omnia_run_tags: "{{ ['build_stream', 'gitlab'] }}"
         cacheable: true
 
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
+- name: Build Stream setup (input dirs)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: ../roles/build_stream_setup
+  when: not build_stream_setup_done | default(false) | bool
 
-- name: Import credential utility playbook
-  ansible.builtin.import_playbook: ../../playbooks/utils/credential_utility/get_config_credentials.yml
-  when: not config_file_status | default(false) | bool
+- name: Load build_stream domain credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars:
+    build_stream_config_dir: "build_stream"
+  tasks:
+    - name: Load build_stream credential paths
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
+      failed_when: false
+
+    - name: Set credential file paths
+      ansible.builtin.set_fact:
+        bs_credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
+        bs_credential_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/.build_stream_credentials_key"
+
+    - name: Decrypt and include build_stream credentials
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
+      vars:
+        credential_file_path: "{{ bs_credential_file_path }}"
+        vault_password_file: "{{ bs_credential_vault_path }}"
 
 - name: Prepare GitLab host credentials for cleanup
   hosts: localhost
@@ -53,11 +78,11 @@
           - gitlab_host | string | length > 0
         fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream/build_stream_config.yml"
 
-    - name: Ensure provision password is available
+    - name: Ensure GitLab SSH password is available
       ansible.builtin.assert:
         that:
-          - hostvars['localhost']['provision_password'] | default('') | length > 0
-        fail_msg: "Provision password not found. Run credential utility to populate provision_password."
+          - hostvars['localhost']['gitlab_ssh_password'] | default('') | length > 0
+        fail_msg: "GitLab SSH password not found. Run build_stream credential utility to populate gitlab_ssh_password."
 
     - name: Register GitLab SSH credentials for cleanup
       ansible.builtin.add_host:
@@ -65,7 +90,7 @@
         groups: gitlab_server
         ansible_host: "{{ gitlab_host }}"
         ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-        ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
+        ansible_password: "{{ hostvars['localhost']['gitlab_ssh_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
         gitlab_host: "{{ gitlab_host }}"
       no_log: true
