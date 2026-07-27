@@ -22,7 +22,9 @@
     openchami_install_status: false
 
 - name: Openchami cluster authentication
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/openchami_auth.yml"
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: openchami_auth.yml
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"

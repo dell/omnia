@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "pxe_mapping_file_path": {
+      "type": "string",
+      "description": "Path to the PXE mapping file."
+    },
+    "language": {
+      "type": "string",
+      "description": "Language setting.",
+      "default": "en_US.UTF-8"
+    },
+    "default_lease_time": {
+      "type": ["string", "integer"],
+      "description": "Default lease time for DHCP.",
+      "default": 86400
+    },
+    "dns_enabled": {
+      "type": "boolean",
+      "description": "Enable DNS-based hostname resolution via coresmd.",
+      "default": false
+    },
+    "kernel_version_override": {
+      "type": "string",
+      "description": "Optional kernel version to pin for boot image selection. Leave empty to auto-select latest.",
+      "pattern": "^(|[0-9]+\\.[0-9]+\\.[0-9]+-.+)$",
+      "default": ""
+    },
+    "additional_cloud_init_config_file": {
+      "type": "string",
+      "description": "Path to additional cloud-init configuration file for stateless node provisioning. Leave empty to disable.",
+      "default": ""
+    },
+    "s3_storage_provider": {
+      "type": "string",
+      "description": "S3 storage provider: minio, powerscale, or external.",
+      "enum": ["minio", "powerscale", "external"],
+      "default": "minio"
+    },
+    "s3_endpoint": {
+      "type": "string",
+      "description": "S3-compatible endpoint URL. Required for powerscale/external providers.",
+      "default": ""
+    },
+    "s3_access_key": {
+      "type": "string",
+      "description": "S3 access key.",
+      "default": ""
+    },
+    "s3_secret_key": {
+      "type": "string",
+      "description": "S3 secret key.",
+      "default": ""
+    },
+    "s3_boot_images_bucket": {
+      "type": "string",
+      "description": "S3 bucket name for boot images.",
+      "default": "boot-images"
+    },
+    "s3_verify_ssl": {
+      "type": "boolean",
+      "description": "Whether to verify SSL certificates for S3 connections.",
+      "default": false
+    }
+  },
+  "required": [
+    "pxe_mapping_file_path",
+    "language",
+    "default_lease_time"
+  ]
+}

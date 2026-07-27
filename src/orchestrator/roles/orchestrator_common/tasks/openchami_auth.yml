@@ -14,7 +14,7 @@
 ---
 
 - name: Include openchami vars variables
-  ansible.builtin.include_vars: "{{ playbook_dir }}/vars/openchami_vars.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/vars/openchami_vars.yml"
 
 - name: Gather facts for services
   ansible.builtin.service_facts:
