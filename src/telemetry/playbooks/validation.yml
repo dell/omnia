@@ -11,17 +11,83 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-# Validate telemetry configuration
-# Usage: ansible-playbook telemetry.yml --tags validation
 
-- name: Validate Telemetry Configuration
+# =============================================================================
+# Telemetry Input Validation Playbook
+# =============================================================================
+# Performs L1 (JSON schema) and L2 (logic) validation for all three telemetry
+# input files:
+#   - telemetry_config.yml      : kube_vip, sources, bridges, sinks, configs
+#   - telemetry_storage_config.yml : storage sections per enabled sinks
+#   - telemetry_packages.yml    : registry, package URLs, cluster_mount
+#
+# L1 schemas  : library/module_utils/input_validation/schema/
+# L2 logic    : library/module_utils/input_validation/validation_flows/
+#               telemetry_validation.py (validate_telemetry_config,
+#               validate_telemetry_storage_config, validate_telemetry_packages)
+#
+# Default input path: /opt/omnia/input/project_default/telemetry
+# Override for non-standard omnia install:
+#   -e "telemetry_input_base=/custom/omnia/input/project_default"
+#
+# Usage (standalone):
+#   ansible-playbook playbooks/validation.yml
+#
+# Usage (via orchestrator with tag):
+#   ansible-playbook telemetry.yml --tags validation
+# =============================================================================
+
+- name: "Telemetry Input Validation | L1 + L2 for all telemetry input files"
   hosts: localhost
-  gather_facts: true
+  connection: local
+  gather_facts: false
   any_errors_fatal: true
-
   tasks:
-    - name: Placeholder task for validation
+
+    - name: "Resolve paths for validate_input module"
+      ansible.builtin.set_fact:
+        _telemetry_root: "{{ playbook_dir | dirname }}"
+        _telemetry_module_utils: "{{ playbook_dir | dirname }}/library/module_utils"
+        _input_base: "{{ telemetry_input_base | default('/opt/omnia/input/project_default') }}"
+        _input_project: "{{ telemetry_input_project | default('telemetry') }}"
+
+    - name: "Run L1 + L2 validation for telemetry input files"
+      validate_input:
+        omnia_base_dir: "{{ _input_base }}"
+        project_name: "{{ _input_project }}"
+        tag_names:
+          - "telemetry"
+        module_utils_path: "{{ _telemetry_module_utils }}"
+      register: telemetry_validation_result
+
+    - name: "Validation passed"
       ansible.builtin.debug:
-        msg: "Validate telemetry configuration - to be implemented"
+        msg: "Telemetry input validation completed successfully."
+      when: telemetry_validation_result.validation_failed is defined and not telemetry_validation_result.validation_failed
+
+    - name: "Failed due to validation failure"
+      ansible.builtin.fail:
+        msg: |
+
+          Telemetry input validation failed.
+
+          {% if telemetry_validation_result.errors is defined and telemetry_validation_result.errors | length > 0 %}
+          Errors:
+          {% for err in telemetry_validation_result.errors %}
+          - {{ err }}
+          {% endfor %}
+          {% endif %}
+
+          {% if telemetry_validation_result.invalid_files is defined and telemetry_validation_result.invalid_files | length > 0 %}
+          Invalid files:
+          {% for invalid_file in telemetry_validation_result.invalid_files %}
+          - {{ invalid_file }}
+          {% endfor %}
+          {% endif %}
+
+          {% if telemetry_validation_result.log_file is defined %}
+          Log file:
+          {{ telemetry_validation_result.log_file }}
+          {% endif %}
+      when: telemetry_validation_result.validation_failed is defined and telemetry_validation_result.validation_failed

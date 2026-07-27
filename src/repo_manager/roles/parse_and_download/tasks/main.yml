@@ -1,0 +1,188 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Define project input path
+  ansible.builtin.set_fact:
+    project_input_path: "{{ input_project_dir }}"
+    update_metadata: false
+    show_softwares_status: false
+
+- name: Include oim metadata vars
+  ansible.builtin.include_vars:
+    file: "{{ omnia_metadata_file }}"
+    name: oim_shared_path_from_metadata
+  when: repo_manager_metadata_support | default(false) | bool
+
+- name: Migrate Pulp repo names from old to new naming convention
+  ansible.builtin.include_tasks: pulp_repo_name_migration.yml
+
+- name: Process and configure local_repo_config
+  ansible.builtin.include_tasks: process_rpm_repo.yml
+
+- name: Encrypt user certificates if exist
+  cert_vault_handler:
+    mode: encrypt
+    log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
+    key_path: "{{ project_input_path }}"
+  environment:
+    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+  register: vault_result
+
+- name: Execute tasks for each architecture
+  ansible.builtin.include_tasks: arch_component_loop.yml
+  loop: "{{ result.software_dict | dict2items }}"
+  loop_control:
+    loop_var: arch_item
+  vars:
+    components: "{{ arch_item.value | dict2items }}"
+
+# to be removed later
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/software_config.json"
+    name: software_config
+
+- name: Generate software JSON file names
+  ansible.builtin.set_fact:
+    software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
+
+- name: Create a dictionary of software architectures
+  ansible.builtin.set_fact:
+    fetch_arch: "{{ software_config.softwares | items2dict(key_name='name', value_name='arch') }}"
+
+- name: Combine all architectures into a single list
+  ansible.builtin.set_fact:
+    all_archs: >-
+      {{
+        fetch_arch.values()
+        | select('defined')
+        | flatten
+        | unique
+      }}
+
+- name: Set fact for all_archs_var
+  ansible.builtin.set_fact:
+    all_archs_var: "{{ hostvars['localhost']['all_archs'] }}"
+
+- name: Clear the rpm downloaded files for each arch
+  ansible.builtin.file:
+    path: "{{ rpm_dir_path }}"
+    state: absent
+  loop: "{{ all_archs_var }}"
+  when: clean_rpms
+
+- name: Create output directory
+  ansible.builtin.file:
+    path: "{{ output_dir }}"
+    state: directory
+    mode: "{{ folder_mode }}"
+
+- name: Determine final repository status
+  ansible.builtin.set_fact:
+    final_status: >-
+      {{
+        'failed' if
+        (
+          overall_status_dict | default({}) | dict2items |
+          map(attribute='value') |
+          sum(start=[]) |
+          map(attribute='overall_status') |
+          select('in', ['FAILURE', 'TIMEOUT', 'PARTIAL']) |
+          list |
+          length > 0
+        )
+        else 'success'
+      }}
+
+- name: Create repo_status.yml file
+  generate_local_repo_access:
+    pulp_server_ip: "{{ pulp_server_ip | default(hostvars['oim']['pulp_server_ip'] | default('')) }}"
+    pulp_server_port: "{{ pulp_server_port | default(hostvars['oim']['pulp_server_port'] | default('2225')) | int }}"
+    pulp_protocol: "{{ pulp_protocol | default(hostvars['oim']['pulp_protocol'] | default('https')) }}"
+    cluster_os_type: "{{ cluster_os_type }}"
+    cluster_os_version: "{{ cluster_os_version }}"
+    output_path: "{{ local_repo_access_dest_path }}"
+    certs_dir: "{{ pulp_certs_dir }}"
+    local_repo_config_path: "{{ local_repo_config_path }}"
+    overall_status: "{{ final_status }}"
+  environment:
+    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+
+- name: Check if metadata file exists
+  ansible.builtin.stat:
+    path: "{{ metadata_file_path }}"
+  register: metadata_file
+
+- name: Set update metadata flag
+  ansible.builtin.set_fact:
+    update_metadata: "{{ true | bool }}"
+  when:
+    - metadata_file.stat.exists
+    - final_status == 'success'
+
+- name: Persist local repoitory information into metadata file localrepo_metadata.yml
+  localrepo_metadata_manager:
+    software_config_path: "{{ sw_config_json_path }}"
+    localrepo_config_path: "{{ local_repo_config_path }}"
+    output_file: "{{ metadata_file_path }}"
+    update_metadata: "{{ update_metadata }}"
+    sub_urls: "{{ sub_final_repo_urls | default({}) }}"
+  environment:
+    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+  register: policy_result
+  when:
+    - final_status == 'success'
+
+- name: Show updated keys
+  ansible.builtin.debug:
+    var: policy_result.diff
+  when: update_metadata
+
+- name: Run custom parallel task to print overall software status
+  parallel_tasks:
+    tasks: []
+    software: []
+    local_repo_config_path: "{{ local_repo_config_path }}"
+    overall_status_dict: "{{ overall_status_dict }}"
+    show_softwares_status: "{{ true | bool }}"
+  register: status_results
+  when: overall_status_dict is defined and overall_status_dict | length > 0
+
+- name: Print overall software status
+  ansible.builtin.debug:
+    msg: "{{ status_results.msg.split('\n') if status_results.msg is defined else sw_download_msg }}"
+
+- name: Display total playbook execution time in minutes and seconds
+  ansible.builtin.debug:
+    msg: >
+      Total playbook execution time: {{
+        ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) // 60)
+      }} min and {{
+        ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) % 60)
+      }} sec
+
+- name: Local repository status
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'localrepository SUCCESS' if final_status == 'success' else
+         'Local repo setup failed — some packages did not download, and dependent scripts/playbooks may also fail. '
+         'Refer to the localrepo logs for more details. Rerun repo_manager.yml.' }}
+  failed_when: final_status != 'success'

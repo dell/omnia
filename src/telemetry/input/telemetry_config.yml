@@ -450,7 +450,7 @@ powerscale_configurations:
   otel_collector_storage_size: "5Gi"
 
   # Path to the CSM Observability (Karavi Observability) values.yaml file
-  # Required when powerscale_configurations.powerscale_telemetry_support: true
+  # Required when telemetry_sources.powerscale.metrics_enabled: true
   # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.17.1/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
 

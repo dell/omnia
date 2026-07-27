@@ -812,6 +812,40 @@ def get_footer():
     """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
+# kube_vip validation messages (telemetry standalone design)
+KUBE_VIP_REQUIRED_MSG = (
+    "kube_vip is required in telemetry_config.yml. "
+    "Set 'kube_vip: <IP_ADDRESS>' to the Kubernetes control plane virtual IP address. "
+    "All K8s tasks (kubectl, helm) execute on this host via SSH."
+)
+KUBE_VIP_INVALID_IPV4_MSG = (
+    "kube_vip must be a valid IPv4 address with each octet in the range 0-255 "
+    "(e.g., '10.0.0.1'). Update the kube_vip value in telemetry_config.yml."
+)
+
+# telemetry_packages.yml validation messages
+CLUSTER_MOUNT_REQUIRED_MSG = (
+    "cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
+    "Provide the local NFS mount point on the Kubernetes cluster where telemetry packages "
+    "will be staged (e.g., '/opt/omnia/k8s_mount')."
+)
+REGISTRY_HOST_FORMAT_MSG = (
+    "telemetry_registry.host must be in format 'IP:port' or 'hostname:port' "
+    "(e.g., '192.168.1.10:5000'). If no registry authentication is needed, leave host empty."
+)
+REGISTRY_CERT_NOT_FOUND_MSG = (
+    "telemetry_registry.cert_path file not found. "
+    "Ensure the certificate file exists at the specified path, or leave cert_path empty."
+)
+REGISTRY_KEY_NOT_FOUND_MSG = (
+    "telemetry_registry.key_path file not found. "
+    "Ensure the key file exists at the specified path, or leave key_path empty."
+)
+PACKAGE_URL_INVALID_MSG = (
+    "Package URL in telemetry_packages.yml must start with 'http://' or 'https://'. "
+    "Provide the full download URL from the Pulp repository or external source."
+)
+
 # Telemetry storage configuration validation
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "

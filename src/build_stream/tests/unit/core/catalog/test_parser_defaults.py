@@ -27,7 +27,7 @@ from core.catalog.parser import ParseCatalog, _DEFAULT_SCHEMA_PATH
 class TestParseCatalogDefaults:
     def test_default_schema_path_points_to_resources(self):
         # The default schema path should point to the actual resources directory in core/catalog
-        expected_schema = os.path.join(PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json")
+        expected_schema = os.path.join(PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json")
         assert os.path.abspath(_DEFAULT_SCHEMA_PATH) == os.path.abspath(expected_schema)
 
     def test_parse_catalog_with_explicit_paths_uses_fixture(self):

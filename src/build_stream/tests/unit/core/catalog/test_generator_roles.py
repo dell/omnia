@@ -33,7 +33,7 @@ from core.catalog.generator import (
 class TestGetFunctionalLayerRolesFromFile(unittest.TestCase):
     def test_returns_all_role_names_from_fixture(self):
         fixture_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "core", "catalog", "test_fixtures", "functional_layer.json")
+            os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "app", "core", "catalog", "test_fixtures", "functional_layer.json")
         )
 
         roles = get_functional_layer_roles_from_file(fixture_path)

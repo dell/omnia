@@ -1,0 +1,127 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# check_pods_health.yml — Runs on: kube_vip
+# =============================================================================
+# Verifies all pods outside the telemetry namespace are healthy.
+#
+# A pod is considered HEALTHY if:
+#   - Phase is "Running" AND all containers are in Ready state
+#   - Phase is "Succeeded" (completed jobs)
+#
+# A pod is considered UNHEALTHY if:
+#   - Phase is "Running" but one or more containers are NOT Ready
+#     (CrashLoopBackOff, ImagePullBackOff, OOMKilled, etc.)
+#   - Phase is "Pending", "Failed", or "Unknown"
+#
+# The telemetry namespace is excluded — it may not exist yet or may have
+# pods being deployed in a prior run.
+
+- name: Get all pod status across all namespaces (excluding telemetry namespace)
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get pods --all-namespaces --no-headers \
+        -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' \
+        2>/dev/null | \
+      while read ns name phase ready; do
+        if [ "$ns" = "{{ telemetry_namespace }}" ]; then
+          continue
+        fi
+        if [[ "$phase" == "Running" && "$ready" == *"false"* ]]; then
+          echo "$ns|$name|ContainersNotReady"
+        elif [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
+          echo "$ns|$name|${phase:-Unknown}"
+        fi
+      done
+  args:
+    executable: /bin/bash
+  register: unhealthy_pods_check
+  changed_when: false
+  failed_when: false
+
+- name: Get total pod count (excluding telemetry namespace)
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get pods --all-namespaces --no-headers 2>/dev/null | \
+        grep -v "^{{ telemetry_namespace }} " | wc -l
+  args:
+    executable: /bin/bash
+  register: total_pods_count
+  changed_when: false
+  failed_when: false
+
+- name: Parse unhealthy pod list
+  ansible.builtin.set_fact:
+    unhealthy_pod_lines: >-
+      {{ unhealthy_pods_check.stdout_lines
+         | default([])
+         | select('match', '.+[|].+[|].+')
+         | list }}
+
+- name: Format unhealthy pods for display
+  ansible.builtin.set_fact:
+    unhealthy_pods_display: >-
+      {{ unhealthy_pod_lines
+         | map('regex_replace', '^(.+)[|](.+)[|](.+)$', '  - \1/\2  [\3]')
+         | list }}
+
+- name: Display pod health summary
+  ansible.builtin.debug:
+    msg: "{{ pod_health_banner }}"
+  vars:
+    pod_health_banner: >-
+      {{
+        ['━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+         '[PRECHECK] Pod Health Check (excl. ' + telemetry_namespace + ' namespace)',
+         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+         '  Total pods checked  : ' + (total_pods_count.stdout | trim | string),
+         '  Unhealthy pods      : ' + (unhealthy_pod_lines | length | string)]
+        + (['  Problem pods (namespace/name [status]):'] + unhealthy_pods_display
+           if unhealthy_pod_lines | length > 0
+           else ['  All pods            : ✓ Running / Succeeded'])
+        + ['━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━']
+      }}
+
+- name: Fail if any pod outside the telemetry namespace is unhealthy
+  ansible.builtin.fail:
+    msg: |
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      [PRECHECK FAIL] Unhealthy Pods Detected
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      The following pods (outside '{{ telemetry_namespace }}' namespace) are NOT healthy:
+      {% for pod in unhealthy_pods_display %}
+      {{ pod }}
+      {% endfor %}
+
+      All cluster pods must be Running or Succeeded before deploying telemetry.
+      Diagnose with:
+        kubectl get pods --all-namespaces
+        kubectl logs -n <namespace> <pod-name>
+        kubectl describe pod -n <namespace> <pod-name>
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  when: unhealthy_pod_lines | length > 0
+
+- name: Display pod health check — PASSED
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] Pod Health — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  All {{ total_pods_count.stdout | trim }} pod(s) outside '{{ telemetry_namespace }}' namespace are healthy  ✓"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: unhealthy_pod_lines | length == 0
