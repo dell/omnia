@@ -36,65 +36,51 @@
 
 # ── Step 2: Eject any existing virtual media ────────────────────────────
 - name: Eject existing virtual media if mounted
-  ansible.builtin.shell: |
-    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
-      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" \
-      -H "Content-Type: application/json" -d '{}'
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    virtual_media:
+      - insert: false
   changed_when: false
   failed_when: false
   no_log: true
 
 # ── Step 3: Insert ISO as virtual media ─────────────────────────────────
 - name: Mount ISO via iDRAC virtual media
-  ansible.builtin.shell: |
-    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
-      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.InsertMedia" \
-      -H "Content-Type: application/json" \
-      -d '{"Image":"{{ nfs_iso_uri }}","Inserted":true,"WriteProtected":true}'
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    force: true
+    virtual_media:
+      - insert: true
+        image: "{{ nfs_iso_uri }}"
   register: insert_result
-  changed_when: true
   no_log: true
-
-- name: Verify virtual media is mounted
-  ansible.builtin.shell: |
-    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s \
-      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD" \
-      | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("Inserted","false"))'
-  register: vm_check
-  changed_when: false
-  failed_when: false
-  no_log: true
-  retries: 3
-  delay: 5
-  until: vm_check.stdout | trim | lower == 'true'
-
-- name: Fail if virtual media not mounted
-  ansible.builtin.fail:
-    msg: >-
-      Failed to mount virtual media on iDRAC at {{ target_bmc_ip }}.
-      ISO: {{ nfs_iso_uri }}.
-      Please verify NFS share is accessible from the iDRAC network.
-  when: vm_check.stdout | trim | lower != 'true'
 
 # ── Step 4: Set one-time boot from CD and reboot ────────────────────────
 - name: Set boot override to CD (one-time)
-  ansible.builtin.shell: |
-    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X PATCH \
-      "https://{{ target_bmc_ip }}/redfish/v1/Systems/System.Embedded.1" \
-      -H "Content-Type: application/json" \
-      -d '{"Boot":{"BootSourceOverrideTarget":"Cd","BootSourceOverrideEnabled":"Once"}}'
+  dellemc.openmanage.idrac_boot:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    boot_source_override_enabled: "once"
+    boot_source_override_target: "cd"
   register: boot_override_result
-  changed_when: true
   no_log: true
 
 - name: Reboot server to boot from ISO
-  ansible.builtin.shell: |
-    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
-      "https://{{ target_bmc_ip }}/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset" \
-      -H "Content-Type: application/json" \
-      -d '{"ResetType":"ForceRestart"}'
+  dellemc.openmanage.redfish_powerstate:
+    baseuri: "{{ target_bmc_ip }}"
+    username: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: false
+    reset_type: "ForceRestart"
   register: reboot_result
-  changed_when: true
   no_log: true
 
 - name: OS deployment initiated
@@ -162,10 +148,13 @@
 
 # ── Step 7: Cleanup — eject virtual media ───────────────────────────────
 - name: Eject virtual media after installation
-  ansible.builtin.shell: |
-    curl -k -u "{{ bmc_username }}:{{ bmc_password }}" -s -X POST \
-      "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" \
-      -H "Content-Type: application/json" -d '{}'
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    virtual_media:
+      - insert: false
   changed_when: true
   failed_when: false
   no_log: true
