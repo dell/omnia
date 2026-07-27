@@ -62,12 +62,21 @@
           {{ tool_check_results.results
              | selectattr('rc', 'ne', 0)
              | map(attribute='item')
-             | map(attribute='name')
              | list }}
 
-    - name: Fail if required tools are missing
-      ansible.builtin.fail:
-        msg: "{{ tool_missing_msg }}"
+    - name: Install missing ISO tools
+      ansible.builtin.package:
+        name: "{{ missing_tools | map(attribute='package') | list }}"
+        state: present
+      when: missing_tools | length > 0
+      become: true
+
+    - name: Verify tools after installation
+      ansible.builtin.command: "command -v {{ item.name }}"
+      loop: "{{ required_iso_tools }}"
+      register: tool_verify_results
+      changed_when: false
+      failed_when: tool_verify_results.rc != 0
       when: missing_tools | length > 0
 
 - name: Ensure ISO target directory exists

@@ -45,7 +45,7 @@
 
 - name: Validate provision_password is set
   ansible.builtin.fail:
-    msg: "provision_password is not set or empty. Please run the credential utility to set it."
+    msg: "{{ provision_password_not_set_msg }}"
   when: >
     provision_password is not defined or
     provision_password | length == 0
@@ -56,10 +56,7 @@
 
 - name: Validate user-provided nfs_share_path format
   ansible.builtin.fail:
-    msg: >-
-      Invalid nfs_share_path format: '{{ user_nfs_share_path }}'.
-      Expected format: 'server:/path' (e.g., '192.168.1.100:/mnt/nfs/share').
-      Do not include the ISO filename in the path.
+    msg: "{{ invalid_nfs_share_path_msg }}"
   when:
     - user_nfs_share_path | length > 0
     - "':' not in user_nfs_share_path or user_nfs_share_path.split(':') | length != 2"
@@ -102,10 +99,7 @@
 
 - name: Fail if NFS share path not available
   ansible.builtin.fail:
-    msg: >-
-      NFS share path not available.
-      Either provide 'nfs_share_path' in iso_config.yml (format: 'server:/path')
-      or ensure /opt/omnia is backed by an NFS mount for iDRAC virtual media.
+    msg: "{{ nfs_share_not_available_msg }}"
   when: iso_nfs_share | length == 0
 
 - name: Set remaining install_os parameters
@@ -119,10 +113,4 @@
 
 - name: Log fetched ARM parameters
   ansible.builtin.debug:
-    msg: >-
-      AArch64 parameters fetched for node '{{ ks_hostname }}'.
-      BMC IP: {{ target_bmc_ip }},
-      Admin IP: {{ ks_static_ip }},
-      ISO: {{ iso_source_path }},
-      Kickstart: {{ kickstart_template if kickstart_file | length == 0 else kickstart_file }},
-      Force reinstall: {{ force_reinstall }}
+    msg: "{{ arm_params_fetched_msg }}"

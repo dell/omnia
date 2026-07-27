@@ -77,6 +77,13 @@
         - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
 
     - name: Decrypt and include encrypted credentials file
+      when:
+        - encrypted_credentials_file is defined
+        - encrypted_credentials_file | length > 0
+        - creds_file_stat.stat.exists | default(false)
+        - vault_password_file is defined
+        - vault_password_file | length > 0
+        - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
       block:
         - name: Create temporary directory for decryption
           ansible.builtin.tempfile:
@@ -104,13 +111,6 @@
             path: "{{ temp_decrypt_dir.path }}"
             state: absent
           no_log: true
-      when:
-        - encrypted_credentials_file is defined
-        - encrypted_credentials_file | length > 0
-        - creds_file_stat.stat.exists | default(false)
-        - vault_password_file is defined
-        - vault_password_file | length > 0
-        - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
 
     - name: Prompt for BMC username if not provided
       ansible.builtin.pause:
