@@ -116,54 +116,7 @@ def validate_telemetry_config(
                 logger.warning(f"SSH reachability check for kube_vip failed: {e}")
                 kube_vip_valid = False
 
-        if kube_vip_valid:
-            # Cross-file: verify cluster_mount path exists on kube_vip
-            input_dir = os.path.dirname(input_file_path)
-            packages_path = os.path.join(input_dir, "telemetry_packages.yml")
-            if os.path.exists(packages_path):
-                try:
-                    with open(packages_path, 'r', encoding='utf-8') as f:
-                        packages_data = yaml.safe_load(f)
-                    cluster_mount = packages_data.get("cluster_mount", "") if isinstance(packages_data, dict) else ""
-                    if cluster_mount and isinstance(cluster_mount, str) and cluster_mount.strip():
-                        try:
-                            ssh_mount_cmd = [
-                                "ssh",
-                                "-o", "StrictHostKeyChecking=no",
-                                "-o", "UserKnownHostsFile=/dev/null",
-                                "-o", "ConnectTimeout=10",
-                                kube_vip,
-                                f"test -d {cluster_mount}"
-                            ]
-                            mount_result = subprocess.run(
-                                ssh_mount_cmd,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                check=False,
-                                timeout=15
-                            )
-                            if mount_result.returncode != 0:
-                                errors.append(create_error_msg(
-                                    "cluster_mount (from telemetry_packages.yml)",
-                                    cluster_mount,
-                                    en_us_validation_msg.CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG
-                                ))
-                                logger.error(f"cluster_mount '{cluster_mount}' does not exist on kube_vip '{kube_vip}'")
-                            else:
-                                logger.info(f"cluster_mount '{cluster_mount}' exists on kube_vip '{kube_vip}'")
-                        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
-                            errors.append(create_error_msg(
-                                "cluster_mount (from telemetry_packages.yml)",
-                                cluster_mount,
-                                en_us_validation_msg.CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG
-                            ))
-                            logger.warning(f"SSH check for cluster_mount failed: {e}")
-                    else:
-                        logger.info("cluster_mount is empty in telemetry_packages.yml, skipping path check")
-                except (yaml.YAMLError, IOError, OSError) as e:
-                    logger.warning(f"Failed to load telemetry_packages.yml for cluster_mount check: {e}")
-            else:
-                logger.warning("telemetry_packages.yml not found, skipping cluster_mount path check")
+        # kube_vip validation complete
 
     # =========================================================================
     # Extract parameters from new three-layer structure
@@ -1037,6 +990,97 @@ def validate_telemetry_packages(
         ))
     else:
         logger.info(f"cluster_mount validation PASSED: {cluster_mount}")
+        
+        # Cross-file validation: check if cluster_mount exists on kube_vip
+        input_dir = os.path.dirname(input_file_path)
+        telemetry_config_path = os.path.join(input_dir, "telemetry_config.yml")
+        
+        if os.path.exists(telemetry_config_path):
+            try:
+                with open(telemetry_config_path, 'r', encoding='utf-8') as f:
+                    telemetry_config = yaml.safe_load(f)
+                
+                kube_vip = telemetry_config.get("kube_vip", "") if isinstance(telemetry_config, dict) else ""
+                
+                if kube_vip and isinstance(kube_vip, str) and kube_vip.strip():
+                    # First, verify kube_vip is reachable via SSH
+                    logger.info(f"Pre-checking SSH reachability to kube_vip '{kube_vip}' before cluster_mount path validation")
+                    
+                    try:
+                        ssh_reach_cmd = [
+                            "ssh",
+                            "-o", "StrictHostKeyChecking=no",
+                            "-o", "UserKnownHostsFile=/dev/null",
+                            "-o", "ConnectTimeout=10",
+                            "-o", "BatchMode=yes",
+                            kube_vip,
+                            "true"
+                        ]
+                        reach_result = subprocess.run(
+                            ssh_reach_cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=False,
+                            timeout=15
+                        )
+                        
+                        if reach_result.returncode != 0:
+                            logger.warning(f"kube_vip '{kube_vip}' is not reachable via SSH, skipping cluster_mount path check")
+                            logger.info("cluster_mount path validation skipped due to kube_vip SSH unreachability")
+                        else:
+                            logger.info(f"kube_vip '{kube_vip}' is reachable, proceeding with cluster_mount path check")
+                            
+                            # Now check if cluster_mount path exists
+                            try:
+                                ssh_cmd = [
+                                    "ssh",
+                                    "-o", "StrictHostKeyChecking=no",
+                                    "-o", "UserKnownHostsFile=/dev/null",
+                                    "-o", "ConnectTimeout=10",
+                                    kube_vip,
+                                    f"test -d {cluster_mount}"
+                                ]
+                                result = subprocess.run(
+                                    ssh_cmd,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    check=False,
+                                    timeout=15
+                                )
+                                
+                                if result.returncode != 0:
+                                    errors.append(create_error_msg(
+                                        "cluster_mount",
+                                        cluster_mount,
+                                        en_us_validation_msg.CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG
+                                    ))
+                                    logger.error(f"cluster_mount path '{cluster_mount}' does not exist on kube_vip '{kube_vip}'")
+                                else:
+                                    logger.info(f"cluster_mount path '{cluster_mount}' exists on kube_vip '{kube_vip}'")
+                            
+                            except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+                                logger.warning(f"SSH check for cluster_mount path failed: {e}")
+                                errors.append(create_error_msg(
+                                    "cluster_mount",
+                                    cluster_mount,
+                                    en_us_validation_msg.CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG
+                                ))
+                    
+                    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+                        logger.warning(f"SSH reachability check for kube_vip failed: {e}")
+                        logger.info("cluster_mount path validation skipped due to kube_vip SSH check failure")
+                else:
+                    logger.warning("kube_vip not found in telemetry_config.yml, skipping cluster_mount path check")
+                    errors.append(create_error_msg(
+                        "cluster_mount",
+                        cluster_mount,
+                        en_us_validation_msg.CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG
+                    ))
+            
+            except (yaml.YAMLError, IOError, OSError) as e:
+                logger.warning(f"Failed to load telemetry_config.yml for kube_vip lookup: {e}")
+        else:
+            logger.warning(f"telemetry_config.yml not found at {telemetry_config_path}, skipping cluster_mount path check")
 
     # =========================================================================
     # Validate telemetry_registry (when host is configured)
