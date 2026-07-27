@@ -13,38 +13,30 @@
 #  limitations under the License.
 
 ---
-- name: Set Fact for Pulp Server with Admin IP or VIP
+- name: Load repo_manager endpoint configuration
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+    name: endpoint_config
+
+- name: Set Pulp server IP from endpoint config
   ansible.builtin.set_fact:
-    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-  when: not hostvars['oim']['hostname_enabled']
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip }}"
 
-- name: Configure Pulp Server with hostname when hostname_enabled is true
-  ansible.builtin.set_fact:
-    pulp_server_ip: ""  # Placeholder for Pulp hostname
-  when: hostvars['oim']['hostname_enabled']
-
-- name: Check if Pulp configuration file exists
-  ansible.builtin.stat:
-    path: "{{ pulp_config_filepath }}"
-  register: pulp_config_status
-
-- name: Create Pulp config (if file doesn't exist)
-  ansible.builtin.command:
-    cmd: "{{ pulp_config_cmd_http }}"
-  when: not pulp_config_status.stat.exists
-  changed_when: false
-
-- name: Overwrite Pulp config (if file exists)
-  ansible.builtin.command:
-    cmd: "{{ pulp_config_cmd_overwrite_http }}"
-  when: pulp_config_status.stat.exists
-  changed_when: false
+- name: Validate Pulp password is provided
+  ansible.builtin.fail:
+    msg: "Pulp password is required. Set pulp_password in {{ input_project_dir }}/repo_manager_config_credentials.yml or pass -e pulp_password=..."
+  when: pulp_password | default('') | length == 0
 
 - name: Ensure config default directory exists
   ansible.builtin.file:
     path: "{{ config_default_dir }}"
     state: directory
     mode: '0755'
+
+- name: Create or overwrite Pulp HTTP config
+  ansible.builtin.command:
+    cmd: "{{ pulp_config_cmd_overwrite_http }}"
+  changed_when: false
 
 - name: Copy config file to default path
   ansible.builtin.copy:

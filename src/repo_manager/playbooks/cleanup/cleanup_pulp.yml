@@ -50,12 +50,12 @@
   gather_facts: false
   tags: always
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname }}/vars/credential_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
   tasks:
     - name: Load credentials for cleanup
       ansible.builtin.include_role:
-        name: ../roles/credential
+        name: ../../roles/credential
       vars:
         credential_action: all
 
@@ -75,8 +75,8 @@
   gather_facts: false
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname }}/vars/cleanup_pulp_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
   vars:
     pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin') }}"
     pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
@@ -198,8 +198,8 @@
   gather_facts: false
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname }}/vars/cleanup_pulp_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
   tasks:
     - name: Display log cleanup mode
       ansible.builtin.debug:
@@ -238,7 +238,7 @@
   gather_facts: false
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/cleanup_pulp_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
   tasks:
     - name: Display Pulp post-cleanup notes
       ansible.builtin.debug:

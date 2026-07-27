@@ -18,19 +18,16 @@
   connection: local
   gather_facts: false
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tags:
     - always
   tasks:
     - name: Create OIM container group
       ansible.builtin.include_role:
-        name: ../roles/common
+        name: ../../roles/common
         tasks_from: create_container_group.yml
       when:
         - not oim_group_status | default(false) | bool
-        - >-
-          'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or
-          'repo_manager' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or
-          'all' in (ansible_run_tags | default([]) | list)
+        - oim_group | default(false) | bool
       vars:
         oim_group: true

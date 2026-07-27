@@ -27,7 +27,7 @@
 #   - Legacy offline paths for backward compatibility
 #
 # Usage:
-#   ansible-playbook playbooks/generate_repo_status.yml -e 'project_name=project_default'
+#   ansible-playbook playbooks/repo_operations/generate_repo_status.yml -e 'project_name=project_default'
 #
 # =============================================================================
 
@@ -37,12 +37,12 @@
 
 - name: "Phase 1.1: Include input project directory"
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: include_input_dir.yml
+  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
   tags: always
 
 - name: "Phase 1.2: Create OIM host group"
   when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: create_container_group.yml
+  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
   vars:
     oim_group: true
   tags: always
@@ -57,11 +57,11 @@
   gather_facts: false
   tags: always
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
     - name: Read endpoint configuration
       ansible.builtin.include_role:
-        name: ../roles/pulp_validation
+        name: ../../roles/pulp_validation
         tasks_from: read_endpoint_config.yml
 
     - name: Run pulp status command
@@ -89,7 +89,7 @@
       ansible.builtin.set_fact:
         cluster_os_type: "{{ software_config.cluster_os_type }}"
         cluster_os_version: "{{ software_config.cluster_os_version }}"
-        repo_config: "{{ software_config.repo_config }}"
+        repo_config: "{{ software_config.repo_config | default('partial') }}"
 
     - name: Display Pulp connection info
       ansible.builtin.debug:
@@ -112,14 +112,14 @@
   gather_facts: false
   tags: always
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   vars:
-    output_file: "{{ omnia_base_dir }}/output/project_default/repo_manager/repo_status.yml"
+    output_file: "{{ output_dir }}/repo_status.yml"
     certs_dir: "{{ pulp_certs_dir }}"
   tasks:
     - name: Ensure output directory exists
       ansible.builtin.file:
-        path: "{{ omnia_base_dir }}/output/project_default/repo_manager"
+        path: "{{ output_dir }}"
         state: directory
         mode: "0755"
         recurse: true

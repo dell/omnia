@@ -108,11 +108,16 @@
         else 'success'
       }}
 
+- name: Load repo_manager endpoint configuration
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+    name: endpoint_config
+
 - name: Create repo_status.yml file
   generate_local_repo_access:
-    pulp_server_ip: "{{ pulp_server_ip | default(hostvars['oim']['pulp_server_ip'] | default('')) }}"
-    pulp_server_port: "{{ pulp_server_port | default(hostvars['oim']['pulp_server_port'] | default('2225')) | int }}"
-    pulp_protocol: "{{ pulp_protocol | default(hostvars['oim']['pulp_protocol'] | default('https')) }}"
+    pulp_server_ip: "{{ pulp_server_ip | default(endpoint_config.pulp_server_ip) }}"
+    pulp_server_port: "{{ pulp_server_port | default(endpoint_config.pulp_server_port) | int }}"
+    pulp_protocol: "{{ pulp_protocol | default(endpoint_config.pulp_protocol) }}"
     cluster_os_type: "{{ cluster_os_type }}"
     cluster_os_version: "{{ cluster_os_version }}"
     output_path: "{{ local_repo_access_dest_path }}"

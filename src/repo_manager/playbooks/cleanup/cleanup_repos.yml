@@ -36,7 +36,7 @@
   connection: local
   gather_facts: false
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   pre_tasks:
     # Step 0: Load software_config to determine OS type and version
     - name: Load software_config.json

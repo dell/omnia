@@ -19,7 +19,7 @@
 #
 # NOTE: Input validation is NOT included in this playbook.
 #       Run validation separately before deployment:
-#       ansible-playbook playbooks/validate_config.yml --tags local_repo
+#       ansible-playbook playbooks/validate/validate_config.yml --tags local_repo
 #
 # Workflow:
 #   1. Pre-flight: Load project config, create OIM group
@@ -32,11 +32,11 @@
 #
 # Usage:
 #   # Full deployment
-#   ansible-playbook playbooks/deploy_pulp.yml -e 'project_name=project_default'
+#   ansible-playbook playbooks/deploy/deploy_pulp.yml -e 'project_name=project_default'
 #
 #   # With validation first (recommended)
-#   ansible-playbook playbooks/validate_config.yml --tags local_repo -e 'project_name=project_default'
-#   ansible-playbook playbooks/deploy_pulp.yml -e 'project_name=project_default'
+#   ansible-playbook playbooks/validate/validate_config.yml --tags local_repo -e 'project_name=project_default'
+#   ansible-playbook playbooks/deploy/deploy_pulp.yml -e 'project_name=project_default'
 #
 # =============================================================================
 
@@ -46,12 +46,12 @@
 
 - name: "Phase 1.1: Include input project directory"
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: include_input_dir.yml
+  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
   tags: always
 
 - name: "Phase 1.2: Create OIM host group"
   when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: create_container_group.yml
+  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
   vars:
     oim_group: true
   tags: always
@@ -61,7 +61,7 @@
 # -----------------------------------------------------------------------------
 
 - name: "Phase 2: Fetch configuration credentials"
-  ansible.builtin.import_playbook: get_config_credentials.yml
+  ansible.builtin.import_playbook: ../prepare/get_config_credentials.yml
   tags:
     - pulp
     - credentials
@@ -76,16 +76,16 @@
   gather_facts: false
   tags: always
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
     - name: Read endpoint configuration
       ansible.builtin.include_role:
-        name: ../roles/pulp_validation
+        name: ../../roles/pulp_validation
         tasks_from: read_endpoint_config.yml
 
     - name: Add OIM to SSH known hosts
       ansible.builtin.include_role:
-        name: ../roles/common
+        name: ../../roles/common
         tasks_from: add_known_hosts.yml
 
 # -----------------------------------------------------------------------------
@@ -98,11 +98,11 @@
   gather_facts: false
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
     - name: Run pre-flight checks
       ansible.builtin.include_role:
-        name: ../roles/deploy_pulp
+        name: ../../roles/deploy_pulp
         tasks_from: preflight_checks.yml
 
 # -----------------------------------------------------------------------------
@@ -115,7 +115,7 @@
   gather_facts: false
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   pre_tasks:
     - name: Display deployment info
       ansible.builtin.debug:
@@ -139,19 +139,28 @@
   gather_facts: true
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
+    - name: Load repo_manager endpoint configuration
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+        name: endpoint_config
+
+    - name: Set Pulp protocol from endpoint config
+      ansible.builtin.set_fact:
+        _pulp_protocol_https: "{{ endpoint_config.pulp_https_enabled | default(true) | bool }}"
+
     - name: Configure Pulp CLI for HTTP
       ansible.builtin.include_role:
-        name: ../roles/deploy_pulp
+        name: ../../roles/deploy_pulp
         tasks_from: configure_cli_http.yml
-      when: not hostvars['oim']['pulp_protocol_https']
+      when: not _pulp_protocol_https | bool
 
     - name: Configure Pulp CLI for HTTPS
       ansible.builtin.include_role:
-        name: ../roles/deploy_pulp
+        name: ../../roles/deploy_pulp
         tasks_from: configure_cli_https.yml
-      when: hostvars['oim']['pulp_protocol_https']
+      when: _pulp_protocol_https | bool
 
 # -----------------------------------------------------------------------------
 # PHASE 7: VERIFICATION
@@ -163,11 +172,11 @@
   gather_facts: false
   tags: pulp
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
     - name: Verify Pulp container status
       ansible.builtin.include_role:
-        name: ../roles/deploy_pulp
+        name: ../../roles/deploy_pulp
         tasks_from: verify_status.yml
 
     - name: Display deployment summary

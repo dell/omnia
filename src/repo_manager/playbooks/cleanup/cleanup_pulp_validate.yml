@@ -27,12 +27,12 @@
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: include_input_dir.yml
+  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
   tags: always
 
 - name: Create oim group
   when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: create_container_group.yml
+  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
   vars:
     oim_group: true
   tags: always
@@ -43,8 +43,8 @@
   gather_facts: false
   tags: always
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname }}/vars/cleanup_pulp_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
   tasks:
     - name: Define project input path
       ansible.builtin.set_fact:

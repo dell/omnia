@@ -18,13 +18,13 @@
   connection: local
   gather_facts: false
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tags:
     - local_repo
     - repo_manager
   tasks:
     - name: Include input project directory
       ansible.builtin.include_role:
-        name: ../roles/common
+        name: ../../roles/common
         tasks_from: include_input_dir.yml
       when: not project_dir_status | default(false) | bool

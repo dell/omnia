@@ -15,11 +15,11 @@
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: include_input_dir.yml
+  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
 
 - name: Create oim group
   when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: create_container_group.yml
+  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
   vars:
     oim_group: true
 
@@ -28,7 +28,7 @@
   connection: local
   gather_facts: true
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tags: &common_tags
     - local_repo
     - repo_manager
@@ -57,7 +57,7 @@
           when: repo_manager_metadata_support | default(false) | bool
 
         - name: Validate JSON before loading
-          ansible.builtin.command: "jq . {{ input_project_dir }}/software_config.json"
+          ansible.builtin.command: "python3 -m json.tool {{ input_project_dir }}/software_config.json"
           register: json_check
           changed_when: false
           failed_when: false
@@ -86,11 +86,11 @@
   connection: ssh
   gather_facts: false
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
     - name: Check rhel subscription enabled or not
       ansible.builtin.include_role:
-        name: ../roles/validate_subscription
+        name: ../../roles/validate_subscription
         tasks_from: check_rhel_subscription.yml
       when: "hostvars['localhost']['run_subscription_check'] | default(false) | bool"
 
@@ -99,11 +99,11 @@
   connection: local
   gather_facts: false
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
     - name: Configure RHEL os URLS for codeready-builder baseoc appstream repositories
       ansible.builtin.include_role:
-        name: ../roles/validate_subscription
+        name: ../../roles/validate_subscription
         tasks_from: configure_rhel_os_urls.yml
       when: "run_subscription_check | default(false) | bool"
 
@@ -111,7 +111,7 @@
   hosts: localhost
   connection: local
   vars_files:
-    - "{{ playbook_dir | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   roles:
     - role: ../roles/validate_input
       tags: *common_tags
