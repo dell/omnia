@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_victoria_logs — Deploy: wait for CRDs + apply logs CRs
+# =============================================================================
+# Requires victoria-metrics-operator already installed (by deploy_victoria_metrics)
+
+- name: Ensure telemetry namespace exists
+  ansible.builtin.command: >
+    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
+  register: ns_yaml
+  changed_when: false
+
+- name: Apply telemetry namespace
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: "{{ ns_yaml.stdout }}"
+  register: ns_result
+  changed_when: "'created' in ns_result.stdout | default('')"
+
+- name: Verify VictoriaMetrics operator is running
+  ansible.builtin.command: >
+    helm status victoria-metrics-operator -n {{ telemetry_namespace }}
+  register: operator_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if VictoriaMetrics operator is not installed
+  ansible.builtin.fail:
+    msg: >
+      VictoriaMetrics operator is not installed. deploy_victoria_metrics role must run first.
+      Ensure victoria_metrics_support is enabled and deploy_victoria_metrics is called before deploy_victoria_logs.
+  when: operator_check.rc != 0
+
+- name: Wait for VictoriaLogs CRDs
+  ansible.builtin.command: kubectl get crd {{ item }}
+  loop:
+    - vlclusters.operator.victoriametrics.com
+    - vlagents.operator.victoriametrics.com
+  register: vl_crd_check
+  retries: "{{ victoria_crd_wait_retries }}"
+  delay: "{{ victoria_crd_wait_delay }}"
+  until: vl_crd_check.rc == 0
+  changed_when: false
+
+- name: Apply VLCluster CR
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-operator-vlcluster.yaml
+  register: vlcluster_apply
+  changed_when: "'created' in vlcluster_apply.stdout or 'configured' in vlcluster_apply.stdout"
+  when: (telemetry_deployments_dir + '/victorialogs-operator-vlcluster.yaml') is file
+
+- name: Apply VLAgent CR
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-operator-vlagent.yaml
+  register: vlagent_apply
+  changed_when: "'created' in vlagent_apply.stdout or 'configured' in vlagent_apply.stdout"
+  when: (telemetry_deployments_dir + '/victorialogs-operator-vlagent.yaml') is file

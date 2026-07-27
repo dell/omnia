@@ -813,6 +813,13 @@ init_container_config() {
             ;;
     esac
 
+    # Prompt for admin NIC IP (primary non-loopback IP of the OIM host)
+    echo -e "${BLUE} Please provide the admin NIC IP address of the OIM host:${NC}"
+    read -p "Admin NIC IP: " admin_nic_ip
+    if [ -z "$admin_nic_ip" ]; then
+        echo -e "${RED} Admin NIC IP cannot be empty. Please re-run omnia.sh --install.${NC}"
+        exit 1
+    fi
 
     # Prompt the user for the Omnia core root password.
     echo -e "${BLUE} Please provide Omnia core root password for accessing container:${NC}"
@@ -978,7 +985,7 @@ fetch_config() {
 
     # Fetch the metadata from the oim_metadata.yml file.
     echo -e "${GREEN} Fetching the metadata from the oim_metadata.yml file.${NC}"
-        core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
+        core_config=$(podman exec omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
 
     # Split the metadata into separate lines.
     IFS=$'\n' read -r -d '' -a config_lines <<<"$core_config"
@@ -1014,6 +1021,10 @@ fetch_config() {
             nfs_type)
                 # Assign the share option.
                 nfs_type=$(echo "$value" | tr -d '[:space:]')
+                ;;
+            admin_nic_ip)
+                # Assign the admin NIC IP.
+                admin_nic_ip=$(echo "$value" | tr -d '[:space:]')
                 ;;
         esac
     done
@@ -1196,13 +1207,15 @@ EOF
     # Get version from git tag or use default
     local metadata_version=$(get_metadata_version "$omnia_release")
 
-    # Prompt for admin NIC IP (primary non-loopback IP of the OIM host)
-    local admin_nic_ip
-    read -p "Enter the admin NIC IP address of the OIM host: " admin_nic_ip
-    while [ -z "$admin_nic_ip" ]; do
-        echo -e "${RED} Admin NIC IP cannot be empty.${NC}"
+    # Use admin_nic_ip set by init_container_config() or fetch_config().
+    # Only prompt if not already set (e.g. retain-config reinstall path).
+    if [ -z "$admin_nic_ip" ]; then
         read -p "Enter the admin NIC IP address of the OIM host: " admin_nic_ip
-    done
+        if [ -z "$admin_nic_ip" ]; then
+            echo -e "${RED} Admin NIC IP cannot be empty. Please re-run omnia.sh --install.${NC}"
+            exit 1
+        fi
+    fi
 
     if [ ! -f "$oim_metadata_file" ]; then
         echo -e "${GREEN} Creating oim_metadata file${NC}"
@@ -1316,18 +1329,12 @@ post_setup_config() {
         cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
     fi"
 
-    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
+    # Copy telemetry input files to project_default/telemetry/ subdir
+    echo -e "${BLUE} Copying telemetry input files to project_default/telemetry/.${NC}"
     podman exec -u root omnia_core bash -c "
-    if [ -d /omnia/image_build_manager/input ]; then
-        mkdir -p /opt/omnia/input/project_default/image_build_manager
-        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
-    fi"
-
-    echo -e "${BLUE} Copying image_build_manager input files to project_default/image_build_manager/.${NC}"
-    podman exec -u root omnia_core bash -c "
-    if [ -d /omnia/image_build_manager/input ]; then
-        mkdir -p /opt/omnia/input/project_default/image_build_manager
-        cp -r /omnia/image_build_manager/input/* /opt/omnia/input/project_default/image_build_manager/
+    if [ -d /omnia/telemetry/input ]; then
+        mkdir -p /opt/omnia/input/project_default/telemetry
+        cp -r /omnia/telemetry/input/* /opt/omnia/input/project_default/telemetry/
     fi"
 
     # Create the output directory for project_default

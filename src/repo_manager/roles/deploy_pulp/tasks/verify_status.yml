@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# VERIFY PULP DEPLOYMENT STATUS
+# =============================================================================
+# This task file verifies Pulp container deployment:
+#   1. Check container is running
+#   2. Check Pulp API endpoint (for HTTPS)
+#   3. Display deployment summary
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CONTAINER STATUS VERIFICATION
+# -----------------------------------------------------------------------------
+
+- name: Check if Pulp container is running
+  ansible.builtin.command:
+    cmd: "podman ps --filter name={{ pulp_container_name }} --format '{{ '{{' }}.Status{{ '}}' }}'"
+  register: pulp_status
+  changed_when: false
+  failed_when: false
+
+- name: Get detailed container info
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: pulp_container_details
+  failed_when: false
+
+- name: Set container status facts
+  ansible.builtin.set_fact:
+    container_is_running: "{{ pulp_status.stdout != '' and 'Up' in pulp_status.stdout }}"
+    container_uptime: "{{ pulp_status.stdout | default('Not running') }}"
+
+# -----------------------------------------------------------------------------
+# CONTAINER VERIFICATION
+# -----------------------------------------------------------------------------
+
+- name: Verify Pulp container is running
+  ansible.builtin.fail:
+    msg: |
+      Pulp container is not running!
+
+      Status: {{ pulp_status.stdout | default('Container not found') }}
+
+      Troubleshooting:
+      1. Check container logs: podman logs {{ pulp_container_name }}
+      2. Check systemd status: systemctl status {{ pulp_container_name }}
+      3. Verify storage is accessible
+      4. Run cleanup and redeploy if needed
+  when: not container_is_running
+
+# -----------------------------------------------------------------------------
+# API ENDPOINT VERIFICATION (HTTPS only)
+# -----------------------------------------------------------------------------
+
+- name: Verify Pulp API endpoint (HTTPS)
+  when:
+    - container_is_running
+    - pulp_protocol_https | default(true) | bool
+  block:
+    - name: Wait for Pulp API to be ready
+      ansible.builtin.uri:
+        url: "{{ pulp_status_url }}"
+        method: GET
+        validate_certs: false
+        status_code: [200, 401]
+      register: api_check
+      retries: "{{ endpoint_retries }}"
+      delay: "{{ endpoint_delay }}"
+      until: api_check.status in [200, 401]
+      failed_when: false
+
+    - name: Set API status fact
+      ansible.builtin.set_fact:
+        pulp_api_ready: "{{ api_check.status | default(0) in [200, 401] }}"
+
+# -----------------------------------------------------------------------------
+# DEPLOYMENT SUMMARY
+# -----------------------------------------------------------------------------
+
+- name: Display deployment verification summary
+  ansible.builtin.debug:
+    msg:
+      - "========== DEPLOYMENT VERIFICATION =========="
+      - "Container: {{ pulp_container_name }}"
+      - "Status: {{ container_uptime }}"
+      - "Running: {{ container_is_running }}"
+      - "API Ready: {{ pulp_api_ready | default('N/A (HTTP mode)') }}"
+      - "============================================="
+
+- name: Pulp deployment verified successfully
+  ansible.builtin.debug:
+    msg: "{{ pulp_deployed_msg }}"
+  when: container_is_running

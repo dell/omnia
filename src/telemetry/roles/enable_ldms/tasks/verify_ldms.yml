@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Verify LDMS telemetry deployment
+# =============================================================================
+
+- name: Check LDMS aggregator StatefulSet status
+  ansible.builtin.command: >
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.status.readyReplicas}'
+  register: ldms_agg_status
+  changed_when: false
+  failed_when: false
+
+- name: Check LDMS store daemon pod status
+  ansible.builtin.command: >
+    kubectl get pods -l app={{ ldms_store_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.items[0].status.phase}'
+  register: ldms_store_status
+  changed_when: false
+  failed_when: false
+
+- name: Check Vector-LDMS deployment status
+  ansible.builtin.command: >
+    kubectl get deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.status.readyReplicas}'
+  register: vector_ldms_status
+  changed_when: false
+  failed_when: false
+  when:
+    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
+    - victoria_metrics_support | default(false) | bool
+
+- name: Verify Kafka 'ldms' topic exists
+  ansible.builtin.command: >
+    kubectl get kafkatopic ldms
+    -n {{ telemetry_namespace }}
+  register: ldms_topic_check
+  changed_when: false
+  failed_when: false
+  when: kafka_support | default(false) | bool
+
+- name: Check LDMS sampler configuration on NFS
+  ansible.builtin.stat:
+    path: "{{ ldms_share_path }}/samplers/sampler.conf"
+  register: sampler_conf_check
+
+- name: Display LDMS telemetry verification summary
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      LDMS Telemetry Verification Summary
+      ============================================================
+      LDMS Aggregator ({{ ldms_aggregator_name }}):
+        Ready Replicas: {{ ldms_agg_status.stdout | default('N/A') }}
+        Status: {{ 'RUNNING' if (ldms_agg_status.rc == 0 and ldms_agg_status.stdout | default('0') | int > 0) else 'NOT DEPLOYED' }}
+
+      LDMS Store Daemon ({{ ldms_store_name }}):
+        Phase: {{ ldms_store_status.stdout | default('N/A') }}
+        Status: {{ 'RUNNING' if (ldms_store_status.rc == 0 and ldms_store_status.stdout == 'Running') else 'NOT DEPLOYED' }}
+
+      Vector-LDMS Bridge ({{ vector.ldms.app_name }}):
+        Ready Replicas: {{ vector_ldms_status.stdout | default('N/A') }}
+        Status: {{ 'RUNNING' if (vector_ldms_status.rc | default(1) == 0 and vector_ldms_status.stdout | default('0') | int > 0) else 'NOT DEPLOYED or DISABLED' }}
+
+      Kafka Topic 'ldms': {{ 'EXISTS' if (ldms_topic_check.rc | default(1) == 0) else 'NOT FOUND or KAFKA DISABLED' }}
+
+      Sampler Config: {{ 'PRESENT' if (sampler_conf_check.stat.exists | default(false)) else 'MISSING' }}
+      ============================================================

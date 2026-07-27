@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Self-contained credential definition for telemetry.
+# This role can operate independently of the central credential_utility.
+
+# Credential file definition (standalone — no dependency on credential_utility index)
+telemetry_credential_file:
+  credential_type: "Telemetry"
+  template: "{{ role_path }}/templates/telemetry_credential.j2"
+  file_path: "{{ input_project_dir }}/telemetry/telemetry_credentials.yml"
+  file_mode: "0600"
+  vault_path: "{{ input_project_dir }}/telemetry/.telemetry_credentials_key"
+
+# Credential prompt definitions
+telemetry_cred_config:
+  conditional_mandatory:
+    - username: mysqldb_user
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: mysqldb_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: mysqldb_root_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - username: bmc_username
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: bmc_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: ldms_sampler_password
+      condition: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+    - username: csi_username
+      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"
+    - password: csi_password
+      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"
+    - username: ufm_username
+      condition: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+    - password: ufm_password
+      condition: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+    - username: vast_username
+      condition: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
+    - password: vast_password
+      condition: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
+
+# Messages
+telemetry_mandatory_warning_msg: "WARNING: The following are mandatory telemetry credentials and cannot be left empty."
+telemetry_conditional_warning_msg: "WARNING: Conditional telemetry credentials will be prompted based on iDRAC telemetry configuration."
+telemetry_password_fail_msg: "Failed. Password is required for mandatory telemetry credential."
+telemetry_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+telemetry_credential_encrypt_fail_msg: "Failed to encrypt telemetry credential file."
+telemetry_cred_file_missing_msg: |
+  Telemetry credential file not found at {{ telemetry_credential_file.file_path }}.
+  It will be created from template.

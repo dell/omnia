@@ -13,30 +13,12 @@
 # limitations under the License.
 ---
 
-# Provision credentials
-provision_password: ""
-bmc_username: ""
-bmc_password: ""
+- name: Show warning if 'softwares' is not defined
+  ansible.builtin.debug:
+    msg: "{{ usage_message.splitlines() }}"
+  when: softwares is not defined
 
-# Prepare_oim credentials
-pulp_password: ""
-docker_username: ""
-docker_password: ""
-
-# Omnia credentials
-slurm_db_password: ""
-
-# Security credentials
-openldap_db_username: ""
-openldap_db_password: ""
-
-# postgres credentials
-postgres_user: ""
-postgres_password: ""
-
-# Gitlab credentials
-gitlab_root_password: ""
-
-# OME discovery credentials
-ome_username: ""
-ome_password: ""
+- name: Pause for 30 seconds to let user read the warning
+  ansible.builtin.pause:
+    seconds: 30
+  when: softwares is not defined

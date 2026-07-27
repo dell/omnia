@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Common task: Load telemetry configuration files
+# =============================================================================
+# Loads telemetry_config.yml, telemetry_storage_config.yml, and telemetry_packages.yml
+# Sets kube_vip, telemetry_registry, and cluster_mount variables
+# Used by: telemetry.yml, enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.include_role:
+    name: ../../playbooks/utils/roles/include_input_dir
+
+- name: Load telemetry configuration
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_config_file | default(input_project_dir + '/telemetry/telemetry_config.yml') }}"
+    name: telemetry_config
+
+- name: Set kube_vip from telemetry_config
+  ansible.builtin.set_fact:
+    kube_vip: "{{ telemetry_config.kube_vip }}"
+  when: telemetry_config.kube_vip is defined
+
+- name: Load telemetry storage configuration
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry/telemetry_storage_config.yml') }}"
+    name: telemetry_storage_config
+
+- name: Load telemetry packages configuration
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_packages_file | default(input_project_dir + '/telemetry/telemetry_packages.yml') }}"
+    name: telemetry_packages_config
+  failed_when: false
+
+- name: Set telemetry config variables from telemetry_packages_config
+  ansible.builtin.set_fact:
+    telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
+    cluster_mount: "{{ telemetry_packages_config.cluster_mount | default('') }}"
+  when: telemetry_packages_config is defined

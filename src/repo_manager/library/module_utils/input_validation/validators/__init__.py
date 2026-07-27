@@ -11,32 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
+"""
+Validators package.
 
-# Provision credentials
-provision_password: ""
-bmc_username: ""
-bmc_password: ""
+This package contains validators for different configuration files:
+- software_config: Validates software_config.json
+- repo_manager_config: Validates repo_manager_config.yml
+"""
 
-# Prepare_oim credentials
-pulp_password: ""
-docker_username: ""
-docker_password: ""
+from ansible.module_utils.input_validation.validators import software_config
+from ansible.module_utils.input_validation.validators import repo_manager_config
 
-# Omnia credentials
-slurm_db_password: ""
-
-# Security credentials
-openldap_db_username: ""
-openldap_db_password: ""
-
-# postgres credentials
-postgres_user: ""
-postgres_password: ""
-
-# Gitlab credentials
-gitlab_root_password: ""
-
-# OME discovery credentials
-ome_username: ""
-ome_password: ""
+__all__ = ['software_config', 'repo_manager_config']
