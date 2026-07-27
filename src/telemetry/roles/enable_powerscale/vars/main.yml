@@ -77,3 +77,26 @@ ps_clusters_found_msg: >-
 ps_telemetry_prepared_msg: >-
   PowerScale telemetry files prepared on NFS share.
   Deployment will occur during cloud-init on the control plane node.
+
+# CSI Volume Exporter Configuration
+# ============================================================================
+# Usage: csi-volume-exporter.yaml.j2
+# Deployed when telemetry_sources.powerscale.metrics_enabled: true
+# Exposes PowerScale PersistentVolume status as Prometheus metrics
+csi_volume_exporter:
+  app_name: "csi-volume-exporter"
+  service_name: "csi-volume-exporter"
+  service_account_name: "csi-volume-exporter"
+  cluster_role_name: "csi-volume-exporter"
+  cluster_role_binding_name: "csi-volume-exporter"
+  image: "{{ telemetry_registry['library/python'] | default('docker.io/library/python:3.11-slim') }}"
+  metrics_port: 9090
+  scrape_interval: "30s"
+  scrape_interval_seconds: 30
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"

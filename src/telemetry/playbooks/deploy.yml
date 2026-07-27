@@ -1,4 +1,3 @@
----
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,42 +24,42 @@
 #   Phase 3: Full-stack kustomize apply (kubectl apply -k deployments/)
 
 # ── Phase 0: Prerequisites ───────────────────────────────────────────────────
-- import_playbook: playbooks/telemetry_prereq.yml
+- import_playbook: telemetry_prereq.yml
   tags: deploy
 
 # ── Phase 1: Component manifest generation ───────────────────────────────────
 # Each component playbook: installs operators if needed, generates manifests
-- import_playbook: playbooks/idrac/deploy_idrac_telemetry.yml
+- import_playbook: idrac/deploy_idrac_telemetry.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
 
-- import_playbook: playbooks/ldms/deploy_ldms.yml
+- import_playbook: ldms/deploy_ldms.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
 
-- import_playbook: playbooks/powerscale/deploy_powerscale.yml
+- import_playbook: powerscale/deploy_powerscale.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
-- import_playbook: playbooks/ufm/deploy_ufm.yml
+- import_playbook: ufm/deploy_ufm.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
 
-- import_playbook: playbooks/vast/deploy_vast.yml
+- import_playbook: vast/deploy_vast.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.vast.metrics_enabled | default(false) | bool
 
-- import_playbook: playbooks/ome/deploy_ome.yml
+- import_playbook: ome/deploy_ome.yml
   tags: deploy
   when: >-
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
-- import_playbook: playbooks/dcgm/deploy_dcgm.yml
+- import_playbook: dcgm/deploy_dcgm.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.dcgm.metrics_enabled | default(false) | bool
 
-- import_playbook: playbooks/sfm/deploy_sfm.yml
+- import_playbook: sfm/deploy_sfm.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.sfm.metrics_enabled | default(false) | bool
 

@@ -29,6 +29,8 @@
   loop:
     - src: "kustomization.yaml.j2"
       dest: "kustomization.yaml"
+    - src: "csi-volume-exporter.yaml.j2"
+      dest: "csi-volume-exporter.yaml"
 
 - name: Display PowerScale manifest generation complete
   ansible.builtin.debug:

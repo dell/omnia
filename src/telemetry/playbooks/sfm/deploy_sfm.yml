@@ -21,34 +21,31 @@
 # then generates SFM scrape configuration manifests.
 # All K8s tasks execute on the kube_vip host.
 
----
-vars_files:
-  - ../../roles/common/vars/main.yml
-
-pre_tasks:
-  - name: Load telemetry config (only if not already loaded)
-    ansible.builtin.include_role:
-      name: common
-      tasks_from: load_telemetry_config
-    when: telemetry_config is not defined
-
-  - name: Derive sink support flags (only if not already derived)
-    ansible.builtin.include_role:
-      name: common
-      tasks_from: derive_sink_support_flags
-    when: kafka_support is not defined
-
-  - name: Add kube_vip to inventory (only if not already added)
-    ansible.builtin.add_host:
-      name: "{{ kube_vip }}"
-      groups: kube_vip_group
-      ansible_user: root
-    when: kube_vip_group is not defined
-
 - name: Deploy SFM Telemetry
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
+  vars_files:
+    - ../../roles/common/vars/main.yml
+  pre_tasks:
+    - name: Load telemetry config (only if not already loaded)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+      when: telemetry_config is not defined
+
+    - name: Derive sink support flags (only if not already derived)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: derive_sink_support_flags
+      when: kafka_support is not defined
+
+    - name: Add kube_vip to inventory (only if not already added)
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+      when: kube_vip_group is not defined
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
