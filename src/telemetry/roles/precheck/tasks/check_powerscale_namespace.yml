@@ -1,0 +1,130 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# check_powerscale_namespace.yml — Runs on: kube_vip
+# =============================================================================
+# Verifies the PowerScale (isilon) namespace exists and its pods are healthy.
+# Only executed when powerscale.metrics_enabled or powerscale.logs_enabled is true
+# in telemetry_config.yml.
+#
+# PowerScale telemetry (CSM Metrics + OTEL Collector) requires the isilon
+# namespace and its driver pods to be present and Running before deploying
+# the PowerScale telemetry stack.
+
+- name: Check if the isilon namespace exists
+  ansible.builtin.command:
+    cmd: kubectl get namespace {{ isilon_namespace }}
+  register: isilon_ns_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if isilon namespace does not exist
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] PowerScale (isilon) namespace '{{ isilon_namespace }}' does not exist in the K8s cluster.
+      PowerScale telemetry is enabled (metrics_enabled or logs_enabled = true) but the
+      '{{ isilon_namespace }}' namespace was not found.
+
+      Ensure the Dell CSI Driver for PowerScale (csi-powerscale) is installed and its
+      namespace '{{ isilon_namespace }}' is present before enabling PowerScale telemetry.
+
+      If the namespace name differs from '{{ isilon_namespace }}', update the
+      'isilon_namespace' variable in roles/precheck/vars/main.yml.
+  when: isilon_ns_check.rc != 0
+
+- name: Get pods in isilon namespace
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get pods -n {{ isilon_namespace }} --no-headers \
+        -o custom-columns='NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' \
+        2>/dev/null | \
+      awk '{print $1"|"$2"|"$3}'
+  args:
+    executable: /bin/bash
+  register: isilon_pods_raw
+  changed_when: false
+  failed_when: false
+
+- name: Parse isilon pod list
+  ansible.builtin.set_fact:
+    isilon_pod_lines: "{{ isilon_pods_raw.stdout_lines | select('match', '.+') | list }}"
+
+- name: Fail if no pods found in isilon namespace
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] No pods found in the '{{ isilon_namespace }}' namespace.
+      PowerScale telemetry requires active CSI driver pods (csi-powerscale) in
+      the '{{ isilon_namespace }}' namespace.
+
+      Ensure the Dell CSI Driver for PowerScale is deployed and running before
+      enabling PowerScale telemetry.
+  when: isilon_pod_lines | length == 0
+
+- name: Identify unhealthy pods in isilon namespace
+  ansible.builtin.set_fact:
+    isilon_unhealthy_lines: >-
+      {{ isilon_pod_lines
+         | select('match', '.+[|].+[|].+')
+         | reject('search', '[|]Running[|]')
+         | reject('search', '[|]Succeeded[|]')
+         | list }}
+    isilon_running_not_ready: >-
+      {{ isilon_pod_lines
+         | select('search', '[|]Running[|]')
+         | select('search', 'false')
+         | list }}
+
+- name: Combine all isilon problem pods
+  ansible.builtin.set_fact:
+    isilon_problem_pods: "{{ isilon_unhealthy_lines + isilon_running_not_ready }}"
+
+- name: Format isilon problem pods for display
+  ansible.builtin.set_fact:
+    isilon_problem_display: >-
+      {{ isilon_problem_pods
+         | map('regex_replace', '^(.+)[|](.+)[|](.+)$', '  - \1  [phase: \2, ready: \3]')
+         | list }}
+
+- name: Fail if any pod in isilon namespace is not Running
+  ansible.builtin.fail:
+    msg: |
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      [PRECHECK FAIL] PowerScale (isilon) Namespace Pods Unhealthy
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      The following pods in namespace '{{ isilon_namespace }}' are NOT healthy:
+      {% for pod in isilon_problem_display %}
+      {{ pod }}
+      {% endfor %}
+
+      PowerScale telemetry cannot be deployed until all CSI driver pods in
+      the '{{ isilon_namespace }}' namespace are in Running state.
+      Diagnose with:
+        kubectl get pods -n {{ isilon_namespace }}
+        kubectl describe pod -n {{ isilon_namespace }} <pod-name>
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  when: isilon_problem_pods | length > 0
+
+- name: Display isilon namespace check — PASSED
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] PowerScale (isilon) Namespace — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  Namespace : {{ isilon_namespace }}  ✓ Exists"
+      - "  Pods      : {{ isilon_pod_lines | length }} pod(s) found  ✓ All Running"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: isilon_problem_pods | length == 0

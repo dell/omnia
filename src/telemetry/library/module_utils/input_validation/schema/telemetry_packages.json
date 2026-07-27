@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Telemetry Packages Configuration",
+  "description": "Container registry and package download URLs for telemetry components.",
+  "type": "object",
+  "properties": {
+    "telemetry_registry": {
+      "type": "object",
+      "description": "Container registry configuration. Leave host empty to use the cluster-wide registry.",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "",
+          "description": "Registry IP and port in format 'IP:port' or 'hostname:port'. Leave empty to use cluster-wide registry."
+        },
+        "cert_path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to SSL certificate file (.crt). Required only when using HTTPS with a custom CA."
+        },
+        "key_path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to SSL private key file (.key). Required only when using HTTPS with a custom CA."
+        },
+        "username": {
+          "type": "string",
+          "default": "",
+          "description": "Registry username for authenticated pull. Leave empty if no authentication is required."
+        }
+      },
+      "additionalProperties": true
+    },
+    "telemetry_packages": {
+      "type": "object",
+      "description": "Full HTTP/HTTPS download URLs for telemetry Helm chart tarballs and pip modules.",
+      "properties": {
+        "strimzi_kafka_operator": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for Strimzi Kafka Operator Helm chart tarball (.tar.gz). Required when any source targets kafka."
+        },
+        "victoria_metrics_operator": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for VictoriaMetrics Operator Helm chart tarball (.tar.gz). Required when victoria_metrics sink is enabled."
+        },
+        "cryptography": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for the 'cryptography' Python pip module."
+        },
+        "omsdk": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for the 'omsdk' Python pip module. Required when iDRAC telemetry is enabled."
+        },
+        "cffi": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for the 'cffi' Python pip module."
+        },
+        "prometheus_client": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for the 'prometheus_client' Python pip module."
+        },
+        "kubernetes": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for the 'kubernetes' Python pip module."
+        },
+        "cert_manager_tarball": {
+          "type": "string",
+          "default": "",
+          "description": "Full URL for cert-manager Helm chart tarball. Required only when using cert-manager for Kafka TLS."
+        }
+      },
+      "additionalProperties": true
+    },
+    "cluster_mount": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Local mount point path on the Kubernetes cluster where telemetry packages will be staged. Must be an already-mounted NFS share path.",
+      "errorMessage": "cluster_mount is required and must be a non-empty path (e.g., '/opt/omnia/k8s_mount')."
+    }
+  },
+  "required": ["cluster_mount"]
+}

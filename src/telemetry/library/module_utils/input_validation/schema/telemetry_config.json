@@ -4,6 +4,12 @@
   "description": "Three-layer telemetry configuration: Sources → Bridges → Sinks, with source-specific configurations.",
   "type": "object",
   "properties": {
+    "kube_vip": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Kubernetes control plane virtual IP address (IPv4). Required for all telemetry K8s operations.",
+      "errorMessage": "kube_vip is required and must be a non-empty IPv4 address (e.g., '10.0.0.1')."
+    },
     "telemetry_sources": {
       "type": "object",
       "description": "Data collectors — each source can be independently enabled/disabled.",
@@ -584,5 +590,5 @@
       "required": []
     }
   },
-  "required": ["telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
+  "required": ["kube_vip", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
 }
