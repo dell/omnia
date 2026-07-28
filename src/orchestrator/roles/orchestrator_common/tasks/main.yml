@@ -18,7 +18,7 @@
 # Instead, individual task files are included via:
 #
 #   ansible.builtin.include_role:
-#     name: orchestrator_common
+#     name: omnia.orchestrator.orchestrator_common
 #     tasks_from: <task_file>.yml
 #
 # Available task files:
@@ -29,4 +29,4 @@
 
 - name: orchestrator_common is a task library — use tasks_from to include specific tasks
   ansible.builtin.debug:
-    msg: "Use 'include_role: name=orchestrator_common tasks_from=<file>.yml' to include specific tasks"
+    msg: "Use 'include_role: name=omnia.orchestrator.orchestrator_common tasks_from=<file>.yml' to include specific tasks"

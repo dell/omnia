@@ -1,0 +1,37 @@
+---
+namespace: omnia
+name: discovery
+version: 2.2.0
+readme: README.md
+authors:
+  - Dell Technologies <omnia-support@dell.com>
+description: >-
+  Dell Omnia Discovery — BMC discovery via OME, PXE mapping generation,
+  and inventory reporting for HPC and AI clusters.
+license:
+  - Apache-2.0
+tags:
+  - hpc
+  - discovery
+  - bmc
+  - ome
+  - pxe
+  - dell
+  - omnia
+dependencies:
+  community.general: ">=5.0.0"
+repository: https://github.com/dell/omnia
+documentation: https://github.com/dell/omnia/tree/main/docs
+homepage: https://github.com/dell/omnia
+issues: https://github.com/dell/omnia/issues
+build_ignore:
+  - "*.tar.gz"
+  - tests/output
+  - Makefile
+  - .gitignore
+  - input
+  - input/*
+  - ansible_collections
+  - ansible_collections/*
+  - __pycache__
+  - "**/__pycache__"

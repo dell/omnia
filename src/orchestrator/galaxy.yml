@@ -1,0 +1,40 @@
+---
+namespace: omnia
+name: orchestrator
+version: 2.2.0
+readme: README.md
+authors:
+  - Dell Technologies <omnia-support@dell.com>
+description: >-
+  Dell Omnia Orchestrator — OpenCHAMI deployment, PXE boot orchestration,
+  image deployment, and lifecycle management (k8s, slurm, telemetry) for
+  HPC and AI clusters.
+license:
+  - Apache-2.0
+tags:
+  - hpc
+  - orchestration
+  - openchami
+  - pxe
+  - slurm
+  - kubernetes
+  - telemetry
+  - dell
+  - omnia
+dependencies:
+  community.general: ">=5.0.0"
+repository: https://github.com/dell/omnia
+documentation: https://github.com/dell/omnia/tree/main/docs
+homepage: https://github.com/dell/omnia
+issues: https://github.com/dell/omnia/issues
+build_ignore:
+  - "*.tar.gz"
+  - tests/output
+  - Makefile
+  - .gitignore
+  - input
+  - input/*
+  - ansible_collections
+  - ansible_collections/*
+  - __pycache__
+  - "**/__pycache__"
