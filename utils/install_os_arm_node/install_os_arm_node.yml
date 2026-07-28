@@ -22,6 +22,7 @@
 #
 # Usage:
 #   ansible-playbook utils/install_os_arm_node/install_os_arm_node.yml
+#   ansible-playbook utils/install_os_arm_node/install_os_arm_node.yml -e "iso_config_path=/custom/path/iso_config.yml"
 #
 # Prerequisites:
 #   1. Omnia Core deployed (omnia.sh --install) with NFS share
@@ -29,6 +30,10 @@
 #   3. RHEL 10.x AArch64 Server with GUI ISO pre-placed
 #   4. iso_config.yml configured (optional — defaults used otherwise)
 # ─────────────────────────────────────────────────────────────────────────
+
+# Parameters
+# iso_config_path: Custom path to iso_config.yml (optional)
+#   Default: {{ input_project_dir | default('/opt/omnia/input/project_default') }}/iso_config.yml
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 1: Pre-flight checks
