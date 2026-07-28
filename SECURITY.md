@@ -38,4 +38,3 @@ Please avoid public disclosure until the issue has been reviewed and a fix is av
 For security-related concerns, please use GitHub's **Private Vulnerability Reporting** feature.
 
 Thank you for helping make Omnia more secure.
-```
