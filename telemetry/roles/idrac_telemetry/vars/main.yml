@@ -77,6 +77,18 @@ no_idracips_to_remove_msg: "No iDRAC IPs to remove. All DB entries are present i
 # Usage: create_telemetry_report.yml
 telemetry_report_path: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
 telemetry_report_template: "telemetry_report.j2"
+invalid_idrac_count: 0
+invalid_idrac_list: []
+failed_idrac_count: 0
+telemetry_idrac_count: 0
+idrac_redfish_disabled: []
+idrac_invalid_creds: []
+idrac_unreachable: []
+failed_idrac: []
+deleted_idrac_ips: []
+disabled_telemetry_ips: []
+db_idrac_ip_list: []
+telemetry_idrac: []
 telemetry_report: |
       ---- Telemetry Report Overview ----
 
