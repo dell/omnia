@@ -25,14 +25,14 @@
 # Path to the pre-placed RHEL 10.x AArch64 Server with GUI full DVD ISO.
 # The ISO must be accessible on the OIM node.
 # Default: /opt/omnia/rhel_10.0_aarch64.iso
-# iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
+iso_source_path: "/opt/omnia/RHEL-10.0-20250410.6-x86_64-dvd1.iso"
 
 # SHA-256 checksum for source ISO verification (optional but recommended).
 # iso_source_checksum: ""
 
 # Output directory for the repacked ISO and manifest.
 # Default: /opt/omnia/iso_output
-# iso_target_directory: "/opt/omnia/iso_output"
+iso_target_directory: "/opt/omnia/iso_output"
 
 # User-provided Kickstart file path (optional).
 # When set, the playbook uses this Kickstart instead of the default template.
@@ -61,7 +61,7 @@
 
 # Force rebuild of the custom ISO when it already exists.
 # Default: false (reuses existing ISO)
-# rebuild_iso: false
+rebuild_iso: true
 
 # ISO exposure duration in minutes (how long iDRAC exposes the ISO as CD-ROM).
 # Default: 1080 minutes (18 hours)
