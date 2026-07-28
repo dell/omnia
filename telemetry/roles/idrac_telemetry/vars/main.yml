@@ -80,35 +80,35 @@ telemetry_report_template: "telemetry_report.j2"
 telemetry_report: |
       ---- Telemetry Report Overview ----
 
-      IP count with Telemetry not supported: {{ failed_idrac_count | int + invalid_idrac_count | int }}
-      IP count with Telemetry activated in current execution: {{ telemetry_idrac_count | int }}
+      IP count with Telemetry not supported: {{ (failed_idrac_count | default(0)) | int + (invalid_idrac_count | default(0)) | int }}
+      IP count with Telemetry activated in current execution: {{ (telemetry_idrac_count | default(0)) | int }}
       {% if deleted_idrac_count is defined %}
       IP count removed from telemetry (not in bmc_data.csv): {{ deleted_idrac_count | int }}
       {% endif %}
 
-      {% if (failed_idrac_count | int + invalid_idrac_count | int) > 0 %}
+      {% if ((failed_idrac_count | default(0)) | int + (invalid_idrac_count | default(0)) | int) > 0 %}
       Potential reasons for telemetry not being initiated include Redfish connectivity problems, timeout issues,
       iDRAC datacenter license constraints, or firmware-related problems.
       {% endif %}
-      {% if idrac_redfish_disabled | length > 0 %}
+      {% if (idrac_redfish_disabled | default([])) | length > 0 %}
       IPs with Redfish disabled:
       {% for item in idrac_redfish_disabled %}
         - {{ item }}
       {% endfor %}
       {% endif %}
-      {% if idrac_invalid_creds | length > 0 %}
+      {% if (idrac_invalid_creds | default([])) | length > 0 %}
       IPs with invalid credentials:
       {% for item in idrac_invalid_creds %}
         - {{ item }}
       {% endfor %}
       {% endif %}
-      {% if idrac_unreachable | length > 0 %}
+      {% if (idrac_unreachable | default([])) | length > 0 %}
       IPs with unreachable BMC:
       {% for item in idrac_unreachable %}
         - {{ item }}
       {% endfor %}
       {% endif %}
-      {% if failed_idrac | length > 0 %}
+      {% if (failed_idrac | default([])) | length > 0 %}
       Telemetry not supported because of iDRAC Datacenter license constraints or firmware issues.
       IPs List:
       {% for item in failed_idrac %}
