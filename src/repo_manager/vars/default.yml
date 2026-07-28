@@ -22,18 +22,18 @@
 # -----------------------------------------------------------------------------
 # BASE DIRECTORY CONFIGURATION
 # -----------------------------------------------------------------------------
-# Base directory is the parent of the running playbook directory
-# Works for playbooks/ subdirectory
-repo_manager_base_dir: "{{ playbook_dir | dirname }}"
+# Base directory is the repo_manager source directory (parent of playbooks/)
+# Works regardless of whether playbooks run from playbooks/ or any subdirectory
+repo_manager_base_dir: "{{ playbook_dir | dirname | dirname }}"
 
 # Project default identifier
 project_default: "project_default"
 repo_manager_metadata_support: false
 
 # -----------------------------------------------------------------------------
-# DATA DIRECTORIES (relative to repo_manager_base_dir)
+# DATA DIRECTORIES
 # -----------------------------------------------------------------------------
-repo_manager_data_dir: "{{ repo_manager_base_dir }}/.data"
+repo_manager_data_dir: "{{ omnia_base_dir }}/.data"
 repo_manager_log_dir: "{{ omnia_base_dir }}/log/repomanager"
 repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 
@@ -41,7 +41,8 @@ repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 # CONSTRUCTED PATHS
 # -----------------------------------------------------------------------------
 input_project_dir: "{{ omnia_base_dir }}/input/{{ project_name | default(project_default) }}/repo_manager"
-output_dir: "{{ repo_manager_base_dir }}/output"
+output_project_dir: "{{ omnia_base_dir }}/output/{{ project_name | default(project_default) }}"
+output_dir: "{{ output_project_dir }}/repo_manager"
 log_dir: "{{ repo_manager_log_dir }}"
 repo_store_path: "{{ omnia_base_dir }}"
 omnia_metadata_file: "{{ omnia_base_dir }}/.data/oim_metadata.yml"
@@ -68,16 +69,16 @@ endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_
 #
 # Path Mapping:
 #   OIM Host: {{ oim_shared_path }}/omnia/src/repo_manager
-#   Container: /opt/omnia/src/repo_manager (which is repo_manager_base_dir)
+#   Container: /omnia/src/repo_manager (which is repo_manager_base_dir)
 
 # Container mount point for NFS share
-oim_shared_path: "{{ oim_shared_path_from_metadata.oim_shared_path | default('/home/oim_data') }}"
+oim_shared_path: "{{ (oim_shared_path_from_metadata | default({})).get('oim_shared_path', '') }}"
 
 # NFS configuration (read from metadata)
-nfs_server_share_path: "{{ oim_shared_path_from_metadata.nfs_server_share_path | default(oim_shared_path) }}"
-omnia_share_option: "{{ oim_shared_path_from_metadata.omnia_share_option | default('NFS') }}"
-nfs_type: "{{ oim_shared_path_from_metadata.nfs_type | default('') }}"
-nfs_server_ip: "{{ oim_shared_path_from_metadata.nfs_server_ip | default('') }}"
+nfs_server_share_path: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_share_path', '') }}"
+omnia_share_option: "{{ (oim_shared_path_from_metadata | default({})).get('omnia_share_option', 'NFS') }}"
+nfs_type: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_type', '') }}"
+nfs_server_ip: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_ip', '') }}"
 
 # -----------------------------------------------------------------------------
 # FILE PERMISSIONS

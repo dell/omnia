@@ -54,7 +54,7 @@ _EXAMPLES_CATALOG = os.path.join(
     _REPO_ROOT, "examples", "catalog", "catalog_rhel.json"
 )
 _EXPECTED_INPUT_DIR = os.path.join(_REPO_ROOT, "input")
-_CATALOG_RESOURCES = os.path.join(_BUILD_STREAM_ROOT, "core", "catalog", "resources")
+_CATALOG_RESOURCES = os.path.join(_BUILD_STREAM_ROOT, "app", "core", "catalog", "resources")
 _SCHEMA_PATH = os.path.join(_CATALOG_RESOURCES, "CatalogSchema.json")
 _POLICY_PATH = os.path.join(_CATALOG_RESOURCES, "adapter_policy_default.json")
 _POLICY_SCHEMA_PATH = os.path.join(_CATALOG_RESOURCES, "AdapterPolicySchema.json")

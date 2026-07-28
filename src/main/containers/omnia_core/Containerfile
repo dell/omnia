@@ -140,6 +140,9 @@ RUN dnf -y autoremove && \
 RUN mkdir -p /omnia
 COPY src/ /omnia/
 
+# Remove build_stream app/ — deployed to NFS at runtime by deploy_bsm role
+RUN rm -rf /omnia/build_stream/app
+
 # Copy the entrypoint script to / and make it executable
 COPY src/main/containers/omnia_core/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

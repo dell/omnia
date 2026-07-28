@@ -132,27 +132,27 @@ nginx_template_vars:
 # -----------------------------------------------------------------------------
 pulp_config_cmd_http: >-
   pulp config create
-  --username {{ pulp_username | default('admin') }}
+  --username {{ pulp_username | default('admin', true) }}
   --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port_http }}
   --password {{ pulp_password }}
   --location {{ pulp_ha_dir }}/cli.toml
 pulp_config_cmd_overwrite_http: >-
   pulp config create
-  --username {{ pulp_username | default('admin') }}
+  --username {{ pulp_username | default('admin', true) }}
   --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port_http }}
   --password {{ pulp_password }}
   --location {{ pulp_ha_dir }}/cli.toml
   --overwrite
 pulp_config_cmd_https: >-
   pulp config create
-  --username {{ pulp_username | default('admin') }}
+  --username {{ pulp_username | default('admin', true) }}
   --base-url https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}
   --password {{ pulp_password }}
   --location {{ pulp_ha_dir }}/cli.toml
   --no-verify-ssl
 pulp_config_cmd_overwrite_https: >-
   pulp config create
-  --username {{ pulp_username | default('admin') }}
+  --username {{ pulp_username | default('admin', true) }}
   --base-url https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}
   --password {{ pulp_password }}
   --location {{ pulp_ha_dir }}/cli.toml

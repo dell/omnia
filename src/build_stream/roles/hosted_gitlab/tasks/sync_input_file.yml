@@ -29,35 +29,44 @@
     validate_certs: false
   register: gitlab_input_file_check
 
-- name: Ensure payload parent directory exists on GitLab host
-  ansible.builtin.file:
-    path: "{{ _gitlab_input_hosted_path | dirname }}"
-    state: directory
-    mode: '0755'
+- name: Check if source input file exists
+  ansible.builtin.stat:
+    path: "{{ input_file_src }}"
+  register: input_file_stat
+  delegate_to: localhost
 
-- name: Copy input file to GitLab host payload directory
-  ansible.builtin.copy:
-    src: "{{ input_file_src }}"
-    dest: "{{ _gitlab_input_hosted_path }}"
-    mode: '0644'
+- name: Process input file if it exists
+  when: input_file_stat.stat.exists
+  block:
+    - name: Ensure payload parent directory exists on GitLab host
+      ansible.builtin.file:
+        path: "{{ _gitlab_input_hosted_path | dirname }}"
+        state: directory
+        mode: '0755'
 
-- name: Read input file from GitLab host
-  ansible.builtin.slurp:
-    src: "{{ _gitlab_input_hosted_path }}"
-  register: gitlab_input_file_content
+    - name: Copy input file to GitLab host payload directory
+      ansible.builtin.copy:
+        src: "{{ input_file_src }}"
+        dest: "{{ _gitlab_input_hosted_path }}"
+        mode: '0644'
 
-- name: Create input file in GitLab repository
-  when: gitlab_input_file_check.status == 404
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}"  # noqa: yaml[line-length]
-    method: POST
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      encoding: base64
-      content: "{{ gitlab_input_file_content.content }}"
-      commit_message: "Add {{ gitlab_input_repo_dir }}/{{ input_file_name }}"
-    status_code: [200, 201]
-    validate_certs: false
+    - name: Read input file from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ _gitlab_input_hosted_path }}"
+      register: gitlab_input_file_content
+
+    - name: Create input file in GitLab repository
+      when: gitlab_input_file_check.status == 404
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ gitlab_input_file_content.content }}"
+          commit_message: "Add {{ gitlab_input_repo_dir }}/{{ input_file_name }}"
+        status_code: [200, 201]
+        validate_certs: false

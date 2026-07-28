@@ -1341,6 +1341,14 @@ post_setup_config() {
     echo -e "${GREEN} Creating the output directory.${NC}"
     podman exec -u root omnia_core bash -c "
     mkdir -p /opt/omnia/output/project_default"
+    
+    # Copy build_stream input files to project_default/build_stream/ subdir
+    echo -e "${BLUE} Copying build_stream config to project_default/build_stream/.${NC}"
+    podman exec -u root omnia_core bash -c "
+    if [ -d /omnia/build_stream/input ]; then
+        mkdir -p /opt/omnia/input/project_default/build_stream
+        cp -r /omnia/build_stream/input/* /opt/omnia/input/project_default/build_stream/
+    fi"
 }
 
 validate_nfs_server() {

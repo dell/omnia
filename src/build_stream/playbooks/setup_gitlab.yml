@@ -28,16 +28,16 @@
         omnia_run_tags: "{{ ['build_stream', 'gitlab'] }}"
         cacheable: true
 
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
-
-
-- name: Create oim group and provision group
-  ansible.builtin.import_playbook: ../../playbooks/utils/create_container_group.yml
-  vars:
-    oim_group: true
+- name: Build Stream setup (input dirs + OIM group)
+  hosts: localhost
+  connection: local
+  gather_facts: false
   tags: always
+  roles:
+    - role: ../roles/build_stream_setup
+      vars:
+        create_oim_group: true
+  when: not build_stream_setup_done | default(false) | bool
 
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost

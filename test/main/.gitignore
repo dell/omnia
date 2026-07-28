@@ -1,0 +1,31 @@
+# Virtual environment
+.venv/
+
+# Reports
+reports/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Pytest cache
+.pytest_cache/
+
+# Batch tracking (config mode resume state)
+.batch_track
+
+# Vault key files (sensitive)
+.test_creds.key
+*.key
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
