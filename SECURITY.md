@@ -1,22 +1,41 @@
 # Security Policy
 
+Thank you for helping keep Omnia secure.
+
+## Supported Versions
+
+Only the latest released version of Omnia is supported with security updates. Users are encouraged to upgrade to the latest version.
+
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Omnia, please report it by raising an issue with the vulnerability details. Include a CVE (Common Vulnerabilities and Exposures) identifier if one has been assigned.
+If you discover a security vulnerability in Omnia, please do **not** create a public GitHub issue.
 
-**When reporting, please include:**
+Please report it using GitHub's **Private Vulnerability Reporting** feature.
+
+Please include:
+
 - Description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact assessment
+- Affected version(s)
+- Steps to reproduce
+- Potential impact
+- Proof of concept (if available)
 - CVE identifier (if available)
 
 ## Response Process
 
-- The team will acknowledge the report and assess the vulnerability.
-- If accepted, a fix will be provided in a patch release or included in the next major release.
-- High-risk vulnerabilities may receive a temporary fix or workaround before the next release.
-- Low-risk issues or those outside the product security scope may be declined with an explanation.
+- Reports will be reviewed and acknowledged at the earliest.
+- The team will assess and validate the vulnerability.
+- Confirmed issues will be addressed in a security patch or future release.
+- Critical vulnerabilities may receive expedited fixes or workarounds.
+- Issues outside the project's security scope may be declined with an explanation.
 
-## General Recommendations
+## Responsible Disclosure
 
-All users are encouraged to run the latest available version of Omnia to benefit from the most recent security updates and fixes.
+Please avoid public disclosure until the issue has been reviewed and a fix is available.
+
+## Contact
+
+For security-related concerns, please use GitHub's **Private Vulnerability Reporting** feature.
+
+Thank you for helping make Omnia more secure.
+```
