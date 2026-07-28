@@ -21,15 +21,6 @@
     mode: "{{ filemode }}"
     force: true
   delegate_to: localhost
-  vars:
-    db_idrac_ip_list: "{{ db_idrac_ip_list | default([]) }}"
-    telemetry_idrac: "{{ telemetry_idrac | default([]) }}"
-    deleted_idrac_ips: "{{ deleted_idrac_ips | default([]) }}"
-    failed_idrac: "{{ failed_idrac | default([]) }}"
-    invalid_idrac_list: "{{ invalid_idrac_list | default([]) }}"
-    failed_idrac_count: "{{ failed_idrac_count | default(0) }}"
-    invalid_idrac_count: "{{ invalid_idrac_count | default(0) }}"
-    telemetry_idrac_count: "{{ telemetry_idrac_count | default(0) }}"
 
 - name: Telemetry Report Overview
   ansible.builtin.debug:
