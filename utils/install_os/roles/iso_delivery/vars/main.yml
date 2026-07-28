@@ -47,3 +47,24 @@ no_iso_nfs_share_msg: >-
 os_deployment_fail_msg: >-
   Failed to initiate OS deployment via iDRAC on '{{ target_bmc_ip }}'.
   Please verify NFS share accessibility and iDRAC OS Deployment Service support.
+
+boot_operation_fail_msg: >-
+  Failed to initiate OS deployment via iDRAC on '{{ target_bmc_ip }}'.
+  Boot status: {{ boot_status_details | default('Unknown error') }}.
+  Please verify NFS share accessibility and iDRAC OS Deployment Service support.
+
+# Installation monitoring messages
+sel_error_warning_msg: >-
+  WARNING: Installation-related errors detected in iDRAC System Event Log.
+  This may not indicate actual installation failure. SSH verification will determine final status.
+ssh_wait_fail_msg: >-
+  OS installation failed - target node {{ target_node_ip }} did not become reachable via SSH within 10 minutes.
+  Check the iDRAC virtual console for installation status.
+passwordless_ssh_fail_msg: >-
+  Passwordless SSH access failed. The injected SSH public key may not be configured correctly.
+  Verify that ks_ssh_public_key was properly injected into the kickstart file.
+os_install_success_msg: >-
+  OS installation completed successfully!
+  Hostname: {{ os_verify.stdout_lines[0] | default('unknown') }},
+  OS: {{ os_verify.stdout_lines[1] | default('unknown') }},
+  Passwordless SSH: verified
