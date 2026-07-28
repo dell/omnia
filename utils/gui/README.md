@@ -6,8 +6,8 @@ Web-based interface for Omnia configuration management, providing comprehensive 
 
 The GUI Module provides a modern web-based interface for managing Omnia configurations. It consists of three main sub-modules:
 
-- **Catalog Editor GUI**: Visual editor for Omnia catalog JSON files with real-time validation
-- **Configuration Wizard**: Step-by-step wizard for deployment configuration with conditional per-step tabs
+- **Build Configuration Module**: Visual editor for Omnia catalog JSON files with real-time validation along with local repository configuration for RHEL and Ubuntu
+- **Deployment Configuration Module**: Step-by-step wizard for deployment configuration with conditional per-step tabs
 - **Adapter Policy Module**: Interface for adapter policy transformations
 
 ## Architecture
@@ -18,11 +18,11 @@ The GUI Module follows a modern web architecture with clear separation of concer
 ┌─────────────────────────────────────────────────────────┐
 │                     Frontend (React)                    │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │ Catalog      │  │ Configuration│  │ Adapter      │   │
-│  │ Editor       │  │ Wizard       │  │ Policy       │   │
+│  │    Build     │  │ Deployment   │  │    Adapter   │   │
+│  │    Config    │  │   Config     │  │    Policy    │   │
 │  └──────────────┘  └──────────────┘  └──────────────┘   │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │       Zustand State Management + TanStack Query  │   │
+│  │     Zustand State Management + TanStack Query    │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
                            │
@@ -146,7 +146,7 @@ Configuration is managed through environment variables and settings in `backend/
 - `ENVIRONMENT`: Environment name (default: `development`)
 - `DEBUG`: Debug mode (default: `true`)
 
-Output paths are derived from the repository layout (`utils/gui/out`), and base input files are loaded from `examples/` and the repository `input/` directory.
+Output paths are derived from the repository layout (`utils/gui/out`), and base input files are loaded from `src/examples/` and the repository `src/input/` directory.
 
 ### Running the Backend
 
@@ -281,7 +281,7 @@ Storage resource fields are configured within the relevant source and sink tabs.
 
 ## Adapter Policy Transformation
 
-The Adapter Policy Module transforms catalog data to adapter policy format based on rules defined in `adapter_policy_default.json`.
+The Adapter Policy Module transforms catalog data to adapter policy format based on rules defined in `src/build_stream/core/catalog/resources/adapter_policy_default.json`.
 
 ### Supported Transformations
 
@@ -366,7 +366,7 @@ Set the following environment variables:
 - `ENVIRONMENT`: Environment name (default: `development`)
 - `DEBUG`: Debug mode (default: `true`)
 
-Output paths are derived from the repository layout (`utils/gui/out`), and catalog examples are loaded from `examples/`.
+Output paths are derived from the repository layout (`utils/gui/out`), and catalog examples are loaded from `src/examples/`.
 
 ## Troubleshooting
 
@@ -385,7 +385,7 @@ Frontend logs are available in browser developer tools console.
 
 ## Documentation
 
-- **Adapter Policy Guide**: `../../build_stream/core/catalog/ADAPTER_POLICY_GUIDE.md`
+- **Adapter Policy Guide**: `../../src/build_stream/core/catalog/ADAPTER_POLICY_GUIDE.md`
 
 ## License
 

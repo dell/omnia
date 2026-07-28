@@ -7,7 +7,6 @@ Provides FastAPI Depends functions for service injection following best practice
 from fastapi import Depends, Request
 
 from ...config.settings import Settings, get_settings
-from ...services.config_service import ConfigService
 from ...services.catalog_editor_service import CatalogEditorService
 from ...services.adapter_policy_service import AdapterPolicyService
 from ...services.wizard_generator_service import WizardGeneratorService
@@ -23,20 +22,6 @@ def get_settings_dependency() -> Settings:
 
 
 # Service dependencies
-def get_config_service(
-    settings: Settings = Depends(get_settings_dependency)
-) -> ConfigService:
-    """FastAPI dependency for ConfigService.
-    
-    Args:
-        settings: Application settings
-        
-    Returns:
-        ConfigService instance
-    """
-    return ConfigService(settings=settings)
-
-
 def get_adapter_policy_service(
     settings: Settings = Depends(get_settings_dependency)
 ) -> AdapterPolicyService:
@@ -125,8 +110,3 @@ def get_software_config_service(request: Request) -> SoftwareConfigService:
     return request.app.state.software_config_service
 
 
-# Testing utilities
-def reset_test_settings() -> None:
-    """Reset settings singleton (for testing only)."""
-    from ...config.settings import reset_settings
-    reset_settings()

@@ -3,7 +3,7 @@ import { URL_PATTERN } from '../../configuration-wizard/schemas/common';
 
 // ─── Enums ─────────────────────────────────────────────────
 
-export const PackageType = z.enum([
+const PackageType = z.enum([
   'rpm',
   'rpm_repo',
   'tarball',
@@ -16,7 +16,7 @@ export const PackageType = z.enum([
 
 // ─── Sub-schemas ───────────────────────────────────────────
 
-export const SupportedOSSchema = z.object({
+const SupportedOSSchema = z.object({
   Name: z.string().min(1, 'OS Name is required'),
   Version: z.string().min(1, 'OS Version is required'),
 });
@@ -39,7 +39,7 @@ const sourceUrlRefine = (data: {
   return URL_PATTERN.test(data.Uri.trim());
 };
 
-export const PackageSourceSchema = sourceBaseSchema
+const PackageSourceSchema = sourceBaseSchema
   .refine(sourceUrlRefine, {
     message: 'Uri must be a valid URL starting with http:// or https://',
     path: ['Uri'],
@@ -49,7 +49,7 @@ export const PackageSourceSchema = sourceBaseSchema
     path: ['Uri'],
   });
 
-export const PackageSourceWithUrlSchema = PackageSourceSchema;
+const PackageSourceWithUrlSchema = PackageSourceSchema;
 
 // ─── Package schemas ───────────────────────────────────────
 
@@ -95,7 +95,7 @@ export const InfrastructurePackageSchema = z.object({
 
 // ─── Driver schemas ───────────────────────────────────────────
 
-export const DriverConfigSchema = z.object({
+const DriverConfigSchema = z.object({
   DriverBrand: z.string().min(1, 'Driver Brand is required'),
   DriverType: z.string().min(1, 'Driver Type is required'),
 });
@@ -119,14 +119,14 @@ export const DriverPackageSchema = z.object({
   Version: z.string().min(1, 'Version is required'),
 });
 
-export const DriverSchema = z.object({
+const DriverSchema = z.object({
   Name: z.string(),
   DriverPackages: z.array(z.string()),
 });
 
 // ─── Structural schemas ────────────────────────────────────
 
-export const FunctionalLayerSchema = z.object({
+const FunctionalLayerSchema = z.object({
   Name: z.string(),
   Architecture: z.string().optional(),
   FunctionalPackages: z.array(z.string()),
@@ -134,20 +134,20 @@ export const FunctionalLayerSchema = z.object({
   // - ApplicableFunctionalLayers: Maps layer to other layers (optional)
 });
 
-export const BaseOSSchema = z.object({
+const BaseOSSchema = z.object({
   Name: z.string(),
   Version: z.string(),
   osPackages: z.array(z.string()),
 });
 
-export const InfrastructureSchema = z.object({
+const InfrastructureSchema = z.object({
   Name: z.string(),
   InfrastructurePackages: z.array(z.string()),
 });
 
 // ─── CatalogInner: everything under "Catalog" ──────────────
 
-export const CatalogInnerSchema = z.object({
+const CatalogInnerSchema = z.object({
   // Schema 1.0: Metadata fields
   Name: z.string().default('Catalog'),
   Version: z.string().default('1.0'),
@@ -172,7 +172,7 @@ export const CatalogInnerSchema = z.object({
 
 // ─── CatalogRoot: top-level { "Catalog": { ... } } ─────────
 
-export const CatalogRootSchema = z.object({
+const CatalogRootSchema = z.object({
   Catalog: CatalogInnerSchema,
 });
 
@@ -180,19 +180,14 @@ export const CatalogRootSchema = z.object({
 
 export type PackageTypeValue = z.infer<typeof PackageType>;
 export type SupportedOS = z.infer<typeof SupportedOSSchema>;
-export type PackageSource = z.infer<typeof PackageSourceSchema>;
-export type PackageSourceWithUrl = z.infer<typeof PackageSourceWithUrlSchema>;
 export type FunctionalPackage = z.infer<typeof FunctionalPackageSchema>;
 export type OSPackage = z.infer<typeof OSPackageSchema>;
 export type MiscellaneousPackage = z.infer<typeof MiscellaneousPackageSchema>;
 export type InfrastructurePackage = z.infer<
   typeof InfrastructurePackageSchema
 >;
-export type DriverConfig = z.infer<typeof DriverConfigSchema>;
 export type DriverPackage = z.infer<typeof DriverPackageSchema>;
 export type Driver = z.infer<typeof DriverSchema>;
 export type FunctionalLayer = z.infer<typeof FunctionalLayerSchema>;
 export type BaseOS = z.infer<typeof BaseOSSchema>;
-export type InfrastructureType = z.infer<typeof InfrastructureSchema>;
-export type CatalogInner = z.infer<typeof CatalogInnerSchema>;
 export type CatalogRoot = z.infer<typeof CatalogRootSchema>;

@@ -24,6 +24,16 @@ const defaultPackage: OSPackage = {
   Tag: '',
 };
 
+const OS_DISPLAY_NAME: Record<string, string> = {
+  rhel: 'RHEL',
+  // ubuntu: 'Ubuntu', // Disabled for later release
+};
+
+const DEFAULT_VERSION: Record<string, string> = {
+  rhel: '10.0',
+  // ubuntu: '22.04', // Disabled for later release
+};
+
 const OSPackageEditor = () => {
   const catalogRoot = useCatalogStore((s) => s.catalogRoot);
   const setCatalogRoot = useCatalogStore((s) => s.setCatalogRoot);
@@ -53,8 +63,14 @@ const OSPackageEditor = () => {
       ([id, pkg]) => pkg.Name === name && id !== excludeId
     );
   };
-  const [osFamily, setOsFamily] = useState('RHEL');
+  const [osFamily, setOsFamily] = useState('rhel');
   const [osVersion, setOsVersion] = useState('10.0');
+
+  const handleOsFamilyChange = (newFamily: string) => {
+    setOsFamily(newFamily);
+    setOsVersion(DEFAULT_VERSION[newFamily] ?? '');
+  };
+
   const [arch, setArch] = useState('x86_64');
   const [selectedBundles, setSelectedBundles] = useState<Set<string>>(new Set(['default_packages']));
   const [expandedBundles, setExpandedBundles] = useState<Set<string>>(new Set());
@@ -73,17 +89,23 @@ const OSPackageEditor = () => {
     if (keysString === prevOsPackageKeysRef.current) return;
     prevOsPackageKeysRef.current = keysString;
 
-    // Extract OS family and version from first package (or use defaults)
-    let derivedOsFamily = 'RHEL';
-    let derivedOsVersion = '10.0';
+    // Extract OS family, version and display name from first package (or use defaults)
+    let derivedOsVersion = osVersion;
+    let baseOsDisplayName = OS_DISPLAY_NAME[osFamily] ?? osFamily;
+    let derivedOsFamily = osFamily;
 
     if (osPackageIds.length > 0) {
       const firstPkg = catalogRoot.Catalog.OSPackages[osPackageIds[0]];
       if (firstPkg?.SupportedOS && firstPkg.SupportedOS.length > 0) {
-        derivedOsFamily = firstPkg.SupportedOS[0].Name;
+        baseOsDisplayName = firstPkg.SupportedOS[0].Name;
         derivedOsVersion = firstPkg.SupportedOS[0].Version;
+        derivedOsFamily = firstPkg.SupportedOS[0].Name.toLowerCase();
       }
     }
+
+    // Sync React state with loaded catalog if it differs
+    if (derivedOsFamily !== osFamily) setOsFamily(derivedOsFamily);
+    if (derivedOsVersion !== osVersion) setOsVersion(derivedOsVersion);
 
     // Update BaseOS to match OSPackages
     const updatedCatalog = {
@@ -91,7 +113,7 @@ const OSPackageEditor = () => {
       Catalog: {
         ...catalogRoot.Catalog,
         BaseOS: [{
-          Name: derivedOsFamily,
+          Name: baseOsDisplayName,
           Version: derivedOsVersion,
           osPackages: osPackageIds
         }]
@@ -420,7 +442,7 @@ const OSPackageEditor = () => {
           Name: pkg.package,
           Type: pkg.type as PackageTypeValue,
           Architecture: [arch],
-          SupportedOS: [{ Name: osFamily, Version: osVersion }],
+          SupportedOS: [{ Name: OS_DISPLAY_NAME[osFamily] ?? osFamily, Version: osVersion }],
           Sources: sources,
           Version: pkg.version || undefined,
           Tag: pkg.tag || undefined,
@@ -629,22 +651,23 @@ const OSPackageEditor = () => {
               <label className="form-label">OS Family</label>
               <select 
                 value={osFamily}
-                onChange={(e) => setOsFamily(e.target.value)}
+                onChange={(e) => handleOsFamilyChange(e.target.value)}
                 className="form-select"
               >
                 <option value="rhel">RHEL</option>
+                {/* <option value="ubuntu">Ubuntu</option> */}
               </select>
             </div>
             
             <div className="form-group">
               <label className="form-label">OS Version</label>
-              <select 
+              <input
+                type="text"
                 value={osVersion}
                 onChange={(e) => setOsVersion(e.target.value)}
-                className="form-select"
-              >
-                <option value="10.0">10.0</option>
-              </select>
+                className="form-input"
+                placeholder='e.g. 10.0'
+              />
             </div>
             
             <div className="form-group">
@@ -681,7 +704,7 @@ const OSPackageEditor = () => {
               disabled={isImporting || (selectedBundles.size === 0 && Object.keys(selectedPackages).length === 0)}
               className="button button-primary"
             >
-              {isImporting ? 'Importing...' : `Import Selected (${selectedBundles.size + Object.keys(selectedPackages).filter(k => !selectedBundles.has(k)).length})`}
+              {isImporting ? 'Importing...' : 'Import Selected'}
             </button>
             <button
               onClick={() => setShowBundleSelector(false)}

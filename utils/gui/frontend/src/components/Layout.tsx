@@ -24,7 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   // Expand/collapse local repo group based on route changes only
   useEffect(() => {
-    const localRepoPages = ['/local-repo', '/local-repo/rhel', '/local-repo/ubuntu'];
+    const localRepoPages = ['/local-repo', '/local-repo/rhel'/*, '/local-repo/ubuntu' */];
     if (localRepoPages.some((path) => location.pathname.startsWith(path))) {
       setBuildConfigExpanded(true);
       setLocalRepoExpanded(true);
@@ -65,7 +65,7 @@ const Layout = ({ children }: LayoutProps) => {
                 type="button"
                 className={`nav-toggle ${buildConfigExpanded ? 'expanded' : ''}`}
                 onClick={() => {
-                  const buildConfigPages = ['/landing', '/catalog-editor', '/preset-picker', '/catalog', '/local-repo', '/local-repo/rhel', '/local-repo/ubuntu'];
+                  const buildConfigPages = ['/landing', '/catalog-editor', '/preset-picker', '/catalog', '/local-repo', '/local-repo/rhel'/*, '/local-repo/ubuntu' */];
                   if (buildConfigExpanded && buildConfigPages.includes(location.pathname)) {
                     setBuildConfigExpanded(false);
                   } else {
@@ -137,7 +137,7 @@ const Layout = ({ children }: LayoutProps) => {
                       type="button"
                       className={`nav-toggle ${localRepoExpanded ? 'expanded' : ''}`}
                       onClick={() => {
-                        const localRepoPages = ['/local-repo', '/local-repo/rhel', '/local-repo/ubuntu'];
+                        const localRepoPages = ['/local-repo', '/local-repo/rhel'/*, '/local-repo/ubuntu' */];
                         if (localRepoExpanded && localRepoPages.includes(location.pathname)) {
                           setLocalRepoExpanded(false);
                         } else {
@@ -158,6 +158,7 @@ const Layout = ({ children }: LayoutProps) => {
                         >
                           RHEL Configuration
                         </button>
+                        {/*
                         <button
                           type="button"
                           className={`nav-item ${isActive('/local-repo/ubuntu') ? 'active' : ''}`}
@@ -165,6 +166,7 @@ const Layout = ({ children }: LayoutProps) => {
                         >
                           Ubuntu Configuration
                         </button>
+                        */}
                       </div>
                     )}
                   </div>

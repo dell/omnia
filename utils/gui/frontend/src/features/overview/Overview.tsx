@@ -57,7 +57,7 @@ const Overview = () => {
           </Link>
         </p>
         <ul className="margin-top-sm">
-          <li>Configure local package repositories for RHEL and Ubuntu</li>
+          <li>Configure local package repositories for RHEL</li>
           <li>Configure user registries, credentials, and additional package sources</li>
           <li>Generate local_repo_config.yml independently</li>
         </ul>

@@ -113,31 +113,6 @@ class Driver(BaseModel):
     DriverPackages: List[str]
 
 
-class MiscellaneousPackage(BaseModel):
-    """
-    Miscellaneous package schema for Schema 1.0.
-    
-    Schema 1.0 fields:
-    - Name, Type, Architecture, Uri: Required
-    - Version: Optional
-    - Tag: Optional
-    - SupportedOS: Optional
-    - Sources: Optional
-    
-    Schema 1.1 fields (to be added later):
-    - ApplicableFunctionalLayers: Maps miscellaneous packages to functional layers
-    - Config: Enhanced package metadata
-    """
-    Name: str
-    Type: PackageType
-    Architecture: List[str]
-    Uri: str
-    Version: Optional[str] = None
-    Tag: Optional[str] = None
-    SupportedOS: Optional[List[SupportedOSInfo]] = None
-    Sources: Optional[List[PackageSource]] = None
-
-
 class FunctionalLayer(BaseModel):
     """
     Functional layer schema for Schema 1.0.

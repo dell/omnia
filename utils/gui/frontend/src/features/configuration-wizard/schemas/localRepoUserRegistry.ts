@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { HOST_PORT_PATTERN, CERT_PATH_PATTERN, KEY_PATH_PATTERN } from './common';
 
 // Shared schemas for repository entries
-export const repoEntrySchema = z.object({
+const repoEntrySchema = z.object({
   url: z.string().url('Repository URL must be a valid URL'),
   name: z.string().min(1, 'Repository name is required').optional(),
   gpgkey: z.string().optional(),
@@ -30,7 +30,7 @@ export const repoEntrySchema = z.object({
   }
 );
 
-export const omniaRepoEntrySchema = z.object({
+const omniaRepoEntrySchema = z.object({
   url: z.string().url('Repository URL must be a valid URL'),
   name: z.string().min(1, 'Repository name is required').optional(),
   gpgkey: z.string().optional(),
@@ -56,7 +56,7 @@ export const omniaRepoEntrySchema = z.object({
 );
 
 // User registry entry schema with validation
-export const userRegistryEntrySchema = z.object({
+const userRegistryEntrySchema = z.object({
   host: z.string().regex(HOST_PORT_PATTERN, 'Registry host must be in format "IP:port" or "hostname:port"'),
   cert_path: z.string().regex(CERT_PATH_PATTERN, 'Certificate path must be a .crt file or empty'),
   key_path: z.string().regex(KEY_PATH_PATTERN, 'Key path must be a .key file or empty'),
@@ -110,10 +110,3 @@ export function getLocalRepoOsSchema(osType: 'rhel' | 'ubuntu') {
   });
 }
 
-// Convenience schemas for the existing wizard and new management page
-export const localRepoUserRegistrySchema = getLocalRepoOsSchema('rhel');
-export const localRepoUbuntuSchema = getLocalRepoOsSchema('ubuntu');
-
-export type LocalRepoUserRegistryFormData = z.infer<typeof localRepoUserRegistrySchema>;
-export type LocalRepoUbuntuFormData = z.infer<typeof localRepoUbuntuSchema>;
-export type LocalRepoOsFormData = LocalRepoUserRegistryFormData | LocalRepoUbuntuFormData;

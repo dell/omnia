@@ -34,10 +34,10 @@ class Settings:
         
         # Path Configuration
         self.base_dir = Path(__file__).parent.parent.parent.parent.parent  # Repository root
-        self.build_stream_dir = self.base_dir / "build_stream"
+        self.build_stream_dir = self.base_dir / "src" / "build_stream"
         self.gui_dir = self.base_dir / "utils" / "gui"
-        self.base_input_dir = self.base_dir / "input"  # Base input for bundle files (repo root/input)
-        self.examples_dir = self.base_dir / "examples"
+        self.base_input_dir = self.base_dir / "src" / "input"  # Base input for bundle files (repo root/src/input)
+        self.examples_dir = self.base_dir / "src" / "examples"
         
         # Output Configuration
         self.output_dir = self.gui_dir / "out"  # utils/gui/out
@@ -57,9 +57,3 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
-
-
-def reset_settings() -> None:
-    """Reset the settings instance (for testing)."""
-    global _settings
-    _settings = None

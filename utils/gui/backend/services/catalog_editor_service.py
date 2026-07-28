@@ -1,8 +1,5 @@
 import re
-import shutil
 import logging
-import os
-from datetime import datetime
 from typing import Optional
 
 from ..models.catalog_schemas import (
@@ -11,7 +8,7 @@ from ..models.catalog_schemas import (
     BaseOS,
     Infrastructure,
 )
-from ..utils.file_io import read_json, write_json_atomic
+from ..utils.file_io import read_json
 from ..config.settings import get_settings
 
 
@@ -19,9 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class CatalogEditorService:
-    # Path constants
-    BACKUP_DIR_RELATIVE = "build_stream/core/catalog/test_fixtures/.backup"
-    DEFAULT_CATALOG_PATH = "build_stream/core/catalog/test_fixtures/catalog_rhel.json"
     # Regex constants
     VERSION_PATTERN = r"(?:[-_]?v\d+(?:[-.]\d+)*$|(?:^|[-_])\d+(?:[-.]\d+)*$)"
 
@@ -35,11 +29,7 @@ class CatalogEditorService:
         self.settings = settings or get_settings()
         self.base_dir = self.settings.base_dir
         # Don't set a default catalog path - catalog is kept in memory
-        # Only save when user explicitly clicks Save or Export JSON
         self.catalog_path = None
-        self.backup_dir = (
-            self.base_dir / self.BACKUP_DIR_RELATIVE
-        )
         # Use app_state for shared catalog storage (if available)
         self.app_state = app_state
         self._catalog: Optional[CatalogRoot] = None
@@ -73,34 +63,6 @@ class CatalogEditorService:
         self._catalog = catalog
         if self.app_state and hasattr(self.app_state, 'catalog'):
             self.app_state.catalog = catalog
-
-    def save_catalog(self, catalog: CatalogRoot, path: str = None) -> None:
-        """Save catalog with atomic write and backup.
-        
-        Args:
-            catalog: The catalog to save
-            path: Optional path to save to. If None, uses default catalog_path
-        """
-        save_path = path or self.catalog_path
-        if save_path is None:
-            # Use a default path if none specified
-            save_path = str(
-                self.base_dir / self.DEFAULT_CATALOG_PATH
-            )
-        
-        # Prevent path traversal attacks
-        resolved = os.path.realpath(save_path)
-        if not resolved.startswith(str(self.base_dir.resolve())):
-            raise ValueError(f"Save path outside allowed directory: {save_path!r}")
-        
-        catalog_dict = catalog.model_dump(mode="json", exclude_none=True)
-        write_json_atomic(save_path, catalog_dict)
-        # Update app_state.catalog if available
-        if self.app_state and hasattr(self.app_state, 'catalog'):
-            self.app_state.catalog = catalog
-        # Update instance catalog to ensure refetch gets updated data
-        self._catalog = catalog
-        logger.info("Catalog saved to %s", save_path)
 
     def validate_catalog(self, catalog: CatalogRoot) -> dict:
         """Validate catalog structure and return validation results (L1 + L2)."""
@@ -225,19 +187,6 @@ class CatalogEditorService:
             )
         )
 
-    def _create_backup(self) -> None:
-        """Create timestamped backup of current catalog."""
-        if self.catalog_path is None:
-            return  # No catalog to backup
-        self.backup_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = (
-            self.backup_dir / f"catalog_rhel_{timestamp}.json"
-        )
-
-        if self.catalog_path.exists():
-            shutil.copy2(self.catalog_path, backup_path)
-    
     def list_catalog_presets(self) -> list:
         """List available catalog preset files from examples/catalog folder.
         

@@ -17,7 +17,7 @@ const K8S_SPECIFIC_GROUPS = new Set([
   'service_kube_node_x86_64',
 ]);
 
-export interface PxeMappingAnalysis {
+interface PxeMappingAnalysis {
   clusterType: 'slurm' | 'k8s' | 'both' | null;
   networkInfo: {
     adminIps: string[];

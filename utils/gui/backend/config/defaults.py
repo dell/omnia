@@ -2,7 +2,7 @@
 
 These defaults are used when the corresponding wizard step is skipped or disabled,
 so the backend always receives a schema-valid file. Values are seeded from the
-example files in `omnia/input/*.yml` with all feature flags set to disabled.
+example files in `omnia/src/input/*.yml` with all feature flags set to disabled.
 """
 
 from typing import Any, Dict

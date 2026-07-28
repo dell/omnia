@@ -64,14 +64,6 @@ function get<T = unknown>(path: string): Promise<T> {
   return request<T>(`${API_BASE_URL}${path}`);
 }
 
-function put<T = unknown>(path: string, data: unknown): Promise<T> {
-  return request<T>(`${API_BASE_URL}${path}`, {
-    method: 'PUT',
-    headers: JSON_HEADERS,
-    body: JSON.stringify(data),
-  });
-}
-
 function post<T = unknown>(path: string, data: unknown): Promise<T> {
   return request<T>(`${API_BASE_URL}${path}`, {
     method: 'POST',
@@ -92,4 +84,4 @@ export const api = {
   },
 };
 
-export { request, get, put, post, HTTPError };
+export { get };

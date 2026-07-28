@@ -164,6 +164,10 @@ const CatalogEditor = () => {
   const infraPkgCount = Object.keys(
     inner?.InfrastructurePackages ?? {},
   ).length;
+  const driverPkgCount = Object.keys(
+    inner?.DriverPackages ?? {},
+  ).length;
+  const miscPkgCount = inner?.Miscellaneous?.length ?? 0;
 
   const validationIcon =
     validationErrors.length > 0
@@ -177,10 +181,10 @@ const CatalogEditor = () => {
     ['layers', `Functional Layers (${layerCount})`],
     ['os', `OS Packages (${osPkgCount})`],
     ['infrastructure', `Infrastructure Packages (${infraPkgCount})`],
-    ['driver-packages', 'Driver Packages'],
-    ['miscellaneous', 'Miscellaneous'],
+    ['driver-packages', `Driver Packages (${driverPkgCount})`],
+    ['miscellaneous', `Miscellaneous (${miscPkgCount})`],
     ['validation', `Validation ${validationIcon}`],
-  ] as const, [layerCount, osPkgCount, infraPkgCount, validationIcon]);
+  ] as const, [layerCount, osPkgCount, infraPkgCount, driverPkgCount, miscPkgCount, validationIcon]);
 
   return (
     <Layout>

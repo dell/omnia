@@ -41,7 +41,7 @@ function validateHeaders(meta: Papa.ParseMeta): void {
   }
 }
 
-export function isValidRow(row: unknown): row is PxeMappingRow {
+function isValidRow(row: unknown): row is PxeMappingRow {
   const r = row as Record<string, unknown>;
   return REQUIRED_FIELDS.every(
     (field) => typeof r[field] === 'string' && (r[field] as string).length > 0
@@ -87,11 +87,6 @@ function validateParseResults(results: Papa.ParseResult<PxeMappingRow>): PxeMapp
   return results.data;
 }
 
-export const parsePxeMappingCsv = (csvString: string): PxeMappingRow[] => {
-  const result = Papa.parse<PxeMappingRow>(csvString, PARSE_CONFIG);
-  return validateParseResults(result);
-}
-
 export const parsePxeMappingFile = (file: File): Promise<PxeMappingRow[]> => {
   return new Promise((resolve, reject) => {
     Papa.parse<PxeMappingRow>(file, {
@@ -110,23 +105,3 @@ export const parsePxeMappingFile = (file: File): Promise<PxeMappingRow[]> => {
   });
 }
 
-export const generatePxeMappingCsv = (data: PxeMappingRow[]): string => {
-  return Papa.unparse(data, { columns: ALL_COLUMNS });
-}
-
-export const downloadPxeMappingCsv = (data: PxeMappingRow[], filename: string = 'pxe_mapping_file.csv') => {
-  const csv = generatePxeMappingCsv(data);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  try {
-    link.click();
-  } finally {
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-}

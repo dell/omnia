@@ -27,6 +27,11 @@ const defaultPackage: InfrastructurePackage = {
   Sources: [],
 };
 
+const DEFAULT_VERSION: Record<string, string> = {
+  rhel: '10.0',
+  // ubuntu: '22.04', // Disabled for later release
+};
+
 const InfrastructureEditor = () => {
   const catalogRoot = useCatalogStore((s) => s.catalogRoot);
   const setCatalogRoot = useCatalogStore((s) => s.setCatalogRoot);
@@ -58,6 +63,12 @@ const InfrastructureEditor = () => {
   };
   const [osFamily, setOsFamily] = useState('rhel');
   const [osVersion, setOsVersion] = useState('10.0');
+
+  const handleOsFamilyChange = (newFamily: string) => {
+    setOsFamily(newFamily);
+    setOsVersion(DEFAULT_VERSION[newFamily] ?? '');
+  };
+
   const [arch, setArch] = useState('x86_64');
   const [selectedBundles, setSelectedBundles] = useState<Set<string>>(new Set());
   const [expandedBundles, setExpandedBundles] = useState<Set<string>>(new Set());
@@ -556,22 +567,23 @@ const InfrastructureEditor = () => {
               <label className="form-label">OS Family</label>
               <select 
                 value={osFamily}
-                onChange={(e) => setOsFamily(e.target.value)}
+                onChange={(e) => handleOsFamilyChange(e.target.value)}
                 className="form-select"
               >
                 <option value="rhel">RHEL</option>
+                {/* <option value="ubuntu">Ubuntu</option> */}
               </select>
             </div>
             
             <div className="form-group">
               <label className="form-label">OS Version</label>
-              <select 
+              <input
+                type="text"
                 value={osVersion}
                 onChange={(e) => setOsVersion(e.target.value)}
-                className="form-select"
-              >
-                <option value="10.0">10.0</option>
-              </select>
+                className="form-input"
+                placeholder='e.g. 10.0'
+              />
             </div>
             
             <div className="form-group">
@@ -608,7 +620,7 @@ const InfrastructureEditor = () => {
               disabled={isImporting || (selectedBundles.size === 0 && Object.keys(selectedPackages).length === 0)}
               className="button button-primary"
             >
-              {isImporting ? 'Importing...' : `Import Selected (${selectedBundles.size + Object.keys(selectedPackages).filter(k => !selectedBundles.has(k)).length})`}
+              {isImporting ? 'Importing...' : 'Import Selected'}
             </button>
             <button
               onClick={() => setShowBundleSelector(false)}

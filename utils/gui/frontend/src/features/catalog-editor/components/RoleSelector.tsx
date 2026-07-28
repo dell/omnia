@@ -46,7 +46,7 @@ export const RoleSelector = ({
             className="form-select"
           >
             <option value="rhel">RHEL</option>
-            <option value="ubuntu">Ubuntu</option>
+            {/* <option value="ubuntu">Ubuntu</option> */}
           </select>
         </div>
 

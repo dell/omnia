@@ -17,7 +17,7 @@ const OS_LABELS: Record<LocalRepoOsType, string> = {
   ubuntu: 'Ubuntu',
 };
 
-const isValidOs = (os: string | undefined): os is LocalRepoOsType => os === 'rhel' || os === 'ubuntu';
+const isValidOs = (os: string | undefined): os is LocalRepoOsType => os === 'rhel' /* || os === 'ubuntu' */;
 
 const isNonEmptyValue = (value: unknown): boolean => {
   if (value === null || value === undefined) return false;
@@ -57,7 +57,7 @@ const isDefaultOmniaRepo = (
 };
 
 const hasLocalRepoData = (store: { rhel: LocalRepoOsData; ubuntu: LocalRepoOsData }): boolean => {
-  for (const osType of ['rhel', 'ubuntu'] as const) {
+  for (const osType of ['rhel'/*, 'ubuntu'*/] as const) {
     const osData = store[osType];
     for (const [key, value] of Object.entries(osData)) {
       if (key.startsWith('_ui_')) continue;
@@ -85,7 +85,7 @@ const LocalRepoManagement = () => {
     try {
       const payload = {
         rhel: store.rhel,
-        ubuntu: store.ubuntu,
+        // ubuntu: store.ubuntu, // Ubuntu disabled for later release
       };
       await generateLocalRepo.mutateAsync(payload);
       showAlert('Local repo config and user registry credentials generation started.', 'success');

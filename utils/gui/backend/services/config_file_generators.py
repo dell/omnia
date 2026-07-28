@@ -488,7 +488,7 @@ def _build_local_repo_config_for_os(data: Dict[str, Any], os_type: str) -> Dict[
 
     Args:
         data: OS-specific form data
-        os_type: 'rhel' or 'ubuntu'
+        os_type: 'rhel' or 'ubuntu' (currently only 'rhel' is used)
 
     Returns:
         Dictionary with local repo config entries
@@ -594,7 +594,7 @@ def generate_local_repo_config(wizard_data: Dict[str, Any], input_dir: Path, wri
     # New management payload with per-OS sections
     if "rhel" in wizard_data or "ubuntu" in wizard_data:
         merged_config: Dict[str, Any] = {}
-        for os_type in ("rhel", "ubuntu"):
+        for os_type in ("rhel",):  # "ubuntu" disabled for later release
             os_data = wizard_data.get(os_type, {})
             if not os_data:
                 continue
@@ -679,7 +679,7 @@ def generate_user_registry_credential(wizard_data, input_dir, write_yaml_fn):
     if "rhel" in wizard_data or "ubuntu" in wizard_data:
         merged_credentials = []
         seen = set()
-        for os_type in ("rhel", "ubuntu"):
+        for os_type in ("rhel",):  # "ubuntu" disabled for later release
             os_data = wizard_data.get(os_type, {})
             if os_data.get("_ui_showCredentials", False):
                 credentials = os_data.get("user_registry_credential", [])

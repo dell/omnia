@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import React from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,6 +31,17 @@ const defaultPackage: FunctionalPackage = {
   Version: '',
   Tag: '',
 };
+
+const OS_DISPLAY_NAME: Record<string, string> = {
+  rhel: 'RHEL',
+  // ubuntu: 'Ubuntu', // Disabled for later release
+};
+
+const DEFAULT_VERSION: Record<string, string> = {
+  rhel: '10.0',
+  // ubuntu: '22.04', // Disabled for later release
+};
+
 interface LayerPackageFormProps {
   onSubmit: (data: FunctionalPackage) => void;
   onCancel: () => void;
@@ -91,6 +102,12 @@ const FunctionalLayerEditor = () => {
   const [selectedRole, setSelectedRole] = useState('');
   const [osFamily, setOsFamily] = useState('rhel');
   const [osVersion, setOsVersion] = useState('10.0');
+
+  const handleOsFamilyChange = (newFamily: string) => {
+    setOsFamily(newFamily);
+    setOsVersion(DEFAULT_VERSION[newFamily] ?? '');
+  };
+
   const [arch, setArch] = useState('x86_64');
   const editFormRef = useRef<HTMLDivElement>(null);
   
@@ -219,7 +236,7 @@ const FunctionalLayerEditor = () => {
             Version: pkgData.version || undefined,
             Tag: pkgData.tag || undefined,
             Sources: sources.length > 0 ? sources : undefined,
-            SupportedOS: [{ Name: osFamily, Version: osVersion }]
+            SupportedOS: [{ Name: OS_DISPLAY_NAME[osFamily] ?? osFamily, Version: osVersion }]
           });
           return { 
             type: 'added', 
@@ -232,7 +249,7 @@ const FunctionalLayerEditor = () => {
               Version: pkgData.version || undefined,
               Tag: pkgData.tag || undefined,
               Sources: sources.length > 0 ? sources : undefined,
-              SupportedOS: [{ Name: osFamily, Version: osVersion }]
+              SupportedOS: [{ Name: OS_DISPLAY_NAME[osFamily] ?? osFamily, Version: osVersion }],
             }
           };
         } catch (error) {
@@ -540,7 +557,7 @@ const FunctionalLayerEditor = () => {
         Name: pkg.Name,
         Type: pkg.Type,
         Architecture: pkg.Architecture || ['x86_64'],
-        SupportedOS: pkg.SupportedOS || [{ Name: 'RHEL', Version: '10.0' }],
+        SupportedOS: pkg.SupportedOS || [{ Name: OS_DISPLAY_NAME[osFamily] ?? osFamily, Version: osVersion }],
         Sources: pkg.Sources || [],
         Version: pkg.Version || '',
         Tag: pkg.Tag || '',
@@ -646,6 +663,14 @@ const FunctionalLayerEditor = () => {
     const pkg = catalogRoot.Catalog.FunctionalPackages[packageId];
     return pkg ? pkg.Name : packageId;
   };
+  const currentDefaultPackage = useMemo<FunctionalPackage>(() => ({
+    ...defaultPackage,
+    SupportedOS: [{
+      Name: OS_DISPLAY_NAME[osFamily] ?? osFamily,
+      Version: osVersion,
+    }],
+  }), [osFamily, osVersion]);
+
   if (!catalogRoot) return <p>No catalog loaded</p>;
   return (
     <div className="p-8">
@@ -667,7 +692,7 @@ const FunctionalLayerEditor = () => {
         arch={arch}
         selectedRole={selectedRole}
         roles={roles}
-        onOsFamilyChange={setOsFamily}
+        onOsFamilyChange={handleOsFamilyChange}
         onOsVersionChange={setOsVersion}
         onArchChange={setArch}
         onRoleChange={setSelectedRole}
@@ -772,6 +797,7 @@ const FunctionalLayerEditor = () => {
                         onCancel={() => setShowAddPackageForm(null)}
                         submitLabel="Add"
                         title={`Add Package to ${layerName}`}
+                        defaultValues={currentDefaultPackage}
                       />
                     )}
                     {showEditPackageForm?.layerName === layerName && (

@@ -34,7 +34,7 @@ export interface ValidationError {
   message: string;
 }
 
-export interface ValidationResult {
+interface ValidationResult {
   success: boolean;
   errors: ValidationError[];
 }

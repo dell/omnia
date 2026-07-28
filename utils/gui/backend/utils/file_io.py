@@ -23,14 +23,6 @@ class IndentedListDumper(yaml.Dumper):
         return super().increase_indent(flow, False)  # Force indentless=False
 
 
-class NetworkSpecDumper(yaml.Dumper):
-    """Custom YAML dumper for network_spec.yml with no list indentation under top-level keys."""
-    def increase_indent(self, flow=False, indentless=False):
-        # For network_spec.yml, use indentless=True for top-level lists
-        # This matches the reference file format where list dashes are at same level as parent key
-        return super().increase_indent(flow, True)
-
-
 class QuotedStringDumper(yaml.Dumper):
     """Custom YAML dumper that quotes all string values to match reference file format."""
     def represent_mapping(self, tag, mapping, flow_style=None):
@@ -132,31 +124,6 @@ def write_json_atomic(path: Union[str, Path], data: Dict[str, Any], indent: int 
         raise ConfigEditorException(f"Failed to write JSON file {path}: {str(e)}")
 
 
-def read_yaml(path: Union[str, Path]) -> Dict[str, Any]:
-    """Read YAML file and return parsed dictionary.
-    
-    Args:
-        path: Path to YAML file
-        
-    Returns:
-        Parsed YAML as dictionary
-        
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        yaml.YAMLError: If file contains invalid YAML
-        ConfigEditorException: For other I/O errors
-    """
-    try:
-        with open(path, 'r') as f:
-            return yaml.safe_load(f)
-    except FileNotFoundError:
-        raise
-    except yaml.YAMLError as e:
-        raise
-    except Exception as e:
-        raise ConfigEditorException(f"Failed to read YAML file {path}: {str(e)}")
-
-
 def write_yaml(path: Union[str, Path], data: Dict[str, Any]) -> None:
     """Write dictionary to YAML file.
     
@@ -182,63 +149,6 @@ def write_yaml(path: Union[str, Path], data: Dict[str, Any]) -> None:
             )
     except Exception as e:
         raise ConfigEditorException(f"Failed to write YAML file {path}: {str(e)}")
-
-
-def read_csv(path: Union[str, Path]) -> List[List[str]]:
-    """Read CSV file and return list of rows.
-    
-    Args:
-        path: Path to CSV file
-        
-    Returns:
-        List of CSV rows (each row is a list of strings)
-        
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        ConfigEditorException: For other I/O errors
-    """
-    try:
-        import csv
-        with open(path, 'r') as f:
-            reader = csv.reader(f)
-            return list(reader)
-    except FileNotFoundError:
-        raise
-    except Exception as e:
-        raise ConfigEditorException(f"Failed to read CSV file {path}: {str(e)}")
-
-
-def write_csv(path: Union[str, Path], rows: List[List[str]]) -> None:
-    """Write list of rows to CSV file.
-    
-    Args:
-        path: Path to CSV file
-        rows: List of CSV rows (each row is a list of strings)
-        
-    Raises:
-        ConfigEditorException: If file cannot be written
-    """
-    try:
-        import csv
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerows(rows)
-    except Exception as e:
-        raise ConfigEditorException(f"Failed to write CSV file {path}: {str(e)}")
-
-
-def file_exists(path: Union[str, Path]) -> bool:
-    """Check if file exists.
-    
-    Args:
-        path: Path to check
-        
-    Returns:
-        True if file exists, False otherwise
-    """
-    return Path(path).exists()
 
 
 def ensure_directory(path: Union[str, Path]) -> None:

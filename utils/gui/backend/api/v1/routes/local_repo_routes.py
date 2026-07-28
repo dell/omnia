@@ -61,7 +61,7 @@ async def generate_local_repo(
     """Trigger local repository configuration generation.
 
     Args:
-        data: Local repo management data with rhel and ubuntu sections
+        data: Local repo management data with RHEL section (Ubuntu is disabled for later release)
         background_tasks: FastAPI background tasks
         request: FastAPI request object
         local_repo_generator_service: Local repo generator service instance

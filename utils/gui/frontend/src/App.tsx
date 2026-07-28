@@ -36,7 +36,8 @@ function App() {
             <Route path="/catalog" element={<CatalogViewer />} />
             <Route path="/catalog-editor" element={<CatalogEditor />} />
             <Route path="/local-repo" element={<Navigate to="/local-repo/rhel" replace />} />
-            <Route path="/local-repo/:os" element={<LocalRepoManagement />} />
+            <Route path="/local-repo/rhel" element={<LocalRepoManagement />} />
+            {/* <Route path="/local-repo/:os" element={<LocalRepoManagement />} /> */}
             <Route path="/adapter-policy" element={<AdapterPolicyEditor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -162,7 +162,7 @@ class OSPackageService:
         
         Args:
             arch: Architecture (x86_64, aarch64)
-            os_family: OS family (rhel, ubuntu)
+            os_family: OS family (rhel; ubuntu is disabled for later release)
             version: OS version (10.0, 9.5)
         
         Returns:
@@ -175,6 +175,7 @@ class OSPackageService:
                 {"name": "service_k8s", "type": "functional", "package_count": 120}
             ]
         """
+        os_family = os_family.lower()
         self._validate_path_component(arch, "arch")
         self._validate_path_component(os_family, "os_family")
         self._validate_path_component(version, "version")
@@ -242,6 +243,7 @@ class OSPackageService:
                 ]
             }
         """
+        os_family = os_family.lower()
         self._validate_path_component(arch, "arch")
         self._validate_path_component(os_family, "os_family")
         self._validate_path_component(version, "version")
@@ -307,6 +309,7 @@ class OSPackageService:
                 "openldap": [...]
             }
         """
+        os_family = os_family.lower()
         # Note: list_available_bundles and get_bundle_packages also validate,
         # but we validate here too for fail-fast on direct calls.
         self._validate_path_component(arch, "arch")
@@ -356,6 +359,7 @@ class OSPackageService:
                 }
             ]
         """
+        os_family = os_family.lower()
         self._validate_path_component(arch, "arch")
         self._validate_path_component(os_family, "os_family")
         self._validate_path_component(version, "version")
