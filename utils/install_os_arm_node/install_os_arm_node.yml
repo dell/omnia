@@ -47,7 +47,7 @@
   ansible.builtin.import_playbook: ../include_input_dir.yml
   tags: always
 
-- name: iso_config.yml validation
+- name: Validate iso_config.yml
   hosts: localhost
   connection: local
   gather_facts: false
