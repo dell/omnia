@@ -1,6 +1,17 @@
 Omnia Documentation
 -------------------
 
-**Omnia** is an open source project hosted on `GitHub <https://github.com/dell/omnia>`_. Go to `GitHub <https://github.com/dell/omnia>`_ to view the source, open issues, ask questions, and participate in the project.
+**Omnia** is an open source project hosted on `GitHub <https://github.com/dell/omnia>`_.
 
-The Omnia docs are hosted here: https://omnia.readthedocs.io/en/latest/index.html and are written in reStructuredText (`.rst`).
+This directory contains **generic** Omnia documentation shared across all domains.
+Domain-specific docs live inside each domain (e.g. ``src/image_build_manager/docs/``).
+
+::
+
+  docs/
+  ├── code-style/                   Code style guides (Ansible, Python, Jinja2)
+  ├── design/                       Cross-domain design documents
+  │   ├── ansible-collections-migration.md
+  │   ├── omnia-domain-repo-design.md
+  │   └── test-automation-design.md
+  └── logos/                        Omnia branding assets

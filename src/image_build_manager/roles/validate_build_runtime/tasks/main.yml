@@ -33,31 +33,6 @@
 - name: Run PowerScale S3 endpoint validation
   ansible.builtin.include_tasks: powerscale_check.yml
 
-- name: Validate software_config.json exists
-  ansible.builtin.stat:
-    path: "{{ software_config_file_path }}"
-  register: sw_config_file
-
-- name: Fail if software_config.json not found
-  ansible.builtin.fail:
-    msg: "{{ validate_software_config_fail_msg }}"
-  when: not sw_config_file.stat.exists
-
-- name: Validate JSON syntax of software_config.json
-  ansible.builtin.command: "jq . {{ software_config_file_path }}"
-  register: json_check
-  changed_when: false
-  failed_when: false
-
-- name: Fail if software_config.json has invalid JSON
-  ansible.builtin.fail:
-    msg: |
-      JSON validation failed for software_config.json.
-      File: {{ software_config_file_path }}
-      {{ json_check.stderr | default('Unknown jq error') }}
-      Please fix the JSON syntax.
-  when: json_check.rc | default(1) != 0
-
 - name: Validate functional groups config exists
   ansible.builtin.stat:
     path: "{{ functional_groups_file_path }}"
@@ -81,7 +56,7 @@
 - name: Validate repo_status.yml was loaded (pre-check passed)
   ansible.builtin.assert:
     that:
-      - overall_status | default('') == 'synced'
+      - overall_status | default('') == 'success'
     fail_msg: "{{ validate_repo_status_fail_msg }}"
     quiet: true
   when: validate_repo_precheck | default(false) | bool

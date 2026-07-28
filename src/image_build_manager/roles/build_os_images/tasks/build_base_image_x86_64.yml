@@ -70,16 +70,21 @@
       retries: "{{ job_retry }}"
       delay: "{{ job_delay }}"
 
+    - name: Configure regctl to use HTTP for local registry
+      ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
+      changed_when: false
+      failed_when: false
+
     - name: Verify the x86_64 base osimage in registry
       ansible.builtin.command:
-        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ oim_node_name }}.{{ domain_name }}:5000"
+        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
       changed_when: false
       register: verify_base_osimage
 
     - name: Fail if x86_64 base osimage not created
       ansible.builtin.fail:
-        msg: "Failed to build base osimage {{ oim_node_name }}/{{ rhel_arch_base_image_name }}"
-      when: (oim_node_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
+        msg: "Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}"
+      when: (host_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
 
     - name: Verify x86_64 base osimage output
       ansible.builtin.debug:
@@ -90,19 +95,19 @@
       ansible.builtin.fail:
         msg: "{{ base_image_failure_msg }}"
 
-  always:
-    - name: Set openchami SELinux context for Local flow
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
-      changed_when: true
-      delegate_to: oim
-      connection: ssh
-      failed_when: false
-      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+  # always:
+  #   - name: Set openchami SELinux context for Local flow
+  #     ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
+  #     changed_when: true
+  #     delegate_to: oim
+  #     connection: ssh
+  #     failed_when: false
+  #     when: hostvars['localhost']['omnia_share_option'] == 'Local'
 
-    - name: Set openchami SELinux context for NFS internal flow
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
-      changed_when: true
-      delegate_to: oim
-      connection: ssh
-      failed_when: false
-      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
+  #   - name: Set openchami SELinux context for NFS internal flow
+  #     ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+  #     changed_when: true
+  #     delegate_to: oim
+  #     connection: ssh
+  #     failed_when: false
+  #     when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')

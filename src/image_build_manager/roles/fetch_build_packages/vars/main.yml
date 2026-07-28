@@ -14,13 +14,8 @@
 
 ---
 
-metadata_file_path: "/opt/omnia/offline_repo/.data/localrepo_metadata.yml"
-local_repo_check_msg: |
-  Failure: metadata file path {{ metadata_file_path }} is not present inside omnia_core container.
-  Please make sure that local_repo.yml playbook is executed successfully.
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
-functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] | default('/opt/omnia/.data/functional_groups_config.yml') }}"
-software_config_file_path: "{{ input_project_dir }}/software_config.json"
+functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
 
 # Architecture-agnostic variables — build_arch is set by the calling playbook
 build_image_completion_msg: |
@@ -28,8 +23,8 @@ build_image_completion_msg: |
   To boot {{ build_arch }} nodes execute provision/provision.yml playbook.
 
 functional_group_absent_msg: |
-  Failure: No {{ build_arch }} functional groups found in functional_group_config.yml input file inside omnia_core container.
-  Please make sure {{ build_arch }} functional_group should be present in input file functional_group_config.yml
+  Failure: No {{ build_arch }} functional groups found in functional_group_config.
+  Please ensure {{ build_arch }} functional groups are defined in image_build_config.yml
   to execute build_image_{{ build_arch }}.yml successfully.
 build_stream_prerequisite_fail_msg: |
   Build Stream mode is enabled. Manual execution is not supported.
