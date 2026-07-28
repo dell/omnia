@@ -13,35 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Check if iso_config.yml exists
-  ansible.builtin.stat:
-    path: "{{ iso_config_file }}"
-  register: iso_config_stat
-
-- name: Load iso_config.yml if present
-  when: iso_config_stat.stat.exists
-  block:
-    - name: Include iso_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ iso_config_file }}"
-        name: iso_config
-      register: include_iso_config
-  rescue:
-    - name: Failed to load iso_config.yml
-      ansible.builtin.fail:
-        msg: "Failed to parse iso_config.yml: {{ include_iso_config.message | default('syntax error') }}"
-
-- name: Set default iso_config when file not found
-  when: not iso_config_stat.stat.exists
-  block:
-    - name: Log using defaults
-      ansible.builtin.debug:
-        msg: "{{ iso_config_not_found_msg }}"
-
-    - name: Set empty iso_config
-      ansible.builtin.set_fact:
-        iso_config: {}
-
 - name: Verify PXE mapping file exists
   ansible.builtin.stat:
     path: "{{ pxe_mapping_file_path }}"
@@ -84,8 +55,4 @@
 
 - name: Log ARM config validation success
   ansible.builtin.debug:
-    msg: >-
-      ARM configuration validation passed.
-      ISO config: {{ 'loaded' if iso_config_stat.stat.exists else 'defaults' }}.
-      PXE mapping: {{ pxe_mapping_file_path }}.
-      Network spec: {{ network_spec_file }}.
+    msg: "{{ arm_config_success_msg }}"

@@ -14,7 +14,6 @@
 ---
 
 # Configuration file paths
-iso_config_file: "{{ iso_config_path | default((input_project_dir | default('/opt/omnia/input/project_default')) + '/iso_config.yml') }}"
 pxe_mapping_file_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/pxe_mapping_file.csv"
 network_spec_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/network_spec.yml"
 
@@ -29,7 +28,7 @@ default_kickstart_template: "rhel10"
 # Error messages
 iso_config_not_found_msg: >-
   iso_config.yml not found at '{{ iso_config_file }}'.
-  Using default configuration values.
+  Please create the configuration file or provide a valid path via iso_config_path parameter.
 pxe_mapping_not_found_msg: >-
   PXE mapping file not found at '{{ pxe_mapping_file_path }}'.
   The PXE mapping file is required to determine the os_aarch64 node's BMC IP
@@ -48,3 +47,7 @@ no_aarch64_node_msg: >-
 provision_password_missing_msg: >-
   provision_password is not set. Please run the credential utility
   (utils/credential_utility/get_config_credentials.yml) to set the provision_password.
+arm_config_success_msg: >-
+  ARM configuration validation passed.
+  PXE mapping: {{ pxe_mapping_file_path }}.
+  Network spec: {{ network_spec_file }}.

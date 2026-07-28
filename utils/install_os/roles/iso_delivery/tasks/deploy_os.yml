@@ -20,69 +20,60 @@
     nfs_iso_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
     nfs_iso_filename: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
 
-- name: Set NFS share and ISO paths for idrac_os_deployment
+- name: Set full NFS ISO URI for iDRAC virtual media
   ansible.builtin.set_fact:
     nfs_iso_output_dir: "{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
-    nfs_share_path: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
-    nfs_iso_image: "{{ nfs_iso_filename }}"
+    nfs_iso_uri: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}/{{ nfs_iso_filename }}"
+    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
 
-# ── Step 2: Boot to Network ISO ─────────────────────────────────────────
-- name: Mounting ISO and booting it
-  ansible.builtin.debug:
-    msg: >-
-      Mounting ISO & booting it via iDRAC. BMC: {{ target_bmc_ip }},
-      NFS Share: {{ nfs_share_path }},
-      ISO Image: {{ nfs_iso_image }},
-      Target IP: {{ target_node_ip }},
-      Exposure: {{ expose_duration }} minutes
 
-- name: Boot to Network ISO using idrac_os_deployment
-  dellemc.openmanage.idrac_os_deployment:
+# ── Step 2: Eject existing virtual media, boot ISO ────
+- name: Eject existing virtual media if mounted
+  dellemc.openmanage.idrac_virtual_media:
     idrac_ip: "{{ target_bmc_ip }}"
     idrac_user: "{{ bmc_username }}"
     idrac_password: "{{ bmc_password }}"
     validate_certs: false
-    share_name: "{{ nfs_share_path }}"
-    iso_image: "{{ nfs_iso_image }}"
-    expose_duration: "{{ expose_duration }}"
-  register: boot_status
+    virtual_media:
+      - insert: false
+  changed_when: false
+  failed_when: false
   no_log: true
 
-- name: Check idrac_os_deployment result
-  block:
-    - name: Evaluate boot success status
-      ansible.builtin.set_fact:
-        boot_success: >-
-          {% if 'boot_status' in boot_status and boot_status.boot_status is mapping %}
-          {{ boot_status.boot_status.Status | default('') == 'Success' or boot_status.boot_status.JobStatus | default('') == 'Success' }}
-          {% else %}
-          {{ not boot_status.failed | default(true) }}
-          {% endif %}
+# ── Step 3: Insert ISO as virtual media ─────────────────────────────────
+- name: Mount ISO via iDRAC virtual media
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    force: true
+    virtual_media:
+      - insert: true
+        image: "{{ nfs_iso_uri }}"
+  register: insert_result
+  no_log: true
 
-    - name: Display boot operation result
-      ansible.builtin.debug:
-        msg: >-
-          Boot operation result:
-          - Changed: {{ boot_status.changed | default('N/A') }}
-          - Failed: {{ boot_status.failed | default('N/A') }}
-          - Success: {{ 'Success' if boot_success else 'Failed' }}
-          - Available keys: {{ boot_status.keys() | list | join(', ') }}
-          {% if 'msg' in boot_status %}
-          - Message type: {{ boot_status.msg | type_debug }}
-          - Message content: {{ boot_status.msg }}
-          {% endif %}
-          {% if 'boot_status' in boot_status %}
-          - Boot status type: {{ boot_status.boot_status | type_debug }}
-          - Boot status content: {{ boot_status.boot_status | to_nice_json }}
-          {% endif %}
+- name: Set boot override to CD (one-time)
+  dellemc.openmanage.idrac_boot:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    boot_source_override_enabled: "once"
+    boot_source_override_target: "cd"
+  register: boot_override_result
+  no_log: true
 
-- name: Fail if boot operation failed
-  ansible.builtin.fail:
-    msg: "{{ boot_operation_fail_msg }}"
-  vars:
-    boot_status_details: >-
-      {{ boot_status.boot_status.Status | default(boot_status.boot_status.Message | default('Unknown error')) }}
-  when: not boot_success | default(false)
+- name: Reboot server to boot from ISO
+  dellemc.openmanage.redfish_powerstate:
+    baseuri: "{{ target_bmc_ip }}"
+    username: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: false
+    reset_type: "ForceRestart"
+  register: reboot_result
+  no_log: true
 
 # ── Step 3: Wait for OS installation to complete ────────────────────────
 - name: Wait for target node to become offline (reboot in progress)
@@ -144,7 +135,7 @@
 
 - name: Wait for OS installation to complete (monitor iDRAC SEL and SSH)
   block:
-    - name: Poll iDRAC SEL for installation completion (with timestamp filtering)
+    - name: Poll iDRAC SEL for installation completion
       ansible.builtin.uri:
         url: "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries"
         method: GET
@@ -246,3 +237,16 @@
   when:
     - os_verify is defined
     - os_verify.rc == 0
+
+# ── Step 7: Cleanup — eject virtual media ───────────────────────────────
+- name: Eject virtual media after installation
+  dellemc.openmanage.idrac_virtual_media:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+    virtual_media:
+      - insert: false
+  changed_when: true
+  failed_when: false
+  no_log: true
