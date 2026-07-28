@@ -30,6 +30,16 @@ telemetry_registry:
   cert_path: ""
   key_path: ""
   username: ""
+  images:
+    victoria:
+      vmstorage: "victoriametrics/vmstorage:v1.104.0"
+      vmselect: "victoriametrics/vmselect:v1.104.0"
+      vminsert: "victoriametrics/vminsert:v1.104.0"
+      vmagent: "victoriametrics/vmagent:v1.104.0"
+      vlstorage: "victoriametrics/vlstorage:v1.104.0"
+      vlselect: "victoriametrics/vlselect:v1.104.0"
+      vlinsert: "victoriametrics/vlinsert:v1.104.0"
+      vlagent: "victoriametrics/vlagent:v1.104.0"
 
 # ============================================================================
 # TELEMETRY PACKAGES (Full Pulp / HTTP URLs)

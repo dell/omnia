@@ -17,6 +17,9 @@
 # deploy_victoria/metrics — Prepare: download operator package + generate manifests
 # =============================================================================
 
+- name: Load role variables
+  ansible.builtin.include_vars: "{{ role_path }}/metrics/vars/main.yml"
+
 - name: Prepare VictoriaMetrics operator package (common)
   ansible.builtin.include_tasks: ../../common/tasks/prepare_operator.yml
 

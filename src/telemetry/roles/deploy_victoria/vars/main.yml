@@ -27,6 +27,15 @@ cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
+# VictoriaMetrics Cluster Configuration
+victoria_deployment_mode: "cluster"
+victoria_cluster:
+  enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
+  tls_enabled: true
+
+# Certificate directory
+victoria_cert_dir: "{{ telemetry_deploy_dir }}/certs/victoria"
+
 # Timeouts
 victoria_deploy_timeout: "600s"
 victoria_crd_wait_retries: 60
