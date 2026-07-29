@@ -2,13 +2,13 @@
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../playbooks/utils/include_input_dir.yml
+  ansible.builtin.import_playbook: ../../playbooks/utils/include_input_dir.yml
   vars:
     omnia_metadata_support: true
   tags: always
 
 - name: Create oim group
-  ansible.builtin.import_playbook: ../playbooks/utils/create_container_group.yml
+  ansible.builtin.import_playbook: ../../playbooks/utils/create_container_group.yml
   vars:
     oim_group: true
   tags: always

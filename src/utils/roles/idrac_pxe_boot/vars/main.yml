@@ -1,0 +1,55 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Change to false for not restarting host. only setting pxe_boot will happen
+restart_host: true
+
+# Change to true for forceful reboot. by default graceful will happen
+force_restart: true
+
+reboot_status: "PXE boot initiated but not completed."
+reboot_failed: false
+
+# Set boot source override mode. Valid values are once, continuous, or disabled
+boot_source_override_enabled: continuous
+
+# Set boot source override target. Valid values are pxe,uefi_http,sd_card,uefi_target,utilities,bios_setup,hdd,cd,floppy,none
+boot_source_override_target: pxe
+
+# Usage: main.yml
+lc_check_fail_msg: "Failed. iDRAC is not ready. Retry again after iDRAC is ready"
+provision_os_msg: "OS provisioning is initiated. Wait for installation to complete for all servers."
+pxe_provisioning_fail_msg: "OS booting using PXE failed. This could be due to outdated NIC firmware. Re-run set_pxe_boot.yml after fixing the issue"
+bmc_validation_fail_msg: "Failed. bmc group in inventory must have atleast one bmc ip."
+unreachable_idrac_msg: "iDRAC is unreachable. pxe boot might be set. Please check the host reboot status manually"
+
+# Usage: pre_checks.yml
+bmc_inventory_path: "/opt/omnia/provision/bmc_inventory"
+bmc_inventory_not_found_msg: |
+  Failed. No BMC inventory found.
+
+  Please either:
+  1. Provide a custom inventory file with 'bmc' group:
+     ansible-playbook set_pxe_boot.yml -i <your_inventory_file>
+
+  2. Or run discovery.yml first to auto-generate BMC inventory from PXE mapping file at:
+     {{ bmc_inventory_path }}
+bmc_no_hosts_msg: "Failed. 'bmc' group has no hosts. Please check your inventory file or PXE mapping file."
+
+# Usage: generate_bmc_inventory.yml
+pxe_mapping_file_path: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/pxe_mapping_file.csv"
+provision_dir_path: "/opt/omnia/provision"
+provision_dir_mode: "0755"
+bmc_inventory_file_mode: "0644"
+bmc_inventory_generated_msg: "BMC inventory generated at {{ bmc_inventory_path }} with {{ bmc_ip_list | length }} BMC IP(s)"

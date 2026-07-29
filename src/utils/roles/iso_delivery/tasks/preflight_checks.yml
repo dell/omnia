@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate ISO NFS share path is provided
+  ansible.builtin.fail:
+    msg: "{{ no_iso_nfs_share_msg }}"
+  when: iso_nfs_share | length == 0
+
+- name: Check if target node is already reachable via SSH
+  when: target_node_ip is defined and target_node_ip | length > 0
+  block:
+    - name: Test SSH connectivity to target node
+      ansible.builtin.wait_for:
+        host: "{{ target_node_ip }}"
+        port: 22
+        timeout: 10
+        state: started
+      register: target_ssh_check
+      failed_when: false
+
+    - name: Abort if target is reachable and force_reinstall is false
+      ansible.builtin.fail:
+        msg: "{{ target_already_reachable_msg }}"
+      when:
+        - target_ssh_check is success
+        - not (force_reinstall | bool)
+
+    - name: Warn that target is reachable but force_reinstall is true
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Target node at '{{ target_node_ip }}' is reachable but
+          force_reinstall is true. Proceeding with OS reinstallation.
+      when:
+        - target_ssh_check is success
+        - force_reinstall | bool
+
+- name: Verify iDRAC reachability and get Lifecycle Controller status
+  dellemc.openmanage.idrac_lifecycle_controller_status_info:
+    idrac_ip: "{{ target_bmc_ip }}"
+    idrac_user: "{{ bmc_username }}"
+    idrac_password: "{{ bmc_password }}"
+    validate_certs: false
+  register: lc_status_info
+  failed_when: false
+  no_log: true
+
+- name: Fail if iDRAC is not reachable
+  ansible.builtin.fail:
+    msg: "{{ idrac_unreachable_msg }}"
+  when: lc_status_info is failed
+
+- name: Log iDRAC pre-flight check success
+  ansible.builtin.debug:
+    msg: >-
+      iDRAC pre-flight checks passed.
+      BMC: {{ target_bmc_ip }},
+      LC Status: {{ lc_status_info.lc_status_info.msg.LCStatus | default('Ready') }},
+      LC Ready: {{ lc_status_info.lc_status_info.msg.LCReady | default(true) }}
