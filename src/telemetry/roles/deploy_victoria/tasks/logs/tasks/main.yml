@@ -1,0 +1,5 @@
+---
+# Wrapper to include logs tasks from the non-standard role layout
+# tasks_from: logs/tasks/main resolves to this file under tasks/
+- name: Include VictoriaLogs tasks
+  ansible.builtin.include_tasks: "{{ role_path }}/logs/tasks/main.yml"

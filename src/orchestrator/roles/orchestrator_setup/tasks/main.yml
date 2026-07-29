@@ -1,0 +1,150 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Step 0: Tag validation — reject unsupported or conflicting tags
+- name: Set omnia_run_tags from ansible_run_tags
+  ansible.builtin.set_fact:
+    omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
+    cacheable: true
+
+- name: Validate tags are supported
+  ansible.builtin.fail:
+    msg: >-
+      Unsupported tag '{{ item }}' specified.
+      Supported tags: {{ supported_tags | join(', ') }}
+  when:
+    - omnia_run_tags | length > 0
+    - "'all' not in omnia_run_tags"
+    - item not in supported_tags
+  loop: "{{ omnia_run_tags }}"
+
+- name: Validate no conflicting tag combinations
+  ansible.builtin.fail:
+    msg: >-
+      Conflicting tags specified: {{ item | join(' + ') }}.
+      These tags cannot be used together.
+  when:
+    - omnia_run_tags | length > 0
+    - item | intersect(omnia_run_tags) | length == item | length
+  loop: "{{ invalid_tag_combinations }}"
+
+# Step 1: Upgrade guard — block if upgrade is in progress
+- name: Check upgrade lock file
+  ansible.builtin.stat:
+    path: "{{ upgrade_lock_file }}"
+  register: upgrade_lock
+
+- name: Block playbook while upgrade is in progress
+  ansible.builtin.fail:
+    msg: "{{ upgrade_in_progress_msg }}"
+  when:
+    - upgrade_lock.stat.exists
+    - not (upgrade_mode | default(false) | bool)
+
+# Step 2: Load project config and set input/output dirs
+- name: Load omnia project config
+  block:
+    - name: Include omnia project config file
+      ansible.builtin.include_vars: "{{ omnia_input_config_file }}"
+      register: include_omnia_config
+  rescue:
+    - name: Failed to include omnia project config file
+      ansible.builtin.fail:
+        msg: "{{ omnia_input_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
+
+- name: Set input_project_dir and output_project_dir
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ omnia_input_dir }}/{{ project_name }}"
+    output_project_dir: "{{ omnia_output_dir }}/{{ project_name }}"
+    cacheable: true
+
+- name: Verify the project directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: verify_project_dir
+
+- name: Fail if project directory does not exist
+  ansible.builtin.fail:
+    msg: "{{ project_dir_not_exist_fail_msg }}"
+  when: not verify_project_dir.stat.exists
+
+# Step 3: Include domain vars
+- name: Include common vars
+  ansible.builtin.include_vars: "{{ playbook_dir }}/vars/common_vars.yml"
+
+- name: Include openchami vars
+  ansible.builtin.include_vars: "{{ playbook_dir }}/vars/openchami_vars.yml"
+  when: openchami_vars_support | default(false)
+
+# Step 4: Include OIM metadata vars
+- name: Include oim metadata vars
+  ansible.builtin.include_vars: "{{ omnia_metadata_file_path }}"
+  when: omnia_metadata_support | default(false)
+
+# Step 5: Save project-level input dir and scope to orchestrator subdir
+- name: Save original project-level input dir
+  ansible.builtin.set_fact:
+    omnia_project_input_dir: "{{ input_project_dir }}"
+    cacheable: true
+
+- name: Override input_project_dir to orchestrator subdirectory
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ input_project_dir }}/orchestrator"
+    project_name: "orchestrator"
+    orchestrator_config_file: "orchestrator_config.yml"
+    orchestrator_output_dir: "{{ output_project_dir }}/orchestrator"
+    project_dir_status: true
+    cacheable: true
+
+- name: Verify orchestrator input directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: orchestrator_input_stat
+
+- name: Fail if orchestrator input directory does not exist
+  ansible.builtin.fail:
+    msg: >-
+      Orchestrator input directory '{{ input_project_dir }}' does not exist.
+      Please create it and populate with orchestrator_config.yml, network_spec.yml,
+      and pxe_mapping_file.csv (from discovery output).
+  when: not orchestrator_input_stat.stat.exists
+
+- name: Ensure orchestrator output directory exists
+  ansible.builtin.file:
+    path: "{{ orchestrator_output_dir }}"
+    state: directory
+    mode: '0755'
+
+# Step 6: Load orchestrator config
+- name: Load orchestrator config for image_build_manager output path
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/orchestrator_config.yml"
+    name: _orch_config
+  failed_when: false
+
+- name: Set image_build_manager_output_path on localhost
+  ansible.builtin.set_fact:
+    image_build_manager_output_path: "{{ _orch_config.image_build_manager_output_path | default(default_build_status_path) }}"
+    cacheable: true
+
+# Step 7: Create OIM host group (only when oim_group is explicitly enabled)
+- name: Create {{ oim_host_group }} group
+  ansible.builtin.add_host:
+    hostname: "{{ oim_host_group }}"
+    ansible_host: "localhost"
+    ansible_port: "{{ oim_host_port }}"
+    groups: "{{ oim_host_group }}"
+  when:
+    - oim_group | default(false) | bool

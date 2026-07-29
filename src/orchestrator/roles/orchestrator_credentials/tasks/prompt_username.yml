@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Prompt for username if needed
+- name: Fetch username if empty # noqa name[template]
+  when: username_status
+  block:
+    - name: Fetch credential rule for "{{ field.username | default('Username') }}" # noqa name[template]
+      fetch_credential_rule:
+        credential_field: "{{ field.username }}"
+        module_utils_path: "{{ module_utils_path }}"
+      register: credential_rule
+
+    - name: Show Docker Hub usage warning
+      ansible.builtin.pause:
+        prompt: "{{ docker_hub_warning }}"
+      when: field.username is defined and field.username == 'docker_username'
+
+    - name: Prompt user for "{{ field.username | default('Username') }}" # noqa name[template]
+      ansible.builtin.pause:
+        prompt: "[{{ field.username }}] {{ lookup('vars', type.key ~ '_input') }} {{ credential_rule.msg }} Enter value"
+      no_log: true
+      register: username_input
+
+    - name: Validate mandatory username not empty
+      ansible.builtin.fail:
+        msg: "{{ mandatory_credentials_msg }}"
+      when:
+        - mandatory_credentials_status
+        - username_input.user_input | length == 0
+
+    - name: Set username status when username is empty for OPTIONAL credential
+      ansible.builtin.set_fact:
+        username_status: false
+        password_status: false
+      when:
+        - not mandatory_credentials_status
+        - username_input.user_input | length == 0
+
+    - name: Validate input credential - "{{ field.username | default('Username') }}" # noqa name[template]
+      validate_credentials:
+        credential_field: "{{ field.username }}"
+        credential_input: "{{ username_input.user_input }}"
+        module_utils_path: "{{ module_utils_path }}"
+      when: username_input.user_input | length != 0
+
+  rescue:
+    - name: Failed to credentials with entered username
+      ansible.builtin.fail:
+        msg: "{{ username_fail_msg }}"
