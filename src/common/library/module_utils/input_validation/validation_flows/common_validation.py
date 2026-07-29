@@ -1750,12 +1750,6 @@ def check_is_service_cluster_functional_groups_defined(
     # Get the directory containing the input file
     input_dir = os.path.dirname(input_file_path)
     
-    # If the input file is in a subdirectory (e.g., telemetry/), use the parent directory
-    # for provision_config.yml which should be at the root of the project directory
-    dir_name = os.path.basename(input_dir)
-    if dir_name in ['telemetry', 'config']:
-        input_dir = os.path.dirname(input_dir)
-    
     provision_config_path = os.path.join(input_dir, "provision_config.yml")
 
     # Check if provision_config.yml exists
@@ -1911,12 +1905,6 @@ def check_is_slurm_cluster_functional_groups_defined(
     """
     # Get the directory containing the input file
     input_dir = os.path.dirname(input_file_path)
-    
-    # If the input file is in a subdirectory (e.g., telemetry/), use the parent directory
-    # for provision_config.yml which should be at the root of the project directory
-    dir_name = os.path.basename(input_dir)
-    if dir_name in ['telemetry', 'config']:
-        input_dir = os.path.dirname(input_dir)
     
     provision_config_path = os.path.join(input_dir, "provision_config.yml")
 

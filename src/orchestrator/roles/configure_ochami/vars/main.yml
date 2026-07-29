@@ -100,10 +100,6 @@ ip_wait_loop: 60
 admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
 domain_name: "{{ hostvars['localhost']['domain_name'] }}"
 
-# Pulp server IP for offline repo access in cloud-init templates
-# Set to admin_nic_ip when hostname_enabled is false, or empty when using hostname
-pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] if not (hostvars['localhost']['hostname_enabled'] | default(false) | bool) else '' }}"
-
 # Hostname lists for stack-specific SSH configs (populated by passwordless_ssh role)
 k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | default([]) }}"
 slurm_cluster_hostnames: "{{ hostvars['localhost']['slurm_cluster_hostnames'] | default([]) }}"

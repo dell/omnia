@@ -79,15 +79,6 @@
   roles:
     - orchestrator_validations
 
-- name: Set admin_nic_ip on localhost for configure_ochami role
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Set admin_nic_ip fact from network_data
-      ansible.builtin.set_fact:
-        admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
-        cacheable: true
-
 - name: Validate OIM timezone
   hosts: oim
   connection: ssh

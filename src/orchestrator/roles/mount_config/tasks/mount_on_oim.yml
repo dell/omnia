@@ -42,18 +42,12 @@
 
 - name: Mount NFS share on OIM with fstab entry
   block:
-    - name: Check if mount point is already mounted
-      ansible.builtin.command: mountpoint -q {{ mount_point }}
-      register: mount_check
-      changed_when: false
-      failed_when: false
-
     - name: Add/ensure fstab entry and mount
       ansible.posix.mount:
         src: "{{ source }}"
         path: "{{ mount_point }}"
         opts: "{{ mnt_opts }}"
-        state: "{{ 'present' if mount_check.rc == 0 else 'mounted' }}"
+        state: mounted
         fstype: "{{ fs_type }}"
 
     - name: Mount current share explicitly for immediate availability # noqa: command-instead-of-module
@@ -62,7 +56,6 @@
       register: oim_mount_result
       changed_when: oim_mount_result.rc == 0
       failed_when: oim_mount_result.rc != 0
-      when: mount_check.rc != 0
 
   rescue:
     - name: Remove from fstab on failure
