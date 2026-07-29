@@ -25,33 +25,10 @@
   changed_when: "'created' in ns_result.stdout"
   failed_when: false
 
-- name: Apply telemetry secrets
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/telemetry_secret_creation.yaml
-  register: secret_result
-  changed_when: "'created' in secret_result.stdout"
-
-- name: Apply ActiveMQ ConfigMap
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/activemq-config.yaml
-  register: activemq_result
-  changed_when: "'created' in activemq_result.stdout or 'configured' in activemq_result.stdout"
-
-- name: Check if iDRAC telemetry StatefulSet already exists
-  ansible.builtin.command: kubectl get statefulset {{ idrac_telemetry_k8s_name }} -n {{ telemetry_namespace }}
-  register: idrac_sts_check
-  changed_when: false
-  failed_when: false
-
-- name: Deploy iDRAC telemetry StatefulSet (fresh)
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/idrac_telemetry_statefulset.yaml
+- name: Apply iDRAC telemetry using kustomization
+  ansible.builtin.command: kubectl apply -k {{ telemetry_deployments_dir }}/idrac/
   register: idrac_deploy_result
   changed_when: "'created' in idrac_deploy_result.stdout or 'configured' in idrac_deploy_result.stdout"
-  when: idrac_sts_check.rc != 0
-
-- name: Update iDRAC telemetry StatefulSet (existing)
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/idrac_telemetry_statefulset.yaml
-  register: idrac_update_result
-  changed_when: "'configured' in idrac_update_result.stdout"
-  when: idrac_sts_check.rc == 0
 
 - name: Wait for iDRAC telemetry StatefulSet rollout
   ansible.builtin.command: >

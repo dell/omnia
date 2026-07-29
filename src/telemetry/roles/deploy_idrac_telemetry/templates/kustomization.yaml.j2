@@ -30,9 +30,5 @@ kind: Kustomization
 namespace: {{ telemetry_namespace }}
 
 resources:
-  - telemetry_namespace_creation.yaml
-  - telemetry_secret_creation.yaml
   - activemq-config.yaml
   - idrac_telemetry_statefulset.yaml
-  - telemetry_cleaner_rbac.yaml
-  - telemetry_pod_cleanup.yaml

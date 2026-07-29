@@ -71,10 +71,10 @@ resources:
   - kafka.kafka.yaml
   - kafka.kafkapump_user.yaml
 {% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-  - kafka.topic_idrac.yaml
+  - kafka.idrac.topic.yaml
 {% endif %}
 {% if telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) %}
-  - kafka.topic_ldms.yaml
+  - kafka.ldms.topic.yaml
 {% endif %}
   - kafka.kafka_bridge.yaml
   - kafka.kafka_bridge_lb.yaml

@@ -1,10 +1,10 @@
 [
-{% set filtered_nodes = nodes | sort(attribute='value.XNAME') | rejectattr('value.FUNCTIONAL_GROUP_NAME', 'search', '^service_kube') | list %}
-{% for item in filtered_nodes %}
+{% set slurm_nodes = slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) | dict2items %}
+{% for item in slurm_nodes %}
     {
-        "hostname": "{{ item.value.HOSTNAME }}.{{ hostvars['localhost']['domain_name'] }}",
-        "hostaddr": "{{ item.value.ADMIN_IP }}",
-        "ip_address": "{{ item.value.ADMIN_IP }}",
+        "hostname": "{{ item.key }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",
+        "hostaddr": "{{ item.value.ansible_host | default(item.key) }}",
+        "ip_address": "{{ item.value.ansible_host | default(item.key) }}",
         "subrole": "Compute"
     }{% if not loop.last %},{% endif %}
 {% endfor %}

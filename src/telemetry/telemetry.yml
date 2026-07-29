@@ -47,15 +47,18 @@
 # Cleanup: Remove telemetry components
 - import_playbook: playbooks/cleanup.yml
   tags: cleanup
+  when: "'cleanup' in ansible_run_tags"
 
-# Deploy: Deploy all telemetry sources (default)
+# Deploy: Deploy all telemetry sources
 - import_playbook: playbooks/deploy.yml
   tags: deploy
 
 # Upgrade: Upgrade telemetry components
 - import_playbook: playbooks/upgrade.yml
   tags: upgrade
+  when: "'upgrade' in ansible_run_tags"
 
 # Rollback: Rollback telemetry components
 - import_playbook: playbooks/rollback.yml
   tags: rollback
+  when: "'rollback' in ansible_run_tags"
