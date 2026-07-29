@@ -23,6 +23,9 @@ This document defines all input files consumed by the `image_build_manager` doma
 | `repo_manager_output_path` | string | Yes | `/opt/omnia/repo_manager/output/project_default/repo_status.yml` | Full path to `repo_status.yml` |
 | `aarch64_inventory_host_ip` | string | No | `""` | ARM build host IP; empty = skip aarch64 builds |
 | `aarch64_ssh_user` | string | No | `"root"` | SSH user for ARM build host |
+| `image_build_type` | string | No | `"image-builder"` | OpenCHAMI builder type: `image-builder` (standard) or `image-thrillhouse` (next-gen) |
+| `functional_groups_source` | string | No | `"config"` | Source for functional groups: `config` (manual list) or `repo_status` (auto-detect from repo_manager output) |
+| `build_image.max_parallel` | int | No | `0` | Max concurrent image builds; 0 = unlimited (all at once) |
 | `build_image.job_async` | int | No | `7200` | Max async wait for image build (seconds) |
 | `build_image.job_retry` | int | No | `240` | Max retries for async status check |
 | `build_image.job_delay` | int | No | `30` | Delay between async status checks (seconds) |
@@ -107,19 +110,24 @@ user_repos:
 | File must exist | Fail with "repo_status.yml not found" |
 | `overall_status` must be `"success"` | Fail with "repo_manager did not complete successfully" |
 | `repo_manager` section must exist | Fail with "missing repo_manager section" |
-| `repo_manager.certificates.server_crt` must exist | Fail with "missing certificate path" |
-| `repo_manager.port` must exist | Fail with "missing Pulp port" |
+| `repo_manager.certificates.server_crt` if present, file must exist | Fail with "repo manager certificate not found" |
+| `repo_manager.port` must exist | Fail with "missing repo_manager port" |
 | `rpm_repos` must contain valid URLs for target arch | Fail with "missing RPM repos" |
 
 ### Facts Set from repo_status.yml
 
 | Fact | Source | Description |
 |------|--------|-------------|
-| `pulp_webserver_cert_path` | `repo_manager.certificates.server_crt` | Localhost cert path |
-| `pulp_port` | `repo_manager.port` | Pulp HTTPS port |
-| `pulp_cert_oim_path` | Translated from `server_crt` | OIM-mount cert path (`/opt/omnia` → `oim_shared_path`) |
+| `repo_cert_path` | `repo_manager.certificates.server_crt` | Localhost cert path (empty if not configured) |
+| `repo_port` | `repo_manager.port` | Repo manager HTTPS port |
 | `repo_manager_repos_x86_64` | `rpm_repos.x86_64` + `user_repos.x86_64` | List of `{name, base_url, gpg}` |
 | `repo_manager_repos_aarch64` | `rpm_repos.aarch64` + `user_repos.aarch64` | List of `{name, base_url, gpg}` |
+| `build_image_job_async` | `build_image.job_async` | Async timeout (single source of truth from config) |
+| `build_image_job_retry` | `build_image.job_retry` | Retry count (single source of truth from config) |
+| `build_image_job_delay` | `build_image.job_delay` | Retry delay (single source of truth from config) |
+| `build_image_max_parallel` | `build_image.max_parallel` | Concurrency limit for parallel builds |
+| `functional_groups_source` | `functional_groups_source` | Source mode for functional group selection |
+| `image_build_type` | `image_build_type` | OpenCHAMI builder type (`image-builder` or `image-thrillhouse`) |
 
 ---
 

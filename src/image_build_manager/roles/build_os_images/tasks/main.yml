@@ -13,8 +13,8 @@
 #  limitations under the License.
 ---
 
-- name: Include prepare pulp image task (x86_64 only)
-  ansible.builtin.include_tasks: prepare_pulp_image.yml
+- name: Include prepare repo builder image task (x86_64 only)
+  ansible.builtin.include_tasks: prepare_repo_builder_image.yml
   when: build_arch == 'x86_64'
 
 - name: Include global variables from common folder

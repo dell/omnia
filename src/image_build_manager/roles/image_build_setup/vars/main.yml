@@ -29,32 +29,41 @@ file_permissions_755: "0755"
 file_permissions_644: "0644"
 file_permissions_600: "0600"
 file_permissions_400: "0400"
-job_retry: "240"
-job_delay: "30"
-
 # --- Tag validation ---
 supported_tags:
+  - precheck
+  - validate
   - prepare
+  - execute
   - build
   - cleanup
-  - validate
   - upgrade
   - rollback
 
 skip_credential_tags:
+  - precheck
   - cleanup
   - validate
 
 invalid_tag_combinations:
   - [prepare, cleanup]
   - [build, cleanup]
+  - [execute, cleanup]
   - [prepare, upgrade]
   - [build, upgrade]
+  - [execute, upgrade]
   - [cleanup, upgrade]
   - [prepare, rollback]
   - [build, rollback]
+  - [execute, rollback]
   - [cleanup, rollback]
   - [upgrade, rollback]
+  - [precheck, prepare]
+  - [precheck, build]
+  - [precheck, execute]
+  - [precheck, cleanup]
+  - [precheck, upgrade]
+  - [precheck, rollback]
 
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
@@ -73,8 +82,8 @@ tag_combination_fail_msg: |
 
 # --- Config validation messages ---
 env_admin_nic_ip_missing_fail_msg: >-
-  OMNIA_ADMIN_NIC_IP is not set. Set it in omnia.env or export it:
-    export OMNIA_ADMIN_NIC_IP=<your_admin_nic_ip>
+  SYSTEM_ADMIN_NIC_IPV4 is not set. Export it before running:
+    export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>
 
 
 # --- Prerequisite validation messages ---
@@ -95,14 +104,14 @@ functional_group_packages_not_found_fail_msg: >-
   Check repo_manager.package_list in {{ repo_manager_output_path }}
   or copy the sample file to {{ repo_manager_output_path | dirname }}/.
 
-pulp_cert_not_found_fail_msg: >-
-  Pulp certificate not found at {{ repo_manager.certificates.server_crt | default('unknown') }}.
+repo_cert_not_found_fail_msg: >-
+  Repo manager certificate not found at {{ repo_manager.certificates.server_crt | default('unknown') }}.
   Ensure repo_manager has been run and the certificate exists on this host.
 
 repo_status_missing_section_fail_msg: >-
   repo_status.yml is missing required 'repo_manager' section.
-  Ensure repo_manager.certificates.server_crt, repo_manager.port,
-  and repo_manager.package_list are present in {{ repo_manager_output_path }}.
+  Ensure repo_manager.port and repo_manager.package_list are present
+  in {{ repo_manager_output_path }}. Certificates are optional.
 
 image_build_config_not_found_fail_msg: >-
   image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
