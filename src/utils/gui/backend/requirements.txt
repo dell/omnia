@@ -8,3 +8,6 @@ starlette>=0.27.0
 
 # Config/data handling
 pyyaml>=6.0.1
+
+# Testing
+pytest>=7.4.0

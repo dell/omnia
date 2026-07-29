@@ -14,6 +14,7 @@ const PARSE_CONFIG = {
   header: true as const,
   skipEmptyLines: 'greedy' as const,
   dynamicTyping: false as const,
+  delimiter: ',' as const,
   transformHeader: (header: string) => {
     const trimmed = header.trim();
     // Normalize BMC_MAC alias to SERVICE_TAG
@@ -47,6 +48,10 @@ function isValidRow(row: unknown): row is AdminInventoryRow {
 
 function validateParseResults(results: Papa.ParseResult<AdminInventoryRow>): AdminInventoryRow[] {
   validateHeaders(results.meta);
+
+  if (results.data.length === 0) {
+    throw new Error('CSV contains no data rows');
+  }
 
   const fatalErrors = results.errors.filter(
     (e) => e.type === 'Delimiter' || e.code === 'MissingQuotes'

@@ -190,6 +190,22 @@ The Vite dev server will start on `http://localhost:3000`
 npm run build
 ```
 
+## Testing
+
+### Backend Tests
+
+```bash
+cd src/utils/gui
+python -m pytest tests/ -v
+```
+
+### Frontend Tests
+
+```bash
+cd src/utils/gui/frontend
+npm test
+```
+
 ## API Documentation
 
 ### Catalog Endpoints (prefix: `/api/v1/catalog`)
