@@ -40,23 +40,8 @@
     dest: "{{ telemetry_deployments_dir }}/kafka_cluster_id_secret.yaml"
     mode: "0644"
 
-- name: Check if Kafka is already deployed
-  ansible.builtin.command: >
-    kubectl get kafka -n {{ telemetry_namespace }} -o name
-  register: kafka_existing
-  changed_when: false
-  failed_when: false
-
-- name: Skip Kafka deployment if already running
-  ansible.builtin.debug:
-    msg: "Kafka already deployed in {{ telemetry_namespace }}: {{ kafka_existing.stdout }}"
-  when: kafka_existing.rc == 0 and kafka_existing.stdout | length > 0
-
-- name: Deploy Kafka
-  when: kafka_existing.rc != 0 or kafka_existing.stdout | length == 0
-  block:
-    - name: Run Kafka deployment
-      ansible.builtin.include_tasks: deploy.yml
+- name: Run Kafka deployment
+  ansible.builtin.include_tasks: deploy.yml
 
 - name: Verify Kafka cluster is ready
   ansible.builtin.command: >

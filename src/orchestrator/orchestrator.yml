@@ -243,5 +243,4 @@
     - k8s_config
     - slurm_config
     - openldap
-    - telemetry
     - configure_ochami

@@ -1,0 +1,12 @@
+[
+{% set slurm_nodes = slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) | dict2items %}
+{% for item in slurm_nodes %}
+    {
+        "hostname": "{{ item.key }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",
+        "hostaddr": "{{ item.value.ansible_host | default(item.key) }}",
+        "ip_address": "{{ item.value.ansible_host | default(item.key) }}",
+        "subrole": "Compute"
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+
+]

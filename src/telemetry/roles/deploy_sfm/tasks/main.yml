@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_sfm — Orchestrator
+# =============================================================================
+# Auto-determines state from telemetry_config.yml:
+#   telemetry_sources.sfm.metrics_enabled
+# Note: SFM source not yet in telemetry_config.yml, defaults to false.
+# =============================================================================
+
+- name: Load telemetry configuration
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
+
+- name: Determine SFM telemetry state from config
+  ansible.builtin.set_fact:
+    sfm_enabled: "{{ telemetry_config.telemetry_sources.sfm.metrics_enabled | default(false) | bool }}"
+  when: telemetry_config is defined
+
+- name: Enable SFM telemetry
+  ansible.builtin.include_tasks: enable.yml
+  when: sfm_enabled | default(false) | bool
+
+- name: Disable SFM telemetry
+  ansible.builtin.include_tasks: disable.yml
+  when: not (sfm_enabled | default(false) | bool)

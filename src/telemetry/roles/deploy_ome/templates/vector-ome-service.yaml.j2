@@ -1,0 +1,36 @@
+---
+# Vector-OME Service
+# Purpose: Expose Vector-OME health and metrics endpoints for monitoring
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ vector.ome.service_name }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: {{ vector.ome.app_name }}
+    component: telemetry-bridge
+    subsystem: ome
+    managed-by: omnia
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ vector.ome.metrics_port }}"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ vector.ome.app_name }}
+  ports:
+  # Health check endpoint (Kubernetes probes)
+  - name: health
+    port: {{ vector.ome.health_port }}
+    targetPort: {{ vector.ome.health_port }}
+    protocol: TCP
+  
+  # Metrics endpoint (vmagent scrape)
+  - name: metrics
+    port: {{ vector.ome.metrics_port }}
+    targetPort: {{ vector.ome.metrics_port }}
+    protocol: TCP
+  
+  sessionAffinity: None

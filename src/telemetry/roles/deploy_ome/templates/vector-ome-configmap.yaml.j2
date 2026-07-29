@@ -1,0 +1,17 @@
+---
+# Vector-OME ConfigMap
+# Purpose: Store Vector TOML configuration for OME pipeline
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ vector.ome.app_name }}-config
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: {{ vector.ome.app_name }}
+    component: telemetry-bridge
+    subsystem: ome
+    managed-by: omnia
+data:
+  vector.toml: |
+{{ lookup('template', 'vector-ome-config.toml.j2') | indent(4, first=True) }}
