@@ -110,7 +110,7 @@
 #   #   /mnt/vast/node001/tmp      /tmp      none  bind  0  0
 mounts:
   - name: "nfs_slurm"
-    source: "172.16.107.168:/mnt/share/omnia"
+    source: "172.16.107.168:/mnt/share/omnia_slurm"
     mount_point: "/share_omnia"
     fs_type: "nfs"
     mnt_opts: "nosuid,rw,sync,hard,intr"
