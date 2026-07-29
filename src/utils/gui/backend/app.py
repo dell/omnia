@@ -135,7 +135,7 @@ if __name__ == "__main__":
     import uvicorn
     logger.info("Starting %s...", settings.api_title)
     uvicorn.run(
-        "utils.gui.backend.app:app",
+        "backend.app:app",
         host=settings.host,
         port=settings.port,
         reload=settings.reload,

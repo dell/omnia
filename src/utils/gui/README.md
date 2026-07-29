@@ -121,11 +121,11 @@ gui/
 ### Installation
 
 ```bash
-cd utils/gui
+cd src/utils/gui
 pip install -r backend/requirements.txt
 ```
 
-Dependencies are in `utils/gui/backend/requirements.txt`.
+Dependencies are in `src/utils/gui/backend/requirements.txt`.
 
 ### Configuration
 
@@ -146,19 +146,13 @@ Configuration is managed through environment variables and settings in `backend/
 - `ENVIRONMENT`: Environment name (default: `development`)
 - `DEBUG`: Debug mode (default: `true`)
 
-Output paths are derived from the repository layout (`utils/gui/out`), and base input files are loaded from `src/examples/` and the repository `src/input/` directory.
+Output paths are derived from the repository layout (`src/utils/gui/out`), and base input files are loaded from `src/examples/` and the repository `src/input/` directory.
 
 ### Running the Backend
 
 ```bash
-cd utils/gui
+cd src/utils/gui
 python -m backend.app
-```
-
-or from the repository root:
-
-```bash
-python -m utils.gui.backend.app
 ```
 
 The backend will start on `http://localhost:8000`
@@ -336,7 +330,8 @@ The frontend uses React with the following structure:
 ### Backend Deployment
 
 ```bash
-gunicorn utils.gui.backend.app:app -w 4 -k uvicorn.workers.UvicornWorker
+cd src/utils/gui
+gunicorn backend.app:app -w 4 -k uvicorn.workers.UvicornWorker
 ```
 
 ### Frontend Deployment
@@ -366,7 +361,7 @@ Set the following environment variables:
 - `ENVIRONMENT`: Environment name (default: `development`)
 - `DEBUG`: Debug mode (default: `true`)
 
-Output paths are derived from the repository layout (`utils/gui/out`), and catalog examples are loaded from `src/examples/`.
+Output paths are derived from the repository layout (`src/utils/gui/out`), and catalog examples are loaded from `src/examples/`.
 
 ## Troubleshooting
 

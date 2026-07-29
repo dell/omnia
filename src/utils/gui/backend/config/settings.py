@@ -33,14 +33,14 @@ class Settings:
         self.cors_allow_headers = os.getenv("CORS_ALLOW_HEADERS", "*").split(",")
         
         # Path Configuration
-        self.base_dir = Path(__file__).parent.parent.parent.parent.parent  # Repository root
+        self.base_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Repository root
         self.build_stream_dir = self.base_dir / "src" / "build_stream"
-        self.gui_dir = self.base_dir / "utils" / "gui"
+        self.gui_dir = self.base_dir / "src" / "utils" / "gui"
         self.base_input_dir = self.base_dir / "src" / "input"  # Base input for bundle files (repo root/src/input)
         self.examples_dir = self.base_dir / "src" / "examples"
         
         # Output Configuration
-        self.output_dir = self.gui_dir / "out"  # utils/gui/out
+        self.output_dir = self.gui_dir / "out"  # src/utils/gui/out
         
         # Environment
         self.environment = os.getenv("ENVIRONMENT", "development")
