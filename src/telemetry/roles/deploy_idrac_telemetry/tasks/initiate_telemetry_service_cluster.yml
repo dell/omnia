@@ -99,16 +99,94 @@
   ansible.builtin.debug:
     msg: "Filtered BMC IPs (new): {{ filtered_bmc_ip_list }}"
 
-- name: Remove deleted nodes from telemetry (nodes not in bmc_group_data.csv)
-  ansible.builtin.include_tasks: remove_deleted_nodes.yml
-
 - name: Convert filtered BMC IP list to dictionary format
   ansible.builtin.set_fact:
     filtered_bmc_ip_dict_list: "{{ filtered_bmc_ip_list | map('community.general.dict_kv', 'bmc_ip') | list }}"
 
-- name: Validate BMC reachability and enable telemetry
+# Load kube inventory to get worker node IPs for BMC validation
+- name: Check if kube inventory file exists
+  ansible.builtin.stat:
+    path: "{{ kube_inventory_file }}"
+  register: kube_inv_stat
+  delegate_to: localhost
+
+- name: Load kube inventory
+  ansible.builtin.include_vars:
+    file: "{{ kube_inventory_file }}"
+    name: kube_inv
+  when: kube_inv_stat.stat.exists
+
+# Build list of all worker node management IPs for BMC validation.
+# The play runs on control plane (via kube-vip) which cannot reach BMC subnets,
+# so we delegate validation to worker nodes that have network access.
+- name: Get all worker node IPs for BMC validation (from kube inventory)
+  ansible.builtin.set_fact:
+    worker_node_list: >-
+      {{
+        (kube_inv.all.children.service_kube_node_x86_64.hosts | default({}))
+        | dict2items
+        | map(attribute='value')
+        | map(attribute='ansible_host')
+        | list
+      }}
+  when:
+    - kube_inv_stat.stat.exists
+    - kube_inv.all.children.service_kube_node_x86_64.hosts is defined
+
+- name: Get all worker node IPs for BMC validation (fallback to nodes)
+  ansible.builtin.set_fact:
+    worker_node_list: >-
+      {{ hostvars['localhost']['nodes']
+         | selectattr('group', 'match', '^service_kube_node')
+         | map(attribute='interfaces')
+         | map('first')
+         | map(attribute='ip_addrs')
+         | map('selectattr', 'name', 'equalto', 'management')
+         | map('map', attribute='ip_addr')
+         | map('first')
+         | list }}
+  when: >
+    not kube_inv_stat.stat.exists | default(false) and
+    hostvars['localhost']['nodes'] is defined and
+    (hostvars['localhost']['nodes']
+     | selectattr('group', 'match', '^service_kube_node')
+     | list | length > 0)
+
+- name: Set first worker node for BMC validation
+  ansible.builtin.set_fact:
+    worker_node: "{{ worker_node_list[0] }}"
+  when: worker_node_list | default([]) | length > 0
+
+- name: Log worker node for BMC validation
+  ansible.builtin.debug:
+    msg: >-
+      Worker node for BMC validation: {{ worker_node | default('none') }},
+      All worker nodes: {{ worker_node_list | default([]) }}
+
+- name: Remove deleted nodes from telemetry (nodes not in bmc_group_data.csv)
+  ansible.builtin.include_tasks: remove_deleted_nodes.yml
+
+- name: Validate BMC reachability from worker node
   ansible.builtin.include_tasks: validate_bmcips_reachability.yml
-  when: filtered_bmc_ip_list | length > 0
+  when:
+    - worker_node is defined
+    - filtered_bmc_ip_list | length > 0
+
+# If there are unreachable BMCs and a second worker node is available,
+# retry those BMCs from the second worker node.
+- name: Retry unreachable BMCs from second worker node
+  when:
+    - idrac_unreachable | default([]) | length > 0
+    - worker_node_list | default([]) | length > 1
+  block:
+    - name: Build retry BMC list from unreachable IPs
+      ansible.builtin.set_fact:
+        retry_bmc_ip_list: "{{ idrac_unreachable }}"
+        retry_bmc_ip_dict_list: "{{ idrac_unreachable | map('community.general.dict_kv', 'bmc_ip') | list }}"
+        retry_worker_node: "{{ worker_node_list[1] }}"
+
+    - name: Retry unreachable BMCs from second worker node
+      ansible.builtin.include_tasks: retry_unreachable_bmcs.yml
 
 - name: Add iDRAC details to MySQL database
   when:

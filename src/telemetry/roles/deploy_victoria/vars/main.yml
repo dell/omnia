@@ -134,14 +134,6 @@ vmagent:
     scrape_interval: "30s"
 
 # ---------------------------------------------------------------------------
-# telemetry_images — lookup map for init containers (busybox, etc.)
-# ---------------------------------------------------------------------------
-# Templates use telemetry_images['docker.io/library/busybox'] for init containers.
-# This maps the full image reference to the value from telemetry_registry.
-telemetry_images:
-  "docker.io/library/busybox": "{{ _support_images.busybox | default('docker.io/library/busybox:1.36') }}"
-
-# ---------------------------------------------------------------------------
 # victoria_logs_cluster — composite variable used by VictoriaLogs templates
 # ---------------------------------------------------------------------------
 # Merges storage config (replicas, resources) with container images and

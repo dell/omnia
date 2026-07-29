@@ -89,7 +89,7 @@
 - name: Wait for Kafka cluster to be ready
   ansible.builtin.command: >
     kubectl wait kafka/kafka -n {{ telemetry_namespace }}
-    --for=condition=Ready --timeout={{ kafka_cluster_ready_timeout }}
+    --for=condition=Ready --timeout={{ kafka_deploy_timeout }}
   changed_when: false
 
 - name: Apply Kafka user manifest

@@ -27,11 +27,11 @@ telemetry_storage_config_file: "{{ telemetry_input_dir }}/telemetry_storage_conf
 telemetry_namespace: "telemetry"
 
 # Deploy directory on NFS share (where manifests are staged)
-telemetry_deploy_dir: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry"
+telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # LDMS NFS share path
-ldms_share_path: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry/ldms"
+ldms_share_path: "{{ cluster_mount }}/telemetry/ldms"
 
 # File permissions
 file_permissions_644: "0644"

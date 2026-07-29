@@ -52,7 +52,9 @@
           - kube_vip is defined
           - kube_vip | length > 0
         fail_msg: >
-          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+          kube_vip is required. Ensure you have copied kube_inventory.yml from
+          orchestrator/output/kube_inventory.yml to telemetry/input/kube_inventory.yml.
+          Run orchestrator.yml first to generate the inventory files.
 
     - name: Add kube_vip to in-memory inventory
       ansible.builtin.add_host:

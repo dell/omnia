@@ -47,6 +47,50 @@
         groups: kube_vip_group
         ansible_user: root
       when: kube_vip_group is not defined
+
+    - name: Check if slurm inventory file exists
+      ansible.builtin.stat:
+        path: "{{ slurm_inventory_file }}"
+      register: slurm_inv_stat
+      delegate_to: localhost
+
+    - name: Load slurm inventory for aggregator/sampler node delegation
+      when: slurm_inv_stat.stat.exists
+      block:
+        - name: Read slurm inventory
+          ansible.builtin.include_vars:
+            file: "{{ slurm_inventory_file }}"
+            name: slurm_inv
+
+        - name: Add Slurm control nodes to in-memory inventory
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: slurm_control_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.slurm_control_node_x86_64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.slurm_control_node_x86_64.hosts is defined
+
+        - name: Add Slurm compute nodes to in-memory inventory
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: slurm_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.slurm_node_x86_64.hosts is defined
+
+        - name: Add aarch64 Slurm compute nodes to in-memory inventory
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: slurm_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.slurm_node_aarch64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.slurm_node_aarch64.hosts is defined
   tasks:
     - name: Check if Kafka is needed for LDMS telemetry
       ansible.builtin.set_fact:

@@ -18,6 +18,6 @@
 # =============================================================================
 
 # Deploy directory on NFS share
-telemetry_deploy_dir: "{{ k8s_client_share_path | default('/opt/omnia/nfs') }}/telemetry"
+telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 telemetry_namespace: "telemetry"

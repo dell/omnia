@@ -16,8 +16,8 @@
 # =============================================================================
 # Common task: Load telemetry configuration files
 # =============================================================================
-# Loads telemetry_config.yml, telemetry_storage_config.yml, and telemetry_packages.yml
-# Sets kube_vip, telemetry_registry, and cluster_mount variables
+# Loads telemetry_config.yml, telemetry_storage_config.yml, telemetry_packages.yml, and kube_inventory.yml
+# Sets kube_vip (from kube_inventory.yml), telemetry_registry, and cluster_mount variables
 # Used by: telemetry.yml, deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, etc.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
@@ -54,11 +54,32 @@
         telemetry_config: "{{ telemetry_config }}"
         cacheable: true
 
-    - name: Set kube_vip from telemetry_config
+    - name: Check if kube inventory file exists
+      ansible.builtin.stat:
+        path: "{{ kube_inventory_file | default(input_project_dir + '/telemetry/kube_inventory.yml') }}"
+      register: kube_inv_file_stat
+
+    - name: Load kube inventory for kube_vip
+      ansible.builtin.include_vars:
+        file: "{{ kube_inventory_file | default(input_project_dir + '/telemetry/kube_inventory.yml') }}"
+        name: kube_inv
+      when: kube_inv_file_stat.stat.exists
+
+    - name: Set kube_vip from kube_inventory
+      ansible.builtin.set_fact:
+        kube_vip: "{{ (kube_inv.all.children.kube_vip_group.hosts | dict2items | first).key }}"
+        cacheable: true
+      when:
+        - kube_inv_file_stat.stat.exists
+        - kube_inv.all.children.kube_vip_group.hosts is defined
+
+    - name: Set kube_vip from telemetry_config (fallback)
       ansible.builtin.set_fact:
         kube_vip: "{{ telemetry_config.kube_vip }}"
         cacheable: true
-      when: telemetry_config.kube_vip is defined
+      when:
+        - kube_vip is not defined or kube_vip | length == 0
+        - telemetry_config.kube_vip is defined
 
     - name: Load telemetry storage configuration
       ansible.builtin.include_vars:

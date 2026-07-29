@@ -46,6 +46,30 @@
         groups: kube_vip_group
         ansible_user: root
       when: kube_vip_group is not defined
+
+    - name: Check if kube inventory file exists
+      ansible.builtin.stat:
+        path: "{{ kube_inventory_file }}"
+      register: kube_inv_stat
+      delegate_to: localhost
+
+    - name: Load kube inventory for worker node delegation
+      when: kube_inv_stat.stat.exists
+      block:
+        - name: Read kube inventory
+          ansible.builtin.include_vars:
+            file: "{{ kube_inventory_file }}"
+            name: kube_inv
+
+        - name: Add K8s worker nodes to in-memory inventory
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: service_kube_node
+            ansible_user: root
+          loop: "{{ kube_inv.all.children.service_kube_node_x86_64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: kube_inv.all.children.service_kube_node_x86_64.hosts is defined
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:

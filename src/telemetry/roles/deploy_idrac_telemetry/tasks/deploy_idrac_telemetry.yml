@@ -20,15 +20,15 @@
 # Assumes: Kafka and VictoriaMetrics already running in telemetry namespace.
 
 - name: Create telemetry namespace
-  ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/telemetry_namespace_creation.yaml
+  ansible.builtin.command: kubectl create namespace {{ telemetry_namespace }}
   register: ns_result
   changed_when: "'created' in ns_result.stdout"
+  failed_when: false
 
 - name: Apply telemetry secrets
   ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/telemetry_secret_creation.yaml
   register: secret_result
   changed_when: "'created' in secret_result.stdout"
-  when: (telemetry_deployments_dir + '/telemetry_secret_creation.yaml') is file
 
 - name: Apply ActiveMQ ConfigMap
   ansible.builtin.command: kubectl apply -f {{ telemetry_deployments_dir }}/activemq-config.yaml
