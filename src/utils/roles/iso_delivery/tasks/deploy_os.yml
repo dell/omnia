@@ -52,7 +52,7 @@
       - insert: true
         image: "{{ nfs_iso_uri }}"
   register: insert_result
-  # no_log: true
+  no_log: true
 
 - name: Set boot override to CD (one-time)
   dellemc.openmanage.idrac_boot:

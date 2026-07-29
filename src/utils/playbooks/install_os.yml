@@ -66,10 +66,13 @@
   hosts: localhost
   connection: local
   gather_facts: false
+<<<<<<< HEAD
   pre_tasks:
     - name: Include variable file iso_config.yml
       ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/iso_config.yml"
       tags: always
+=======
+>>>>>>> 7a43909ae (Added utils as collection)
   tasks:
     - name: Check if encrypted credentials file is provided
       ansible.builtin.stat:
