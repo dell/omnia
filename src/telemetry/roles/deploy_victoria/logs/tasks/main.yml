@@ -17,35 +17,20 @@
 # deploy_victoria/logs — VictoriaLogs CRs (VLCluster + VLAgent)
 # =============================================================================
 # Deploys VictoriaLogs CRs into telemetry namespace.
-# Requires victoria-metrics-operator already installed (by deploy_victoria/metrics).
+# Fully independent: auto-installs victoria-metrics-operator if not present.
 # Idempotent: skips if already deployed.
 #
-# Consumed by: enable_powerscale (logs), enable_ufm (logs), etc.
-# Condition: victoria_logs_support == true
+# Consumed by: enable_powerscale (logs), enable_ufm (logs), deploy_sinks.yml
+# Condition: victoria_logs_support == true (or deploy_victoria_logs == true)
 #
-# Flow: prepare (generate manifests) → deploy (apply CRs)
+# Flow: prepare (generate manifests) → deploy (ensure operator + apply CRs)
 # =============================================================================
 
 - name: Prepare VictoriaLogs manifests
   ansible.builtin.include_tasks: ../../logs/tasks/prepare.yml
 
-- name: Check if VLCluster is already deployed
-  ansible.builtin.command: >
-    kubectl get vlcluster -n {{ telemetry_namespace }} -o name
-  register: vlcluster_existing
-  changed_when: false
-  failed_when: false
-
-- name: Skip VictoriaLogs deployment if already running
-  ansible.builtin.debug:
-    msg: "VictoriaLogs already deployed in {{ telemetry_namespace }}: {{ vlcluster_existing.stdout }}"
-  when: vlcluster_existing.rc == 0 and vlcluster_existing.stdout | length > 0
-
-- name: Deploy VictoriaLogs
-  when: vlcluster_existing.rc != 0 or vlcluster_existing.stdout | default('') | length == 0
-  block:
-    - name: Run VictoriaLogs deployment
-      ansible.builtin.include_tasks: ../../logs/tasks/deploy.yml
+- name: Run VictoriaLogs deployment
+  ansible.builtin.include_tasks: ../../logs/tasks/deploy.yml
 
 - name: Verify VLCluster is ready
   ansible.builtin.command: >

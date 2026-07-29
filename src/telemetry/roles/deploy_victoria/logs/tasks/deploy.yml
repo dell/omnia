@@ -14,9 +14,10 @@
 ---
 
 # =============================================================================
-# deploy_victoria_logs — Deploy: wait for CRDs + apply logs CRs
+# deploy_victoria_logs — Deploy: ensure operator + wait for CRDs + apply logs CRs
 # =============================================================================
-# Requires victoria-metrics-operator already installed (by deploy_victoria_metrics)
+# Auto-installs victoria-metrics-operator if not already present.
+# Can be deployed independently without deploy_victoria_metrics.
 
 - name: Ensure telemetry namespace exists
   ansible.builtin.command: >
@@ -31,19 +32,52 @@
   register: ns_result
   changed_when: "'created' in ns_result.stdout | default('')"
 
-- name: Verify VictoriaMetrics operator is running
+- name: Check if VictoriaMetrics operator is already installed
   ansible.builtin.command: >
     helm status victoria-metrics-operator -n {{ telemetry_namespace }}
   register: operator_check
   changed_when: false
   failed_when: false
 
-- name: Fail if VictoriaMetrics operator is not installed
+- name: Install VictoriaMetrics operator (required for VictoriaLogs CRDs)
+  when:
+    - operator_check.rc != 0
+    - victoria_operator_pkg is defined
+  block:
+    - name: Install VictoriaMetrics operator via Helm
+      ansible.builtin.command: >
+        helm -n {{ telemetry_namespace }} install victoria-metrics-operator
+        {{ victoria_operator_pkg }}
+
+    - name: Wait for VictoriaMetrics operator deployment
+      ansible.builtin.command: >
+        kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
+        deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+      changed_when: false
+
+    - name: Log operator auto-install
+      ansible.builtin.debug:
+        msg: "{{ victoria_operator_auto_install_msg }}"
+
+- name: Fail if operator not installed and no tarball available
   ansible.builtin.fail:
-    msg: >
-      VictoriaMetrics operator is not installed. deploy_victoria_metrics role must run first.
-      Ensure victoria_metrics_support is enabled and deploy_victoria_metrics is called before deploy_victoria_logs.
-  when: operator_check.rc != 0
+    msg: "{{ victoria_operator_not_installed_msg }}"
+  when:
+    - operator_check.rc != 0
+    - victoria_operator_pkg is not defined
+
+- name: Skip operator install (already present)
+  ansible.builtin.debug:
+    msg: "{{ victoria_operator_skip_existing_msg }}"
+  when:
+    - operator_check.rc == 0
+
+- name: Wait for VictoriaMetrics operator deployment (existing)
+  ansible.builtin.command: >
+    kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
+    deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+  changed_when: false
+  when: operator_check.rc == 0
 
 - name: Wait for VictoriaLogs CRDs
   ansible.builtin.command: kubectl get crd {{ item }}
@@ -56,16 +90,28 @@
   until: vl_crd_check.rc == 0
   changed_when: false
 
+- name: Check which VictoriaLogs manifests exist on remote
+  ansible.builtin.stat:
+    path: "{{ telemetry_deployments_dir }}/{{ item }}"
+  loop:
+    - victorialogs-operator-vlcluster.yaml
+    - victorialogs-operator-vlagent.yaml
+  register: vl_manifest_stats
+
+- name: Build VictoriaLogs manifest existence map
+  ansible.builtin.set_fact:
+    _vl_manifests: "{{ dict(vl_manifest_stats.results | map(attribute='item') | zip(vl_manifest_stats.results | map(attribute='stat') | map(attribute='exists'))) }}"
+
 - name: Apply VLCluster CR
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-operator-vlcluster.yaml
   register: vlcluster_apply
   changed_when: "'created' in vlcluster_apply.stdout or 'configured' in vlcluster_apply.stdout"
-  when: (telemetry_deployments_dir + '/victorialogs-operator-vlcluster.yaml') is file
+  when: _vl_manifests['victorialogs-operator-vlcluster.yaml'] | default(false)
 
 - name: Apply VLAgent CR
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-operator-vlagent.yaml
   register: vlagent_apply
   changed_when: "'created' in vlagent_apply.stdout or 'configured' in vlagent_apply.stdout"
-  when: (telemetry_deployments_dir + '/victorialogs-operator-vlagent.yaml') is file
+  when: _vl_manifests['victorialogs-operator-vlagent.yaml'] | default(false)

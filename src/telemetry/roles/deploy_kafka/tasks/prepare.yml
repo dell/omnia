@@ -23,13 +23,13 @@
       ansible.builtin.file:
         path: "{{ cluster_mount }}/telemetry"
         state: directory
-        mode: '0755'
+        mode: "{{ kafka_dir_mode }}"
 
     - name: Create deployments directory
       ansible.builtin.file:
         path: "{{ telemetry_deployments_dir }}"
         state: directory
-        mode: '0755'
+        mode: "{{ kafka_dir_mode }}"
   when: cluster_mount | default('') != ''
 
 - name: Download Strimzi Kafka operator package
@@ -46,11 +46,21 @@
       ansible.builtin.get_url:
         url: "{{ telemetry_packages_config.telemetry_packages.strimzi_kafka_operator }}"
         dest: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
-        mode: '0644'
-        timeout: 300
+        mode: "{{ kafka_file_mode }}"
+        timeout: "{{ kafka_download_timeout }}"
+        validate_certs: false
       when: not (strimzi_tarball_stat.stat.exists | default(false))
       register: strimzi_download
-      failed_when: false
+
+    - name: Verify Strimzi tarball was downloaded
+      ansible.builtin.stat:
+        path: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+      register: strimzi_tarball_verify
+
+    - name: Fail if Strimzi tarball not available
+      ansible.builtin.fail:
+        msg: "{{ kafka_strimzi_tarball_not_found_msg }}"
+      when: not (strimzi_tarball_verify.stat.exists | default(false))
   run_once: true
 
 - name: Set strimzi_kafka_pkg path
@@ -64,13 +74,20 @@
   ansible.builtin.template:
     src: kafka.kafka.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.kafka.yaml"
-    mode: '0644'
+    mode: "{{ kafka_file_mode }}"
+
+# =============================================================================
+# Source-specific manifests — skipped when kafka_infra_only is true
+# Topics, users, and bridges are source concerns, not sink infrastructure.
+# These are generated here for backward compatibility with telemetry.yml.
+# When called from deploy_sinks.yml, kafka_infra_only=true skips these.
+# =============================================================================
 
 - name: Generate Kafka topic manifests for idrac and ldms
   ansible.builtin.template:
     src: kafka.topic.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
-    mode: '0644'
+    mode: "{{ kafka_file_mode }}"
   vars:
     topic_name: "{{ item }}"
     topic_key: "{{ item }}"
@@ -80,23 +97,28 @@
   loop_control:
     label: "{{ item }}"
   when:
+    - not (kafka_infra_only | default(false) | bool)
     - item in telemetry_config.telemetry_sources
     - telemetry_config.telemetry_sources[item].metrics_enabled | default(false) | bool
+
+# =============================================================================
+# Sink infrastructure manifests — always generated (user, bridge)
+# =============================================================================
 
 - name: Generate Kafka user manifest
   ansible.builtin.template:
     src: kafka.kafkapump_user.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml"
-    mode: '0644'
+    mode: "{{ kafka_file_mode }}"
 
 - name: Generate Kafka bridge manifest
   ansible.builtin.template:
     src: kafka.kafka_bridge.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.kafka_bridge.yaml"
-    mode: '0644'
+    mode: "{{ kafka_file_mode }}"
 
 - name: Generate Kafka bridge load balancer manifest
   ansible.builtin.template:
     src: kafka.kafka_bridge_lb.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.kafka_bridge_lb.yaml"
-    mode: '0644'
+    mode: "{{ kafka_file_mode }}"

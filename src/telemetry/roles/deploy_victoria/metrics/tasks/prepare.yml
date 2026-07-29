@@ -22,32 +22,35 @@
 
 - name: Generate VictoriaMetrics TLS secret manifest
   ansible.builtin.template:
-    src: victoria-tls-secret.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-tls-secret.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
-    mode: '0644'
-  failed_when: false
+    mode: "{{ victoria_file_mode }}"
+  when:
+    - victoria_server_cert_b64 is defined
+    - victoria_server_key_b64 is defined
+    - victoria_ca_cert_b64 is defined
 
 - name: Generate VictoriaMetrics RBAC manifest
   ansible.builtin.template:
-    src: victoria-vmagent-rbac.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-vmagent-rbac.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml"
-    mode: '0644'
-  failed_when: false
+    mode: "{{ victoria_file_mode }}"
+  ignore_errors: true
 
 - name: Generate VMCluster CR manifest
   ansible.builtin.template:
-    src: victoria-operator-vmcluster.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-operator-vmcluster.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
 
 - name: Generate VMAgent CR manifest
   ansible.builtin.template:
-    src: victoria-operator-vmagent.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-operator-vmagent.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
 
 - name: Generate VMPodScrape CR manifest
   ansible.builtin.template:
-    src: victoria-operator-vmscrape.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-operator-vmscrape.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"

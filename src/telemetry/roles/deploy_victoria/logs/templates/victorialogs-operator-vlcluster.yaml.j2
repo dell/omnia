@@ -74,7 +74,7 @@ spec:
       httpGet:
         path: /health
         port: 9491
-        scheme: HTTPS
+        scheme: {{ 'HTTPS' if victoria_logs_cluster.tls_enabled else 'HTTP' }}
       initialDelaySeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.initial_delay }}
       periodSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.period }}
       failureThreshold: {{ victoria_logs_cluster.vlstorage.startup_probe.failure_threshold }}
@@ -89,7 +89,7 @@ spec:
       httpGet:
         path: /health
         port: 9491
-        scheme: HTTPS
+        scheme: {{ 'HTTPS' if victoria_logs_cluster.tls_enabled else 'HTTP' }}
       initialDelaySeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.initial_delay }}
       periodSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.period }}
       failureThreshold: {{ victoria_logs_cluster.vlstorage.readiness_probe.failure_threshold }}
