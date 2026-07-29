@@ -75,6 +75,7 @@
     src: kafka.kafka.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.kafka.yaml"
     mode: "{{ kafka_file_mode }}"
+    force: yes
 
 # =============================================================================
 # Source-specific manifests — skipped when kafka_infra_only is true
@@ -88,6 +89,7 @@
     src: kafka.topic.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
     mode: "{{ kafka_file_mode }}"
+    force: yes
   vars:
     topic_name: "{{ item }}"
     topic_key: "{{ item }}"

@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# idrac_telemetry — Enable iDRAC telemetry
+# =============================================================================
+# Deploys iDRAC telemetry stack (receiver, kafkapump, victoriapump, mysqldb,
+# activemq) with Kafka and VictoriaMetrics as collection targets.
+#
+# Prerequisites:
+#   - Service K8s cluster running with kubectl access
+#   - telemetry_config.yml populated with iDRAC source enabled
+#   - telemetry_credentials.yml with bmc_username/bmc_password, mysqldb creds
+#   - deploy_kafka and deploy_victoria roles run before this role
+# =============================================================================
+
+- name: Load telemetry configuration
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+
+- name: Validate iDRAC telemetry configuration
+  ansible.builtin.include_tasks: validate_config.yml
+
+- name: Derive sink support flags
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: derive_sink_support_flags
+
+- name: Generate iDRAC telemetry manifests
+  ansible.builtin.include_tasks: generate_manifests.yml
+
+- name: Deploy iDRAC telemetry
+  ansible.builtin.include_tasks: deploy_idrac_telemetry.yml
+
+- name: Verify iDRAC telemetry
+  ansible.builtin.include_tasks: verify_idrac_telemetry.yml
+
+- name: Initiate telemetry service cluster (sync BMC inventory with MySQL DB)
+  ansible.builtin.include_tasks: initiate_telemetry_service_cluster.yml
+  when:
+    - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
+    - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0
+
+- name: Generate telemetry collection report
+  ansible.builtin.include_tasks: create_telemetry_report.yml
+  when:
+    - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
+    - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0
+
+- name: Update telemetry status
+  ansible.builtin.include_tasks: update_status.yml

@@ -1,0 +1,117 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# File permissions for metrics deployment
+file_permissions_755: "0755"
+file_permissions_644: "0644"
+dir_permissions_755: "0755"
+
+# VMAgent configuration
+vmagent:
+  service_account_name: "victoria-metrics-agent"
+  role_name: "victoria-metrics-agent"
+  rolebinding_name: "victoria-metrics-agent"
+  image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.104.0') }}"
+  remote_write_url_cluster: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/"
+  remote_write_url: "http://vminsert-single.{{ telemetry_namespace }}.svc:8428/insert/0/prometheus/"
+  target_pod_label: "idrac-telemetry-receiver"
+  kubernetes_sd_namespace: "{{ telemetry_namespace }}"
+  metrics_container_name: "victoria-pump"
+  global:
+    scrape_interval: "30s"
+
+# VictoriaCluster configuration
+victoria_cluster:
+  enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
+  tls_enabled: true
+  termination_grace_period: 120
+  toleration_seconds: 300
+  startup_probe:
+    initial_delay: 30
+    period: 10
+    failure_threshold: 30
+    timeout: 5
+  readiness_probe:
+    initial_delay: 10
+    period: 10
+    failure_threshold: 3
+    timeout: 5
+  vmstorage:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmstorage.replicas | default(2) }}"
+    replication_factor: 1
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vmstorage | default('victoriametrics/vmstorage:v1.104.0') }}"
+    dedup_min_scrape_interval: ""
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmstorage.resources }}"
+  vmselect:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmselect.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vmselect | default('victoriametrics/vmselect:v1.104.0') }}"
+    max_query_duration: "30s"
+    max_concurrent_requests: "1000"
+    cache_data_path: true
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmselect.resources }}"
+  vminsert:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vminsert.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vminsert | default('victoriametrics/vminsert:v1.104.0') }}"
+    external_access: true
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vminsert.resources }}"
+  vmagent:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.replicas | default(2) }}"
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.resources }}"
+
+# VictoriaLogs Cluster configuration
+victoria_logs_cluster:
+  tls_enabled: true
+  vlstorage:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlstorage.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vlstorage | default('victoriametrics/vlstorage:v1.104.0') }}"
+    termination_grace_period: 120
+    toleration_seconds: 300
+    startup_probe:
+      initial_delay: 30
+      period: 10
+      failure_threshold: 30
+      timeout: 5
+    readiness_probe:
+      initial_delay: 10
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlstorage.resources }}"
+  vlselect:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlselect.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vlselect | default('victoriametrics/vlselect:v1.104.0') }}"
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlselect.resources }}"
+  vlinsert:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlinsert.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vlinsert | default('victoriametrics/vlinsert:v1.104.0') }}"
+    external_access: true
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlinsert.resources }}"
+  vlagent:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlagent.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vlagent | default('victoriametrics/vlagent:v1.104.0') }}"
+    pvc_size: "5Gi"
+    termination_grace_period: 120
+    toleration_seconds: 300
+    liveness_probe:
+      initial_delay: 30
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    readiness_probe:
+      initial_delay: 10
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlagent.resources }}"

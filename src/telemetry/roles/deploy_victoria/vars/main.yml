@@ -22,11 +22,21 @@ telemetry_namespace: "telemetry"
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
+telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
 telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# VictoriaMetrics Cluster Configuration
+victoria_deployment_mode: "cluster"
+victoria_cluster:
+  enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
+  tls_enabled: true
+
+# Certificate directory
+victoria_cert_dir: "{{ telemetry_deploy_dir }}/certs/victoria"
 
 # Timeouts
 victoria_deploy_timeout: "600s"
@@ -59,12 +69,11 @@ victoria_dir_mode: "0755"
 # ---------------------------------------------------------------------------
 # Victoria images from telemetry_registry (self-contained, no service_k8s dependency)
 # ---------------------------------------------------------------------------
-_victoria_images: "{{ telemetry_packages_config.telemetry_registry.images.victoria | default({}) }}"
-_support_images: "{{ telemetry_packages_config.telemetry_registry.images.support | default({}) }}"
-_idrac_images: "{{ telemetry_packages_config.telemetry_registry.images.idrac | default({}) }}"
+_victoria_images: "{{ telemetry_registry.images.victoria | default({}) }}"
+_support_images: "{{ telemetry_registry.images.support | default({}) }}"
 
-# Registry configuration
-telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
+# Registry configuration (already set in load_telemetry_config)
+# telemetry_registry is inherited from hostvars when role runs on kube_vip
 
 # ---------------------------------------------------------------------------
 # victoria_cluster — composite variable used by metrics templates
@@ -123,14 +132,6 @@ vmagent:
   metrics_container_name: "victoria-pump"
   global:
     scrape_interval: "30s"
-
-# ---------------------------------------------------------------------------
-# telemetry_images — lookup map for init containers (busybox, etc.)
-# ---------------------------------------------------------------------------
-# Templates use telemetry_images['docker.io/library/busybox'] for init containers.
-# This maps the full image reference to the value from telemetry_registry.
-telemetry_images:
-  "docker.io/library/busybox": "{{ _support_images.busybox | default('docker.io/library/busybox:1.36') }}"
 
 # ---------------------------------------------------------------------------
 # victoria_logs_cluster — composite variable used by VictoriaLogs templates
