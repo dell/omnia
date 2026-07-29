@@ -14,7 +14,7 @@
 ---
 
 # Path to the image_build-specific JSON schemas (domain-level library)
-image_build_schema_dir: "{{ playbook_dir }}/../library/module_utils/image_build_validation/schema"
+image_build_schema_dir: "{{ _domain_root_dir }}/plugins/module_utils/image_build_validation/schema"
 
 # Validation messages
 image_build_validation_start_msg: "Starting image_build_manager input validation (L1 schema + L2 logic)."
@@ -23,5 +23,5 @@ image_build_validation_fail_msg: >-
   Image build configuration validation failed.
   Review the errors below and fix the configuration files before re-running.
 image_build_config_missing_msg: >-
-  image_build_config.yml not found at {{ input_project_dir }}/image_build_manager/image_build_config.yml.
+  image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
   Please create this file before running image_build_manager.

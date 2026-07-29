@@ -22,20 +22,16 @@
 # Context: PowerScale S3 requires object-level ACLs (--recursive) for anonymous
 #          GetObject access. Bucket-level ACL only grants listing permission.
 #
-# Runs on: OIM host (where s3cmd is configured with /root/.s3cfg)
+# Runs on: localhost (where s3cmd is configured with /root/.s3cfg)
 # ═══════════════════════════════════════════════════════════════════════════
 
 - name: Set ACL to public for 'efi' bucket and all objects
   ansible.builtin.command: s3cmd setacl s3://efi --acl-public --recursive
   changed_when: true
-  delegate_to: oim
-  connection: ssh
 
 - name: Set ACL to public for 'boot-images' bucket and all objects
   ansible.builtin.command: s3cmd setacl s3://boot-images --acl-public --recursive
   changed_when: true
-  delegate_to: oim
-  connection: ssh
 
 - name: Verify S3 bucket ACLs are set
   ansible.builtin.debug:

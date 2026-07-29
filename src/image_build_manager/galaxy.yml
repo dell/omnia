@@ -1,0 +1,40 @@
+---
+namespace: omnia
+name: image_build
+version: 2.3.0
+readme: README.md
+authors:
+  - Dell Technologies <omnia-support@dell.com>
+description: >-
+  Dell Omnia Image Build Manager — builds OS images (RHEL/Rocky x86_64 + aarch64)
+  for HPC cluster provisioning using OpenCHAMI. Deploys MinIO S3 + OCI Registry
+  and produces bare-metal OS images with per-functional-group package customization.
+license:
+  - Apache-2.0
+tags:
+  - hpc
+  - image-build
+  - openchami
+  - minio
+  - dell
+  - omnia
+dependencies:
+  community.general: ">=5.0.0"
+  containers.podman: ">=1.10.0"
+repository: https://github.com/dell/omnia
+documentation: https://github.com/dell/omnia/tree/main/docs
+homepage: https://github.com/dell/omnia
+issues: https://github.com/dell/omnia/issues
+build_ignore:
+  - "*.tar.gz"
+  - "*.cfg"
+  - .gitignore
+  - Makefile
+  - __pycache__
+  - "**/__pycache__"
+  - ansible_collections
+  - ansible_collections/*
+  - containers
+  - containers/*
+  - input
+  - input/*

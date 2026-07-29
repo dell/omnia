@@ -1,0 +1,19 @@
+# =============================================================================
+# Image Build Manager — Python Requirements
+# =============================================================================
+# Install into the shared Omnia venv:
+#   ./src/main/omnia.sh --setup-venv
+# Or manually:
+#   pip install -r requirements.txt
+# =============================================================================
+
+# --- Core Ansible ---
+ansible-core>=2.20
+
+# --- Python Libraries ---
+PyYAML>=6.0.3
+jmespath>=1.0.1
+jsonschema>=4.17
+cryptography>=48.0.0
+netaddr>=1.3.0
+requests>=2.32.5

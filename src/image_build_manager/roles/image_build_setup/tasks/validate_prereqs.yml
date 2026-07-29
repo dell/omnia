@@ -1,0 +1,42 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Step 4: Validate all prerequisite files (fail-fast)
+#
+# Loads image_build_config.yml to discover repo_manager_output_path,
+# then checks that the repo_status.yml file exists.
+# functional_group_packages.yml path is resolved from repo_manager.package_list
+# inside repo_status.yml (validated in load_repo_status.yml).
+
+- name: Load image_build_config.yml to get repo_manager_output_path
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/image_build_config.yml"
+
+- name: Stat prerequisite files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ input_project_dir }}/image_build_config.yml"
+    - "{{ repo_manager_output_path }}"
+  register: _prereq_checks
+
+- name: Fail if image_build_config.yml not found
+  ansible.builtin.fail:
+    msg: "{{ image_build_config_not_found_fail_msg }}"
+  when: not _prereq_checks.results[0].stat.exists
+
+- name: Fail if repo_status.yml not found
+  ansible.builtin.fail:
+    msg: "{{ repo_status_not_found_fail_msg }}"
+  when: not _prereq_checks.results[1].stat.exists

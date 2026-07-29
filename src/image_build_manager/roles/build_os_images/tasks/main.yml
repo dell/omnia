@@ -17,11 +17,6 @@
   ansible.builtin.include_tasks: prepare_pulp_image.yml
   when: build_arch == 'x86_64'
 
-- name: Include metadata vars
-  ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
-  register: include_metadata
-  no_log: true
-
 - name: Include global variables from common folder
   ansible.builtin.include_vars: "{{ role_path }}/../../vars/openchami_image_cmd.yml"
   register: ochami_image_global_vars

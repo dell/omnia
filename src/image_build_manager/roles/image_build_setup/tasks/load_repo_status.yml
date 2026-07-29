@@ -1,0 +1,133 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Step 5: Load repo_status.yml and validate
+# Step 6: Set pulp facts and build repo lists
+#
+# Loads repo_status.yml, validates required sections, checks the pulp
+# certificate exists, sets pulp facts, and builds architecture-specific
+# repo lists for downstream build playbooks.
+
+# --- Load and validate repo_status.yml ---
+- name: Load repo_status.yml
+  ansible.builtin.include_vars:
+    file: "{{ repo_manager_output_path }}"
+
+- name: Set OS facts from repo_status.yml
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
+    cluster_os_version: "{{ cluster_os_version | default('10.0') }}"
+    cacheable: true
+
+- name: Validate repo_status.yml has required sections
+  ansible.builtin.assert:
+    that:
+      - repo_manager is defined
+      - repo_manager.certificates is defined
+      - repo_manager.certificates.server_crt is defined
+      - repo_manager.certificates.server_crt | length > 0
+      - repo_manager.port is defined
+    fail_msg: "{{ repo_status_missing_section_fail_msg }}"
+    quiet: true
+
+# --- Resolve functional_group_packages.yml path from package_list ---
+- name: Set package_list_path from repo_status.yml
+  ansible.builtin.set_fact:
+    package_list_path: >-
+      {{ repo_manager.package_list | default(
+         (repo_manager_output_path | dirname) + '/functional_group_packages.yml'
+      ) }}
+    cacheable: true
+
+- name: Validate functional_group_packages.yml exists
+  ansible.builtin.stat:
+    path: "{{ package_list_path }}"
+  register: _pkg_list_check
+
+- name: Fail if functional_group_packages.yml not found
+  ansible.builtin.fail:
+    msg: "{{ functional_group_packages_not_found_fail_msg }}"
+  when: not _pkg_list_check.stat.exists
+
+# --- Validate pulp certificate ---
+- name: Validate pulp certificate exists
+  ansible.builtin.stat:
+    path: "{{ repo_manager.certificates.server_crt }}"
+  register: _pulp_cert_check
+
+- name: Fail if pulp certificate not found
+  ansible.builtin.fail:
+    msg: "{{ pulp_cert_not_found_fail_msg }}"
+  when: not _pulp_cert_check.stat.exists
+
+# --- Set pulp and S3 facts ---
+- name: Set pulp and S3 facts from repo_status.yml
+  ansible.builtin.set_fact:
+    pulp_port: "{{ repo_manager.port }}"
+    pulp_cert_path: "{{ repo_manager.certificates.server_crt }}"
+    s3_endpoint: >-
+      {{ s3_configurations.endpoint_url
+         if s3_configurations.endpoint_url | default('') | length > 0
+         else ('http://' + admin_nic_ip + ':9000'
+               if s3_configurations.provider | default('minio') == 'minio'
+               else '') }}
+    cacheable: true
+
+# --- Build repo lists ---
+- name: Build repo lists from repo_status.yml
+  when: rpm_repos is defined
+  block:
+    - name: Initialize repo lists
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: []
+        repo_manager_repos_aarch64: []
+        rpm_repos_aarch64: "{{ rpm_repos.aarch64 | default({}) }}"
+
+    - name: Build x86_64 repo list from rpm_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (rpm_repos.x86_64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+
+    - name: Build aarch64 repo list from rpm_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_aarch64: "{{ repo_manager_repos_aarch64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (rpm_repos.aarch64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+
+    - name: Build x86_64 repo list from user_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (user_repos.x86_64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+      when: user_repos is defined
+
+    - name: Build aarch64 repo list from user_repos
+      ansible.builtin.set_fact:
+        repo_manager_repos_aarch64: "{{ repo_manager_repos_aarch64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
+      loop: "{{ (user_repos.aarch64 | default({})) | dict2items }}"
+      loop_control:
+        loop_var: item
+      when: user_repos is defined
+
+    - name: Make repo lists cacheable
+      ansible.builtin.set_fact:
+        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 }}"
+        repo_manager_repos_aarch64: "{{ repo_manager_repos_aarch64 }}"
+        cacheable: true
+  # NOTE: repo list loop set_facts above cannot be further consolidated
+  # because Ansible loops append to the list incrementally.

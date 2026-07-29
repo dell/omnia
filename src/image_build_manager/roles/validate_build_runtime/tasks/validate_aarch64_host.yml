@@ -86,7 +86,7 @@
   ansible.builtin.debug:
     msg: >
       SSH passwordless access to {{ aarch64_inventory_host_ip }} is not yet configured.
-      The prepare_arm_node role will attempt ssh-copy-id using provision_password.
+      The prepare_aarch64_node role will attempt ssh-copy-id using aarch64_ssh_password.
 
 # --- 6. Dynamically create admin_aarch64 inventory group ---
 - name: Add aarch64 host to admin_aarch64 group dynamically
