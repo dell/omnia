@@ -59,13 +59,20 @@
         victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) }}"
       when: telemetry_config is defined
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed
-      ansible.builtin.include_role:
-        name: deploy_victoria
+    - name: Set victoria_deployment_mode
+      ansible.builtin.set_fact:
+        victoria_deployment_mode: "cluster"
       when:
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
 
-    - name: Include enable_powerscale role
+    - name: Deploy VictoriaMetrics if needed and not already deployed
       ansible.builtin.include_role:
-        name: enable_powerscale
+        name: ../roles/deploy_victoria
+      when:
+        - victoria_metrics_needed | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Include deploy_powerscale role
+      ansible.builtin.include_role:
+        name: deploy_powerscale

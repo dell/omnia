@@ -14,14 +14,11 @@
 ---
 
 # =============================================================================
-# deploy_kafka — Orchestrator
+# deploy_ome — Orchestrator
 # =============================================================================
-# Consolidated role for enabling or disabling Kafka.
 # Auto-determines state from telemetry_config.yml:
-#   Kafka is enabled when any source has "kafka" in collection_targets.
-#
-# Enable: Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
-# Disable: Scales down Kafka StatefulSet and Operator to 0 replicas.
+#   telemetry_sources.ome.metrics_enabled OR
+#   telemetry_sources.ome.logs_enabled
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -30,25 +27,20 @@
     tasks_from: load_telemetry_config
   when: telemetry_config is not defined
 
-- name: Determine Kafka state from config
+- name: Determine OME telemetry state from config
   ansible.builtin.set_fact:
-    kafka_enabled: >-
+    ome_enabled: >-
       {{
-        (telemetry_config.telemetry_sources | dict2items
-         | selectattr('value.metrics_enabled', 'defined')
-         | selectattr('value.metrics_enabled', 'equalto', true)
-         | selectattr('value.collection_targets', 'defined')
-         | map(attribute='value.collection_targets')
-         | flatten
-         | select('equalto', 'kafka')
-         | list | length > 0)
+        (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool)
+        or
+        (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)
       }}
   when: telemetry_config is defined
 
-- name: Enable Kafka
+- name: Enable OME telemetry
   ansible.builtin.include_tasks: enable.yml
-  when: kafka_enabled | default(false) | bool
+  when: ome_enabled | default(false) | bool
 
-- name: Disable Kafka
+- name: Disable OME telemetry
   ansible.builtin.include_tasks: disable.yml
-  when: not (kafka_enabled | default(false) | bool)
+  when: not (ome_enabled | default(false) | bool)

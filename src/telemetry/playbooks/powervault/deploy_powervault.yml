@@ -59,9 +59,16 @@ pre_tasks:
         victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.powervault.collection_targets | default([])) }}"
       when: telemetry_config is defined
 
+    - name: Set victoria_deployment_mode
+      ansible.builtin.set_fact:
+        victoria_deployment_mode: "cluster"
+      when:
+        - victoria_metrics_needed | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
     - name: Deploy VictoriaMetrics if needed and not already deployed
       ansible.builtin.include_role:
-        name: deploy_victoria
+        name: ../roles/deploy_victoria
       when:
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool

@@ -40,3 +40,8 @@ victoria_cert_dir: "{{ telemetry_deploy_dir }}/certs/victoria"
 victoria_deploy_timeout: "600s"
 victoria_crd_wait_retries: 60
 victoria_crd_wait_delay: 2
+
+# Disable-specific variables
+victoria_statefulset_name: "vmsingle"
+victoria_scale_down_msg: "Scaling down VictoriaMetrics StatefulSet to 0 replicas"
+victoria_not_found_msg: "VictoriaMetrics StatefulSet not found, nothing to scale down"

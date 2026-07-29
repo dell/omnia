@@ -17,6 +17,11 @@
 # deploy_kafka — Prepare: download Strimzi package + generate manifests
 # =============================================================================
 
+- name: Load telemetry configuration
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+
 - name: Create telemetry directories
   block:
     - name: Create telemetry subdirectory
@@ -50,7 +55,6 @@
         timeout: 300
       when: not (strimzi_tarball_stat.stat.exists | default(false))
       register: strimzi_download
-      failed_when: false
   run_once: true
 
 - name: Set strimzi_kafka_pkg path

@@ -18,7 +18,7 @@
 # =============================================================================
 # Loads telemetry_config.yml, telemetry_storage_config.yml, and telemetry_packages.yml
 # Sets kube_vip, telemetry_registry, and cluster_mount variables
-# Used by: telemetry.yml, enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Used by: telemetry.yml, deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, etc.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
 - name: Set default input project directory if not provided

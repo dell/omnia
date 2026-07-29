@@ -14,22 +14,42 @@
 ---
 
 # =============================================================================
-# deploy_victoria — Shared VictoriaMetrics deployment orchestrator
+# deploy_victoria — Orchestrator
 # =============================================================================
-# Invoked by any telemetry enablement that has 'victoria_metrics' or
-# 'victoria_logs' in collection_targets.
-# Conditionally runs metrics/ and logs/ sub-roles.
+# Consolidated role for enabling or disabling VictoriaMetrics.
+# Auto-determines state from telemetry_config.yml:
+#   Victoria is enabled when any source has "victoria_metrics" or
+#   "victoria_logs" in collection_targets.
 #
-# Variables expected from hostvars['localhost']:
-#   - telemetry_config
-#   - telemetry_packages_config
-#   - cluster_mount
+# Enable: Deploys VictoriaMetrics metrics and logs stacks.
+# Disable: Scales down VictoriaMetrics StatefulSet to 0 replicas.
 # =============================================================================
 
-- name: Deploy VictoriaMetrics metrics stack
-  ansible.builtin.include_tasks: "{{ role_path }}/metrics/tasks/main.yml"
-  when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+- name: Load telemetry configuration
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
 
-- name: Deploy VictoriaLogs logs stack
-  ansible.builtin.include_tasks: "{{ role_path }}/logs/tasks/main.yml"
-  when: hostvars['localhost']['victoria_logs_support'] | default(false) | bool
+- name: Determine VictoriaMetrics state from config
+  ansible.builtin.set_fact:
+    victoria_enabled: >-
+      {{
+        (telemetry_config.telemetry_sources | dict2items
+         | selectattr('value.metrics_enabled', 'defined')
+         | selectattr('value.metrics_enabled', 'equalto', true)
+         | selectattr('value.collection_targets', 'defined')
+         | map(attribute='value.collection_targets')
+         | flatten
+         | select('in', ['victoria_metrics', 'victoria_logs'])
+         | list | length > 0)
+      }}
+  when: telemetry_config is defined
+
+- name: Enable VictoriaMetrics
+  ansible.builtin.include_tasks: enable.yml
+  when: victoria_enabled | default(false) | bool
+
+- name: Disable VictoriaMetrics
+  ansible.builtin.include_tasks: disable.yml
+  when: not (victoria_enabled | default(false) | bool)

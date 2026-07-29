@@ -1,0 +1,151 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Deploy telemetry sinks (Kafka, VictoriaMetrics, VictoriaLogs)
+# Usage: ansible-playbook playbooks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics","victoria_logs"]'
+#
+# This playbook deploys only the telemetry sink infrastructure without deploying sources.
+# Useful for:
+#   - Setting up shared infrastructure before deploying sources
+#   - Upgrading/redeploying sink components independently
+#   - Testing sink deployment in isolation
+#
+# Extra variables:
+#   sinks: List of sinks to deploy (YAML list format)
+#          Valid values: ["kafka"], ["victoria_metrics"], ["victoria_logs"],
+#                       ["kafka", "victoria_metrics"], ["kafka", "victoria_logs"],
+#                       ["victoria_metrics", "victoria_logs"],
+#                       ["kafka", "victoria_metrics", "victoria_logs"]
+#          Default: ["kafka", "victoria_metrics", "victoria_logs"] (deploy all sinks)
+#
+# Examples:
+#   Deploy only Kafka:
+#     ansible-playbook playbooks/deploy_sinks.yml -e 'sinks=["kafka"]'
+#
+#   Deploy only VictoriaMetrics:
+#     ansible-playbook playbooks/deploy_sinks.yml -e 'sinks=["victoria_metrics"]'
+#
+#   Deploy only VictoriaLogs:
+#     ansible-playbook playbooks/deploy_sinks.yml -e 'sinks=["victoria_logs"]'
+#
+#   Deploy all sinks (default):
+#     ansible-playbook playbooks/deploy_sinks.yml
+#     ansible-playbook playbooks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics","victoria_logs"]'
+
+# ── Phase 0: Prerequisites ───────────────────────────────────────────────────
+- import_playbook: telemetry_prereq.yml
+
+# ── Phase 1: Parse sinks variable and set deployment flags ───────────────────
+- name: "Parse sinks variable and determine which sinks to deploy"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Set default sinks if not provided
+      ansible.builtin.set_fact:
+        sinks: ["kafka", "victoria_metrics", "victoria_logs"]
+      when: sinks is not defined or sinks | length == 0
+
+    - name: Validate sinks is a list
+      ansible.builtin.assert:
+        that:
+          - sinks is iterable
+          - sinks is not string
+        fail_msg: >
+          'sinks' must be a list, e.g., sinks=["kafka","victoria_metrics","victoria_logs"]
+
+    - name: Validate sinks values
+      ansible.builtin.assert:
+        that:
+          - item in ['kafka', 'victoria_metrics', 'victoria_logs']
+        fail_msg: >
+          Invalid sink '{{ item }}'. Valid values are: 'kafka', 'victoria_metrics', 'victoria_logs'
+      loop: "{{ sinks }}"
+
+    - name: Set deployment flags
+      ansible.builtin.set_fact:
+        deploy_kafka: "{{ 'kafka' in sinks }}"
+        deploy_victoria_metrics: "{{ 'victoria_metrics' in sinks }}"
+        deploy_victoria_logs: "{{ 'victoria_logs' in sinks }}"
+        cacheable: true
+
+    - name: Display deployment plan
+      ansible.builtin.debug:
+        msg:
+          - "Telemetry Sinks Deployment Plan:"
+          - "  Kafka: {{ 'YES' if deploy_kafka else 'NO' }}"
+          - "  VictoriaMetrics: {{ 'YES' if deploy_victoria_metrics else 'NO' }}"
+          - "  VictoriaLogs: {{ 'YES' if deploy_victoria_logs else 'NO' }}"
+
+# ── Phase 2: Deploy Kafka (if requested) ─────────────────────────────────────
+- name: "Deploy Kafka operator and cluster"
+  hosts: kube_vip_group
+  gather_facts: false
+  any_errors_fatal: true
+  when: hostvars['localhost']['deploy_kafka'] | default(false) | bool
+  tasks:
+    - name: Deploy Kafka
+      ansible.builtin.include_role:
+        name: deploy_kafka
+
+# ── Phase 3: Deploy VictoriaMetrics (if requested) ───────────────────────────
+- name: "Deploy VictoriaMetrics operator and cluster"
+  hosts: kube_vip_group
+  gather_facts: false
+  any_errors_fatal: true
+  when: hostvars['localhost']['deploy_victoria_metrics'] | default(false) | bool
+  tasks:
+    - name: Set victoria_deployment_mode
+      ansible.builtin.set_fact:
+        victoria_deployment_mode: "cluster"
+
+    - name: Deploy VictoriaMetrics
+      ansible.builtin.include_role:
+        name: ../roles/deploy_victoria
+
+# ── Phase 4: Deploy VictoriaLogs (if requested) ──────────────────────────────
+- name: "Deploy VictoriaLogs cluster"
+  hosts: kube_vip_group
+  gather_facts: false
+  any_errors_fatal: true
+  when: hostvars['localhost']['deploy_victoria_logs'] | default(false) | bool
+  tasks:
+    - name: Deploy VictoriaLogs
+      ansible.builtin.include_role:
+        name: deploy_victoria
+        tasks_from: logs/main
+
+# ── Phase 5: Summary ─────────────────────────────────────────────────────────
+- name: "Deployment summary"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Telemetry Sinks Deployment Complete"
+          - "=========================================="
+          - "Deployed components:"
+          - "  Kafka: {{ 'DEPLOYED' if deploy_kafka else 'SKIPPED' }}"
+          - "  VictoriaMetrics: {{ 'DEPLOYED' if deploy_victoria_metrics else 'SKIPPED' }}"
+          - "  VictoriaLogs: {{ 'DEPLOYED' if deploy_victoria_logs else 'SKIPPED' }}"
+          - ""
+          - "Next steps:"
+          - "  - Verify pods are running: kubectl get pods -n telemetry"
+          - "  - Deploy telemetry sources: ansible-playbook telemetry.yml --tags deploy"
+          - "=========================================="

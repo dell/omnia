@@ -22,6 +22,7 @@ telemetry_namespace: "telemetry"
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
+telemetry_registry: "{{ hostvars['localhost']['telemetry_packages_config'].telemetry_registry | default({}) }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
@@ -50,5 +51,13 @@ kafka_storage: "{{ hostvars['localhost']['telemetry_storage_config'].kafka_stora
 
 # Timeouts
 kafka_deploy_timeout: "600s"
+kafka_cluster_ready_timeout: "600s"
 kafka_crd_wait_retries: 60
 kafka_crd_wait_delay: 2
+
+# Disable-specific variables
+kafka_statefulset_name: "kafka"
+kafka_operator_deployment_name: "strimzi-cluster-operator"
+kafka_scale_down_msg: "Scaling down Kafka StatefulSet to 0 replicas"
+kafka_operator_scale_down_msg: "Scaling down Kafka Operator Deployment to 0 replicas"
+kafka_not_found_msg: "Kafka StatefulSet not found, nothing to scale down"

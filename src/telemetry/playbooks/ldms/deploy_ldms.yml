@@ -15,7 +15,7 @@
 
 # Enable LDMS Telemetry
 # Usage: Called from telemetry.yml or standalone with kube_vip
-#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags enable_ldms
+#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags deploy_ldms
 #
 # Deploys shared infrastructure (Kafka, VictoriaMetrics) if not present,
 # then configures LDMS sampler/aggregator and deploys the Vector-LDMS bridge
@@ -65,16 +65,23 @@
         victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) }}"
       when: telemetry_config is defined
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed
-      ansible.builtin.include_role:
-        name: deploy_victoria
+    - name: Set victoria_deployment_mode
+      ansible.builtin.set_fact:
+        victoria_deployment_mode: "cluster"
       when:
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
 
-    - name: Include enable_ldms role (K8s deployment only)
+    - name: Deploy VictoriaMetrics if needed and not already deployed
       ansible.builtin.include_role:
-        name: enable_ldms
+        name: ../roles/deploy_victoria
+      when:
+        - victoria_metrics_needed | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Include deploy_ldms role (K8s deployment only)
+      ansible.builtin.include_role:
+        name: deploy_ldms
       vars:
         skip_sampler_config: true
         skip_aggregator_config: true
@@ -92,7 +99,7 @@
 
     - name: Configure LDMS aggregator on control node
       ansible.builtin.include_role:
-        name: enable_ldms
+        name: deploy_ldms
         tasks_from: configure_ldms_aggregator
 
 - name: Configure LDMS Sampler on Slurm Compute Nodes
@@ -108,5 +115,5 @@
 
     - name: Configure LDMS sampler on compute nodes
       ansible.builtin.include_role:
-        name: enable_ldms
+        name: deploy_ldms
         tasks_from: configure_ldms_sampler

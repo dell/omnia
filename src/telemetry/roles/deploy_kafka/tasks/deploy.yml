@@ -95,6 +95,12 @@
   register: topic_apply
   changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
 
+- name: Wait for Kafka cluster to be ready
+  ansible.builtin.command: >
+    kubectl wait kafka/kafka -n {{ telemetry_namespace }}
+    --for=condition=Ready --timeout={{ kafka_cluster_ready_timeout }}
+  changed_when: false
+
 - name: Apply Kafka user manifest
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml

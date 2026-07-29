@@ -20,7 +20,7 @@
 # Requires victoria-metrics-operator already installed (by deploy_victoria/metrics).
 # Idempotent: skips if already deployed.
 #
-# Consumed by: enable_powerscale (logs), enable_ufm (logs), etc.
+# Consumed by: deploy_powerscale (logs), deploy_ufm (logs), etc.
 # Condition: victoria_logs_support == true
 #
 # Flow: prepare (generate manifests) → deploy (apply CRs)

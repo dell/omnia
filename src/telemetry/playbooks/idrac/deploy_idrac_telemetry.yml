@@ -15,7 +15,7 @@
 
 # Enable iDRAC Telemetry
 # Usage: Called from telemetry.yml or standalone with kube_vip
-#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags enable_idrac_telemetry
+#   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags deploy_idrac_telemetry
 #
 # Deploys shared infrastructure (Kafka, VictoriaMetrics) if not present,
 # then deploys iDRAC telemetry components (receiver, kafkapump, victoriapump).
@@ -84,6 +84,6 @@
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
 
-    - name: Include enable_idrac_telemetry role
+    - name: Include deploy_idrac_telemetry role
       ansible.builtin.include_role:
-        name: enable_idrac_telemetry
+        name: deploy_idrac_telemetry

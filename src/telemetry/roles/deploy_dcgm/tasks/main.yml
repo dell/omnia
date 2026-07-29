@@ -14,14 +14,11 @@
 ---
 
 # =============================================================================
-# deploy_kafka — Orchestrator
+# deploy_dcgm — Orchestrator
 # =============================================================================
-# Consolidated role for enabling or disabling Kafka.
+# Consolidated role for enabling or disabling DCGM telemetry.
 # Auto-determines state from telemetry_config.yml:
-#   Kafka is enabled when any source has "kafka" in collection_targets.
-#
-# Enable: Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
-# Disable: Scales down Kafka StatefulSet and Operator to 0 replicas.
+#   telemetry_sources.dcgm.metrics_enabled
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -30,25 +27,15 @@
     tasks_from: load_telemetry_config
   when: telemetry_config is not defined
 
-- name: Determine Kafka state from config
+- name: Determine DCGM telemetry state from config
   ansible.builtin.set_fact:
-    kafka_enabled: >-
-      {{
-        (telemetry_config.telemetry_sources | dict2items
-         | selectattr('value.metrics_enabled', 'defined')
-         | selectattr('value.metrics_enabled', 'equalto', true)
-         | selectattr('value.collection_targets', 'defined')
-         | map(attribute='value.collection_targets')
-         | flatten
-         | select('equalto', 'kafka')
-         | list | length > 0)
-      }}
+    dcgm_enabled: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool }}"
   when: telemetry_config is defined
 
-- name: Enable Kafka
+- name: Enable DCGM telemetry
   ansible.builtin.include_tasks: enable.yml
-  when: kafka_enabled | default(false) | bool
+  when: dcgm_enabled | default(false) | bool
 
-- name: Disable Kafka
+- name: Disable DCGM telemetry
   ansible.builtin.include_tasks: disable.yml
-  when: not (kafka_enabled | default(false) | bool)
+  when: not (dcgm_enabled | default(false) | bool)

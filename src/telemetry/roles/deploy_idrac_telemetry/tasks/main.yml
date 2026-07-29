@@ -14,14 +14,16 @@
 ---
 
 # =============================================================================
-# deploy_kafka — Orchestrator
+# deploy_idrac_telemetry — Orchestrator
 # =============================================================================
-# Consolidated role for enabling or disabling Kafka.
-# Auto-determines state from telemetry_config.yml:
-#   Kafka is enabled when any source has "kafka" in collection_targets.
+# Consolidated role for enabling or disabling iDRAC telemetry.
+# Routes to appropriate task files based on telemetry_config.yml flags.
 #
-# Enable: Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
-# Disable: Scales down Kafka StatefulSet and Operator to 0 replicas.
+# Enable: Deploys iDRAC telemetry stack (receiver, kafkapump, victoriapump,
+# mysqldb, activemq) with Kafka and VictoriaMetrics as collection targets.
+#
+# Disable: Scales down iDRAC telemetry StatefulSet to 0 replicas, preserving
+# PVCs for future re-enablement.
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -30,25 +32,15 @@
     tasks_from: load_telemetry_config
   when: telemetry_config is not defined
 
-- name: Determine Kafka state from config
+- name: Determine iDRAC telemetry state from config
   ansible.builtin.set_fact:
-    kafka_enabled: >-
-      {{
-        (telemetry_config.telemetry_sources | dict2items
-         | selectattr('value.metrics_enabled', 'defined')
-         | selectattr('value.metrics_enabled', 'equalto', true)
-         | selectattr('value.collection_targets', 'defined')
-         | map(attribute='value.collection_targets')
-         | flatten
-         | select('equalto', 'kafka')
-         | list | length > 0)
-      }}
+    idrac_enabled: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
   when: telemetry_config is defined
 
-- name: Enable Kafka
+- name: Enable iDRAC telemetry
   ansible.builtin.include_tasks: enable.yml
-  when: kafka_enabled | default(false) | bool
+  when: idrac_enabled | default(false) | bool
 
-- name: Disable Kafka
+- name: Disable iDRAC telemetry
   ansible.builtin.include_tasks: disable.yml
-  when: not (kafka_enabled | default(false) | bool)
+  when: not (idrac_enabled | default(false) | bool)
