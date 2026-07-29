@@ -28,87 +28,36 @@
 #   ansible-playbook discovery.yml -e "discovery_mechanism=ome"
 #   ansible-playbook discovery.yml -e "discovery_mechanism=magellan"
 
-- name: Ensure discovery Python dependencies
+# Step 0: Setup — Python deps, paths, config loading, validation tags
+- name: Setup discovery environment
   hosts: localhost
   connection: local
   gather_facts: false
   tags: always
-  tasks:
-    - name: Install required Python packages
-      ansible.builtin.pip:
-        name:
-          - toml
-        state: present
-      register: pip_result
-      changed_when: pip_result.changed
+  roles:
+    - discovery_setup
 
-- name: Initialize discovery domain paths
+# Step 1: Validate discovery input (L1 schema + L2 logic)
+- name: Validate discovery input configuration
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
-  tasks:
-    - name: Set discovery domain input and output directories
-      ansible.builtin.set_fact:
-        discovery_project_name: "{{ project_name | default('project_default') }}"
-        cacheable: true
-
-    - name: Set discovery input/output paths
-      ansible.builtin.set_fact:
-        discovery_input_dir: "/opt/omnia/input/{{ discovery_project_name }}/discovery"
-        discovery_output_dir: "/opt/omnia/output/{{ discovery_project_name }}/discovery"
-        input_project_dir: "/opt/omnia/input/{{ discovery_project_name }}"
-        cacheable: true
-
-    - name: Verify discovery input directory exists
-      ansible.builtin.stat:
-        path: "{{ discovery_input_dir }}"
-      register: discovery_input_stat
-
-    - name: Fail if discovery input directory does not exist
-      ansible.builtin.fail:
-        msg: >-
-          Discovery input directory '{{ discovery_input_dir }}' does not exist.
-          Please create it and populate with discovery_config.yml and network_spec.yml.
-      when: not discovery_input_stat.stat.exists
-
-    - name: Ensure discovery output directory exists
-      ansible.builtin.file:
-        path: "{{ discovery_output_dir }}"
-        state: directory
-        mode: '0755'
-
-- name: Set discovery validation tags
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Set dynamic run tags for discovery validation
-      ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['discovery']) | unique }}"
-        cacheable: true
-
-- name: Load discovery configuration
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Include discovery config file
-      ansible.builtin.include_vars:
-        file: "{{ discovery_input_dir }}/discovery_config.yml"
-      failed_when: false
-
-    - name: Set enable_bmc_discovery for credential utility
-      ansible.builtin.set_fact:
-        enable_bmc_discovery: "{{ true if (discovery_mechanism | default('')) == 'ome' else (enable_bmc_discovery | default(false) | bool) }}"
-        cacheable: true
-
-- name: Invoke validate_config.yml to perform L1 and L2 validations with discovery tag
-  ansible.builtin.import_playbook: ../playbooks/input_validation/validate_config.yml
-  vars:
-    skip_subscription_check: true
+  roles:
+    - role: validate_discovery_input
+      when: not config_file_status | default(false) | bool
   tags: always
 
-- name: Invoke get_config_credentials.yml
-  ansible.builtin.import_playbook: ../playbooks/utils/credential_utility/get_config_credentials.yml
+# Step 2: Credential management (prompt, encrypt, vault)
+- name: Create and update credential config files
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: discovery_credentials
+      when:
+        - not config_file_status | default(false) | bool
+        - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
+          or (omnia_run_tags | default([]) | length == 0)
 
 - name: BMC Discovery Playbook
   hosts: localhost

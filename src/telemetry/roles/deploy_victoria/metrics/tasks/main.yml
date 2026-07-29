@@ -28,38 +28,13 @@
 - name: Prepare VictoriaMetrics packages and manifests
   ansible.builtin.include_tasks: ../../metrics/tasks/prepare.yml
 
-- name: Check if VictoriaMetrics operator is deployed
-  ansible.builtin.command: >
-    helm status victoria-metrics-operator -n {{ telemetry_namespace }}
-  register: victoria_operator_status
-  changed_when: false
-  failed_when: false
-
-- name: Check if VMCluster is already deployed
-  ansible.builtin.command: >
-    kubectl get vmcluster -n {{ telemetry_namespace }} -o name
-  register: vmcluster_existing
-  changed_when: false
-  failed_when: false
-
-- name: Skip VictoriaMetrics deployment if already running
-  ansible.builtin.debug:
-    msg: "VictoriaMetrics already deployed in {{ telemetry_namespace }}: {{ vmcluster_existing.stdout | default('operator present') }}"
-  when:
-    - victoria_operator_status.rc == 0
-    - vmcluster_existing.rc == 0
-    - vmcluster_existing.stdout | length > 0
-
-- name: Deploy VictoriaMetrics
-  when: victoria_operator_status.rc != 0 or vmcluster_existing.stdout | default('') | length == 0
-  block:
-    - name: Run VictoriaMetrics deployment
-      ansible.builtin.include_tasks: ../../metrics/tasks/deploy.yml
+- name: Run VictoriaMetrics deployment
+  ansible.builtin.include_tasks: ../../metrics/tasks/deploy.yml
 
 - name: Verify VMCluster is ready
   ansible.builtin.command: >
     kubectl get vmcluster -n {{ telemetry_namespace }}
-    -o jsonpath='{.items[0].status.clusterStatus}'
+    -o jsonpath='{.items[0].status.updateStatus}'
   register: vmcluster_status
   changed_when: false
   failed_when: false

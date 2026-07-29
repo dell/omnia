@@ -27,8 +27,8 @@
   ansible.builtin.command: kubectl apply -f -
   args:
     stdin: "{{ ns_yaml.stdout }}"
-  changed_when: "'created' in ns_result.stdout | default('')"
   register: ns_result
+  changed_when: "'created' in ns_result.stdout | default('')"
 
 - name: Check if Strimzi operator is installed
   ansible.builtin.command: >
@@ -59,7 +59,7 @@
 
 - name: Wait for Strimzi operator deployment
   ansible.builtin.command: >
-    kubectl wait --for=condition=available --timeout=300s
+    kubectl wait --for=condition=available --timeout={{ kafka_operator_wait_timeout }}
     deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
   changed_when: false
 
@@ -82,18 +82,9 @@
   register: kafka_apply
   changed_when: "'created' in kafka_apply.stdout or 'configured' in kafka_apply.stdout"
 
-- name: Find generated Kafka topic manifests
-  ansible.builtin.find:
-    paths: "{{ telemetry_deployments_dir }}"
-    patterns: "kafka.*.topic.yaml"
-  register: topic_files
-
-- name: Apply Kafka topic manifests
-  ansible.builtin.command: >
-    kubectl apply -f {{ item.path }}
-  loop: "{{ topic_files.files }}"
-  register: topic_apply
-  changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
+# =============================================================================
+# Sink infrastructure resources — always deployed (user, bridge)
+# =============================================================================
 
 - name: Wait for Kafka cluster to be ready
   ansible.builtin.command: >
@@ -111,8 +102,8 @@
   ansible.builtin.command: >
     kubectl get secret kafkapump -n {{ telemetry_namespace }}
   register: kafkapump_secret
-  retries: 30
-  delay: 2
+  retries: "{{ kafka_secret_wait_retries }}"
+  delay: "{{ kafka_secret_wait_delay }}"
   until: kafkapump_secret.rc == 0
   changed_when: false
 
@@ -124,3 +115,23 @@
     - kafka.kafka_bridge_lb.yaml
   register: bridge_apply
   changed_when: "'created' in (bridge_apply.stdout | default('')) or 'configured' in (bridge_apply.stdout | default(''))"
+
+# =============================================================================
+# Source-specific resources — only deployed when kafka_infra_only is false
+# =============================================================================
+
+- name: Apply source-specific Kafka topics
+  when: not (kafka_infra_only | default(false) | bool)
+  block:
+    - name: Find generated Kafka topic manifests
+      ansible.builtin.find:
+        paths: "{{ telemetry_deployments_dir }}"
+        patterns: "kafka.*.topic.yaml"
+      register: topic_files
+
+    - name: Apply Kafka topic manifests
+      ansible.builtin.command: >
+        kubectl apply -f {{ item.path }}
+      loop: "{{ topic_files.files }}"
+      register: topic_apply
+      changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"

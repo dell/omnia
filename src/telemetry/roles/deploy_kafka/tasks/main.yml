@@ -14,41 +14,48 @@
 ---
 
 # =============================================================================
-# deploy_kafka — Orchestrator
+# deploy_kafka — Shared Kafka deployment role
 # =============================================================================
-# Consolidated role for enabling or disabling Kafka.
-# Auto-determines state from telemetry_config.yml:
-#   Kafka is enabled when any source has "kafka" in collection_targets.
+# Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
+# Idempotent: skips if already deployed, upgrades if present.
 #
-# Enable: Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
-# Disable: Scales down Kafka StatefulSet and Operator to 0 replicas.
+# Consumed by: enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Condition: kafka_support == true (set by derive_sink_support_flags.yml)
+#
+# Flow: prepare (download package + generate manifests) → deploy (apply manifests)
 # =============================================================================
 
-- name: Load telemetry configuration
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: load_telemetry_config
-  when: telemetry_config is not defined
+- name: Prepare Kafka packages and manifests
+  ansible.builtin.include_tasks: prepare.yml
 
-- name: Determine Kafka state from config
+- name: Generate Kafka cluster ID
+  ansible.builtin.command: uuidgen
+  register: cluster_id
+  changed_when: false
+  no_log: true
+
+- name: Render Kafka cluster ID secret
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/kafka_cluster_id_secret.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/kafka_cluster_id_secret.yaml"
+    mode: "0644"
+
+- name: Run Kafka deployment
+  ansible.builtin.include_tasks: deploy.yml
+
+- name: Verify Kafka cluster is ready
+  ansible.builtin.command: >
+    kubectl wait kafka/kafka -n {{ telemetry_namespace }}
+    --for=condition=Ready --timeout={{ kafka_deploy_timeout }}
+  register: kafka_ready
+  changed_when: false
+  failed_when: false
+
+- name: Set kafka_deployed fact
   ansible.builtin.set_fact:
-    kafka_enabled: >-
-      {{
-        (telemetry_config.telemetry_sources | dict2items
-         | selectattr('value.metrics_enabled', 'defined')
-         | selectattr('value.metrics_enabled', 'equalto', true)
-         | selectattr('value.collection_targets', 'defined')
-         | map(attribute='value.collection_targets')
-         | flatten
-         | select('equalto', 'kafka')
-         | list | length > 0)
-      }}
-  when: telemetry_config is defined
+    kafka_deployed: "{{ kafka_ready.rc == 0 }}"
+    cacheable: true
 
-- name: Enable Kafka
-  ansible.builtin.include_tasks: enable.yml
-  when: kafka_enabled | default(false) | bool
-
-- name: Disable Kafka
-  ansible.builtin.include_tasks: disable.yml
-  when: not (kafka_enabled | default(false) | bool)
+- name: Log Kafka deployment result
+  ansible.builtin.debug:
+    msg: "Kafka deployment: {{ 'READY' if kafka_deployed else 'PENDING (cluster may still be initializing)' }}"

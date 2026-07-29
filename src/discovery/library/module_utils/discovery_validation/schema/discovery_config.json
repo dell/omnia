@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Discovery Configuration",
+  "type": "object",
+  "properties": {
+    "enable_bmc_discovery": {
+      "type": "boolean",
+      "description": "Enable BMC discovery via OME. When true, ome_ip must be a valid IP address."
+    },
+    "ome_ip": {
+      "type": "string",
+      "description": "IP address of the Dell OpenManage Enterprise (OME) instance."
+    }
+  },
+  "required": [
+    "enable_bmc_discovery",
+    "ome_ip"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "enable_bmc_discovery": { "const": true }
+        }
+      },
+      "then": {
+        "properties": {
+          "ome_ip": {
+            "type": "string",
+            "minLength": 7,
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+            "errorMessage": "ome_ip must be a valid IPv4 address when enable_bmc_discovery is true. Example: 192.168.1.100"
+          }
+        }
+      }
+    }
+  ]
+}
