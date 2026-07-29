@@ -15,7 +15,7 @@
 # Resolve RPM repo URLs for image creation templates.
 # Priority: repo_manager output (repo_status.yml) > direct repo manager CLI query.
 
-- name: Use repo_manager output for {{ build_arch }} repos (preferred)
+- name: Use repo_manager output for repos (preferred) - {{ build_arch }}
   when: hostvars['localhost']['repo_manager_repos_' + build_arch] | default([]) | length > 0
   block:
     - name: Set rhel_arch_repos from repo_manager output
@@ -35,7 +35,7 @@
       register: pulp_endpoints
       changed_when: false
 
-    - name: Filter only {{ build_arch }} distributions
+    - name: Filter distributions for {{ build_arch }}
       ansible.builtin.set_fact:
         pulp_arch_distributions: >-
           {{ pulp_endpoints.stdout | from_json

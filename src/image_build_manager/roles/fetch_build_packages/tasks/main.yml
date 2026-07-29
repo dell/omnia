@@ -61,7 +61,9 @@
 
         - name: Display auto-detected functional groups
           ansible.builtin.debug:
-            msg: "Auto-detected {{ functional_groups | length }} functional groups from repo_status: {{ functional_groups | map(attribute='name') | list | join(', ') }}"
+            msg: >-
+              Auto-detected {{ functional_groups | length }} functional groups from repo_status:
+              {{ functional_groups | map(attribute='name') | list | join(', ') }}
 
     - name: Build compute_images_dict from mapping + enabled functional_groups
       ansible.builtin.set_fact:
@@ -70,7 +72,7 @@
           {% for fg in functional_groups -%}
             {% set fg_name = fg.name if fg is mapping else fg -%}
             {% if fg_name.endswith('_' + build_arch) -%}
-              {% set pkgs = (_fg_pkg_mapping.functional_groups[fg_name].packages | default([])) -%}
+              {% set pkgs = _fg_pkg_mapping.functional_groups[fg_name].packages | default([]) -%}
               {% set _ = result.update({fg_name: {'functional_group': fg_name, 'packages': pkgs}}) -%}
             {% endif -%}
           {% endfor -%}
@@ -88,7 +90,10 @@
 
     - name: Debug package resolution
       ansible.builtin.debug:
-        msg: "Resolved {{ compute_images_dict | length }} functional groups (source={{ hostvars['localhost']['functional_groups_source'] | default('config') }}), {{ base_image_packages | length }} base packages"
+        msg: >-
+          Resolved {{ compute_images_dict | length }} functional groups
+          (source={{ hostvars['localhost']['functional_groups_source'] | default('config') }}),
+          {{ base_image_packages | length }} base packages
         verbosity: 1
 
 - name: Fetch repo manager endpoint repos

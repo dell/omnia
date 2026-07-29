@@ -74,7 +74,7 @@ _thrillhouse_privilege_opts:
 _privilege_opts: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_privilege_opts, _builder_privilege_opts) }}"
 
 # Cert mount (only when repo_cert_path is set)
-_cert_opts: "{{ ([ _cert_mount ] if (repo_cert_path | default('') | length > 0) else []) }}"
+_cert_opts: "{{ ([_cert_mount] if (repo_cert_path | default('') | length > 0) else []) }}"
 
 # Base image mounts (static — rhel_arch_base_image_name is known at role load time)
 ochami_mounts: >-

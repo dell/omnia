@@ -18,7 +18,10 @@
 
 - name: Set S3 credentials from loaded image_build_credentials.yml
   ansible.builtin.set_fact:
-    s3_access_id: "{{ hostvars['localhost']['s3_access_id'] | default('admin') if (hostvars['localhost']['s3_access_id'] | default('')) | length > 0 else 'admin' }}"
+    s3_access_id: >-
+      {{ hostvars['localhost']['s3_access_id'] | default('admin')
+      if (hostvars['localhost']['s3_access_id'] | default('')) | length > 0
+      else 'admin' }}
     s3_secret_key: "{{ hostvars['localhost']['s3_secret_key'] | default('') }}"
   no_log: true
 

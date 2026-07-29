@@ -66,18 +66,21 @@
   block:
     - name: Build orchestrator command list
       ansible.builtin.set_fact:
-        _orchestrator_cmds: "{{ _orchestrator_cmds | default([]) + [{
-          'name': item.key,
-          'cmd': 'podman run --rm --device /dev/fuse --network host'
-                 + ' -e S3_ACCESS=' + s3_access + ' -e S3_SECRET=' + s3_secret
-                 + ' ' + aws_checksum_env
-                 + ' ' + (_privilege_opts | join(' '))
-                 + ' ' + (_cert_opts | join(' '))
-                 + ' -v ' + openchami_work_dir + '/images/rhel-' + item.key + compute_image_suffix + '-' + rhel_tag + '.yaml:' + _config_mount_path + ':z'
-                 + ' ' + (ochami_image | join(' '))
-                 + ' ' + (ochami_base_command | join(' ')),
-          'log_path': image_build_log_dir + '/' + item.key + compute_image_suffix + '_compute_image.log'
-        }] }}"
+        _orchestrator_cmds: "{{ (_orchestrator_cmds | default([])) + [_current_cmd] }}"
+      vars:
+        _current_cmd:
+          name: "{{ item.key }}"
+          cmd: >-
+            podman run --rm --device /dev/fuse --network host
+            -e S3_ACCESS={{ s3_access }}
+            -e S3_SECRET={{ s3_secret }}
+            {{ aws_checksum_env }}
+            {{ _privilege_opts | join(' ') }}
+            {{ _cert_opts | join(' ') }}
+            -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:{{ _config_mount_path }}:z
+            {{ ochami_image | join(' ') }}
+            {{ ochami_base_command | join(' ') }}
+          log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
       loop: "{{ compute_images_dict | dict2items }}"
       loop_control:
         loop_var: item

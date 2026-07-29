@@ -52,7 +52,10 @@
 - name: Write versioned build_status copy
   ansible.builtin.template:
     src: "{{ role_path }}/templates/build_status.yml.j2"
-    dest: "{{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"
+    dest: >-
+      {{ _output_domain }}/build_status_{{ _omnia_version }}_
+      {{ ansible_date_time.date | regex_replace('-', '') }}_
+      {{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml
     mode: "0644"
   vars:
     build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
@@ -61,4 +64,7 @@
   ansible.builtin.debug:
     msg:
       - "Latest: {{ _output_base }}/build_status.yml"
-      - "Versioned: {{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"
+      - >-
+        Versioned: {{ _output_domain }}/build_status_{{ _omnia_version }}_
+        {{ ansible_date_time.date | regex_replace('-', '') }}_
+        {{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml
