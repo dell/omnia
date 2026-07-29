@@ -44,7 +44,7 @@ readonly YELLOW='\033[0;33m'
 readonly NC='\033[0m'
 
 # Omnia release metadata
-readonly OMNIA_RELEASE="2.2.0.0"
+readonly OMNIA_RELEASE="2.3.0.0"
 
 # Known domain directories (each may contain requirements.txt / requirements.yml)
 readonly DOMAINS=(
@@ -244,52 +244,11 @@ setup_venv() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Version
-# ─────────────────────────────────────────────────────────────────────────────
-get_version_from_git_tag() {
-    local git_root="$SCRIPT_DIR"
-    while [ "$git_root" != "/" ] && [ ! -d "$git_root/.git" ]; do
-        git_root="$(dirname "$git_root")"
-    done
-
-    if [ "$git_root" != "/" ] && [ -d "$git_root/.git" ]; then
-        local tag
-        tag=$(cd "$git_root" && git tag --points-at HEAD 2>/dev/null | head -n 1)
-        if [[ "$tag" =~ ^v(.+)$ ]]; then
-            echo "${BASH_REMATCH[1]}"
-            return 0
-        elif [ -n "$tag" ]; then
-            echo "$tag"
-            return 0
-        fi
-    fi
-    echo ""
-    return 1
-}
-
-display_version() {
-    echo -e "${BLUE}Omnia Infrastructure Manager${NC}"
-    echo -e "  Release:   ${GREEN}$OMNIA_RELEASE${NC}"
-
-    local git_ver
-    git_ver=$(get_version_from_git_tag 2>/dev/null || true)
-    if [ -n "$git_ver" ]; then
-        echo -e "  Git tag:   ${GREEN}$git_ver${NC}"
-    fi
-
-    if [ -d "${OMNIA_VENV_PATH:-/opt/omnia/venv}" ]; then
-        echo -e "  Venv:      ${GREEN}${OMNIA_VENV_PATH:-/opt/omnia/venv}${NC}"
-    else
-        echo -e "  Venv:      ${YELLOW}(not set up — run ./omnia.sh --setup-venv)${NC}"
-    fi
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Help
 # ─────────────────────────────────────────────────────────────────────────────
 show_help() {
     cat <<EOF
-Omnia Infrastructure Manager (OIM) CLI — v${OMNIA_RELEASE}
+Omnia Infrastructure Manager (OIM) — v${OMNIA_RELEASE}
 
 PREREQUISITE:
   Edit src/main/omnia.env with your environment settings before running any command.
@@ -297,11 +256,18 @@ PREREQUISITE:
 USAGE:
   $0 <command>
 
-COMMANDS:
-  --setup-venv    Create/update the shared Python venv (pip + Galaxy collections)
-                  Discovers and installs requirements from all domains automatically.
-  --version, -v   Display Omnia version information
-  --help, -h      Show this help message
+SETUP COMMANDS:
+  --setup-venv, -s      Create/update the shared Python venv (pip + Galaxy collections)
+                        Discovers and installs requirements from all domains automatically.
+  --help, -h            Show this help message
+
+DIAGNOSTICS (see omnia-cli):
+  ./omnia-cli status [--project <name>]         All domain statuses
+  ./omnia-cli repo-manager [--project <name>]   Repo manager details
+  ./omnia-cli image-build [--project <name>]    Image build details
+  ./omnia-cli <domain> [--project <name>]       Any domain status
+  ./omnia-cli version                           Version info
+  ./omnia-cli help [<domain>]                   CLI help
 
 ENVIRONMENT:
   All configuration is via src/main/omnia.env:
@@ -317,13 +283,14 @@ EXAMPLES:
   vi src/main/omnia.env          # Set OMNIA_ADMIN_NIC_IP and other vars
   ./omnia.sh --setup-venv        # Install Python + Ansible into venv
 
+  # Check domain status:
+  ./omnia-cli status             # All domains
+  ./omnia-cli repo-manager       # Repo manager details
+
   # Run component playbooks (after venv setup):
   source /opt/omnia/venv/bin/activate
-  cd src/image_build_manager
-  ansible-playbook playbooks/image_build_manager.yml --tags validate
-
-  cd src/orchestrator
-  ansible-playbook orchestrator.yml
+  cd src/image_build_manager/playbooks
+  ansible-playbook image_build_manager.yml --tags validate
 EOF
 }
 
@@ -332,18 +299,16 @@ EOF
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
     case "${1:-}" in
-        --setup-venv)
+        --setup-venv|-s)
             setup_venv
-            ;;
-        --version|-v)
-            load_env 2>/dev/null || true
-            display_version
             ;;
         --help|-h|"")
             show_help
             ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
+            echo -e "${YELLOW}For status & diagnostics, use: ./omnia-cli${NC}"
+            echo ""
             show_help
             exit 1
             ;;
