@@ -42,7 +42,7 @@
 
 - name: Mount NFS share on OIM with fstab entry
   block:
-    - name: Add/ensure fstab entry and mount
+    - name: Add/ensure fstab entry via mount module
       ansible.posix.mount:
         src: "{{ source }}"
         path: "{{ mount_point }}"

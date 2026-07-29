@@ -1749,7 +1749,6 @@ def check_is_service_cluster_functional_groups_defined(
     """
     # Get the directory containing the input file
     input_dir = os.path.dirname(input_file_path)
-    
     provision_config_path = os.path.join(input_dir, "provision_config.yml")
 
     # Check if provision_config.yml exists
@@ -1905,7 +1904,6 @@ def check_is_slurm_cluster_functional_groups_defined(
     """
     # Get the directory containing the input file
     input_dir = os.path.dirname(input_file_path)
-    
     provision_config_path = os.path.join(input_dir, "provision_config.yml")
 
     # Check if provision_config.yml exists
