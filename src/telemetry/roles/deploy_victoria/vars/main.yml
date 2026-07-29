@@ -22,6 +22,7 @@ telemetry_namespace: "telemetry"
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
+telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
@@ -68,12 +69,11 @@ victoria_dir_mode: "0755"
 # ---------------------------------------------------------------------------
 # Victoria images from telemetry_registry (self-contained, no service_k8s dependency)
 # ---------------------------------------------------------------------------
-_victoria_images: "{{ telemetry_packages_config.telemetry_registry.images.victoria | default({}) }}"
-_support_images: "{{ telemetry_packages_config.telemetry_registry.images.support | default({}) }}"
-_idrac_images: "{{ telemetry_packages_config.telemetry_registry.images.idrac | default({}) }}"
+_victoria_images: "{{ telemetry_registry.images.victoria | default({}) }}"
+_support_images: "{{ telemetry_registry.images.support | default({}) }}"
 
-# Registry configuration
-telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
+# Registry configuration (already set in load_telemetry_config)
+# telemetry_registry is inherited from hostvars when role runs on kube_vip
 
 # ---------------------------------------------------------------------------
 # victoria_cluster — composite variable used by metrics templates

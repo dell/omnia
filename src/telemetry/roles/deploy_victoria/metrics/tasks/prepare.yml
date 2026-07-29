@@ -38,6 +38,7 @@
         src: "{{ role_path }}/metrics/templates/gen_victoria_certs.sh.j2"
         dest: "{{ telemetry_deployments_dir }}/gen_victoria_certs.sh"
         mode: "{{ file_permissions_755 }}"
+        force: yes
 
     - name: Generate victoria_metrics TLS certificates
       ansible.builtin.command:
@@ -74,6 +75,7 @@
     src: "{{ role_path }}/metrics/templates/victoria-tls-secret.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
     mode: "{{ victoria_file_mode }}"
+    force: yes
   when:
     - victoria_server_cert_b64 is defined
     - victoria_server_key_b64 is defined
@@ -84,6 +86,7 @@
     src: "{{ role_path }}/metrics/templates/victoria-vmagent-rbac.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml"
     mode: "{{ victoria_file_mode }}"
+    force: yes
   ignore_errors: true
 
 - name: Generate VMCluster CR manifest
@@ -91,15 +94,18 @@
     src: "{{ role_path }}/metrics/templates/victoria-operator-vmcluster.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml"
     mode: "{{ victoria_file_mode }}"
+    force: yes
 
 - name: Generate VMAgent CR manifest
   ansible.builtin.template:
     src: "{{ role_path }}/metrics/templates/victoria-operator-vmagent.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml"
     mode: "{{ victoria_file_mode }}"
+    force: yes
 
 - name: Generate VMPodScrape CR manifest
   ansible.builtin.template:
     src: "{{ role_path }}/metrics/templates/victoria-operator-vmscrape.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml"
     mode: "{{ victoria_file_mode }}"
+    force: yes

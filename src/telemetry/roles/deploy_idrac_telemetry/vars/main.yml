@@ -49,16 +49,12 @@ mysqldb_name: "idrac_telemetrydb"
 mysqldb_container_port1: 3306
 mysqldb_container_port2: 33060
 
-# Pre-built container images for iDRAC telemetry components
-# Use telemetry_registry configuration if available, otherwise fallback to service_k8s_images or defaults
-telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
-telemetry_images: "{{ service_k8s_images | default({}) }}"
-
-idrac_telemetry_receiver_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.idrac_telemetry_receiver | default('dellhpcomniaaisolution/idrac_telemetry_receiver:1.3') }}{% else %}{{ telemetry_images['dellhpcomniaaisolution/idrac_telemetry_receiver'] | default('docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.2') }}{% endif %}"
-kafkapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.kafkapump | default('dellhpcomniaaisolution/kafkapump:1.3') }}{% else %}{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}{% endif %}"
-victoriapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.victoriapump | default('dellhpcomniaaisolution/victoriapump:1.3') }}{% else %}{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}{% endif %}"
-activemq_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.activemq | default('apache/activemq:5.19.7') }}{% else %}{{ telemetry_images['rmohr/activemq'] | default('docker.io/rmohr/activemq:5.15.9') }}{% endif %}"
-mysql_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.mysql | default('library/mysql:9.3.0') }}{% else %}{{ telemetry_images['library/mysql'] | default('docker.io/library/mysql:9.3.0') }}{% endif %}"
+# telemetry_registry is already set by load_telemetry_config
+idrac_telemetry_receiver_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.idrac_telemetry_receiver | default('dellhpcomniaaisolution/idrac_telemetry_receiver:1.3') }}{% else %}docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.3{% endif %}"
+kafkapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.kafkapump | default('dellhpcomniaaisolution/kafkapump:1.3') }}{% else %}docker.io/dellhpcomniaaisolution/kafkapump:1.3{% endif %}"
+victoriapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.victoriapump | default('dellhpcomniaaisolution/victoriapump:1.3') }}{% else %}docker.io/dellhpcomniaaisolution/victoriapump:1.3{% endif %}"
+activemq_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.activemq | default('apache/activemq:5.19.7') }}{% else %}docker.io/apache/activemq:5.19.7{% endif %}"
+mysql_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.mysql | default('library/mysql:9.3.0') }}{% else %}docker.io/library/mysql:9.3.0{% endif %}"
 
 # ActiveMQ ports
 activemq_http_port_1: 8161

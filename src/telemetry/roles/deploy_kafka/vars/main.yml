@@ -22,7 +22,7 @@ telemetry_namespace: "telemetry"
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
-telemetry_registry: "{{ hostvars['localhost']['telemetry_packages_config'].telemetry_registry | default({}) }}"
+telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
