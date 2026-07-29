@@ -1,62 +1,53 @@
 import Papa from 'papaparse'
 
-export interface PxeMappingRow {
-  FUNCTIONAL_GROUP_NAME: string
-  GROUP_NAME: string
+export interface AdminInventoryRow {
   SERVICE_TAG: string
-  PARENT_SERVICE_TAG?: string
-  HOSTNAME: string
-  ADMIN_MAC?: string
-  ADMIN_IP?: string
-  BMC_MAC?: string
-  BMC_IP?: string
-  IB_NIC_NAME?: string
-  IB_IP?: string
+  GROUP_NAME: string
+  FUNCTIONAL_GROUP_NAME: string
+  ROW: string
+  RACK: string
+  SLOT: string
+  RANGE: string
 }
 
 const PARSE_CONFIG = {
   header: true as const,
   skipEmptyLines: 'greedy' as const,
   dynamicTyping: false as const,
-  transformHeader: (header: string) => header.trim(),
+  transformHeader: (header: string) => {
+    const trimmed = header.trim();
+    // Normalize BMC_MAC alias to SERVICE_TAG
+    if (trimmed === 'BMC_MAC') return 'SERVICE_TAG';
+    return trimmed;
+  },
 };
 
-const REQUIRED_FIELDS = [
-  'FUNCTIONAL_GROUP_NAME',
-  'GROUP_NAME',
-  'SERVICE_TAG',
-  'HOSTNAME',
-  'ADMIN_MAC',
-  'ADMIN_IP',
-  'BMC_MAC',
-  'BMC_IP',
-] as const;
+const REQUIRED_FIELDS = ['SERVICE_TAG'] as const;
 
-export const ALL_COLUMNS: (keyof PxeMappingRow)[] = [
-  'FUNCTIONAL_GROUP_NAME', 'GROUP_NAME', 'SERVICE_TAG', 'PARENT_SERVICE_TAG',
-  'HOSTNAME', 'ADMIN_MAC', 'ADMIN_IP', 'BMC_MAC', 'BMC_IP',
-  'IB_NIC_NAME', 'IB_IP',
+export const ADMIN_INVENTORY_COLUMNS: (keyof AdminInventoryRow)[] = [
+  'SERVICE_TAG', 'GROUP_NAME', 'FUNCTIONAL_GROUP_NAME',
+  'ROW', 'RACK', 'SLOT', 'RANGE',
 ];
 
 function validateHeaders(meta: Papa.ParseMeta): void {
-  const missing = REQUIRED_FIELDS.filter((h) => !meta.fields?.includes(h));
-  if (missing.length > 0) {
-    throw new Error(`CSV is missing required column(s): ${missing.join(', ')}`);
+  const fields = meta.fields || [];
+  // Accept SERVICE_TAG or BMC_MAC (already normalized by transformHeader)
+  const hasServiceTag = fields.includes('SERVICE_TAG');
+  if (!hasServiceTag) {
+    throw new Error('CSV is missing required column: SERVICE_TAG (or BMC_MAC)');
   }
 }
 
-function isValidRow(row: unknown): row is PxeMappingRow {
+function isValidRow(row: unknown): row is AdminInventoryRow {
   const r = row as Record<string, unknown>;
   return REQUIRED_FIELDS.every(
     (field) => typeof r[field] === 'string' && (r[field] as string).length > 0
   );
 }
 
-function validateParseResults(results: Papa.ParseResult<PxeMappingRow>): PxeMappingRow[] {
-  // Validate headers first
+function validateParseResults(results: Papa.ParseResult<AdminInventoryRow>): AdminInventoryRow[] {
   validateHeaders(results.meta);
 
-  // Filter for truly fatal errors
   const fatalErrors = results.errors.filter(
     (e) => e.type === 'Delimiter' || e.code === 'MissingQuotes'
   );
@@ -65,20 +56,18 @@ function validateParseResults(results: Papa.ParseResult<PxeMappingRow>): PxeMapp
     throw new Error(`CSV parsing failed: ${fatalErrors[0].message}`);
   }
 
-  // Log non-fatal errors as warnings
   const warnings = results.errors.filter((e) => !fatalErrors.includes(e));
   if (warnings.length > 0) {
     console.warn('CSV parsing warnings:', warnings);
   }
 
-  // Validate row shapes at runtime with diagnostic detail
   const invalidEntries = results.data
     .map((row, index) => ({ row, index }))
     .filter(({ row }) => !isValidRow(row));
 
   if (invalidEntries.length > 0) {
     const details = invalidEntries.slice(0, 5).map(({ row, index }) => {
-      const r = row as Partial<PxeMappingRow>;
+      const r = row as Partial<AdminInventoryRow>;
       const missing = REQUIRED_FIELDS.filter((field) => !r[field]);
       return `Row ${index + 1}: missing [${missing.join(', ')}]`;
     });
@@ -91,9 +80,9 @@ function validateParseResults(results: Papa.ParseResult<PxeMappingRow>): PxeMapp
   return results.data;
 }
 
-export const parsePxeMappingFile = (file: File): Promise<PxeMappingRow[]> => {
+export const parseAdminInventoryFile = (file: File): Promise<AdminInventoryRow[]> => {
   return new Promise((resolve, reject) => {
-    Papa.parse<PxeMappingRow>(file, {
+    Papa.parse<AdminInventoryRow>(file, {
       ...PARSE_CONFIG,
       complete: (results) => {
         try {
@@ -108,4 +97,3 @@ export const parsePxeMappingFile = (file: File): Promise<PxeMappingRow[]> => {
     });
   });
 }
-

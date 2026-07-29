@@ -7,6 +7,7 @@ export { omniaHaDiscoverySchema, serviceK8sClusterHaSchema, type OmniaHaDiscover
 export { telemetryConfigStorageSchema, type TelemetryConfigStorageFormData } from './telemetryConfigStorage';
 export { storageConfigSchema, type StorageConfigFormData } from './storageConfig';
 export { cloudInitConfigSchema, type CloudInitConfigFormData } from './cloudInitConfig';
+export { magellanDiscoverySchema, type AdminInventoryRow, type MagellanDiscoveryFormData } from './magellanDiscovery';
 
 // Re-export common patterns
 export * from './common';

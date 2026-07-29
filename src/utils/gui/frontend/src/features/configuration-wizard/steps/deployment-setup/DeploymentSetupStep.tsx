@@ -142,6 +142,10 @@ export const DeploymentSetupStep = () => {
     navigate('/wizard/bmc-discovery');
   };
 
+  const handleStartMagellanDiscovery = () => {
+    navigate('/wizard/magellan-discovery');
+  };
+
   // Render functions (not components) to avoid remount on every render
   const renderClusterTypeSection = () => (
     <div className="card">
@@ -204,18 +208,26 @@ export const DeploymentSetupStep = () => {
               onChange={(e) => setEnableBmcDiscovery(e.target.checked)}
               disabled={configMode === 'pxe_upload'}
             />
-            <label htmlFor={`enable-bmc-discovery-${configMode}`}>Enable BMC Discovery via OME</label>
+            <label htmlFor={`enable-bmc-discovery-${configMode}`}>Enable Discovery</label>
           </div>
           {enableBmcDiscovery && configMode !== 'pxe_upload' && (
-            <button
-              onClick={handleStartBmcDiscovery}
-              className="button button-secondary ml-6 mt-2"
-            >
-              Start BMC Discovery
-            </button>
+            <div className="ml-6 mt-2 flex gap-3">
+              <button
+                onClick={handleStartBmcDiscovery}
+                className="button button-secondary"
+              >
+                OME Discovery
+              </button>
+              <button
+                onClick={handleStartMagellanDiscovery}
+                className="button button-secondary"
+              >
+                Magellan Discovery
+              </button>
+            </div>
           )}
           <p className="text-sm text-gray-600 ml-6">
-            Automatically discover nodes via Dell OpenManage Enterprise
+            Discover nodes via Dell OpenManage Enterprise (OME) or Magellan admin inventory
             {configMode === 'pxe_upload' && <span className="block text-orange-600 mt-1">(Disabled - PXE mapping file already uploaded)</span>}
           </p>
         </div>

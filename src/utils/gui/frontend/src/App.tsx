@@ -7,6 +7,7 @@ import PresetPicker from './features/preset-picker/PresetPicker';
 import Overview from './features/overview/Overview';
 import ConfigurationWizard from './features/configuration-wizard/ConfigurationWizard';
 import { BmcDiscoveryFlow } from './features/configuration-wizard/BmcDiscoveryFlow';
+import { MagellanDiscoveryFlow } from './features/configuration-wizard/MagellanDiscoveryFlow';
 import CatalogViewer from './features/catalog/CatalogViewer';
 import { AdapterPolicyEditor } from './features/adapter-policy/AdapterPolicyEditor';
 import CatalogEditor from './features/catalog-editor/CatalogEditor';
@@ -33,6 +34,7 @@ function App() {
             <Route path="/preset-picker" element={<PresetPicker />} />
             <Route path="/wizard" element={<ConfigurationWizard />} />
             <Route path="/wizard/bmc-discovery" element={<BmcDiscoveryFlow />} />
+            <Route path="/wizard/magellan-discovery" element={<MagellanDiscoveryFlow />} />
             <Route path="/catalog" element={<CatalogViewer />} />
             <Route path="/catalog-editor" element={<CatalogEditor />} />
             <Route path="/local-repo" element={<Navigate to="/local-repo/rhel" replace />} />

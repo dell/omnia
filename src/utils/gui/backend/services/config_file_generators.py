@@ -892,3 +892,34 @@ def generate_security_config(wizard_data: Dict[str, Any], input_dir: Path, write
 
     _write_config_file(input_dir / "security_config.yml", security_config, quote_all_strings=True)
 
+
+# Admin Inventory CSV columns for Magellan discovery
+_ADMIN_INVENTORY_CSV_COLUMNS = (
+    "SERVICE_TAG", "GROUP_NAME", "FUNCTIONAL_GROUP_NAME",
+    "ROW", "RACK", "SLOT", "RANGE",
+)
+
+
+def generate_admin_inventory_csv(wizard_data: Dict[str, Any], input_dir: Path, ensure_directory_fn: Callable) -> None:
+    """Generate admin_inventory.csv from wizard data for Magellan discovery.
+
+    Args:
+        wizard_data: Dictionary containing wizard form data
+        input_dir: Directory where config files should be written
+        ensure_directory_fn: Callback for ensuring directory exists (required by generator registry interface)
+    """
+    rows = wizard_data.get("admin_inventory_data")
+    if not rows:
+        logger.info("Skipped admin_inventory.csv (no admin_inventory_data)")
+        return
+
+    csv_path = input_dir / "admin_inventory.csv"
+    ensure_directory_fn(csv_path.parent)
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_ADMIN_INVENTORY_CSV_COLUMNS, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({col: (row.get(col) or "") for col in _ADMIN_INVENTORY_CSV_COLUMNS})
+
+    logger.info("Generated admin_inventory.csv with %d rows", len(rows))
+

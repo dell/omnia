@@ -252,8 +252,9 @@ export const useConfigStore = create<ConfigState>()(
         wizardData: (() => {
           const filteredData: Record<string, unknown> = {};
           for (const [key, value] of Object.entries(state.wizardData)) {
-            // Always preserve PXE mapping data
-            if (key === 'pxe_mapping_data' || key === 'pxe_mapping_file_path') {
+            // Always preserve PXE mapping data and admin inventory data
+            if (key === 'pxe_mapping_data' || key === 'pxe_mapping_file_path'
+                || key === 'admin_inventory_data' || key === 'admin_inventory_path') {
               filteredData[key] = value;
             }
             // Exclude password fields within user_registry_credential

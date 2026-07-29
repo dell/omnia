@@ -24,7 +24,8 @@ from .config_file_generators import (
     generate_provision_config,
     generate_storage_config,
     generate_additional_cloud_init,
-    generate_security_config
+    generate_security_config,
+    generate_admin_inventory_csv
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,8 @@ GENERATED_CONFIG_FILENAMES = [
     "user_registry_credential.yml",
     "storage_config.yml",
     "additional_cloud_init.yml",
-    "security_config.yml"
+    "security_config.yml",
+    "admin_inventory.csv"
 ]
 
 
@@ -178,6 +180,7 @@ class WizardGeneratorService:
             ("telemetry_config.yml", generate_telemetry_config, (wizard_data, input_dir, write_yaml)),
             ("telemetry_storage_config.yml", generate_telemetry_storage_config, (wizard_data, input_dir, write_yaml)),
             ("user_registry_credential.yml", generate_user_registry_credential, (wizard_data, input_dir, write_yaml)),
+            ("admin_inventory.csv", generate_admin_inventory_csv, (wizard_data, input_dir, ensure_directory)),
         ]
 
         selected_specs = [

@@ -13,7 +13,7 @@ def get_build_stream_config_defaults() -> Dict[str, Any]:
 
 
 def get_discovery_config_defaults() -> Dict[str, Any]:
-    return {'enable_bmc_discovery': False, 'ome_ip': ''}
+    return {'enable_bmc_discovery': False, 'ome_ip': '', 'admin_inventory_path': '/opt/omnia/input/project_default/admin_inventory.csv'}
 
 
 def get_telemetry_config_defaults() -> Dict[str, Any]:
