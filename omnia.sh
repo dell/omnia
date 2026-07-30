@@ -2070,7 +2070,7 @@ phase4_container_swap() {
     # Flush pending NFS writes inside the container before stopping to prevent
     # the container-stop from blocking on dirty NFS buffers (slow-network hang).
     echo "[INFO] [ORCHESTRATOR] Flushing filesystem caches before container stop..."
-    podman exec -u root omnia_core sync >/dev/null 2>&1 || true
+    timeout 30 podman exec -u root omnia_core sync >/dev/null 2>&1 || true
 
     # Use timeout (120s) around systemctl stop to avoid indefinite hang when
     # NFS I/O is slow.  Without this, systemctl stop waits forever and the
@@ -2087,6 +2087,7 @@ phase4_container_swap() {
         podman kill omnia_core >/dev/null 2>&1 || true
         sleep 2
     fi
+    systemctl reset-failed omnia_core.service >/dev/null 2>&1 || true
 
     if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
         echo "[ERROR] [ORCHESTRATOR] Failed to stop omnia_core container"
