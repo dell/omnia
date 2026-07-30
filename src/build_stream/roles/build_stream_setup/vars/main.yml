@@ -13,6 +13,13 @@
 # limitations under the License.
 ---
 
+# --- Standalone mode ---
+# When standalone_mode is true the playbook runs directly on the host
+# without requiring the omnia_core container.  Input is read from the
+# local input/ directory and container-internal paths are bypassed.
+# Override with: -e standalone_mode=true
+standalone_mode: false
+
 # --- Upgrade guard ---
 upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
 upgrade_in_progress_msg: >-
@@ -23,8 +30,8 @@ upgrade_in_progress_msg: >-
   "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
 
 # --- Input project directory ---
-omnia_input_dir: /opt/omnia/input
-omnia_output_dir: /opt/omnia/output
+omnia_input_dir: /opt/omnia/build_stream/input
+omnia_output_dir: /opt/omnia/build_stream/output
 omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
 omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
 omnia_input_config_syntax_fail_msg: >-
@@ -33,6 +40,11 @@ omnia_input_config_syntax_fail_msg: >-
 project_dir_not_exist_fail_msg: >-
   The project directory at {{ input_project_dir }} does not exist.
   Please ensure the directory exists before re-running the playbook.
+
+# --- Standalone defaults (used only when standalone_mode is true) ---
+standalone_input_project_dir: "{{ standalone_oim_shared_path }}/build_stream/input/project_default"
+standalone_output_project_dir: "{{ standalone_oim_shared_path }}/build_stream/output/project_default"
+standalone_oim_shared_path: "/opt/omnia"
 
 # --- OIM group ---
 oim_host_port: "22"

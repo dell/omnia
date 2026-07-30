@@ -33,6 +33,7 @@ Usage:
 import argparse
 import base64
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -45,11 +46,13 @@ import requests
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Configuration constants
-BASE_URL = "https://100.10.0.28:8010"
+# Configuration constants — override via environment variables
+BSM_HOST = os.environ.get("BSM_HOST", "localhost")
+BSM_PORT = os.environ.get("BSM_PORT", "8010")
+BASE_URL = f"https://{BSM_HOST}:{BSM_PORT}"
 CLIENT_NAME = "demo-client"
-AUTH_USERNAME = "admin"
-AUTH_PASSWORD = ""
+AUTH_USERNAME = os.environ.get("BSM_USER", "admin")
+AUTH_PASSWORD = os.environ.get("BSM_PASS", "")
 CREDENTIALS_FILE = Path(__file__).parent / "demo_client_credentials.json"
 
 BUILD_STREAM_ARTIFACT_ROOT = "/opt/omnia/build_stream/artifacts"

@@ -19,14 +19,14 @@
   connection: local
   run_once: true
   block:
-    - name: Check if build_stream/build_stream_credentials.yml exists
+    - name: Check if build_stream_credentials.yml exists
       ansible.builtin.stat:
-        path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
+        path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
       register: oauth_file_stat
 
     - name: Check if vault key exists
       ansible.builtin.stat:
-        path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/.build_stream_credentials_key"
+        path: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
       register: vault_key_stat
 
     - name: Handle OAuth credentials file
@@ -34,7 +34,7 @@
       block:
         - name: Check if credentials file is encrypted
           ansible.builtin.command: >-
-            head -n 1 "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
+            head -n 1 "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
           register: oauth_header
           changed_when: false
           failed_when: false
@@ -42,8 +42,8 @@
         - name: Decrypt credentials file if encrypted
           ansible.builtin.command: >-
             ansible-vault decrypt
-            --vault-password-file "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/.build_stream_credentials_key"
-            "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
+            --vault-password-file "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
+            "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
           changed_when: false
           failed_when: false
           when:
@@ -53,7 +53,7 @@
 
         - name: Remove OAuth client section from credentials file
           ansible.builtin.replace:
-            path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
+            path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
             regexp: 'oauth_clients:\n(?:[ ]{2,}.*\n)*\n?'
             replace: ''
           register: oauth_removal_result
@@ -62,8 +62,8 @@
         - name: Re-encrypt credentials file if it was encrypted
           ansible.builtin.command: >-
             ansible-vault encrypt
-            --vault-password-file "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/.build_stream_credentials_key"
-            "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
+            --vault-password-file "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
+            "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
           changed_when: false
           failed_when: false
           when:

@@ -18,8 +18,8 @@
 # ===============================================================
 [Unit]
 Description=Omnia Build Stream FastAPI Container
-After=omnia_core.service
-Requires=omnia_core.service
+After=network-online.target
+Wants=network-online.target
 
 [Container]
 ContainerName={{ build_stream_container_name }}
@@ -45,16 +45,16 @@ Environment=MINIO_HOST={{ admin_nic_ip }}:9000
 Environment=MINIO_USE_HTTPS=False
 
 # Authentication and OAuth configuration
-Environment=ANSIBLE_VAULT_PASSWORD_FILE="/opt/omnia/input/project_default/build_stream/.build_stream_credentials_key"
-Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/input/project_default/build_stream/build_stream_credentials.yml"
-Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/input/project_default/build_stream/build_stream_credentials.yml"
+Environment=ANSIBLE_VAULT_PASSWORD_FILE="/opt/omnia/build_stream/input/project_default/.build_stream_credentials_key"
+Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
+Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
 Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream_root/api/.auth/keys/jwt_private.pem"
 Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream_root/api/.auth/keys/jwt_public.pem"
 Environment=BUILD_STREAM_CONFIG_PATH="/opt/omnia/build_stream/build_stream.ini"
-Environment=NFS_ARTIFACT_BASE={{ omnia_path }}/omnia/build_stream_root
+Environment=NFS_ARTIFACT_BASE={{ omnia_path }}/build_stream_root
 
-# Volume mounts (shared from omnia_core)
-Volume={{ omnia_path }}/omnia:/opt/omnia{{ selinux_option }}
+# Volume mounts (NFS shared path)
+Volume={{ omnia_path }}:/opt/omnia{{ selinux_option }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option | regex_replace('^:', ',') }}
 
 [Service]

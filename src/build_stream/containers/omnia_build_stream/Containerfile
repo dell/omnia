@@ -123,6 +123,16 @@ RUN if [ "$BUILD_ENV" = "development" ]; then \
 COPY init_s3cfg.sh /usr/local/bin/init_s3cfg.sh
 RUN chmod +x /usr/local/bin/init_s3cfg.sh
 
+# -------------------------------------------------------
+# APP SOURCE: Embed application code in the image so that
+# omnia_build_stream is a self-contained delivery artifact.
+# The NFS volume mount shadows /opt/omnia at runtime, so
+# we stage the source at /app-source/ instead.
+# prepare_build_stream.yml extracts this to NFS before the
+# container starts.
+# -------------------------------------------------------
+COPY app/ /app-source/
+
 # Create app and SSL directories
 WORKDIR /opt/omnia/build_stream
 RUN mkdir -p /etc/ssl/omnia

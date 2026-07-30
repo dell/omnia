@@ -25,7 +25,7 @@
   block:
     - name: Include build_stream_config.yml
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/{{ build_stream_config_dir | default('build_stream') }}/build_stream_config.yml"
+        file: "{{ input_project_dir }}/build_stream_config.yml"
   rescue:
     - name: Set enable_build_stream to false if config not found
       ansible.builtin.set_fact:
