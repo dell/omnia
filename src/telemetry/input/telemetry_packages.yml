@@ -26,7 +26,7 @@
 #   username   : Registry username (if authentication required)
 
 telemetry_registry:
-  host: "182.11.5.100:2225"
+  host: ""
   cert_path: ""
   key_path: ""
   username: "admin"
@@ -75,8 +75,8 @@ telemetry_registry:
 
 telemetry_packages:
   # Helm chart tarballs (required for operator deployment)
-  strimzi_kafka_operator: "https://182.11.5.100:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-helm-3-chart-1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz"  # noqa: yaml[line-length]
-  victoria_metrics_operator: "https://182.11.5.100:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tar.gz"  # noqa: yaml[line-length]
+  strimzi_kafka_operator: ""
+  victoria_metrics_operator: ""
 
   # Python pip modules (if any telemetry components need them)
   cryptography: ""
