@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Dell Omnia Team
+  description: Build base and compute OS images for HPC cluster provisioning
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+
+dependencies: []

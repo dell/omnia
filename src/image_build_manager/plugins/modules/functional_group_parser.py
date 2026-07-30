@@ -3,6 +3,44 @@
 from ansible.module_utils.basic import AnsibleModule
 import yaml
 
+DOCUMENTATION = r'''
+---
+module: functional_group_parser
+short_description: Parse and normalize functional group input
+version_added: "3.0.0"
+description:
+  - Reads a YAML file containing functional group definitions.
+  - Normalizes input that may be a list of strings, list of dicts with C(name) key,
+    or a dict with C(functional_groups) key.
+  - Returns a flat list of functional group name strings.
+options:
+  functional_groups_file:
+    description: Path to the functional groups YAML file.
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Parse functional groups
+  omnia.image_build.functional_group_parser:
+    functional_groups_file: /opt/omnia/image_build_manager/input/project_default/functional_groups.yml
+  register: fg_result
+
+- name: Display functional groups
+  ansible.builtin.debug:
+    var: fg_result.functional_groups
+'''
+
+RETURN = r'''
+functional_groups:
+  description: Flat list of functional group name strings.
+  returned: always
+  type: list
+  elements: str
+'''
+
 
 def normalize_functional_groups(data):
     """

@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Dell Omnia Team
+  description: Deploy MinIO S3-compatible object storage for image build artifacts
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+
+dependencies: []

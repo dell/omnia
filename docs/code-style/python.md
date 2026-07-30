@@ -98,3 +98,90 @@ if __name__ == '__main__':
 ### 4.3 Error Handling
 - Use `module.fail_json(msg="...")` for failures — never `sys.exit()`
 - Always set `changed=True/False` accurately
+
+## 5. Ansible Galaxy Module Documentation (REQUIRED)
+
+Every Python module under `plugins/modules/*.py` MUST contain three documentation constants for Galaxy import compliance. Galaxy import **fails** without them.
+
+### 5.1 Required Blocks
+
+| Block | Purpose | Placement |
+|-------|---------|-----------|
+| `DOCUMENTATION` | Module name, description, options, author | After imports, before first function |
+| `EXAMPLES` | Playbook task examples showing usage | After `DOCUMENTATION` |
+| `RETURN` | Return value documentation with types | After `EXAMPLES` |
+
+### 5.2 Template
+
+```python
+#!/usr/bin/python
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Licensed under the Apache License, Version 2.0
+
+"""Module docstring describing purpose."""
+
+from ansible.module_utils.basic import AnsibleModule
+
+DOCUMENTATION = r'''
+---
+module: my_module
+short_description: One-line summary of the module
+version_added: "3.0.0"
+description:
+  - Detailed description of what the module does.
+  - Can span multiple list items.
+options:
+  param_name:
+    description: What this parameter controls.
+    required: true
+    type: str
+  optional_param:
+    description: Optional parameter with default.
+    required: false
+    type: int
+    default: 0
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Example task using FQCN
+  omnia.image_build.my_module:
+    param_name: value
+  register: result
+
+- name: Display result
+  ansible.builtin.debug:
+    var: result
+'''
+
+RETURN = r'''
+output_key:
+  description: What this return value contains.
+  returned: always
+  type: str
+'''
+
+
+def main():
+    """Main module entry point."""
+    module = AnsibleModule(
+        argument_spec=dict(
+            param_name=dict(type='str', required=True),
+        ),
+        supports_check_mode=True,
+    )
+    module.exit_json(changed=False, output_key="ok")
+
+
+if __name__ == '__main__':
+    main()
+```
+
+### 5.3 Rules
+
+- All three blocks are **mandatory** — Galaxy rejects modules without any of them.
+- `EXAMPLES` MUST use FQCN: `omnia.<collection>.<module>`, not short names.
+- `RETURN` MUST document every key returned by `module.exit_json()`.
+- Validate locally: `ansible-doc omnia.<collection>.<module>` — if it renders, Galaxy will accept it.
+- Use `r'''` (raw triple-quoted strings) to avoid YAML escaping issues.
