@@ -6,11 +6,11 @@ on:
     branches:
       - main
       - staging
-      - release_1.7.1
-      - pub/build_stream
-      - pub/telemetry
-      - pub/q2_upgrade
-      - q3_main
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+
+  workflow_dispatch:
 
 jobs:
   build:
@@ -23,6 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Get changed Ansible files (excluding deleted)
+        if: github.event_name == 'pull_request'
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
@@ -37,24 +38,28 @@ jobs:
             fi
           done
 
+          FILES=$(echo "$FILES" | tr ' ' '\n' | \
+            grep -v '^.github/workflows/' || true)
+
           FILES=$(echo "$FILES" | xargs)
+
           echo "Filtered files: $FILES"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
-        if: steps.changed-files.outputs.files != ''
-        uses: actions/setup-python@v4
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.12'
 
       - name: Install Ansible and Ansible Lint
-        if: steps.changed-files.outputs.files != ''
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
           python -m pip install --upgrade pip
-          pip install ansible-core
+          pip install ansible-core ansible-lint
 
       - name: Cache Ansible collections
-        if: steps.changed-files.outputs.files != ''
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         uses: actions/cache@v3
         with:
           path: ~/.ansible/collections
@@ -63,18 +68,156 @@ jobs:
             ${{ runner.os }}-ansible-collections-
 
       - name: Install Ansible Collections from requirements.yml
-        if: steps.changed-files.outputs.files != ''
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
           ansible-galaxy collection install -r .config/requirements.yml --force-with-deps
 
+      - name: Create ansible.cfg for CI
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        run: |
+          cat > ansible.cfg <<'EOF'
+          [defaults]
+          roles_path = src/repo_manager/roles:src/image_build_manager/roles:src/discovery/roles:src/orchestrator/roles:src/telemetry/roles:src/utils/roles:src/upgrade/roles:src/rollback/roles:src/build_stream/roles:roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+          library = src/repo_manager/plugins/modules:src/image_build_manager/plugins/modules:src/discovery/plugins/modules:src/orchestrator/plugins/modules:src/telemetry/plugins/modules:src/utils/plugins/modules:src/upgrade/plugins/modules:src/rollback/plugins/modules:src/build_stream/plugins/modules
+          module_utils = src/repo_manager/plugins/module_utils:src/image_build_manager/plugins/module_utils:src/discovery/plugins/module_utils:src/orchestrator/plugins/module_utils:src/telemetry/plugins/module_utils:src/utils/plugins/module_utils:src/upgrade/plugins/module_utils:src/rollback/plugins/module_utils:src/build_stream/plugins/module_utils
+          callback_plugins = src/repo_manager/plugins/callback:src/image_build_manager/plugins/callback:src/discovery/plugins/callback:src/orchestrator/plugins/callback:src/telemetry/plugins/callback:src/utils/plugins/callback:src/upgrade/plugins/callback:src/rollback/plugins/callback:src/build_stream/plugins/callback
+          collections_paths = .:~/.ansible/collections:/usr/share/ansible/collections
+          interpreter_python = /usr/bin/python3
+          EOF
+          echo "Created ansible.cfg"
+          cat ansible.cfg
+
+      - name: Build and install local Galaxy collections for FQCN resolution
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        run: |
+          # Build collection tarballs from source
+          mkdir -p /tmp/omnia-collections
+          ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
+          ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
+          echo "Built collections:"
+          ls -la /tmp/omnia-collections/
+
+          # Install to project-local and user-global collection paths
+          for p in .ansible/collections ~/.ansible/collections; do
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
+          done
+
+          echo "Installed collections:"
+          ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
+          ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
+
+      - name: Verify Ansible config
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        env:
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
+        run: |
+          ansible-config dump | grep DEFAULT_MODULE_PATH
+          ansible-config dump | grep DEFAULT_ROLES_PATH
+
       - name: Run ansible-lint on changed files
-        if: steps.changed-files.outputs.files != ''
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         uses: ansible/ansible-lint@main
+        env:
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
         with:
-          args: --config=.config/ansible-lint.yml ${{ steps.changed-files.outputs.files }}
+          args: >-
+            --config=.config/ansible-lint.yml
+            ${{ steps.changed-files.outputs.files }}
 
       - name: No Ansible files changed
-        if: steps.changed-files.outputs.files == ''
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files == ''
         run: |
           echo "No Ansible files changed in this PR."
           echo "Skipping ansible-lint."
+
+      - name: Set up Python (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible and Ansible Lint (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core ansible-lint
+
+      - name: Cache Ansible collections (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/collections
+          key: ${{ runner.os }}-ansible-collections-${{ hashFiles('.config/requirements.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ansible-collections-
+
+      - name: Install Ansible Collections from requirements.yml (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          ansible-galaxy collection install -r .config/requirements.yml --force-with-deps
+
+      - name: Create ansible.cfg for CI (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cat > ansible.cfg <<'EOF'
+          [defaults]
+          roles_path = src/repo_manager/roles:src/image_build_manager/roles:src/discovery/roles:src/orchestrator/roles:src/telemetry/roles:src/utils/roles:src/upgrade/roles:src/rollback/roles:src/build_stream/roles:roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+          library = src/repo_manager/plugins/modules:src/image_build_manager/plugins/modules:src/discovery/plugins/modules:src/orchestrator/plugins/modules:src/telemetry/plugins/modules:src/utils/plugins/modules:src/upgrade/plugins/modules:src/rollback/plugins/modules:src/build_stream/plugins/modules
+          module_utils = src/repo_manager/plugins/module_utils:src/image_build_manager/plugins/module_utils:src/discovery/plugins/module_utils:src/orchestrator/plugins/module_utils:src/telemetry/plugins/module_utils:src/utils/plugins/module_utils:src/upgrade/plugins/module_utils:src/rollback/plugins/module_utils:src/build_stream/plugins/module_utils
+          callback_plugins = src/repo_manager/plugins/callback:src/image_build_manager/plugins/callback:src/discovery/plugins/callback:src/orchestrator/plugins/callback:src/telemetry/plugins/callback:src/utils/plugins/callback:src/upgrade/plugins/callback:src/rollback/plugins/callback:src/build_stream/plugins/callback
+          collections_paths = .:~/.ansible/collections:/usr/share/ansible/collections
+          interpreter_python = /usr/bin/python3
+          EOF
+          echo "Created ansible.cfg"
+          cat ansible.cfg
+
+      - name: Build and install local Galaxy collections for FQCN resolution (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p /tmp/omnia-collections
+          ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
+          ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
+          echo "Built collections:"
+          ls -la /tmp/omnia-collections/
+
+          for p in .ansible/collections ~/.ansible/collections; do
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
+          done
+
+          echo "Installed collections:"
+          ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
+          ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
+
+      - name: Verify Ansible config (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
+        run: |
+          ansible-config dump | grep DEFAULT_MODULE_PATH
+          ansible-config dump | grep DEFAULT_ROLES_PATH
+
+      - name: Run ansible-lint full repository scan
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
+        run: |
+          ansible-lint \
+            --config .config/ansible-lint.yml \
+            src/repo_manager \
+            src/image_build_manager \
+            src/discovery \
+            src/orchestrator \
+            src/telemetry \
+            src/utils \
+            src/upgrade \
+            src/rollback \
+            src/build_stream | tee ansible-lint-report.txt || true
+
+      - name: Upload ansible-lint report
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ansible-lint-report
+          path: ansible-lint-report.txt

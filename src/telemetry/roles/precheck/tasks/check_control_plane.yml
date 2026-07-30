@@ -1,0 +1,113 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# check_control_plane.yml — Runs on: kube_vip
+# =============================================================================
+# Verifies the Kubernetes control plane is healthy.
+# Steps:
+#   1. Verify kubectl is available and K8s API is accessible
+#   2. Verify at least one control plane node exists
+#   3. Fail if ANY control plane node is not in Ready state
+
+- name: Verify kubectl client is available
+  ansible.builtin.command:
+    cmd: kubectl version --client
+  register: kubectl_version_check
+  changed_when: false
+  failed_when: kubectl_version_check.rc != 0
+
+- name: Verify K8s API server is accessible
+  ansible.builtin.command:
+    cmd: kubectl cluster-info
+  register: cluster_info_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if K8s API server is not accessible
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] Kubernetes API server is not accessible on kube_vip '{{ inventory_hostname }}'.
+      Ensure the K8s cluster is running and the kubeconfig is correctly configured.
+      Error: {{ cluster_info_check.stderr | default('unknown') }}
+  when: cluster_info_check.rc != 0
+
+- name: Get control plane node status
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get nodes --selector=node-role.kubernetes.io/control-plane \
+        --no-headers | awk '{print $1"|"$2}'
+  args:
+    executable: /bin/bash
+  register: cp_nodes_raw
+  changed_when: false
+
+- name: Parse control plane node list
+  ansible.builtin.set_fact:
+    cp_node_lines: "{{ cp_nodes_raw.stdout_lines | select('match', '.+') | list }}"
+
+- name: Fail if no control plane nodes found in cluster
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] No control plane nodes found in the K8s cluster.
+      Ensure at least one control plane node is joined and in Ready state.
+  when: cp_node_lines | length == 0
+
+- name: Identify control plane nodes not in Ready state
+  ansible.builtin.set_fact:
+    cp_nodes_not_ready: >-
+      {{ cp_node_lines
+         | reject('search', '[|]Ready$')
+         | map('split', '|')
+         | map(attribute=0)
+         | list }}
+
+- name: Display control plane node status summary
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] Control Plane Node Status"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  Total control plane nodes : {{ cp_node_lines | length }}"
+      - "  Ready                     : {{ cp_node_lines | length - cp_nodes_not_ready | length }}"
+      - "  Not Ready                 : {{ cp_nodes_not_ready | length }}"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+- name: Fail if any control plane node is not Ready
+  ansible.builtin.fail:
+    msg: |
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      [PRECHECK FAIL] Control Plane Nodes Not Ready
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      The following control plane nodes are NOT in Ready state:
+      {% for node in cp_nodes_not_ready %}
+        - {{ node }}
+      {% endfor %}
+
+      Cannot deploy telemetry until ALL control plane nodes are Ready.
+      Diagnose with: kubectl describe node <node-name>
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  when: cp_nodes_not_ready | length > 0
+
+- name: Display control plane check — PASSED
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] Control Plane Nodes — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  All {{ cp_node_lines | length }} control plane node(s) are in Ready state  ✓"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: cp_nodes_not_ready | length == 0

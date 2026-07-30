@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# validate_kube_vip.yml — Runs on: localhost
+# =============================================================================
+# Verifies kube_vip runtime network reachability (ping + SSH).
+#
+# NOTE: kube_vip presence, format, and IPv4 octet-range validation are
+# performed by the input validation playbook (L1 schema + L2 logic in
+# library/module_utils/input_validation/). This task only checks
+# live network connectivity, which cannot be done during static validation.
+#
+# Steps:
+#   1. ICMP ping check
+#   2. SSH port (22) reachability check
+
+- name: Check kube_vip is reachable via ICMP ping
+  ansible.builtin.command:
+    cmd: "ping -c {{ precheck_ping_count }} -W {{ precheck_ping_timeout }} {{ kube_vip }}"
+  register: ping_result
+  changed_when: false
+  failed_when: false
+
+- name: Fail if kube_vip is not reachable via ping
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] kube_vip '{{ kube_vip }}' is not reachable via ICMP ping.
+      Ensure the host is powered on and network connectivity exists from the Ansible controller.
+      Ping output: {{ ping_result.stdout | default('no output') }}
+  when: ping_result.rc != 0
+
+- name: Check kube_vip SSH (port {{ precheck_ssh_port }}) is reachable
+  ansible.builtin.wait_for:
+    host: "{{ kube_vip }}"
+    port: "{{ precheck_ssh_port }}"
+    timeout: "{{ precheck_ssh_timeout }}"
+    state: started
+  register: ssh_check
+  failed_when: false
+
+- name: Fail if kube_vip SSH is not reachable
+  ansible.builtin.fail:
+    msg: >-
+      [PRECHECK FAIL] kube_vip '{{ kube_vip }}' SSH port {{ precheck_ssh_port }} is not reachable.
+      Ensure the SSH service is running and port {{ precheck_ssh_port }} is accessible from the Ansible controller.
+  when: ssh_check.failed | default(false)
+
+- name: Display kube_vip reachability — PASSED
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] kube_vip Reachability — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  Host : {{ kube_vip }}"
+      - "  Ping : ✓  Reachable ({{ precheck_ping_count }} packets)"
+      - "  SSH  : ✓  Port {{ precheck_ssh_port }} open"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

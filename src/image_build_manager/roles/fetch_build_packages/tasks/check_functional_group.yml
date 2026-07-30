@@ -18,7 +18,7 @@
     file: "{{ functional_groups_config_path }}"
     name: functional_group_cfg
 
-- name: Check for {{ build_arch }} functional groups
+- name: Check for functional groups - {{ build_arch }}
   ansible.builtin.set_fact:
     fg_present: >-
       {{ functional_group_cfg.functional_groups
@@ -27,7 +27,7 @@
          | length > 0 }}
     cacheable: true
 
-- name: Fail if {{ build_arch }} functional groups are not present
+- name: Fail if functional groups are not present - {{ build_arch }}
   ansible.builtin.fail:
     msg: "{{ functional_group_absent_msg.splitlines() | join(' ') }}"
   when: not fg_present

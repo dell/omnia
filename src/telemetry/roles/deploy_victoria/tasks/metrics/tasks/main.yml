@@ -1,0 +1,5 @@
+---
+# Wrapper to include metrics tasks from the non-standard role layout
+# tasks_from: metrics/tasks/main resolves to this file under tasks/
+- name: Include VictoriaMetrics tasks
+  ansible.builtin.include_tasks: "{{ role_path }}/metrics/tasks/main.yml"

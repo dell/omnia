@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_orchestrator_input — L1 schema + L2 logic validation for orchestrator.
+#
+# Validates:
+#   - orchestrator_config.yml (required)
+#   - network_spec.yml        (required — cross-validated against mapping file)
+#
+# Uses the domain-specific validate_orchestrator_config module (lean, no
+# dependency on the central input_validation framework).
+
+- name: Display validation start
+  ansible.builtin.debug:
+    msg: "{{ orchestrator_validation_start_msg }}"
+
+# Pre-load software_config from project root (downstream roles need it)
+- name: Pre-load software_config from project root
+  when: not config_file_status | default(false) | bool
+  block:
+    - name: Validate software_config.json syntax
+      ansible.builtin.command: "jq . {{ omnia_project_input_dir }}/software_config.json"
+      register: _sw_json_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Fail if software_config.json has syntax errors
+      ansible.builtin.fail:
+        msg: "{{ software_config_syntax_fail_msg }}"
+      when: _sw_json_check.rc != 0
+
+    - name: Load software_config from project root
+      ansible.builtin.set_fact:
+        software_config: "{{ lookup('file', omnia_project_input_dir + '/software_config.json') | from_json }}"
+        cluster_os_version: "{{ (lookup('file', omnia_project_input_dir + '/software_config.json') | from_json).cluster_os_version }}"
+        cluster_os_type: "{{ (lookup('file', omnia_project_input_dir + '/software_config.json') | from_json).cluster_os_type }}"
+        cacheable: true
+
+# Pre-check: ensure orchestrator_config.yml exists
+- name: Check orchestrator_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_dir }}/orchestrator_config.yml"
+  register: orch_config_stat
+
+- name: Fail if orchestrator_config.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ orchestrator_config_missing_msg }}"
+  when: not orch_config_stat.stat.exists
+
+# Run the validate_orchestrator_config module (L1 + L2)
+- name: Run orchestrator configuration validation
+  omnia.orchestrator.validate_orchestrator_config:
+    input_project_dir: "{{ input_dir }}"
+    schema_dir: "{{ orchestrator_schema_dir }}"
+  register: orchestrator_validation_result
+
+# Report results
+- name: Display validation log path
+  ansible.builtin.debug:
+    msg: "Validation log: {{ orchestrator_validation_result.log_file }}"
+
+- name: Display valid files
+  ansible.builtin.debug:
+    msg: "Valid: {{ orchestrator_validation_result.valid_files }}"
+  when: orchestrator_validation_result.valid_files | length > 0
+
+- name: Display validation errors
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop: "{{ orchestrator_validation_result.errors }}"
+  when: orchestrator_validation_result.validation_failed
+
+- name: Fail on validation errors
+  ansible.builtin.fail:
+    msg: "{{ orchestrator_validation_fail_msg }} Errors: {{ orchestrator_validation_result.errors }}"
+  when: orchestrator_validation_result.validation_failed
+
+- name: Validation passed
+  ansible.builtin.debug:
+    msg: "{{ orchestrator_validation_pass_msg }}"
+  when: not orchestrator_validation_result.validation_failed

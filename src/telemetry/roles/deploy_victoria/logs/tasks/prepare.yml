@@ -23,12 +23,14 @@
 
 - name: Generate VLCluster CR manifest
   ansible.builtin.template:
-    src: victorialogs-operator-vlcluster.yaml.j2
+    src: "{{ role_path }}/logs/templates/victorialogs-operator-vlcluster.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victorialogs-operator-vlcluster.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
+    force: yes
 
 - name: Generate VLAgent CR manifest
   ansible.builtin.template:
-    src: victorialogs-operator-vlagent.yaml.j2
+    src: "{{ role_path }}/logs/templates/victorialogs-operator-vlagent.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victorialogs-operator-vlagent.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
+    force: yes

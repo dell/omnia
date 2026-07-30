@@ -28,8 +28,8 @@
 
 - name: Set output paths
   ansible.builtin.set_fact:
-    _output_base: "{{ output_project_dir | default('/opt/omnia/output/project_default') }}"
-    _output_domain: "{{ output_project_dir | default('/opt/omnia/output/project_default') }}/image_build_manager"
+    _output_base: "{{ output_project_dir }}"
+    _output_domain: "{{ output_project_dir }}"
     _omnia_version: "{{ omnia_version | default('2.2.0.0') }}"
 
 - name: Ensure output directories exist
@@ -47,18 +47,24 @@
     dest: "{{ _output_base }}/build_status.yml"
     mode: "0644"
   vars:
-    build_completed_images: "{{ hostvars['oim']['build_completed_images'] | default({}) }}"
+    build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
 
 - name: Write versioned build_status copy
   ansible.builtin.template:
     src: "{{ role_path }}/templates/build_status.yml.j2"
-    dest: "{{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"
+    dest: >-
+      {{ _output_domain }}/build_status_{{ _omnia_version }}_
+      {{ ansible_date_time.date | regex_replace('-', '') }}_
+      {{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml
     mode: "0644"
   vars:
-    build_completed_images: "{{ hostvars['oim']['build_completed_images'] | default({}) }}"
+    build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
 
 - name: Display build status output locations
   ansible.builtin.debug:
     msg:
       - "Latest: {{ _output_base }}/build_status.yml"
-      - "Versioned: {{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"
+      - >-
+        Versioned: {{ _output_domain }}/build_status_{{ _omnia_version }}_
+        {{ ansible_date_time.date | regex_replace('-', '') }}_
+        {{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml

@@ -1,0 +1,156 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Step 2: Load configuration from environment variables
+# Step 3: Set project dirs and host vars
+#
+# Reads environment variables directly (user must export them before running).
+# Required env vars: OMNIA_DATA_PATH, SYSTEM_ADMIN_NIC_IPV4, SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME
+# Optional env vars: OMNIA_PROJECT_NAME
+
+# --- Resolve domain root directory (works from any playbook location) ---
+- name: Set domain root directory
+  ansible.builtin.set_fact:
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
+    cacheable: true
+
+# --- Resolve and validate configuration from environment variables ---
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+    host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
+    domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
+    cacheable: true
+
+# --- Validate required variables ---
+- name: Fail if SYSTEM_ADMIN_NIC_IPV4 is not set
+  ansible.builtin.fail:
+    msg: >-
+      SYSTEM_ADMIN_NIC_IPV4 is not set. Export it before running:
+        export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>
+  when: admin_nic_ip | length == 0
+
+- name: Fail if SYSTEM_HOSTNAME is not set
+  ansible.builtin.fail:
+    msg: >-
+      SYSTEM_HOSTNAME is not set. Export it before running:
+        export SYSTEM_HOSTNAME=oim
+  when: host_name | length == 0
+
+- name: Fail if SYSTEM_DOMAIN_NAME is not set
+  ansible.builtin.fail:
+    msg: >-
+      SYSTEM_DOMAIN_NAME is not set. Export it before running:
+        export SYSTEM_DOMAIN_NAME=omnia.cluster
+  when: domain_name | length == 0
+
+- name: Validate configured environment
+  ansible.builtin.debug:
+    msg:
+      - "SYSTEM_HOSTNAME: {{ host_name }}"
+      - "SYSTEM_DOMAIN_NAME: {{ domain_name }}"
+      - "SYSTEM_ADMIN_NIC_IPV4: {{ admin_nic_ip }}"
+      - "OMNIA_DATA_PATH: {{ omnia_data_path }}"
+      - "OMNIA_PROJECT_NAME: {{ project_name }}"
+
+# --- Set all derived paths in a single set_fact ---
+- name: Set project dirs and derived paths
+  vars:
+    _image_build_path: "{{ lookup('env', 'IMAGE_BUILD_MANAGER_DATA_PATH') | default(omnia_data_path + '/image_build_manager', true) }}"
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ _image_build_path }}/input/{{ project_name }}"
+    input_source_dir: "{{ _domain_root_dir }}/input/{{ project_name }}"
+    output_project_dir: "{{ _image_build_path }}/output/{{ project_name }}"
+    log_dir: "{{ _image_build_path }}/log/{{ project_name }}"
+    shared_path: "{{ _image_build_path }}"
+    oim_node_name: "{{ host_name }}"
+    functional_groups_config_path: "{{ _image_build_path }}/output/{{ project_name }}/.data/functional_groups_config.yml"
+    standalone_mode: true
+    cacheable: true
+
+- name: Verify project input directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: _project_dir_check
+
+- name: Auto-copy input files from source if runtime input dir is missing
+  when: not _project_dir_check.stat.exists
+  block:
+    - name: Check if source input directory exists
+      ansible.builtin.stat:
+        path: "{{ input_source_dir }}"
+      register: _source_dir_check
+
+    - name: Copy input files from source to runtime directory
+      when: _source_dir_check.stat.exists
+      ansible.builtin.command:
+        cmd: "cp -a {{ input_source_dir }}/. {{ input_project_dir }}/"
+      args:
+        creates: "{{ input_project_dir }}"
+      become: true
+
+    - name: Create runtime input directory
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}"
+        state: directory
+        mode: '0755'
+      become: true
+      when: not _source_dir_check.stat.exists
+
+    - name: Fail if no input files available
+      ansible.builtin.fail:
+        msg: "{{ project_dir_not_exist_fail_msg }}"
+      when: not _source_dir_check.stat.exists
+
+# --- Create runtime directories ---
+- name: Ensure base /opt/omnia directory exists
+  ansible.builtin.file:
+    path: "{{ omnia_data_path }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Ensure domain-specific directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ shared_path }}"
+    - "{{ output_project_dir }}"
+    - "{{ log_dir }}"
+    - "{{ shared_path }}/log/playbooks"
+    - "{{ shared_path }}/s3"
+    - "{{ shared_path }}/registry"
+    - "{{ shared_path }}/oci"
+    - "{{ shared_path }}/workdir"
+  become: true
+
+- name: Validate domain directories were created
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ omnia_data_path }}"
+    - "{{ shared_path }}"
+    - "{{ output_project_dir }}"
+    - "{{ log_dir }}"
+  register: _dir_checks
+
+- name: Fail if any required directory is missing
+  ansible.builtin.fail:
+    msg: "Required directory does not exist: {{ item.item }}"
+  when: not item.stat.exists
+  loop: "{{ _dir_checks.results }}"

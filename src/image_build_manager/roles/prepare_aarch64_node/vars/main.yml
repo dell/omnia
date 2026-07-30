@@ -15,13 +15,19 @@
 
 # input files
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
-pulp_image_name: "dellhpcomniaaisolution/image-build-aarch64:1.1"
-local_tag: "aarch64-image-builder/ochami"
+
+# Build type switching for aarch64
+_image_build_type: "{{ hostvars['localhost']['image_build_type'] | default('image-builder') }}"
+_is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
+_builder_aarch64_image: "dellhpcomniaaisolution/image-build-aarch64:1.1"
+_thrillhouse_aarch64_image: "ghcr.io/openchami/image-thrillhouse:latest"
+repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_aarch64_image, _builder_aarch64_image) }}"
+local_tag: "{{ (_is_thrillhouse | bool) | ternary('aarch64-image-thrillhouse/ochami', 'aarch64-image-builder/ochami') }}"
 pull_image_retries: "5"
 pull_image_delay: "10"
-ochami_aarch_64_dir: "/opt/omnia/openchami/aarch64"
-pulp_repo_file_path: "/etc/yum.repos.d/pulp.repo"
-pulp_cert_host_path: "{{ hostvars['localhost']['pulp_cert_oim_path'] | default('/opt/omnia/pulp/settings/certs/pulp_webserver.crt') }}"
+ochami_aarch_64_dir: "{{ hostvars['localhost']['shared_path'] }}/omnia/openchami/aarch64"
+repo_file_path: "/etc/yum.repos.d/repo_manager.repo"
+repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 regctl_bin_path: "/usr/local/bin/regctl"
 
@@ -29,16 +35,16 @@ regctl_bin_path: "/usr/local/bin/regctl"
 no_inventory_error_msg: "No inventory provided. Please specify an inventory with -i option."
 admin_aarch64_empty_error_msg: "The inventory group 'admin_aarch64' does not exist or has no hosts."
 admin_aarch64_count_error_msg: "The inventory group 'admin_aarch64' must have exactly one host."
-pulp_repo_missing_error_msg: "pulp.repo file not found. Please run local_repo.yml playbook to create a repo file."
+repo_file_missing_error_msg: "repo_manager.repo file not found. Please run local_repo.yml playbook to create a repo file."
 not_aarch64_error_msg: "This is not an aarch64 machine. Only ARM nodes can be used to build the image."
-repo_not_found_error_msg: "The baseos repo section is not available in pulp.repo"
+repo_not_found_error_msg: "The baseos repo section is not available in repo_manager.repo"
 nfs_not_configured_msg: >
   To build aarch64 images on an ARM node, the NFS server must be configured on the OIM.
   Please run oim_cleanup.yml and reinstall the omnia_core container with the NFS option.
 aarch64_image_fail_msg: >
   Unable to pull the Ochami aarch64 image builder image.
-  Make sure you have added the default package for aarch64 in the software_config.json file and ran local_repo.yml.
-  If not, add that package and rerun local_repo.yml.
+  Make sure the aarch64 image builder image is available in your container registry.
+  Verify image_build_config.yml and functional_group_packages.yml are correctly configured.
 regctl_not_found_msg: >
   regctl binary not found at {{ ochami_aarch_64_dir }}/regctl.
   Please run prepare_oim.yml playbook to download the regctl binary.

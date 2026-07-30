@@ -16,39 +16,95 @@
 # =============================================================================
 # Common task: Load telemetry configuration files
 # =============================================================================
-# Loads telemetry_config.yml, telemetry_storage_config.yml, and telemetry_packages.yml
-# Sets kube_vip, telemetry_registry, and cluster_mount variables
-# Used by: telemetry.yml, enable_idrac_telemetry, enable_ldms, enable_powerscale, etc.
+# Loads telemetry_config.yml, telemetry_storage_config.yml, telemetry_packages.yml, and kube_inventory.yml
+# Sets kube_vip (from kube_inventory.yml), telemetry_registry, and cluster_mount variables
+# Used by: telemetry.yml, deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, etc.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.include_role:
-    name: ../../playbooks/utils/roles/include_input_dir
-
-- name: Load telemetry configuration
-  ansible.builtin.include_vars:
-    file: "{{ telemetry_config_file | default(input_project_dir + '/telemetry/telemetry_config.yml') }}"
-    name: telemetry_config
-
-- name: Set kube_vip from telemetry_config
+- name: Check if configs already loaded from localhost
   ansible.builtin.set_fact:
-    kube_vip: "{{ telemetry_config.kube_vip }}"
-  when: telemetry_config.kube_vip is defined
+    configs_already_loaded: "{{ (hostvars['localhost']['telemetry_config'] is defined) and (inventory_hostname != 'localhost') }}"
 
-- name: Load telemetry storage configuration
-  ansible.builtin.include_vars:
-    file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry/telemetry_storage_config.yml') }}"
-    name: telemetry_storage_config
+- name: Load configs from localhost hostvars when already cached
+  when: configs_already_loaded | bool
+  block:
+    - name: Use telemetry_config from localhost hostvars
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+        telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
+        telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
+        telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] }}"
+        cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
+        kube_vip: "{{ hostvars['localhost']['kube_vip'] | default('') }}"
 
-- name: Load telemetry packages configuration
-  ansible.builtin.include_vars:
-    file: "{{ telemetry_packages_file | default(input_project_dir + '/telemetry/telemetry_packages.yml') }}"
-    name: telemetry_packages_config
-  failed_when: false
+- name: Load configs from files when not cached
+  when: not (configs_already_loaded | bool)
+  block:
+    - name: Set default input project directory if not provided
+      ansible.builtin.set_fact:
+        input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
 
-- name: Set telemetry config variables from telemetry_packages_config
-  ansible.builtin.set_fact:
-    telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
-    cluster_mount: "{{ telemetry_packages_config.cluster_mount | default('') }}"
-  when: telemetry_packages_config is defined
+    - name: Load telemetry configuration
+      ansible.builtin.include_vars:
+        file: "{{ telemetry_config_file | default(input_project_dir + '/telemetry/telemetry_config.yml') }}"
+        name: telemetry_config
+
+    - name: Set telemetry_config as cacheable fact
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ telemetry_config }}"
+        cacheable: true
+
+    - name: Check if kube inventory file exists
+      ansible.builtin.stat:
+        path: "{{ kube_inventory_file | default(input_project_dir + '/telemetry/kube_inventory.yml') }}"
+      register: kube_inv_file_stat
+
+    - name: Load kube inventory for kube_vip
+      ansible.builtin.include_vars:
+        file: "{{ kube_inventory_file | default(input_project_dir + '/telemetry/kube_inventory.yml') }}"
+        name: kube_inv
+      when: kube_inv_file_stat.stat.exists
+
+    - name: Set kube_vip from kube_inventory
+      ansible.builtin.set_fact:
+        kube_vip: "{{ (kube_inv.all.children.kube_vip_group.hosts | dict2items | first).key }}"
+        cacheable: true
+      when:
+        - kube_inv_file_stat.stat.exists
+        - kube_inv.all.children.kube_vip_group.hosts is defined
+
+    - name: Set kube_vip from telemetry_config (fallback)
+      ansible.builtin.set_fact:
+        kube_vip: "{{ telemetry_config.kube_vip }}"
+        cacheable: true
+      when:
+        - kube_vip is not defined or kube_vip | length == 0
+        - telemetry_config.kube_vip is defined
+
+    - name: Load telemetry storage configuration
+      ansible.builtin.include_vars:
+        file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry/telemetry_storage_config.yml') }}"
+        name: telemetry_storage_config
+
+    - name: Set telemetry_storage_config as cacheable fact
+      ansible.builtin.set_fact:
+        telemetry_storage_config: "{{ telemetry_storage_config }}"
+        cacheable: true
+
+    - name: Load telemetry packages configuration
+      ansible.builtin.include_vars:
+        file: "{{ telemetry_packages_file | default(input_project_dir + '/telemetry/telemetry_packages.yml') }}"
+        name: telemetry_packages_config_loaded
+      register: packages_load_result
+      failed_when: false
+
+    - name: Set telemetry_packages_config as cacheable fact
+      ansible.builtin.set_fact:
+        telemetry_packages_config: "{{ telemetry_packages_config_loaded | default({}) }}"
+        cacheable: true
+
+    - name: Set telemetry config variables from telemetry_packages_config
+      ansible.builtin.set_fact:
+        telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
+        cluster_mount: "{{ telemetry_packages_config.cluster_mount | default('') }}"
+        cacheable: true

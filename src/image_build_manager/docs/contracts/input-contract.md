@@ -1,0 +1,195 @@
+# image_build_manager — Input Contract
+
+> **Last Updated**: Jul 21, 2026 | **Domain**: `image_build_manager`
+
+This document defines all input files consumed by the `image_build_manager` domain.
+
+---
+
+## 1. image_build_config.yml
+
+**Purpose**: Per-domain input configuration for image_build_manager.
+
+**Location**: `input/project_default/image_build_manager/image_build_config.yml`
+
+**Owner**: User (manually configured)
+
+**Schema**: `src/common/.../schema/image_build_config.json`
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `s3_configurations.provider` | string | Yes | `"minio"` | S3 backend: `minio` (deployed locally) or `powerscale` (external) |
+| `s3_configurations.endpoint_url` | string | No | `""` | S3 endpoint URL; auto-detected for MinIO, required for PowerScale |
+| `repo_manager_output_path` | string | Yes | `/opt/omnia/repo_manager/output/project_default/repo_status.yml` | Full path to `repo_status.yml` |
+| `aarch64_inventory_host_ip` | string | No | `""` | ARM build host IP; empty = skip aarch64 builds |
+| `aarch64_ssh_user` | string | No | `"root"` | SSH user for ARM build host |
+| `image_build_type` | string | No | `"image-builder"` | OpenCHAMI builder type: `image-builder` (standard) or `image-thrillhouse` (next-gen) |
+| `functional_groups_source` | string | No | `"config"` | Source for functional groups: `config` (manual list) or `repo_status` (auto-detect from repo_manager output) |
+| `build_image.max_parallel` | int | No | `0` | Max concurrent image builds; 0 = unlimited (all at once) |
+| `build_image.job_async` | int | No | `7200` | Max async wait for image build (seconds) |
+| `build_image.job_retry` | int | No | `240` | Max retries for async status check |
+| `build_image.job_delay` | int | No | `30` | Delay between async status checks (seconds) |
+
+**Validation**: `validate_build_config` role validates existence, YAML syntax, and required fields.
+
+---
+
+## 2. image_build_credentials.yml
+
+**Purpose**: Vault-encrypted credentials for S3 and provisioning.
+
+**Location**: `input/project_default/image_build_credentials.yml`
+
+**Owner**: `credential_utility` (auto-generated on first run via interactive prompts)
+
+**Vault Key**: `input/project_default/.image_build_credentials_key`
+
+**Schema**: `src/common/.../schema/image_build_credentials.json`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `s3_access_id` | string | Yes (MinIO) | S3 access key ID; defaults to `admin` for MinIO |
+| `s3_secret_key` | string | Yes (MinIO) | S3 secret key |
+| `aarch64_ssh_password` | string | Conditional | SSH password for ARM build host (only when `aarch64_inventory_host_ip` is set) |
+
+**Notes**:
+- Created by `credential_utility` with tag `image_build_manager`
+- For PowerScale provider, S3 credentials point to the external endpoint
+
+---
+
+## 3. repo_status.yml (upstream dependency)
+
+**Purpose**: Output from `repo_manager` domain consumed as input by `image_build_manager`.
+
+**Location**: `output/project_default/repo_manager/repo_status.yml`  
+(or custom path via `repo_manager_output_path` in `image_build_config.yml`)
+
+**Producer**: `repo_manager` domain
+
+**Consumer**: `image_build_manager.yml` (Step 4 — Pre-check)
+
+### Structure
+
+```yaml
+overall_status: "success"
+
+tarball_base_url: "https://<admin_nic_ip>:2225/pulp/content/.../tarballs/"
+manifest_base_url: "https://<admin_nic_ip>:2225/pulp/content/.../manifests/"
+pip_base_url: "https://<admin_nic_ip>:2225/pulp/content/.../pip/"
+git_base_url: "https://<admin_nic_ip>:2225/pulp/content/.../git/"
+
+repo_manager:
+  port: 2225
+  certificates:
+    server_crt: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+    server_key: "/opt/omnia/pulp/settings/certs/pulp_webserver.key"
+    certs_dir: "/opt/omnia/pulp/settings/certs"
+
+rpm_repos:
+  x86_64:
+    baseos: "https://<admin_nic_ip>:2225/pulp/content/.../x86_64_rhel_10.0_baseos/"
+    appstream: "https://<admin_nic_ip>:2225/pulp/content/.../x86_64_rhel_10.0_appstream/"
+    # ... (codeready_builder, epel, doca, omnia-additional, cuda, etc.)
+  aarch64:
+    baseos: "https://<admin_nic_ip>:2225/pulp/content/.../aarch64_rhel_10.0_baseos/"
+    appstream: "https://<admin_nic_ip>:2225/pulp/content/.../aarch64_rhel_10.0_appstream/"
+    # ... (codeready_builder, epel, doca)
+
+user_repos:
+  x86_64:
+    slurm_custom: "https://<admin_nic_ip>:2225/pulp/content/.../x86_64_rhel_10.0_slurm_custom/"
+  aarch64:
+    slurm_custom: "https://<admin_nic_ip>:2225/pulp/content/.../aarch64_rhel_10.0_slurm_custom/"
+```
+
+### Validation Rules
+
+| Rule | Error Behavior |
+|------|---------------|
+| File must exist | Fail with "repo_status.yml not found" |
+| `overall_status` must be `"success"` | Fail with "repo_manager did not complete successfully" |
+| `repo_manager` section must exist | Fail with "missing repo_manager section" |
+| `repo_manager.certificates.server_crt` if present, file must exist | Fail with "repo manager certificate not found" |
+| `repo_manager.port` must exist | Fail with "missing repo_manager port" |
+| `rpm_repos` must contain valid URLs for target arch | Fail with "missing RPM repos" |
+
+### Facts Set from repo_status.yml
+
+| Fact | Source | Description |
+|------|--------|-------------|
+| `repo_cert_path` | `repo_manager.certificates.server_crt` | Localhost cert path (empty if not configured) |
+| `repo_port` | `repo_manager.port` | Repo manager HTTPS port |
+| `repo_manager_repos_x86_64` | `rpm_repos.x86_64` + `user_repos.x86_64` | List of `{name, base_url, gpg}` |
+| `repo_manager_repos_aarch64` | `rpm_repos.aarch64` + `user_repos.aarch64` | List of `{name, base_url, gpg}` |
+| `build_image_job_async` | `build_image.job_async` | Async timeout (single source of truth from config) |
+| `build_image_job_retry` | `build_image.job_retry` | Retry count (single source of truth from config) |
+| `build_image_job_delay` | `build_image.job_delay` | Retry delay (single source of truth from config) |
+| `build_image_max_parallel` | `build_image.max_parallel` | Concurrency limit for parallel builds |
+| `functional_groups_source` | `functional_groups_source` | Source mode for functional group selection |
+| `image_build_type` | `image_build_type` | OpenCHAMI builder type (`image-builder` or `image-thrillhouse`) |
+
+---
+
+## 4. functional_group_packages.yml
+
+**Purpose**: Single source of truth mapping functional groups to RPM packages.
+
+**Location** (runtime): `/opt/omnia/repo_manager/output/<project_name>/functional_group_packages.yml`
+
+**Owner**: User / repo_manager output
+
+**Replaces**: The legacy chain of `software_config.json` → `config/<arch>/*.json` → `image_package_collector.py`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `base_packages` | list[string] | Yes | RPM packages installed in every image (base OS layer) |
+| `functional_groups` | dict | Yes | Keyed by functional group name |
+| `functional_groups.<name>.packages` | list[string] | Yes | Additional RPMs for that functional group (on top of base) |
+
+**Example**:
+
+```yaml
+base_packages:
+  - systemd
+  - kernel
+  - dracut
+
+functional_groups:
+  os_x86_64:
+    packages: []
+  slurm_node_x86_64:
+    packages:
+      - munge
+      - slurm-slurmd
+      - slurm-pam_slurm
+```
+
+**Validation**: Functional group names in this file must match entries in
+`image_build_config.yml → functional_groups[].name`.
+
+> **Note**: `software_config.json` is **NOT used** in standalone mode. OS type and version
+> come from `repo_status.yml`. Package lists come from this file.
+
+---
+
+## 5. Dependency Summary
+
+```
+  ┌──────────────────┐    ┌──────────────────────────────┐
+  │ image_build      │    │ repo_manager_output/         │
+  │  _config.yml     │    │   ├── repo_status.yml        │
+  │  (functional     │    │   ├── functional_group       │
+  │   groups list)   │    │   │   _packages.yml          │
+  └────────┬─────────┘    │   └── certs/                 │
+           │              └──────────────┬───────────────┘
+           │                             │
+           └──────────┬──────────────────┘
+                      │
+             ┌────────▼────────────────┐
+             │  image_build_manager.yml │
+             │                         │
+             │  base_image_packages ◄── base_packages
+             │  compute_images_dict ◄── functional_groups + packages
+             └─────────────────────────┘
+```

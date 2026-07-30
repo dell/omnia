@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Cleanup Orchestrator — Remove OpenCHAMI services, artifacts, and credentials
+# Can be run standalone or imported by orchestrator.yml
+
+- name: Setup orchestrator environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: omnia.orchestrator.orchestrator_setup
+      vars:
+        openchami_vars_support: true
+        omnia_metadata_support: true
+  tags: always
+
+- name: Cleanup OpenCHAMI deployments
+  hosts: oim
+  connection: ssh
+  gather_facts: true
+  tasks:
+    - name: Stop and remove OpenCHAMI services
+      ansible.builtin.debug:
+        msg: "OpenCHAMI cleanup placeholder — implement via deploy_openchami cleanup tasks"
+      # TODO: Import deploy_openchami cleanup tasks when available
+
+    - name: Remove generated functional groups
+      ansible.builtin.file:
+        path: /opt/omnia/.data/functional_groups_config.yml
+        state: absent
+
+    - name: Remove orchestrator output directory
+      ansible.builtin.file:
+        path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        state: absent
+  tags: always
+
+- name: Cleanup credentials (opt-in)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove credential files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ input_project_dir }}/omnia_config_credentials.yml"
+        - "{{ input_project_dir }}/.omnia_config_credentials_key"
+  tags:
+    - credentials
+    - never

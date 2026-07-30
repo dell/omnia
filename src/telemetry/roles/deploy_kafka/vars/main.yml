@@ -22,6 +22,7 @@ telemetry_namespace: "telemetry"
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
+telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
@@ -50,5 +51,19 @@ kafka_storage: "{{ hostvars['localhost']['telemetry_storage_config'].kafka_stora
 
 # Timeouts
 kafka_deploy_timeout: "600s"
+kafka_operator_wait_timeout: "300s"
 kafka_crd_wait_retries: 60
 kafka_crd_wait_delay: 2
+kafka_secret_wait_retries: 30
+kafka_secret_wait_delay: 2
+kafka_download_timeout: 300
+
+# File modes
+kafka_dir_mode: "0755"
+kafka_file_mode: "0644"
+
+# Error messages
+kafka_strimzi_tarball_not_found_msg: >-
+  Strimzi Kafka operator tarball not found at
+  {{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}.
+  Download from {{ telemetry_packages_config.telemetry_packages.strimzi_kafka_operator }} may have failed.

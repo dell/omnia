@@ -12,50 +12,89 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Check local_repo.yml execution
+# ==========================================================================
+# Load packages from functional_group_packages.yml
+# ==========================================================================
+
+- name: Load functional group package mapping
   block:
-    - name: Check if metadata file exists
-      ansible.builtin.stat:
-        path: "{{ metadata_file_path }}"
-      register: metadata_file_status
+    - name: Load functional_group_packages.yml
+      ansible.builtin.include_vars:
+        file: "{{ package_list_path }}"
+        name: _fg_pkg_mapping
 
-    - name: Fail if metadata file is not present
-      ansible.builtin.fail:
-        msg: "{{ local_repo_check_msg }}"
-      when: not metadata_file_status.stat.exists
+    - name: Set base_image_packages from mapping
+      ansible.builtin.set_fact:
+        base_image_packages: "{{ _fg_pkg_mapping.base_packages | default([]) }}"
+        cacheable: true
 
-- name: Initialize fg_present as false
-  ansible.builtin.set_fact:
-    fg_present: "{{ fg_present | default(false) }}"
-  when: enable_build_stream | default(false)
+    # --- Functional group source resolution ---
+    - name: Auto-detect functional groups from repo_status
+      when: hostvars['localhost']['functional_groups_source'] | default('config') == 'repo_status'
+      block:
+        - name: Build functional_groups list from functional_group_packages.yml
+          ansible.builtin.set_fact:
+            _auto_fg_list: >-
+              {% set result = [] -%}
+              {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
+                {% if (fg_data.packages | default([]) | length) > 0 -%}
+                  {% set _ = result.append({'name': fg_name}) -%}
+                {% endif -%}
+              {% endfor -%}
+              {{ result }}
 
-- name: Include functional groups config
-  ansible.builtin.include_vars:
-    file: "{{ functional_groups_file_path }}"
-    name: functional_groups_config
-  when: not (enable_build_stream | default(false) | bool)
+        - name: Filter out aarch64 groups when no ARM host is configured
+          ansible.builtin.set_fact:
+            functional_groups: >-
+              {% set result = [] -%}
+              {% for fg in _auto_fg_list -%}
+                {% if fg.name.endswith('_aarch64') -%}
+                  {% if (hostvars['localhost']['aarch64_inventory_host_ip'] | default('') | length) > 0 -%}
+                    {% set _ = result.append(fg) -%}
+                  {% endif -%}
+                {% else -%}
+                  {% set _ = result.append(fg) -%}
+                {% endif -%}
+              {% endfor -%}
+              {{ result }}
+            cacheable: true
 
-- name: Set functional_groups_file_path for build_stream disabled flow
-  ansible.builtin.set_fact:
-    functional_groups_file_path: "{{ functional_groups_file_path }}"
-  when: not (enable_build_stream | default(false) | bool)
+        - name: Display auto-detected functional groups
+          ansible.builtin.debug:
+            msg: >-
+              Auto-detected {{ functional_groups | length }} functional groups from repo_status:
+              {{ functional_groups | map(attribute='name') | list | join(', ') }}
 
-- name: Include software config
-  ansible.builtin.include_vars:
-    file: "{{ software_config_file_path }}"
-    name: software_config
+    - name: Build compute_images_dict from mapping + enabled functional_groups
+      ansible.builtin.set_fact:
+        compute_images_dict: >-
+          {% set result = {} -%}
+          {% for fg in functional_groups -%}
+            {% set fg_name = fg.name if fg is mapping else fg -%}
+            {% if fg_name.endswith('_' + build_arch) -%}
+              {% set pkgs = _fg_pkg_mapping.functional_groups[fg_name].packages | default([]) -%}
+              {% set _ = result.update({fg_name: {'functional_group': fg_name, 'packages': pkgs}}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ result }}
+        cacheable: true
 
-- name: Set cluster OS facts
-  ansible.builtin.set_fact:
-    rhel_tag: "{{ software_config.cluster_os_version }}"
-    default_json_path: "{{ input_project_dir }}/config/{{ build_arch }}/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/default_packages.json"   # noqa: yaml[line-length]
-    additional_json_path: "{{ input_project_dir }}/config/{{ build_arch }}/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/additional_packages.json"   # noqa: yaml[line-length]
-    admin_debug_json_path: "{{ input_project_dir }}/config/{{ build_arch }}/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/admin_debug_packages.json"  # noqa: yaml[line-length]
+    - name: Set cluster OS version from repo_status
+      ansible.builtin.set_fact:
+        rhel_tag: "{{ hostvars['localhost']['cluster_os_version'] | default(cluster_os_version | default('10.0')) }}"
 
-- name: Fetch pulp endpoint repos
-  ansible.builtin.include_tasks: fetch_pulp_repos.yml
-  when: fg_present or (enable_build_stream | default(false) | bool)
+    - name: Set service_k8s_version (empty unless overridden)
+      ansible.builtin.set_fact:
+        service_k8s_version: ""
+        cacheable: true
 
-- name: Fetch packages for base and compute image softwares
-  ansible.builtin.include_tasks: fetch_packages.yml
-  when: fg_present or (enable_build_stream | default(false) | bool)
+    - name: Debug package resolution
+      ansible.builtin.debug:
+        msg: >-
+          Resolved {{ compute_images_dict | length }} functional groups
+          (source={{ hostvars['localhost']['functional_groups_source'] | default('config') }}),
+          {{ base_image_packages | length }} base packages
+        verbosity: 1
+
+- name: Fetch repo manager endpoint repos
+  ansible.builtin.include_tasks: fetch_repo_manager_repos.yml

@@ -21,11 +21,14 @@
 - name: Set facts for x86_64 image templates vars
   ansible.builtin.set_fact:
     rhel_tag: "{{ hostvars['localhost']['rhel_tag'] }}"
-    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+    host_name: "{{ hostvars['localhost']['host_name'] }}"
     domain_name: "{{ hostvars['localhost']['domain_name'] }}"
     rhel_arch_repos: "{{ hostvars['localhost']['rhel_arch_repos'] }}"
     base_image_packages: "{{ hostvars['localhost']['base_image_packages'] }}"
     compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] }}"
+
+- name: Configure registry host and regctl TLS
+  ansible.builtin.include_tasks: configure_registry.yml
 
 - name: Normalize build stream inputs for base image
   ansible.builtin.set_fact:
@@ -42,8 +45,14 @@
 
 - name: Set s3_access and s3_secret
   ansible.builtin.set_fact:
-    s3_access: "{{ hostvars['localhost']['image_build_creds']['s3_access_id'] | default(hostvars['localhost']['s3_access_id'], true) | default('admin', true) }}"
-    s3_secret: "{{ hostvars['localhost']['image_build_creds']['s3_secret_key'] | default(hostvars['localhost']['s3_secret_key'], true) | default('') }}"
+    s3_access: >-
+      {{ hostvars['localhost']['image_build_creds']['s3_access_id']
+      | default(hostvars['localhost']['s3_access_id'], true)
+      | default('admin', true) }}
+    s3_secret: >-
+      {{ hostvars['localhost']['image_build_creds']['s3_secret_key']
+      | default(hostvars['localhost']['s3_secret_key'], true)
+      | default('') }}
   no_log: true
 
 - name: Set s3_endpoint

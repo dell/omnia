@@ -50,6 +50,12 @@ title = "Gitleaks config for Omnia"
     '''password:\s*"kerberos_admin_password''',
     '''password:\s*"directory_manager_password''',
     '''secret:\s*"grafana_.*''',
+    '''password:\s*aarch64_ssh_password''',
+    '''password:\s*"[a-z_]+_password"''',
+    '''[a-z_]+_password\s*=.*OMNIA_SH_VARS''',
+    '''[a-z_]+_password\s*=.*get\(''',
+    '''password\s*=\s*OMNIA_SH_VARS''',
+    '''password\s*=\s*[a-z_]+\.get\(''',
     
     # Validation/Success messages
     '''success_msg.*password.*validated''',
