@@ -87,6 +87,15 @@ jobs:
           echo "Created ansible.cfg"
           cat ansible.cfg
 
+      - name: Create collection symlinks for FQCN resolution
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        run: |
+          mkdir -p ansible_collections/omnia
+          ln -sfn ../../src/discovery ansible_collections/omnia/discovery
+          ln -sfn ../../src/orchestrator ansible_collections/omnia/orchestrator
+          echo "Created collection symlinks:"
+          ls -la ansible_collections/omnia/
+
       - name: Verify Ansible config
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         env:
@@ -151,6 +160,15 @@ jobs:
           EOF
           echo "Created ansible.cfg"
           cat ansible.cfg
+
+      - name: Create collection symlinks for FQCN resolution (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p ansible_collections/omnia
+          ln -sfn ../../src/discovery ansible_collections/omnia/discovery
+          ln -sfn ../../src/orchestrator ansible_collections/omnia/orchestrator
+          echo "Created collection symlinks:"
+          ls -la ansible_collections/omnia/
 
       - name: Verify Ansible config (manual scan)
         if: github.event_name == 'workflow_dispatch'

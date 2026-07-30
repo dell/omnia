@@ -140,7 +140,7 @@
     cacheable: true
 
 # Step 7: Create OIM host group (only when oim_group is explicitly enabled)
-- name: Create {{ oim_host_group }} group
+- name: Create OIM host group {{ oim_host_group }}
   ansible.builtin.add_host:
     hostname: "{{ oim_host_group }}"
     ansible_host: "localhost"

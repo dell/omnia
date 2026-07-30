@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Ansible module for parsing, converting, and merging Slurm configuration files."""
 
 import os
 from collections import OrderedDict
@@ -173,14 +174,22 @@ def slurm_conf_dict_merge(conf_dict_list, conf_name, replace):
                         existing_dict = merged_dict.get(ky, {})
                         inner_dict = existing_dict.get(item.get(ky), {})
                         # Get the sub-options for this array type (e.g., nodename_options, partition_options)
-                        sub_options = all_confs.get(f"{conf_name}->{ky}", {})
+                        sub_opts = all_confs.get(
+                            f"{conf_name}->{ky}", {})
                         # Merge item into inner_dict, handling CSV fields specially
                         for k, v in item.items():
-                            if sub_options.get(k) == SlurmParserEnum.S_P_CSV and k in inner_dict and not replace:
+                            is_csv = sub_opts.get(k) == SlurmParserEnum.S_P_CSV
+                            if is_csv and k in inner_dict and not replace:
                                 # Merge CSV values
-                                existing_values = [val.strip() for val in inner_dict[k].split(',') if val.strip()]
-                                new_values = [val.strip() for val in v.split(',') if val.strip()]
-                                inner_dict[k] = ",".join(list(dict.fromkeys(existing_values + new_values)))
+                                existing_values = [
+                                    val.strip() for val in
+                                    inner_dict[k].split(',') if val.strip()]
+                                new_values = [
+                                    val.strip() for val in
+                                    v.split(',') if val.strip()]
+                                inner_dict[k] = ",".join(
+                                    list(dict.fromkeys(
+                                        existing_values + new_values)))
                             else:
                                 # Regular update for non-CSV fields
                                 inner_dict[k] = v
@@ -194,8 +203,11 @@ def slurm_conf_dict_merge(conf_dict_list, conf_name, replace):
                     new_items = [vl]
                 merged_dict[ky] = list(dict.fromkeys(existing_list + new_items))
             elif current_conf.get(ky) == SlurmParserEnum.S_P_CSV and not replace:
-                existing_values = [v.strip() for v in merged_dict.get(ky, "").split(',') if v.strip()]
-                new_values = [v.strip() for v in vl.split(',') if v.strip()]
+                existing_values = [
+                    v.strip() for v in
+                    merged_dict.get(ky, "").split(',') if v.strip()]
+                new_values = [
+                    v.strip() for v in vl.split(',') if v.strip()]
                 merged_dict[ky] = ",".join(list(dict.fromkeys(existing_values + new_values)))
             else:
                 merged_dict[ky] = vl
