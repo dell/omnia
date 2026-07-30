@@ -32,7 +32,7 @@
   ansible.builtin.expect:
     command: "ssh-copy-id -i /root/.ssh/id_rsa.pub root@{{ inventory_hostname }}"
     responses:
-      "password:": "{{ hostvars['localhost']['provision_password'] }}"
+      "password:": "{{ hostvars['localhost']['aarch64_ssh_password'] }}"
   when: ssh_check.failed
   delegate_to: localhost
   no_log: true
@@ -100,7 +100,7 @@
     nfs_info:
       server_ip: "{{ hostvars['localhost']['nfs_server_ip'] }}"
       server_share_path: "{{ hostvars['localhost']['nfs_server_share_path'] }}"
-      shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
+      shared_path: "{{ hostvars['localhost']['shared_path'] }}"
 
 - name: Ensure NFS mount point directory exists
   ansible.builtin.file:
@@ -219,8 +219,15 @@
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
   become: true
 
-- name: Set registry TLS option using regctl
-  ansible.builtin.command: "{{ regctl_bin_path }} registry set --tls disabled {{ hostvars['localhost']['oim_hostname'] }}:5000"
+- name: Compute aarch64 registry host
+  ansible.builtin.set_fact:
+    _aarch64_registry_host: >-
+      {{ hostvars['localhost']['admin_nic_ip']
+         if hostvars['localhost']['standalone_mode'] | default(false) | bool
+         else oim_hostname }}
+
+- name: Configure regctl to use HTTP for local registry
+  ansible.builtin.command: "{{ regctl_bin_path }} registry set --tls disabled {{ _aarch64_registry_host }}:5000"
   register: regctl_result
   changed_when: regctl_result.rc == 0
   become: true

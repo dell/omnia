@@ -13,26 +13,11 @@
 # limitations under the License.
 ---
 
-# --- Upgrade guard ---
-upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
-upgrade_in_progress_msg: >-
-  Upgrade is not completed fully.
-  Please run upgrade.yml to complete upgrade before running any other playbook using the below command:
-  "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
-  If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
-  "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
-
-# --- Input project directory ---
-omnia_input_dir: /opt/omnia/input
-omnia_output_dir: /opt/omnia/output
-omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
-omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
-omnia_input_config_syntax_fail_msg: >-
-  Unable to load the Omnia project configuration file at {{ omnia_input_config_file }}.
-  Please ensure the file exists and has valid YAML syntax before re-running the playbook.
-project_dir_not_exist_fail_msg: >-
-  The project directory at {{ input_project_dir }} does not exist.
-  Please ensure the directory exists before re-running the playbook.
+# ============================================================================
+# image_build_setup — Role Variables
+# ============================================================================
+# All user-facing error messages are defined here (not inline in tasks).
+# See docs/code-style/ for naming and message conventions.
 
 # --- Common vars (inlined from common/vars/common_vars.yml) ---
 clone_retry: "5"
@@ -47,12 +32,7 @@ file_permissions_400: "0400"
 job_retry: "240"
 job_delay: "30"
 
-# --- OIM group ---
-oim_host_port: "22"
-oim_host_group: "oim"
-
 # --- Tag validation ---
-# Supported tags for image_build_manager.yml
 supported_tags:
   - prepare
   - build
@@ -61,12 +41,10 @@ supported_tags:
   - upgrade
   - rollback
 
-# Tags that skip credential prompting
 skip_credential_tags:
   - cleanup
   - validate
 
-# Invalid tag combinations (mutually exclusive)
 invalid_tag_combinations:
   - [prepare, cleanup]
   - [build, cleanup]
@@ -78,22 +56,55 @@ invalid_tag_combinations:
   - [cleanup, rollback]
   - [upgrade, rollback]
 
-# Tag validation messages
+# --- Tag validation messages ---
 tag_validation_fail_msg: |
   Invalid tag usage detected.
-  
   Supported tags: {{ supported_tags | join(', ') }}
-  
   Invalid tags provided: {{ invalid_tags | join(', ') }}
-  
   Please use only supported tags.
 
 tag_combination_fail_msg: |
   Invalid tag combination detected: {{ ansible_run_tags | join(', ') }}
-  
   The following tag combinations are not allowed:
   {% for combo in invalid_tag_combinations %}
   - {{ combo | join(' + ') }}
   {% endfor %}
-  
   Please run with only ONE tag at a time (or no tags for default flow).
+
+# --- Config validation messages ---
+env_admin_nic_ip_missing_fail_msg: >-
+  OMNIA_ADMIN_NIC_IP is not set. Set it in omnia.env or export it:
+    export OMNIA_ADMIN_NIC_IP=<your_admin_nic_ip>
+
+
+# --- Prerequisite validation messages ---
+project_dir_not_exist_fail_msg: >-
+  The project directory at {{ input_project_dir }} does not exist.
+  Please ensure the directory exists before re-running the playbook.
+
+repo_status_not_found_fail_msg: >-
+  repo_status.yml not found at {{ repo_manager_output_path }}.
+  Run repo_manager first, or copy the sample file:
+    mkdir -p {{ repo_manager_output_path | dirname }}
+    cp input/project_default/repo_manager_output/repo_status.yml {{ repo_manager_output_path }}
+  Then verify: ./src/main/omnia-cli repo-manager
+
+functional_group_packages_not_found_fail_msg: >-
+  functional_group_packages.yml not found at {{ package_list_path | default('unknown') }}.
+  This file defines the RPM packages for each functional group.
+  Check repo_manager.package_list in {{ repo_manager_output_path }}
+  or copy the sample file to {{ repo_manager_output_path | dirname }}/.
+
+pulp_cert_not_found_fail_msg: >-
+  Pulp certificate not found at {{ repo_manager.certificates.server_crt | default('unknown') }}.
+  Ensure repo_manager has been run and the certificate exists on this host.
+
+repo_status_missing_section_fail_msg: >-
+  repo_status.yml is missing required 'repo_manager' section.
+  Ensure repo_manager.certificates.server_crt, repo_manager.port,
+  and repo_manager.package_list are present in {{ repo_manager_output_path }}.
+
+image_build_config_not_found_fail_msg: >-
+  image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
+  This file is required. See docs/contracts/input-contract.md for the expected format.
+

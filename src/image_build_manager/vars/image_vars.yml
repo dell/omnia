@@ -20,3 +20,7 @@
 # image_build_manager-specific S3 constants (fixed bucket names — NOT user-modifiable)
 s3_boot_images_bucket: "boot-images"
 s3_efi_images_bucket: "efi-images"
+
+# Container registry TLS verification (internal constant — NOT user-modifiable)
+# The local OCI registry deployed by image_build_manager runs plain HTTP.
+registry_tls_verify: false

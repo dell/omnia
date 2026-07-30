@@ -21,6 +21,12 @@
     - (build_stream_job_id | default('') | length) > 0
     - (image_key | default('') | length) > 0
 
+- name: Ensure workdir images directory exists
+  ansible.builtin.file:
+    path: "{{ openchami_work_dir }}/images"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+
 - name: Ensure log directory exists
   ansible.builtin.file:
     path: "{{ image_build_log_dir }}"
@@ -92,9 +98,14 @@
       loop_control:
         label: "Building: {{ item.item.key }}"
 
+    - name: Configure regctl to use HTTP for local registry
+      ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
+      changed_when: false
+      failed_when: false
+
     - name: Verify x86_64 compute osimages in registry
       ansible.builtin.command:
-        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ oim_node_name }}.{{ domain_name }}:5000"
+        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
       changed_when: false
       register: verify_compute_osimages
 
@@ -117,7 +128,7 @@
       ansible.builtin.set_fact:
         failure_msg_list:
           - "x86_64 compute image build job did not complete successfully."
-          - "Check logs at {{ image_build_log_dir }} on OIM host for respective functional group for more details."
+          - "Check logs at {{ image_build_log_dir }} on localhost for respective functional group for more details."
           - ""
           - "Failed images:"
 
@@ -128,7 +139,7 @@
 
     - name: Add log paths section to message
       ansible.builtin.set_fact:
-        failure_msg_list: "{{ failure_msg_list + ['', 'Check logs at ' + image_build_log_dir + ' on OIM host for details:'] }}"
+        failure_msg_list: "{{ failure_msg_list + ['', 'Check logs at ' + image_build_log_dir + ' on localhost for details:'] }}"
 
     - name: Add log file paths to message
       ansible.builtin.set_fact:
@@ -145,19 +156,19 @@
       ansible.builtin.fail:
         msg: "x86_64 compute image build failed. See details above."
 
-  always:
-    - name: Set openchami SELinux context for Local flow
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
-      changed_when: true
-      delegate_to: oim
-      connection: ssh
-      failed_when: false
-      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+  # always:
+  #   - name: Set openchami SELinux context for Local flow
+  #     ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
+  #     changed_when: true
+  #     delegate_to: oim
+  #     connection: ssh
+  #     failed_when: false
+  #     when: hostvars['localhost']['omnia_share_option'] == 'Local'
 
-    - name: Set openchami SELinux context for NFS internal flow
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
-      changed_when: true
-      delegate_to: oim
-      connection: ssh
-      failed_when: false
-      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
+  #   - name: Set openchami SELinux context for NFS internal flow
+  #     ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+  #     changed_when: true
+  #     delegate_to: oim
+  #     connection: ssh
+  #     failed_when: false
+  #     when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')

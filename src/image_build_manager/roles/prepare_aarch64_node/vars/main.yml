@@ -19,9 +19,9 @@ pulp_image_name: "dellhpcomniaaisolution/image-build-aarch64:1.1"
 local_tag: "aarch64-image-builder/ochami"
 pull_image_retries: "5"
 pull_image_delay: "10"
-ochami_aarch_64_dir: "/opt/omnia/openchami/aarch64"
+ochami_aarch_64_dir: "{{ hostvars['localhost']['shared_path'] }}/omnia/openchami/aarch64"
 pulp_repo_file_path: "/etc/yum.repos.d/pulp.repo"
-pulp_cert_host_path: "{{ hostvars['localhost']['pulp_cert_oim_path'] | default('/opt/omnia/pulp/settings/certs/pulp_webserver.crt') }}"
+pulp_cert_host_path: "{{ hostvars['localhost']['pulp_cert_path'] | default('/opt/omnia/pulp/settings/certs/pulp_webserver.crt') }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 regctl_bin_path: "/usr/local/bin/regctl"
 
@@ -37,8 +37,8 @@ nfs_not_configured_msg: >
   Please run oim_cleanup.yml and reinstall the omnia_core container with the NFS option.
 aarch64_image_fail_msg: >
   Unable to pull the Ochami aarch64 image builder image.
-  Make sure you have added the default package for aarch64 in the software_config.json file and ran local_repo.yml.
-  If not, add that package and rerun local_repo.yml.
+  Make sure the aarch64 image builder image is available in your container registry.
+  Verify image_build_config.yml and functional_group_packages.yml are correctly configured.
 regctl_not_found_msg: >
   regctl binary not found at {{ ochami_aarch_64_dir }}/regctl.
   Please run prepare_oim.yml playbook to download the regctl binary.
