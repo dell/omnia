@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: discovery_setup
+  namespace: omnia
+  author: Dell Technologies
+  description: "Omnia discovery role: discovery_setup"
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+dependencies: []
