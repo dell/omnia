@@ -1322,13 +1322,18 @@ post_setup_config() {
     fi
 
     # Copy input files from /omnia to /opt/omnia/project_default/ inside omnia_core container
-    podman exec -u root omnia_core bash -c "cd /omnia && git pull"
+    # Use timeout to prevent hang on slow NFS
+    timeout 120 podman exec -u root omnia_core bash -c "cd /omnia && git pull" || {
+        echo -e "${YELLOW} Warning: git pull timed out or failed, continuing...${NC}"
+    }
     echo -e "${BLUE} Moving input files from /omnia dir to project_default folder.${NC}"
-    podman exec -u root omnia_core bash -c "
+    timeout 300 podman exec -u root omnia_core bash -c "
     mkdir -p /opt/omnia/input/project_default
     cp -r /omnia/input/* /opt/omnia/input/project_default
     rm -rf /omnia/input
-    rm -rf /omnia/omnia.sh"
+    rm -rf /omnia/omnia.sh" || {
+        echo -e "${YELLOW} Warning: input file copy timed out or failed${NC}"
+    }
 }
 
 validate_nfs_server() {
@@ -1844,7 +1849,8 @@ backup_openchami_data() {
     fi
 
     # Create openchami backup directory structure
-    if ! podman exec -u root omnia_core bash -c "
+    # Use timeout (300s) to prevent indefinite hang on slow NFS
+    if ! timeout 300 podman exec -u root omnia_core bash -c "
         set -e
         mkdir -p '${backup_base%/}/openchami/openchami_data'
         cp -a /opt/omnia/openchami/. '${backup_base%/}/openchami/openchami_data/' 2>&1
@@ -1915,7 +1921,8 @@ phase3_backup_creation() {
         return 1
     fi
 
-    if ! podman exec -u root omnia_core bash -c "
+    # Use timeout (300s) around backup copy to prevent indefinite hang on slow NFS
+    if ! timeout 300 podman exec -u root omnia_core bash -c "
         set -e
         rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
         mkdir -p '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
@@ -2059,11 +2066,26 @@ phase4_container_swap() {
     fi
 
     echo "[INFO] [ORCHESTRATOR] Stopping omnia_core $OMNIA_CORE_CONTAINER_TAG container"
-    systemctl stop omnia_core.service >/dev/null 2>&1 || true
+
+    # Flush pending NFS writes inside the container before stopping to prevent
+    # the container-stop from blocking on dirty NFS buffers (slow-network hang).
+    echo "[INFO] [ORCHESTRATOR] Flushing filesystem caches before container stop..."
+    podman exec -u root omnia_core sync >/dev/null 2>&1 || true
+
+    # Use timeout (120s) around systemctl stop to avoid indefinite hang when
+    # NFS I/O is slow.  Without this, systemctl stop waits forever and the
+    # fallback podman-stop is never reached.
+    timeout 120 systemctl stop omnia_core.service >/dev/null 2>&1 || true
 
     if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
-        echo "[WARN] [ORCHESTRATOR] omnia_core still running; forcing stop"
+        echo "[WARN] [ORCHESTRATOR] omnia_core still running; forcing stop via podman"
         podman stop -t 30 omnia_core >/dev/null 2>&1 || true
+    fi
+
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[WARN] [ORCHESTRATOR] omnia_core still running; force killing container"
+        podman kill omnia_core >/dev/null 2>&1 || true
+        sleep 2
     fi
 
     if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
