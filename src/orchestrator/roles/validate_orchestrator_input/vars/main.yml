@@ -16,7 +16,7 @@
 input_dir: "{{ hostvars['localhost']['input_project_dir'] | default(omnia_project_input_dir) }}"
 
 # Path to the orchestrator-specific JSON schemas (domain-level library)
-orchestrator_schema_dir: "{{ playbook_dir }}/library/module_utils/orchestrator_validation/schema"
+orchestrator_schema_dir: "{{ role_path }}/../../plugins/module_utils/orchestrator_validation/schema"
 
 # Validation messages
 orchestrator_validation_start_msg: "Starting orchestrator input validation (L1 schema + L2 logic)."

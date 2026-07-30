@@ -37,7 +37,7 @@
   gather_facts: false
   tags: always
   roles:
-    - role: orchestrator_setup
+    - role: omnia.orchestrator.orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true
@@ -49,7 +49,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: validate_orchestrator_input
+    - role: omnia.orchestrator.validate_orchestrator_input
       when: not config_file_status | default(false) | bool
 
 # Step 2: Credential management (prompt, encrypt, vault)
@@ -58,7 +58,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: orchestrator_credentials
+    - role: omnia.orchestrator.orchestrator_credentials
       when:
         - not config_file_status | default(false) | bool
         - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
@@ -71,13 +71,13 @@
   gather_facts: false
   tags: always
   roles:
-    - orchestrator_functional_groups
+    - omnia.orchestrator.orchestrator_functional_groups
 
 - name: Validate orchestrator parameters
   hosts: localhost
   connection: local
   roles:
-    - orchestrator_validations
+    - omnia.orchestrator.orchestrator_validations
 
 - name: Validate OIM timezone
   hosts: oim
@@ -85,20 +85,20 @@
   tasks:
     - name: Validate OIM timezone has not changed
       ansible.builtin.include_role:
-        name: orchestrator_validations
+        name: omnia.orchestrator.orchestrator_validations
         tasks_from: validate_oim_timezone.yml
 
 - name: Build cluster host lists from PXE mapping
   hosts: localhost
   connection: local
   roles:
-    - passwordless_ssh
+    - omnia.orchestrator.passwordless_ssh
 
 - name: Configure OIM SSH from cluster host lists
   hosts: oim
   connection: ssh
   roles:
-    - passwordless_ssh
+    - omnia.orchestrator.passwordless_ssh
 
 - name: Configure S3 access for boot image storage
   hosts: oim
@@ -107,7 +107,7 @@
   tasks:
     - name: Configure s3cmd and set S3 facts from orchestrator config
       ansible.builtin.include_role:
-        name: orchestrator_common
+        name: omnia.orchestrator.orchestrator_common
         tasks_from: configure_s3_access.yml
 
 - name: Deploy OpenCHAMI containers on OIM
@@ -118,7 +118,7 @@
   tasks:
     - name: Deploy OpenCHAMI
       ansible.builtin.include_role:
-        name: deploy_openchami
+        name: omnia.orchestrator.deploy_openchami
 
 - name: Validate orchestrator parameters on OIM
   hosts: oim
@@ -126,13 +126,13 @@
   tasks:
     - name: Validate OpenLDAP container is running
       ansible.builtin.include_role:
-        name: orchestrator_validations
+        name: omnia.orchestrator.orchestrator_validations
         tasks_from: validate_openldap_container.yml
       when: hostvars['localhost']['openldap_support']
 
     - name: Image validation
       ansible.builtin.include_role:
-        name: orchestrator_validations
+        name: omnia.orchestrator.orchestrator_validations
         tasks_from: validate_image.yml
       with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
 
@@ -142,7 +142,7 @@
   tasks:
     - name: Openchami cluster authentication
       ansible.builtin.include_role:
-        name: orchestrator_common
+        name: omnia.orchestrator.orchestrator_common
         tasks_from: openchami_auth.yml
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
@@ -230,17 +230,17 @@
 
     - name: Orchestrate nodes
       ansible.builtin.include_role:
-        name: configure_ochami
+        name: omnia.orchestrator.configure_ochami
         tasks_from: orchestration_mapping_nodes.yml
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Read nodes.yaml and derive Omnia node facts
       ansible.builtin.include_role:
-        name: passwordless_ssh
+        name: omnia.orchestrator.passwordless_ssh
         tasks_from: read_nodes_yaml.yml
   roles:
-    - mount_config
-    - k8s_config
-    - slurm_config
-    - openldap
-    - configure_ochami
+    - omnia.orchestrator.mount_config
+    - omnia.orchestrator.k8s_config
+    - omnia.orchestrator.slurm_config
+    - omnia.orchestrator.openldap
+    - omnia.orchestrator.configure_ochami

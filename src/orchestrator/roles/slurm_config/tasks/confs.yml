@@ -159,7 +159,7 @@
   register: ctld_conf_files
 
 - name: Parse configs_input files from localhost (if they are paths)
-  slurm_conf:
+  omnia.orchestrator.slurm_conf:
     op: parse
     conf_name: "{{ item.key }}"
     path: "{{ item.value }}"
@@ -227,7 +227,7 @@
   no_log: "{{ _no_log }}"
 
 - name: Merge the confs
-  slurm_conf:
+  omnia.orchestrator.slurm_conf:
     op: merge
     conf_sources: "{{ item.value }}"
     conf_name: "{{ item.key }}"

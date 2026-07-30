@@ -55,7 +55,7 @@ cloud_init_dir: "{{ openchami_work_dir }}/cloud-init"
 ci_defaults_dest: '{{ cloud_init_dir }}/ci-defaults.yaml'
 ci_group_load_fail_msg: |
   "Template loading failed. Ensure the template exists in the specified path and is compatible with the defined functional groups."
-default_file_path: "{{ playbook_dir }}/roles/slurm_config/defaults/main.yml"
+default_file_path: "{{ role_path }}/../slurm_config/defaults/main.yml"
 ssh_private_key_path: /root/.ssh/oim_rsa
 
 # Usage: configure_cloud_init_common.yml

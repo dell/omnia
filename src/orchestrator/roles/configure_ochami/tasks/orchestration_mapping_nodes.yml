@@ -108,7 +108,11 @@
       vars:
         nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
         kube_vip: "{{ hostvars['oim']['kube_vip'] | default('') }}"
-        k8s_functional_groups: "{{ hostvars['localhost']['k8s_functional_groups'] | default(['service_kube_control_plane_first_x86_64', 'service_kube_control_plane_x86_64', 'service_kube_node_x86_64']) }}"
+        k8s_functional_groups: >-
+          {{ hostvars['localhost']['k8s_functional_groups'] |
+          default(['service_kube_control_plane_first_x86_64',
+          'service_kube_control_plane_x86_64',
+          'service_kube_node_x86_64']) }}
 
     - name: Copy Kubernetes inventory file to localhost
       ansible.builtin.fetch:
@@ -123,7 +127,13 @@
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
       vars:
         nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
-        slurm_functional_groups: "{{ hostvars['localhost']['slurm_functional_groups'] | default(['slurm_control_node_x86_64', 'slurm_node_x86_64', 'login_node_x86_64', 'login_compiler_node_x86_64', 'slurm_node_aarch64', 'login_node_aarch64', 'login_compiler_node_aarch64']) }}"
+        slurm_functional_groups: >-
+          {{ hostvars['localhost']['slurm_functional_groups'] |
+          default(['slurm_control_node_x86_64',
+          'slurm_node_x86_64', 'login_node_x86_64',
+          'login_compiler_node_x86_64', 'slurm_node_aarch64',
+          'login_node_aarch64',
+          'login_compiler_node_aarch64']) }}
 
     - name: Copy Slurm inventory file to localhost
       ansible.builtin.fetch:
