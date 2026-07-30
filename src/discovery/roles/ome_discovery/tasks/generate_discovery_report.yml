@@ -24,7 +24,7 @@
     discovery_report_output_file: "{{ discovery_output_dir }}/bmc_discovery_report_{{ pxe_mapping_timestamp }}.csv"
 
 - name: Generate BMC discovery report
-  generate_discovery_report:
+  omnia.discovery.generate_discovery_report:
     servers: "{{ discovered_servers }}"
     output_file: "{{ discovery_report_output_file }}"
   register: discovery_report_result

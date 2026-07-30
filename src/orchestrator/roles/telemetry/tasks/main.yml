@@ -58,7 +58,7 @@
 
     - name: Check kube_vip reachability for validation
       ansible.builtin.include_role:
-        name: orchestrator_common
+        name: omnia.orchestrator.orchestrator_common
         tasks_from: check_kube_vip_reachability.yml
       when:
         - victoria_metrics_support | default(false) | bool
