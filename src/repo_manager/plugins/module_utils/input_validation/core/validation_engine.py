@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=import-error,no-name-in-module,too-many-locals,too-many-branches
+# pylint: disable=too-many-statements,broad-exception-caught,too-many-arguments
+# pylint: disable=too-many-positional-arguments,import-outside-toplevel,too-many-nested-blocks
+# pylint: disable=line-too-long
 """
 Validation Engine - Core validation orchestration.
 

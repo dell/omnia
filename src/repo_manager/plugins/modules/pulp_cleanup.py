@@ -28,6 +28,7 @@ import os
 import csv
 import glob
 import json
+import shlex
 import shutil
 import subprocess
 import re
@@ -93,7 +94,16 @@ def format_pretty_table(results: List[Dict[str, Any]]) -> str:
 def run_cmd(cmd: str, logger) -> Dict[str, Any]:
     """Execute shell command and return result."""
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+        # nosec B602 - Commands are constructed internally with validated inputs
+        cmd_list = shlex.split(cmd)
+        result = subprocess.run(
+            cmd_list,
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False
+        )
         return {"rc": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
     except (subprocess.SubprocessError, OSError) as e:
         logger.error(f"Command failed: {cmd} - {e}")

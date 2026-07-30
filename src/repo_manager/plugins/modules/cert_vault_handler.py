@@ -68,7 +68,8 @@ def main():
     module = AnsibleModule(
     argument_spec={
         'mode': {'type': 'str', 'required': True, 'choices': ['encrypt', 'decrypt']},
-        'log_dir': {'type': 'str', 'required': False, 'default': '/tmp/thread_logs'},
+        # nosec B108 - Default path, actual path is configurable via parameter
+        'log_dir': {'type': 'str', 'required': False, 'default': '/opt/omnia/log/repomanager/thread_logs'},
         'key_path': {'type': 'str', 'required': True}
     },
     supports_check_mode=False

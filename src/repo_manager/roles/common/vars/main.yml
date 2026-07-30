@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-# Usage: main.yml
+# =============================================================================
+# COMMON ROLE VARIABLES
+# =============================================================================
 
 # Usage: firewall_settings.yml
 oim_os_repo_fail_msg: |
@@ -27,31 +28,17 @@ internal_nfs_services:
 
 ntp_firewall_service: ntp
 
-# Packages required on OIM
-telemetry_dir: "{{ playbook_dir | dirname }}/telemetry"
-dir_permissions_755: "0755"
-max_retries: 10
+# Usage: podman_login.yml
 login_cmd: "podman login docker.io -u {{ docker_username }} -p {{ docker_password }}"
 retry_count: "5"
 delay_time: "10"
 podman_login_fail_msg: >
   Podman login failed. Please ensure the podman login credentials in the
-  {{ input_project_dir }}/omnia_config_credentials.yml are valid.
+  {{ input_project_dir }}/repo_manager_config_credentials.yml are valid.
   If they are, this error can occur due to a pull limit issue or multiple requests.
   Please try running the playbook again after waiting for a while.
 
-# Usage: add_known_hosts.yml
-ssh_config: "/root/.ssh/config"
-
-# Usage: configure_chrony.yml
-repo_manager_input_project_dir: "{{ omnia_base_dir }}/input/{{ project_name | default(project_default) }}/repo_manager"
-repo_manager_input_dir: "{{ repo_manager_base_dir }}/input"
-repo_manager_metadata_file_path: "{{ omnia_metadata_file }}"
+# Usage: include_input_dir.yml
 project_dir_not_exist_fail_msg: |
   "The project directory at {{ input_project_dir }} does not exist.
   Please ensure the directory exists before re-running the playbook."
-
-# Usage: create_container_group.yml
-python_version: "python3.12"
-oim_host_port: "22"
-oim_host_group: "oim"

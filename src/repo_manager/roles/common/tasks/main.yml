@@ -11,14 +11,19 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
+# =============================================================================
+# COMMON ROLE - MAIN ENTRY POINT
+# =============================================================================
+# This role handles common setup tasks for repo_manager playbooks.
+# All tasks run on localhost (OIM).
+# =============================================================================
 
 - name: Include metadata vars
   ansible.builtin.include_vars:
     file: "{{ omnia_metadata_file }}"
     name: oim_shared_path_from_metadata
-  register: include_metadata
+  failed_when: false
   tags: always
 
 - name: Initialize SELinux policy
@@ -26,7 +31,7 @@
     selinux_option: ":z"
   tags: always
 
-- name: Set SELinux policy
+- name: Set SELinux policy for external NFS
   ansible.builtin.set_fact:
     selinux_option: ""
   when:
@@ -34,17 +39,14 @@
     - nfs_type == 'external'
   tags: always
 
-- name: Set variables for containers deployment
-  ansible.builtin.set_fact:
-    admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-    docker_username: "{{ hostvars['localhost']['docker_username'] }}"
-    docker_password: "{{ hostvars['localhost']['docker_password'] }}"
-  tags: always
-
 - name: Export firewall ports for containers
   ansible.builtin.include_tasks: firewall_settings.yml
 
 - name: Run podman login command
   ansible.builtin.include_tasks: podman_login.yml
-  when: docker_username | length > 1 and docker_password | length > 1
+  when:
+    - docker_username is defined
+    - docker_password is defined
+    - docker_username | length > 1
+    - docker_password | length > 1
   tags: always

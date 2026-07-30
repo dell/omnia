@@ -1541,7 +1541,8 @@ def main():
     """
     module_args = {
         "local_config": {"type": "list", "required": True},
-        "log_dir": {"type": "str", "required": False, "default": "/tmp/thread_logs"},
+        # nosec B108 - Default path, actual path is configurable via parameter
+        "log_dir": {"type": "str", "required": False, "default": "/opt/omnia/log/repomanager/thread_logs"},
         "additional_repos_config": {"type": "dict", "required": False, "default": None},
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},

@@ -27,7 +27,17 @@ segment is the package name.
 """
 
 from __future__ import absolute_import, division, print_function
-__metaclass__ = type
+
+import json
+import os
+import re
+import shlex
+import subprocess
+from urllib.parse import urlparse, urlunparse
+
+from ansible.module_utils.basic import AnsibleModule
+
+__metaclass__ = type  # pylint: disable=invalid-name
 
 DOCUMENTATION = r'''
 ---
@@ -79,16 +89,10 @@ options:
         required: false
         type: str
         default: "success"
+
 author:
     - Dell Technologies
 '''
-
-import json
-import os
-import re
-import subprocess
-from urllib.parse import urlparse, urlunparse
-from ansible.module_utils.basic import AnsibleModule
 
 try:
     import yaml
@@ -97,7 +101,7 @@ except ImportError:
     HAS_YAML = False
 
 
-class LocalRepoAccessGenerator:
+class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
     """Generate repo_status.yml with repository URLs from Pulp distributions."""
 
     # Order in which file distributions are grouped for the legacy type-level URLs.
@@ -117,9 +121,7 @@ class LocalRepoAccessGenerator:
         self.repo_config = module.params.get('repo_config', 'partial')
         self.overall_status = module.params.get('overall_status', 'success')
 
-        self.base_url = "{}://{}:{}".format(
-            self.pulp_protocol, self.pulp_server_ip, self.pulp_server_port
-        )
+        self.base_url = f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
         self.rpm_distributions = []
         self.file_distributions = []
         self.python_distributions = []
@@ -127,17 +129,20 @@ class LocalRepoAccessGenerator:
     def run_pulp_command(self, cmd):
         """Run a pulp CLI command and return JSON output."""
         try:
+            # Use shlex.split to safely parse command arguments
+            cmd_list = shlex.split(cmd)
             result = subprocess.run(
-                cmd,
-                shell=True,
+                cmd_list,
+                shell=False,
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
+                check=False
             )
             if result.returncode == 0 and result.stdout.strip():
                 return json.loads(result.stdout)
             return []
-        except Exception:
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
             return []
 
     def fetch_distributions(self):
@@ -163,7 +168,7 @@ class LocalRepoAccessGenerator:
             return ''
         parsed = urlparse(base_url)
         if parsed.hostname and parsed.hostname.lower() == 'pulp':
-            netloc = "{}:{}".format(self.pulp_server_ip, self.pulp_server_port)
+            netloc = f"{self.pulp_server_ip}:{self.pulp_server_port}"
             parsed = parsed._replace(netloc=netloc)
             base_url = urlunparse(parsed)
         return base_url.rstrip('/') + '/'
@@ -228,13 +233,11 @@ class LocalRepoAccessGenerator:
                     continue
                 repo_name = rest[0]
                 if len(rest) > 1:
-                    repo_name = '{}_{}'.format(repo_name, '/'.join(rest[1:]))
+                    repo_name = f"{repo_name}_" + '/'.join(rest[1:])
 
                 # Strip the ``<arch>_<os>_<ver>_`` prefix that some RPM
                 # distributions embed in the repo name.
-                prefix = "{}_{}_{}_".format(
-                    arch, self.cluster_os_type, self.cluster_os_version
-                )
+                prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
                 if repo_name.startswith(prefix):
                     repo_name = repo_name[len(prefix):]
 
@@ -252,9 +255,7 @@ class LocalRepoAccessGenerator:
             else:
                 continue
 
-            prefix = "{}_{}_{}_".format(
-                arch, self.cluster_os_type, self.cluster_os_version
-            )
+            prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
             if name.startswith(prefix):
                 repo_name = name[len(prefix):]
             else:
@@ -310,14 +311,15 @@ class LocalRepoAccessGenerator:
         if arch in file_repos and content_type in file_repos[arch]:
             for package_url in file_repos[arch][content_type].values():
                 return self._type_level_url(package_url)
-        return "{}://{}:{}/pulp/content/offline_repo/cluster/{}/{}/{}/{}/".format(
-            self.pulp_protocol, self.pulp_server_ip, self.pulp_server_port,
-            arch, self.cluster_os_type, self.cluster_os_version, content_type
+        return (
+            f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
+            f"/pulp/content/offline_repo/cluster/{arch}/{self.cluster_os_type}"
+            f"/{self.cluster_os_version}/{content_type}/"
         )
 
     def _expected_repo_name(self, arch, name):
         """Build the Pulp repository name from config fields."""
-        return "{}_{}_{}_{}".format(arch, self.cluster_os_type, self.cluster_os_version, name)
+        return f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_{name}"
 
     def _find_pulp_url_for_user_repo(self, rpm_repos, arch, repo_name):
         """Return the Pulp distribution URL for a named user repo if it exists."""
@@ -359,14 +361,14 @@ class LocalRepoAccessGenerator:
             return user_repos
 
         try:
-            with open(self.local_repo_config_path, 'r') as f:
-                config = yaml.safe_load(f)
+            with open(self.local_repo_config_path, 'r', encoding='utf-8') as config_file:
+                config = yaml.safe_load(config_file)
 
             if not config:
                 return user_repos
 
             for arch in ('x86_64', 'aarch64'):
-                for repo in config.get('user_repo_url_{}'.format(arch), []) or []:
+                for repo in config.get(f'user_repo_url_{arch}', []) or []:
                     if not isinstance(repo, dict) or not repo.get('name') or not repo.get('url'):
                         continue
                     pulp_url = self._find_pulp_url_for_user_repo(
@@ -374,7 +376,7 @@ class LocalRepoAccessGenerator:
                     )
                     user_repos[arch][repo['name']] = pulp_url or repo['url']
 
-        except Exception:
+        except (OSError, yaml.YAMLError):
             pass
 
         return user_repos
@@ -395,8 +397,8 @@ class LocalRepoAccessGenerator:
             'repo_manager': {
                 'port': self.pulp_server_port,
                 'certificates': {
-                    'server_crt': '{}/pulp_webserver.crt'.format(self.certs_dir),
-                    'server_key': '{}/pulp_webserver.key'.format(self.certs_dir),
+                    'server_crt': f'{self.certs_dir}/pulp_webserver.crt',
+                    'server_key': f'{self.certs_dir}/pulp_webserver.key',
                     'certs_dir': self.certs_dir,
                 },
             },
@@ -420,11 +422,11 @@ class LocalRepoAccessGenerator:
 
         # Custom YAML dumper that quotes string values but not keys
         class QuotedValueDumper(yaml.SafeDumper):
-            pass
-        
-        def quoted_mapping_representer(dumper, data):
+            """Custom YAML dumper that quotes string values."""
+
+        def quoted_mapping_representer(dumper, mapping_data):
             pairs = []
-            for key, value in data.items():
+            for key, value in mapping_data.items():
                 key_node = dumper.represent_data(key)
                 # Force keys to be unquoted (plain style)
                 if isinstance(key, str):
@@ -432,16 +434,22 @@ class LocalRepoAccessGenerator:
                 value_node = dumper.represent_data(value)
                 pairs.append((key_node, value_node))
             return yaml.MappingNode('tag:yaml.org,2002:map', pairs)
-        
-        def quoted_str_representer(dumper, data):
+
+        def quoted_str_representer(dumper, str_data):
             # Use double quotes for string values
-            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
-        
+            return dumper.represent_scalar('tag:yaml.org,2002:str', str_data, style='"')
+
         QuotedValueDumper.add_representer(dict, quoted_mapping_representer)
         QuotedValueDumper.add_representer(str, quoted_str_representer)
-        
-        content = yaml.dump(data, Dumper=QuotedValueDumper, sort_keys=False, default_flow_style=False)
-        return content, len(self.rpm_distributions), len(self.file_distributions) + len(self.python_distributions)
+
+        content = yaml.dump(
+            data, Dumper=QuotedValueDumper, sort_keys=False, default_flow_style=False
+        )
+        return (
+            content,
+            len(self.rpm_distributions),
+            len(self.file_distributions) + len(self.python_distributions)
+        )
 
     def write_yaml(self, content):
         """Write the YAML content to file."""
@@ -449,26 +457,27 @@ class LocalRepoAccessGenerator:
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir, mode=0o755)
 
-        with open(self.output_path, 'w') as f:
-            f.write(content)
+        with open(self.output_path, 'w', encoding='utf-8') as output_file:
+            output_file.write(content)
 
         os.chmod(self.output_path, 0o644)
 
 
 def main():
+    """Main entry point for the Ansible module."""
     module = AnsibleModule(
-        argument_spec=dict(
-            pulp_server_ip=dict(type='str', required=True),
-            pulp_server_port=dict(type='int', required=True),
-            pulp_protocol=dict(type='str', required=True, choices=['http', 'https']),
-            cluster_os_type=dict(type='str', required=True),
-            cluster_os_version=dict(type='str', required=True),
-            output_path=dict(type='str', required=True),
-            certs_dir=dict(type='str', required=True),
-            local_repo_config_path=dict(type='str', default=''),
-            repo_config=dict(type='str', default='partial'),
-            overall_status=dict(type='str', default='success')
-        ),
+        argument_spec={
+            'pulp_server_ip': {'type': 'str', 'required': True},
+            'pulp_server_port': {'type': 'int', 'required': True},
+            'pulp_protocol': {'type': 'str', 'required': True, 'choices': ['http', 'https']},
+            'cluster_os_type': {'type': 'str', 'required': True},
+            'cluster_os_version': {'type': 'str', 'required': True},
+            'output_path': {'type': 'str', 'required': True},
+            'certs_dir': {'type': 'str', 'required': True},
+            'local_repo_config_path': {'type': 'str', 'default': ''},
+            'repo_config': {'type': 'str', 'default': 'partial'},
+            'overall_status': {'type': 'str', 'default': 'success'}
+        },
         supports_check_mode=True
     )
 
@@ -488,12 +497,10 @@ def main():
             output_file=module.params['output_path'],
             rpm_repos_count=rpm_count,
             file_repos_count=file_count,
-            msg="Generated repo_status.yml with {} RPM repos and {} file repos".format(
-                rpm_count, file_count
-            )
+            msg=f"Generated repo_status.yml with {rpm_count} RPM repos and {file_count} file repos"
         )
-    except Exception as e:
-        module.fail_json(msg="Failed to generate repo_status.yml: {}".format(str(e)))
+    except (OSError, yaml.YAMLError) as err:
+        module.fail_json(msg=f"Failed to generate repo_status.yml: {str(err)}")
 
 
 if __name__ == '__main__':

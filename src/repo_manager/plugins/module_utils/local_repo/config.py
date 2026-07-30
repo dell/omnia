@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=line-too-long
+# pylint: disable=line-too-long,import-error,no-name-in-module,unused-import
 
 """
 Compatibility re-export of local_repo configuration.

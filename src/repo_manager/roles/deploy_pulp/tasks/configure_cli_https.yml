@@ -45,7 +45,7 @@
     mode: "{{ logs_dir_permission }}"
     remote_src: true
 
-- name: Run pulp status command on omnia_core container
+- name: Run pulp status command
   ansible.builtin.command: /usr/local/bin/pulp status
   changed_when: false
   register: pulp_status_output
