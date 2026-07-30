@@ -72,6 +72,13 @@
     kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
     deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
+  register: vm_operator_wait
+  failed_when: false
+
+- name: VictoriaMetrics operator not ready
+  ansible.builtin.fail:
+    msg: "{{ vm_operator_not_ready_msg }}"
+  when: vm_operator_wait.rc != 0
 
 - name: Wait for VictoriaMetrics CRDs
   ansible.builtin.command: kubectl get crd {{ item }}

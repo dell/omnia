@@ -22,8 +22,8 @@
 #   - telemetry_storage_config.yml : storage sections per enabled sinks
 #   - telemetry_packages.yml    : registry, package URLs, cluster_mount
 #
-# L1 schemas  : library/module_utils/input_validation/schema/
-# L2 logic    : library/module_utils/input_validation/validation_flows/
+# L1 schemas  : plugins/module_utils/input_validation/schema/
+# L2 logic    : plugins/module_utils/input_validation/validation_flows/
 #               telemetry_validation.py (validate_telemetry_config,
 #               validate_telemetry_storage_config, validate_telemetry_packages)
 #
@@ -42,13 +42,14 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # tags: [validation]  
   any_errors_fatal: true
   tasks:
 
     - name: "Resolve paths for validate_input module"
       ansible.builtin.set_fact:
         _telemetry_root: "{{ playbook_dir | dirname }}"
-        _telemetry_module_utils: "{{ playbook_dir | dirname }}/library/module_utils"
+        _telemetry_module_utils: "{{ playbook_dir | dirname }}/plugins/module_utils"
         _input_base: "{{ telemetry_input_base | default('/opt/omnia/input/project_default') }}"
         _input_project: "{{ telemetry_input_project | default('telemetry') }}"
 

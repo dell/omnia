@@ -1,4 +1,3 @@
----
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +11,114 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-- name: Cleanup LDMS Telemetry
-  hosts: kube_vip_group
-  gather_facts: true
-  any_errors_fatal: true
 
+# =============================================================================
+# LDMS Telemetry Cleanup
+# =============================================================================
+# Removes LDMS Helm releases, StatefulSets, services, secrets, PVCs, pods,
+# and Vector-LDMS bridge resources (deployment, service, configmap).
+# Note: vmagent-vector (VM write-buffer) is cleaned with VictoriaMetrics.
+#
+# Standalone usage:
+#   ansible-playbook playbooks/ldms/cleanup_ldms.yml
+#
+# Via main cleanup (tag-based):
+#   ansible-playbook playbooks/cleanup.yml --tags cleanup_ldms
+# =============================================================================
+
+- name: "Cleanup LDMS Telemetry"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../vars/cleanup.yml
   tasks:
-    - name: Placeholder task for LDMS telemetry cleanup
+    - name: "LDMS | Delete Helm releases"
+      ansible.builtin.shell: |
+        if helm list -n {{ telemetry_namespace }} 2>/dev/null | grep -q "{{ item }}"; then
+          helm delete {{ item }} -n {{ telemetry_namespace }} 2>/dev/null || true
+        fi
+      loop: "{{ ldms_helm_releases }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Wait for Helm resources to terminate"
+      ansible.builtin.pause:
+        seconds: "{{ cleanup_post_delete_pause }}"
+
+    - name: "LDMS | Delete StatefulSets"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_statefulset_resources }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Delete Services"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete service {{ item }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_service_resources }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Delete named ConfigMaps"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_configmap_resources }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Delete ConfigMaps by label"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
+        --ignore-not-found=true --wait=false
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Delete Secrets"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_secret_resources }}"
+      loop_control:
+        label: "{{ item.type }}/{{ item.name }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Delete PVCs"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
+        --ignore-not-found=true --wait=false
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Force delete pods"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pod -l {{ ldms_pod_label }}
+        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+      changed_when: false
+      failed_when: false
+
+    # --- Vector-LDMS bridge cleanup (part of LDMS) ---
+    - name: "LDMS | Delete Vector-LDMS bridge resources"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ vector_ldms_resources }}"
+      loop_control:
+        label: "{{ item.type }}/{{ item.name }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Force delete Vector-LDMS pods"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
+        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+      changed_when: false
+      failed_when: false
+
+    - name: "LDMS | Cleanup complete"
       ansible.builtin.debug:
-        msg: "LDMS telemetry cleanup - to be implemented"
+        msg: "LDMS telemetry cleanup completed (includes Vector-LDMS bridge)"

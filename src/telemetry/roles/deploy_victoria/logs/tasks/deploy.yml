@@ -58,6 +58,10 @@
     - name: Log operator auto-install
       ansible.builtin.debug:
         msg: "{{ victoria_operator_auto_install_msg }}"
+  rescue:
+    - name: VictoriaMetrics operator install failed for VictoriaLogs
+      ansible.builtin.fail:
+        msg: "{{ vl_operator_install_failed_msg }}"
 
 - name: Fail if operator not installed and no tarball available
   ansible.builtin.fail:
@@ -77,7 +81,14 @@
     kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
     deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
+  register: vl_operator_wait
+  failed_when: false
   when: operator_check.rc == 0
+
+- name: VictoriaMetrics operator not ready (VictoriaLogs)
+  ansible.builtin.fail:
+    msg: "{{ vl_operator_not_ready_msg }}"
+  when: operator_check.rc == 0 and vl_operator_wait.rc | default(0) != 0
 
 - name: Wait for VictoriaLogs CRDs
   ansible.builtin.command: kubectl get crd {{ item }}

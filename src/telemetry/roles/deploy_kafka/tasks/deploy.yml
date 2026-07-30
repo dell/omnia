@@ -37,17 +37,23 @@
   changed_when: false
   failed_when: false
 
-- name: Install Strimzi Kafka operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
-    {{ strimzi_kafka_pkg }}
-  when: strimzi_status.rc != 0
+- name: Install or upgrade Strimzi Kafka operator
+  block:
+    - name: Install Strimzi Kafka operator
+      ansible.builtin.command: >
+        helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
+        {{ strimzi_kafka_pkg }}
+      when: strimzi_status.rc != 0
 
-- name: Upgrade Strimzi Kafka operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} upgrade strimzi-cluster-operator
-    {{ strimzi_kafka_pkg }}
-  when: strimzi_status.rc == 0
+    - name: Upgrade Strimzi Kafka operator
+      ansible.builtin.command: >
+        helm -n {{ telemetry_namespace }} upgrade strimzi-cluster-operator
+        {{ strimzi_kafka_pkg }}
+      when: strimzi_status.rc == 0
+  rescue:
+    - name: Strimzi operator install/upgrade failed
+      ansible.builtin.fail:
+        msg: "{{ kafka_operator_install_failed_msg }}"
 
 - name: Apply Strimzi CRDs from chart
   ansible.builtin.shell: |
@@ -62,6 +68,13 @@
     kubectl wait --for=condition=available --timeout={{ kafka_operator_wait_timeout }}
     deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
   changed_when: false
+  register: strimzi_wait
+  failed_when: false
+
+- name: Strimzi operator not ready
+  ansible.builtin.fail:
+    msg: "{{ kafka_operator_not_ready_msg }}"
+  when: strimzi_wait.rc != 0
 
 - name: Wait for Strimzi CRDs
   ansible.builtin.command: kubectl get crd {{ item }}
@@ -91,6 +104,22 @@
     kubectl wait kafka/kafka -n {{ telemetry_namespace }}
     --for=condition=Ready --timeout={{ kafka_deploy_timeout }}
   changed_when: false
+  register: kafka_wait
+  failed_when: false
+
+- name: Collect Kafka pod status on failure
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pods -l strimzi.io/cluster=kafka
+    -o wide --no-headers
+  register: kafka_pod_status
+  changed_when: false
+  failed_when: false
+  when: kafka_wait.rc != 0
+
+- name: Kafka cluster not ready
+  ansible.builtin.fail:
+    msg: "{{ kafka_cluster_not_ready_msg }}"
+  when: kafka_wait.rc != 0
 
 - name: Apply Kafka user manifest
   ansible.builtin.command: >

@@ -20,7 +20,7 @@
 #
 # NOTE: kube_vip presence, format, and IPv4 octet-range validation are
 # performed by the input validation playbook (L1 schema + L2 logic in
-# library/module_utils/input_validation/). This task only checks
+# plugins/module_utils/input_validation/). This task only checks
 # live network connectivity, which cannot be done during static validation.
 #
 # Steps:
