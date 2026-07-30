@@ -155,10 +155,10 @@ jobs:
         run: |
           cat > ansible.cfg <<'EOF'
           [defaults]
-          roles_path = src/repo_manager/roles:src/image_build_manager/roles:src/discovery/roles:src/orchestrator/roles:src/telemetry/roles:src/utils/roles:src/upgrade/roles:src/rollback/roles:src/build_stream/roles:roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
-          library = src/repo_manager/plugins/modules:src/image_build_manager/plugins/modules:src/discovery/plugins/modules:src/orchestrator/plugins/modules:src/telemetry/plugins/modules:src/utils/plugins/modules:src/upgrade/plugins/modules:src/rollback/plugins/modules:src/build_stream/plugins/modules
-          module_utils = src/repo_manager/plugins/module_utils:src/image_build_manager/plugins/module_utils:src/discovery/plugins/module_utils:src/orchestrator/plugins/module_utils:src/telemetry/plugins/module_utils:src/utils/plugins/module_utils:src/upgrade/plugins/module_utils:src/rollback/plugins/module_utils:src/build_stream/plugins/module_utils
-          callback_plugins = src/repo_manager/plugins/callback:src/image_build_manager/plugins/callback:src/discovery/plugins/callback:src/orchestrator/plugins/callback:src/telemetry/plugins/callback:src/utils/plugins/callback:src/upgrade/plugins/callback:src/rollback/plugins/callback:src/build_stream/plugins/callback
+          roles_path = src/repo_manager/roles:src/image_build_manager/roles:src/discovery/roles:src/orchestrator/roles:src/telemetry/roles:src/utils/roles:src/build_stream/roles:roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+          library = src/repo_manager/plugins/modules:src/image_build_manager/plugins/modules:src/discovery/plugins/modules:src/orchestrator/plugins/modules:src/telemetry/plugins/modules:src/utils/plugins/modules:src/build_stream/plugins/modules
+          module_utils = src/repo_manager/plugins/module_utils:src/image_build_manager/plugins/module_utils:src/discovery/plugins/module_utils:src/orchestrator/plugins/module_utils:src/telemetry/plugins/module_utils:src/utils/plugins/module_utils:src/build_stream/plugins/module_utils
+          callback_plugins = src/repo_manager/plugins/callback:src/image_build_manager/plugins/callback:src/discovery/plugins/callback:src/orchestrator/plugins/callback:src/telemetry/plugins/callback:src/utils/plugins/callback:src/build_stream/plugins/callback
           collections_path = .:~/.ansible/collections:/usr/share/ansible/collections
           interpreter_python = /usr/bin/python3
           EOF
@@ -204,9 +204,16 @@ jobs:
             src/orchestrator
             src/telemetry
             src/utils
-            src/upgrade
-            src/rollback
             src/build_stream
+            src/main
+            test/repo_manager
+            test/image_build_manager
+            test/discovery
+            test/orchestrator
+            test/telemetry
+            test/utils
+            test/build_stream
+            test/main
           )
 
           > ansible-lint-report.txt

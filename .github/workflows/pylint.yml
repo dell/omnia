@@ -121,9 +121,16 @@ jobs:
             src/orchestrator
             src/telemetry
             src/utils
-            src/upgrade
-            src/rollback
             src/build_stream
+            src/main
+            test/repo_manager
+            test/image_build_manager
+            test/discovery
+            test/orchestrator
+            test/telemetry
+            test/utils
+            test/build_stream
+            test/main
           )
 
           > pylint-report.txt
