@@ -1,0 +1,45 @@
+meta:
+  name: '{{ rhel_arch_base_image_name }}'
+  tags:
+    - '{{ rhel_tag }}'
+  from: scratch
+
+layer:
+  manager:
+    name: dnf
+    options:
+      releasever: "{{ rhel_tag }}"
+  repos:
+{% for repo in rhel_arch_repos %}
+{% if repo.base_url is defined and repo.base_url | length > 1 %}
+    - path: /etc/yum.repos.d/{{ repo.name }}.repo
+      content: |
+        [{{ repo.name }}]
+        name={{ repo.name }}
+        baseurl={{ repo.base_url }}
+        gpgcheck=0
+        sslverify=0
+{% endif %}
+{% endfor %}
+  actions:
+    install:
+      groups:
+        - Minimal Install
+        - Development Tools
+      packages:
+{% for pkg in base_image_packages %}
+        - {{ pkg }}
+{% endfor %}
+{% if thrillhouse_base_image_commands | default([]) | length > 0 %}
+    commands:
+{% for cmd in thrillhouse_base_image_commands %}
+      - script: |
+          #!/bin/bash
+          {{ cmd }}
+{% endfor %}
+{% endif %}
+
+publish:
+  - type: registry
+    url: '{{ registry_host }}:5000/{{ oim_node_name }}'
+    tls-verify: false

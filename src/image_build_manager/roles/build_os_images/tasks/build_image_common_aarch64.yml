@@ -46,8 +46,14 @@
 
 - name: Set s3_access and s3_secret
   ansible.builtin.set_fact:
-    s3_access: "{{ hostvars['localhost']['image_build_creds']['s3_access_id'] | default(hostvars['localhost']['s3_access_id'], true) | default('admin', true) }}"
-    s3_secret: "{{ hostvars['localhost']['image_build_creds']['s3_secret_key'] | default(hostvars['localhost']['s3_secret_key'], true) | default('') }}"
+    s3_access: >-
+      {{ hostvars['localhost']['image_build_creds']['s3_access_id']
+      | default(hostvars['localhost']['s3_access_id'], true)
+      | default('admin', true) }}
+    s3_secret: >-
+      {{ hostvars['localhost']['image_build_creds']['s3_secret_key']
+      | default(hostvars['localhost']['s3_secret_key'], true)
+      | default('') }}
   no_log: true
 
 - name: Set s3_endpoint

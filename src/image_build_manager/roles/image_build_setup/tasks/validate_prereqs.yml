@@ -23,6 +23,17 @@
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/image_build_config.yml"
 
+- name: Set build config facts from config (single source of truth)
+  ansible.builtin.set_fact:
+    build_image_job_async: "{{ build_image.job_async | default(7200) }}"
+    build_image_job_retry: "{{ build_image.job_retry | default(240) }}"
+    build_image_job_delay: "{{ build_image.job_delay | default(30) }}"
+    build_image_max_parallel: "{{ build_image.max_parallel | default(0) }}"
+    functional_groups_source: "{{ functional_groups_source | default('config') }}"
+    image_build_type: "{{ image_build_type | default('image-builder') }}"
+    cacheable: true
+  when: build_image is defined
+
 - name: Stat prerequisite files
   ansible.builtin.stat:
     path: "{{ item }}"

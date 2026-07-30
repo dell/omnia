@@ -44,7 +44,7 @@
 
 - name: Render compute image build configs
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
+    src: "{{ openchami_compute_image_config_template }}"
     dest: "{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml"
     mode: "{{ dir_permissions_644 }}"
   vars:
@@ -57,15 +57,71 @@
   loop_control:
     loop_var: item
 
-- name: Build x86_64 compute osimages in parallel
+# --- Build path selection ---
+# When max_parallel > 0: use image_build_orchestrator module for controlled concurrency.
+# When max_parallel == 0 (unlimited): use native Ansible async/poll (all builds fire at once).
+
+- name: Build x86_64 compute images via orchestrator (concurrency-controlled)
+  when: (max_parallel | int) > 0
+  block:
+    - name: Build orchestrator command list
+      ansible.builtin.set_fact:
+        _orchestrator_cmds: "{{ (_orchestrator_cmds | default([])) + [_current_cmd] }}"
+      vars:
+        _current_cmd:
+          name: "{{ item.key }}"
+          cmd: >-
+            podman run --rm --device /dev/fuse --network host
+            -e S3_ACCESS={{ s3_access }}
+            -e S3_SECRET={{ s3_secret }}
+            {{ aws_checksum_env }}
+            {{ _privilege_opts | join(' ') }}
+            {{ _cert_opts | join(' ') }}
+            -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:{{ _config_mount_path }}:z
+            {{ ochami_image | join(' ') }}
+            {{ ochami_base_command | join(' ') }}
+          log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: item
+
+    - name: Run orchestrated parallel builds
+      image_build_orchestrator:
+        build_commands: "{{ _orchestrator_cmds }}"
+        max_parallel: "{{ max_parallel | int }}"
+        timeout: "{{ job_async | int }}"
+      register: orchestrator_result
+
+    - name: Display orchestrator build summary
+      ansible.builtin.debug:
+        msg: "Build summary: {{ orchestrator_result.summary }}"
+
+    - name: Configure regctl to use HTTP for local registry (orchestrator path)
+      ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
+      changed_when: false
+      failed_when: false
+
+    - name: Verify x86_64 compute osimages in registry (orchestrator path)
+      ansible.builtin.command:
+        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
+      changed_when: false
+      register: verify_compute_osimages_orch
+
+    - name: Display verified images (orchestrator path)
+      ansible.builtin.debug:
+        msg: "{{ verify_compute_osimages_orch.stdout_lines }}"
+
+- name: Build x86_64 compute osimages in parallel (unlimited)
+  when: (max_parallel | int) == 0
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
       podman run --rm --device /dev/fuse --network host \
         -e S3_ACCESS={{ s3_access }} -e S3_SECRET={{ s3_secret }} \
-        {{ aws_checksum_env }} --user 0 --privileged \
-        -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z \
-        -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z \
+        {{ aws_checksum_env }} \
+        {{ _privilege_opts | join(' ') }} \
+        {{ _cert_opts | join(' ') }} \
+        -v '{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:{{ _config_mount_path }}:z' \
         {{ ochami_image | join(' ') }} \
         {{ ochami_base_command | join(' ') }} \
         > '{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
@@ -78,6 +134,7 @@
   changed_when: true
 
 - name: Wait for all compute image builds to finish
+  when: (max_parallel | int) == 0
   block:
     - name: Display image build jobs status
       ansible.builtin.debug:
@@ -155,20 +212,3 @@
     - name: Failed to build the x86_64 compute image
       ansible.builtin.fail:
         msg: "x86_64 compute image build failed. See details above."
-
-  # always:
-  #   - name: Set openchami SELinux context for Local flow
-  #     ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
-  #     changed_when: true
-  #     delegate_to: oim
-  #     connection: ssh
-  #     failed_when: false
-  #     when: hostvars['localhost']['omnia_share_option'] == 'Local'
-
-  #   - name: Set openchami SELinux context for NFS internal flow
-  #     ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
-  #     changed_when: true
-  #     delegate_to: oim
-  #     connection: ssh
-  #     failed_when: false
-  #     when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')

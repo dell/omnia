@@ -35,7 +35,7 @@
 #       packages: list of RPM package names for that group's image layer
 #
 # To customize: add/remove RPM names under the appropriate group.
-# Package names must match what's available in the Pulp RPM repos.
+# Package names must match what's available in the configured RPM repos.
 # ============================================================================
 
 # --- Base OS packages (installed in every image) ---

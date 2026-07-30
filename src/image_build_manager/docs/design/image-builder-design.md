@@ -164,7 +164,7 @@ Figure: image_build_manager.yml orchestration flow
 | 1 | Validate | localhost | `validate_image_build_config.yml` — L1 schema + L2 logic |
 | 2 | Credentials | localhost | `get_build_credentials.yml` — prompt, encrypt, vault |
 | 3 | Config | localhost | Load `image_build_config.yml` + S3 endpoint resolution |
-| 4 | Pre-check | localhost | Load `repo_status.yml` → Pulp repos + certs |
+| 4 | Pre-check | localhost | Load `repo_status.yml` → repo manager repos + certs |
 | 5 | Prepare | oim (SSH) | Deploy MinIO + Registry + SELinux policy |
 | 6 | Build x86_64 | oim (SSH) | Validate → fetch packages → build images |
 | 7 | Build aarch64 | admin_aarch64 | Prepare ARM node → build images |
@@ -426,7 +426,24 @@ functional_group_images:
 
 ---
 
-## 9. Backward Compatibility
+## 9. Build Type Switching (`image_build_type`)
+
+The `image_build_type` field in `image_build_config.yml` selects the OpenCHAMI builder.
+
+| Aspect | `image-builder` (default) | `image-thrillhouse` |
+|--------|---------------------------|---------------------|
+| **Container** | `dellhpcomniaaisolution/image-build-el10:1.2` (x86), `-aarch64:1.1` (ARM) | `ghcr.io/openchami/image-thrillhouse:latest` |
+| **Config schema** | `options/repos/packages/cmds` | `meta/layer` (inline repos, script commands) |
+| **Config mount** | `/home/builder/config.yaml` | `/config.yaml` |
+| **Entrypoint** | `--entrypoint /bin/bash -c 'image-build --config ...'` | Direct: `image-thrillhouse build --config ...` |
+| **Extra caps** | `--privileged` only | `--privileged --cap-add=SYS_ADMIN,SETUID,SETGID --security-opt seccomp=unconfined` |
+| **Templates** | `rhel-base-config.yaml.j2`, `rhel-compute-config.yaml.j2` | `thrillhouse-base-config.yaml.j2`, `thrillhouse-compute-config.yaml.j2` |
+
+Switching is implemented via `_is_thrillhouse` ternary in `build_os_images/vars/main.yml` and `prepare_aarch64_node/vars/main.yml`. All downstream variables (`repo_builder_image`, `local_tag`, `ochami_mounts`, `ochami_image`, `ochami_base_command`, config template paths) resolve automatically.
+
+---
+
+## 10. Backward Compatibility
 
 - No breaking changes for users who don't use image_build_manager.
 - `image_build_config.yml` is **required** — no legacy fallback.
@@ -434,7 +451,7 @@ functional_group_images:
 - Container build is self-contained in `src/image_build_manager/containers/`.
 
 
-## 10. Naming Convention
+## 11. Naming Convention
 
 ### Rules
 
