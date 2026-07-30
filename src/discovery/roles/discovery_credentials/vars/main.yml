@@ -23,7 +23,7 @@ credential_file:
   vault_path: "{{ input_project_dir }}/discovery/.discovery_credentials_key"
 
 # Module utils path for credential validation
-module_utils_path: "{{ playbook_dir }}/library/module_utils"
+module_utils_path: "{{ role_path }}/../../plugins/module_utils"
 
 # Credential definitions for discovery
 # Discovery only needs OME credentials

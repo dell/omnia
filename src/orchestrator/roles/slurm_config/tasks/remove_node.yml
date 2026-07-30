@@ -75,7 +75,7 @@
     - updated_partitions is defined
 
 - name: Convert slurm conf to ini
-  slurm_conf:
+  omnia.orchestrator.slurm_conf:
     op: render
     conf_name: slurm
     conf_map: "{{ slurm_conf_dict }}"

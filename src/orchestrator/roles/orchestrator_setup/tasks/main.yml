@@ -82,10 +82,10 @@
 
 # Step 3: Include domain vars
 - name: Include common vars
-  ansible.builtin.include_vars: "{{ playbook_dir }}/vars/common_vars.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"
 
 - name: Include openchami vars
-  ansible.builtin.include_vars: "{{ playbook_dir }}/vars/openchami_vars.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/../../vars/openchami_vars.yml"
   when: openchami_vars_support | default(false)
 
 # Step 4: Include OIM metadata vars
@@ -140,11 +140,12 @@
     cacheable: true
 
 # Step 7: Create OIM host group (only when oim_group is explicitly enabled)
-- name: Create {{ oim_host_group }} group
+- name: Create OIM host group {{ oim_host_group }}
   ansible.builtin.add_host:
     hostname: "{{ oim_host_group }}"
     ansible_host: "localhost"
     ansible_port: "{{ oim_host_port }}"
+    ansible_connection: local
     groups: "{{ oim_host_group }}"
   when:
     - oim_group | default(false) | bool

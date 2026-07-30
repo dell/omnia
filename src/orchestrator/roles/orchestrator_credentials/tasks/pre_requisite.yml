@@ -37,7 +37,7 @@
     openldap_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openldap') | list | length > 0 }}"
 
 - name: Fetch telemetry status from telemetry_config.yml
-  fetch_telemetry_status:
+  omnia.orchestrator.fetch_telemetry_status:
     input_path: "{{ input_project_dir }}"
   register: result
   when: "'telemetry' in (omnia_run_tags | default([]))"
