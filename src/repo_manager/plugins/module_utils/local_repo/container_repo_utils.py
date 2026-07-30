@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,no-name-in-module
+# pylint: disable=import-error,no-name-in-module,line-too-long,broad-exception-caught
+# pylint: disable=no-else-return,too-many-locals,too-many-nested-blocks
+# pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
 
 """
 Container repository utilities for Pulp operations.
