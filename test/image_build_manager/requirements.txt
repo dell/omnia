@@ -1,0 +1,5 @@
+pytest>=7.0
+pytest-testinfra>=10.0
+pyyaml>=6.0
+ansible-core>=2.15
+pylint>=3.0
