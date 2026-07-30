@@ -34,6 +34,12 @@
 #     ansible-playbook telemetry.yml --tags cleanup_victoria_logs      # VL only (includes vlagent-vector)
 #     ansible-playbook telemetry.yml --tags cleanup_ldms               # LDMS only (includes vector-ldms)
 #     ansible-playbook telemetry.yml --tags cleanup_ome                # OME only (includes vector-ome)
+#     ansible-playbook telemetry.yml --tags cleanup_dcgm               # DCGM only
+#     ansible-playbook telemetry.yml --tags cleanup_ufm                # UFM only
+#     ansible-playbook telemetry.yml --tags cleanup_vast               # VAST only
+#     ansible-playbook telemetry.yml --tags cleanup_sfm                # SFM only
+#     ansible-playbook telemetry.yml --tags cleanup_skyway             # Skyway only
+#     ansible-playbook telemetry.yml --tags cleanup_powervault         # PowerVault only
 #     ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_victoria_metrics  # kafka + VM
 #
 # Configuration is read from telemetry/input/telemetry_config.yml:
@@ -48,13 +54,15 @@
 # ---------------------------------------------------------------------------
 # Precheck — import before deploy plays so --tags precheck works
 # ---------------------------------------------------------------------------
-- ansible.builtin.import_playbook: playbooks/precheck.yml
+- name: "Precheck | Validate telemetry prerequisites"
+  ansible.builtin.import_playbook: playbooks/precheck.yml
   tags: [precheck]
 
 # ---------------------------------------------------------------------------
 # Validation — L1 + L2 input validation for all 3 telemetry input files
 # ---------------------------------------------------------------------------
-- ansible.builtin.import_playbook: playbooks/validation.yml
+- name: "Validation | Validate telemetry input files"
+  ansible.builtin.import_playbook: playbooks/validation.yml
   tags: [validation]
 
 # ---------------------------------------------------------------------------
@@ -64,19 +72,23 @@
 # 'cleanup' tag. Each component import also has its own tag (cleanup_kafka,
 # cleanup_victoria_metrics, etc.) so --tags cleanup runs all cleanups while
 # --tags cleanup_kafka runs only Kafka cleanup.
-- ansible.builtin.import_playbook: playbooks/cleanup.yml
+- name: "Cleanup | Remove telemetry components"
+  ansible.builtin.import_playbook: playbooks/cleanup.yml
   tags: [cleanup]
 
 # Deploy: Deploy all telemetry sources
-- import_playbook: playbooks/deploy.yml
+- name: "Deploy | Deploy all telemetry sources"
+  ansible.builtin.import_playbook: playbooks/deploy.yml
   tags: deploy
 
 # Upgrade: Upgrade telemetry components
-- import_playbook: playbooks/upgrade.yml
+- name: "Upgrade | Upgrade telemetry components"
+  ansible.builtin.import_playbook: playbooks/upgrade.yml
   tags: upgrade
   when: "'upgrade' in ansible_run_tags"
 
 # Rollback: Rollback telemetry components
-- import_playbook: playbooks/rollback.yml
+- name: "Rollback | Rollback telemetry components"
+  ansible.builtin.import_playbook: playbooks/rollback.yml
   tags: rollback
   when: "'rollback' in ansible_run_tags"

@@ -1,4 +1,3 @@
----
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +11,43 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-- name: Cleanup PowerVault Telemetry
-  hosts: kube_vip_group
-  gather_facts: true
-  any_errors_fatal: true
 
+# =============================================================================
+# PowerVault Telemetry Cleanup
+# =============================================================================
+# Removes PowerVault telemetry deployment, service, credentials, and scrape config.
+#
+# Standalone usage:
+#   ansible-playbook playbooks/powervault/cleanup_powervault.yml
+#
+# Via main cleanup (tag-based):
+#   ansible-playbook playbooks/cleanup.yml --tags cleanup_powervault
+# =============================================================================
+
+- name: "Cleanup PowerVault Telemetry"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../vars/cleanup.yml
   tasks:
-    - name: Placeholder task for PowerVault telemetry cleanup
+    - name: "PowerVault | Delete resources"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ powervault_resources }}"
+      loop_control:
+        label: "{{ item.type }}/{{ item.name }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "PowerVault | Force delete pods"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pod -l {{ powervault_pod_label }}
+        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+      changed_when: false
+      failed_when: false
+
+    - name: "PowerVault | Cleanup complete"
       ansible.builtin.debug:
-        msg: "PowerVault telemetry cleanup - to be implemented"
+        msg: "PowerVault telemetry cleanup completed"

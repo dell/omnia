@@ -77,7 +77,8 @@
 
       Vector-LDMS Bridge ({{ vector.ldms.app_name }}):
         Ready Replicas: {{ vector_ldms_status.stdout | default('N/A') }}
-        Status: {{ 'RUNNING' if (vector_ldms_status.rc | default(1) == 0 and vector_ldms_status.stdout | default('0') | int > 0) else 'NOT DEPLOYED or DISABLED' }}
+        Status: {{ 'RUNNING' if (vector_ldms_status.rc | default(1) == 0 and
+          vector_ldms_status.stdout | default('0') | int > 0) else 'NOT DEPLOYED or DISABLED' }}
 
       Kafka Topic 'ldms': {{ 'EXISTS' if (ldms_topic_check.rc | default(1) == 0) else 'NOT FOUND or KAFKA DISABLED' }}
 

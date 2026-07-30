@@ -42,7 +42,6 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  # tags: [validation]  
   any_errors_fatal: true
   tasks:
 

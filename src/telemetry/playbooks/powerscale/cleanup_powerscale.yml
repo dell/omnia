@@ -32,7 +32,7 @@
   vars_files:
     - ../vars/cleanup.yml
   tasks:
-    - name: "PowerScale | Uninstall Helm release"
+    - name: "PowerScale | Uninstall Helm release"  # noqa: risky-shell-pipe
       ansible.builtin.shell: |
         if helm list -n {{ telemetry_namespace }} --filter {{ powerscale_helm_release }} -q 2>/dev/null | grep -q {{ powerscale_helm_release }}; then
           helm uninstall {{ powerscale_helm_release }} -n {{ telemetry_namespace }} --wait --timeout {{ cleanup_helm_timeout }} 2>/dev/null || true

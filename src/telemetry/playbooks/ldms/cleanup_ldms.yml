@@ -33,7 +33,7 @@
   vars_files:
     - ../vars/cleanup.yml
   tasks:
-    - name: "LDMS | Delete Helm releases"
+    - name: "LDMS | Delete Helm releases"  # noqa: risky-shell-pipe
       ansible.builtin.shell: |
         if helm list -n {{ telemetry_namespace }} 2>/dev/null | grep -q "{{ item }}"; then
           helm delete {{ item }} -n {{ telemetry_namespace }} 2>/dev/null || true

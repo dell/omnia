@@ -48,6 +48,7 @@
       ansible.builtin.command: >
         helm -n {{ telemetry_namespace }} install victoria-metrics-operator
         {{ victoria_operator_pkg }}
+      changed_when: true
 
     - name: Wait for VictoriaMetrics operator deployment
       ansible.builtin.command: >
@@ -111,7 +112,10 @@
 
 - name: Build VictoriaLogs manifest existence map
   ansible.builtin.set_fact:
-    _vl_manifests: "{{ dict(vl_manifest_stats.results | map(attribute='item') | zip(vl_manifest_stats.results | map(attribute='stat') | map(attribute='exists'))) }}"
+    _vl_manifests: >-
+      {{ dict(vl_manifest_stats.results | map(attribute='item') |
+      zip(vl_manifest_stats.results | map(attribute='stat') |
+      map(attribute='exists'))) }}
 
 - name: Apply VLCluster CR
   ansible.builtin.command: >

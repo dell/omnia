@@ -48,7 +48,9 @@
 #
 # Available tags:
 #   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
-#   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale
+#   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
+#            cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm,
+#            cleanup_skyway, cleanup_powervault
 #
 # Resource ownership:
 #   LDMS cleanup includes Vector-LDMS bridge resources
@@ -65,7 +67,7 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_skyway, cleanup_powervault, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   tasks:
     - name: Load telemetry configuration
       ansible.builtin.include_role:
@@ -105,6 +107,30 @@
   import_playbook: powerscale/cleanup_powerscale.yml
   tags: [cleanup_powerscale]
 
+- name: "Cleanup DCGM Telemetry"
+  import_playbook: dcgm/cleanup_dcgm.yml
+  tags: [cleanup_dcgm]
+
+- name: "Cleanup UFM Telemetry"
+  import_playbook: ufm/cleanup_ufm.yml
+  tags: [cleanup_ufm]
+
+- name: "Cleanup VAST Telemetry"
+  import_playbook: vast/cleanup_vast.yml
+  tags: [cleanup_vast]
+
+- name: "Cleanup SFM Telemetry"
+  import_playbook: sfm/cleanup_sfm.yml
+  tags: [cleanup_sfm]
+
+- name: "Cleanup Skyway Telemetry"
+  import_playbook: skyway/cleanup_skyway.yml
+  tags: [cleanup_skyway]
+
+- name: "Cleanup PowerVault Telemetry"
+  import_playbook: powervault/cleanup_powervault.yml
+  tags: [cleanup_powervault]
+
 # ---------------------------------------------------------------------------
 # Play 3: Sink cleanups — Kafka, VictoriaMetrics, VictoriaLogs
 # ---------------------------------------------------------------------------
@@ -126,7 +152,7 @@
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_skyway, cleanup_powervault, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   vars:
     telemetry_namespace: "telemetry"
   tasks:
@@ -155,7 +181,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_skyway, cleanup_powervault, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   tasks:
     - name: Display cleanup summary
       vars:
