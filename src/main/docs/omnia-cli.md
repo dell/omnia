@@ -2,6 +2,23 @@
 
 The `omnia-cli` script provides status checking and diagnostics for all Omnia domains.
 
+## Install to PATH
+
+To use `omnia-cli` from anywhere on the system:
+
+```bash
+sudo cp omnia-cli /usr/local/bin/
+sudo chmod +x /usr/local/bin/omnia-cli
+```
+
+After installation, run `omnia-cli` directly without `./` or path prefix:
+
+```bash
+omnia-cli status
+omnia-cli repo-manager
+omnia-cli version
+```
+
 ## Commands
 
 | Command | Description |

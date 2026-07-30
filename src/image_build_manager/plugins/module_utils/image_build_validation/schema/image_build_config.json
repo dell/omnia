@@ -37,6 +37,18 @@
             "type": "string",
             "description": "Full path to repo_status.yml produced by repo_manager. Supports multiple projects."
         },
+        "image_build_type": {
+            "type": "string",
+            "enum": ["image-builder", "image-thrillhouse"],
+            "description": "OpenCHAMI image builder type: 'image-builder' (standard) or 'image-thrillhouse' (next-gen with extended features).",
+            "default": "image-builder"
+        },
+        "functional_groups_source": {
+            "type": "string",
+            "enum": ["config", "repo_status"],
+            "description": "Where to source functional groups: 'config' uses the manual list below; 'repo_status' auto-detects from repo_manager output.",
+            "default": "config"
+        },
         "functional_groups": {
             "type": "array",
             "description": "Functional groups defining image variants to build. Each group must end with _x86_64 or _aarch64.",
@@ -56,8 +68,15 @@
         },
         "build_image": {
             "type": "object",
-            "description": "Build image async job settings.",
+            "description": "Build image async job and concurrency settings.",
             "properties": {
+                "max_parallel": {
+                    "type": "integer",
+                    "description": "Max concurrent image builds. 0 = unlimited (all at once).",
+                    "minimum": 0,
+                    "maximum": 64,
+                    "default": 0
+                },
                 "job_async": {
                     "type": "integer",
                     "description": "Max async wait for image build (seconds).",
@@ -83,6 +102,5 @@
             "additionalProperties": false
         }
     },
-    "required": ["s3_configurations"],
-    "additionalProperties": false
+    "required": ["s3_configurations"]
 }

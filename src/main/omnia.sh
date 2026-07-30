@@ -19,11 +19,19 @@
 # =============================================================================
 #
 # Prerequisites:
-#   1. Edit src/main/omnia.env with your environment settings
+#   1. Edit src/main/omnia.env with your settings
 #   2. Run: ./omnia.sh --setup-venv   (one-time Python + Ansible setup)
 #
-# All configuration is via environment variables in omnia.env.
-# No interactive prompts — fill omnia.env before running.
+# During setup, this script:
+#   - Installs omnia.env to /etc/omnia/omnia.env (system-wide)
+#   - Creates /etc/profile.d/omnia-env.sh so all new shells auto-load vars
+#   - Creates venv, installs deps, copies domain input files
+#
+# After setup, environment variables are available system-wide.
+# New login shells load them automatically.
+
+# For immediate use in the current shell:
+#   source /opt/omnia/activate-omnia.sh
 # =============================================================================
 
 set -euo pipefail
@@ -34,7 +42,6 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SRC_DIR="$(dirname "$SCRIPT_DIR")"
 readonly REPO_ROOT="$(dirname "$SRC_DIR")"
-readonly ENV_FILE="$SCRIPT_DIR/omnia.env"
 
 # Color definitions
 readonly RED='\033[0;31m'
@@ -58,63 +65,114 @@ readonly DOMAINS=(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Auto-load installed environment
+# ─────────────────────────────────────────────────────────────────────────────
+if [ -f /etc/profile.d/omnia-env.sh ]; then
+    # shellcheck disable=SC1091
+    . /etc/profile.d/omnia-env.sh
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Environment Loading
 # ─────────────────────────────────────────────────────────────────────────────
 load_env() {
-    if [ ! -f "$ENV_FILE" ]; then
-        echo -e "${RED}ERROR: omnia.env not found at $ENV_FILE${NC}"
-        echo -e "${YELLOW}Configure it before running:${NC}"
-        echo -e "  vi $ENV_FILE"
-        exit 1
-    fi
-
-    # Source env file (set -a exports all vars)
-    set -a
-    # shellcheck disable=SC1090
-    . "$ENV_FILE"
-    set +a
-
     # Apply defaults for optional variables
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
     OMNIA_VENV_PATH="${OMNIA_VENV_PATH:-$OMNIA_DATA_PATH/venv}"
-    OMNIA_HOSTNAME="${OMNIA_HOSTNAME:-oim}"
-    OMNIA_DOMAIN_NAME="${OMNIA_DOMAIN_NAME:-omnia.cluster}"
-    OMNIA_ADMIN_NIC_IP="${OMNIA_ADMIN_NIC_IP:-172.16.107.254}"
+    SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME:-oim}"
+    SYSTEM_DOMAIN_NAME="${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
 
     export OMNIA_DATA_PATH OMNIA_PROJECT_NAME OMNIA_VENV_PATH
-    export OMNIA_HOSTNAME OMNIA_DOMAIN_NAME OMNIA_ADMIN_NIC_IP
+    export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME
 }
 
 validate_env() {
     local errors=0
 
-    if [ -z "${OMNIA_ADMIN_NIC_IP:-}" ]; then
-        echo -e "${RED}ERROR: OMNIA_ADMIN_NIC_IP is not set in $ENV_FILE${NC}"
+    if [ -z "${SYSTEM_ADMIN_NIC_IPV4:-}" ]; then
+        echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set${NC}"
+        echo -e "${YELLOW}  export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>${NC}"
         errors=$((errors + 1))
     fi
 
-    if [ -z "${OMNIA_HOSTNAME:-}" ]; then
-        echo -e "${RED}ERROR: OMNIA_HOSTNAME is not set in $ENV_FILE${NC}"
+    if [ -z "${SYSTEM_HOSTNAME:-}" ]; then
+        echo -e "${RED}ERROR: SYSTEM_HOSTNAME is not set${NC}"
+        echo -e "${YELLOW}  export SYSTEM_HOSTNAME=oim${NC}"
         errors=$((errors + 1))
     fi
 
-    if [ -z "${OMNIA_DOMAIN_NAME:-}" ]; then
-        echo -e "${RED}ERROR: OMNIA_DOMAIN_NAME is not set in $ENV_FILE${NC}"
+    if [ -z "${SYSTEM_DOMAIN_NAME:-}" ]; then
+        echo -e "${RED}ERROR: SYSTEM_DOMAIN_NAME is not set${NC}"
+        echo -e "${YELLOW}  export SYSTEM_DOMAIN_NAME=omnia.cluster${NC}"
         errors=$((errors + 1))
     fi
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "${YELLOW}Edit $ENV_FILE and set all required variables before running omnia.sh${NC}"
+        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh -s${NC}"
+        echo -e "${YELLOW}Or export them manually:  export SYSTEM_ADMIN_NIC_IPV4=<ip>${NC}"
         exit 1
     fi
 
+    export SYSTEM_ADMIN_NIC_IPV4
+
     echo -e "${GREEN}Environment validated:${NC}"
-    echo -e "  Hostname:    ${OMNIA_HOSTNAME}"
-    echo -e "  Domain:      ${OMNIA_DOMAIN_NAME}"
-    echo -e "  Admin IP:    ${OMNIA_ADMIN_NIC_IP}"
+    echo -e "  Hostname:    ${SYSTEM_HOSTNAME}"
+    echo -e "  Domain:      ${SYSTEM_DOMAIN_NAME}"
+    echo -e "  Admin IP:    ${SYSTEM_ADMIN_NIC_IPV4}"
     echo -e "  Data path:   ${OMNIA_DATA_PATH}"
     echo -e "  Project:     ${OMNIA_PROJECT_NAME}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Install Environment to System
+# ─────────────────────────────────────────────────────────────────────────────
+readonly SYSTEM_ENV_DIR="/etc/omnia"
+readonly SYSTEM_ENV_FILE="${SYSTEM_ENV_DIR}/omnia.env"
+readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
+
+install_system_env() {
+    local env_file="$SCRIPT_DIR/omnia.env"
+
+    if [ ! -f "$env_file" ]; then
+        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping system env install${NC}"
+        return 0
+    fi
+
+    echo -e "${BLUE}Installing environment to system...${NC}"
+
+    mkdir -p "$SYSTEM_ENV_DIR"
+    cp -f "$env_file" "$SYSTEM_ENV_FILE"
+    chmod 0644 "$SYSTEM_ENV_FILE"
+
+    echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+
+    cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
+#!/bin/bash
+#
+# Omnia environment variables
+#
+
+if [ -f /etc/omnia/omnia.env ]; then
+    set -a
+    . /etc/omnia/omnia.env
+    set +a
+fi
+PROFILE_EOF
+
+    chmod 0644 "$PROFILE_DROP_IN"
+
+    echo -e "  ${GREEN}Installed: ${PROFILE_DROP_IN}${NC}"
+
+    #
+    # Load into current script execution
+    #
+    set -a
+    # shellcheck disable=SC1090
+    . "$SYSTEM_ENV_FILE"
+    set +a
+
+    echo -e "${GREEN}Environment installed system-wide.${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +191,7 @@ create_base_dirs() {
 # Venv Setup
 # ─────────────────────────────────────────────────────────────────────────────
 setup_venv() {
+    install_system_env
     load_env
     validate_env
     create_base_dirs
@@ -206,7 +265,7 @@ setup_venv() {
     fi
 
     # ── Verify ansible is available ──
-    if ! command -v ansible >/dev/null 2>&1; then
+    if ! "$OMNIA_VENV_PATH/bin/ansible" --version >/dev/null 2>&1; then
         echo -e "${RED}ERROR: ansible not found after pip install${NC}"
         deactivate 2>/dev/null || true
         exit 1
@@ -223,6 +282,41 @@ setup_venv() {
         fi
     done
 
+    #
+    # Reload latest environment
+    #
+    if [ -f "$SYSTEM_ENV_FILE" ]; then
+        set -a
+        # shellcheck disable=SC1090
+        . "$SYSTEM_ENV_FILE"
+        set +a
+    fi
+
+    #
+    # Create convenience activation script
+    #
+    cat > "${OMNIA_DATA_PATH}/activate-omnia.sh" <<'ACTIVATE_EOF'
+#!/bin/bash
+#
+# Convenience script to load Omnia environment and activate venv
+# Usage: source /opt/omnia/activate-omnia.sh
+#
+
+if [ -f /etc/omnia/omnia.env ]; then
+    set -a
+    . /etc/omnia/omnia.env
+    set +a
+fi
+
+if [ -f "${OMNIA_VENV_PATH}/bin/activate" ]; then
+    source "${OMNIA_VENV_PATH}/bin/activate"
+else
+    echo "ERROR: Virtual environment not found at ${OMNIA_VENV_PATH}"
+    return 1 2>/dev/null || exit 1
+fi
+ACTIVATE_EOF
+    chmod +x "${OMNIA_DATA_PATH}/activate-omnia.sh"
+
     # ── Summary ──
     echo ""
     echo -e "${GREEN}================================================================================${NC}"
@@ -230,17 +324,44 @@ setup_venv() {
     echo -e "${GREEN}================================================================================${NC}"
     echo ""
     echo -e "  Venv:    ${GREEN}$OMNIA_VENV_PATH${NC}"
-    echo -e "  Python:  ${GREEN}$(python3 --version)${NC}"
+    echo -e "  Python:  ${GREEN}$(python --version)${NC}"
     echo -e "  Ansible: ${GREEN}$(ansible --version | head -1)${NC}"
     echo ""
     echo -e "${BLUE}Installed collections:${NC}"
     ansible-galaxy collection list 2>/dev/null | grep -E "^(ansible\.|containers\.|community\.|kubernetes\.|omnia\.)" || true
     echo ""
+    echo -e "${GREEN}Environment helper created:${NC}"
+    echo -e "  ${GREEN}${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
+    echo ""
     echo -e "${YELLOW}Activate in your shell:${NC}"
-    echo -e "  ${GREEN}source $OMNIA_VENV_PATH/bin/activate${NC}"
+    echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
     echo ""
 
     deactivate 2>/dev/null || true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Copy Domain Input Files
+# ─────────────────────────────────────────────────────────────────────────────
+copy_domain_inputs() {
+    echo -e "${BLUE}Copying domain input files to ${OMNIA_DATA_PATH}/ ...${NC}"
+    local copied=0
+    for domain in "${DOMAINS[@]}"; do
+        local copy_script="$SRC_DIR/$domain/copy-input.sh"
+        if [ -f "$copy_script" ]; then
+            chmod +x "$copy_script"
+            if bash "$copy_script"; then
+                copied=$((copied + 1))
+            else
+                echo -e "${YELLOW}WARNING: copy-input.sh failed for $domain — continuing${NC}"
+            fi
+        fi
+    done
+    if [ "$copied" -eq 0 ]; then
+        echo -e "${YELLOW}No copy-input.sh scripts found in any domain${NC}"
+    else
+        echo -e "${GREEN}Input copy scripts completed for ${copied} domain(s)${NC}"
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -251,44 +372,68 @@ show_help() {
 Omnia Infrastructure Manager (OIM) — v${OMNIA_RELEASE}
 
 PREREQUISITE:
-  Edit src/main/omnia.env with your environment settings before running any command.
+  Edit src/main/omnia.env before running --setup-venv.
+  After setup, vars are installed system-wide at /etc/omnia/omnia.env.
 
 USAGE:
-  $0 <command>
+  $0 <command> [options]
 
 SETUP COMMANDS:
   --setup-venv, -s      Create/update the shared Python venv (pip + Galaxy collections)
-                        Discovers and installs requirements from all domains automatically.
+                        Also copies domain input files to the runtime data path.
   --help, -h            Show this help message
 
-DIAGNOSTICS (see omnia-cli):
-  ./omnia-cli status [--project <name>]         All domain statuses
-  ./omnia-cli repo-manager [--project <name>]   Repo manager details
-  ./omnia-cli image-build [--project <name>]    Image build details
-  ./omnia-cli <domain> [--project <name>]       Any domain status
-  ./omnia-cli version                           Version info
-  ./omnia-cli help [<domain>]                   CLI help
+OPTIONS:
+  --skip-input-copy     Skip copying domain input files during --setup-venv.
+                        Useful in CI or when input files are managed externally.
 
-ENVIRONMENT:
-  All configuration is via src/main/omnia.env:
-    OMNIA_ADMIN_NIC_IP    Admin NIC IP (default: 172.16.107.254)
-    OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
-    OMNIA_PROJECT_NAME    Project name (default: project_default)
-    OMNIA_HOSTNAME        OIM hostname (default: oim)
-    OMNIA_DOMAIN_NAME     Domain name (default: omnia.cluster)
-    OMNIA_VENV_PATH       Python venv path (default: /opt/omnia/venv)
+DIAGNOSTICS (see omnia-cli):
+  omnia-cli status [--project <name>]         All domain statuses
+  omnia-cli repo-manager [--project <name>]   Repo manager details
+  omnia-cli image-build [--project <name>]    Image build details
+  omnia-cli <domain> [--project <name>]       Any domain status
+  omnia-cli version                           Version info
+  omnia-cli help [<domain>]                   CLI help
+
+INSTALL omnia-cli TO PATH:
+  sudo cp omnia-cli /usr/local/bin/
+  sudo chmod +x /usr/local/bin/omnia-cli
+
+SYSTEM ENVIRONMENT:
+  After --setup-venv, omnia.env is installed to:
+    /etc/omnia/omnia.env           — system-wide env file
+    /etc/profile.d/omnia-env.sh    — auto-sourced on login
+
+  Variables:
+    SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (REQUIRED)
+    OMNIA_DATA_PATH        Root data directory (default: /opt/omnia)
+    OMNIA_PROJECT_NAME     Project name (default: project_default)
+    SYSTEM_HOSTNAME        OIM hostname (default: oim)
+    SYSTEM_DOMAIN_NAME     Domain name (default: omnia.cluster)
+    OMNIA_VENV_PATH        Python venv path (default: /opt/omnia/venv)
 
 EXAMPLES:
   # First-time setup:
-  vi src/main/omnia.env          # Set OMNIA_ADMIN_NIC_IP and other vars
-  ./omnia.sh --setup-venv        # Install Python + Ansible into venv
+  vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
+  ./omnia.sh -s                                # Installs env + venv + input files
+  ./omnia.sh -s --skip-input-copy              # Installs env + venv only
+
+  # After setup:
+  #   New login shells automatically load environment variables.
+  #
+  #   For immediate use in current shell:
+  #   source /opt/omnia/activate-omnia.sh
+
+  # Install CLI:
+  sudo cp omnia-cli /usr/local/bin/
+  sudo chmod +x /usr/local/bin/omnia-cli
 
   # Check domain status:
-  ./omnia-cli status             # All domains
-  ./omnia-cli repo-manager       # Repo manager details
+  omnia-cli status               # All domains
+  omnia-cli repo-manager         # Repo manager details
 
   # Run component playbooks (after venv setup):
-  source /opt/omnia/venv/bin/activate
+  source /opt/omnia/activate-omnia.sh
   cd src/image_build_manager/playbooks
   ansible-playbook image_build_manager.yml --tags validate
 EOF
@@ -298,19 +443,45 @@ EOF
 # Main Dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
-    case "${1:-}" in
-        --setup-venv|-s)
+    local skip_input_copy=false
+    local command=""
+
+    # Parse all arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --setup-venv|-s)
+                command="setup-venv"
+                shift
+                ;;
+            --skip-input-copy)
+                skip_input_copy=true
+                shift
+                ;;
+            --help|-h)
+                command="help"
+                shift
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                echo -e "${YELLOW}For status & diagnostics, use: omnia-cli${NC}"
+                echo ""
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+
+    case "${command:-help}" in
+        setup-venv)
             setup_venv
+            if [ "$skip_input_copy" = false ]; then
+                copy_domain_inputs
+            else
+                echo -e "${YELLOW}Skipping input file copy (--skip-input-copy)${NC}"
+            fi
             ;;
-        --help|-h|"")
+        help)
             show_help
-            ;;
-        *)
-            echo -e "${RED}Unknown option: $1${NC}"
-            echo -e "${YELLOW}For status & diagnostics, use: ./omnia-cli${NC}"
-            echo ""
-            show_help
-            exit 1
             ;;
     esac
 }

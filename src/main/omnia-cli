@@ -36,7 +36,6 @@ set -euo pipefail
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly ENV_FILE="$SCRIPT_DIR/omnia.env"
 
 # Color definitions (ANSI-C quoting for real escape characters)
 readonly RED=$'\033[0;31m'
@@ -68,12 +67,22 @@ declare -A DOMAIN_STATUS_FILES=(
 )
 
 declare -A DOMAIN_DESCRIPTIONS=(
-    [repo_manager]="RPM repository synchronization (Pulp)"
+    [repo_manager]="RPM repository synchronization"
     [image_build_manager]="OS image building (MinIO + Registry + OpenCHAMI)"
     [orchestrator]="Cluster orchestration and provisioning"
     [discovery]="Hardware discovery and inventory"
     [telemetry]="Monitoring and telemetry stack"
     [build_stream]="CI/CD build pipeline (GitLab)"
+)
+
+# Known domain input config file names (relative to input/<project>/)
+declare -A DOMAIN_INPUT_FILES=(
+    [repo_manager]="repo_manager_config.yml"
+    [image_build_manager]="image_build_config.yml"
+    [orchestrator]="orchestrator_config.yml"
+    [discovery]="discovery_config.yml"
+    [telemetry]="telemetry_config.yml"
+    [build_stream]="build_stream_config.yml"
 )
 
 readonly DOMAIN_ORDER=(
@@ -89,23 +98,16 @@ readonly DOMAIN_ORDER=(
 # Environment Loading
 # ─────────────────────────────────────────────────────────────────────────────
 load_env() {
-    if [ -f "$ENV_FILE" ]; then
-        set -a
-        # shellcheck disable=SC1090
-        . "$ENV_FILE"
-        set +a
-    fi
-
-    # Apply defaults
+    # Apply defaults for optional variables
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
     OMNIA_VENV_PATH="${OMNIA_VENV_PATH:-$OMNIA_DATA_PATH/venv}"
-    OMNIA_HOSTNAME="${OMNIA_HOSTNAME:-oim}"
-    OMNIA_DOMAIN_NAME="${OMNIA_DOMAIN_NAME:-omnia.cluster}"
-    OMNIA_ADMIN_NIC_IP="${OMNIA_ADMIN_NIC_IP:-172.16.107.254}"
+    SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME:-oim}"
+    SYSTEM_DOMAIN_NAME="${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
+    SYSTEM_ADMIN_NIC_IPV4="${SYSTEM_ADMIN_NIC_IPV4:-}"
 
     export OMNIA_DATA_PATH OMNIA_PROJECT_NAME OMNIA_VENV_PATH
-    export OMNIA_HOSTNAME OMNIA_DOMAIN_NAME OMNIA_ADMIN_NIC_IP
+    export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME SYSTEM_ADMIN_NIC_IPV4
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,6 +141,12 @@ _resolve_output_dir() {
     fi
 }
 
+_resolve_input_dir() {
+    local domain="$1" project="$2"
+    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
+    echo "${base}/${domain}/input/${project}"
+}
+
 _last_modified() {
     local dir="$1"
     local newest
@@ -148,6 +156,76 @@ _last_modified() {
         mod_time=$(stat -c '%y' "$newest" 2>/dev/null | cut -d. -f1)
         echo "${mod_time} ($(basename "$newest"))"
     fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: check — Validate input files and output existence for all domains
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_check() {
+    local project="$1"
+
+    echo ""
+    echo -e "${BOLD}${BLUE}Omnia Domain Check${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+
+    local issues=0
+
+    for domain in "${DOMAIN_ORDER[@]}"; do
+        local display_name
+        display_name=$(echo "$domain" | tr '_' ' ')
+        local input_dir
+        input_dir=$(_resolve_input_dir "$domain" "$project")
+        local output_dir
+        output_dir=$(_resolve_output_dir "$domain" "$project")
+        local config_file="${DOMAIN_INPUT_FILES[$domain]:-}"
+
+        echo -e "  ${BOLD}${display_name}${NC}"
+
+        # Check input directory
+        if [ -d "$input_dir" ]; then
+            echo -e "    ${PASS} Input dir exists  ${DIM}${input_dir}${NC}"
+            # Check config file
+            if [ -n "$config_file" ] && [ -f "${input_dir}/${config_file}" ]; then
+                echo -e "    ${PASS} Config file: ${config_file}"
+            elif [ -n "$config_file" ]; then
+                echo -e "    ${WARN} Config file missing: ${config_file}"
+                issues=$((issues + 1))
+            fi
+        else
+            echo -e "    ${SKIP} Input dir not staged  ${DIM}${input_dir}${NC}"
+        fi
+
+        # Check output directory
+        if [ -d "$output_dir" ]; then
+            local status_file_name="${DOMAIN_STATUS_FILES[$domain]}"
+            if [ -f "${output_dir}/${status_file_name}" ]; then
+                local st
+                st=$(_parse_status "${output_dir}/${status_file_name}")
+                if [ "$st" = "success" ]; then
+                    echo -e "    ${PASS} Output: ${status_file_name}  ${GREEN}${st}${NC}"
+                else
+                    echo -e "    ${FAIL} Output: ${status_file_name}  ${RED}${st:-unknown}${NC}"
+                    issues=$((issues + 1))
+                fi
+            else
+                echo -e "    ${WARN} Output dir exists but ${status_file_name} missing"
+                issues=$((issues + 1))
+            fi
+        else
+            echo -e "    ${SKIP} Output dir not created  ${DIM}(domain not yet run)${NC}"
+        fi
+
+        echo ""
+    done
+
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    if [ "$issues" -eq 0 ]; then
+        echo -e "  ${GREEN}No issues found.${NC}"
+    else
+        echo -e "  ${YELLOW}${issues} issue(s) found.${NC}"
+    fi
+    echo ""
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -299,9 +377,9 @@ cmd_repo_manager() {
     cert_path=$(grep -E '^\s*server_crt:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
     if [ -n "$cert_path" ]; then
         if [ -f "$cert_path" ]; then
-            echo -e "  ${PASS} Pulp certificate  (${DIM}${cert_path}${NC})"
+            echo -e "  ${PASS} Repo manager certificate  (${DIM}${cert_path}${NC})"
         else
-            echo -e "  ${FAIL} Pulp certificate  ${RED}MISSING${NC} (expected: ${cert_path})"
+            echo -e "  ${FAIL} Repo manager certificate  ${RED}MISSING${NC} (expected: ${cert_path})"
         fi
     fi
 
@@ -389,8 +467,8 @@ cmd_image_build() {
     echo -e "  aarch64 entries: ${aarch64_count}"
 
     # Show log file if exists (logs are under shared_path/log/<project>, not output_dir)
-    local ibm_base="${OMNIA_DATA_PATH:-/opt/omnia}/image_build_manager"
-    local log_dir="${ibm_base}/log/${project}"
+    local image_build_base="${OMNIA_DATA_PATH:-/opt/omnia}/image_build_manager"
+    local log_dir="${image_build_base}/log/${project}"
     if [ -d "$log_dir" ]; then
         local latest_log
         latest_log=$(find "$log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
@@ -542,7 +620,7 @@ CHECKS:
   - Output directory exists at \${OMNIA_DATA_PATH}/repo_manager/output/<project>/
   - repo_status.yml exists and overall_status == "success"
   - functional_group_packages.yml found (from package_list or default)
-  - Pulp certificate file exists at path from repo_status.yml
+  - Repo manager certificate file exists at path from repo_status.yml
   - RPM repo URL counts for x86_64 and aarch64
 
 ENVIRONMENT:
@@ -596,6 +674,7 @@ USAGE:
 
 COMMANDS:
   ${BOLD}status${NC}              Show all domain statuses for a project
+  ${BOLD}check${NC}               Validate input files and output existence for all domains
   ${BOLD}repo-manager${NC}        Detailed repo_manager diagnostics
   ${BOLD}image-build${NC}         Detailed image_build_manager diagnostics
   ${BOLD}orchestrator${NC}        Orchestrator status
@@ -609,14 +688,15 @@ OPTIONS:
   --project <name>    Project name (default: \$OMNIA_PROJECT_NAME or project_default)
 
 ENVIRONMENT:
-  All configuration via src/main/omnia.env:
-    OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
-    OMNIA_PROJECT_NAME    Project name (default: project_default)
-    OMNIA_ADMIN_NIC_IP    Admin NIC IP (default: 172.16.107.254)
-    OMNIA_VENV_PATH       Python venv path (default: /opt/omnia/venv)
+  Export these variables (or source omnia.env) before running:
+    OMNIA_DATA_PATH        Root data directory (default: /opt/omnia)
+    OMNIA_PROJECT_NAME     Project name (default: project_default)
+    SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (used by some domain checks)
+    OMNIA_VENV_PATH        Python venv path (default: /opt/omnia/venv)
 
 EXAMPLES:
   omnia-cli status                          # All domains, default project
+  omnia-cli check                           # Validate input/output for all domains
   omnia-cli status --project my_cluster     # All domains, custom project
   omnia-cli repo-manager                    # Detailed repo check
   omnia-cli image-build --project prod      # Image build status for 'prod'
@@ -671,6 +751,9 @@ main() {
     case "$command" in
         status)
             cmd_status "$project"
+            ;;
+        check)
+            cmd_check "$project"
             ;;
         repo-manager|repo_manager)
             cmd_repo_manager "$project"

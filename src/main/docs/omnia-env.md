@@ -6,7 +6,7 @@ The `omnia.env` file is the **single source of configuration** for Omnia deploym
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `OMNIA_ADMIN_NIC_IP` | Admin NIC IP address of the OIM host. Used for Pulp, S3, container registry, and provisioning. | `172.16.107.254` |
+| `SYSTEM_ADMIN_NIC_IPV4` | Admin NIC IPv4 address of the OIM host. Used for Pulp, S3, container registry, and provisioning. | `172.16.107.254` |
 
 ## Optional Variables (with Defaults)
 
@@ -14,8 +14,8 @@ The `omnia.env` file is the **single source of configuration** for Omnia deploym
 |----------|-------------|---------|
 | `OMNIA_DATA_PATH` | Root data directory for all Omnia persistent data | `/opt/omnia` |
 | `OMNIA_PROJECT_NAME` | Project name — maps to input/output subdirectories | `project_default` |
-| `OMNIA_HOSTNAME` | Short hostname of the OIM host (NOT FQDN) | `oim` |
-| `OMNIA_DOMAIN_NAME` | Domain name of the OIM host | `omnia.cluster` |
+| `SYSTEM_HOSTNAME` | Short hostname of the OIM host (NOT FQDN) | `oim` |
+| `SYSTEM_DOMAIN_NAME` | Domain name of the OIM host | `omnia.cluster` |
 | `OMNIA_VENV_PATH` | Path to the shared Python virtual environment | `/opt/omnia/venv` |
 
 ## Component Override Variables
@@ -59,7 +59,7 @@ Each component stores data under `$OMNIA_DATA_PATH/<component>/`. Override these
 
 # Admin NIC IP address of the OIM host.
 # This is the IP used for Pulp, S3, container registry, and provisioning.
-OMNIA_ADMIN_NIC_IP=172.16.107.254
+SYSTEM_ADMIN_NIC_IPV4=172.16.107.254
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │ OPTIONAL — Defaults work for most deployments                            │
@@ -74,10 +74,10 @@ OMNIA_DATA_PATH=/opt/omnia
 OMNIA_PROJECT_NAME=project_default
 
 # Short hostname of the OIM host (NOT FQDN).
-OMNIA_HOSTNAME=oim
+SYSTEM_HOSTNAME=oim
 
 # Domain name of the OIM host.
-OMNIA_DOMAIN_NAME=omnia.cluster
+SYSTEM_DOMAIN_NAME=omnia.cluster
 
 # Path to the shared Omnia Python virtual environment.
 # Created by: ./omnia.sh --setup-venv
@@ -102,19 +102,41 @@ OMNIA_VENV_PATH=/opt/omnia/venv
 
 ## Environment Loading
 
-Both `omnia.sh` and `omnia-cli` source the `omnia.env` file using:
+When you run `omnia.sh --setup-venv`, the script:
+
+1. **Copies** `src/main/omnia.env` → `/etc/omnia/omnia.env`
+2. **Creates** `/etc/profile.d/omnia-env.sh` — a drop-in that auto-sources the env on every login
+3. **Sources** the file immediately so the current session has the vars
+
+After setup, all new login shells (and Ansible playbooks run from them) automatically
+have the Omnia environment variables available. No manual sourcing needed.
+
+### System-Wide Paths
+
+| File | Purpose |
+|------|---------|
+| `/etc/omnia/omnia.env` | System-wide copy of the environment config |
+| `/etc/profile.d/omnia-env.sh` | Auto-sources `/etc/omnia/omnia.env` on login |
+
+### Manual Override
+
+To override a variable for a single command without editing the file:
 
 ```bash
-set -a
-. "$ENV_FILE"
-set +a
+SYSTEM_ADMIN_NIC_IPV4=10.0.0.1 omnia-cli status
 ```
 
-This ensures all variables are exported to the shell environment.
+### Re-install After Editing
+
+If you edit `src/main/omnia.env`, re-run setup to install the updated file:
+
+```bash
+./omnia.sh -s
+```
 
 ## Validation
 
-The `omnia.sh --setup-venv` command validates that required variables are set before proceeding. If validation fails, the script will exit with an error message indicating which variables are missing.
+`omnia.sh --setup-venv` validates that required variables (e.g., `SYSTEM_ADMIN_NIC_IPV4`) are set in the environment after sourcing. If validation fails, the script exits with an error indicating which variables are missing.
 
 ## Multi-Project Deployments
 

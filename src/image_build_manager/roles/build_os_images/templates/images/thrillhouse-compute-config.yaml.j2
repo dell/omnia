@@ -1,0 +1,49 @@
+meta:
+  name: '{{ rhel_base_compute_image_name }}'
+  tags:
+    - '{{ rhel_tag }}'
+  from: '{{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ rhel_tag }}'
+  from-tls-verify: false
+
+layer:
+  manager:
+    name: dnf
+    options:
+      releasever: "{{ rhel_tag }}"
+  repos:
+{% for repo in rhel_arch_repos %}
+{% if repo.base_url is defined and repo.base_url | length > 1 %}
+    - path: /etc/yum.repos.d/{{ repo.name }}.repo
+      content: |
+        [{{ repo.name }}]
+        name={{ repo.name }}
+        baseurl={{ repo.base_url }}
+        gpgcheck=0
+        sslverify=0
+{% endif %}
+{% endfor %}
+  actions:
+    install:
+      packages:
+{% for pkg in compute_packages %}
+        - {{ pkg }}
+{% endfor %}
+{% set command_var = functional_group + '_compute_commands' %}
+{% set commands_list = lookup('vars', command_var, default=[]) %}
+{% if commands_list | length > 0 %}
+    commands:
+{% for cmd in commands_list %}
+      - script: |
+          #!/bin/bash
+          {{ cmd }}
+{% endfor %}
+{% endif %}
+
+publish:
+  - type: registry
+    url: '{{ registry_host }}:5000/{{ oim_node_name }}'
+    tls-verify: false
+  - type: s3
+    url: '{{ s3_endpoint }}'
+    bucket: boot-images
+    prefix: '{{ group_name }}/{{ rhel_base_compute_image_name }}/'
