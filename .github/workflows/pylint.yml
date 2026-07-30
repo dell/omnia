@@ -80,14 +80,19 @@ jobs:
             for file in $FILES; do
               echo "Checking $file"
 
+              OUTPUT=$(
+                PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
+              )
+
               SCORE=$(
-                (PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true) |
+                echo "$OUTPUT" |
                 grep -oE 'rated at [0-9.-]+/10' |
                 awk '{print $3}' |
                 cut -d/ -f1
               )
 
-              SCORE=${SCORE:-0}
+              # pylint produces no output for perfect files (exit 0, no messages)
+              SCORE=${SCORE:-10}
 
               echo "$file -> $SCORE"
 
@@ -129,14 +134,19 @@ jobs:
           echo "" >> pylint-report.txt
 
           for file in $FILTERED; do
+            OUTPUT=$(
+              PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
+            )
+
             SCORE=$(
-              (PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true) |
+              echo "$OUTPUT" |
               grep -oE 'rated at [0-9.-]+/10' |
               awk '{print $3}' |
               cut -d/ -f1
             )
 
-            SCORE=${SCORE:-0}
+            # pylint produces no output for perfect files (exit 0, no messages)
+            SCORE=${SCORE:-10}
 
             if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
               'BEGIN { exit !(score >= threshold) }'

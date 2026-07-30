@@ -90,11 +90,17 @@ jobs:
       - name: Create collection symlinks for FQCN resolution
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
+          # Symlinks for ansible.cfg collections_paths = .
           mkdir -p ansible_collections/omnia
           ln -sfn ../../src/discovery ansible_collections/omnia/discovery
           ln -sfn ../../src/orchestrator ansible_collections/omnia/orchestrator
+          # Symlinks for ansible-lint action's ANSIBLE_COLLECTIONS_PATH (.ansible/collections)
+          mkdir -p .ansible/collections/ansible_collections/omnia
+          ln -sfn ../../../../src/discovery .ansible/collections/ansible_collections/omnia/discovery
+          ln -sfn ../../../../src/orchestrator .ansible/collections/ansible_collections/omnia/orchestrator
           echo "Created collection symlinks:"
           ls -la ansible_collections/omnia/
+          ls -la .ansible/collections/ansible_collections/omnia/
 
       - name: Verify Ansible config
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
@@ -167,8 +173,12 @@ jobs:
           mkdir -p ansible_collections/omnia
           ln -sfn ../../src/discovery ansible_collections/omnia/discovery
           ln -sfn ../../src/orchestrator ansible_collections/omnia/orchestrator
+          mkdir -p .ansible/collections/ansible_collections/omnia
+          ln -sfn ../../../../src/discovery .ansible/collections/ansible_collections/omnia/discovery
+          ln -sfn ../../../../src/orchestrator .ansible/collections/ansible_collections/omnia/orchestrator
           echo "Created collection symlinks:"
           ls -la ansible_collections/omnia/
+          ls -la .ansible/collections/ansible_collections/omnia/
 
       - name: Verify Ansible config (manual scan)
         if: github.event_name == 'workflow_dispatch'
