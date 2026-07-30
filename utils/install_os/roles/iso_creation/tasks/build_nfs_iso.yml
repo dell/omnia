@@ -22,6 +22,12 @@
     dest: "{{ temp_grub_cfg }}"
     mode: "0644"
 
+- name: Remove existing custom ISO if rebuilding
+  ansible.builtin.file:
+    path: "{{ repacked_iso_path }}"
+    state: absent
+  when: rebuild_iso | bool
+
 - name: Build custom ISO using xorriso (stream modification - grub.cfg only)
   ansible.builtin.command: >-
     xorriso -indev {{ iso_source_path }}
