@@ -344,7 +344,8 @@ class _PulpApiSession:
 
     def _make_connection(self) -> http.client.HTTPSConnection:
         """Create a fresh HTTPS connection to the Pulp server."""
-        context = ssl._create_unverified_context()  # NOSONAR - Pulp server uses self-signed certificates
+        # nosec B323 - Pulp server uses self-signed certificates
+        context = ssl._create_unverified_context()  # nosec B323
         port = self._parsed.port or 443
         return http.client.HTTPSConnection(
             self._parsed.hostname, port, context=context, timeout=120

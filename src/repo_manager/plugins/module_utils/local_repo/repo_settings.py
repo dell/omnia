@@ -30,12 +30,13 @@ from ansible.module_utils.local_repo.repo_paths import (
 # ----------------------------
 DEFAULT_NTHREADS = 4
 DEFAULT_TIMEOUT = 60
-LOG_DIR_DEFAULT = "/tmp/thread_logs"
-DEFAULT_LOG_FILE = "/tmp/task_results_table.log"
-DEFAULT_SLOG_FILE = "/tmp/stask_results_table.log"
+# nosec B108 - These are default paths, actual paths are configurable via parameters
+LOG_DIR_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")  # nosec B108
+DEFAULT_LOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "task_results_table.log")  # nosec B108
+DEFAULT_SLOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "stask_results_table.log")  # nosec B108
 CSV_FILE_PATH_DEFAULT = [
-    "/tmp/x86_64/status_results_table.csv",
-    "/tmp/aarch64/status_results_table.csv"
+    os.path.join(REPO_MANAGER_LOG_DIR, "x86_64/status_results_table.csv"),  # nosec B108
+    os.path.join(REPO_MANAGER_LOG_DIR, "aarch64/status_results_table.csv")  # nosec B108
 ]
 DEFAULT_REPO_STORE_PATH = OMNIA_BASE_DIR
 USER_JSON_FILE_DEFAULT = ""

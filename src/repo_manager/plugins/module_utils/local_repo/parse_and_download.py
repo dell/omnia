@@ -68,12 +68,14 @@ def execute_command(cmd_string, logger, type_json=False):
         cmd_args = cmd_string if use_shell else shlex.split(cmd_string)
 
         # Run the command
+        # nosec B602 - shell=True is required for commands with shell metacharacters
         cmd = subprocess.run(
             cmd_args,
             universal_newlines=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            shell=use_shell,
+            shell=use_shell,  # nosec B602
+            check=False
         )
         status["returncode"] = cmd.returncode
         status["stdout"] = cmd.stdout.strip() if cmd.stdout else None
