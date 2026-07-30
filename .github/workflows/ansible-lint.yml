@@ -87,22 +87,25 @@ jobs:
           echo "Created ansible.cfg"
           cat ansible.cfg
 
-      - name: Install local Galaxy collections for FQCN resolution
+      - name: Build and install local Galaxy collections for FQCN resolution
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
-          # Install collections from local source into all possible collection paths
-          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
-            mkdir -p "${CPATH}/omnia"
-            ln -sfn "${PWD}/src/discovery" "${CPATH}/omnia/discovery"
-            ln -sfn "${PWD}/src/orchestrator" "${CPATH}/omnia/orchestrator"
+          # Build collection tarballs from source
+          mkdir -p /tmp/omnia-collections
+          ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
+          ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
+          echo "Built collections:"
+          ls -la /tmp/omnia-collections/
+
+          # Install to project-local and user-global collection paths
+          for p in .ansible/collections ~/.ansible/collections; do
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
           done
-          echo "Verifying collection symlinks:"
-          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
-            echo "--- ${CPATH} ---"
-            ls -la "${CPATH}/omnia/"
-            cat "${CPATH}/omnia/discovery/galaxy.yml" | head -3 || echo "BROKEN"
-            cat "${CPATH}/omnia/orchestrator/galaxy.yml" | head -3 || echo "BROKEN"
-          done
+
+          echo "Installed collections:"
+          ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
+          ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
 
       - name: Verify Ansible config
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
@@ -169,21 +172,23 @@ jobs:
           echo "Created ansible.cfg"
           cat ansible.cfg
 
-      - name: Install local Galaxy collections for FQCN resolution (manual scan)
+      - name: Build and install local Galaxy collections for FQCN resolution (manual scan)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
-            mkdir -p "${CPATH}/omnia"
-            ln -sfn "${PWD}/src/discovery" "${CPATH}/omnia/discovery"
-            ln -sfn "${PWD}/src/orchestrator" "${CPATH}/omnia/orchestrator"
+          mkdir -p /tmp/omnia-collections
+          ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
+          ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
+          echo "Built collections:"
+          ls -la /tmp/omnia-collections/
+
+          for p in .ansible/collections ~/.ansible/collections; do
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
           done
-          echo "Verifying collection symlinks:"
-          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
-            echo "--- ${CPATH} ---"
-            ls -la "${CPATH}/omnia/"
-            cat "${CPATH}/omnia/discovery/galaxy.yml" | head -3 || echo "BROKEN"
-            cat "${CPATH}/omnia/orchestrator/galaxy.yml" | head -3 || echo "BROKEN"
-          done
+
+          echo "Installed collections:"
+          ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
+          ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
 
       - name: Verify Ansible config (manual scan)
         if: github.event_name == 'workflow_dispatch'
