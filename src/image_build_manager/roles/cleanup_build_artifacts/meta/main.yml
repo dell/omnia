@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Dell Omnia Team
+  description: Clean up build artifacts and temporary files from the image build process
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+
+dependencies: []

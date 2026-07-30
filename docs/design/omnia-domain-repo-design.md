@@ -304,6 +304,9 @@ Every domain MUST have a setup role that runs first (tag: `always`). It handles:
 4. **ALL error messages in `vars/main.yml`** — never inline in tasks.
 5. Private variables prefixed with `_` (e.g., `_prereq_checks`).
 6. Each role is self-contained — no cross-role variable leaking.
+7. **Every role MUST have `README.md`** — description, requirements, variables, dependencies, example.
+8. **Every role MUST have `meta/main.yml`** — Galaxy metadata (author, description, license, min_ansible_version).
+9. Galaxy import **fails** if any role is missing `README.md` or `meta/main.yml`.
 
 ---
 
@@ -571,6 +574,8 @@ outputs:
 
 ### Module Structure
 
+Every module under `plugins/modules/*.py` MUST include `DOCUMENTATION`, `EXAMPLES`, and `RETURN` blocks for Galaxy import compliance:
+
 ```python
 #!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
@@ -579,6 +584,36 @@ outputs:
 """Module docstring describing purpose."""
 
 from ansible.module_utils.basic import AnsibleModule
+
+DOCUMENTATION = r'''
+---
+module: my_module
+short_description: One-line summary
+version_added: "3.0.0"
+description:
+  - Detailed description of what the module does.
+options:
+  param1:
+    description: What this parameter controls.
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Example usage
+  omnia.image_build.my_module:
+    param1: value
+  register: result
+'''
+
+RETURN = r'''
+result:
+  description: Operation result.
+  returned: always
+  type: str
+'''
 
 
 def main():
@@ -596,6 +631,8 @@ def main():
 if __name__ == '__main__':
     main()
 ```
+
+> **Galaxy import fails** if any module is missing `DOCUMENTATION`, `EXAMPLES`, or `RETURN`. Validate with: `ansible-doc omnia.<collection>.<module>`
 
 ### Naming
 
@@ -835,6 +872,11 @@ Before submitting a PR, verify:
 - [ ] Copyright header on all source files
 - [ ] `ansible-lint` passes with no errors
 - [ ] Python modules pass `pylint` with score ≥ 8.0
+- [ ] All `plugins/modules/*.py` have `DOCUMENTATION`, `EXAMPLES`, `RETURN` blocks
+- [ ] All `roles/*/README.md` files exist
+- [ ] All `roles/*/meta/main.yml` files exist
+- [ ] `galaxy.yml` tags use `snake_case` (no hyphens)
+- [ ] `ansible-doc` renders correctly for every custom module
 
 ---
 
@@ -984,3 +1026,122 @@ image_build_manager ─── build_status.yml ───▶ orchestrator
 ```
 
 Dependencies are declared in `requirements.yml` for Galaxy resolution but are not hard-linked at the code level.
+
+---
+
+## 20. Ansible Galaxy Import Compliance
+
+Every domain collection MUST pass Galaxy import validation before publishing. The following rules are **mandatory**.
+
+### 20.1 Module Documentation Blocks
+
+Every Python module under `plugins/modules/*.py` MUST contain three documentation string constants:
+
+```python
+DOCUMENTATION = r'''
+---
+module: <module_name>
+short_description: One-line summary
+version_added: "3.0.0"
+description:
+  - Detailed description of what the module does.
+options:
+  param_name:
+    description: What this parameter controls.
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Example usage
+  omnia.image_build.<module_name>:
+    param_name: value
+  register: result
+'''
+
+RETURN = r'''
+return_value:
+  description: What this return value contains.
+  returned: always
+  type: str
+'''
+```
+
+**Rules**:
+- All three blocks (`DOCUMENTATION`, `EXAMPLES`, `RETURN`) are **required** — Galaxy import fails without them.
+- `EXAMPLES` MUST use FQCN (`omnia.<collection>.<module>`) in task names.
+- `RETURN` MUST document every key returned by `module.exit_json()`.
+- Place doc blocks after imports, before the first function definition.
+- Validate locally with `ansible-doc omnia.<collection>.<module>` before publishing.
+
+### 20.2 Role README and Metadata
+
+Every role under `roles/<role_name>/` MUST contain:
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `README.md` | Role description, requirements, variables, example, dependencies | **Yes** |
+| `meta/main.yml` | Galaxy metadata (author, description, license, min_ansible_version) | **Yes** |
+
+**README.md minimum content**:
+```markdown
+# <role_name>
+
+<One-paragraph description>
+
+## Requirements
+
+<List of prerequisites>
+
+## Role Variables
+
+<Key variables or reference to defaults/vars>
+
+## Dependencies
+
+<List of dependent roles or "None">
+
+## Example
+
+```yaml
+- hosts: localhost
+  roles:
+    - <role_name>
+```
+```
+
+**meta/main.yml minimum content**:
+```yaml
+---
+galaxy_info:
+  author: Dell Omnia Team
+  description: <role description>
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+
+dependencies: []
+```
+
+### 20.3 galaxy.yml Tag Rules
+
+- Tags MUST use `snake_case` — **no hyphens** (e.g., `image_build` not `image-build`).
+- Tags MUST be lowercase alphanumeric with underscores only.
+- Galaxy rejects tags with hyphens, spaces, or special characters.
+
+### 20.4 Pre-Publish Validation Checklist
+
+Before running `ansible-galaxy collection build && ansible-galaxy collection publish`:
+
+```text
+[ ] galaxy.yml exists with valid namespace, name, version
+[ ] version incremented from previous publish
+[ ] tags use snake_case (no hyphens)
+[ ] plugins/modules/*.py all have DOCUMENTATION, EXAMPLES, RETURN blocks
+[ ] ansible-doc works for every module
+[ ] roles/*/README.md exists for every role
+[ ] roles/*/meta/main.yml exists for every role
+[ ] build_ignore excludes test files, __pycache__, .git
+[ ] ansible-galaxy collection build succeeds without errors
+```

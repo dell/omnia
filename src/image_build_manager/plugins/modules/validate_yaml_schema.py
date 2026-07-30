@@ -54,9 +54,26 @@ options:
 
 EXAMPLES = r'''
 - name: Validate config.yml against schema
-  validate_yaml_schema:
+  omnia.image_build.validate_yaml_schema:
     yaml_file: /path/to/config.yml
     schema_file: /path/to/config.schema.json
+  register: validation_result
+
+- name: Display validation result
+  ansible.builtin.debug:
+    msg: "Validation {{ 'passed' if validation_result.valid else 'failed' }}"
+'''
+
+RETURN = r'''
+valid:
+  description: Whether the YAML file is valid against the schema.
+  returned: always
+  type: bool
+errors:
+  description: List of validation error messages if validation failed.
+  returned: when validation fails
+  type: list
+  elements: str
 '''
 
 
