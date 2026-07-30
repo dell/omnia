@@ -92,7 +92,6 @@ jobs:
                 FAILED_FILES="$FAILED_FILES\n  - $file (score: $SCORE)"
               fi
             done
-
             echo ""
             echo "==========================================="
             echo "           PYLINT SUMMARY"
@@ -113,80 +112,172 @@ jobs:
       - name: Run pylint full repository scan (manual trigger)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          echo "Running pylint on all Python files in repository"
-          find . \
-            -type f \
-            -name "*.py" \
-            -not -name "__init__.py" \
-            -not -path "./.git/*" \
-            -not -path "./.venv/*" \
-            -not -path "./venv/*" > python-files.txt
-          FILTERED=$(grep -v 'telemetry/files/nersc-ldms-aggr/' python-files.txt || true)
+          echo "Running pylint on all Python files in repository (domain-wise)"
+
+          DOMAINS=(
+            src/repo_manager
+            src/image_build_manager
+            src/discovery
+            src/orchestrator
+            src/telemetry
+            src/utils
+            src/upgrade
+            src/rollback
+            src/build_stream
+          )
 
           > pylint-report.txt
-          echo "Pylint Score Report - Full Repository Scan" >> pylint-report.txt
-          echo "Generated: $(date)" >> pylint-report.txt
-          echo "==========================================" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+          echo "  Pylint Score Report - Full Repository Scan (Domain-Wise)" >> pylint-report.txt
+          echo "  Generated: $(date)" >> pylint-report.txt
+          echo "  Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
           echo "" >> pylint-report.txt
 
-          PASS_COUNT=0
-          FAIL_COUNT=0
-          FAILED_FILES=""
+          TOTAL_PASS=0
+          TOTAL_FAIL=0
+          TOTAL_FILES=0
+          DOMAIN_SUMMARY=""
 
-          for file in $FILTERED; do
-            OUTPUT=$(
-              PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
-            )
-            SCORE=$(
-              echo "$OUTPUT" |
-              grep -oE 'rated at [0-9.-]+/10' |
-              awk '{print $3}' |
-              cut -d/ -f1
-            )
-            SCORE=${SCORE:-0}
-            if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
-              'BEGIN { exit !(score >= threshold) }'
-            then
-              STATUS="PASS"
-              PASS_COUNT=$((PASS_COUNT + 1))
-            else
-              STATUS="FAIL"
-              FAIL_COUNT=$((FAIL_COUNT + 1))
-              FAILED_FILES="$FAILED_FILES\n  - $file (score: $SCORE)"
+          for domain in "${DOMAINS[@]}"; do
+            echo ""
+            echo "=========================================="
+            echo "Scanning domain: $domain"
+            echo "=========================================="
+
+            if [ ! -d "$domain" ]; then
+              echo "WARNING: Directory $domain not found, skipping."
+              echo "[$domain] SKIPPED — directory not found" >> pylint-report.txt
+              echo "" >> pylint-report.txt
+              DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|0|0|0|N/A\n"
+              continue
             fi
-            echo "$file -> $SCORE [$STATUS]" | tee -a pylint-report.txt
+
+            FILES=$(find "$domain" \
+              -type f \
+              -name "*.py" \
+              -not -path "*/.git/*" \
+              -not -path "*/.venv/*" \
+              -not -path "*/venv/*" \
+              -not -name "__init__.py" | \
+              grep -v 'telemetry/files/nersc-ldms-aggr/' || true)
+
+            FILE_COUNT=$(echo "$FILES" | grep -c '.' 2>/dev/null || echo 0)
+
+            if [ -z "$FILES" ] || [ "$FILE_COUNT" -eq 0 ]; then
+              echo "No Python files found in $domain"
+              echo "--------------------------------------------" >> pylint-report.txt
+              echo "DOMAIN: $domain" >> pylint-report.txt
+              echo "  No Python files found" >> pylint-report.txt
+              echo "" >> pylint-report.txt
+              DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|0|0|0|N/A\n"
+              continue
+            fi
+
+            DOMAIN_PASS=0
+            DOMAIN_FAIL=0
+            DOMAIN_FAILED_FILES=""
+
+            echo "--------------------------------------------" >> pylint-report.txt
+            echo "DOMAIN: $domain ($FILE_COUNT files)" >> pylint-report.txt
+            echo "--------------------------------------------" >> pylint-report.txt
+
+            for file in $FILES; do
+              OUTPUT=$(
+                PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
+              )
+              SCORE=$(
+                echo "$OUTPUT" |
+                grep -oE 'rated at [0-9.-]+/10' |
+                awk '{print $3}' |
+                cut -d/ -f1
+              )
+              SCORE=${SCORE:-0}
+
+              if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
+                'BEGIN { exit !(score >= threshold) }'
+              then
+                STATUS="PASS"
+                DOMAIN_PASS=$((DOMAIN_PASS + 1))
+              else
+                STATUS="FAIL"
+                DOMAIN_FAIL=$((DOMAIN_FAIL + 1))
+                DOMAIN_FAILED_FILES="$DOMAIN_FAILED_FILES\n    - $file (score: $SCORE)"
+              fi
+
+              echo "  $file -> $SCORE [$STATUS]" | tee -a pylint-report.txt
+            done
+
+            DOMAIN_TOTAL=$((DOMAIN_PASS + DOMAIN_FAIL))
+            if [ "$DOMAIN_TOTAL" -gt 0 ]; then
+              DOMAIN_RATE=$(awk -v p="$DOMAIN_PASS" -v t="$DOMAIN_TOTAL" \
+                'BEGIN { printf "%.1f", (p/t)*100 }')
+            else
+              DOMAIN_RATE="N/A"
+            fi
+
+            echo "" >> pylint-report.txt
+            echo "  Summary: PASS=$DOMAIN_PASS  FAIL=$DOMAIN_FAIL  Total=$DOMAIN_TOTAL  Pass Rate=${DOMAIN_RATE}%" >> pylint-report.txt
+            if [ "$DOMAIN_FAIL" -gt 0 ]; then
+              echo "  Failed files:" >> pylint-report.txt
+              echo -e "$DOMAIN_FAILED_FILES" >> pylint-report.txt
+            fi
+            echo "" >> pylint-report.txt
+
+            TOTAL_PASS=$((TOTAL_PASS + DOMAIN_PASS))
+            TOTAL_FAIL=$((TOTAL_FAIL + DOMAIN_FAIL))
+            TOTAL_FILES=$((TOTAL_FILES + DOMAIN_TOTAL))
+
+            DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|${DOMAIN_PASS}|${DOMAIN_FAIL}|${DOMAIN_TOTAL}|${DOMAIN_RATE}%\n"
           done
 
-          echo "" >> pylint-report.txt
-          echo "==========================================" >> pylint-report.txt
-          echo "PASS: $PASS_COUNT" >> pylint-report.txt
-          echo "FAIL: $FAIL_COUNT" >> pylint-report.txt
-          echo "Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+          echo "  DOMAIN SUMMARY" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+          printf "  %-30s %6s %6s %6s %10s\n" \
+            "Domain" "Pass" "Fail" "Total" "Pass Rate" >> pylint-report.txt
+          echo "  ------------------------------------------------------------" >> pylint-report.txt
 
-          if [ "$FAIL_COUNT" -gt 0 ]; then
-            echo "" >> pylint-report.txt
-            echo "Files below threshold:" >> pylint-report.txt
-            echo -e "$FAILED_FILES" >> pylint-report.txt
+          echo -e "$DOMAIN_SUMMARY" | while IFS='|' read -r dname dpass dfail dtotal drate; do
+            if [ -n "$dname" ]; then
+              printf "  %-30s %6s %6s %6s %10s\n" \
+                "$dname" "$dpass" "$dfail" "$dtotal" "$drate" >> pylint-report.txt
+            fi
+          done
+
+          echo "  ------------------------------------------------------------" >> pylint-report.txt
+
+          if [ "$TOTAL_FILES" -gt 0 ]; then
+            OVERALL_RATE=$(awk -v p="$TOTAL_PASS" -v t="$TOTAL_FILES" \
+              'BEGIN { printf "%.1f", (p/t)*100 }')
+          else
+            OVERALL_RATE="N/A"
           fi
 
-          echo "==========================================" >> pylint-report.txt
+          printf "  %-30s %6s %6s %6s %10s\n" \
+            "TOTAL" "$TOTAL_PASS" "$TOTAL_FAIL" "$TOTAL_FILES" "${OVERALL_RATE}%" >> pylint-report.txt
+
+          echo "============================================================" >> pylint-report.txt
+          echo "  Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
 
           echo ""
           echo "==========================================="
           echo "           PYLINT SUMMARY"
           echo "==========================================="
-          echo "PASS: $PASS_COUNT"
-          echo "FAIL: $FAIL_COUNT"
-          echo "Threshold: $PYLINT_THRESHOLD"
-          if [ "$FAIL_COUNT" -gt 0 ]; then
+          echo "  PASS:  $TOTAL_PASS"
+          echo "  FAIL:  $TOTAL_FAIL"
+          echo "  TOTAL: $TOTAL_FILES"
+          echo "  Rate:  ${OVERALL_RATE}%"
+          if [ "$TOTAL_FAIL" -gt 0 ]; then
             echo ""
-            echo "Files below threshold ($PYLINT_THRESHOLD):"
-            echo -e "$FAILED_FILES"
+            echo "  $TOTAL_FAIL files scored below threshold $PYLINT_THRESHOLD"
             echo "==========================================="
-            echo "::error::$FAIL_COUNT files scored below threshold $PYLINT_THRESHOLD"
+            echo "::error::$TOTAL_FAIL files across all domains scored below threshold $PYLINT_THRESHOLD"
             exit 1
           else
-            echo "All files passed. No issues found."
+            echo ""
+            echo "  All files passed (>= $PYLINT_THRESHOLD). No issues found."
             echo "==========================================="
           fi
 

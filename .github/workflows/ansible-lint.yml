@@ -1,6 +1,5 @@
 ---
 name: Ansible Lint
-
 on:
   pull_request:
     branches:
@@ -9,19 +8,19 @@ on:
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
-
   workflow_dispatch:
-
 jobs:
   build:
     name: Ansible Lint
     runs-on: ubuntu-latest
     steps:
+      # ─── Common Checkout ───
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # ─── PR: Changed Files Detection ───
       - name: Get changed Ansible files (excluding deleted)
         if: github.event_name == 'pull_request'
         id: changed-files
@@ -30,22 +29,19 @@ jobs:
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD -- \
             '*.yml' '*.yaml' || true)
-
           FILES=""
           for f in $CHANGED; do
             if [ -f "$f" ]; then
               FILES="$FILES $f"
             fi
           done
-
           FILES=$(echo "$FILES" | tr ' ' '\n' | \
             grep -v '^.github/workflows/' || true)
-
-          FILES=$(echo "$FILES" | xargs)
-
+          FILES=$(echo "$FILES" | tr '\n' ' ' | sed 's/^ *//;s/ *$//')
           echo "Filtered files: $FILES"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
+      # ─── PR: Setup ───
       - name: Set up Python
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         uses: actions/setup-python@v5
@@ -60,7 +56,7 @@ jobs:
 
       - name: Cache Ansible collections
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.ansible/collections
           key: ${{ runner.os }}-ansible-collections-${{ hashFiles('.config/requirements.yml') }}
@@ -81,7 +77,7 @@ jobs:
           library = src/repo_manager/plugins/modules:src/image_build_manager/plugins/modules:src/discovery/plugins/modules:src/orchestrator/plugins/modules:src/telemetry/plugins/modules:src/utils/plugins/modules:src/upgrade/plugins/modules:src/rollback/plugins/modules:src/build_stream/plugins/modules
           module_utils = src/repo_manager/plugins/module_utils:src/image_build_manager/plugins/module_utils:src/discovery/plugins/module_utils:src/orchestrator/plugins/module_utils:src/telemetry/plugins/module_utils:src/utils/plugins/module_utils:src/upgrade/plugins/module_utils:src/rollback/plugins/module_utils:src/build_stream/plugins/module_utils
           callback_plugins = src/repo_manager/plugins/callback:src/image_build_manager/plugins/callback:src/discovery/plugins/callback:src/orchestrator/plugins/callback:src/telemetry/plugins/callback:src/utils/plugins/callback:src/upgrade/plugins/callback:src/rollback/plugins/callback:src/build_stream/plugins/callback
-          collections_paths = .:~/.ansible/collections:/usr/share/ansible/collections
+          collections_path = .:~/.ansible/collections:/usr/share/ansible/collections
           interpreter_python = /usr/bin/python3
           EOF
           echo "Created ansible.cfg"
@@ -90,19 +86,15 @@ jobs:
       - name: Build and install local Galaxy collections for FQCN resolution
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
-          # Build collection tarballs from source
           mkdir -p /tmp/omnia-collections
           ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
           ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
           echo "Built collections:"
           ls -la /tmp/omnia-collections/
-
-          # Install to project-local and user-global collection paths
           for p in .ansible/collections ~/.ansible/collections; do
             ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
             ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
           done
-
           echo "Installed collections:"
           ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
           ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
@@ -131,6 +123,7 @@ jobs:
           echo "No Ansible files changed in this PR."
           echo "Skipping ansible-lint."
 
+      # ─── Manual: Setup ───
       - name: Set up Python (manual scan)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/setup-python@v5
@@ -145,7 +138,7 @@ jobs:
 
       - name: Cache Ansible collections (manual scan)
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.ansible/collections
           key: ${{ runner.os }}-ansible-collections-${{ hashFiles('.config/requirements.yml') }}
@@ -166,7 +159,7 @@ jobs:
           library = src/repo_manager/plugins/modules:src/image_build_manager/plugins/modules:src/discovery/plugins/modules:src/orchestrator/plugins/modules:src/telemetry/plugins/modules:src/utils/plugins/modules:src/upgrade/plugins/modules:src/rollback/plugins/modules:src/build_stream/plugins/modules
           module_utils = src/repo_manager/plugins/module_utils:src/image_build_manager/plugins/module_utils:src/discovery/plugins/module_utils:src/orchestrator/plugins/module_utils:src/telemetry/plugins/module_utils:src/utils/plugins/module_utils:src/upgrade/plugins/module_utils:src/rollback/plugins/module_utils:src/build_stream/plugins/module_utils
           callback_plugins = src/repo_manager/plugins/callback:src/image_build_manager/plugins/callback:src/discovery/plugins/callback:src/orchestrator/plugins/callback:src/telemetry/plugins/callback:src/utils/plugins/callback:src/upgrade/plugins/callback:src/rollback/plugins/callback:src/build_stream/plugins/callback
-          collections_paths = .:~/.ansible/collections:/usr/share/ansible/collections
+          collections_path = .:~/.ansible/collections:/usr/share/ansible/collections
           interpreter_python = /usr/bin/python3
           EOF
           echo "Created ansible.cfg"
@@ -180,12 +173,10 @@ jobs:
           ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
           echo "Built collections:"
           ls -la /tmp/omnia-collections/
-
           for p in .ansible/collections ~/.ansible/collections; do
             ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
             ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
           done
-
           echo "Installed collections:"
           ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
           ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
@@ -198,25 +189,166 @@ jobs:
           ansible-config dump | grep DEFAULT_MODULE_PATH
           ansible-config dump | grep DEFAULT_ROLES_PATH
 
-      - name: Run ansible-lint full repository scan
+      # ─── Manual: Domain-Wise Scan ───
+      - name: Run ansible-lint domain-wise repository scan
         if: github.event_name == 'workflow_dispatch'
         env:
           ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
         run: |
-          ansible-lint \
-            --config .config/ansible-lint.yml \
-            src/repo_manager \
-            src/image_build_manager \
-            src/discovery \
-            src/orchestrator \
-            src/telemetry \
-            src/utils \
-            src/upgrade \
-            src/rollback \
-            src/build_stream | tee ansible-lint-report.txt || true
+          echo "Running ansible-lint on all domains (domain-wise)"
+
+          DOMAINS=(
+            src/repo_manager
+            src/image_build_manager
+            src/discovery
+            src/orchestrator
+            src/telemetry
+            src/utils
+            src/upgrade
+            src/rollback
+            src/build_stream
+          )
+
+          > ansible-lint-report.txt
+          echo "============================================================" >> ansible-lint-report.txt
+          echo "  Ansible Lint Report - Full Repository Scan (Domain-Wise)" >> ansible-lint-report.txt
+          echo "  Generated: $(date)" >> ansible-lint-report.txt
+          echo "============================================================" >> ansible-lint-report.txt
+          echo "" >> ansible-lint-report.txt
+
+          TOTAL_PASS=0
+          TOTAL_FAIL=0
+          TOTAL_VIOLATIONS=0
+          TOTAL_FILES=0
+          DOMAIN_SUMMARY=""
+
+          for domain in "${DOMAINS[@]}"; do
+            echo ""
+            echo "=========================================="
+            echo "Scanning domain: $domain"
+            echo "=========================================="
+
+            # Check if domain directory exists
+            if [ ! -d "$domain" ]; then
+              echo "WARNING: Directory $domain not found, skipping."
+              echo "[$domain] SKIPPED — directory not found" >> ansible-lint-report.txt
+              echo "" >> ansible-lint-report.txt
+              DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|SKIPPED|0|0|N/A\n"
+              continue
+            fi
+
+            # Count YAML files in this domain
+            YAML_COUNT=$(find "$domain" -type f \( -name "*.yml" -o -name "*.yaml" \) \
+              -not -path "*/.git/*" | wc -l)
+
+            if [ "$YAML_COUNT" -eq 0 ]; then
+              echo "No YAML files found in $domain"
+              echo "--------------------------------------------" >> ansible-lint-report.txt
+              echo "DOMAIN: $domain" >> ansible-lint-report.txt
+              echo "  No YAML files found" >> ansible-lint-report.txt
+              echo "" >> ansible-lint-report.txt
+              DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|SKIP|0|0|N/A\n"
+              continue
+            fi
+
+            TOTAL_FILES=$((TOTAL_FILES + YAML_COUNT))
+
+            echo "--------------------------------------------" >> ansible-lint-report.txt
+            echo "DOMAIN: $domain ($YAML_COUNT YAML files)" >> ansible-lint-report.txt
+            echo "--------------------------------------------" >> ansible-lint-report.txt
+
+            # Run ansible-lint for this domain and capture exit code
+            LINT_EXIT=0
+            LINT_OUTPUT=$(ansible-lint \
+              --config .config/ansible-lint.yml \
+              -p \
+              "$domain" 2>&1) || LINT_EXIT=$?
+
+            if [ "$LINT_EXIT" -eq 0 ]; then
+              STATUS="PASS"
+              VIOLATION_COUNT=0
+              TOTAL_PASS=$((TOTAL_PASS + 1))
+              echo "  No violations found" >> ansible-lint-report.txt
+            else
+              STATUS="FAIL"
+              # Count violation lines (parseable format: file:line: [rule])
+              VIOLATION_COUNT=$(echo "$LINT_OUTPUT" | \
+                grep -cE '^.+\.ya?ml:[0-9]+' 2>/dev/null || echo 0)
+              # If grep pattern didn't match, count non-empty lines as fallback
+              if [ "$VIOLATION_COUNT" -eq 0 ]; then
+                VIOLATION_COUNT=$(echo "$LINT_OUTPUT" | \
+                  grep -cE '(WARNING|ERROR|violation)' 2>/dev/null || echo 1)
+              fi
+              TOTAL_FAIL=$((TOTAL_FAIL + 1))
+              TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + VIOLATION_COUNT))
+
+              # Write violations to report
+              echo "$LINT_OUTPUT" | head -100 >> ansible-lint-report.txt
+              if [ "$(echo "$LINT_OUTPUT" | wc -l)" -gt 100 ]; then
+                echo "  ... (truncated, showing first 100 lines)" >> ansible-lint-report.txt
+              fi
+            fi
+
+            echo "" >> ansible-lint-report.txt
+            echo "  Result: $STATUS | Violations: $VIOLATION_COUNT | YAML files: $YAML_COUNT" >> ansible-lint-report.txt
+            echo "" >> ansible-lint-report.txt
+
+            echo "$domain -> $STATUS ($VIOLATION_COUNT violations)"
+
+            DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|${STATUS}|${VIOLATION_COUNT}|${YAML_COUNT}\n"
+          done
+
+          # ─── Domain Summary Table ───
+          echo "============================================================" >> ansible-lint-report.txt
+          echo "  DOMAIN SUMMARY" >> ansible-lint-report.txt
+          echo "============================================================" >> ansible-lint-report.txt
+          printf "  %-30s %8s %12s %12s\n" \
+            "Domain" "Status" "Violations" "YAML Files" >> ansible-lint-report.txt
+          echo "  ------------------------------------------------------------" >> ansible-lint-report.txt
+
+          echo -e "$DOMAIN_SUMMARY" | while IFS='|' read -r dname dstatus dviolations dfiles; do
+            if [ -n "$dname" ]; then
+              printf "  %-30s %8s %12s %12s\n" \
+                "$dname" "$dstatus" "$dviolations" "$dfiles" >> ansible-lint-report.txt
+            fi
+          done
+
+          echo "  ------------------------------------------------------------" >> ansible-lint-report.txt
+
+          DOMAIN_COUNT=$((TOTAL_PASS + TOTAL_FAIL))
+          if [ "$DOMAIN_COUNT" -gt 0 ]; then
+            PASS_RATE=$(awk -v p="$TOTAL_PASS" -v t="$DOMAIN_COUNT" \
+              'BEGIN { printf "%.1f", (p/t)*100 }')
+          else
+            PASS_RATE="N/A"
+          fi
+
+          printf "  %-30s %8s %12s %12s\n" \
+            "TOTAL" "${PASS_RATE}%" "$TOTAL_VIOLATIONS" "$TOTAL_FILES" >> ansible-lint-report.txt
+
+          echo "============================================================" >> ansible-lint-report.txt
+          echo "  Domains passed: $TOTAL_PASS / $DOMAIN_COUNT" >> ansible-lint-report.txt
+          echo "  Total violations: $TOTAL_VIOLATIONS" >> ansible-lint-report.txt
+          echo "  Total YAML files scanned: $TOTAL_FILES" >> ansible-lint-report.txt
+          echo "============================================================" >> ansible-lint-report.txt
+
+          # ─── Console Summary ───
+          echo ""
+          echo "=============================="
+          echo "  FINAL RESULTS"
+          echo "  Domains PASS: $TOTAL_PASS"
+          echo "  Domains FAIL: $TOTAL_FAIL"
+          echo "  Total Violations: $TOTAL_VIOLATIONS"
+          echo "  Pass Rate: ${PASS_RATE}%"
+          echo "=============================="
+
+          if [ "$TOTAL_FAIL" -gt 0 ]; then
+            echo "::error::$TOTAL_FAIL domains have ansible-lint violations ($TOTAL_VIOLATIONS total)"
+            exit 1
+          fi
 
       - name: Upload ansible-lint report
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && always()
         uses: actions/upload-artifact@v4
         with:
           name: ansible-lint-report
