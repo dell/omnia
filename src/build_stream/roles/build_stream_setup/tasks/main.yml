@@ -80,6 +80,7 @@
 
 # --- Step 2: Load omnia project config ---
 - name: Load omnia project config file
+  when: not (standalone_mode | default(false) | bool)
   block:
     - name: Include omnia project config file
       ansible.builtin.include_vars: "{{ omnia_input_config_file }}"
@@ -88,7 +89,6 @@
     - name: Failed to include omnia project config file
       ansible.builtin.fail:
         msg: "{{ omnia_input_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
-  when: not (standalone_mode | default(false) | bool)
 
 - name: Set input_project_dir and output_project_dir
   ansible.builtin.set_fact:
