@@ -29,6 +29,10 @@
     name: existing_status
   failed_when: false
 
+- name: Calculate BMC server count
+  ansible.builtin.set_fact:
+    _bmc_count: "{{ (telemetry_config.idrac_telemetry_configurations.oim_bmc_ips | dict2items | selectattr('value', 'ne', '') | list | length) | default(0) }}"
+
 - name: Update telemetry status with iDRAC result
   ansible.builtin.copy:
     dest: "{{ telemetry_status_file }}"
@@ -49,7 +53,7 @@
         idrac:
           deployed: true
           version: "{{ idrac_telemetry_receiver_image | default('') }}"
-          bmc_servers_configured: {{ (telemetry_config.idrac_telemetry_configurations.oim_bmc_ips | dict2items | selectattr('value', 'ne', '') | list | length) | default(0) }}  # noqa: yaml[line-length]
+          bmc_servers_configured: {{ _bmc_count }}
         ldms:
           deployed: {{ existing_status.telemetry_state.ldms.deployed | default(false) }}
         powerscale:

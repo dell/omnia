@@ -87,7 +87,7 @@
     dest: "{{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml"
     mode: "{{ victoria_file_mode }}"
     force: true
-  ignore_errors: true
+  failed_when: false
 
 - name: Generate VMCluster CR manifest
   ansible.builtin.template:
