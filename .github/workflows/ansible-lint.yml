@@ -87,20 +87,22 @@ jobs:
           echo "Created ansible.cfg"
           cat ansible.cfg
 
-      - name: Create collection symlinks for FQCN resolution
+      - name: Install local Galaxy collections for FQCN resolution
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
-          # Symlinks for ansible.cfg collections_paths = .
-          mkdir -p ansible_collections/omnia
-          ln -sfn ../../src/discovery ansible_collections/omnia/discovery
-          ln -sfn ../../src/orchestrator ansible_collections/omnia/orchestrator
-          # Symlinks for ansible-lint action's ANSIBLE_COLLECTIONS_PATH (.ansible/collections)
-          mkdir -p .ansible/collections/ansible_collections/omnia
-          ln -sfn ../../../../src/discovery .ansible/collections/ansible_collections/omnia/discovery
-          ln -sfn ../../../../src/orchestrator .ansible/collections/ansible_collections/omnia/orchestrator
-          echo "Created collection symlinks:"
-          ls -la ansible_collections/omnia/
-          ls -la .ansible/collections/ansible_collections/omnia/
+          # Install collections from local source into all possible collection paths
+          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
+            mkdir -p "${CPATH}/omnia"
+            ln -sfn "${PWD}/src/discovery" "${CPATH}/omnia/discovery"
+            ln -sfn "${PWD}/src/orchestrator" "${CPATH}/omnia/orchestrator"
+          done
+          echo "Verifying collection symlinks:"
+          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
+            echo "--- ${CPATH} ---"
+            ls -la "${CPATH}/omnia/"
+            cat "${CPATH}/omnia/discovery/galaxy.yml" | head -3 || echo "BROKEN"
+            cat "${CPATH}/omnia/orchestrator/galaxy.yml" | head -3 || echo "BROKEN"
+          done
 
       - name: Verify Ansible config
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
@@ -167,18 +169,21 @@ jobs:
           echo "Created ansible.cfg"
           cat ansible.cfg
 
-      - name: Create collection symlinks for FQCN resolution (manual scan)
+      - name: Install local Galaxy collections for FQCN resolution (manual scan)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          mkdir -p ansible_collections/omnia
-          ln -sfn ../../src/discovery ansible_collections/omnia/discovery
-          ln -sfn ../../src/orchestrator ansible_collections/omnia/orchestrator
-          mkdir -p .ansible/collections/ansible_collections/omnia
-          ln -sfn ../../../../src/discovery .ansible/collections/ansible_collections/omnia/discovery
-          ln -sfn ../../../../src/orchestrator .ansible/collections/ansible_collections/omnia/orchestrator
-          echo "Created collection symlinks:"
-          ls -la ansible_collections/omnia/
-          ls -la .ansible/collections/ansible_collections/omnia/
+          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
+            mkdir -p "${CPATH}/omnia"
+            ln -sfn "${PWD}/src/discovery" "${CPATH}/omnia/discovery"
+            ln -sfn "${PWD}/src/orchestrator" "${CPATH}/omnia/orchestrator"
+          done
+          echo "Verifying collection symlinks:"
+          for CPATH in ansible_collections .ansible/collections/ansible_collections ~/.ansible/collections/ansible_collections; do
+            echo "--- ${CPATH} ---"
+            ls -la "${CPATH}/omnia/"
+            cat "${CPATH}/omnia/discovery/galaxy.yml" | head -3 || echo "BROKEN"
+            cat "${CPATH}/omnia/orchestrator/galaxy.yml" | head -3 || echo "BROKEN"
+          done
 
       - name: Verify Ansible config (manual scan)
         if: github.event_name == 'workflow_dispatch'
