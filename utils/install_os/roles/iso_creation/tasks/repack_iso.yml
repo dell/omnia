@@ -19,6 +19,12 @@
     dest: "{{ grub_cfg_path }}"
     mode: "0644"
 
+- name: Remove existing repacked ISO if rebuilding
+  ansible.builtin.file:
+    path: "{{ repacked_iso_path }}"
+    state: absent
+  when: rebuild_iso | bool
+
 - name: Repack ISO with xorrisofs
   ansible.builtin.command: >-
     xorrisofs
