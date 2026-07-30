@@ -15,19 +15,19 @@
 # limitations under the License.
 
 # =============================================================================
-# build_images.sh — BuildStream Container Build (Self-Contained)
+# build_images.sh — Orchestrator Container Build (Self-Contained)
 # =============================================================================
-# Builds the omnia_build_stream container (FastAPI build automation + S3).
+# Builds the omnia_auth container (OpenLDAP authentication service).
 #
 # Usage:
 #   ./build_images.sh                                        # Build (default)
-#   ./build_images.sh build_stream_tag=1.2                   # Custom tag
-#   ./build_images.sh build_tool=docker                      # Use docker
-#   ./build_images.sh build_tool=docker build_action=push    # Push to registry
-#   ./build_images.sh registry=myregistry.io/myrepo          # Custom registry
+#   ./build_images.sh auth_tag=1.2                            # Custom tag
+#   ./build_images.sh build_tool=docker                       # Use docker
+#   ./build_images.sh build_tool=docker build_action=push     # Push to registry
+#   ./build_images.sh registry=myregistry.io/myrepo           # Custom registry
 #
 # Parameters:
-#   build_stream_tag=<tag>     Image tag (default: 1.1)
+#   auth_tag=<tag>             Image tag (default: 1.1)
 #   build_tool=<tool>          podman | docker (default: podman)
 #   build_action=<action>      load | push (default: load)
 #   registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)
@@ -49,21 +49,21 @@ NC='\033[0m'
 # Show help
 # =============================================================================
 show_help() {
-    echo -e "${GREEN}BuildStream Container Build Script${NC}"
+    echo -e "${GREEN}Orchestrator Container Build Script${NC}"
     echo -e "${GREEN}======================================${NC}"
     echo ""
     echo -e "${BLUE}USAGE:${NC}"
     echo "  ./build_images.sh [parameters]"
     echo ""
     echo -e "${BLUE}PARAMETERS (key=value format):${NC}"
-    echo "  build_stream_tag=<tag>     Image tag (default: 1.1)"
+    echo "  auth_tag=<tag>             Image tag (default: 1.1)"
     echo "  build_tool=<tool>          podman | docker (default: podman)"
     echo "  build_action=<action>      load | push (default: load)"
     echo "  registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)"
     echo ""
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
-    echo "  ./build_images.sh build_stream_tag=1.2"
+    echo "  ./build_images.sh auth_tag=1.2"
     echo "  ./build_images.sh build_tool=docker"
     echo "  ./build_images.sh build_tool=docker build_action=push"
     echo "  ./build_images.sh registry=myregistry.io/myrepo"
@@ -71,7 +71,7 @@ show_help() {
     echo -e "${BLUE}NOTES:${NC}"
     echo "  - build_action=push requires build_tool=docker"
     echo "  - Default registry: docker.io/dellhpcomniaaisolution"
-    echo "  - Builds the omnia_build_stream container (FastAPI + S3)"
+    echo "  - Builds the omnia_auth container (OpenLDAP)"
     exit 0
 }
 
@@ -81,23 +81,23 @@ show_help() {
 BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
-BUILD_STREAM_TAG="1.1"
+AUTH_TAG="1.1"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
 # =============================================================================
 for arg in "$@"; do
     case "$arg" in
-        build_tool=*)          BUILD_TOOL="${arg#*=}" ;;
-        build_action=*)        BUILD_ACTION="${arg#*=}" ;;
-        registry=*)            OMNIA_DOCKER_REGISTERY="${arg#*=}" ;;
-        build_stream_tag=*)    BUILD_STREAM_TAG="${arg#*=}" ;;
+        build_tool=*)      BUILD_TOOL="${arg#*=}" ;;
+        build_action=*)    BUILD_ACTION="${arg#*=}" ;;
+        registry=*)        OMNIA_DOCKER_REGISTERY="${arg#*=}" ;;
+        auth_tag=*)        AUTH_TAG="${arg#*=}" ;;
         -h|--help)
             show_help
             ;;
         *)
             echo -e "${RED}Error: Unknown parameter '$arg'${NC}"
-            echo -e "${YELLOW}Valid: build_stream_tag, build_tool, build_action, registry${NC}"
+            echo -e "${YELLOW}Valid: auth_tag, build_tool, build_action, registry${NC}"
             exit 1
             ;;
     esac
@@ -122,33 +122,33 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
 fi
 
 # =============================================================================
-# Build omnia_build_stream container
+# Build omnia_auth container
 # =============================================================================
 echo -e "${GREEN}=======================================${NC}"
-echo -e "${GREEN} BuildStream — Container Build         ${NC}"
+echo -e "${GREEN} Orchestrator — Container Build        ${NC}"
 echo -e "${GREEN}=======================================${NC}"
 echo -e "${BLUE}Build tool:   ${BUILD_TOOL}${NC}"
 echo -e "${BLUE}Build action: ${BUILD_ACTION}${NC}"
-echo -e "${BLUE}Tag:          ${BUILD_STREAM_TAG}${NC}"
+echo -e "${BLUE}Tag:          ${AUTH_TAG}${NC}"
 echo ""
 
-BUILD_DIR="${SCRIPT_DIR}/omnia_build_stream"
+BUILD_DIR="${SCRIPT_DIR}/omnia_auth"
 
 cd "$BUILD_DIR" || exit 1
 
 BUILD_RESULT=0
 
 if [ "$BUILD_TOOL" = "podman" ]; then
-    podman build --format docker -t "omnia_build_stream:${BUILD_STREAM_TAG}" -f "Containerfile" .
+    podman build --format docker -t "omnia_auth:${AUTH_TAG}" -f "Containerfile" .
     BUILD_RESULT=$?
 elif [ "$BUILD_TOOL" = "docker" ]; then
     if [ "$BUILD_ACTION" = "load" ]; then
-        docker buildx build --no-cache -t "omnia_build_stream:${BUILD_STREAM_TAG}" \
+        docker buildx build --no-cache -t "omnia_auth:${AUTH_TAG}" \
             --file "Containerfile" --platform "linux/amd64" --network=host --load .
         BUILD_RESULT=$?
     elif [ "$BUILD_ACTION" = "push" ]; then
         docker buildx build --no-cache \
-            -t "${OMNIA_DOCKER_REGISTERY}/omnia_build_stream:${BUILD_STREAM_TAG}" \
+            -t "${OMNIA_DOCKER_REGISTERY}/omnia_auth:${AUTH_TAG}" \
             --file "Containerfile" --platform "linux/amd64" --network=host \
             --provenance=true --sbom=true --push .
         BUILD_RESULT=$?
@@ -158,11 +158,11 @@ fi
 cd - > /dev/null || exit 1
 
 if [ $BUILD_RESULT -eq 0 ]; then
-    echo -e "\n${GREEN}omnia_build_stream:${BUILD_STREAM_TAG} built successfully.${NC}"
+    echo -e "\n${GREEN}omnia_auth:${AUTH_TAG} built successfully.${NC}"
     if [ "$BUILD_TOOL" = "docker" ] && [ "$BUILD_ACTION" = "push" ]; then
-        echo -e "${GREEN}Pushed: ${OMNIA_DOCKER_REGISTERY}/omnia_build_stream:${BUILD_STREAM_TAG}${NC}"
+        echo -e "${GREEN}Pushed: ${OMNIA_DOCKER_REGISTERY}/omnia_auth:${AUTH_TAG}${NC}"
     fi
 else
-    echo -e "\n${RED}omnia_build_stream:${BUILD_STREAM_TAG} build FAILED.${NC}"
+    echo -e "\n${RED}omnia_auth:${AUTH_TAG} build FAILED.${NC}"
     exit 1
 fi
