@@ -73,12 +73,12 @@ telemetry_registry:
 # Provide complete URL including the .tar.gz filename.
 #
 # Example:
-#   http://<admin_nic_ip>:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-1.0.1/strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz  # noqa yaml[line-length]
+#   http://<admin_nic_ip>:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-1.0.1/strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz  # noqa: yaml[line-length]
 
 telemetry_packages:
   # Helm chart tarballs (required for operator deployment)
-  strimzi_kafka_operator: "https://182.11.5.100:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-helm-3-chart-1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz"  # noqa yaml[line-length]
-  victoria_metrics_operator: "https://182.11.5.100:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tar.gz"  # noqa yaml[line-length]
+  strimzi_kafka_operator: "https://182.11.5.100:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-helm-3-chart-1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz"  # noqa: yaml[line-length]
+  victoria_metrics_operator: "https://182.11.5.100:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/10.0/tarball/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tar.gz"  # noqa: yaml[line-length]
 
   # Python pip modules (if any telemetry components need them)
   cryptography: ""
