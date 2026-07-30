@@ -1,7 +1,11 @@
 # Dataset: data_set_01
 
-Default dataset for image_build_manager test automation.
-Contains the input files and repo_manager output that the playbook needs.
+Default dataset for `image_build_manager` test automation.
+Contains input files and repo_manager output synced to the target server.
+
+In monorepo mode, host settings (hostname, IP, domain) come from
+**environment variables** on the target (set via `omnia.env` / `omnia.sh -s`),
+not from a `config.yml`.
 
 ---
 
@@ -9,10 +13,9 @@ Contains the input files and repo_manager output that the playbook needs.
 
 ```
 data_set_01/
-├── input/                              # Synced to target: <clone_path>/src/input/<project>/
-│   ├── config.yml                      # Host and project settings (also synced to <clone_path>/config.yml)
+├── input/                              # Synced to: <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
 │   ├── image_build_config.yml          # Image build domain configuration
-│   └── image_build_credentials.yml     # S3 and provision credentials (Vault-encrypted)
+│   └── image_build_credentials.yml     # S3 credentials (Vault-encrypted)
 └── repo_manager_output/                # Synced to repo_manager_output_dir (from image_build_config.yml)
     ├── repo_status.yml                 # RPM repo URLs, OS version, cert paths
     ├── functional_group_packages.yml   # Package lists per functional group
@@ -20,20 +23,6 @@ data_set_01/
         ├── pulp_webserver.crt
         └── pulp_webserver.key
 ```
-
----
-
-## input/config.yml
-
-Top-level build configuration (legacy — monorepo uses env vars instead).
-
-| Field | Description | Example |
-|-------|-------------|---------|
-| `project_name` | Project name for input/output paths | `project_default` |
-| `host.hostname` | Short hostname (NOT FQDN) | `oim` |
-| `host.shared_path` | Persistent storage for MinIO, registry, logs | `/opt/omnia/image_build_manager` |
-| `host.domain_name` | Domain suffix. Registry = hostname.domain:5000 | `omnia.cluster` |
-| `host.admin_nic_ip` | Admin NIC IP — Pulp and S3 endpoint | `<your_ip>` |
 
 ---
 
@@ -59,7 +48,7 @@ Credentials for S3 and provisioning. **Reset to empty before committing.**
 |-------|-------------|
 | `s3_access_id` | S3 access key ID |
 | `s3_secret_key` | S3 secret key |
-| `provision_password` | SSH password for ARM build host (aarch64 only) |
+| `aarch64_ssh_password` | SSH password for ARM build host (aarch64 only) |
 
 ---
 
@@ -79,8 +68,8 @@ Synced to the path specified by `repo_manager_output_dir` in `image_build_config
 
 | Config | Target Path |
 |--------|-------------|
-| `sync_image_build_input: true` | `input/` → `<clone_path>/src/input/<project_name>/` |
-| `sync_output: true` | `repo_manager_output/` → `<repo_manager_output_dir>/` (default: `/opt/omnia/repo_manager/output/<project_name>/`) |
+| `sync_image_build_input: true` | `input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/` |
+| `sync_output: true` | `repo_manager_output/` → `<repo_manager_output_dir>/` (default: `/opt/omnia/repo_manager/output/<project>/`) |
 
 > **Note:** If the target server already has repo_manager output,
 > set `sync_output: false` in `test_config.yml`.

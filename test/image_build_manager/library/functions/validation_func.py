@@ -56,7 +56,6 @@ REQUIRED_FIELDS = [
 ]
 
 REQUIRED_DATASET_FILES = [
-    "input/config.yml",
     "input/image_build_config.yml",
     "input/image_build_credentials.yml",
 ]

@@ -1,4 +1,4 @@
-# Image Build Manager — Test Automation (Monorepo)
+# Image Build Manager — Test Automation
 
 Functional Verification Testing (FVT) for the `image_build_manager` domain
 inside the **omnia monorepo**. Validates playbook deployment, container
@@ -15,92 +15,64 @@ connection, playbook runner, report generation, formatting).
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
 | Python | 3.12+ | `python3 --version` |
-| `omnia-auto` | latest wheel | `pip install /path/to/omnia_auto-*.whl` |
-| Passwordless SSH | — | To target server (if remote mode) |
+| `sshpass` | — | `yum install sshpass` (only if password-based SSH) |
+| Ansible | 2.15+ | Installed automatically by `setup_env.sh` |
 
-### Target Server Environment Variables
+### Target Server Setup
 
-The monorepo playbooks read configuration from **environment variables** on
-the target host (not from a `config.yml`). These must be exported before
-running the playbook:
+Before running tests, the target server must have the omnia environment
+configured. This is done via `omnia.sh` in `src/main/`:
 
 ```bash
-export OMNIA_DATA_PATH=/opt/omnia
-export OMNIA_PROJECT_NAME=project_default
-export SYSTEM_ADMIN_NIC_IPV4=<admin_nic_ip>
-export SYSTEM_HOSTNAME=<short_hostname>
-export SYSTEM_DOMAIN_NAME=<domain>
+# On the target server:
+cd <omnia_repo>/src/main/
+vi omnia.env                  # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
+./omnia.sh -s                 # Installs env vars system-wide + creates venv
 ```
 
-The test framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
-target at runtime to resolve the correct input sync path.
+After `omnia.sh -s`, the following environment variables are available on
+every login shell (via `/etc/profile.d/omnia-env.sh`):
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SYSTEM_ADMIN_NIC_IPV4` | **Yes** | — | Admin NIC IP (Pulp, S3, registry endpoint) |
+| `OMNIA_DATA_PATH` | No | `/opt/omnia` | Root data directory for all Omnia data |
+| `OMNIA_PROJECT_NAME` | No | `project_default` | Project name for input/output paths |
+| `SYSTEM_HOSTNAME` | No | `oim` | Short hostname of the OIM host |
+| `SYSTEM_DOMAIN_NAME` | No | `omnia.cluster` | Domain name of the OIM host |
+
+The test framework reads these from the target at runtime (sourcing
+`/etc/omnia/omnia.env`) to resolve input sync paths and playbook parameters.
 
 ---
 
-## Quick Start
+## Setup
 
 ```bash
-# 1 — Enter test directory
+# Step 1 — Enter the test directory
 cd omnia/test/image_build_manager/
 
-# 2 — Create venv and install dependencies
+# Step 2 — Run setup (creates .venv, installs Python deps + omnia-auto)
 bash setup_env.sh
 
-# 3 — Activate and configure
+# Step 3 — Activate the virtual environment
 source .venv/bin/activate
-vi test_config.yml       # Set oim_server_ip, clone_path
+
+# Step 4 — Install the omnia-auto package
+pip install /path/to/omnia_auto-1.0.0-py3-none-any.whl
+
+# Step 5 — Configure the test
+vi test_config.yml       # Set oim_server_ip and clone_path
 vi test_creds.yml        # Set oim_password (auto-encrypted on first run)
 
-# 4 — Edit dataset input files
+# Step 6 — Edit dataset input files
 vi datasets/data_set_01/input/image_build_config.yml
-vi datasets/data_set_01/input/config.yml
-
-# 5 — Run tests
-./run_validation.sh image_build_manager verify --marker sanity
+vi datasets/data_set_01/input/image_build_credentials.yml
 ```
 
 ---
 
-## Configuration
-
-| File | Purpose |
-|------|---------|
-| `test_config.yml` | Target server, sync settings, dataset, report options |
-| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) |
-| `test_run_config.yml` | Batch execution: scenario order, markers, suites |
-
-### Execution Modes
-
-- **Local mode** (`oim_server_ip: ""`): Tests run on the current machine.
-- **Remote mode** (`oim_server_ip: "<IP>"`): Tests run against a remote server via SSH.
-
-### How Sync Works (Remote Mode)
-
-On session startup the framework performs:
-
-1. **Project sync** — rsyncs the local omnia monorepo to `clone_path` on the target
-2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` env vars from the target, then syncs `datasets/<dataset>/input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<OMNIA_PROJECT_NAME>/`
-3. **Repo manager output sync** (optional) — syncs `datasets/<dataset>/repo_manager_output/` to the target's repo_manager output directory
-
-### Datasets
-
-Input files live in `datasets/data_set_01/`:
-
-```
-datasets/data_set_01/
-├── input/
-│   ├── config.yml                    # Host/project settings (legacy, optional)
-│   ├── image_build_config.yml        # Image build domain configuration
-│   └── image_build_credentials.yml   # Vault-encrypted S3 credentials
-└── repo_manager_output/
-    ├── repo_status.yml               # RPM repo URLs, cert paths
-    ├── functional_group_packages.yml # Package lists per functional group
-    └── certs/                        # Pulp TLS certificates
-```
-
----
-
-## Usage
+## Running Tests
 
 ```
 ./run_validation.sh <scenario> <command> [options]
@@ -136,9 +108,7 @@ datasets/data_set_01/
 | `--debug` | Full debug output (pytest -vvs) |
 | `-v, --verbose` | Increase pytest verbosity |
 
----
-
-## Typical Workflow
+### Typical Workflow
 
 ```bash
 ./run_validation.sh cleanup test                                # 1. Clean previous state
@@ -147,6 +117,46 @@ datasets/data_set_01/
 ./run_validation.sh build test --marker x86_64                  # 4. Build images
 ./run_validation.sh image_build_manager verify --marker sanity  # 5. Full verification
 ```
+
+---
+
+## Configuration
+
+| File | Purpose |
+|------|---------|
+| `test_config.yml` | Target server IP, sync settings, dataset, report options |
+| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) |
+| `test_run_config.yml` | Batch execution: scenario order, markers, suites |
+
+### Execution Modes
+
+- **Local mode** (`oim_server_ip: ""`): Tests run on the current machine.
+- **Remote mode** (`oim_server_ip: "<IP>"`): Tests run against a remote server via SSH.
+
+### How Sync Works (Remote Mode)
+
+On session startup the framework performs:
+
+1. **Project sync** — rsyncs the local omnia monorepo to `clone_path` on the target
+2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env`, creates the target directory if needed, then syncs `datasets/<dataset>/input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
+3. **Repo manager output sync** (optional) — syncs `datasets/<dataset>/repo_manager_output/` to the target's repo_manager output directory
+
+### Datasets
+
+Input files live in `datasets/data_set_01/`:
+
+```
+datasets/data_set_01/
+├── input/
+│   ├── image_build_config.yml        # Image build domain configuration
+│   └── image_build_credentials.yml   # S3 credentials (Vault-encrypted)
+└── repo_manager_output/
+    ├── repo_status.yml               # RPM repo URLs, cert paths
+    ├── functional_group_packages.yml # Package lists per functional group
+    └── certs/                        # Pulp TLS certificates
+```
+
+See [`datasets/data_set_01/README.md`](datasets/data_set_01/README.md) for field details.
 
 ---
 
@@ -194,7 +204,7 @@ test/image_build_manager/
 │
 ├── datasets/                    # Test input datasets
 │   └── data_set_01/
-│       ├── input/               # image_build_config, credentials, config
+│       ├── input/               # image_build_config, credentials
 │       └── repo_manager_output/ # repo_status, packages, certs
 │
 ├── library/                     # Reusable automation library
@@ -228,7 +238,9 @@ test/image_build_manager/
 | Area | Old (multi-repo) | New (monorepo) |
 |------|-------------------|----------------|
 | **Code delivery** | `git clone` on target | `rsync` project to target |
-| **Config source** | `config.yml` at repo root | Environment variables on target |
+| **Config source** | `config.yml` in dataset | Environment variables on target (`omnia.env`) |
+| **Env var setup** | N/A | `omnia.sh -s` installs to `/etc/omnia/omnia.env` |
 | **Input sync dest** | `<clone_path>/src/input/<project>/` | `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/` |
 | **Playbook workdir** | `src/` | `src/image_build_manager/playbooks/` |
 | **Common utilities** | Inline library | `omnia-auto` pip package |
+| **Dir creation** | Manual | Auto-created by framework before sync |
