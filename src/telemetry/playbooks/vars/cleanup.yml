@@ -95,118 +95,101 @@ kafka_pod_labels:
 # ---------------------------------------------------------------------------
 # VictoriaMetrics cleanup resources
 # ---------------------------------------------------------------------------
-victoria_metrics_crd_resources:
-  - { type: "vmcluster", name: "victoria-cluster" }
-
-victoria_metrics_crd_all_resources:
-  - "vmagent"
-  - "vmpodscrape"
-  - "vmservicescrape"
-  - "vmsingle"
-
-victoria_metrics_cluster_resources:
-  - { type: "deployment", name: "vmselect-victoria-cluster" }
-  - { type: "deployment", name: "vminsert-victoria-cluster" }
-  - { type: "statefulset", name: "vmstorage-victoria-cluster" }
-  - { type: "service", name: "vmselect-victoria-cluster" }
-  - { type: "service", name: "vminsert-victoria-cluster" }
-  - { type: "service", name: "vmstorage-victoria-cluster" }
-  - { type: "service", name: "vmagent-victoria-cluster" }
-
-victoria_metrics_single_resources:
-  - { type: "statefulset", name: "victoria-metric" }
-  - { type: "service", name: "victoria-loadbalancer" }
-  - { type: "service", name: "victoria-metric" }
-
-victoria_metrics_agent_resources:
-  - { type: "deployment", name: "vmagent" }
-  - { type: "service", name: "vmagent" }
-
-victoria_metrics_shared_resources:
-  - { type: "configmap", name: "vmagent-config" }
-  - { type: "configmap", name: "vmagent-scrape-config" }
-  - { type: "configmap", name: "victoria-metric-config" }
-  - { type: "configmap", name: "victoria-tls-test-script" }
-  - { type: "serviceaccount", name: "vmagent" }
-  - { type: "role", name: "vmagent-sd" }
-  - { type: "rolebinding", name: "vmagent-sd-binding" }
-
-# victoria-tls-certs is shared between VictoriaMetrics and VictoriaLogs.
-# Only delete when cleaning VM. If VL is still running, VL cleanup keeps it.
-victoria_tls_secret_resource:
-  - { type: "secret", name: "victoria-tls-certs" }
-
-victoria_metrics_job_resources:
-  - "victoria-tls-test"
-
-victoria_metrics_single_pvc:
-  - "victoria-metrics-pvc-victoria-metric-0"
-
-victoria_metrics_pvc_labels:
-  - "app=victoria-metric"
-  - "app.kubernetes.io/instance=victoria-cluster"
-
-# vmagent-vector write-buffer (used by vector-ldms to push metrics to VM)
-# Cleaned with VM because it is the VM-side write adapter
-vmagent_vector_resources:
-  - { type: "deployment", name: "vmagent-vector" }
-  - { type: "service", name: "vmagent-vector" }
-
-victoria_metrics_pod_labels:
-  - "app=victoria-metric"
-  - "app.kubernetes.io/instance=victoria-cluster"
-  - "app.kubernetes.io/name=vmagent"
-  - "app=vmagent"
-  - "app=victoria-tls-test"
-  - "app=vmagent-vector"
+victoria_metrics:
+  crd_resources:
+    - { type: "vmcluster", name: "victoria-cluster" }
+  crd_all_resources:
+    - "vmagent"
+    - "vmpodscrape"
+    - "vmservicescrape"
+    - "vmsingle"
+  cluster_resources:
+    - { type: "deployment", name: "vmselect-victoria-cluster" }
+    - { type: "deployment", name: "vminsert-victoria-cluster" }
+    - { type: "statefulset", name: "vmstorage-victoria-cluster" }
+    - { type: "service", name: "vmselect-victoria-cluster" }
+    - { type: "service", name: "vminsert-victoria-cluster" }
+    - { type: "service", name: "vmstorage-victoria-cluster" }
+    - { type: "service", name: "vmagent-victoria-cluster" }
+  single_resources:
+    - { type: "statefulset", name: "victoria-metric" }
+    - { type: "service", name: "victoria-loadbalancer" }
+    - { type: "service", name: "victoria-metric" }
+  agent_resources:
+    - { type: "deployment", name: "vmagent" }
+    - { type: "service", name: "vmagent" }
+  shared_resources:
+    - { type: "configmap", name: "vmagent-config" }
+    - { type: "configmap", name: "vmagent-scrape-config" }
+    - { type: "configmap", name: "victoria-metric-config" }
+    - { type: "configmap", name: "victoria-tls-test-script" }
+    - { type: "serviceaccount", name: "vmagent" }
+    - { type: "role", name: "vmagent-sd" }
+    - { type: "rolebinding", name: "vmagent-sd-binding" }
+  # victoria-tls-certs is shared between VictoriaMetrics and VictoriaLogs.
+  # Only delete when cleaning VM. If VL is still running, VL cleanup keeps it.
+  tls_secret_resource:
+    - { type: "secret", name: "victoria-tls-certs" }
+  job_resources:
+    - "victoria-tls-test"
+  single_pvc:
+    - "victoria-metrics-pvc-victoria-metric-0"
+  pvc_labels:
+    - "app=victoria-metric"
+    - "app.kubernetes.io/instance=victoria-cluster"
+  # vmagent-vector write-buffer (used by vector-ldms to push metrics to VM)
+  # Cleaned with VM because it is the VM-side write adapter
+  vmagent_vector_resources:
+    - { type: "deployment", name: "vmagent-vector" }
+    - { type: "service", name: "vmagent-vector" }
+  pod_labels:
+    - "app=victoria-metric"
+    - "app.kubernetes.io/instance=victoria-cluster"
+    - "app.kubernetes.io/name=vmagent"
+    - "app=vmagent"
+    - "app=victoria-tls-test"
+    - "app=vmagent-vector"
 
 # ---------------------------------------------------------------------------
 # VictoriaLogs cleanup resources
 # ---------------------------------------------------------------------------
-victoria_logs_crd_resources:
-  - { type: "vlcluster", name: "victoria-logs-cluster" }
-
-victoria_logs_crd_all_resources:
-  - "vlagent"
-
-victoria_logs_cluster_resources:
-  - { type: "deployment", name: "vlinsert-victoria-logs-cluster" }
-  - { type: "deployment", name: "vlselect-victoria-logs-cluster" }
-  - { type: "statefulset", name: "vlstorage-victoria-logs-cluster" }
-  - { type: "service", name: "vlinsert-victoria-logs-cluster" }
-  - { type: "service", name: "vlselect-victoria-logs-cluster" }
-  - { type: "service", name: "vlstorage-victoria-logs-cluster" }
-
-victoria_logs_agent_resources:
-  - { type: "statefulset", name: "vlagent-vlagent" }
-  - { type: "service", name: "vlagent-vlagent" }
-
-victoria_logs_shared_resources:
-  - { type: "configmap", name: "vlagent-config" }
-
-victoria_logs_pvc_labels:
-  - "app.kubernetes.io/name=vlstorage"
-  - "app.kubernetes.io/name=vlagent"
-
-# Named PVCs for vlstorage and vlagent StatefulSets (0-9)
-# vlagent PVC pattern is tmp-data-vlagent-vlagent-N (from VLAgent CR volumeClaimTemplate)
-victoria_logs_named_pvc_prefixes:
-  - "vlstorage-data-vlstorage-victoria-logs-cluster"
-  - "vlagent-data-vlagent-vlagent"
-  - "tmp-data-vlagent-vlagent"
-
-# vlagent-vector log write-buffer (used by vector-ome to push logs to VL)
-# Cleaned with VL because it is the VL-side write adapter
-vlagent_vector_resources:
-  - { type: "deployment", name: "vlagent-vector" }
-  - { type: "service", name: "vlagent-vector" }
-
-victoria_logs_pod_labels:
-  - "app.kubernetes.io/component=vlinsert"
-  - "app.kubernetes.io/component=vlselect"
-  - "app.kubernetes.io/component=vlstorage"
-  - "app.kubernetes.io/name=vlagent"
-  - "app=vlagent-vector"
+victoria_logs:
+  crd_resources:
+    - { type: "vlcluster", name: "victoria-logs-cluster" }
+  crd_all_resources:
+    - "vlagent"
+  cluster_resources:
+    - { type: "deployment", name: "vlinsert-victoria-logs-cluster" }
+    - { type: "deployment", name: "vlselect-victoria-logs-cluster" }
+    - { type: "statefulset", name: "vlstorage-victoria-logs-cluster" }
+    - { type: "service", name: "vlinsert-victoria-logs-cluster" }
+    - { type: "service", name: "vlselect-victoria-logs-cluster" }
+    - { type: "service", name: "vlstorage-victoria-logs-cluster" }
+  agent_resources:
+    - { type: "statefulset", name: "vlagent-vlagent" }
+    - { type: "service", name: "vlagent-vlagent" }
+  shared_resources:
+    - { type: "configmap", name: "vlagent-config" }
+  pvc_labels:
+    - "app.kubernetes.io/name=vlstorage"
+    - "app.kubernetes.io/name=vlagent"
+  # Named PVCs for vlstorage and vlagent StatefulSets (0-9)
+  # vlagent PVC pattern is tmp-data-vlagent-vlagent-N (from VLAgent CR volumeClaimTemplate)
+  named_pvc_prefixes:
+    - "vlstorage-data-vlstorage-victoria-logs-cluster"
+    - "vlagent-data-vlagent-vlagent"
+    - "tmp-data-vlagent-vlagent"
+  # vlagent-vector log write-buffer (used by vector-ome to push logs to VL)
+  # Cleaned with VL because it is the VL-side write adapter
+  vlagent_vector_resources:
+    - { type: "deployment", name: "vlagent-vector" }
+    - { type: "service", name: "vlagent-vector" }
+  pod_labels:
+    - "app.kubernetes.io/component=vlinsert"
+    - "app.kubernetes.io/component=vlselect"
+    - "app.kubernetes.io/component=vlstorage"
+    - "app.kubernetes.io/name=vlagent"
+    - "app=vlagent-vector"
 
 # ---------------------------------------------------------------------------
 # iDRAC cleanup resources

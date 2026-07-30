@@ -38,7 +38,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true
-      loop: "{{ victoria_metrics_crd_resources }}"
+      loop: "{{ victoria_metrics.crd_resources }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -47,7 +47,7 @@
     - name: "VictoriaMetrics | Delete all CRD instances"
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item }} --all --ignore-not-found=true
-      loop: "{{ victoria_metrics_crd_all_resources }}"
+      loop: "{{ victoria_metrics.crd_all_resources }}"
       changed_when: false
       failed_when: false
 
@@ -59,7 +59,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_cluster_resources }}"
+      loop: "{{ victoria_metrics.cluster_resources }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -69,7 +69,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_single_resources }}"
+      loop: "{{ victoria_metrics.single_resources }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -79,7 +79,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_agent_resources }}"
+      loop: "{{ victoria_metrics.agent_resources }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -89,7 +89,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_shared_resources }}"
+      loop: "{{ victoria_metrics.shared_resources }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -99,7 +99,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_tls_secret_resource }}"
+      loop: "{{ victoria_metrics.tls_secret_resource }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -109,7 +109,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete job {{ item }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_job_resources }}"
+      loop: "{{ victoria_metrics.job_resources }}"
       changed_when: false
       failed_when: false
 
@@ -117,7 +117,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete pvc -l {{ item }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_pvc_labels }}"
+      loop: "{{ victoria_metrics.pvc_labels }}"
       changed_when: false
       failed_when: false
 
@@ -125,7 +125,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete pvc {{ item }}
         --ignore-not-found=true --wait=false
-      loop: "{{ victoria_metrics_single_pvc }}"
+      loop: "{{ victoria_metrics.single_pvc }}"
       changed_when: false
       failed_when: false
 
@@ -142,7 +142,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
-      loop: "{{ vmagent_vector_resources }}"
+      loop: "{{ victoria_metrics.vmagent_vector_resources }}"
       loop_control:
         label: "{{ item.type }}/{{ item.name }}"
       changed_when: false
@@ -152,7 +152,7 @@
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
         --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-      loop: "{{ victoria_metrics_pod_labels }}"
+      loop: "{{ victoria_metrics.pod_labels }}"
       changed_when: false
       failed_when: false
 
