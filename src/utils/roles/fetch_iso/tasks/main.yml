@@ -29,19 +29,19 @@
     path: "{{ iso_source_path }}"
     checksum_algorithm: sha256
   register: iso_source_checksum_stat
-  when: iso_source_checksum | length > 0
+  when: iso_source_checksum | default('') | length > 0
 
 - name: Fail if source ISO checksum mismatch
   ansible.builtin.fail:
     msg: "{{ iso_checksum_mismatch_msg }}"
   when:
-    - iso_source_checksum | length > 0
+    - iso_source_checksum | default('') | length > 0
     - iso_source_checksum_stat.stat.checksum != iso_source_checksum
 
 - name: Log checksum verification status
   ansible.builtin.debug:
     msg: >-
-      {% if iso_source_checksum | length > 0 %}
+      {% if iso_source_checksum | default('') | length > 0 %}
       ISO checksum verified successfully. Expected: {{ iso_source_checksum }}
       {% else %}
       Skipping ISO checksum verification (no checksum provided).
