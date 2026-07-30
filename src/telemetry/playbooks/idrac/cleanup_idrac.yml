@@ -31,7 +31,7 @@
   vars_files:
     - ../vars/cleanup.yml
   tasks:
-    - name: "iDRAC | Delete resources"
+    - name: "IDRAC | Delete resources"
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
         --ignore-not-found=true --wait=false
@@ -41,27 +41,27 @@
       changed_when: false
       failed_when: false
 
-    - name: "iDRAC | Delete ConfigMaps by label"
+    - name: "IDRAC | Delete ConfigMaps by label"
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete configmap -l {{ idrac_configmap_label }}
         --ignore-not-found=true --wait=false
       changed_when: false
       failed_when: false
 
-    - name: "iDRAC | Delete PVCs"
+    - name: "IDRAC | Delete PVCs"
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete pvc -l {{ idrac_pvc_label }}
         --ignore-not-found=true --wait=false
       changed_when: false
       failed_when: false
 
-    - name: "iDRAC | Force delete pods"
+    - name: "IDRAC | Force delete pods"
       ansible.builtin.command: >
         kubectl -n {{ telemetry_namespace }} delete pod -l {{ idrac_pod_label }}
         --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
       changed_when: false
       failed_when: false
 
-    - name: "iDRAC | Cleanup complete"
+    - name: "IDRAC | Cleanup complete"
       ansible.builtin.debug:
         msg: "iDRAC telemetry cleanup completed"
