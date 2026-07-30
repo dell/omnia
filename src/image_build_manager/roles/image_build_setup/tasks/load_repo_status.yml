@@ -13,11 +13,11 @@
 # limitations under the License.
 ---
 # Step 5: Load repo_status.yml and validate
-# Step 6: Set pulp facts and build repo lists
+# Step 6: Set repo manager facts and build repo lists
 #
-# Loads repo_status.yml, validates required sections, checks the pulp
-# certificate exists, sets pulp facts, and builds architecture-specific
-# repo lists for downstream build playbooks.
+# Loads repo_status.yml, validates required sections, checks the repo manager
+# certificate exists (optional), sets repo manager facts, and builds
+# architecture-specific repo lists for downstream build playbooks.
 
 # --- Load and validate repo_status.yml ---
 - name: Load repo_status.yml
@@ -34,9 +34,6 @@
   ansible.builtin.assert:
     that:
       - repo_manager is defined
-      - repo_manager.certificates is defined
-      - repo_manager.certificates.server_crt is defined
-      - repo_manager.certificates.server_crt | length > 0
       - repo_manager.port is defined
     fail_msg: "{{ repo_status_missing_section_fail_msg }}"
     quiet: true
@@ -60,22 +57,29 @@
     msg: "{{ functional_group_packages_not_found_fail_msg }}"
   when: not _pkg_list_check.stat.exists
 
-# --- Validate pulp certificate ---
-- name: Validate pulp certificate exists
-  ansible.builtin.stat:
-    path: "{{ repo_manager.certificates.server_crt }}"
-  register: _pulp_cert_check
-
-- name: Fail if pulp certificate not found
-  ansible.builtin.fail:
-    msg: "{{ pulp_cert_not_found_fail_msg }}"
-  when: not _pulp_cert_check.stat.exists
-
-# --- Set pulp and S3 facts ---
-- name: Set pulp and S3 facts from repo_status.yml
+# --- Validate repo manager certificate (optional — skipped when not configured) ---
+- name: Set cert path fact
   ansible.builtin.set_fact:
-    pulp_port: "{{ repo_manager.port }}"
-    pulp_cert_path: "{{ repo_manager.certificates.server_crt }}"
+    _cert_path: "{{ repo_manager.certificates.server_crt | default('') }}"
+
+- name: Validate repo manager certificate exists
+  ansible.builtin.stat:
+    path: "{{ _cert_path }}"
+  register: _repo_cert_check
+  when: _cert_path | length > 0
+
+- name: Fail if repo manager certificate not found
+  ansible.builtin.fail:
+    msg: "{{ repo_cert_not_found_fail_msg }}"
+  when:
+    - _cert_path | length > 0
+    - not (_repo_cert_check.stat.exists | default(false))
+
+# --- Set repo manager and S3 facts ---
+- name: Set repo manager and S3 facts from repo_status.yml
+  ansible.builtin.set_fact:
+    repo_port: "{{ repo_manager.port }}"
+    repo_cert_path: "{{ _cert_path }}"
     s3_endpoint: >-
       {{ s3_configurations.endpoint_url
          if s3_configurations.endpoint_url | default('') | length > 0

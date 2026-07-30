@@ -60,4 +60,3 @@
       ansible.builtin.include_role:
         name: build_os_images
         tasks_from: preflight_selinux_check.yml
-

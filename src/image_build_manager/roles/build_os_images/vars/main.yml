@@ -13,53 +13,110 @@
 # limitations under the License.
 ---
 # Architecture-agnostic variables — build_arch is set by the calling playbook
-# Image names derived from build_arch
-pulp_image_name: "dellhpcomniaaisolution/image-build-el10:1.2"
-local_tag: "{{ build_arch }}-image-builder/ochami"
 rhel_arch_base_image_name: "rhel-{{ build_arch }}-base"
 
 pull_image_retries: "5"
 pull_image_delay: "10"
+pull_image_fallback_msg: "Pull from repo manager ({repo_path}) failed. Attempting direct pull from {upstream_image}..."
+pull_image_success_msg: "Successfully pulled {upstream_image} directly from upstream registry."
+pull_image_failure_msg: |
+  Failed to pull builder image from both sources:
+    1. Repo manager registry: {repo_path}
+    2. Direct upstream:       {upstream_image}
+  Ensure either the repo manager has synced the image or the host has internet access.
 omnia_version: "{{ hostvars['localhost']['omnia_version'] | default('2.2.0.0') }}"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
 shared_path: "{{ hostvars['localhost']['shared_path'] }}"
-pulp_cert_host_path: "{{ hostvars['localhost']['pulp_cert_path'] | default('/opt/omnia/pulp/settings/certs/pulp_webserver.crt') }}"
-job_retry: "240"
-job_delay: "30"
-job_async: "7200"
+repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
+
+# Build timing and controls — single source of truth from image_build_config.yml
+job_retry: "{{ hostvars['localhost']['build_image_job_retry'] | default(240) }}"
+job_delay: "{{ hostvars['localhost']['build_image_job_delay'] | default(30) }}"
+job_async: "{{ hostvars['localhost']['build_image_job_async'] | default(7200) }}"
+max_parallel: "{{ hostvars['localhost']['build_image_max_parallel'] | default(0) }}"
+
+# ---------------------------------------------------------------------------
+# Build type switching: image-builder vs image-thrillhouse
+# ---------------------------------------------------------------------------
+_image_build_type: "{{ hostvars['localhost']['image_build_type'] | default('image-builder') }}"
+_is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
+
+# Container images per build type
+_builder_container_image: "dellhpcomniaaisolution/image-build-el10:1.2"
+_thrillhouse_container_image: "ghcr.io/openchami/image-thrillhouse:latest"
+repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_container_image, _builder_container_image) }}"
+
+# Local tag per build type
+_builder_local_tag: "{{ build_arch }}-image-builder/ochami"
+_thrillhouse_local_tag: "{{ build_arch }}-image-thrillhouse/ochami"
+local_tag: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_local_tag, _builder_local_tag) }}"
+
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
-openchami_work_dir: "{{ shared_path }}/workdir"
-ochami_mounts:
-  - --user 0 --privileged
-  - -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z
-  - -v {{ openchami_work_dir }}/images/{{ rhel_arch_base_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
-ochami_compute_mounts:
-  - --user 0 --privileged
-  - -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z
-  - -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
+# Separate workdir per build type to avoid config file collisions
+_workdir_suffix: "{{ (_is_thrillhouse | bool) | ternary('image-thrillhouse', 'image-builder') }}"
+openchami_work_dir: "{{ shared_path }}/workdir/{{ _workdir_suffix }}"
 
-ochami_image:
-  - --entrypoint /bin/bash
-  - "localhost/{{ local_tag }}"
-ochami_base_command:
-  - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
+# Cert mount is conditional — only included when repo_cert_path is non-empty
+_cert_mount: "-v {{ repo_cert_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z"
 
-# build_base_image.yml
+# Config mount path differs: image-builder uses /home/builder/config.yaml, thrillhouse uses /config.yaml
+_config_mount_path: "{{ (_is_thrillhouse | bool) | ternary('/config.yaml', '/home/builder/config.yaml') }}"
+
+# --- Common privilege options per build type ---
+_builder_privilege_opts:
+  - "--user 0 --privileged"
+_thrillhouse_privilege_opts:
+  - "--user 0 --privileged"
+  - "--cap-add=SYS_ADMIN --cap-add=SETUID --cap-add=SETGID"
+  - "--security-opt seccomp=unconfined --security-opt label=disable"
+_privilege_opts: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_privilege_opts, _builder_privilege_opts) }}"
+
+# Cert mount (only when repo_cert_path is set)
+_cert_opts: "{{ ([_cert_mount] if (repo_cert_path | default('') | length > 0) else []) }}"
+
+# Base image mounts (static — rhel_arch_base_image_name is known at role load time)
+ochami_mounts: >-
+  {{ _privilege_opts + _cert_opts
+     + ['-v ' + openchami_work_dir + '/images/' + rhel_arch_base_image_name + '-' + rhel_tag + '.yaml:' + _config_mount_path + ':z'] }}
+
+# Container image reference + entrypoint
+# image-builder needs --entrypoint /bin/bash; thrillhouse runs directly
+ochami_image: >-
+  {{ (_is_thrillhouse | bool)
+     | ternary(
+         ['localhost/' + local_tag],
+         ['--entrypoint /bin/bash', 'localhost/' + local_tag]
+       ) }}
+
+# Build command per type
+# image-builder: bash -c 'update-ca-trust && image-build --config ... --log-level DEBUG'
+# image-thrillhouse: image-thrillhouse build --config /config.yaml --log-level info
+_ca_trust_cmd: "{{ (repo_cert_path | default('') | length > 0) | ternary('update-ca-trust extract && ', '') }}"
+_builder_command:
+  - "-c '{{ _ca_trust_cmd }}image-build --config /home/builder/config.yaml --log-level DEBUG'"
+_thrillhouse_command:
+  - "image-thrillhouse build --config /config.yaml --log-level info"
+ochami_base_command: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_command, _builder_command) }}"
+
+# Config templates per build type
+_builder_base_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
+_builder_compute_config_template: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
+_thrillhouse_base_config_template: "{{ role_path }}/templates/images/thrillhouse-base-config.yaml.j2"
+_thrillhouse_compute_config_template: "{{ role_path }}/templates/images/thrillhouse-compute-config.yaml.j2"
+openchami_base_image_config_template: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_base_config_template, _builder_base_config_template) }}"
+openchami_compute_image_config_template: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_compute_config_template, _builder_compute_config_template) }}"
+
+# Log paths
 image_build_log_dir: "{{ hostvars['localhost']['log_dir'] | default(shared_path + '/log') }}"
 image_build__base_image_log_path: "{{ image_build_log_dir }}/{{ build_arch }}_base_image.log"
-# build_base_image.yml - image-build config template
-openchami_base_image_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
 base_image_failure_msg: |
   Base {{ build_arch }} image build job failed or timed out.
   Check logs at path {{ image_build__base_image_log_path }} for details.
 compute_image_failure_msg: |
   {{ build_arch }} compute image build job did not complete successfully.
   Check logs at {{ image_build_log_dir }} for respective functional group for more details.
-
-# build_compute_image.yml - image-build config template
-openchami_compute_image_config_template: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
 
 
 # preflight_selinux_check.yml

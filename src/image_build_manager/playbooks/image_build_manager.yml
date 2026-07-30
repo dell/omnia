@@ -13,43 +13,41 @@
 # limitations under the License.
 ---
 # image_build_manager.yml — Top-level entry point for the image_build_manager domain.
-# Reads repo_status.yml from repo_manager output for Pulp URLs.
+# Reads repo_status.yml from repo_manager output for repo URLs.
 # Deploys MinIO + Registry, then builds OS images for x86_64 and aarch64.
 #
 # Usage (run ONE tag at a time — no comma-separated tags):
 #   cd src/image_build_manager/playbooks
 #   ansible-playbook image_build_manager.yml                        # Default: prepare + build
-#   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
-#   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
+#   ansible-playbook image_build_manager.yml --tags precheck        # Env + connectivity precheck only
 #   ansible-playbook image_build_manager.yml --tags validate        # Validate config only (no credentials)
+#   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
+#   ansible-playbook image_build_manager.yml --tags execute         # Build images (alias for build)
+#   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
 #   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup (no credentials)
 #   ansible-playbook image_build_manager.yml --tags upgrade         # Upgrade flow (placeholder)
 #   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
 #
-# Or run sub-playbooks directly from their directory:
-#   cd validate && ansible-playbook validate_image_build_config.yml
-#   cd prepare  && ansible-playbook prepare_image_build_manager.yml
-#   cd build    && ansible-playbook build_image_x86_64.yml
-#   cd cleanup  && ansible-playbook cleanup_image_build_manager.yml
-#
 # Tags (mutually exclusive — pick ONE):
-#   (none)   — Default flow: always + prepare + build (with credentials)
-#   prepare  — Deploy MinIO + Registry (with credentials)
-#   build    — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
-#   validate — Validate configuration only (skips credentials)
-#   cleanup  — Remove MinIO, registry, build artifacts (skips credentials)
-#   upgrade  — Upgrade flow (placeholder — future release)
-#   rollback — Rollback flow (placeholder — future release)
+#   (none)    — Default flow: always + prepare + build (with credentials)
+#   precheck  — Environment precheck (env vars, connectivity) — no credentials
+#   validate  — Validate configuration only (skips credentials)
+#   prepare   — Deploy MinIO + Registry (with credentials)
+#   execute   — Build OS images (alias for 'build') (with credentials)
+#   build     — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
+#   cleanup   — Remove MinIO, registry, build artifacts (skips credentials)
+#   upgrade   — Upgrade flow (placeholder — future release)
+#   rollback  — Rollback flow (placeholder — future release)
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
 #   - Invalid combinations (e.g., prepare + cleanup) will fail
-#   - cleanup and validate tags skip credential prompting
+#   - precheck, cleanup, and validate tags skip credential prompting
 #
 # Internal steps (always):
 #   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs, load repo_status.yml
 #   Step 1: Input validation (schema + logic)
-#   Step 2: Credential collection (skipped for cleanup/validate tags)
+#   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 
 # =========================================================================
 # Step 0: Setup — load config, validate host, check prereqs, load repos
@@ -88,7 +86,7 @@
     - prepare
 
 # =========================================================================
-# FLOW: build — Build OS images and write build_status.yml
+# FLOW: build/execute — Build OS images and write build_status.yml
 # =========================================================================
 # Step 6: Build x86_64 images
 - name: Build x86_64 images
@@ -96,6 +94,7 @@
   tags:
     - x86_64
     - build
+    - execute
 
 # Step 7: Build aarch64 images
 # NOTE: The aarch64 playbook has its own internal checks for ARM host availability.
@@ -105,6 +104,7 @@
   tags:
     - aarch64
     - build
+    - execute
 
 # Step 8: Write build_status.yml output
 # Output: {{ output_project_dir }}/build_status.yml (NFS-shared)
@@ -117,6 +117,7 @@
     - x86_64
     - aarch64
     - build
+    - execute
   tasks:
     - name: Write build status
       ansible.builtin.include_role:

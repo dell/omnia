@@ -16,15 +16,14 @@ test/
 │   │   ├── deploy/test_deploy.py   # Playbook execution (deploy command)
 │   │   ├── <component>/test_<component>.py
 │   │   └── ...
-│   └── image_builder/              # Full verification (verify command)
-│       ├── container/
-│       ├── s3/
-│       ├── registry/
-│       └── image_verification/
+│   └── <domain>/                   # Full verification (verify command)
+│       ├── <component>/
+│       ├── <component>/
+│       └── ...
 ├── library/                        # Shared automation library
 │   ├── functions/                  # Verification logic
 │   │   ├── __init__.py
-│   │   ├── build_image_func.py     # Domain-specific checks
+│   │   ├── <domain>_func.py        # Domain-specific checks
 │   │   ├── host_func.py            # Connection, sync, config loading
 │   │   ├── formatting_func.py      # TestLogger, Colors, Symbols
 │   │   ├── runner_func.py          # PlaybookRunner
@@ -35,17 +34,17 @@ test/
 │   │   └── runner_vars.py          # PlaybookRunner constants
 │   ├── messages/                   # All user-facing strings
 │   │   ├── __init__.py
-│   │   └── build_image_msgs.py     # TEST_NAMES, LOG, ASSERT, SKIP
+│   │   └── <domain>_msgs.py        # TEST_NAMES, LOG, ASSERT, SKIP
 │   └── validation/                 # Config validation
 │       └── functions/
 │           └── validation_func.py
 ├── datasets/                       # Input datasets
-│   └── project_default/
+│   └── <dataset>/
 │       ├── config.yml              # Top-level project config
 │       └── input/                  # Files synced to target
-│           ├── image_build_config.yml
-│           ├── image_build_credentials.yml
-│           └── repo_manager_output/
+│           ├── <domain>_config.yml
+│           ├── <domain>_credentials.yml
+│           └── upstream_output/
 ├── conftest.py                     # pytest hooks and fixtures
 ├── test_config.yml                 # Server connection and sync settings
 ├── test_run_config.yml             # Suite enable/disable and markers
@@ -85,13 +84,11 @@ Every test file MUST start with a module docstring listing all test cases:
 
 ```python
 """
-Image Builder — Registry Image Verification Tests.
+<Domain Name> — <Component> Verification Tests.
 
-TC_IB_006: Verify x86_64 images in registry
-TC_IB_007: Verify aarch64 images in registry
-TC_IB_008: Verify build_status.yml exists
-TC_IB_009: Verify x86_64 functional groups built
-TC_IB_010: Verify aarch64 functional groups built
+TC_<AREA>_001: Verify <aspect 1>
+TC_<AREA>_002: Verify <aspect 2>
+TC_<AREA>_003: Verify <aspect 3>
 """
 ```
 
@@ -143,7 +140,7 @@ def test_registry_images_x86_64(host):
 | Prepare | `TC_PR_` | Prepare tag tests |
 | Build | `TC_BD_` | Build tag tests |
 | Cleanup | `TC_CL_` | Cleanup tag tests |
-| Image Builder | `TC_IB_` | Full suite verification |
+| End-to-End | `TC_E2E_` | Full suite verification |
 
 ### 2.5 Test Output Format
 
@@ -376,8 +373,8 @@ bugfix/<issue>-<short-description>
 - [ ] No hardcoded credentials or secrets in code
 - [ ] `test_creds.yml` is encrypted (not plain text)
 - [ ] Dataset files contain only keys, no actual secret values
-- [ ] `.test_creds.key` and `.image_build_credentials_key` are in `.gitignore`
-- [ ] All tests pass: `./run_validation.sh image_builder verify --marker sanity`
+- [ ] `.test_creds.key` and `.<domain>_credentials_key` are in `.gitignore`
+- [ ] All tests pass: `./run_validation.sh <domain> verify --marker sanity`
 
 ---
 

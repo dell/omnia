@@ -16,7 +16,7 @@ mkdir -p /opt/omnia/repo_manager/output/project_default
 cp src/image_build_manager/samples/repo_manager_output/repo_status.yml \
    /opt/omnia/repo_manager/output/project_default/
 ```
-Edit the file with your actual Pulp server URLs and cert paths.
+Edit the file with your actual repo manager URLs and cert paths.
 
 ---
 
@@ -65,17 +65,18 @@ correct host (the `oim` host group).
 
 ---
 
-### 5. Pulp certificate not found
+### 5. Repo manager certificate not found
 
 **Error**:
 ```
-Pulp certificate not found at /opt/omnia/pulp/settings/certs/pulp_webserver.crt.
+Repo manager certificate not found at /opt/omnia/pulp/settings/certs/pulp_webserver.crt.
 Ensure repo_manager has been run and the certificate exists on this host.
 ```
 
-**Fix**: The playbook reads the cert path directly from `repo_status.yml`.
-Ensure `repo_manager` has been run and the certificate exists at the path
-specified in `repo_status.yml → repo_manager.certificates.server_crt`.
+**Fix**: The playbook reads the cert path from `repo_status.yml`.
+If you are using a local repo manager, ensure `repo_manager` has been run and
+the certificate exists at `repo_status.yml → repo_manager.certificates.server_crt`.
+If using direct online URLs, leave `server_crt` empty — cert validation is skipped.
 
 ---
 
@@ -87,10 +88,10 @@ No match for argument: <package-name>
 ```
 
 **Fix**: The RPM package name in `functional_group_packages.yml` does not exist
-in any of the Pulp repos defined in `repo_status.yml`. Either:
+in any of the RPM repos defined in `repo_status.yml`. Either:
 - Fix the package name in `functional_group_packages.yml`
 - Add the missing repo to `repo_status.yml → rpm_repos`
-- Sync the package in your Pulp server
+- Sync the package in your repo manager
 
 ---
 
@@ -133,8 +134,11 @@ dial tcp: lookup <hostname>.vm.cluster on <dns>:53: no such host
 ```
 
 **Fix**: In standalone mode, the playbook uses `admin_nic_ip` (IP address) for
-the registry host. If you see DNS errors, ensure `OMNIA_ADMIN_NIC_IP` is set
-correctly in `omnia.env`.
+the registry host. If you see DNS errors, ensure `SYSTEM_ADMIN_NIC_IPV4` is
+exported correctly:
+```bash
+export SYSTEM_ADMIN_NIC_IPV4=<your_admin_ip>
+```
 
 ---
 

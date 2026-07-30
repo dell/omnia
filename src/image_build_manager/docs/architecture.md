@@ -33,8 +33,8 @@ directly on the RHEL host via `ansible-playbook`. All tasks execute locally
   - `repo_status.yml` inside it
   - `functional_group_packages.yml` inside it
 - Load `repo_status.yml` → RPM repo URLs, cert paths
-- Validate Pulp certificate exists at absolute path
-- Build repo lists, set pulp facts, s3_endpoint
+- Validate repo manager certificate exists at absolute path (optional)
+- Build repo lists, set repo manager facts, s3_endpoint
 
 ### 2. Validate (`--tags validate`)
 
@@ -52,9 +52,9 @@ directly on the RHEL host via `ansible-playbook`. All tasks execute locally
 
 - Write `functional_groups_config.yml` from `image_build_config.yml`
 - Load `functional_group_packages.yml` → `base_image_packages` + `compute_images_dict`
-- Fetch Pulp RPM repo URLs from `repo_status.yml`
-- Build base OS image (OpenCHAMI image-build)
-- Build compute images per functional group (OpenCHAMI image-build)
+- Fetch RPM repo URLs from `repo_status.yml`
+- Build base OS image (OpenCHAMI image-builder or image-thrillhouse)
+- Build compute images per functional group (OpenCHAMI image-builder or image-thrillhouse)
 - Upload to S3 (boot-images + efi-images buckets)
 - Write `build_status.yml` with artifact paths
 
@@ -110,7 +110,7 @@ cleanup_build_artifacts
 | `/opt/omnia/image_build_manager/` | Shared path — MinIO data, registry, workdir, logs |
 | `/opt/omnia/image_build_manager/log/playbooks/` | Ansible playbook logs |
 | `/opt/omnia/repo_manager/output/<project_name>/` | Upstream repo_manager output directory |
-| `/opt/omnia/pulp/settings/certs/pulp_webserver.crt` | Pulp TLS certificate (read as-is) |
+| `/opt/omnia/pulp/settings/certs/pulp_webserver.crt` | Repo manager TLS certificate (read as-is) |
 
 ## Key Design Decisions
 

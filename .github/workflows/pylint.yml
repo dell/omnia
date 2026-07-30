@@ -6,25 +6,25 @@ name: Pylint
     branches:
       - main
       - staging
-      - release_1.7.1
-      - pub/build_stream
-      - pub/telemetry
-      - pub/q2_upgrade
-      - pub/q3_main
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.12"]
     env:
       PYLINT_THRESHOLD: 8
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -36,6 +36,7 @@ jobs:
             httpx argon2-cffi pyyaml dependency-injector
 
       - name: Get changed Python files (excluding deleted)
+        if: github.event_name == 'pull_request'
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
@@ -54,27 +55,112 @@ jobs:
           echo "Filtered files: $FILES"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
-      - name: Run pylint on changed files
-        if: steps.changed-files.outputs.files != ''
+      - name: No Python files changed
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files == ''
         run: |
-          echo "Running pylint on:"
+          echo "No Python files changed in this PR."
+          echo "Skipping pylint."
+
+      - name: Run pylint on changed files (PR validation)
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        run: |
+          echo "Running pylint on changed files (per-file validation):"
           echo "${{ steps.changed-files.outputs.files }}"
 
-          # Filter out files from the excluded directory
-          EXCL="^src/playbooks/discovery/roles/"
-          EXCL+="telemetry/files/nersc-ldms-aggr/"
+          # Filter out excluded files
           FILES=$(echo \
             "${{ steps.changed-files.outputs.files }}" | \
             tr ' ' '\n' | \
-            grep -v "$EXCL" | xargs)
+            grep -v 'telemetry/files/nersc-ldms-aggr/' | \
+            xargs)
 
           if [ -n "$FILES" ]; then
-            # Set PYTHONPATH to include build_stream directory
-            # for proper import resolution
-            # This allows pylint to resolve both relative imports
-            # in build_stream and regular imports elsewhere
-            PYTHONPATH=.:./src/build_stream pylint $FILES \
-              --fail-under=${PYLINT_THRESHOLD}
+            FAILED=0
+
+            for file in $FILES; do
+              echo "Checking $file"
+
+              SCORE=$(
+                (PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true) |
+                grep -oE 'rated at [0-9.-]+/10' |
+                awk '{print $3}' |
+                cut -d/ -f1
+              )
+
+              SCORE=${SCORE:-0}
+
+              echo "$file -> $SCORE"
+
+              if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
+                'BEGIN { exit !(score < threshold) }'
+              then
+                echo "::error::$file scored $SCORE (< $PYLINT_THRESHOLD)"
+                FAILED=1
+              fi
+            done
+
+            exit $FAILED
           else
             echo "No files to lint after filtering."
           fi
+
+      - name: Run pylint full repository scan (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Running pylint on all Python files in repository"
+
+          # Find all Python files, excluding .git, .venv, venv
+          find . \
+            -type f \
+            -name "*.py" \
+            -not -path "./.git/*" \
+            -not -path "./.venv/*" \
+            -not -path "./venv/*" \
+            > python-files.txt
+
+          # Filter out excluded files
+          FILTERED=$(grep -v 'telemetry/files/nersc-ldms-aggr/' python-files.txt || true)
+
+          # Initialize report
+          > pylint-report.txt
+          echo "Pylint Score Report - Full Repository Scan" >> pylint-report.txt
+          echo "Generated: $(date)" >> pylint-report.txt
+          echo "==========================================" >> pylint-report.txt
+          echo "" >> pylint-report.txt
+
+          for file in $FILTERED; do
+            SCORE=$(
+              (PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true) |
+              grep -oE 'rated at [0-9.-]+/10' |
+              awk '{print $3}' |
+              cut -d/ -f1
+            )
+
+            SCORE=${SCORE:-0}
+
+            if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
+              'BEGIN { exit !(score >= threshold) }'
+            then
+              STATUS="PASS"
+              PASS_COUNT=$((PASS_COUNT + 1))
+            else
+              STATUS="FAIL"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+
+            echo "$file -> ${SCORE:-N/A} [$STATUS]" | tee -a pylint-report.txt
+          done
+
+          echo "" >> pylint-report.txt
+          echo "==========================================" >> pylint-report.txt
+          echo "PASS: $PASS_COUNT" >> pylint-report.txt
+          echo "FAIL: $FAIL_COUNT" >> pylint-report.txt
+          echo "Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
+          echo "==========================================" >> pylint-report.txt
+
+      - name: Upload pylint report
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pylint-report
+          path: pylint-report.txt
