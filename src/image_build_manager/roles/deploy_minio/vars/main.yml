@@ -13,25 +13,25 @@
 # limitations under the License.
 ---
 # OIM metadata (loaded on localhost via include_input_dir with omnia_metadata_support)
-oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
-oim_node_name: "{{ hostvars['localhost']['oim_node_name'] | default(ansible_hostname) }}"
+shared_path: "{{ hostvars['localhost']['shared_path'] }}"
+host_name: "{{ hostvars['localhost']['host_name'] | default(ansible_hostname) }}"
 domain_name: "{{ hostvars['localhost']['domain_name'] | default(ansible_domain) }}"
 admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default(ansible_default_ipv4.address) }}"
 
 # Derived cluster variables (same as prepare_oim/deploy_openchami)
-cluster_name: "{{ oim_node_name }}"
+cluster_name: "{{ host_name }}"
 cluster_domain: "{{ domain_name }}"
 cluster_boot_ip: "{{ admin_nic_ip }}"
-
-# Storage backend (set by validate_build_config on localhost)
-storage_backend: "{{ hostvars['localhost']['storage_backend'] | default('minio') }}"
 
 # S3 configuration from image_build_config.yml (loaded on localhost)
 s3_configurations: "{{ hostvars['localhost']['s3_configurations'] | default({}) }}"
 
+# Storage backend (derived from s3_configurations.provider)
+storage_backend: "{{ s3_configurations.provider | default('minio') | lower }}"
+
 # Directory paths (image_build_manager domain-specific)
-data_s3_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3/data"
-s3_work_dir: "{{ oim_shared_path }}/omnia/image_build_manager/s3"
+data_s3_dir: "{{ shared_path }}/s3/data"
+s3_work_dir: "{{ shared_path }}/s3"
 
 # File permissions
 file_perm_rw: "0644"
@@ -42,12 +42,11 @@ minio_console_port: 9001
 minio_image: "quay.io/minio/minio:latest"
 minio_release_tag: "latest"
 
-# S3 credentials from image_build_credentials.yml (loaded on localhost)
-# For minio: access_id defaults to 'admin' if not provided in credentials
-s3_access_id: "{{ hostvars['localhost']['image_build_creds']['s3_access_id'] | default(hostvars['localhost']['s3_access_id'], true) | default('admin', true) }}"
-s3_secret_key: "{{ hostvars['localhost']['image_build_creds']['s3_secret_key'] | default(hostvars['localhost']['s3_secret_key'], true) | default('') }}"
-minio_access_key: "{{ s3_access_id }}"
-minio_secret_key: "{{ s3_secret_key }}"
+# Validation messages
+s3_secret_key_empty_fail_msg: >-
+  S3 secret key (s3_secret_key) is empty. This credential is mandatory.
+  Re-run the playbook to be prompted for credentials, or edit
+  {{ hostvars['localhost']['input_project_dir'] }}/image_build_credentials.yml directly.
 
 # EPEL repository for s3cmd installation
 epel10_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm

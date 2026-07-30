@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Generate Vector-OME Kustomize manifests to NFS deployments/vector/
+# Vector-OME resources:
+# - vector-ome-kafkauser.yaml (KafkaUser CR for dedicated OME consumer)
+# - vector-ome-configmap.yaml (ConfigMap with TOML configuration)
+# - vector-ome-deployment.yaml (Deployment for Vector-OME pod)
+# - vector-ome-service.yaml (Service for health/metrics endpoints)
+
+- name: Create Vector deployments directory
+  ansible.builtin.file:
+    path: "{{ telemetry_deployments_dir }}/vector"
+    state: directory
+    mode: '0755'
+
+- name: Render Vector-OME KafkaUser CR
+  ansible.builtin.template:
+    src: "vector-ome-kafkauser.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vector-ome-kafkauser.yaml"
+    mode: '0644'
+  register: vector_ome_kafkauser_rendered
+
+- name: Render Vector-OME ConfigMap
+  ansible.builtin.template:
+    src: "vector-ome-configmap.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vector-ome-configmap.yaml"
+    mode: '0644'
+  register: vector_ome_configmap_rendered
+
+- name: Render Vector-OME Deployment
+  ansible.builtin.template:
+    src: "vector-ome-deployment.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vector-ome-deployment.yaml"
+    mode: '0644'
+  register: vector_ome_deployment_rendered
+
+- name: Render Vector-OME Service
+  ansible.builtin.template:
+    src: "vector-ome-service.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vector-ome-service.yaml"
+    mode: '0644'
+  register: vector_ome_service_rendered
+
+- name: Display Vector-OME template generation summary
+  ansible.builtin.debug:
+    msg: >
+      Vector-OME templates generated:
+      KafkaUser: {{ vector_ome_kafkauser_rendered.dest }}.
+      ConfigMap: {{ vector_ome_configmap_rendered.dest }}.
+      Deployment: {{ vector_ome_deployment_rendered.dest }}.
+      Service: {{ vector_ome_service_rendered.dest }}.
+    verbosity: 2

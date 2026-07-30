@@ -30,10 +30,6 @@
   ansible.builtin.include_tasks: cleanup_build_output.yml
   tags: output
 
-- name: Remove image_build_manager entries from omnia.target
-  ansible.builtin.include_tasks: cleanup_omnia_target.yml
-  tags: omnia_target
-
 - name: Cleanup s3cmd configuration
   ansible.builtin.include_tasks: cleanup_s3cmd.yml
   tags: s3cmd

@@ -21,7 +21,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: orchestrator_setup
+    - role: omnia.orchestrator.orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true

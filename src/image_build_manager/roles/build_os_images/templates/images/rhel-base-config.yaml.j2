@@ -4,9 +4,9 @@ options:
   publish_tags: '{{ rhel_tag }}'
   pkg_manager: 'dnf'
   parent: 'scratch'
-  publish_registry: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
+  publish_registry: '{{ registry_host }}:5000/{{ oim_node_name }}'
   registry_opts_push:
-    - '--tls-verify=false'
+    - '--tls-verify={{ registry_tls_verify | default(false) | lower }}'
 
 repos:
 {% for repo in rhel_arch_repos %}

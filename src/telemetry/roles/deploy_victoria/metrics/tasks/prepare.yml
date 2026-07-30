@@ -17,37 +17,95 @@
 # deploy_victoria/metrics — Prepare: download operator package + generate manifests
 # =============================================================================
 
+- name: Load role variables
+  ansible.builtin.include_vars: "{{ role_path }}/metrics/vars/main.yml"
+
 - name: Prepare VictoriaMetrics operator package (common)
   ansible.builtin.include_tasks: ../../common/tasks/prepare_operator.yml
 
+- name: Configure TLS certificate for victoria_metrics
+  when:
+    - victoria_cluster.tls_enabled | default(false) | bool
+  block:
+    - name: Create victoria_metrics certificate directory
+      ansible.builtin.file:
+        path: "{{ victoria_cert_dir }}"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+
+    - name: Deploy victoria_metrics certificate generation script
+      ansible.builtin.template:
+        src: "{{ role_path }}/metrics/templates/gen_victoria_certs.sh.j2"
+        dest: "{{ telemetry_deployments_dir }}/gen_victoria_certs.sh"
+        mode: "{{ file_permissions_755 }}"
+        force: yes
+
+    - name: Generate victoria_metrics TLS certificates
+      ansible.builtin.command:
+        cmd: "{{ telemetry_deployments_dir }}/gen_victoria_certs.sh"
+      changed_when: false
+
+    - name: Read victoria_metrics server certificate
+      ansible.builtin.slurp:
+        src: "{{ victoria_cert_dir }}/server.crt"
+      register: victoria_server_cert
+      no_log: true
+
+    - name: Read victoria_metrics server key
+      ansible.builtin.slurp:
+        src: "{{ victoria_cert_dir }}/server.key"
+      register: victoria_server_key
+      no_log: true
+
+    - name: Read victoria_metrics CA certificate
+      ansible.builtin.slurp:
+        src: "{{ victoria_cert_dir }}/ca.crt"
+      register: victoria_ca_cert
+      no_log: true
+
+    - name: Set certificate variables for template
+      ansible.builtin.set_fact:
+        victoria_server_cert_b64: "{{ victoria_server_cert.content }}"
+        victoria_server_key_b64: "{{ victoria_server_key.content }}"
+        victoria_ca_cert_b64: "{{ victoria_ca_cert.content }}"
+      no_log: true
+
 - name: Generate VictoriaMetrics TLS secret manifest
   ansible.builtin.template:
-    src: victoria-tls-secret.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-tls-secret.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
-    mode: '0644'
-  failed_when: false
+    mode: "{{ victoria_file_mode }}"
+    force: yes
+  when:
+    - victoria_server_cert_b64 is defined
+    - victoria_server_key_b64 is defined
+    - victoria_ca_cert_b64 is defined
 
 - name: Generate VictoriaMetrics RBAC manifest
   ansible.builtin.template:
-    src: victoria-vmagent-rbac.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-vmagent-rbac.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml"
-    mode: '0644'
-  failed_when: false
+    mode: "{{ victoria_file_mode }}"
+    force: yes
+  ignore_errors: true
 
 - name: Generate VMCluster CR manifest
   ansible.builtin.template:
-    src: victoria-operator-vmcluster.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-operator-vmcluster.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
+    force: yes
 
 - name: Generate VMAgent CR manifest
   ansible.builtin.template:
-    src: victoria-operator-vmagent.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-operator-vmagent.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
+    force: yes
 
 - name: Generate VMPodScrape CR manifest
   ansible.builtin.template:
-    src: victoria-operator-vmscrape.yaml.j2
+    src: "{{ role_path }}/metrics/templates/victoria-operator-vmscrape.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml"
-    mode: '0644'
+    mode: "{{ victoria_file_mode }}"
+    force: yes

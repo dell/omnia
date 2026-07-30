@@ -25,8 +25,6 @@ from ansible.module_utils.input_validation.common_utils import en_us_validation_
 from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
 
 
-
-
 def validate_telemetry_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
 ):

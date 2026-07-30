@@ -21,6 +21,10 @@ telemetry_share_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/tele
 bmc_group_data_file: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/bmc_group_data.csv"
 orchestrator_inventory_template: "{{ role_path }}/templates/nodes/orchestrator_inventory.yaml.j2"
 orchestrator_inventory_file: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/orchestrator_inventory.yaml"
+kube_inventory_template: "{{ role_path }}/templates/nodes/kube_inventory.yml.j2"
+kube_inventory_file: "{{ playbook_dir }}/output/kube_inventory.yml"
+slurm_inventory_template: "{{ role_path }}/templates/nodes/slurm_inventory.yml.j2"
+slurm_inventory_file: "{{ playbook_dir }}/output/slurm_inventory.yml"
 openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir"
 nodes_dir: "{{ openchami_work_dir }}/nodes"
 openchami_config_vars_path: "{{ openchami_share_path }}/configs_vars.yaml"
@@ -51,7 +55,7 @@ cloud_init_dir: "{{ openchami_work_dir }}/cloud-init"
 ci_defaults_dest: '{{ cloud_init_dir }}/ci-defaults.yaml'
 ci_group_load_fail_msg: |
   "Template loading failed. Ensure the template exists in the specified path and is compatible with the defined functional groups."
-default_file_path: "{{ playbook_dir }}/roles/slurm_config/defaults/main.yml"
+default_file_path: "{{ role_path }}/../slurm_config/defaults/main.yml"
 ssh_private_key_path: /root/.ssh/oim_rsa
 
 # Usage: configure_cloud_init_common.yml

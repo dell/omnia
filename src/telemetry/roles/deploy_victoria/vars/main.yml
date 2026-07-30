@@ -21,13 +21,165 @@ telemetry_namespace: "telemetry"
 # Variables from localhost (set when role runs on kube_vip_group)
 telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
+telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
+telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
 cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
 
 # Deploy directory
 telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
+# VictoriaMetrics Cluster Configuration
+victoria_deployment_mode: "cluster"
+victoria_cluster:
+  enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
+  tls_enabled: true
+
+# Certificate directory
+victoria_cert_dir: "{{ telemetry_deploy_dir }}/certs/victoria"
+
 # Timeouts
 victoria_deploy_timeout: "600s"
+victoria_operator_wait_timeout: "300s"
 victoria_crd_wait_retries: 60
 victoria_crd_wait_delay: 2
+
+# File modes
+victoria_file_mode: "0644"
+
+# Error messages
+victoria_operator_not_installed_msg: >-
+  VictoriaMetrics operator is not installed and no tarball URL is configured
+  in telemetry_packages.yml (telemetry_packages.victoria_metrics_operator).
+  Please provide the operator tarball URL or install the operator manually.
+victoria_operator_skip_msg: "VictoriaMetrics operator already installed; skipping helm install/upgrade (no tarball URL configured)"
+victoria_operator_auto_install_msg: "VictoriaMetrics operator auto-installed for VictoriaLogs CRD support"
+victoria_operator_skip_existing_msg: "VictoriaMetrics operator already installed; skipping helm install"
+victoria_tarball_not_found_msg: >-
+  VictoriaMetrics operator tarball not found at
+  {{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | basename) }}.
+  Download from {{ telemetry_packages_config.telemetry_packages.victoria_metrics_operator }} may have failed.
+
+# Download timeout
+victoria_download_timeout: 300
+
+# Directory mode
+victoria_dir_mode: "0755"
+
+# ---------------------------------------------------------------------------
+# Victoria images from telemetry_registry (self-contained, no service_k8s dependency)
+# ---------------------------------------------------------------------------
+_victoria_images: "{{ telemetry_registry.images.victoria | default({}) }}"
+_support_images: "{{ telemetry_registry.images.support | default({}) }}"
+
+# Registry configuration (already set in load_telemetry_config)
+# telemetry_registry is inherited from hostvars when role runs on kube_vip
+
+# ---------------------------------------------------------------------------
+# victoria_cluster — composite variable used by metrics templates
+# ---------------------------------------------------------------------------
+# Merges storage config (replicas, resources) with container images and
+# operational defaults (probes, TLS, tolerations).
+victoria_cluster:
+  enabled: true
+  tls_enabled: false
+  termination_grace_period: 120
+  toleration_seconds: 300
+  startup_probe:
+    initial_delay: 5
+    period: 10
+    failure_threshold: 30
+    timeout: 5
+  readiness_probe:
+    initial_delay: 5
+    period: 10
+    failure_threshold: 10
+    timeout: 5
+  vmstorage:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.replicas | default(3) }}"
+    replication_factor: 1
+    image: "{{ _victoria_images.vmstorage | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
+    resources: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources }}"
+    dedup_min_scrape_interval: ""
+  vmselect:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.replicas | default(2) }}"
+    image: "{{ _victoria_images.vmselect | default('victoriametrics/vmselect:v1.128.0-cluster') }}"
+    resources: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources }}"
+    max_query_duration: ""
+    max_concurrent_requests: ""
+    cache_data_path: ""
+  vminsert:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.replicas | default(2) }}"
+    image: "{{ _victoria_images.vminsert | default('victoriametrics/vminsert:v1.128.0-cluster') }}"
+    resources: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources }}"
+    external_access: true
+  vmagent:
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.replicas | default(2) }}"
+    resources: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.resources }}"
+
+# ---------------------------------------------------------------------------
+# vmagent — composite variable used by vmagent/RBAC/scrape templates
+# ---------------------------------------------------------------------------
+vmagent:
+  service_account_name: "vmagent"
+  role_name: "vmagent-role"
+  rolebinding_name: "vmagent-rolebinding"
+  image: "{{ _victoria_images.vmagent | default('victoriametrics/vmagent:v1.128.0') }}"
+  remote_write_url_cluster: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
+  remote_write_url: "http://victoria-metrics-single-server.{{ telemetry_namespace }}.svc:8428/api/v1/write"
+  target_pod_label: "idrac-telemetry"
+  kubernetes_sd_namespace: "{{ telemetry_namespace }}"
+  metrics_container_name: "victoria-pump"
+  global:
+    scrape_interval: "30s"
+
+# ---------------------------------------------------------------------------
+# victoria_logs_cluster — composite variable used by VictoriaLogs templates
+# ---------------------------------------------------------------------------
+# Merges storage config (replicas, resources) with container images and
+# operational defaults (probes, TLS, tolerations).
+victoria_logs_cluster:
+  enabled: true
+  tls_enabled: false
+  vlstorage:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.replicas | default(3) }}"
+    image: "{{ _victoria_images.vlstorage | default('victoriametrics/vlstorage:v1.50.0') }}"
+    resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.resources }}"
+    termination_grace_period: 120
+    toleration_seconds: 300
+    startup_probe:
+      initial_delay: 5
+      period: 10
+      failure_threshold: 30
+      timeout: 5
+    readiness_probe:
+      initial_delay: 5
+      period: 10
+      failure_threshold: 10
+      timeout: 5
+  vlinsert:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.replicas | default(2) }}"
+    image: "{{ _victoria_images.vlinsert | default('victoriametrics/vlinsert:v1.50.0') }}"
+    resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.resources }}"
+    external_access: false
+  vlselect:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.replicas | default(2) }}"
+    image: "{{ _victoria_images.vlselect | default('victoriametrics/vlselect:v1.50.0') }}"
+    resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.resources }}"
+  vlagent:
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlagent.replicas | default(2) }}"
+    image: "{{ _victoria_images.vlagent | default('victoriametrics/vlagent:v1.50.0') }}"
+    resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlagent.resources }}"
+    pvc_size: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlagent.pvc_size | default('5Gi') }}"
+    termination_grace_period: 60
+    toleration_seconds: 300
+    liveness_probe:
+      initial_delay: 10
+      period: 15
+      timeout: 5
+      failure_threshold: 3
+    readiness_probe:
+      initial_delay: 5
+      period: 10
+      timeout: 5
+      failure_threshold: 3

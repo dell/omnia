@@ -1,0 +1,797 @@
+#!/bin/bash
+
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# omnia-cli — Omnia Domain Status & Diagnostics CLI
+# =============================================================================
+#
+# Separated from omnia.sh to keep the main entrypoint clean.
+# omnia.sh handles setup (venv, env). This CLI handles status & diagnostics.
+#
+# Usage:
+#   ./omnia-cli status [--project <name>]
+#   ./omnia-cli repo-manager [--project <name>]
+#   ./omnia-cli image-build [--project <name>]
+#   ./omnia-cli <domain> [--project <name>]
+#   ./omnia-cli version
+#   ./omnia-cli help [<domain>]
+# =============================================================================
+
+set -euo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Constants
+# ─────────────────────────────────────────────────────────────────────────────
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Color definitions (ANSI-C quoting for real escape characters)
+readonly RED=$'\033[0;31m'
+readonly GREEN=$'\033[0;32m'
+readonly BLUE=$'\033[0;34m'
+readonly YELLOW=$'\033[0;33m'
+readonly CYAN=$'\033[0;36m'
+readonly BOLD=$'\033[1m'
+readonly DIM=$'\033[2m'
+readonly NC=$'\033[0m'
+
+# Status symbols
+readonly PASS="${GREEN}✔${NC}"
+readonly FAIL="${RED}✗${NC}"
+readonly WARN="${YELLOW}⚠${NC}"
+readonly SKIP="${DIM}–${NC}"
+
+# Omnia release metadata
+readonly OMNIA_RELEASE="2.3.0.0"
+
+# Known domains with their output status file patterns
+declare -A DOMAIN_STATUS_FILES=(
+    [repo_manager]="repo_status.yml"
+    [image_build_manager]="build_status.yml"
+    [orchestrator]="orchestrator_status.yml"
+    [discovery]="discovery_status.yml"
+    [telemetry]="telemetry_status.yml"
+    [build_stream]="build_stream_status.yml"
+)
+
+declare -A DOMAIN_DESCRIPTIONS=(
+    [repo_manager]="RPM repository synchronization"
+    [image_build_manager]="OS image building (MinIO + Registry + OpenCHAMI)"
+    [orchestrator]="Cluster orchestration and provisioning"
+    [discovery]="Hardware discovery and inventory"
+    [telemetry]="Monitoring and telemetry stack"
+    [build_stream]="CI/CD build pipeline (GitLab)"
+)
+
+# Known domain input config file names (relative to input/<project>/)
+declare -A DOMAIN_INPUT_FILES=(
+    [repo_manager]="repo_manager_config.yml"
+    [image_build_manager]="image_build_config.yml"
+    [orchestrator]="orchestrator_config.yml"
+    [discovery]="discovery_config.yml"
+    [telemetry]="telemetry_config.yml"
+    [build_stream]="build_stream_config.yml"
+)
+
+readonly DOMAIN_ORDER=(
+    repo_manager
+    image_build_manager
+    orchestrator
+    discovery
+    telemetry
+    build_stream
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Environment Loading
+# ─────────────────────────────────────────────────────────────────────────────
+load_env() {
+    # Apply defaults for optional variables
+    OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+    OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+    OMNIA_VENV_PATH="${OMNIA_VENV_PATH:-$OMNIA_DATA_PATH/venv}"
+    SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME:-oim}"
+    SYSTEM_DOMAIN_NAME="${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
+    SYSTEM_ADMIN_NIC_IPV4="${SYSTEM_ADMIN_NIC_IPV4:-}"
+
+    export OMNIA_DATA_PATH OMNIA_PROJECT_NAME OMNIA_VENV_PATH
+    export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME SYSTEM_ADMIN_NIC_IPV4
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utility: Parse overall_status from a YAML file
+# ─────────────────────────────────────────────────────────────────────────────
+_parse_status() {
+    local file="$1"
+    grep -E '^\s*overall_status:' "$file" 2>/dev/null \
+        | head -1 \
+        | sed 's/.*: *"\?\([^"]*\)"\?/\1/' \
+        | tr -d '[:space:]'
+}
+
+_parse_yaml_key() {
+    local file="$1" key="$2"
+    grep -E "^\s*${key}:" "$file" 2>/dev/null \
+        | head -1 \
+        | sed 's/.*: *"\?\([^"]*\)"\?/\1/' \
+        | tr -d '[:space:]'
+}
+
+_resolve_output_dir() {
+    local domain="$1" project="$2"
+    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
+
+    # repo_manager uses a different path convention
+    if [ "$domain" = "repo_manager" ]; then
+        echo "${base}/repo_manager/output/${project}"
+    else
+        echo "${base}/${domain}/output/${project}"
+    fi
+}
+
+_resolve_input_dir() {
+    local domain="$1" project="$2"
+    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
+    echo "${base}/${domain}/input/${project}"
+}
+
+_last_modified() {
+    local dir="$1"
+    local newest
+    newest=$(find "$dir" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+    if [ -n "$newest" ]; then
+        local mod_time
+        mod_time=$(stat -c '%y' "$newest" 2>/dev/null | cut -d. -f1)
+        echo "${mod_time} ($(basename "$newest"))"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: check — Validate input files and output existence for all domains
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_check() {
+    local project="$1"
+
+    echo ""
+    echo -e "${BOLD}${BLUE}Omnia Domain Check${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+
+    local issues=0
+
+    for domain in "${DOMAIN_ORDER[@]}"; do
+        local display_name
+        display_name=$(echo "$domain" | tr '_' ' ')
+        local input_dir
+        input_dir=$(_resolve_input_dir "$domain" "$project")
+        local output_dir
+        output_dir=$(_resolve_output_dir "$domain" "$project")
+        local config_file="${DOMAIN_INPUT_FILES[$domain]:-}"
+
+        echo -e "  ${BOLD}${display_name}${NC}"
+
+        # Check input directory
+        if [ -d "$input_dir" ]; then
+            echo -e "    ${PASS} Input dir exists  ${DIM}${input_dir}${NC}"
+            # Check config file
+            if [ -n "$config_file" ] && [ -f "${input_dir}/${config_file}" ]; then
+                echo -e "    ${PASS} Config file: ${config_file}"
+            elif [ -n "$config_file" ]; then
+                echo -e "    ${WARN} Config file missing: ${config_file}"
+                issues=$((issues + 1))
+            fi
+        else
+            echo -e "    ${SKIP} Input dir not staged  ${DIM}${input_dir}${NC}"
+        fi
+
+        # Check output directory
+        if [ -d "$output_dir" ]; then
+            local status_file_name="${DOMAIN_STATUS_FILES[$domain]}"
+            if [ -f "${output_dir}/${status_file_name}" ]; then
+                local st
+                st=$(_parse_status "${output_dir}/${status_file_name}")
+                if [ "$st" = "success" ]; then
+                    echo -e "    ${PASS} Output: ${status_file_name}  ${GREEN}${st}${NC}"
+                else
+                    echo -e "    ${FAIL} Output: ${status_file_name}  ${RED}${st:-unknown}${NC}"
+                    issues=$((issues + 1))
+                fi
+            else
+                echo -e "    ${WARN} Output dir exists but ${status_file_name} missing"
+                issues=$((issues + 1))
+            fi
+        else
+            echo -e "    ${SKIP} Output dir not created  ${DIM}(domain not yet run)${NC}"
+        fi
+
+        echo ""
+    done
+
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    if [ "$issues" -eq 0 ]; then
+        echo -e "  ${GREEN}No issues found.${NC}"
+    else
+        echo -e "  ${YELLOW}${issues} issue(s) found.${NC}"
+    fi
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: status — Show all domain statuses for a project
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_status() {
+    local project="$1"
+
+    echo ""
+    echo -e "${BOLD}${BLUE}Omnia Domain Status${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+
+    local completed=0
+    local total=0
+
+    for domain in "${DOMAIN_ORDER[@]}"; do
+        total=$((total + 1))
+        local output_dir
+        output_dir=$(_resolve_output_dir "$domain" "$project")
+        local status_file_name="${DOMAIN_STATUS_FILES[$domain]}"
+        local desc="${DOMAIN_DESCRIPTIONS[$domain]}"
+
+        # Format domain name for display
+        local display_name
+        display_name=$(echo "$domain" | tr '_' ' ')
+
+        if [ ! -d "$output_dir" ]; then
+            echo -e "  ${SKIP} ${BOLD}${display_name}${NC}"
+            echo -e "    ${DIM}${desc}${NC}"
+            echo -e "    ${DIM}No output directory${NC}"
+            echo ""
+            continue
+        fi
+
+        # Look for status file
+        local status_file="${output_dir}/${status_file_name}"
+        local overall_status=""
+
+        if [ -f "$status_file" ]; then
+            overall_status=$(_parse_status "$status_file")
+        else
+            # Fallback: search for any *status*.yml
+            for sf in "${output_dir}"/*status*.yml "${output_dir}"/*status*.yaml; do
+                if [ -f "$sf" ]; then
+                    status_file="$sf"
+                    overall_status=$(_parse_status "$sf")
+                    break
+                fi
+            done
+        fi
+
+        if [ "$overall_status" = "success" ]; then
+            completed=$((completed + 1))
+            echo -e "  ${PASS} ${BOLD}${display_name}${NC}  ${GREEN}completed${NC}"
+        elif [ -n "$overall_status" ]; then
+            echo -e "  ${FAIL} ${BOLD}${display_name}${NC}  ${RED}${overall_status}${NC}"
+        elif [ -d "$output_dir" ]; then
+            echo -e "  ${WARN} ${BOLD}${display_name}${NC}  ${YELLOW}output exists, no status${NC}"
+        else
+            echo -e "  ${SKIP} ${BOLD}${display_name}${NC}"
+        fi
+
+        echo -e "    ${DIM}${desc}${NC}"
+
+        # Show last modified
+        local last_mod
+        last_mod=$(_last_modified "$output_dir")
+        if [ -n "$last_mod" ]; then
+            echo -e "    ${DIM}Last: ${last_mod}${NC}"
+        fi
+        echo ""
+    done
+
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo -e "  ${BOLD}${completed}/${total}${NC} domains completed for project ${CYAN}${project}${NC}"
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: repo-manager — Detailed repo_manager status
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_repo_manager() {
+    local project="$1"
+    local repo_dir
+    repo_dir=$(_resolve_output_dir "repo_manager" "$project")
+    local status_file="${repo_dir}/repo_status.yml"
+    local pkg_file="${repo_dir}/functional_group_packages.yml"
+
+    echo ""
+    echo -e "${BOLD}${BLUE}Repo Manager Status${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+    echo -e "  Output dir: ${DIM}${repo_dir}${NC}"
+    echo ""
+
+    # Check directory
+    if [ ! -d "$repo_dir" ]; then
+        echo -e "  ${FAIL} Output directory not found"
+        echo ""
+        echo -e "  ${YELLOW}Run repo_manager first or copy output files:${NC}"
+        echo -e "    mkdir -p ${repo_dir}"
+        echo -e "    cp repo_status.yml ${repo_dir}/"
+        echo -e "    cp functional_group_packages.yml ${repo_dir}/"
+        echo ""
+        return 1
+    fi
+    echo -e "  ${PASS} Directory exists"
+
+    # Check repo_status.yml
+    if [ ! -f "$status_file" ]; then
+        echo -e "  ${FAIL} repo_status.yml missing"
+        echo ""
+        return 1
+    fi
+
+    # Parse overall_status
+    local overall_status
+    overall_status=$(_parse_status "$status_file")
+    if [ "$overall_status" = "success" ]; then
+        echo -e "  ${PASS} repo_status.yml  (overall_status: ${GREEN}${overall_status}${NC})"
+    elif [ -n "$overall_status" ]; then
+        echo -e "  ${FAIL} repo_status.yml  (overall_status: ${RED}${overall_status}${NC})"
+    else
+        echo -e "  ${WARN} repo_status.yml  (overall_status: ${YELLOW}unknown${NC})"
+    fi
+
+    # Parse OS metadata
+    local os_type os_ver
+    os_type=$(_parse_yaml_key "$status_file" "cluster_os_type")
+    os_ver=$(_parse_yaml_key "$status_file" "cluster_os_version")
+    if [ -n "$os_type" ]; then
+        echo -e "  ${PASS} OS: ${os_type} ${os_ver}"
+    fi
+
+    # Check functional_group_packages.yml (from package_list or default)
+    local pkg_list_path
+    pkg_list_path=$(grep -E '^\s*package_list:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+    if [ -n "$pkg_list_path" ] && [ -f "$pkg_list_path" ]; then
+        echo -e "  ${PASS} functional_group_packages  (from package_list: ${DIM}${pkg_list_path}${NC})"
+    elif [ -f "$pkg_file" ]; then
+        echo -e "  ${PASS} functional_group_packages  (${DIM}${pkg_file}${NC})"
+    else
+        echo -e "  ${FAIL} functional_group_packages  ${RED}MISSING${NC}"
+    fi
+
+    # Check certificates
+    local cert_path
+    cert_path=$(grep -E '^\s*server_crt:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+    if [ -n "$cert_path" ]; then
+        if [ -f "$cert_path" ]; then
+            echo -e "  ${PASS} Repo manager certificate  (${DIM}${cert_path}${NC})"
+        else
+            echo -e "  ${FAIL} Repo manager certificate  ${RED}MISSING${NC} (expected: ${cert_path})"
+        fi
+    fi
+
+    # Count repos
+    local x86_count aarch64_count
+    x86_count=$(grep -c 'x86_64' "$status_file" 2>/dev/null || echo "0")
+    aarch64_count=$(grep -c 'aarch64' "$status_file" 2>/dev/null || echo "0")
+    echo ""
+    echo -e "  RPM repos (x86_64 lines):   ${x86_count}"
+    echo -e "  RPM repos (aarch64 lines):  ${aarch64_count}"
+
+    echo ""
+    if [ "$overall_status" = "success" ]; then
+        echo -e "  ${GREEN}Repo manager output is ready.${NC}"
+        return 0
+    else
+        echo -e "  ${YELLOW}Repo manager output may not be complete. Check overall_status.${NC}"
+        return 1
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: image-build — Detailed image_build_manager status
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_image_build() {
+    local project="$1"
+    local output_dir
+    output_dir=$(_resolve_output_dir "image_build_manager" "$project")
+    local status_file="${output_dir}/build_status.yml"
+
+    echo ""
+    echo -e "${BOLD}${BLUE}Image Build Manager Status${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+    echo -e "  Output dir: ${DIM}${output_dir}${NC}"
+    echo ""
+
+    if [ ! -d "$output_dir" ]; then
+        echo -e "  ${SKIP} No output directory — image_build_manager has not been run"
+        echo ""
+        return 1
+    fi
+
+    # Check build_status.yml
+    if [ ! -f "$status_file" ]; then
+        echo -e "  ${WARN} build_status.yml not found"
+        # Check if there are any status files at all
+        local found_any=0
+        for sf in "${output_dir}"/*status*.yml "${output_dir}"/*status*.yaml; do
+            if [ -f "$sf" ]; then
+                found_any=1
+                local st
+                st=$(_parse_status "$sf")
+                echo -e "  ${WARN} $(basename "$sf"): ${st:-unknown}"
+            fi
+        done
+        if [ "$found_any" -eq 0 ]; then
+            echo -e "  ${SKIP} No status files found"
+        fi
+        echo ""
+        return 1
+    fi
+
+    local overall_status
+    overall_status=$(_parse_status "$status_file")
+
+    if [ "$overall_status" = "success" ]; then
+        echo -e "  ${PASS} build_status.yml  (overall_status: ${GREEN}${overall_status}${NC})"
+    elif [ -n "$overall_status" ]; then
+        echo -e "  ${FAIL} build_status.yml  (overall_status: ${RED}${overall_status}${NC})"
+    else
+        echo -e "  ${WARN} build_status.yml  (overall_status: ${YELLOW}unknown${NC})"
+    fi
+
+    # Count built images
+    local image_count
+    image_count=$(grep -c 'functional_group:' "$status_file" 2>/dev/null || echo "0")
+    echo -e "  Images built: ${image_count}"
+
+    # Show per-arch counts
+    local x86_count aarch64_count
+    x86_count=$(grep -c 'x86_64' "$status_file" 2>/dev/null || echo "0")
+    aarch64_count=$(grep -c 'aarch64' "$status_file" 2>/dev/null || echo "0")
+    echo -e "  x86_64 entries:  ${x86_count}"
+    echo -e "  aarch64 entries: ${aarch64_count}"
+
+    # Show log file if exists (logs are under shared_path/log/<project>, not output_dir)
+    local image_build_base="${OMNIA_DATA_PATH:-/opt/omnia}/image_build_manager"
+    local log_dir="${image_build_base}/log/${project}"
+    if [ -d "$log_dir" ]; then
+        local latest_log
+        latest_log=$(find "$log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        if [ -n "$latest_log" ]; then
+            echo ""
+            echo -e "  Latest log: ${DIM}${latest_log}${NC}"
+        fi
+    fi
+
+    # Last modified
+    local last_mod
+    last_mod=$(_last_modified "$output_dir")
+    if [ -n "$last_mod" ]; then
+        echo -e "  Last modified: ${DIM}${last_mod}${NC}"
+    fi
+
+    echo ""
+    if [ "$overall_status" = "success" ]; then
+        echo -e "  ${GREEN}Image build completed successfully.${NC}"
+        return 0
+    else
+        echo -e "  ${YELLOW}Image build may not be complete.${NC}"
+        return 1
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: <generic-domain> — Status for any domain
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_domain_status() {
+    local domain="$1" project="$2"
+    local output_dir
+    output_dir=$(_resolve_output_dir "$domain" "$project")
+    local status_file_name="${DOMAIN_STATUS_FILES[$domain]:-status.yml}"
+    local desc="${DOMAIN_DESCRIPTIONS[$domain]:-$domain domain}"
+    local display_name
+    display_name=$(echo "$domain" | tr '_' ' ')
+
+    echo ""
+    echo -e "${BOLD}${BLUE}${display_name} Status${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+    echo -e "  ${DIM}${desc}${NC}"
+    echo -e "  Output dir: ${DIM}${output_dir}${NC}"
+    echo ""
+
+    if [ ! -d "$output_dir" ]; then
+        echo -e "  ${SKIP} No output directory — ${domain} has not been run"
+        echo ""
+        return 1
+    fi
+
+    # Find status files
+    local found=0
+    local status_file="${output_dir}/${status_file_name}"
+
+    if [ -f "$status_file" ]; then
+        found=1
+        local overall_status
+        overall_status=$(_parse_status "$status_file")
+        if [ "$overall_status" = "success" ]; then
+            echo -e "  ${PASS} ${status_file_name}  (overall_status: ${GREEN}${overall_status}${NC})"
+        elif [ -n "$overall_status" ]; then
+            echo -e "  ${FAIL} ${status_file_name}  (overall_status: ${RED}${overall_status}${NC})"
+        else
+            echo -e "  ${WARN} ${status_file_name}  (overall_status: ${YELLOW}unknown${NC})"
+        fi
+    fi
+
+    # Also check for any other status files
+    for sf in "${output_dir}"/*status*.yml "${output_dir}"/*status*.yaml; do
+        if [ -f "$sf" ] && [ "$sf" != "$status_file" ]; then
+            found=1
+            local st
+            st=$(_parse_status "$sf")
+            local fname
+            fname=$(basename "$sf")
+            if [ "$st" = "success" ]; then
+                echo -e "  ${PASS} ${fname}: ${GREEN}${st}${NC}"
+            elif [ -n "$st" ]; then
+                echo -e "  ${FAIL} ${fname}: ${RED}${st}${NC}"
+            else
+                echo -e "  ${WARN} ${fname}: ${YELLOW}(no overall_status)${NC}"
+            fi
+        fi
+    done
+
+    if [ "$found" -eq 0 ]; then
+        echo -e "  ${WARN} No status files found in output directory"
+    fi
+
+    # Last modified
+    local last_mod
+    last_mod=$(_last_modified "$output_dir")
+    if [ -n "$last_mod" ]; then
+        echo ""
+        echo -e "  Last modified: ${DIM}${last_mod}${NC}"
+    fi
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: version
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_version() {
+    echo -e "${BOLD}Omnia Infrastructure Manager${NC}"
+    echo -e "  Release:  ${GREEN}${OMNIA_RELEASE}${NC}"
+
+    # Try git tag
+    local git_root="$SCRIPT_DIR"
+    while [ "$git_root" != "/" ] && [ ! -d "$git_root/.git" ]; do
+        git_root="$(dirname "$git_root")"
+    done
+    if [ "$git_root" != "/" ] && [ -d "$git_root/.git" ]; then
+        local tag
+        tag=$(cd "$git_root" && git tag --points-at HEAD 2>/dev/null | head -n 1)
+        if [ -n "$tag" ]; then
+            echo -e "  Git tag:  ${GREEN}${tag}${NC}"
+        fi
+    fi
+
+    echo -e "  Data:     ${OMNIA_DATA_PATH:-/opt/omnia}"
+    echo -e "  Project:  ${OMNIA_PROJECT_NAME:-project_default}"
+
+    if [ -d "${OMNIA_VENV_PATH:-/opt/omnia/venv}" ]; then
+        echo -e "  Venv:     ${GREEN}${OMNIA_VENV_PATH:-/opt/omnia/venv}${NC}"
+    else
+        echo -e "  Venv:     ${YELLOW}(not set up)${NC}"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Help — Domain-specific
+# ─────────────────────────────────────────────────────────────────────────────
+show_domain_help() {
+    local domain="$1"
+    local display_name
+    display_name=$(echo "$domain" | tr '_' '-')
+
+    case "$domain" in
+        repo_manager)
+            cat <<EOF
+${BOLD}omnia-cli repo-manager${NC} — Repo Manager diagnostics
+
+USAGE:
+  omnia-cli repo-manager [--project <name>]
+
+CHECKS:
+  - Output directory exists at \${OMNIA_DATA_PATH}/repo_manager/output/<project>/
+  - repo_status.yml exists and overall_status == "success"
+  - functional_group_packages.yml found (from package_list or default)
+  - Repo manager certificate file exists at path from repo_status.yml
+  - RPM repo URL counts for x86_64 and aarch64
+
+ENVIRONMENT:
+  OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
+  OMNIA_PROJECT_NAME    Project name (default: project_default)
+EOF
+            ;;
+        image_build_manager)
+            cat <<EOF
+${BOLD}omnia-cli image-build${NC} — Image Build Manager diagnostics
+
+USAGE:
+  omnia-cli image-build [--project <name>]
+
+CHECKS:
+  - Output directory exists
+  - build_status.yml exists and overall_status == "success"
+  - Per-architecture image counts
+  - Latest build log location
+
+ENVIRONMENT:
+  OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
+  OMNIA_PROJECT_NAME    Project name (default: project_default)
+EOF
+            ;;
+        *)
+            cat <<EOF
+${BOLD}omnia-cli ${display_name}${NC} — ${DOMAIN_DESCRIPTIONS[$domain]:-$domain status}
+
+USAGE:
+  omnia-cli ${display_name} [--project <name>]
+
+CHECKS:
+  - Output directory exists at \${OMNIA_DATA_PATH}/${domain}/output/<project>/
+  - Status file: ${DOMAIN_STATUS_FILES[$domain]:-<domain>_status.yml}
+  - overall_status validation
+EOF
+            ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Help — Main
+# ─────────────────────────────────────────────────────────────────────────────
+show_help() {
+    cat <<EOF
+${BOLD}omnia-cli${NC} — Omnia Domain Status & Diagnostics CLI  v${OMNIA_RELEASE}
+
+USAGE:
+  omnia-cli <command> [--project <name>]
+
+COMMANDS:
+  ${BOLD}status${NC}              Show all domain statuses for a project
+  ${BOLD}check${NC}               Validate input files and output existence for all domains
+  ${BOLD}repo-manager${NC}        Detailed repo_manager diagnostics
+  ${BOLD}image-build${NC}         Detailed image_build_manager diagnostics
+  ${BOLD}orchestrator${NC}        Orchestrator status
+  ${BOLD}discovery${NC}           Discovery domain status
+  ${BOLD}telemetry${NC}           Telemetry stack status
+  ${BOLD}build-stream${NC}        Build stream (GitLab) status
+  ${BOLD}version${NC}             Show Omnia version info
+  ${BOLD}help${NC} [<domain>]     Show help (or domain-specific help)
+
+OPTIONS:
+  --project <name>    Project name (default: \$OMNIA_PROJECT_NAME or project_default)
+
+ENVIRONMENT:
+  Export these variables (or source omnia.env) before running:
+    OMNIA_DATA_PATH        Root data directory (default: /opt/omnia)
+    OMNIA_PROJECT_NAME     Project name (default: project_default)
+    SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (used by some domain checks)
+    OMNIA_VENV_PATH        Python venv path (default: /opt/omnia/venv)
+
+EXAMPLES:
+  omnia-cli status                          # All domains, default project
+  omnia-cli check                           # Validate input/output for all domains
+  omnia-cli status --project my_cluster     # All domains, custom project
+  omnia-cli repo-manager                    # Detailed repo check
+  omnia-cli image-build --project prod      # Image build status for 'prod'
+  omnia-cli help repo-manager               # Domain-specific help
+
+SEE ALSO:
+  omnia.sh --setup-venv     Set up Python + Ansible venv
+  omnia.sh --help           Main Omnia setup help
+EOF
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Argument Parsing
+# ─────────────────────────────────────────────────────────────────────────────
+_domain_from_arg() {
+    case "$1" in
+        repo-manager|repo_manager)   echo "repo_manager" ;;
+        image-build|image_build|image-build-manager|image_build_manager) echo "image_build_manager" ;;
+        orchestrator)                echo "orchestrator" ;;
+        discovery)                   echo "discovery" ;;
+        telemetry)                   echo "telemetry" ;;
+        build-stream|build_stream)   echo "build_stream" ;;
+        *)                           echo "" ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+main() {
+    load_env
+
+    local command="${1:-help}"
+    shift || true
+
+    # Parse --project flag from remaining args
+    local project="${OMNIA_PROJECT_NAME:-project_default}"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --project|-p)
+                project="${2:-project_default}"
+                shift 2 || { echo -e "${RED}--project requires a value${NC}"; exit 1; }
+                ;;
+            *)
+                # Positional arg — treat as project for backward compat
+                project="$1"
+                shift
+                ;;
+        esac
+    done
+
+    case "$command" in
+        status)
+            cmd_status "$project"
+            ;;
+        check)
+            cmd_check "$project"
+            ;;
+        repo-manager|repo_manager)
+            cmd_repo_manager "$project"
+            ;;
+        image-build|image_build|image-build-manager|image_build_manager)
+            cmd_image_build "$project"
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            if [ -n "${1:-}" ]; then
+                local domain
+                domain=$(_domain_from_arg "$1")
+                if [ -n "$domain" ]; then
+                    show_domain_help "$domain"
+                else
+                    echo -e "${RED}Unknown domain: $1${NC}"
+                    show_help
+                fi
+            else
+                show_help
+            fi
+            ;;
+        *)
+            # Try as a domain name
+            local domain
+            domain=$(_domain_from_arg "$command")
+            if [ -n "$domain" ]; then
+                cmd_domain_status "$domain" "$project"
+            else
+                echo -e "${RED}Unknown command: ${command}${NC}"
+                echo ""
+                show_help
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+main "$@"

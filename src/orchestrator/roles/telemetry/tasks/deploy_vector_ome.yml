@@ -13,84 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Deploy Vector-OME Pipeline
-# Purpose: Kafka-to-Victoria ingestion pipeline for OME telemetry (metrics + logs)
-# Spec Reference: Vector HLD Engineering Spec (ESPEC-VECTOR-2026-001) §4.1.3.6
-# Deployment Flow: U1 (Fresh deployment) and U7 (Configuration change)
-#
-# Gate Logic:
-#   - Feature flag: telemetry_bridges.vector_ome.metrics_enabled OR logs_enabled
-#   - Requires: kafka_support=true
-#   - Metrics path requires: victoria_metrics_support=true
-#   - Logs path requires: victoria_logs_support=true
-#   - KafkaUser: Dedicated vector-ome-user (NOT shared kafkapump)
+# Deploy Vector-OME Pipeline (placeholder)
+# The original implementation was removed during telemetry modernization.
+# This stub prevents load-failure errors from the include_tasks reference
+# in main.yml. The OME bridge deployment will be re-implemented in a
+# future telemetry iteration.
 
-
-# ============================================================================
-# Render Vector-OME KafkaUser CR
-# ============================================================================
-- name: Render Vector-OME KafkaUser CR
-  ansible.builtin.template:
-    src: "telemetry/vector/vector-ome-kafkauser.yaml.j2"
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-kafkauser.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  register: vector_ome_kafkauser_rendered
-
-- name: Display KafkaUser render result
+- name: Vector-OME bridge deployment is not yet implemented
   ansible.builtin.debug:
-    msg: "Vector-OME KafkaUser rendered to {{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-kafkauser.yaml"
-
-# ============================================================================
-# Render Vector-OME ConfigMap (TOML Configuration)
-# ============================================================================
-- name: Render Vector-OME ConfigMap
-  ansible.builtin.template:
-    src: "telemetry/vector/vector-ome-configmap.yaml.j2"
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-configmap.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  register: vector_ome_configmap_rendered
-
-- name: Display ConfigMap render result
-  ansible.builtin.debug:
-    msg: "Vector-OME ConfigMap rendered to {{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-configmap.yaml"
-
-# ============================================================================
-# Render Vector-OME Deployment
-# ============================================================================
-- name: Render Vector-OME Deployment
-  ansible.builtin.template:
-    src: "telemetry/vector/vector-ome-deployment.yaml.j2"
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-deployment.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  register: vector_ome_deployment_rendered
-
-- name: Display Deployment render result
-  ansible.builtin.debug:
-    msg: "Vector-OME Deployment rendered to {{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-deployment.yaml"
-
-# ============================================================================
-# Render Vector-OME Service
-# ============================================================================
-- name: Render Vector-OME Service
-  ansible.builtin.template:
-    src: "telemetry/vector/vector-ome-service.yaml.j2"
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-service.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  register: vector_ome_service_rendered
-
-- name: Display Service render result
-  ansible.builtin.debug:
-    msg: "Vector-OME Service rendered to {{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector/vector-ome-service.yaml"
-
-# ============================================================================
-# Summary: All Vector-OME templates rendered successfully
-# ============================================================================
-- name: Display Vector-OME template generation summary
-  ansible.builtin.debug:
-    msg: >
-      Vector-OME templates generated successfully.
-      ConfigMap: {{ vector_ome_configmap_rendered.dest }}.
-      KafkaUser: {{ vector_ome_kafkauser_rendered.dest }}.
-      Deployment: {{ vector_ome_deployment_rendered.dest }}.
-      Service: {{ vector_ome_service_rendered.dest }}.
-      Deployment will occur later via telemetry.sh during cloud-init.
+    msg: "Vector-OME bridge deployment is pending re-implementation after telemetry modernization."

@@ -26,7 +26,7 @@
 #
 # Checks performed:
 #   [localhost]
-#     1. kube_vip is defined and set in telemetry_config.yml
+#     1. kube_vip is defined and set in kube_inventory.yml
 #     2. kube_vip is a valid IPv4 address format
 #     3. kube_vip is reachable via ICMP ping
 #     4. kube_vip SSH (port 22) is reachable

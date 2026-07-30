@@ -174,3 +174,14 @@
     (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool) or
     (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool) or
     (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool)
+
+- name: Derive kafka_infra_only flag
+  ansible.builtin.set_fact:
+    kafka_infra_only: >-
+      {{ not (
+        (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
+        (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
+        (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool) or
+        (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)
+      ) }}
+    cacheable: true

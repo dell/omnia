@@ -2,28 +2,11 @@
 exclude_paths:
   - .git/
   - .github/
-  - accelerator/tests/
-  - network/tests/
-  - provision/tests/
-  - scheduler/tests/
-  - security/tests/
-  - storage/tests/
-  - test/
-  - utils/obsolete/
   - docs/
-  - platforms/
-  - examples/
-  - input/
   - .ansible-lint.yml
   - .readthedocs.yaml
-  - prepare_oim/roles/configure_proxy/tasks/configure_proxy_rocky.yml
-  - upgrade/roles/upgrade_idrac_telemetry/tasks/filter_idrac.yml
-  - utils/server_spec_update/roles/os_update/tasks/kcmdline_update_rocky.yml
-  - utils/roles/oim_cleanup/vars/rocky.yml
-  - scheduler/roles/k8s_start_services/files/k8s_dashboard_admin.yaml
-  - scheduler/playbooks/k8s_add_node.yml
-  - "*ubuntu*"
-  - "*rocky*"
+  - .github/workflows/
+  - .github/workflows/ansible-lint.yml
 
 skip_list:
   - var-naming

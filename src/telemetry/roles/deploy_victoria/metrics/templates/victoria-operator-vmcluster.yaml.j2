@@ -40,7 +40,7 @@ spec:
     # Required because POSIX flock is not reliably released on NFS-backed PVCs
     initContainers:
       - name: remove-stale-locks
-        image: "{{ telemetry_images['docker.io/library/busybox'] | default('docker.io/library/busybox:1.36') }}"
+        image: "{{ _support_images.busybox | default('docker.io/library/busybox:1.36') }}"
         command: ["sh", "-c", "rm -f /vmstorage-data/flock.lock || true"]
         volumeMounts:
           - name: vmstorage-db
@@ -71,7 +71,7 @@ spec:
       httpGet:
         path: /health
         port: 8482
-        scheme: HTTPS
+        scheme: {{ 'HTTPS' if victoria_cluster.tls_enabled else 'HTTP' }}
       initialDelaySeconds: {{ victoria_cluster.startup_probe.initial_delay }}
       periodSeconds: {{ victoria_cluster.startup_probe.period }}
       failureThreshold: {{ victoria_cluster.startup_probe.failure_threshold }}
@@ -86,7 +86,7 @@ spec:
       httpGet:
         path: /health
         port: 8482
-        scheme: HTTPS
+        scheme: {{ 'HTTPS' if victoria_cluster.tls_enabled else 'HTTP' }}
       initialDelaySeconds: {{ victoria_cluster.readiness_probe.initial_delay }}
       periodSeconds: {{ victoria_cluster.readiness_probe.period }}
       failureThreshold: {{ victoria_cluster.readiness_probe.failure_threshold }}

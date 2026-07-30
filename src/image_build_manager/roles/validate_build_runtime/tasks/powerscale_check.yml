@@ -15,11 +15,6 @@
 
 # === PowerScale endpoint validation (S3 backend only) ===
 
-- name: Set storage backend fact
-  ansible.builtin.set_fact:
-    storage_backend: "{{ s3_configurations.provider | lower }}"
-    cacheable: true
-
 - name: Validate PowerScale S3 endpoint configuration
   ansible.builtin.assert:
     that:
@@ -31,7 +26,7 @@
       - s3_secret_key is defined
       - s3_secret_key | length > 0
     fail_msg: "{{ powerscale_validation_fail_msg }}"
-  when: storage_backend == 'powerscale'
+  when: s3_configurations.provider | lower == 'powerscale'
 
 - name: Test PowerScale endpoint reachability
   ansible.builtin.uri:
@@ -43,13 +38,13 @@
   register: ps_endpoint_check
   failed_when: false
   ignore_errors: true
-  when: storage_backend == 'powerscale'
+  when: s3_configurations.provider | lower == 'powerscale'
 
 - name: Fail if PowerScale unreachable
   ansible.builtin.fail:
     msg: "{{ powerscale_unreachable_msg }}"
   when:
-    - storage_backend == 'powerscale'
+    - s3_configurations.provider | lower == 'powerscale'
     - ps_endpoint_check is defined
     - ps_endpoint_check.status is not defined or
       ps_endpoint_check.status | int not in [200, 403, 404, 405]

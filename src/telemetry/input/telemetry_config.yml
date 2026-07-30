@@ -71,16 +71,6 @@
 # ============================================================================
 
 # ============================================================================
-# TELEMETRY CLUSTER CONFIGURATION
-# ============================================================================
-# K8s cluster configuration for telemetry deployment
-
-# Kubernetes control plane virtual IP address
-# Required for all telemetry deployments
-# All K8s tasks (kubectl, helm) execute on this host via SSH
-kube_vip: ""
-
-# ============================================================================
 # TELEMETRY SOURCES (Data Collectors)
 # ============================================================================
 # Each source can be independently enabled/disabled.

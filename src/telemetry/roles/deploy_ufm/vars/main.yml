@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# UFM Telemetry Role Variables
+# =============================================================================
+
+# Deploy directory on NFS share
+telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
+telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
+telemetry_namespace: "telemetry"
+
+# Kubernetes resource names
+ufm_credentials_secret_name: "ufm-telemetry-credentials"
+
+# UFM telemetry defaults
+ufm_endpoint_test_timeout: 10
+
+# Validation messages
+ufm_endpoint_empty_msg: >-
+  UFM telemetry is enabled but ufm_endpoint is empty.
+  Set ufm_configuration.ufm_endpoint in telemetry_config.yml.
+
+ufm_credentials_missing_msg: >-
+  UFM auth_mode is 'basic' but ufm_username or ufm_password is not set.
+  Provide UFM credentials in omnia_config_credentials.yml.
+
+ufm_ca_cert_not_found_msg: >-
+  UFM tls_mode is 'ca_signed' but the CA certificate file was not found
+  at the path specified in ufm_ca_cert_path. Provide a valid PEM certificate file.
+
+ufm_port_range_msg: >-
+  UFM metrics port must be between 1 and 65535.
+
+ufm_tls_mode_invalid_msg: >-
+  UFM tls_mode must be 'self_signed' or 'ca_signed'.
+
+ufm_auth_mode_invalid_msg: >-
+  UFM auth_mode must be 'basic' or 'none'.
+
+ufm_secret_created_msg: >-
+  UFM credentials Kubernetes Secret created in namespace '{{ telemetry_namespace }}'.
