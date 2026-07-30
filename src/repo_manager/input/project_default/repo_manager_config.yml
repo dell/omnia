@@ -166,6 +166,7 @@ user_registry:
 # user_repo_url_x86_64:
 #  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
+   - { url: "http://100.98.69.235/nvml/", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_aarch64:
 #Example:
 # rhel_os_url_x86_64:

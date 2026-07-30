@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# =============================================================================
+# VALIDATE SUBSCRIPTION ROLE VARIABLES
+# =============================================================================
 
 # Usage: check_rhel_subscription.yml
 rhel_repo_cert_dir: "{{ rhel_repo_certs_dir }}"
-rhel_version: "{{ hostvars['localhost']['cluster_os_version'].split('.')[0] }}"
+rhel_version: "{{ cluster_os_version.split('.')[0] | default('10') }}"
 redhat_uep_cert: "/etc/rhsm/ca/redhat-uep.pem"
 entitlement_path: "/etc/pki/entitlement"
 redhat_repo_file: "/etc/yum.repos.d/redhat.repo"

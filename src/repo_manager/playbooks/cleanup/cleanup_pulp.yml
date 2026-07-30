@@ -13,46 +13,100 @@
 # limitations under the License.
 ---
 # =============================================================================
-# CLEANUP PULP - MAIN PLAYBOOK
+# CLEANUP PULP PLAYBOOK
 # =============================================================================
 # This playbook removes the Pulp container and all related data.
-#
-# Structure:
-#   1. Import validation playbook (cleanup_pulp_validate.yml)
-#   2. Fetch credentials for Pulp access
-#   3. Execute cleanup tasks
-#   4. Display post-cleanup notes
+# All tasks run on localhost (OIM).
 #
 # Usage:
-#   ansible-playbook cleanup_pulp.yml -e 'project_name=project_default'
-#   ansible-playbook cleanup_pulp.yml --tags pulp -e 'project_name=project_default'
-#
-# Related files:
-#   - cleanup_pulp_vars.yml    : All variables
-#   - cleanup_pulp_validate.yml: Validation playbook
+#   ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default'
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# PHASE 1: VALIDATION
-# -----------------------------------------------------------------------------
-
-- name: Run cleanup validation
-  ansible.builtin.import_playbook: cleanup_pulp_validate.yml
-  tags: always
-
-# -----------------------------------------------------------------------------
-# PHASE 2: FETCH CREDENTIALS
-# -----------------------------------------------------------------------------
-
-- name: Fetch Pulp credentials
+- name: Cleanup Pulp container and data
   hosts: localhost
   connection: local
-  gather_facts: false
-  tags: always
+  gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
+  tags: pulp
   tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 0: SETUP PULP CLI
+    # -------------------------------------------------------------------------
+    - name: Check if pulp CLI exists at /usr/local/bin/pulp
+      ansible.builtin.stat:
+        path: /usr/local/bin/pulp
+      register: pulp_system_cli_check
+
+    - name: Find pulp CLI path from current environment
+      ansible.builtin.command: which pulp
+      register: pulp_which_result
+      changed_when: false
+      failed_when: false
+      when: not pulp_system_cli_check.stat.exists
+
+    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
+      ansible.builtin.file:
+        src: "{{ pulp_which_result.stdout }}"
+        dest: /usr/local/bin/pulp
+        state: link
+      when:
+        - not pulp_system_cli_check.stat.exists
+        - pulp_which_result.rc | default(1) == 0
+        - pulp_which_result.stdout | default('') | length > 0
+
+    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
+      ansible.builtin.command: /usr/local/bin/pulp --version
+      register: pulp_cli_version
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if pulp CLI is not available
+      ansible.builtin.fail:
+        msg: |
+          Pulp CLI not found at /usr/local/bin/pulp.
+          Please ensure pulp-cli is installed and the virtual environment is activated:
+            source <venv_path>/bin/activate
+            pip install pulp-cli
+          Then run the playbook again to create the symlink automatically.
+      when: pulp_cli_version.rc != 0
+
+    - name: Display pulp CLI status
+      ansible.builtin.debug:
+        msg: "Pulp CLI: {{ pulp_cli_version.stdout }}"
+
+    # -------------------------------------------------------------------------
+    # PHASE 1: VALIDATION
+    # -------------------------------------------------------------------------
+    - name: Check if Pulp container exists
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: pulp_container_check
+      failed_when: false
+
+    - name: Check if Pulp quadlet file exists
+      ansible.builtin.stat:
+        path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+      register: pulp_quadlet_check
+
+    - name: Set validation facts
+      ansible.builtin.set_fact:
+        pulp_container_exists: "{{ pulp_container_check.containers | default([]) | length > 0 }}"
+        pulp_quadlet_exists: "{{ pulp_quadlet_check.stat.exists | default(false) }}"
+
+    - name: Display validation status
+      ansible.builtin.debug:
+        msg:
+          - "========== CLEANUP VALIDATION =========="
+          - "Pulp container exists: {{ pulp_container_exists }}"
+          - "Pulp quadlet exists: {{ pulp_quadlet_exists }}"
+          - "========================================="
+
+    # -------------------------------------------------------------------------
+    # PHASE 2: FETCH CREDENTIALS
+    # -------------------------------------------------------------------------
     - name: Load credentials for cleanup
       ansible.builtin.include_role:
         name: ../../roles/credential
@@ -65,32 +119,17 @@
           - "Pulp username: {{ pulp_username | default('admin') }}"
           - "Pulp password: {{ '***' if (pulp_password | default('') | length > 0) else 'NOT SET' }}"
 
-# -----------------------------------------------------------------------------
-# PHASE 3: CLEANUP PULP
-# -----------------------------------------------------------------------------
-
-- name: Cleanup Pulp container and data
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
-  vars:
-    pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin') }}"
-    pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
-  tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 3: CLEANUP PULP
+    # -------------------------------------------------------------------------
     - name: Display cleanup info
       ansible.builtin.debug:
         msg:
           - "========== PULP CLEANUP =========="
           - "Container: {{ pulp_container_name }}"
           - "Image: {{ pulp_image }}"
-          - "Pulp User: {{ pulp_username }}"
           - "=================================="
 
-    # --- Systemd cleanup ---
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
@@ -108,45 +147,31 @@
         - ansible_facts['services']['pulp.service'].state == 'running'
       failed_when: false
 
-    # --- Quadlet cleanup ---
-    - name: Check if Pulp container quadlet file exists
-      ansible.builtin.stat:
-        path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
-      register: quadlet_stat
-
     - name: Remove Pulp systemd unit files
       ansible.builtin.file:
         path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
         state: absent
-      when: quadlet_stat.stat.exists
+      when: pulp_quadlet_exists
       register: pulp_unit_removed
 
     - name: Reload systemd daemon after unit removal
       ansible.builtin.systemd:
         daemon_reload: true
-      when: quadlet_stat.stat.exists
-      failed_when: false
-
-    # --- Container cleanup ---
-    - name: Check if Pulp container exists
-      containers.podman.podman_container_info:
-        name: "{{ pulp_container_name }}"
-      register: pulp_container_status
+      when: pulp_quadlet_exists
       failed_when: false
 
     - name: Stop the Pulp container
-      containers.podman.podman_container:
-        name: "{{ pulp_container_name }}"
-        state: stopped
-      when:
-        - pulp_container_status.containers is defined
-        - pulp_container_status.containers | length > 0
+      ansible.builtin.command:
+        cmd: "podman stop {{ pulp_container_name }}"
+      when: pulp_container_exists
+      failed_when: false
+      changed_when: true
 
     - name: Remove Pulp container
-      containers.podman.podman_container:
-        name: "{{ pulp_container_name }}"
-        state: absent
-        force_delete: true
+      ansible.builtin.command:
+        cmd: "podman rm -f {{ pulp_container_name }}"
+      failed_when: false
+      changed_when: true
 
     - name: Remove Pulp container image
       ansible.builtin.command:
@@ -154,7 +179,6 @@
       changed_when: true
       failed_when: false
 
-    # --- Directory cleanup ---
     - name: Remove Pulp directories
       ansible.builtin.file:
         path: "{{ item }}"
@@ -165,14 +189,12 @@
       retries: "{{ max_retries }}"
       with_items: "{{ pulp_cleanup_directory }}"
 
-    # --- HTTPS track file cleanup ---
     - name: Remove track file when Pulp is configured for HTTPS
       ansible.builtin.file:
         path: "{{ track_file_path }}"
         state: absent
       when: pulp_protocol_https | bool
 
-    # --- Omnia target cleanup ---
     - name: Check if omnia target file exists
       ansible.builtin.stat:
         path: "{{ omnia_target }}"
@@ -187,20 +209,9 @@
         - omnia_target_stat.stat.exists
         - omnia_target_stat.stat.isreg
 
-
-# -----------------------------------------------------------------------------
-# PHASE 3.5: CLEANUP REPO_MANAGER LOGS (runs on localhost/omnia_core)
-# -----------------------------------------------------------------------------
-
-- name: Cleanup repo_manager log directory
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
-  tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 4: CLEANUP LOGS
+    # -------------------------------------------------------------------------
     - name: Display log cleanup mode
       ansible.builtin.debug:
         msg: "Log cleanup: {{ 'Enabled - removing entire log directory' if (cleanup_logs | default(true) | bool) else 'Disabled - preserving logs' }}"
@@ -224,22 +235,9 @@
         state: absent
       when: cleanup_logs | default(true) | bool
 
-    - name: Display cleanup result
-      ansible.builtin.debug:
-        msg: "{{ 'Log directory cleaned for fresh deployment' if (cleanup_logs | default(true) | bool) else 'Log directory preserved' }}"
-
-# -----------------------------------------------------------------------------
-# PHASE 4: POST-CLEANUP NOTES
-# -----------------------------------------------------------------------------
-
-- name: Show cleanup instructions
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
-  tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 5: POST-CLEANUP NOTES
+    # -------------------------------------------------------------------------
     - name: Display Pulp post-cleanup notes
       ansible.builtin.debug:
         msg: "{{ cleanup_pulp_note }}"
