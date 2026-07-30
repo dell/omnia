@@ -1,0 +1,82 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# DEPLOY PULP ROLE - MAIN ENTRY POINT
+# =============================================================================
+# This role handles the deployment of the Pulp container.
+#
+# Steps:
+#   1. Set deployment facts (hostname, protocol, IP, credentials)
+#   2. Pull Pulp container image
+#   3. Deploy container (HTTP or HTTPS based on configuration)
+#
+# Required Variables (from roles/deploy_pulp/vars/main.yml and vars/default.yml):
+#   - pulp_protocol_https: boolean (true for HTTPS, false for HTTP)
+#   - pulp_image: Pulp container image to deploy
+#   - pulp_username: Admin username for Pulp (from credentials)
+#   - pulp_password: Admin password for Pulp (from credentials)
+#
+# Pre-requisites:
+#   - OIM host group created
+#   - Credentials fetched (pulp_username, pulp_password available)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# STEP 1: SET DEPLOYMENT FACTS
+# -----------------------------------------------------------------------------
+
+- name: Load repo_manager endpoint configuration
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+    name: endpoint_config
+
+- name: Set Pulp server IP and credentials from endpoint config
+  ansible.builtin.set_fact:
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip }}"
+    pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin', true) }}"
+    pulp_password: "{{ hostvars['localhost']['pulp_password'] | default('') }}"
+
+- name: Propagate pulp_protocol_https to localhost
+  ansible.builtin.set_fact:
+    pulp_protocol_https: "{{ pulp_protocol_https }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Display deployment configuration
+  ansible.builtin.debug:
+    msg:
+      - "Pulp Server IP: {{ pulp_server_ip }}"
+      - "Pulp Username: {{ pulp_username }}"
+      - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
+      - "Image: {{ pulp_image }}"
+
+# -----------------------------------------------------------------------------
+# STEP 2: PULL PULP CONTAINER IMAGE
+# -----------------------------------------------------------------------------
+
+- name: Pull Pulp container image
+  ansible.builtin.include_tasks: pull_image.yml
+
+# -----------------------------------------------------------------------------
+# STEP 3: DEPLOY PULP CONTAINER
+# -----------------------------------------------------------------------------
+
+- name: Deploy Pulp container over HTTP
+  ansible.builtin.include_tasks: deploy_container_http.yml
+  when: not pulp_protocol_https | bool
+
+- name: Deploy Pulp container over HTTPS
+  ansible.builtin.include_tasks: deploy_container_https.yml
+  when: pulp_protocol_https | bool

@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Build Stream Domain — Credential Configuration
+# ============================================================================
+# Domain-specific copy of credential_utility vars.  Only the Build Stream
+# credential file is defined here (no omnia/image_build entries).
+# ============================================================================
+
+# Single credential file for the build_stream domain
+bs_credential_file_path: "{{ input_project_dir }}/build_stream/build_stream_credentials.yml"
+bs_credential_vault_path: "{{ input_project_dir }}/build_stream/.build_stream_credentials_key"
+
+credential_files:
+  - credential_type: "Build Stream"
+    template: "{{ role_path }}/templates/build_stream_credential.j2"
+    file_path: "{{ bs_credential_file_path }}"
+    file_mode: 600
+    vault_path: "{{ bs_credential_vault_path }}"
+    condition: "{{ enable_build_stream | default(false) | bool }}"
+
+# Build Stream credentials prompt definition
+bs_credentials:
+  build_stream:
+    mandatory:
+      - { password: gitlab_root_password }
+      - { password: gitlab_ssh_password, file: "{{ bs_credential_file_path }}" }
+    conditional_mandatory:
+      - username: build_stream_auth_username
+        password: build_stream_auth_password
+        condition: "{{ enable_build_stream | default(false) | bool }}"
+        file: "{{ bs_credential_file_path }}"
+      - username: postgres_user
+        password: postgres_password
+        condition: "{{ enable_build_stream | default(false) | bool }}"
+        file: "{{ bs_credential_file_path }}"
+
+# Prompt messages
+mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty. Please provide valid inputs."
+mandatory_input: "is a [MANDATORY] credential and cannot be left empty."
+conditional_mandatory_warning_msg: |
+  WARNING: Conditional mandatory credentials will be prompted based on your configuration.
+  These credentials are required when specific features are enabled and cannot be left empty.
+conditional_mandatory_input: "is a [CONDITIONAL MANDATORY] credential and cannot be left empty when the feature is enabled."
+
+# Prompt error messages
+mandatory_password_fail_msg: "Failed. Password is required for mandatory credential or any username input. Please provide valid password."
+password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+password_fail_msg: "Failed. Please provide valid password."
+mandatory_credentials_msg: "Failed. Please provide valid username for mandatory credential."
+username_fail_msg: "Failed. Please provide valid username."
+credential_encrypt_fail_msg: "Failed to encrypt credential file."
+password_hash_fail_msg: "Failed to generate Argon2 password hash for build stream registrar."
+
+# Vault search key
+ansible_vault_search_key: "$ANSIBLE_VAULT;"

@@ -8,8 +8,8 @@ use_https = {{ 'True' if s3_configurations.endpoint_url.startswith('https') else
 check_ssl_certificate = False
 check_ssl_hostname = False
 {% else %}
-host_base = {{ cluster_name }}.{{ cluster_domain }}:9000
-host_bucket = {{ cluster_name }}.{{ cluster_domain }}:9000
+host_base = {{ admin_nic_ip }}:9000
+host_bucket = {{ admin_nic_ip }}:9000
 use_https = False
 check_ssl_certificate = False
 check_ssl_hostname = False

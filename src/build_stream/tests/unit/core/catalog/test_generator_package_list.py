@@ -42,7 +42,7 @@ class TestGetPackageList(unittest.TestCase):
         self.base_dir = os.path.dirname(__file__)
         # Calculate path to fixtures: tests/unit/core/catalog -> core/catalog/test_fixtures
         self.fixture_path = os.path.abspath(
-            os.path.join(self.base_dir, "..", "..", "..", "..", "core", "catalog", "test_fixtures", "functional_layer.json")
+            os.path.join(self.base_dir, "..", "..", "..", "..", "app", "core", "catalog", "test_fixtures", "functional_layer.json")
         )
 
     def test_get_packages_for_valid_single_role(self):

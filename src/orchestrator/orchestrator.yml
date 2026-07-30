@@ -30,126 +30,48 @@
 # Usage:
 #   ansible-playbook orchestrator.yml
 
-- name: Clone shared dependencies (common)
+# Step 0: Setup — upgrade guard, project dirs, OIM group
+- name: Setup orchestrator environment
   hosts: localhost
   connection: local
   gather_facts: false
   tags: always
-  tasks:
-    - name: Sync common/ into orchestrator (future git clone)
-      ansible.builtin.include_tasks: tasks/clone_dependencies.yml
+  roles:
+    - role: orchestrator_setup
+      vars:
+        openchami_vars_support: true
+        omnia_metadata_support: true
+        oim_group: true
 
-- name: Check if upgrade is in progress
-  ansible.builtin.import_playbook: ../playbooks/utils/upgrade_checkup.yml
-
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../playbooks/utils/include_input_dir.yml
-  vars:
-    openchami_vars_suppport: true
-    omnia_metadata_support: true
-
-- name: Scope input directory to orchestrator subdirectory
+# Step 1: Validate orchestrator input (L1 schema + L2 logic)
+- name: Validate orchestrator input configuration
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
-  tasks:
-    - name: Save original project-level input dir
-      ansible.builtin.set_fact:
-        omnia_project_input_dir: "{{ input_project_dir }}"
-        cacheable: true
+  roles:
+    - role: validate_orchestrator_input
+      when: not config_file_status | default(false) | bool
 
-    - name: Override input_project_dir to orchestrator subdirectory
-      ansible.builtin.set_fact:
-        input_project_dir: "{{ input_project_dir }}/orchestrator"
-        project_name: "orchestrator"
-        orchestrator_config_file: "orchestrator_config.yml"
-        orchestrator_output_dir: "/opt/omnia/output/{{ project_name | default('project_default') }}/orchestrator"
-        project_dir_status: true
-        cacheable: true
-
-    - name: Verify orchestrator input directory exists
-      ansible.builtin.stat:
-        path: "{{ input_project_dir }}"
-      register: orchestrator_input_stat
-
-    - name: Fail if orchestrator input directory does not exist
-      ansible.builtin.fail:
-        msg: >-
-          Orchestrator input directory '{{ input_project_dir }}' does not exist.
-          Please create it and populate with orchestrator_config.yml, network_spec.yml,
-          and pxe_mapping_file.csv (from discovery output).
-      when: not orchestrator_input_stat.stat.exists
-
-    - name: Ensure orchestrator output directory exists
-      ansible.builtin.file:
-        path: "{{ orchestrator_output_dir }}"
-        state: directory
-        mode: '0755'
-
-- name: Load orchestrator settings
+# Step 2: Credential management (prompt, encrypt, vault)
+- name: Create and update credential config files
   hosts: localhost
   connection: local
-  tags: always
-  tasks:
-    - name: Load orchestrator config for image_build_manager output path
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/orchestrator_config.yml"
-        name: _orch_config
-      failed_when: false
+  gather_facts: false
+  roles:
+    - role: orchestrator_credentials
+      when:
+        - not config_file_status | default(false) | bool
+        - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
+          or (omnia_run_tags | default([]) | length == 0)
 
-    - name: Set image_build_manager_output_path on localhost
-      ansible.builtin.set_fact:
-        image_build_manager_output_path: "{{ _orch_config.image_build_manager_output_path | default('/opt/omnia/output/project_default/image_build_manager/build_status.yml') }}"
-        cacheable: true
-
-- name: Create oim group
-  ansible.builtin.import_playbook: ../playbooks/utils/create_container_group.yml
-  vars:
-    oim_group: true
-  tags: always
-
+# Step 3: Generate functional groups from pxe_mapping_file.csv
 - name: Generate functional groups configuration
-  ansible.builtin.import_playbook: ../playbooks/utils/generate_functional_groups.yml
-  tags: always
-
-- name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
-  tasks:
-    - name: Set dynamic run tags for orchestrator validation
-      when: not config_file_status | default(false) | bool
-      ansible.builtin.set_fact:
-        omnia_run_tags: "{{ ['orchestrator'] }}"
-        oim_group_status: true
-        cacheable: true
-
-    - name: Pre-load software_config from project root for shared validation plays
-      when: not config_file_status | default(false) | bool
-      block:
-        - name: Validate software_config.json syntax
-          ansible.builtin.command: "jq . {{ omnia_project_input_dir }}/software_config.json"
-          register: _sw_json_check
-          changed_when: false
-          failed_when: false
-          no_log: true
-
-        - name: Load software_config from project root
-          ansible.builtin.set_fact:
-            software_config: "{{ lookup('file', omnia_project_input_dir + '/software_config.json') | from_json }}"
-            cluster_os_version: "{{ (lookup('file', omnia_project_input_dir + '/software_config.json') | from_json).cluster_os_version }}"
-            cluster_os_type: "{{ (lookup('file', omnia_project_input_dir + '/software_config.json') | from_json).cluster_os_type }}"
-            cacheable: true
-          when: _sw_json_check.rc == 0
-
-- name: Invoke validate_config.yml to perform L1 and L2 validations
-  when: not config_file_status | default(false) | bool
-  ansible.builtin.import_playbook: ../playbooks/input_validation/validate_config.yml
-
-- name: Invoke get_config_credentials.yml
-  when: not config_file_status | default(false) | bool
-  ansible.builtin.import_playbook: ../playbooks/utils/credential_utility/get_config_credentials.yml
+  gather_facts: false
+  tags: always
+  roles:
+    - orchestrator_functional_groups
 
 - name: Validate orchestrator parameters
   hosts: localhost
@@ -184,7 +106,9 @@
   gather_facts: false
   tasks:
     - name: Configure s3cmd and set S3 facts from orchestrator config
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/configure_s3_access.yml"
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: configure_s3_access.yml
 
 - name: Deploy OpenCHAMI containers on OIM
   hosts: oim
@@ -217,7 +141,9 @@
   connection: ssh
   tasks:
     - name: Openchami cluster authentication
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/openchami_auth.yml"
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: openchami_auth.yml
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
 
@@ -317,5 +243,4 @@
     - k8s_config
     - slurm_config
     - openldap
-    - telemetry
     - configure_ochami

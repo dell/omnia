@@ -36,7 +36,7 @@ EXAMPLES_CATALOG = os.path.join(
 class TestAdapterDefaults(unittest.TestCase):
     def test_default_schema_path_points_to_resources(self):
         # The default schema path should point to the actual resources directory in core/catalog
-        expected_schema = os.path.join(PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json")
+        expected_schema = os.path.join(PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json")
         self.assertEqual(os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema))
 
     @unittest.skip(

@@ -24,13 +24,13 @@
       ansible.builtin.file:
         path: "{{ cluster_mount }}/telemetry"
         state: directory
-        mode: '0755'
+        mode: "{{ victoria_dir_mode }}"
 
     - name: Create deployments directory
       ansible.builtin.file:
         path: "{{ telemetry_deployments_dir }}"
         state: directory
-        mode: '0755'
+        mode: "{{ victoria_dir_mode }}"
   when: cluster_mount | default('') != ''
 
 - name: Download VictoriaMetrics operator package
@@ -47,11 +47,21 @@
       ansible.builtin.get_url:
         url: "{{ telemetry_packages_config.telemetry_packages.victoria_metrics_operator }}"
         dest: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | basename) }}"
-        mode: '0644'
-        timeout: 300
+        mode: "{{ victoria_file_mode }}"
+        timeout: "{{ victoria_download_timeout }}"
+        validate_certs: false
       when: not (victoria_tarball_stat.stat.exists | default(false))
       register: victoria_download
-      failed_when: false
+
+    - name: Verify VictoriaMetrics tarball was downloaded
+      ansible.builtin.stat:
+        path: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | basename) }}"
+      register: victoria_tarball_verify
+
+    - name: Fail if VictoriaMetrics tarball not available
+      ansible.builtin.fail:
+        msg: "{{ victoria_tarball_not_found_msg }}"
+      when: not (victoria_tarball_verify.stat.exists | default(false))
   run_once: true
 
 - name: Set victoria_operator_pkg path

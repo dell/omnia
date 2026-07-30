@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# REPO MANAGER TOP-LEVEL PLAYBOOK
+# =============================================================================
+# This playbook orchestrates all repo_manager operations using tags.
+#
+# Usage:
+#   # Deploy Pulp server
+#   ansible-playbook playbooks/repo_manager.yml --tags deploy
+#
+#   # Validate inputs
+#   ansible-playbook playbooks/repo_manager.yml --tags validate
+#
+#   # Download and sync packages/repositories
+#   ansible-playbook playbooks/repo_manager.yml --tags download
+#
+#   # Generate repo_status.yml
+#   ansible-playbook playbooks/repo_manager.yml --tags generate
+#
+#   # Cleanup Pulp server
+#   ansible-playbook playbooks/repo_manager.yml --tags cleanup
+#
+#   # Cleanup specific repositories, containers, or files
+#   ansible-playbook playbooks/repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"
+#
+#   # Full workflow (deploy, validate, download, generate)
+#   ansible-playbook playbooks/repo_manager.yml
+# =============================================================================
+
+- name: Deploy Pulp server
+  ansible.builtin.import_playbook: deploy/deploy_pulp.yml
+  tags: deploy
+
+- name: Validate inputs
+  ansible.builtin.import_playbook: validate/validate_config.yml
+  tags: validate
+
+- name: Download and sync packages
+  ansible.builtin.import_playbook: repo_operations/download.yml
+  tags: download
+
+- name: Generate repo_status.yml
+  ansible.builtin.import_playbook: repo_operations/generate_repo_status.yml
+  tags: generate
+
+- name: Cleanup Pulp
+  ansible.builtin.import_playbook: cleanup/cleanup_pulp.yml
+  tags: cleanup
+
+- name: Cleanup specific repositories
+  ansible.builtin.import_playbook: cleanup/cleanup_repos.yml
+  tags: cleanup_repos

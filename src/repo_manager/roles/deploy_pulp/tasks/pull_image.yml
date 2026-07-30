@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# PULL PULP CONTAINER IMAGE
+# =============================================================================
+# This task file handles pulling the Pulp container image:
+#   1. Check if image already exists locally
+#   2. Pull image if not present (with retries)
+#   3. Fail gracefully with helpful error message
+# =============================================================================
+
+- name: Check if Pulp image already exists
+  ansible.builtin.command:
+    cmd: "podman image exists {{ pulp_image }}"
+  register: pulp_image_exists
+  changed_when: false
+  failed_when: false
+
+- name: Display image check result
+  ansible.builtin.debug:
+    msg: "Pulp image '{{ pulp_image }}' {{ 'exists locally' if pulp_image_exists.rc == 0 else 'not found, will pull' }}"
+
+- name: Pull Pulp image (if not present)
+  when: pulp_image_exists.rc != 0
+  block:
+    - name: Pull Pulp image from registry
+      ansible.builtin.command:
+        cmd: "podman pull {{ pulp_image }}"
+      register: pulp_pull_result
+      retries: "{{ pull_image_retries }}"
+      delay: "{{ pull_image_delay }}"
+      until: pulp_pull_result is not failed
+      changed_when: pulp_pull_result.rc == 0
+
+    - name: Display pull success
+      ansible.builtin.debug:
+        msg: "Successfully pulled Pulp image: {{ pulp_image }}"
+      when: pulp_pull_result.rc == 0
+
+  rescue:
+    - name: Fail with helpful error message
+      ansible.builtin.fail:
+        msg: |
+          Failed to pull Pulp image: {{ pulp_image }}
+
+          Error: {{ pulp_pull_result.stderr | default('Unknown error') }}
+
+          Possible causes:
+          - Network connectivity issues
+          - Docker Hub rate limiting (consider using docker_username/docker_password)
+          - Invalid image name or tag
+          - Registry authentication required
+
+          Troubleshooting:
+          1. Check network connectivity: podman pull {{ pulp_image }}
+          2. If rate limited, configure Docker Hub credentials in repo_manager_config_credentials.yml
+          3. Verify the image exists: https://hub.docker.com/r/pulp/pulp/tags
+
+- name: Verify image is available
+  ansible.builtin.command:
+    cmd: "podman image exists {{ pulp_image }}"
+  register: final_image_check
+  changed_when: false
+  failed_when: final_image_check.rc != 0
+
+- name: Display final image status
+  ansible.builtin.debug:
+    msg: "Pulp image '{{ pulp_image }}' is ready for deployment"

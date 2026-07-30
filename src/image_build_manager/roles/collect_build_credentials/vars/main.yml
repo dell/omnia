@@ -19,18 +19,19 @@
 image_build_credential_file:
   credential_type: "Image Build"
   template: "{{ role_path }}/templates/image_build_credential.j2"
-  file_path: "{{ input_project_dir }}/image_build_manager/image_build_credentials.yml"
+  file_path: "{{ input_project_dir }}/image_build_credentials.yml"
   file_mode: "0600"
-  vault_path: "{{ input_project_dir }}/image_build_manager/.image_build_credentials_key"
+  vault_path: "{{ input_project_dir }}/.image_build_credentials_key"
 
 # Credential prompt definitions
 image_build_cred_config:
   mandatory:
     - password: s3_secret_key
-    - password: provision_password
   conditional_mandatory:
     - username: s3_access_id
       condition: "{{ s3_configurations.provider | default('minio') == 'powerscale' }}"
+    - password: aarch64_ssh_password
+      condition: "{{ aarch64_inventory_host_ip | default('') | length > 0 }}"
 
 # Messages
 image_build_mandatory_warning_msg: "WARNING: The following are mandatory image build credentials and cannot be left empty."

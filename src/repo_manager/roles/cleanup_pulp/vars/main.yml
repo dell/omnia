@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Pulp cleanup configuration
+pulp_container_name: "pulp"
+pulp_image: "docker.io/pulp/pulp:3.113"
+pulp_protocol_https: true
+max_retries: 5
+
+# NFS share prefix used by deploy_pulp (pulp_shared_path is under this)
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"
+
+# Directories/files to remove during Pulp cleanup
+# NOTE: We intentionally keep {{ omnia_nfs_share }}/pulp/pulp_ha directory intact
+# because it is mounted into omnia_core container at /root/.config/pulp.
+pulp_cleanup_directory:
+  - "{{ omnia_nfs_share }}/pulp/pulp_ha/cli.toml"
+  - "{{ omnia_nfs_share }}/pulp/settings"
+  - "{{ omnia_nfs_share }}/pulp/nginx"
+  # Do NOT delete {{ omnia_nfs_share }}/pulp - it contains pulp_ha which is mounted in omnia_core
+  - "{{ omnia_nfs_share }}/log/pulp"
+  - "{{ omnia_nfs_share }}/rhel_repo_certs"
+  - "{{ omnia_nfs_share }}/offline_repo"
+  # Legacy paths kept for cleanup of old installations
+  - "{{ omnia_nfs_share }}/src/repo_manager/pulp"
+  - "{{ omnia_nfs_share }}/src/repo_manager/offline_repo"
+  - "{{ omnia_nfs_share }}/src/repo_manager/rhel_repo_certs"
+  - "{{ project_input_path | default(input_project_dir) }}/.local_repo_credentials_key"
+  # Do NOT delete {{ oim_shared_path | dirname }}/pulp - same reason as above
+
+# Track file created by Pulp HTTPS config
+track_file_path: "{{ omnia_nfs_share }}/pulp/pulp_crt_track.txt"
+
+# Omnia target file that may reference pulp.service
+omnia_target: "/etc/systemd/system/omnia.target"
+
+# Cleanup instructions
+cleanup_pulp_note: |
+  [Post-Cleanup Actions Required]
+  1. Pulp container and related data have been removed.
+  2. To redeploy Pulp, run the deploy_pulp.yml playbook.
+  3. The offline_repo directory has been removed. You must re-sync repositories if needed.

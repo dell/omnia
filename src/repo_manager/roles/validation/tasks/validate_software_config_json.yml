@@ -1,0 +1,97 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ sw_config_json_path }}"
+    name: software_config
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+    repo_config: "{{ software_config.repo_config }}"
+    software: "{{ software_config.softwares }}"
+
+- name: Check if compute_k8s support is true
+  ansible.builtin.set_fact:
+    compute_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'compute_k8s') | list | length > 0 }}"
+
+- name: Check if service k8s support is true
+  ansible.builtin.set_fact:
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+    software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
+
+- name: Build software JSON file list
+  ansible.builtin.set_fact:
+    software_json_list: "{{ software_names | map('regex_replace', '$', '.json') | list }}"
+
+- name: Get k8s archs
+  ansible.builtin.set_fact:
+    service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | first).arch | default(['x86_64']) }}"
+  when: service_k8s_support
+
+- name: Get k8s archs
+  ansible.builtin.set_fact:
+    k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'k8s') | first).arch | default(['x86_64']) }}"
+  when: k8s_support
+
+- name: Validation for version property for softwares mentioned in software_config.json
+  block:
+    - name: Validation of version property for specific softwares
+      ansible.builtin.assert:
+        that:
+          - item.name not in specific_softwares or (item.version is defined and item.version != "")
+      loop: "{{ software_config.softwares + (software_config.amdgpu | default([])) + (software_config.bcm_roce | default([])) }}"
+      when: item.name is defined
+      loop_control:
+        loop_var: item
+      failed_when: false
+      register: version_result
+
+    - name: Show failed version assertions
+      ansible.builtin.fail:
+        msg: "{{ item.msg }}"
+      loop: "{{ version_result.results }}"
+      when: item.msg is defined and item.msg == 'Assertion failed'
+
+  rescue:
+    - name: Versions were not defined for softwares
+      ansible.builtin.fail:
+        msg: "{{ versions_fail_msg }}"
+      vars:
+        failed_softwares: "{{ version_result.results | selectattr('msg', 'equalto', 'Assertion failed') | map(attribute='item.name') | list }}"
+
+- name: Update software versions from software_config.json (softwares)
+  ansible.builtin.set_fact:
+    "{{ item.name }}_version": "{{ item.version }}"
+  loop: "{{ software_config.softwares | default([]) }}"
+  when: item.version is defined
+  loop_control:
+    loop_var: item
+
+- name: Update software versions from software_config.json (custom)
+  ansible.builtin.set_fact:
+    "{{ item.name }}_version": "{{ item.version }}"
+  loop: "{{ software_config.custom | default([]) }}"
+  when: item.version is defined
+  loop_control:
+    loop_var: item
+
+- name: Fail if service_k8s_version is not supported
+  ansible.builtin.fail:
+    msg: "{{ fail_msg }}"
+  when:
+    - service_k8s_support
+    - service_k8s_version not in supported_k8s_versions

@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Image Build Manager Configuration Schema",
+  "description": "Validates config.yml structure for image_build_manager",
+  "type": "object",
+  "required": ["project_name", "host"],
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Project name (alphanumeric, underscore, hyphen only)"
+    },
+    "host": {
+      "type": "object",
+      "required": ["hostname", "shared_path", "domain_name", "admin_nic_ip"],
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$",
+          "minLength": 1,
+          "maxLength": 63,
+          "description": "Short hostname (NOT FQDN)"
+        },
+        "shared_path": {
+          "type": "string",
+          "pattern": "^/[a-zA-Z0-9/_-]*$",
+          "minLength": 1,
+          "description": "Absolute path to shared storage"
+        },
+        "domain_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "description": "Domain suffix"
+        },
+        "admin_nic_ip": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Admin NIC IPv4 address"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,151 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# image_build_manager.yml — Top-level entry point for the image_build_manager domain.
+# Reads repo_status.yml from repo_manager output for Pulp URLs.
+# Deploys MinIO + Registry, then builds OS images for x86_64 and aarch64.
+#
+# Usage (run ONE tag at a time — no comma-separated tags):
+#   cd src/image_build_manager/playbooks
+#   ansible-playbook image_build_manager.yml                        # Default: prepare + build
+#   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
+#   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
+#   ansible-playbook image_build_manager.yml --tags validate        # Validate config only (no credentials)
+#   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup (no credentials)
+#   ansible-playbook image_build_manager.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
+#
+# Or run sub-playbooks directly from their directory:
+#   cd validate && ansible-playbook validate_image_build_config.yml
+#   cd prepare  && ansible-playbook prepare_image_build_manager.yml
+#   cd build    && ansible-playbook build_image_x86_64.yml
+#   cd cleanup  && ansible-playbook cleanup_image_build_manager.yml
+#
+# Tags (mutually exclusive — pick ONE):
+#   (none)   — Default flow: always + prepare + build (with credentials)
+#   prepare  — Deploy MinIO + Registry (with credentials)
+#   build    — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
+#   validate — Validate configuration only (skips credentials)
+#   cleanup  — Remove MinIO, registry, build artifacts (skips credentials)
+#   upgrade  — Upgrade flow (placeholder — future release)
+#   rollback — Rollback flow (placeholder — future release)
+#
+# Tag Validation:
+#   - Invalid tags will fail with error message
+#   - Invalid combinations (e.g., prepare + cleanup) will fail
+#   - cleanup and validate tags skip credential prompting
+#
+# Internal steps (always):
+#   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs, load repo_status.yml
+#   Step 1: Input validation (schema + logic)
+#   Step 2: Credential collection (skipped for cleanup/validate tags)
+
+# =========================================================================
+# Step 0: Setup — load config, validate host, check prereqs, load repos
+# =========================================================================
+- name: Image build manager setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - image_build_setup
+
+# =========================================================================
+# Step 1: Input validation (schema + logic)
+# =========================================================================
+- name: Validate image build configuration
+  ansible.builtin.import_playbook: validate/validate_image_build_config.yml
+  tags:
+    - always
+    - validate
+
+# =========================================================================
+# Step 2: Credential collection (skipped for cleanup/validate)
+# =========================================================================
+- name: Get build credentials
+  ansible.builtin.import_playbook: credentials/get_build_credentials.yml
+  when: not (skip_build_credentials | default(false) | bool)
+  tags: always
+
+# =========================================================================
+# FLOW: prepare — Deploy MinIO + Registry (idempotent)
+# =========================================================================
+- name: Prepare build infrastructure (MinIO + Registry)
+  ansible.builtin.import_playbook: prepare/prepare_image_build_manager.yml
+  tags:
+    - prepare
+
+# =========================================================================
+# FLOW: build — Build OS images and write build_status.yml
+# =========================================================================
+# Step 6: Build x86_64 images
+- name: Build x86_64 images
+  ansible.builtin.import_playbook: build/build_image_x86_64.yml
+  tags:
+    - x86_64
+    - build
+
+# Step 7: Build aarch64 images
+# NOTE: The aarch64 playbook has its own internal checks for ARM host availability.
+- name: Build aarch64 images
+  ansible.builtin.import_playbook: build/build_image_aarch64.yml
+  when: hostvars['localhost']['aarch64_inventory_host_ip'] | default('') | length > 0
+  tags:
+    - aarch64
+    - build
+
+# Step 8: Write build_status.yml output
+# Output: {{ output_project_dir }}/build_status.yml (NFS-shared)
+# Includes per-functional-group image details with S3 paths for kernel, initrd, image.
+- name: Write build_status.yml output
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags:
+    - x86_64
+    - aarch64
+    - build
+  tasks:
+    - name: Write build status
+      ansible.builtin.include_role:
+        name: build_os_images
+        tasks_from: write_build_status.yml
+
+# =========================================================================
+# FLOW: cleanup — Remove MinIO, registry, build artifacts (opt-in only)
+# =========================================================================
+- name: Cleanup image_build_manager
+  ansible.builtin.import_playbook: cleanup/cleanup_image_build_manager.yml
+  tags:
+    - never
+    - cleanup
+
+# =========================================================================
+# FLOW: upgrade — Upgrade flow placeholder (opt-in only)
+# =========================================================================
+- name: Upgrade image_build_manager
+  ansible.builtin.import_playbook: upgrade/upgrade_image_build_manager.yml
+  tags:
+    - never
+    - upgrade
+
+# =========================================================================
+# FLOW: rollback — Rollback flow placeholder (opt-in only)
+# =========================================================================
+- name: Rollback image_build_manager
+  ansible.builtin.import_playbook: rollback/rollback_image_build_manager.yml
+  tags:
+    - never
+    - rollback

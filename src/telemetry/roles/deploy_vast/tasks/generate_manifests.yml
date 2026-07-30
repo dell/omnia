@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Generate VAST telemetry Kustomize manifests to NFS deployments/vast/
+# VAST telemetry resources:
+# - vast-telemetry-secret.yaml (K8s Secret with VAST credentials + optional CA cert)
+# - vast-external-service.yaml (ExternalName/Endpoints service for VAST endpoint)
+
+- name: Create VAST deployments directory
+  ansible.builtin.file:
+    path: "{{ telemetry_deployments_dir }}/vast"
+    state: directory
+    mode: '0755'
+
+- name: Render VAST telemetry manifests
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ telemetry_deployments_dir }}/vast/{{ item.dest }}"
+    mode: '0644'
+  loop:
+    - src: "vast-telemetry-secret.yaml.j2"
+      dest: "vast-telemetry-secret.yaml"
+    - src: "vast-external-service.yaml.j2"
+      dest: "vast-external-service.yaml"
+    - src: "kustomization.yaml.j2"
+      dest: "kustomization.yaml"
+
+- name: Display VAST manifest generation complete
+  ansible.builtin.debug:
+    msg: "VAST telemetry manifests generated to {{ telemetry_deployments_dir }}/vast/"
+    verbosity: 2
