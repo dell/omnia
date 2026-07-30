@@ -78,6 +78,8 @@
 #
 # Supported sources: idrac, ldms, dcgm, powerscale, ufm, vast, ome
 
+kube_vip: "182.11.5.101"
+
 telemetry_sources:
 
   # --------------------------------------------------------------------------
