@@ -1,7 +1,12 @@
 #!/bin/bash
 # Restart API Test Script
-BASE="https://100.10.0.80:8010"
-AUTH=$(echo -n "dell1234:dell1234" | base64)
+# Usage: BSM_HOST=<ip> BSM_USER=<user> BSM_PASS=<pass> ./test_restart_api.sh
+BSM_HOST="${BSM_HOST:?Error: BSM_HOST environment variable is required}"
+BSM_PORT="${BSM_PORT:-8010}"
+BSM_USER="${BSM_USER:?Error: BSM_USER environment variable is required}"
+BSM_PASS="${BSM_PASS:?Error: BSM_PASS environment variable is required}"
+BASE="https://${BSM_HOST}:${BSM_PORT}"
+AUTH=$(echo -n "${BSM_USER}:${BSM_PASS}" | base64)
 
 echo "=== Step 1: Register client ==="
 CLIENT_RESPONSE=$(curl -sk -X POST "$BASE/api/v1/auth/register" \
@@ -71,7 +76,7 @@ cat /tmp/resp5.json | jq .
 
 echo ""
 echo "=== Check playbook queue ==="
-for dir in /dell/omnia/playbook_queue/requests /dell/omnia/playbook_queue/processing /dell/omnia/omnia/playbook_queue/requests /dell/omnia/omnia/playbook_queue/processing; do
+for dir in /opt/omnia/build_stream/playbook_queue/requests /opt/omnia/build_stream/playbook_queue/processing; do
   if [ -d "$dir" ]; then
     echo "Found: $dir"
     ls -la "$dir"

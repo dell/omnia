@@ -41,7 +41,7 @@
 
 - name: Load BuildStream configuration inputs
   ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
   delegate_to: localhost
   run_once: true
 

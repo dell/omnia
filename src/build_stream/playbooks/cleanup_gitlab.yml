@@ -35,25 +35,23 @@
   tags: always
   roles:
     - role: ../roles/build_stream_setup
-  when: not build_stream_setup_done | default(false) | bool
+      when: not build_stream_setup_done | default(false) | bool
 
 - name: Load build_stream domain credentials
   hosts: localhost
   connection: local
   gather_facts: false
   tags: always
-  vars:
-    build_stream_config_dir: "build_stream"
   tasks:
     - name: Load build_stream credential paths
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
       failed_when: false
 
     - name: Set credential file paths
       ansible.builtin.set_fact:
-        bs_credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_credentials.yml"
-        bs_credential_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/.build_stream_credentials_key"
+        bs_credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
+        bs_credential_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
 
     - name: Decrypt and include build_stream credentials
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
@@ -67,7 +65,7 @@
   tasks:
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
       delegate_to: localhost
       run_once: true
 
@@ -76,7 +74,7 @@
         that:
           - gitlab_host is defined
           - gitlab_host | string | length > 0
-        fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream/build_stream_config.yml"
+        fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream_config.yml"
 
     - name: Ensure GitLab SSH password is available
       ansible.builtin.assert:
@@ -102,7 +100,7 @@
   pre_tasks:
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream/build_stream_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
   roles:
     - cleanup_gitlab
 

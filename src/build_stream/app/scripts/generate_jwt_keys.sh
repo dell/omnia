@@ -69,12 +69,14 @@ PUBLIC_KEY_PATH="$OUTPUT_DIR/$PUBLIC_KEY_NAME"
 
 # Check if keys already exist
 if [ -f "$PRIVATE_KEY_PATH" ] || [ -f "$PUBLIC_KEY_PATH" ]; then
-    log_warn "JWT keys already exist in $OUTPUT_DIR"
-    read -p "Do you want to overwrite them? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        log_info "Key generation cancelled."
-        exit 0
+    if [ -t 0 ]; then
+        log_warn "JWT keys already exist in $OUTPUT_DIR"
+        read -p "Do you want to overwrite them? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Key generation cancelled."
+            exit 0
+        fi
     fi
     log_warn "Overwriting existing keys..."
 fi

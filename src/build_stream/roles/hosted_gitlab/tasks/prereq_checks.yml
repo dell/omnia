@@ -26,7 +26,7 @@
 
 - name: Load BuildStream configuration inputs
   ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/build_stream/build_stream_config.yml"
+    file: "{{ input_project_dir }}/build_stream_config.yml"
   run_once: true
 
 - name: Ensure gitlab_host is provided in build_stream_config.yml
@@ -34,7 +34,7 @@
     that:
       - gitlab_host is defined
       - gitlab_host | string | length > 0
-    fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream/build_stream_config.yml"
+    fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream_config.yml"
 
 - name: Ensure GitLab SSH password is available
   ansible.builtin.assert:
