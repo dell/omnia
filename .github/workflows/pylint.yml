@@ -103,8 +103,7 @@ jobs:
             -name "*.py" \
             -not -path "./.git/*" \
             -not -path "./.venv/*" \
-            -not -path "./venv/*" \
-> python-files.txt
+            -not -path "./venv/*" > python-files.txt
           FILTERED=$(grep -v 'telemetry/files/nersc-ldms-aggr/' python-files.txt || true)
  
           > pylint-report.txt
