@@ -14,8 +14,8 @@
   tags: always
 
 - name: Slurm config utilities
-  hosts: oim
-  connection: ssh
+  hosts: localhost
+  connection: local
   gather_facts: true
   tasks:
     - name: Include variable file omnia_config.yml
