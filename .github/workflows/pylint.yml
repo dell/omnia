@@ -1,6 +1,5 @@
 ---
 name: Pylint
-
 'on':
   pull_request:
     branches:
@@ -9,9 +8,7 @@ name: Pylint
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
-
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,19 +19,21 @@ jobs:
       PYLINT_THRESHOLD: 8
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0
+ 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
+ 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ansible pylint kubernetes prettytable \
             requests passlib fastapi uvicorn sqlalchemy pytest \
             httpx argon2-cffi pyyaml dependency-injector
-
+ 
       - name: Get changed Python files (excluding deleted)
         if: github.event_name == 'pull_request'
         id: changed-files
@@ -42,60 +41,47 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD -- '*.py' || true)
-
           FILES=""
           for f in $CHANGED; do
             if [ -f "$f" ]; then
               FILES="$FILES $f"
             fi
           done
-
-          FILES=$(echo "$FILES" | xargs)  # Trim extra spaces
-
+          FILES=$(echo "$FILES" | tr '\n' ' ' | sed 's/^ *//;s/ *$//')
           echo "Filtered files: $FILES"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
-
+ 
       - name: No Python files changed
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files == ''
         run: |
           echo "No Python files changed in this PR."
           echo "Skipping pylint."
-
+ 
       - name: Run pylint on changed files (PR validation)
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         run: |
           echo "Running pylint on changed files (per-file validation):"
           echo "${{ steps.changed-files.outputs.files }}"
-
-          # Filter out excluded files
           FILES=$(echo \
             "${{ steps.changed-files.outputs.files }}" | \
             tr ' ' '\n' | \
             grep -v 'telemetry/files/nersc-ldms-aggr/' | \
-            xargs)
-
+            tr '\n' ' ' | sed 's/^ *//;s/ *$//')
           if [ -n "$FILES" ]; then
             FAILED=0
-
             for file in $FILES; do
               echo "Checking $file"
-
               OUTPUT=$(
                 PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
               )
-
               SCORE=$(
                 echo "$OUTPUT" |
                 grep -oE 'rated at [0-9.-]+/10' |
                 awk '{print $3}' |
                 cut -d/ -f1
               )
-
-              # pylint produces no output for perfect files (exit 0, no messages)
-              SCORE=${SCORE:-10}
-
+              SCORE=${SCORE:-0}
               echo "$file -> $SCORE"
-
               if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
                 'BEGIN { exit !(score < threshold) }'
               then
@@ -103,51 +89,44 @@ jobs:
                 FAILED=1
               fi
             done
-
             exit $FAILED
           else
             echo "No files to lint after filtering."
           fi
-
+ 
       - name: Run pylint full repository scan (manual trigger)
         if: github.event_name == 'workflow_dispatch'
         run: |
           echo "Running pylint on all Python files in repository"
-
-          # Find all Python files, excluding .git, .venv, venv
           find . \
             -type f \
             -name "*.py" \
             -not -path "./.git/*" \
             -not -path "./.venv/*" \
             -not -path "./venv/*" \
-            > python-files.txt
-
-          # Filter out excluded files
+> python-files.txt
           FILTERED=$(grep -v 'telemetry/files/nersc-ldms-aggr/' python-files.txt || true)
-
-          # Initialize report
+ 
           > pylint-report.txt
           echo "Pylint Score Report - Full Repository Scan" >> pylint-report.txt
           echo "Generated: $(date)" >> pylint-report.txt
           echo "==========================================" >> pylint-report.txt
           echo "" >> pylint-report.txt
-
+ 
+          PASS_COUNT=0
+          FAIL_COUNT=0
+ 
           for file in $FILTERED; do
             OUTPUT=$(
               PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
             )
-
             SCORE=$(
               echo "$OUTPUT" |
               grep -oE 'rated at [0-9.-]+/10' |
               awk '{print $3}' |
               cut -d/ -f1
             )
-
-            # pylint produces no output for perfect files (exit 0, no messages)
-            SCORE=${SCORE:-10}
-
+            SCORE=${SCORE:-0}
             if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
               'BEGIN { exit !(score >= threshold) }'
             then
@@ -157,19 +136,23 @@ jobs:
               STATUS="FAIL"
               FAIL_COUNT=$((FAIL_COUNT + 1))
             fi
-
-            echo "$file -> ${SCORE:-N/A} [$STATUS]" | tee -a pylint-report.txt
+            echo "$file -> $SCORE [$STATUS]" | tee -a pylint-report.txt
           done
-
+ 
           echo "" >> pylint-report.txt
           echo "==========================================" >> pylint-report.txt
           echo "PASS: $PASS_COUNT" >> pylint-report.txt
           echo "FAIL: $FAIL_COUNT" >> pylint-report.txt
           echo "Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
           echo "==========================================" >> pylint-report.txt
-
+ 
+          if [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "::error::$FAIL_COUNT files scored below threshold $PYLINT_THRESHOLD"
+            exit 1
+          fi
+ 
       - name: Upload pylint report
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && always()
         uses: actions/upload-artifact@v4
         with:
           name: pylint-report
