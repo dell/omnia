@@ -21,7 +21,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: orchestrator_setup
+    - role: omnia.orchestrator.orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true
@@ -34,7 +34,7 @@
   tasks:
     - name: Include S3 access configuration
       ansible.builtin.include_role:
-        name: orchestrator_common
+        name: omnia.orchestrator.orchestrator_common
         tasks_from: configure_s3_access.yml
   tags: always
 
@@ -43,5 +43,5 @@
   connection: ssh
   gather_facts: true
   roles:
-    - deploy_openchami
+    - omnia.orchestrator.deploy_openchami
   tags: always

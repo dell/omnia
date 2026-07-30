@@ -99,4 +99,4 @@
 
 # Step 7: Include common vars
 - name: Include common vars
-  ansible.builtin.include_vars: "{{ playbook_dir }}/vars/common_vars.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"

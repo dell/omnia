@@ -19,7 +19,7 @@ omnia_output_dir: /opt/omnia/output
 omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
 omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
 upgrade_lock_file: "/opt/omnia/.data/upgrade_in_progress.lock"
-default_build_status_path: "/opt/omnia/output/project_default/build_status.yml"
+default_build_status_path: "/opt/omnia/output/project_default/image_build_manager/build_status.yml"
 
 # --- Tag validation ---
 supported_tags:

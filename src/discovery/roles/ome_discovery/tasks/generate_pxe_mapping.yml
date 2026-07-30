@@ -45,7 +45,7 @@
     mode: '0755'
 
 - name: Generate PXE mapping file
-  generate_pxe_mapping:
+  omnia.discovery.generate_pxe_mapping:
     servers: "{{ discovered_servers }}"
     output_file: "{{ pxe_mapping_output_file }}"
     functional_group: "{{ default_functional_group }}"

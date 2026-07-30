@@ -14,7 +14,7 @@
 ---
 
 # Path to the discovery-specific JSON schemas (domain-level library)
-discovery_schema_dir: "{{ playbook_dir }}/library/module_utils/discovery_validation/schema"
+discovery_schema_dir: "{{ role_path }}/../../plugins/module_utils/discovery_validation/schema"
 
 # Validation messages
 discovery_validation_start_msg: "Starting discovery input validation (L1 schema + L2 logic)."

@@ -87,6 +87,26 @@ jobs:
           echo "Created ansible.cfg"
           cat ansible.cfg
 
+      - name: Build and install local Galaxy collections for FQCN resolution
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        run: |
+          # Build collection tarballs from source
+          mkdir -p /tmp/omnia-collections
+          ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
+          ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
+          echo "Built collections:"
+          ls -la /tmp/omnia-collections/
+
+          # Install to project-local and user-global collection paths
+          for p in .ansible/collections ~/.ansible/collections; do
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
+          done
+
+          echo "Installed collections:"
+          ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
+          ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
+
       - name: Verify Ansible config
         if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
         env:
@@ -151,6 +171,24 @@ jobs:
           EOF
           echo "Created ansible.cfg"
           cat ansible.cfg
+
+      - name: Build and install local Galaxy collections for FQCN resolution (manual scan)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p /tmp/omnia-collections
+          ansible-galaxy collection build src/discovery/ --output-path /tmp/omnia-collections --force
+          ansible-galaxy collection build src/orchestrator/ --output-path /tmp/omnia-collections --force
+          echo "Built collections:"
+          ls -la /tmp/omnia-collections/
+
+          for p in .ansible/collections ~/.ansible/collections; do
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-discovery-*.tar.gz -p "$p" --force
+            ansible-galaxy collection install /tmp/omnia-collections/omnia-orchestrator-*.tar.gz -p "$p" --force
+          done
+
+          echo "Installed collections:"
+          ls -la .ansible/collections/ansible_collections/omnia/ || echo "Not in .ansible/collections"
+          ls -la ~/.ansible/collections/ansible_collections/omnia/ || echo "Not in ~/.ansible/collections"
 
       - name: Verify Ansible config (manual scan)
         if: github.event_name == 'workflow_dispatch'
