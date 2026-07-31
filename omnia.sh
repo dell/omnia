@@ -1967,7 +1967,10 @@ phase3_backup_creation() {
     echo "[INFO] [ORCHESTRATOR] Backup created at: $backup_base"
 
     # Backup OpenCHAMI data (workdir, configs_vars, deployment-recipes, quadlets)
-    backup_openchami_data "$backup_base"
+    if ! backup_openchami_data "$backup_base"; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 3 failed: OpenCHAMI backup incomplete"
+        return 1
+    fi
 
     echo "[INFO] [ORCHESTRATOR] Phase 3: Backup completed"
     return 0
