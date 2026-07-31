@@ -22,6 +22,49 @@ import os
 import re
 
 from ansible.module_utils.basic import AnsibleModule
+DOCUMENTATION = r"""
+---
+module: validate_credentials
+short_description: Validate credential configuration
+description:
+  - This module validates credential configurations.
+  - It checks for required fields and validates credential formats.
+version_added: "1.0.0"
+options:
+    credentials:
+      description: Credentials dictionary to validate
+      required: true
+      type: dict
+    rules:
+      description: Validation rules to apply
+      required: false
+      type: dict
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Validate Pulp credentials
+  validate_credentials:
+    credentials:
+      pulp_username: admin
+      pulp_password: secret
+  register: validation_result
+"""
+
+RETURN = r"""
+valid:
+  description: Whether credentials are valid
+  type: bool
+  returned: always
+errors:
+  description: List of validation errors
+  type: list
+  returned: always
+"""
+
+
 
 
 def load_rules(file_path):

@@ -43,15 +43,17 @@ omnia_base_dir: "/opt/omnia"
 # DATA DIRECTORIES
 # -----------------------------------------------------------------------------
 repo_manager_data_dir: "{{ omnia_base_dir }}/.data"
-repo_manager_log_dir: "{{ omnia_base_dir }}/log/repomanager"
+repo_manager_log_dir: "{{ omnia_base_dir }}/log/repo_manager"
 repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 
 # -----------------------------------------------------------------------------
 # CONSTRUCTED PATHS
 # -----------------------------------------------------------------------------
-input_project_dir: "{{ omnia_base_dir }}/input/{{ project_name | default(project_default) }}/repo_manager"
-output_project_dir: "{{ omnia_base_dir }}/output/{{ project_name | default(project_default) }}"
-output_dir: "{{ output_project_dir }}/repo_manager"
+# Input path matches copy-input.sh destination: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
+input_project_dir: "{{ omnia_base_dir }}/repo_manager/input/{{ project_name | default(project_default) }}"
+# Output path follows standard: <shared_path>/output/<project_name>/
+output_project_dir: "{{ omnia_base_dir }}/repo_manager/output/{{ project_name | default(project_default) }}"
+output_dir: "{{ output_project_dir }}"
 log_dir: "{{ repo_manager_log_dir }}"
 repo_store_path: "{{ omnia_base_dir }}"
 omnia_metadata_file: "{{ omnia_base_dir }}/.data/oim_metadata.yml"
@@ -66,13 +68,20 @@ endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_
 # -----------------------------------------------------------------------------
 # PULP SERVER CONFIGURATION
 # -----------------------------------------------------------------------------
-pulp_config_dir: "{{ omnia_base_dir }}/pulp"
+# Pulp data is stored under pulp_config/ subdirectory to keep it organized
+pulp_config_base_dir: "{{ omnia_base_dir }}/pulp_config"
+pulp_config_dir: "{{ pulp_config_base_dir }}/pulp"
 pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
 pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
 pulp_crt_track_file: "{{ pulp_config_dir }}/pulp_crt_track.txt"
+pulp_logs_dir: "{{ pulp_config_base_dir }}/log/pulp"
 pulp_container_name: "pulp"
 pulp_image: "docker.io/pulp/pulp:3.113"
 pulp_protocol_https: true
+
+# Pulp server IP fallback: Use SYSTEM_ADMIN_NIC_IPV4 from environment if not set in config
+# This allows the playbook to work without manual IP configuration if env var is set
+pulp_server_ip_default: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('127.0.0.1', true) }}"
 
 # -----------------------------------------------------------------------------
 # RHEL SUBSCRIPTION CERTIFICATES

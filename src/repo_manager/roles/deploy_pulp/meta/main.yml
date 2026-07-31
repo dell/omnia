@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Dell Technologies
+  description: Deploy and configure Pulp container for repository management
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+        - "10"
+  galaxy_tags:
+    - repo_manager
+    - pulp
+    - omnia
+
+dependencies: []
