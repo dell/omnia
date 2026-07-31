@@ -39,6 +39,21 @@ options:
     type: str
 '''
 
+EXAMPLES = r'''
+- name: Fetch credential rule for admin password
+  omnia.orchestrator.fetch_credential_rule:
+    credential_field: admin_password
+    module_utils_path: "{{ role_path }}/../../plugins/module_utils"
+  register: rule_result
+'''
+
+RETURN = r'''
+msg:
+  description: Rule description or error message.
+  type: str
+  returned: always
+'''
+
 def load_rules(file_path):
     """Loads validation rules from JSON file."""
     with open(file_path, 'r', encoding='utf-8') as file:

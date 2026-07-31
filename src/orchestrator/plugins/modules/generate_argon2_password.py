@@ -46,6 +46,21 @@ options:
     no_log: true
 '''
 
+EXAMPLES = r'''
+- name: Generate argon2 hash for a password
+  omnia.orchestrator.generate_argon2_password:
+    password: "{{ admin_password }}"
+  register: hash_result
+  no_log: true
+'''
+
+RETURN = r'''
+pswd_argon2:
+  description: The Argon2-hashed password string.
+  type: str
+  returned: success
+'''
+
 def generate_argon2_hash(password):
     """
     Generate an Argon2 password hash from a given password.

@@ -31,6 +31,8 @@ issues: https://github.com/dell/omnia/issues
 build_ignore:
   - "*.tar.gz"
   - tests/output
+  - domain-completion-checker
+  - domain-completion-checker/*
   - Makefile
   - .gitignore
   - input

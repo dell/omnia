@@ -39,6 +39,31 @@ options:
     default: null
 '''
 
+EXAMPLES = r'''
+- name: Generate functional groups from mapping file
+  omnia.orchestrator.generate_functional_groups:
+    mapping_file_path: /opt/omnia/input/project_default/pxe_mapping_file.csv
+    functional_groups_file_path: /opt/omnia/.data/functional_groups_config.yml
+    omnia_config_path: /opt/omnia/input/project_default/omnia_config.yml
+    classification_file_path: "{{ role_path }}/../../vars/functional_group_classification.yml"
+  register: fg_result
+'''
+
+RETURN = r'''
+functional_groups:
+  description: Dictionary of generated functional groups with their node assignments.
+  type: dict
+  returned: success
+categories:
+  description: Dictionary of category-to-functional-group mappings.
+  type: dict
+  returned: success
+msg:
+  description: Status message.
+  type: str
+  returned: always
+'''
+
 # Legacy hardcoded maps — used as fallback when classification_file_path is not provided.
 FUNCTIONAL_GROUP_LAYER_MAP = {
     "service_kube_control_plane_first_x86_64": "management",
