@@ -11,9 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
+"""Pydantic schemas for catalog data models."""
+
 from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class PackageType(str, Enum):
@@ -29,11 +32,13 @@ class PackageType(str, Enum):
 
 
 class SupportedOSInfo(BaseModel):
+    """OS name and version pair."""
     Name: str
     Version: str
 
 
 class PackageSource(BaseModel):
+    """Source location for a package."""
     Architecture: str
     RepoName: Optional[str] = None
     Uri: Optional[str] = None
@@ -42,14 +47,14 @@ class PackageSource(BaseModel):
 class FunctionalPackage(BaseModel):
     """
     Base package schema for Schema 1.0.
-    
+
     Schema 1.0 fields:
     - Name, Type, Architecture: Required
     - SupportedOS: Optional (omitted by some package types like pip_module)
     - Sources: Optional (omitted by pip_module packages)
     - Version: Optional (not always available from bundle files)
     - Tag: Optional (only for image packages)
-    
+
     Schema 1.1 fields (to be added later):
     - ApplicableFunctionalLayers: Maps packages to functional layers
     - Config: Enhanced package metadata
@@ -69,7 +74,7 @@ OSPackage = FunctionalPackage
 class InfrastructurePackage(BaseModel):
     """
     Infrastructure package schema for Schema 1.0.
-    
+
     Schema 1.0 fields (based on core/catalog/parser.py):
     - Name, Type, SupportedFunctions: Required
     - Architecture: Optional (defaults to [])
@@ -77,7 +82,7 @@ class InfrastructurePackage(BaseModel):
     - Sources: Optional (defaults to [])
     - Version: Optional
     - Tag: Optional (defaults to "")
-    
+
     Schema 1.1 fields (to be added later):
     - ApplicableFunctionalLayers: Maps packages to functional layers
     - Config: Enhanced package metadata
@@ -101,12 +106,12 @@ class DriverConfig(BaseModel):
 class DriverPackage(BaseModel):
     """
     Driver package schema for Schema 1.0.
-    
+
     Schema 1.0 fields (based on core/catalog/parser.py):
     - Name, Type, Architecture, Uri, Version, Config: Required
     - Tag: Not used by parser
     - Sources: Not used by parser
-    
+
     Schema 1.1 fields (to be added later):
     - ApplicableFunctionalLayers: Maps driver packages to functional layers
     """
@@ -129,11 +134,11 @@ class Driver(BaseModel):
 class FunctionalLayer(BaseModel):
     """
     Functional layer schema for Schema 1.0.
-    
+
     Schema 1.0 fields:
     - Name: Layer name
     - FunctionalPackages: Array of package ID references
-    
+
     Schema 1.1 fields (to be added later):
     - ApplicableFunctionalLayers: Maps layer to other layers (optional)
     """
@@ -142,12 +147,14 @@ class FunctionalLayer(BaseModel):
 
 
 class BaseOS(BaseModel):
+    """Base OS definition with associated packages."""
     Name: str
     Version: str
     osPackages: List[str]
 
 
 class Infrastructure(BaseModel):
+    """Infrastructure definition with associated packages."""
     Name: str
     InfrastructurePackages: List[str]
 
@@ -157,7 +164,7 @@ class CatalogInner(BaseModel):
     The real catalog nests ALL data under a single "Catalog" key.
     Metadata fields (Name, Version, Identifier) sit alongside
     FunctionalLayer, FunctionalPackages, etc.
-    
+
     Schema 1.0 fields:
     - Name: "Catalog" (default)
     - Version: "1.0" (default)
@@ -171,10 +178,11 @@ class CatalogInner(BaseModel):
     - OSPackages: Dictionary of OS package definitions
     - InfrastructurePackages: Dictionary of infrastructure package definitions
     - Miscellaneous: Array of miscellaneous package references
-    
+
     Schema 1.1 fields (to be added later):
     - CatalogSchemaVersion: "1.1" when using Schema 1.1 features
-    - MiscellaneousPackages: Dictionary of miscellaneous package definitions with ApplicableFunctionalLayers
+    - MiscellaneousPackages: Dictionary of miscellaneous package
+      definitions with ApplicableFunctionalLayers
     """
     # Metadata (Schema 1.0)
     Name: str = "Catalog"

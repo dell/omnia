@@ -15,14 +15,18 @@
 
 import json
 import logging
+from typing import Dict, List
+
 from fastapi import APIRouter, Depends, Query
 
+# pylint: disable=relative-beyond-top-level
 from ....api.v1.schemas.catalog_editor_schemas import (
     BundleListResponse,
     BundleInfo,
 )
 from ....services.os_package_service import OSPackageService
 from ....services.software_config_service import SoftwareConfigService
+# pylint: enable=relative-beyond-top-level
 from ..dependencies import get_os_package_service, get_software_config_service
 
 logger = logging.getLogger(__name__)
@@ -37,18 +41,18 @@ async def list_os_bundles(
     os_package_service: OSPackageService = Depends(get_os_package_service)
 ):
     """List all available bundles for a given OS/arch/version.
-    
+
     Returns bundle names, types (functional/infra/os), and package counts.
-    
+
     Example:
         GET /api/v1/catalog-editor/os-packages/bundles?arch=x86_64&os_family=rhel&version=10.0
     """
     bundles = os_package_service.list_available_bundles(arch, os_family, version)
-    
+
     bundle_infos = [
         BundleInfo(**bundle) for bundle in bundles
     ]
-    
+
     return BundleListResponse(bundles=bundle_infos)
 
 
@@ -61,14 +65,15 @@ async def get_bundle_packages(
     os_package_service: OSPackageService = Depends(get_os_package_service)
 ):
     """Get packages from a specific bundle.
-    
+
     Returns packages organized by section (e.g., slurm_control_node, slurm_node).
-    
+
     Example:
-        GET /api/v1/catalog-editor/os-packages/bundle/slurm_custom?arch=x86_64&os_family=rhel&version=10.0
+        GET /api/v1/catalog-editor/os-packages/bundle/
+            slurm_custom?arch=x86_64&os_family=rhel&version=10.0
     """
     packages = os_package_service.get_bundle_packages(arch, os_family, version, bundle_name)
-    
+
     return {"bundle_name": bundle_name, "packages": packages}
 
 
@@ -83,7 +88,8 @@ async def list_roles():
     Example:
         GET /api/v1/catalog-editor/roles
     """
-    # Return the 11 predefined roles (service_kube_control_plane_first_x86_64 is not used in catalogs)
+    # Return the 11 predefined roles
+    # (service_kube_control_plane_first_x86_64 is not used)
     roles = [
         'os_x86_64',
         'os_aarch64',
@@ -102,13 +108,17 @@ async def list_roles():
 
 
 @router.get("/roles/{role}/packages")
-async def get_role_packages(
+async def get_role_packages(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     role: str,
     arch: str = Query(...),
     os_family: str = Query(...),
     version: str = Query(...),
-    os_package_service: OSPackageService = Depends(get_os_package_service),
-    sw_config_service: SoftwareConfigService = Depends(get_software_config_service),
+    os_package_service: OSPackageService = Depends(
+        get_os_package_service,
+    ),
+    sw_config_service: SoftwareConfigService = Depends(
+        get_software_config_service,
+    ),
 ):
     """Get packages for a specific role.
 
@@ -153,53 +163,63 @@ async def get_role_packages(
     return {"role": role, "packages": all_packages}
 
 
-def _get_predefined_role_packages(
+def _get_predefined_role_packages(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     role: str,
     arch: str,
     os_family: str,
     version: str,
-    bundle_names: list[str],
-    os_package_service: OSPackageService
-) -> dict:
+    bundle_names: List[str],
+    os_package_service: OSPackageService,
+) -> Dict:
     """Get packages for predefined roles that don't have software_config.json entries."""
     all_packages = {}
     for bundle_name in bundle_names:
         try:
-            bundle_packages = os_package_service.get_bundle_packages(arch, os_family, version, bundle_name)
+            bundle_packages = os_package_service.get_bundle_packages(
+                arch, os_family, version, bundle_name,
+            )
             if bundle_name in bundle_packages:
                 all_packages[bundle_name] = [
-                    {**pkg, 'architecture': [arch]} for pkg in bundle_packages[bundle_name]
+                    {**pkg, 'architecture': [arch]}
+                    for pkg in bundle_packages[bundle_name]
                 ]
-        except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError) as exc:
+        except (
+            FileNotFoundError, json.JSONDecodeError,
+            OSError, ValueError,
+        ) as exc:
             logger.error("Failed to load bundle %s: %s", bundle_name, exc)
             continue
     return {"role": role, "packages": all_packages}
 
 
-def _load_bundle_packages(
+def _load_bundle_packages(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     os_package_service: OSPackageService,
     arch: str,
     os_family: str,
     version: str,
     actual_bundle_name: str,
-    base_bundle_name: str
-) -> dict:
+    base_bundle_name: str,
+) -> Dict:
     """Try loading versioned bundle; fall back to base name if not found."""
     for bundle_name in (actual_bundle_name, base_bundle_name):
         try:
-            return os_package_service.get_bundle_packages(arch, os_family, version, bundle_name)
+            return os_package_service.get_bundle_packages(
+                arch, os_family, version, bundle_name,
+            )
         except FileNotFoundError:
             logger.info("Bundle not found: %s", bundle_name)
-        except (json.JSONDecodeError, OSError, ValueError) as exc:
+        except (
+            json.JSONDecodeError, OSError, ValueError,
+        ) as exc:
             logger.error("Failed to load bundle %s: %s", bundle_name, exc)
     return {}
 
 
 def _merge_bundle_sections(
-    all_packages: dict,
-    bundle_packages: dict,
+    all_packages: Dict,
+    bundle_packages: Dict,
     bundle_name: str,
-    role_name: str
+    role_name: str,
 ) -> None:
     """Merge common and role-specific sections from bundle packages."""
     if bundle_name in bundle_packages:
@@ -207,7 +227,13 @@ def _merge_bundle_sections(
         logger.info("Found common section %s", bundle_name)
     if role_name in bundle_packages and role_name != bundle_name:
         if bundle_name in all_packages:
-            all_packages[bundle_name] = all_packages[bundle_name] + bundle_packages[role_name]
+            all_packages[bundle_name] = (
+                all_packages[bundle_name]
+                + bundle_packages[role_name]
+            )
         else:
             all_packages[role_name] = bundle_packages[role_name]
-        logger.info("Found role section %s in bundle %s", role_name, bundle_name)
+        logger.info(
+            "Found role section %s in bundle %s",
+            role_name, bundle_name,
+        )

@@ -274,7 +274,7 @@ export const useConfigStore = create<ConfigState>()(
             else if (key === 'user_registry_credential' && Array.isArray(value)) {
               const filteredCredentials = value.map((cred: any) => ({
                 ...cred,
-                password: undefined
+                password: undefined // gitleaks:allow
               }));
               filteredData[key] = filteredCredentials;
             }

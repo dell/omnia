@@ -14,8 +14,7 @@
 
 """Unit tests for generate_high_availability_config."""
 
-import pytest
-
+# pylint: disable=missing-function-docstring,redefined-outer-name
 from backend.services.config_file_generators import generate_high_availability_config
 
 

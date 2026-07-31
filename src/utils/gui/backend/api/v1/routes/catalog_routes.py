@@ -18,11 +18,13 @@ Provides API endpoints for direct catalog CRUD operations.
 """
 
 import logging
+from typing import Any, Dict, List
 from urllib.parse import unquote
+
 from fastapi import APIRouter, Depends, HTTPException, Request
-from typing import Dict, Any, List
 
 from ..dependencies import get_catalog_editor_service
+# pylint: disable=relative-beyond-top-level
 from ....services.catalog_editor_service import CatalogEditorService
 from ....models.catalog_schemas import (
     CatalogRoot,
@@ -31,6 +33,7 @@ from ....models.catalog_schemas import (
     FunctionalLayer,
     DriverPackage,
 )
+# pylint: enable=relative-beyond-top-level
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -54,8 +57,11 @@ async def get_catalog_preset(
     """Load a specific catalog preset file."""
     try:
         return service.load_catalog_preset(filename)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Catalog preset not found: {filename}")
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Catalog preset not found: {filename}",
+        ) from exc
 
 
 @router.post("/validate")
@@ -80,7 +86,10 @@ async def add_functional_package(
         pkg.Name, "functional"
     )
     catalog.Catalog.FunctionalPackages[package_id] = pkg
-    logger.info("Added functional package %s, total packages: %s", package_id, len(catalog.Catalog.FunctionalPackages))
+    logger.info(
+        "Added functional package %s, total packages: %s",
+        package_id, len(catalog.Catalog.FunctionalPackages),
+    )
     return {"package_id": package_id, "package": pkg}
 
 
@@ -92,7 +101,7 @@ async def update_functional_package(
 ) -> FunctionalPackage:
     """Update a functional package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.FunctionalPackages:
         raise HTTPException(
@@ -109,7 +118,7 @@ async def delete_functional_package(
 ) -> dict:
     """Delete a functional package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.FunctionalPackages:
         raise HTTPException(
@@ -142,7 +151,7 @@ async def update_os_package(
 ) -> FunctionalPackage:
     """Update an OS package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.OSPackages:
         raise HTTPException(
@@ -159,7 +168,7 @@ async def delete_os_package(
 ) -> dict:
     """Delete an OS package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.OSPackages:
         raise HTTPException(
@@ -194,7 +203,7 @@ async def update_infrastructure_package(
 ) -> InfrastructurePackage:
     """Update an infrastructure package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.InfrastructurePackages:
         raise HTTPException(
@@ -212,7 +221,7 @@ async def delete_infrastructure_package(
 ) -> dict:
     """Delete an infrastructure package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.InfrastructurePackages:
         raise HTTPException(
@@ -253,7 +262,7 @@ async def update_functional_layer(
 ) -> FunctionalLayer:
     """Update a functional layer (in-memory, no disk save)."""
     layer_name = unquote(layer_name)
-    
+
     catalog = service.get_catalog()
     for i, existing in enumerate(
         catalog.Catalog.FunctionalLayer
@@ -274,7 +283,7 @@ async def delete_functional_layer(
 ) -> dict:
     """Delete a functional layer (in-memory, no disk save)."""
     layer_name = unquote(layer_name)
-    
+
     catalog = service.get_catalog()
     original_count = len(catalog.Catalog.FunctionalLayer)
     catalog.Catalog.FunctionalLayer = [
@@ -292,7 +301,7 @@ async def delete_functional_layer(
 @router.post("/import")
 async def import_catalog(
     catalog: CatalogRoot,
-    request: Request,
+    request: Request,  # pylint: disable=unused-argument
     service: CatalogEditorService = Depends(get_catalog_editor_service),
 ) -> CatalogRoot:
     """Import a catalog from JSON (in-memory only, no disk save)."""
@@ -317,10 +326,17 @@ async def add_miscellaneous_package(
     catalog = service.get_catalog()
     package_id = service.generate_package_id(pkg.Name, "miscellaneous")
     if package_id in catalog.Catalog.FunctionalPackages:
-        raise HTTPException(status_code=400, detail="Miscellaneous package ID already exists")
+        raise HTTPException(
+            status_code=400,
+            detail="Miscellaneous package ID already exists",
+        )
     catalog.Catalog.FunctionalPackages[package_id] = pkg
     catalog.Catalog.Miscellaneous.append(package_id)
-    logger.info("Added miscellaneous package %s, total packages: %s", package_id, len(catalog.Catalog.FunctionalPackages))
+    logger.info(
+        "Added miscellaneous package %s, total packages: %s",
+        package_id,
+        len(catalog.Catalog.FunctionalPackages),
+    )
     return {"package_id": package_id, "package": pkg}
 
 
@@ -356,7 +372,10 @@ async def delete_miscellaneous_package(
             status_code=404, detail="Package not found"
         )
     del catalog.Catalog.FunctionalPackages[package_id]
-    catalog.Catalog.Miscellaneous = [id for id in catalog.Catalog.Miscellaneous if id != package_id]
+    catalog.Catalog.Miscellaneous = [
+        mid for mid in catalog.Catalog.Miscellaneous
+        if mid != package_id
+    ]
     return {"message": "Package deleted"}
 
 
@@ -385,7 +404,7 @@ async def update_driver_package(
 ) -> DriverPackage:
     """Update a driver package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.DriverPackages:
         raise HTTPException(
@@ -402,7 +421,7 @@ async def delete_driver_package(
 ) -> dict:
     """Delete a driver package (in-memory, no disk save)."""
     package_id = unquote(package_id)
-    
+
     catalog = service.get_catalog()
     if package_id not in catalog.Catalog.DriverPackages:
         raise HTTPException(

@@ -14,8 +14,7 @@
 
 """Unit tests for generate_user_registry_credential."""
 
-import pytest
-
+# pylint: disable=missing-function-docstring,redefined-outer-name
 from backend.services.config_file_generators import generate_user_registry_credential
 
 

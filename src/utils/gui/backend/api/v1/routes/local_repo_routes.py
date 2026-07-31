@@ -18,13 +18,22 @@ Provides API endpoints for local repository configuration generation.
 """
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-from ....services.local_repo_generator_service import LocalRepoGeneratorService
-from ....services.job_store import JobStore, TooManyConcurrentJobsError
+from fastapi import (
+    APIRouter, BackgroundTasks, Depends, HTTPException, Request,
+)
+
+# pylint: disable=relative-beyond-top-level
 from ....api.v1.dependencies import get_local_repo_generator_service
+from ....services.job_store import (
+    JobStore, TooManyConcurrentJobsError,
+)
+from ....services.local_repo_generator_service import (
+    LocalRepoGeneratorService,
+)
+# pylint: enable=relative-beyond-top-level
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,12 +65,23 @@ def run_local_repo_generation(
             output_dir=output_dir,
         )
 
-        logger.info("Local repo config generation completed for job %s", job_id)
-        job_store.update_job(job_id, progress=100, status="completed", result=result)
+        logger.info(
+            "Local repo config generation completed for job %s",
+            job_id,
+        )
+        job_store.update_job(
+            job_id, progress=100, status="completed", result=result,
+        )
 
-    except Exception as e:
-        logger.exception("Local repo config generation failed for job %s", job_id)
-        job_store.update_job(job_id, status="failed", error=str(e), result={"error": str(e)})
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "Local repo config generation failed for job %s",
+            job_id,
+        )
+        job_store.update_job(
+            job_id, status="failed",
+            error=str(e), result={"error": str(e)},
+        )
 
 
 @router.post("/generate")
@@ -69,7 +89,9 @@ async def generate_local_repo(
     data: Dict[str, Any],
     background_tasks: BackgroundTasks,
     request: Request,
-    local_repo_generator_service: LocalRepoGeneratorService = Depends(get_local_repo_generator_service),
+    local_repo_generator_service: LocalRepoGeneratorService = Depends(
+        get_local_repo_generator_service,
+    ),
 ) -> Dict[str, str]:
     """Trigger local repository configuration generation.
 
@@ -86,13 +108,22 @@ async def generate_local_repo(
 
     try:
         job_id = job_store.create_job()
-    except TooManyConcurrentJobsError:
-        raise HTTPException(429, "Too many generation jobs in progress. Please wait.")
+    except TooManyConcurrentJobsError as e:
+        raise HTTPException(
+            429,
+            "Too many generation jobs in progress. "
+            "Please wait.",
+        ) from e
 
     output_dir = data.get("output_dir", None)
-    output_path = Path(output_dir).expanduser().resolve() if output_dir else None
+    output_path = (
+        Path(output_dir).expanduser().resolve()
+        if output_dir else None
+    )
 
-    generation_data = {k: v for k, v in data.items() if k != "output_dir"}
+    generation_data = {
+        k: v for k, v in data.items() if k != "output_dir"
+    }
 
     background_tasks.add_task(
         run_local_repo_generation,
@@ -103,5 +134,7 @@ async def generate_local_repo(
         job_store,
     )
 
-    logger.info("Started local repo config generation job %s", job_id)
+    logger.info(
+        "Started local repo config generation job %s", job_id,
+    )
     return {"job_id": job_id, "status": "pending"}

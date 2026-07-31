@@ -19,9 +19,8 @@ import copy
 import csv
 import json
 import logging
-import yaml
 from pathlib import Path
-from typing import Any, Dict, Callable
+from typing import Any, Callable, Dict
 
 from ..config.defaults import (
     get_build_stream_config_defaults,
@@ -89,20 +88,18 @@ def has_meaningful_data(data: Any) -> bool:
     if data is None:
         return False
     if isinstance(data, dict):
-        for key, value in data.items():
-            if has_meaningful_data(value):
-                return True
-        return False
-    elif isinstance(data, list):
-        for item in data:
-            if has_meaningful_data(item):
-                return True
-        return False
-    elif isinstance(data, bool):
+        return any(
+            has_meaningful_data(v) for v in data.values()
+        )
+    if isinstance(data, list):
+        return any(
+            has_meaningful_data(item) for item in data
+        )
+    if isinstance(data, bool):
         return data
-    elif isinstance(data, (int, float)):
-        return True  # Treat 0 as meaningful (port 0, timeout 0, etc.)
-    elif isinstance(data, str):
+    if isinstance(data, (int, float)):
+        return True
+    if isinstance(data, str):
         return len(data.strip()) > 0
     return False
 
@@ -141,7 +138,11 @@ def _flatten_csm_metrics_powerscale_storage(config: Dict[str, Any]) -> None:
             section[key] = value
 
 
-def generate_omnia_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_omnia_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate omnia_config.yml from wizard data.
 
     Args:
@@ -150,7 +151,7 @@ def generate_omnia_config(wizard_data: Dict[str, Any], input_dir: Path, write_ya
         write_yaml_fn: Callback for writing YAML (required by generator registry interface, unused)
     """
     omnia_config = {}
-    
+
     # Only include slurm_cluster if it has meaningful data
     slurm_clusters = wizard_data.get("slurm_cluster", [])
     slurm_meaningful = any(
@@ -159,7 +160,7 @@ def generate_omnia_config(wizard_data: Dict[str, Any], input_dir: Path, write_ya
     )
     if slurm_meaningful:
         omnia_config["slurm_cluster"] = slurm_clusters
-    
+
     # Only include service_k8s_cluster if it has meaningful data
     k8s_clusters = wizard_data.get("service_k8s_cluster", [])
     k8s_meaningful = any(
@@ -171,10 +172,17 @@ def generate_omnia_config(wizard_data: Dict[str, Any], input_dir: Path, write_ya
         omnia_config["service_k8s_cluster"] = k8s_clusters
 
     if omnia_config:
-        _write_config_file(input_dir / "omnia_config.yml", omnia_config, quote_all_strings=True)
+        _write_config_file(
+            input_dir / "omnia_config.yml",
+            omnia_config, quote_all_strings=True,
+        )
 
 
-def generate_network_spec(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_network_spec(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate network_spec.yml from wizard data.
 
     Args:
@@ -288,13 +296,22 @@ def _should_quote_string(value: str) -> bool:
     if value.lower() in ('true', 'false', 'yes', 'no', 'on', 'off', 'null'):
         return True
     # Quote if contains special characters
-    if any(char in value for char in ['/', '-', ':', '.', ' ', '#', '{', '}', '[', ']', ',', '&', '*', '?', '|', '>', '!', '%', '@', '`']):
+    _special_chars = {
+        '/', '-', ':', '.', ' ', '#', '{', '}',
+        '[', ']', ',', '&', '*', '?', '|', '>',
+        '!', '%', '@', '`',
+    }
+    if any(ch in value for ch in _special_chars):
         return True
     # Quote if looks like a number but is a string
     if value.replace('.', '').replace('-', '').isdigit():
         return True
     # Quote storage sizes with units (Gi, Mi, Ki, Ti, G, M, K, T, GB, MB, KB, TB)
-    if any(value.endswith(unit) for unit in ['Gi', 'Mi', 'Ki', 'Ti', 'G', 'M', 'K', 'T', 'GB', 'MB', 'KB', 'TB', 'm']):
+    _size_units = (
+        'Gi', 'Mi', 'Ki', 'Ti', 'G', 'M', 'K', 'T',
+        'GB', 'MB', 'KB', 'TB', 'm',
+    )
+    if any(value.endswith(u) for u in _size_units):
         return True
     return False
 
@@ -316,7 +333,7 @@ def _write_yaml_value(f, value, indent, quote_all_strings=False, preserve_octal_
             if clean_value.startswith('|'):
                 clean_value = clean_value[1:]  # remove leading |
             clean_value = clean_value.strip('\n')  # remove leading/trailing newlines
-            
+
             f.write(f"{indent_str}|\n")
             for line in clean_value.split('\n'):
                 # Preserve relative indentation but add base indent
@@ -373,7 +390,11 @@ def _write_yaml_value(f, value, indent, quote_all_strings=False, preserve_octal_
                             f.write(f"{indent_str}  {k}:")
                         if isinstance(v, (list, dict)):
                             f.write("\n")
-                            _write_yaml_value(f, v, indent + 2, quote_all_strings, preserve_octal_mode)
+                            _write_yaml_value(
+                                f, v, indent + 2,
+                                quote_all_strings,
+                                preserve_octal_mode,
+                            )
                         else:
                             f.write(" ")
                             _write_yaml_value(f, v, 0, quote_all_strings, preserve_octal_mode)
@@ -394,7 +415,11 @@ def _write_yaml_value(f, value, indent, quote_all_strings=False, preserve_octal_
                     _write_yaml_value(f, v, 0, quote_all_strings, preserve_octal_mode)
 
 
-def generate_gitlab_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_gitlab_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate gitlab_config.yml from wizard data.
 
     Args:
@@ -406,7 +431,7 @@ def generate_gitlab_config(wizard_data: Dict[str, Any], input_dir: Path, write_y
     if not has_meaningful_data(gitlab_host):
         logger.info("Skipped gitlab_config.yml (gitlab not enabled)")
         return
-    
+
     gitlab_config = {
         "gitlab_host": gitlab_host,
         "gitlab_project_name": wizard_data.get("gitlab_project_name", ""),
@@ -423,7 +448,11 @@ def generate_gitlab_config(wizard_data: Dict[str, Any], input_dir: Path, write_y
     _write_config_file(input_dir / "gitlab_config.yml", gitlab_config, quote_all_strings=True)
 
 
-def generate_build_stream_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_build_stream_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate build_stream_config.yml from wizard data.
 
     Always emitted; when build stream is not enabled, a disabled default
@@ -436,10 +465,17 @@ def generate_build_stream_config(wizard_data: Dict[str, Any], input_dir: Path, w
         if k in build_stream_config and v is not None
     }
     _deep_merge(build_stream_config, user_data)
-    _write_config_file(input_dir / "build_stream_config.yml", build_stream_config, quote_all_strings=True)
+    _write_config_file(
+        input_dir / "build_stream_config.yml",
+        build_stream_config, quote_all_strings=True,
+    )
 
 
-def generate_discovery_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_discovery_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate discovery_config.yml from wizard data.
 
     Always emitted; when BMC discovery is not enabled, a disabled default
@@ -452,10 +488,17 @@ def generate_discovery_config(wizard_data: Dict[str, Any], input_dir: Path, writ
         if k in discovery_config and v is not None
     }
     _deep_merge(discovery_config, user_data)
-    _write_config_file(input_dir / "discovery_config.yml", discovery_config, quote_all_strings=False)
+    _write_config_file(
+        input_dir / "discovery_config.yml",
+        discovery_config, quote_all_strings=False,
+    )
 
 
-def generate_high_availability_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_high_availability_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate high_availability_config.yml from wizard data.
 
     Args:
@@ -493,7 +536,10 @@ def generate_high_availability_config(wizard_data: Dict[str, Any], input_dir: Pa
         "service_k8s_cluster_ha": service_k8s_cluster_ha
     }
 
-    _write_config_file(input_dir / "high_availability_config.yml", ha_config, quote_all_strings=False)
+    _write_config_file(
+        input_dir / "high_availability_config.yml",
+        ha_config, quote_all_strings=False,
+    )
 
 
 def _build_local_repo_config_for_os(data: Dict[str, Any], os_type: str) -> Dict[str, Any]:
@@ -593,7 +639,11 @@ def _write_local_repo_config(local_repo_config: Dict[str, Any], input_dir: Path)
     logger.info("Generated local_repo_config.yml at %s", local_repo_config_path)
 
 
-def generate_local_repo_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_local_repo_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate local_repo_config.yml from wizard data.
 
     Supports both legacy wizard payloads and the new management payload
@@ -613,7 +663,11 @@ def generate_local_repo_config(wizard_data: Dict[str, Any], input_dir: Path, wri
                 continue
             os_config = _build_local_repo_config_for_os(os_data, os_type)
             for key, value in os_config.items():
-                if key in merged_config and isinstance(value, list) and isinstance(merged_config[key], list):
+                if (
+                    key in merged_config
+                    and isinstance(value, list)
+                    and isinstance(merged_config[key], list)
+                ):
                     seen = {json.dumps(v, sort_keys=True) for v in merged_config[key]}
                     for item in value:
                         item_key = json.dumps(item, sort_keys=True)
@@ -636,7 +690,11 @@ def generate_local_repo_config(wizard_data: Dict[str, Any], input_dir: Path, wri
     _write_local_repo_config(local_repo_config, input_dir)
 
 
-def generate_telemetry_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_telemetry_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate telemetry_config.yml from wizard data.
 
     Always emitted; when no telemetry source is enabled, a disabled default
@@ -649,10 +707,17 @@ def generate_telemetry_config(wizard_data: Dict[str, Any], input_dir: Path, writ
         if k in telemetry_config and isinstance(v, dict)
     }
     _deep_merge(telemetry_config, user_data)
-    _write_config_file(input_dir / "telemetry_config.yml", telemetry_config, quote_all_strings=True)
+    _write_config_file(
+        input_dir / "telemetry_config.yml",
+        telemetry_config, quote_all_strings=True,
+    )
 
 
-def generate_telemetry_storage_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_telemetry_storage_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate telemetry_storage_config.yml from wizard data.
 
     Always emitted; when no telemetry source is enabled, a disabled default
@@ -666,7 +731,11 @@ def generate_telemetry_storage_config(wizard_data: Dict[str, Any], input_dir: Pa
     }
     _deep_merge(telemetry_storage_config, user_data)
     _flatten_csm_metrics_powerscale_storage(telemetry_storage_config)
-    _write_config_file(input_dir / "telemetry_storage_config.yml", telemetry_storage_config, quote_all_strings=False)
+    _write_config_file(
+        input_dir / "telemetry_storage_config.yml",
+        telemetry_storage_config,
+        quote_all_strings=False,
+    )
 
 
 def _write_user_registry_credential(credentials: Any, input_dir: Path) -> None:
@@ -687,7 +756,7 @@ def _write_user_registry_credential(credentials: Any, input_dir: Path) -> None:
     logger.info("Generated user_registry_credential.yml at %s", path)
 
 
-def generate_user_registry_credential(wizard_data, input_dir, write_yaml_fn):
+def generate_user_registry_credential(wizard_data, input_dir, write_yaml_fn):  # pylint: disable=unused-argument
     """Generate user_registry_credential.yml from wizard or management data."""
     if "rhel" in wizard_data or "ubuntu" in wizard_data:
         merged_credentials = []
@@ -710,14 +779,18 @@ def generate_user_registry_credential(wizard_data, input_dir, write_yaml_fn):
         return
 
     _write_user_registry_credential(wizard_data.get("user_registry_credential", []), input_dir)
-def generate_pxe_mapping_file(wizard_data: Dict[str, Any], input_dir: Path, ensure_directory_fn: Callable) -> None:
+def generate_pxe_mapping_file(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    ensure_directory_fn: Callable,
+) -> None:
     """Generate pxe_mapping_file.csv from wizard data."""
     pxe_mapping_data = wizard_data.get("pxe_mapping_data")
-    
+
     if pxe_mapping_data:
         pxe_mapping_path = input_dir / "pxe_mapping_file.csv"
         ensure_directory_fn(pxe_mapping_path.parent)
-        
+
         # Write CSV header
         with open(pxe_mapping_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -726,13 +799,17 @@ def generate_pxe_mapping_file(wizard_data: Dict[str, Any], input_dir: Path, ensu
             # Write data rows
             for row in pxe_mapping_data:
                 writer.writerow([row.get(col, "") for col in _PXE_CSV_COLUMNS])
-        
+
         logger.info("Generated pxe_mapping_file.csv at %s", pxe_mapping_path)
     else:
         logger.warning("No PXE mapping data provided, skipping pxe_mapping_file.csv generation")
 
 
-def generate_provision_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_provision_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate provision_config.yml from wizard data.
 
     Args:
@@ -767,10 +844,17 @@ def generate_provision_config(wizard_data: Dict[str, Any], input_dir: Path, writ
         "additional_cloud_init_config_file": cloud_init,
     }
 
-    _write_config_file(input_dir / "provision_config.yml", provision_config, quote_all_strings=True)
+    _write_config_file(
+        input_dir / "provision_config.yml",
+        provision_config, quote_all_strings=True,
+    )
 
 
-def generate_storage_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_storage_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate storage_config.yml from wizard data.
 
     Args:
@@ -828,10 +912,18 @@ def generate_storage_config(wizard_data: Dict[str, Any], input_dir: Path, write_
         logger.info("Skipped storage_config.yml (no meaningful data)")
         return
 
-    _write_config_file(input_dir / "storage_config.yml", storage_config, quote_all_strings=True, preserve_octal_mode=True)
+    _write_config_file(
+        input_dir / "storage_config.yml",
+        storage_config, quote_all_strings=True,
+        preserve_octal_mode=True,
+    )
 
 
-def generate_additional_cloud_init(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_additional_cloud_init(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate additional_cloud_init.yml from wizard data.
 
     Args:
@@ -846,12 +938,17 @@ def generate_additional_cloud_init(wizard_data: Dict[str, Any], input_dir: Path,
     if has_meaningful_data(common_data):
         # Transform runcmd from objects to strings for YAML output
         if "runcmd" in common_data and isinstance(common_data["runcmd"], list):
-            common_data["runcmd"] = [item.get("command", "") if isinstance(item, dict) else item for item in common_data["runcmd"]]
+            common_data["runcmd"] = [
+                item.get("command", "")
+                if isinstance(item, dict) else item
+                for item in common_data["runcmd"]
+            ]
         cloud_init["common"] = common_data
     else:
         cloud_init["common"] = {}
 
-    # Groups section — transform array [{group_name, write_files, runcmd}] to {group_name: {write_files, runcmd}}
+    # Groups section: transform array of group objects
+    # to {group_name: {write_files, runcmd}} mapping
     groups_data = copy.deepcopy(wizard_data.get("cloud_init_groups", []))
     groups_dict = {}
     if isinstance(groups_data, list):
@@ -865,7 +962,12 @@ def generate_additional_cloud_init(wizard_data: Dict[str, Any], input_dir: Path,
                     # Transform runcmd from objects to strings for YAML output
                     runcmd_list = group["runcmd"]
                     if isinstance(runcmd_list, list):
-                        entry["runcmd"] = [item.get("command", "") if isinstance(item, dict) else item for item in runcmd_list]
+                        entry["runcmd"] = [
+                            item.get("command", "")
+                            if isinstance(item, dict)
+                            else item
+                            for item in runcmd_list
+                        ]
                     else:
                         entry["runcmd"] = runcmd_list
                 if entry:
@@ -877,14 +979,23 @@ def generate_additional_cloud_init(wizard_data: Dict[str, Any], input_dir: Path,
         cloud_init["groups"] = {}
 
     # Only generate if there's any meaningful data
-    if not has_meaningful_data(cloud_init.get("common")) and not has_meaningful_data(cloud_init.get("groups")):
+    has_common = has_meaningful_data(cloud_init.get("common"))
+    has_groups = has_meaningful_data(cloud_init.get("groups"))
+    if not has_common and not has_groups:
         logger.info("Skipped additional_cloud_init.yml (no meaningful data)")
         return
 
-    _write_config_file(input_dir / "additional_cloud_init.yml", cloud_init, quote_all_strings=False)
+    _write_config_file(
+        input_dir / "additional_cloud_init.yml",
+        cloud_init, quote_all_strings=False,
+    )
 
 
-def generate_security_config(wizard_data: Dict[str, Any], input_dir: Path, write_yaml_fn: Callable) -> None:
+def generate_security_config(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    write_yaml_fn: Callable,  # pylint: disable=unused-argument
+) -> None:
     """Generate security_config.yml from wizard data.
 
     Args:
@@ -903,7 +1014,10 @@ def generate_security_config(wizard_data: Dict[str, Any], input_dir: Path, write
         "ldap_connection_type": security_config_data.get("ldap_connection_type", "TLS")
     }
 
-    _write_config_file(input_dir / "security_config.yml", security_config, quote_all_strings=True)
+    _write_config_file(
+        input_dir / "security_config.yml",
+        security_config, quote_all_strings=True,
+    )
 
 
 # Admin Inventory CSV columns for Magellan discovery
@@ -913,13 +1027,17 @@ _ADMIN_INVENTORY_CSV_COLUMNS = (
 )
 
 
-def generate_admin_inventory_csv(wizard_data: Dict[str, Any], input_dir: Path, ensure_directory_fn: Callable) -> None:
+def generate_admin_inventory_csv(
+    wizard_data: Dict[str, Any],
+    input_dir: Path,
+    ensure_directory_fn: Callable,
+) -> None:
     """Generate admin_inventory.csv from wizard data for Magellan discovery.
 
     Args:
         wizard_data: Dictionary containing wizard form data
         input_dir: Directory where config files should be written
-        ensure_directory_fn: Callback for ensuring directory exists (required by generator registry interface)
+        ensure_directory_fn: Callback for ensuring directory exists
     """
     rows = wizard_data.get("admin_inventory_data")
     if not rows:
@@ -928,11 +1046,17 @@ def generate_admin_inventory_csv(wizard_data: Dict[str, Any], input_dir: Path, e
 
     csv_path = input_dir / "admin_inventory.csv"
     ensure_directory_fn(csv_path.parent)
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=_ADMIN_INVENTORY_CSV_COLUMNS, extrasaction="ignore")
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=_ADMIN_INVENTORY_CSV_COLUMNS,
+            extrasaction="ignore",
+        )
         writer.writeheader()
         for row in rows:
-            writer.writerow({col: (row.get(col) or "") for col in _ADMIN_INVENTORY_CSV_COLUMNS})
+            writer.writerow({
+                col: (row.get(col) or "")
+                for col in _ADMIN_INVENTORY_CSV_COLUMNS
+            })
 
     logger.info("Generated admin_inventory.csv with %d rows", len(rows))
-

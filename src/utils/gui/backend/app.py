@@ -18,17 +18,24 @@ This is a production-ready FastAPI service with proper structure,
 middleware, dependency injection, and configuration management.
 """
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 
-from .config.settings import get_settings
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from .api.v1.routes import (
+    adapter_policy_routes,
+    catalog_editor_router,
+    catalog_routes,
+    local_repo_routes,
+    wizard_routes,
+)
 from .config.logging import setup_logging
-from .core.middleware import configure_middleware
+from .config.settings import get_settings
 from .core.exceptions import ConfigEditorException
-from .api.v1.routes import catalog_routes, wizard_routes, adapter_policy_routes, catalog_editor_router, local_repo_routes
+from .core.middleware import configure_middleware
 from .services.job_store import JobStore
 
 # Setup logging
@@ -56,11 +63,26 @@ logger.info("Initialized catalog in app.state")
 
 # Include routers
 api_prefix = settings.api_prefix
-app.include_router(adapter_policy_routes.router, prefix=api_prefix, tags=["adapter-policy"])
-app.include_router(catalog_routes.router, prefix=api_prefix, tags=["catalog"])
-app.include_router(wizard_routes.router, prefix=f"{api_prefix}/config", tags=["wizard"])
-app.include_router(local_repo_routes.router, prefix=f"{api_prefix}/local-repo", tags=["local-repo"])
-app.include_router(catalog_editor_router, prefix=api_prefix, tags=["catalog-editor"])
+app.include_router(
+    adapter_policy_routes.router,
+    prefix=api_prefix, tags=["adapter-policy"],
+)
+app.include_router(
+    catalog_routes.router,
+    prefix=api_prefix, tags=["catalog"],
+)
+app.include_router(
+    wizard_routes.router,
+    prefix=f"{api_prefix}/config", tags=["wizard"],
+)
+app.include_router(
+    local_repo_routes.router,
+    prefix=f"{api_prefix}/local-repo", tags=["local-repo"],
+)
+app.include_router(
+    catalog_editor_router,
+    prefix=api_prefix, tags=["catalog-editor"],
+)
 
 
 # Exception handlers
@@ -110,7 +132,8 @@ async def general_exception_handler(request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal server error",
-            "details": None  # Never expose exception details to avoid information leakage
+            # Never expose exception details
+            "details": None,
         }
     )
 

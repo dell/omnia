@@ -14,8 +14,7 @@
 
 """Unit tests for configuration defaults."""
 
-import pytest
-
+# pylint: disable=missing-function-docstring,redefined-outer-name
 from backend.config.defaults import (
     get_build_stream_config_defaults,
     get_discovery_config_defaults,
@@ -43,7 +42,9 @@ class TestGetDiscoveryConfigDefaults:
 
     def test_admin_inventory_path_default(self):
         defaults = get_discovery_config_defaults()
-        assert defaults["admin_inventory_path"] == "/opt/omnia/input/project_default/admin_inventory.csv"
+        assert defaults["admin_inventory_path"] == (
+            "/opt/omnia/input/project_default/admin_inventory.csv"
+        )
 
 
 class TestGetBuildStreamConfigDefaults:

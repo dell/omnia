@@ -31,7 +31,7 @@ from .config_file_generators import (
 logger = logging.getLogger(__name__)
 
 
-class LocalRepoGeneratorService:
+class LocalRepoGeneratorService:  # pylint: disable=too-few-public-methods
     """Service for generating local repository configuration files."""
 
     def __init__(self, settings=None):
@@ -41,7 +41,10 @@ class LocalRepoGeneratorService:
             settings: Optional settings instance. If None, uses default.
         """
         self.settings = settings or get_settings()
-        logger.info("LocalRepoGeneratorService initialized with output_dir: %s", self.settings.output_dir)
+        logger.info(
+            "LocalRepoGeneratorService initialized with output_dir: %s",
+            self.settings.output_dir,
+        )
 
     def generate_local_repo_configs(
         self,
@@ -62,16 +65,25 @@ class LocalRepoGeneratorService:
             Dictionary with generation results
         """
         try:
-            logger.info("generate_local_repo_configs called with job_id=%s, data=%s", job_id, data is not None)
+            logger.info(
+                "generate_local_repo_configs called with job_id=%s, data=%s",
+                job_id, data is not None,
+            )
 
             if not data:
                 raise GenerationError("No local repo data provided.")
 
-            input_dir = output_dir.expanduser().resolve() if output_dir else self.settings.output_dir
+            input_dir = (
+                output_dir.expanduser().resolve()
+                if output_dir
+                else self.settings.output_dir
+            )
             try:
                 input_dir.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                raise GenerationError(f"Failed to create output directory {input_dir}: {str(e)}")
+                raise GenerationError(
+                    f"Failed to create output directory {input_dir}: {str(e)}"
+                ) from e
 
             if update_job and job_id:
                 update_job(job_id, progress=30)

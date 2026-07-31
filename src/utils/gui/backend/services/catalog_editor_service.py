@@ -11,8 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import re
+"""Service for managing catalog editor operations."""
+
 import logging
+import re
 from typing import Optional
 
 from ..models.catalog_schemas import (
@@ -29,12 +31,13 @@ logger = logging.getLogger(__name__)
 
 
 class CatalogEditorService:
+    """Service for catalog CRUD, validation, and preset loading."""
     # Regex constants
     VERSION_PATTERN = r"(?:[-_]?v\d+(?:[-.]\d+)*$|(?:^|[-_])\d+(?:[-.]\d+)*$)"
 
     def __init__(self, settings=None, app_state=None):
         """Initialize the catalog editor service.
-        
+
         Args:
             settings: Optional settings instance. If None, uses default.
             app_state: Optional FastAPI app.state for shared catalog storage.
@@ -202,50 +205,50 @@ class CatalogEditorService:
 
     def list_catalog_presets(self) -> list:
         """List available catalog preset files from examples/catalog folder.
-        
+
         Returns:
             List of catalog preset file information
         """
         examples_dir = self.settings.examples_dir / "catalog"
-        
+
         if not examples_dir.exists():
             logger.warning("Examples catalog directory not found: %s", examples_dir)
             return []
-        
+
         catalog_files = []
         for file_path in examples_dir.glob("*.json"):
             catalog_files.append({
                 "name": file_path.stem,
                 "filename": file_path.name,
             })
-        
+
         # Sort alphabetically
         catalog_files.sort(key=lambda x: x["name"])
         logger.info("Found %d catalog preset files", len(catalog_files))
         return catalog_files
-    
+
     def load_catalog_preset(self, filename: str) -> dict:
         """Load a specific catalog preset file.
-        
+
         Args:
             filename: Name of the preset file to load
-            
+
         Returns:
             Catalog data as dictionary
-            
+
         Raises:
             FileNotFoundError: If preset file not found
         """
         examples_dir = (self.settings.examples_dir / "catalog").resolve()
         catalog_path = (examples_dir / filename).resolve()
-        
+
         # Prevent path traversal attacks
         if not str(catalog_path).startswith(str(examples_dir)):
             raise ValueError(f"Invalid filename: {filename!r}")
-        
+
         if not catalog_path.exists():
             raise FileNotFoundError(f"Catalog preset not found: {filename}")
-        
+
         catalog_data = read_json(catalog_path)
         logger.info("Loaded catalog preset: %s", filename)
         return catalog_data

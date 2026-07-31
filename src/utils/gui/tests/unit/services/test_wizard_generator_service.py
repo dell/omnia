@@ -14,6 +14,7 @@
 
 """Unit tests for WizardGeneratorService."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import pytest
 
 from backend.services.wizard_generator_service import (
@@ -73,10 +74,14 @@ class TestGenerateAllConfigs:
         with pytest.raises(GenerationError):
             service.generate_all_configs(wizard_data={})
 
-    def test_returns_result_with_valid_data(self, tmp_path, sample_wizard_data):
+    def test_returns_result_with_valid_data(
+        self, tmp_path, sample_wizard_data,
+    ):
         settings = type("Settings", (), {"output_dir": tmp_path})()
         service = WizardGeneratorService(settings=settings)
-        result = service.generate_all_configs(wizard_data=sample_wizard_data, output_dir=tmp_path)
+        result = service.generate_all_configs(
+            wizard_data=sample_wizard_data, output_dir=tmp_path,
+        )
         assert result["config_files_generated"] is True
         assert "input_dir" in result
 
@@ -84,11 +89,17 @@ class TestGenerateAllConfigs:
 class TestSelectiveGeneration:
     """Tests for files_to_generate filtering."""
 
-    def test_only_selected_files_generated(self, tmp_path, sample_wizard_data):
+    def test_only_selected_files_generated(
+        self, tmp_path, sample_wizard_data,
+    ):
         settings = type("Settings", (), {"output_dir": tmp_path})()
         service = WizardGeneratorService(settings=settings)
-        sample_wizard_data["files_to_generate"] = ["discovery_config.yml"]
-        result = service.generate_all_configs(wizard_data=sample_wizard_data, output_dir=tmp_path)
+        sample_wizard_data["files_to_generate"] = [
+            "discovery_config.yml",
+        ]
+        result = service.generate_all_configs(
+            wizard_data=sample_wizard_data, output_dir=tmp_path,
+        )
         assert result["config_files_generated"] is True
         # discovery_config is always generated
         assert (tmp_path / "discovery_config.yml").exists()

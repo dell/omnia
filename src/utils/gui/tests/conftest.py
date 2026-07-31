@@ -14,9 +14,10 @@
 
 """Shared pytest fixtures for GUI module tests."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
+from typing import Any, Dict
+
 import pytest
-from pathlib import Path
-from typing import Dict, Any
 
 
 @pytest.fixture
@@ -89,7 +90,10 @@ def sample_magellan_data() -> Dict[str, Any]:
     """Wizard data for Magellan discovery flow."""
     return {
         "enable_bmc_discovery": False,
-        "admin_inventory_path": "/opt/omnia/input/project_default/admin_inventory.csv",
+        "admin_inventory_path": (
+            "/opt/omnia/input/project_default/"
+            "admin_inventory.csv"
+        ),
         "admin_inventory_data": [
             {
                 "SERVICE_TAG": "SVC001",
