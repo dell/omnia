@@ -108,6 +108,7 @@
   loop:
     - victorialogs-operator-vlcluster.yaml
     - victorialogs-operator-vlagent.yaml
+    - victorialogs-vlagent-config.yaml
   register: vl_manifest_stats
 
 - name: Build VictoriaLogs manifest existence map
@@ -130,3 +131,10 @@
   register: vlagent_apply
   changed_when: "'created' in vlagent_apply.stdout or 'configured' in vlagent_apply.stdout"
   when: _vl_manifests['victorialogs-operator-vlagent.yaml'] | default(false)
+
+- name: Apply VLAgent syslog config
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-vlagent-config.yaml
+  register: vlagent_config_apply
+  changed_when: "'created' in vlagent_config_apply.stdout or 'configured' in vlagent_config_apply.stdout"
+  when: _vl_manifests['victorialogs-vlagent-config.yaml'] | default(false)

@@ -1,0 +1,55 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# VLAgent Syslog Source Configuration
+# =============================================================================
+# Provides per-source stream labels for syslog ingested by VLAgent.
+# VLAgent receives syslog on TCP/UDP:514 from enabled log sources.
+#
+# Syslog listeners are configured via extraArgs in the VLAgent CR
+# (victorialogs-operator-vlagent.yaml). This ConfigMap documents the
+# expected syslog sources and provides labels for future stream processors.
+#
+# Active log sources:
+{% if telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) %}
+#   - PowerScale → syslog TCP/UDP:514 → VLAgent
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) %}
+#   - OME → Vector bridge → syslog TCP:514 → VLAgent
+{% endif %}
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vlagent-config
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: vlagent
+    component: victorialogs
+    app.kubernetes.io/managed-by: omnia
+data:
+  # Syslog sources expected to route logs to VLAgent LoadBalancer IP:514
+  # Format: <source_name>: "<stream_label>"
+  sources: |
+{% if telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) %}
+    powerscale: "powerscale-syslog"
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) %}
+    ome: "ome-syslog"
+{% endif %}
+{% if not (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false)) and not (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false)) %}
+    # No log sources enabled — VLAgent deployed for future use
+    placeholder: "no-sources-enabled"
+{% endif %}

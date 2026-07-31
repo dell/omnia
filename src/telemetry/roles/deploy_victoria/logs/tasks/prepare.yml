@@ -34,3 +34,10 @@
     dest: "{{ telemetry_deployments_dir }}/victorialogs-operator-vlagent.yaml"
     mode: "{{ victoria_file_mode }}"
     force: true
+
+- name: Generate VLAgent syslog source config manifest
+  ansible.builtin.template:
+    src: "{{ role_path }}/logs/templates/victorialogs-vlagent-config.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/victorialogs-vlagent-config.yaml"
+    mode: "{{ victoria_file_mode }}"
+    force: true
