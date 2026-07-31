@@ -12,6 +12,59 @@ import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.build_image.config import FUNCTIONAL_GROUP_LAYER_MAP
 
+DOCUMENTATION = r'''
+---
+module: generate_functional_groups
+short_description: Generate functional_groups.yaml from a CSV mapping file
+version_added: "3.0.0"
+description:
+  - Parses a PXE mapping CSV file to extract groups and functional groups.
+  - Reads omnia_config.yml to resolve cluster names for Kubernetes and Slurm.
+  - Generates a functional_groups_config.yml YAML file with groups and
+    functional group definitions including layer metadata.
+options:
+  mapping_file_path:
+    description: Path to the PXE mapping CSV file.
+    required: true
+    type: str
+  functional_groups_file_path:
+    description: Output path for the generated functional_groups_config.yml.
+    required: true
+    type: str
+  omnia_config_path:
+    description: Path to omnia_config.yml for cluster name resolution.
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Generate functional groups from PXE mapping
+  omnia.image_build.generate_functional_groups:
+    mapping_file_path: /opt/omnia/input/project_default/pxe_mapping_file.csv
+    functional_groups_file_path: /opt/omnia/image_build_manager/output/functional_groups_config.yml
+    omnia_config_path: /opt/omnia/input/project_default/omnia_config.yml
+  register: fg_gen
+
+- name: Display generated groups
+  ansible.builtin.debug:
+    var: fg_gen.added_functional_groups
+'''
+
+RETURN = r'''
+added_groups:
+  description: List of group names added to the YAML file.
+  returned: success
+  type: list
+  elements: str
+added_functional_groups:
+  description: List of functional group names added to the YAML file.
+  returned: success
+  type: list
+  elements: str
+'''
+
 DESCRIPTION_MAP = {
     "os": "Minimal OS Node",
     "slurm_control_node": "Slurm Head",

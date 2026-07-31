@@ -1,4 +1,4 @@
-# Ansible / YAML Style Guide — Image Build Manager
+# Ansible / YAML Style Guide -- Omnia
 
 Based on [Dell Omnia Ansible Style Guide](https://github.com/dell/omnia).
 
@@ -164,3 +164,94 @@ Required collections in `requirements.yml`:
 | Ansible Core | 2.20+ | 2.20.0 |
 | Python | 3.12+ | 3.12.8 |
 | RHEL | 10.0+ | 10.0 |
+
+## 10. Ansible Galaxy Collection Requirements
+
+Every domain is packaged as an Ansible Galaxy collection. The following rules ensure Galaxy import validation passes.
+
+### 10.1 Role Documentation
+
+Every role MUST have:
+- **`README.md`** — Description, requirements, variables, dependencies, usage example.
+- **`meta/main.yml`** — Galaxy metadata: author, description, license, min_ansible_version, dependencies.
+
+Galaxy import **fails** if any role is missing `README.md` or `meta/main.yml`.
+
+### 10.2 Role Structure (Galaxy-compliant)
+
+```
+roles/<role_name>/
+├── README.md              # REQUIRED — role documentation
+├── meta/main.yml          # REQUIRED — Galaxy metadata
+├── tasks/main.yml         # Entry point
+├── vars/main.yml          # Internal variables + error messages
+├── defaults/main.yml      # User-overridable defaults
+├── templates/             # Jinja2 templates
+├── files/                 # Static files
+└── handlers/main.yml      # Handlers
+```
+
+### 10.3 Module Documentation
+
+Every Python module under `plugins/modules/*.py` MUST contain:
+- **`DOCUMENTATION`** — Module name, description, options with types.
+- **`EXAMPLES`** — Playbook task examples using FQCN.
+- **`RETURN`** — Return value documentation with types.
+
+See Python Style Guide (§5) for the full template.
+
+### 10.4 galaxy.yml Tags
+
+- Tags MUST use `snake_case` — **no hyphens** (e.g., `image_build` not `image-build`).
+- Galaxy rejects tags with hyphens, spaces, or special characters.
+
+### 10.5 Pre-Publish Validation
+
+```bash
+# Validate module docs
+ansible-doc omnia.<collection>.<module_name>
+
+# Verify role files exist
+find roles -name README.md
+find roles -path "*/meta/main.yml"
+
+# Build and check
+ansible-galaxy collection build
+```
+
+---
+
+## 11. Security & Quality Gates
+
+All Ansible/YAML code MUST pass the following gates before merge:
+
+| Gate | Tool | Requirement | Enforcement |
+|------|------|-------------|-------------|
+| **Ansible Lint** | `ansible-lint` | Zero errors with `production` profile | CI PR gate |
+| **YAML Lint** | `yamllint` | Zero errors | CI PR gate |
+| **Secret Leak Detection** | `gitleaks` | Zero findings | CI pre-commit / PR gate |
+| **SAST** | Checkmarx | Zero High/Critical findings | CI or scheduled scan |
+| **Shell Script Lint** | `shellcheck` | Zero errors in `.sh` files | CI lint step |
+
+### 11.1 Ansible-Lint Compliance
+
+- All playbooks, roles, and task files MUST pass `ansible-lint` with zero errors
+- Use `production` profile: `ansible-lint -p production`
+- Suppressions allowed with `# noqa: <rule>` and a justification comment
+- Key enforced rules: named tasks, FQCN, no bare variables, no `command` when module exists
+
+### 11.2 Gitleaks (Secret Leak Prevention)
+
+- No hardcoded passwords, API keys, tokens, or credentials in any YAML file
+- Use Ansible Vault for sensitive data — reference via `{{ vault_secret_name }}`
+- CI runs `gitleaks detect` on every PR
+
+### 11.3 Checkmarx (SAST)
+
+- Zero High or Critical findings allowed in merged code
+- Medium findings SHOULD be addressed within the same sprint
+
+### 11.4 ShellCheck (Shell Script Lint)
+
+- All `.sh` files (e.g., `domain-init.sh`) MUST pass `shellcheck` with zero errors
+- Suppressions allowed with `# shellcheck disable=SCXXXX` and a justification comment

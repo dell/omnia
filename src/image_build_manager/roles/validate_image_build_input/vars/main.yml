@@ -14,7 +14,7 @@
 ---
 
 # Path to the image_build-specific JSON schemas (domain-level library)
-image_build_schema_dir: "{{ _domain_root_dir }}/plugins/module_utils/image_build_validation/schema"
+image_build_schema_dir: "{{ _domain_root_dir }}/plugins/module_utils/input_validation/schema"
 
 # Validation messages
 image_build_validation_start_msg: "Starting image_build_manager input validation (L1 schema + L2 logic)."

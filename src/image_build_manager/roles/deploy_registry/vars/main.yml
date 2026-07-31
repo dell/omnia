@@ -27,3 +27,5 @@ registry_tag: "2"
 # Retry and delay settings
 max_retries: 10
 delay_count: 5
+image_pull_retries: 3
+image_pull_delay: 10

@@ -48,12 +48,10 @@
     - role: ../roles/build_stream_setup
       vars:
         create_oim_group: true
-  when: not build_stream_setup_done | default(false) | bool
 
 # ── Step 3: Container, service, and NFS cleanup on OIM host ────────
 - name: BuildStream domain cleanup (container, postgres, NFS)
   hosts: oim
-  connection: ssh
   gather_facts: true
   roles:
     - cleanup_build_stream

@@ -132,11 +132,11 @@ src/build_stream/
 | Input config | `build_stream_config.yml` |
 | Credential file | `build_stream_credentials.yml` |
 | Credential key | `.build_stream_credentials_key` |
-| Input subdir | `input/project_default/build_stream/` |
-| Output subdir | `output/project_default/build_stream/` |
-| Log path | `/opt/omnia/log/core/playbooks/build_stream.log` |
-| API log path | `/nfs/omnia/build_stream/logs/` |
-| Playbook queue | `/nfs/omnia/playbook_queue/` |
+| Input subdir | `input/project_default/` |
+| Output subdir | `output/project_default/` |
+| Log path | `./output/build_stream.log` (relative to playbook CWD) |
+| API log path | `/opt/omnia/build_stream/log/` |
+| Playbook queue | `/opt/omnia/build_stream/playbook_queue/` |
 
 ### Ansible Config (ansible.cfg)
 
@@ -491,8 +491,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/nfs/omnia/build_stream
-ExecStart=/usr/bin/python3 /nfs/omnia/build_stream/playbook-watcher/playbook_watcher_service.py
+WorkingDirectory={{ oim_shared_path }}/build_stream
+ExecStart=/usr/bin/python3 {{ oim_shared_path }}/build_stream/playbook-watcher/playbook_watcher_service.py
 Restart=always
 RestartSec=10
 
@@ -615,34 +615,38 @@ log_secure_info("error", "Database error", exc_info=True)
 
 ## 10. Deployment Sync Design
 
-### 10.1 omnia.sh Integration
+### 10.1 Self-Contained App Deployment (podman cp)
 
-The `omnia.sh` script includes a `sync_build_stream_to_container()` function that copies build_stream playbooks and roles to the omnia_core container:
+The `omnia_build_stream` container image embeds the application code at `/app-source/`.
+At deployment time, `prepare_build_stream.yml` extracts this code to the host/NFS shared
+path so the volume mount provides it at `/opt/omnia/build_stream` inside the container:
 
-```bash
-sync_build_stream_to_container() {
-  # Copies from /root/Documents/omnia/src/build_stream/ to /omnia/build_stream/
-  # Files copied:
-  #   - playbooks/
-  #   - roles/
-  #   - ansible.cfg
-  #   - build_stream.yml
-  #   - input/
-  # NOT copied: app/ (stays on NFS, deployed by deploy_bsm role)
-}
+```yaml
+# prepare_build_stream.yml — Deploy build_stream app code
+- name: Create temporary container to extract app code
+  ansible.builtin.command:
+    cmd: "podman create --name bs_app_extract {{ bs_image }} /bin/true"
+
+- name: Extract app code from image to NFS
+  ansible.builtin.command:
+    cmd: "podman cp bs_app_extract:/app-source/. {{ bs_nfs_dest }}/"
+
+- name: Remove temporary extraction container
+  ansible.builtin.command:
+    cmd: "podman rm bs_app_extract"
 ```
 
-**Called during**:
-- `omnia.sh --install` (post_setup_config)
-- Manual invocation: `source omnia.sh; sync_build_stream_to_container`
+This approach eliminates the dependency on `omnia_core` for delivering app code.
+The build_stream domain is fully self-contained — its container image carries
+both the runtime environment and the application source.
 
-### 10.2 NFS Deployment Sync
+### 10.2 Development Deployment Sync
 
 **After ANY file is modified under `/root/Documents/omnia/src/build_stream/app/`**, you MUST:
 
-1. **Rsync** the changed file(s) to NFS:
+1. **Rsync** the changed file(s) to the shared path:
    ```bash
-   rsync -av /root/Documents/omnia/src/build_stream/app/<path> /nfs/omnia/build_stream/app/<path>
+   rsync -av /root/Documents/omnia/src/build_stream/app/<path> /opt/omnia/build_stream/<path>
    ```
 
 2. **Restart** the appropriate service(s):
@@ -655,7 +659,7 @@ sync_build_stream_to_container() {
      systemctl restart playbook_watcher.service
      ```
 
-**Why**: The NFS mount is what the running container and watcher use. Changes are not picked up until synced and restarted.
+**Why**: The volume mount (`/opt/omnia:/opt/omnia`) is what the running container and watcher use. Changes are not picked up until synced and restarted.
 
 ---
 
@@ -663,7 +667,7 @@ sync_build_stream_to_container() {
 
 ### 11.1 build_stream_config.yml (Input)
 
-**Location**: `input/project_default/build_stream/build_stream_config.yml`
+**Location**: `input/project_default/build_stream_config.yml`
 
 ```yaml
 enable_build_stream: true

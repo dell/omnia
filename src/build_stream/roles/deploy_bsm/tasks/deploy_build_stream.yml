@@ -70,7 +70,7 @@
 
 - name: Ensure build_stream ssl parent directory exists
   ansible.builtin.file:
-    path: "{{ omnia_path }}/omnia/build_stream_ssl"
+    path: "{{ omnia_path }}/build_stream_ssl"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
@@ -201,7 +201,6 @@
   ansible.builtin.file:
     path: "{{ build_stream_jwt_keys_script }}"
     mode: "{{ build_stream_jwt_script_mode }}"
-  delegate_to: localhost
   no_log: true
 
 - name: Ensure JWT keys directory exists
@@ -209,7 +208,6 @@
     path: "{{ build_stream_jwt_keys_dir }}"
     state: directory
     mode: "0700"
-  delegate_to: localhost
   no_log: true
 
 - name: Check if JWT keys already exist
@@ -219,7 +217,6 @@
   loop:
     - "{{ build_stream_jwt_keys_dir }}/jwt_private.pem"
     - "{{ build_stream_jwt_keys_dir }}/jwt_public.pem"
-  delegate_to: localhost
   no_log: true
 
 - name: Validate existing JWT keys
@@ -236,7 +233,6 @@
   register: jwt_keys_validation
   changed_when: false
   failed_when: false
-  delegate_to: localhost
   when: jwt_keys_check.results | selectattr('stat.exists') | list | length == 2
   no_log: true
 
@@ -258,7 +254,6 @@
   ansible.builtin.file:
     path: "{{ build_stream_jwt_keys_dir }}"
     state: absent
-  delegate_to: localhost
   when: jwt_regeneration_needed | bool
   no_log: true
 
@@ -267,16 +262,22 @@
     path: "{{ build_stream_jwt_keys_dir }}"
     state: directory
     mode: "0700"
-  delegate_to: localhost
   when: jwt_regeneration_needed | bool
   no_log: true
 
 - name: Generate JWT keys (only if needed)
-  ansible.builtin.command: "{{ build_stream_jwt_keys_script }}"
-  delegate_to: localhost
+  ansible.builtin.command: "{{ build_stream_jwt_keys_script }} {{ build_stream_jwt_keys_dir }}"
+  register: jwt_gen_result
   when: jwt_regeneration_needed | bool
-  changed_when: true
+  changed_when: jwt_gen_result.rc == 0
   no_log: true
+
+- name: Fail with details if JWT key generation failed
+  ansible.builtin.fail:
+    msg: "JWT key generation failed (rc={{ jwt_gen_result.rc }}): {{ jwt_gen_result.stderr | default('') }}"
+  when:
+    - jwt_regeneration_needed | bool
+    - jwt_gen_result.rc | default(0) != 0
 
 # - name: Update project name in default.yml
 #  ansible.builtin.replace:
@@ -339,7 +340,7 @@
           containers.podman.podman_container_exec:
             name: "{{ build_stream_container_name }}"
             command: >
-              python -m alembic -c /opt/omnia/build_stream/infra/db/alembic.ini upgrade head
+              python -m alembic -c {{ omnia_path }}/build_stream/infra/db/alembic.ini upgrade head
             env:
               DB_USER: "{{ postgres_user }}"
               DB_PASSWORD: "{{ postgres_password }}"

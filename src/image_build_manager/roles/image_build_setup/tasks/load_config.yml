@@ -132,7 +132,6 @@
     - "{{ shared_path }}"
     - "{{ output_project_dir }}"
     - "{{ log_dir }}"
-    - "{{ shared_path }}/log/playbooks"
     - "{{ shared_path }}/s3"
     - "{{ shared_path }}/registry"
     - "{{ shared_path }}/oci"

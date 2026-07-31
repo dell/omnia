@@ -70,7 +70,7 @@ Step 7 ensures Ansible roles read input from a stable runtime location
 `--skip-input-copy` to skip this step (e.g., in CI or if you manage input files
 externally).
 
-Each domain provides a `copy-input.sh` script that handles the copy. The script
+Each domain provides a `domain-init.sh` script that handles the copy. The script
 is idempotent and only overwrites files that differ.
 
 ---
@@ -128,7 +128,7 @@ src/<domain>/input/<project>/   ──copy──>  /opt/omnia/<domain>/input/<pr
 ```
 
 - **Edit** input files in the source tree (`src/<domain>/input/<project>/`)
-- **Run** `./omnia.sh -s` or manually invoke `src/<domain>/copy-input.sh` to stage them
+- **Run** `./omnia.sh -s` or manually invoke `src/<domain>/domain-init.sh` to stage them
 - **Playbooks** read from the runtime location only
 
 ---
