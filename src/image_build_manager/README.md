@@ -320,6 +320,29 @@ image_build_manager/                 # omnia.image_build collection
 └── README.md                        # This file
 ```
 
+### Galaxy Compliance
+
+This collection passes Ansible Galaxy import validation. Key compliance items:
+
+- **Module doc blocks**: All modules in `plugins/modules/*.py` have `DOCUMENTATION`, `EXAMPLES`, `RETURN` blocks.
+- **Role documentation**: All roles have `README.md` and `meta/main.yml`.
+- **Tags**: `galaxy.yml` tags use `snake_case` only (e.g., `image_build`).
+- **FQCN examples**: All `EXAMPLES` blocks use `omnia.image_build.<module>`.
+
+**Validate locally**:
+```bash
+# Check module docs render
+ansible-doc omnia.image_build.validate_image_build_config
+ansible-doc omnia.image_build.image_build_orchestrator
+
+# Verify role files
+find roles -name README.md
+find roles -path "*/meta/main.yml"
+
+# Build collection
+ansible-galaxy collection build
+```
+
 ### Runtime Directory (auto-created at `/opt/omnia/image_build_manager/`)
 
 ```

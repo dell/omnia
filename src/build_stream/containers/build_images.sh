@@ -156,7 +156,7 @@ cd "$BUILD_DIR" || exit 1
 BUILD_RESULT=0
 
 if [ "$BUILD_TOOL" = "podman" ]; then
-    podman build -t "omnia_build_stream:${BUILD_STREAM_TAG}" -f "Containerfile" .
+    podman build --format docker -t "omnia_build_stream:${BUILD_STREAM_TAG}" -f "Containerfile" .
     BUILD_RESULT=$?
 elif [ "$BUILD_TOOL" = "docker" ]; then
     if [ "$BUILD_ACTION" = "load" ]; then

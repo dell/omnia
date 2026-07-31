@@ -65,6 +65,25 @@ author:
   - Dell Omnia Team
 """
 
+EXAMPLES = r"""
+- name: Build images in parallel (max 4 concurrent)
+  omnia.image_build.image_build_orchestrator:
+    build_commands:
+      - name: slurm_node_x86_64
+        cmd: "podman run --rm image-builder build slurm_node"
+        log_path: /opt/omnia/image_build_manager/log/slurm_node_x86_64.log
+      - name: os_x86_64
+        cmd: "podman run --rm image-builder build os"
+        log_path: /opt/omnia/image_build_manager/log/os_x86_64.log
+    max_parallel: 4
+    timeout: 7200
+  register: build_results
+
+- name: Display build summary
+  ansible.builtin.debug:
+    var: build_results.summary
+"""
+
 RETURN = r"""
 results:
   description: Per-build result list.

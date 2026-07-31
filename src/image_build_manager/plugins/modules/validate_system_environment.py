@@ -63,6 +63,24 @@ author:
   - Dell Omnia Team
 """
 
+EXAMPLES = r"""
+- name: Validate system environment
+  omnia.image_build.validate_system_environment:
+    required_vars:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - SYSTEM_HOSTNAME
+      - SYSTEM_DOMAIN_NAME
+      - OMNIA_DATA_PATH
+    validate_hostname: true
+    validate_ip: true
+    validate_paths: true
+  register: env_check
+
+- name: Display validation result
+  ansible.builtin.debug:
+    msg: "Environment {{ 'valid' if env_check.valid else 'invalid' }}"
+"""
+
 RETURN = r"""
 valid:
   description: Whether all checks passed.

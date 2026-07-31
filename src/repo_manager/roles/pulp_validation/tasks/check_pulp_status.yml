@@ -33,9 +33,8 @@
       when:
         - container_info.containers | length == 0 or container_info.containers[0].State.Status != 'running'
 
-- name: Run pulp status command on omnia_core container
+- name: Run pulp status command
   ansible.builtin.command: /usr/local/bin/pulp status
-  delegate_to: localhost
   changed_when: false
   register: pulp_status_output
 

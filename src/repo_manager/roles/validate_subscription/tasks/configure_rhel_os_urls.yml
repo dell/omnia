@@ -15,7 +15,7 @@
 
 - name: Set subscription flag and project input path
   ansible.builtin.set_fact:
-    subscription_status_flag: "{{ hostvars['oim']['subscription_status'] | default(false) }}"
+    subscription_status_flag: "{{ subscription_status | default(false) }}"
     project_input_path: "{{ input_project_dir }}"
     arch: "x86_64"
 
@@ -99,8 +99,8 @@
 
     - name: Set variables for repo build
       ansible.builtin.set_fact:
-        subscription_status_flag: "{{ hostvars['oim']['subscription_status'] }}"
-        repo_base_urls: "{{ hostvars['oim']['repo_baseurls'] }}"
+        subscription_status_flag: "{{ subscription_status }}"
+        repo_base_urls: "{{ repo_baseurls }}"
         sslcacert: "{{ omnia_rhel_cert_dir }}/redhat-uep.pem"
         sslclientkey: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*-key.pem | head -n1') }}"
         sslclientcert: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*.pem | grep -v -- -key.pem | head -n1') }}"

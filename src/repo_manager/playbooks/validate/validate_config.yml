@@ -12,27 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# =============================================================================
+# VALIDATE CONFIG PLAYBOOK
+# =============================================================================
+# This playbook validates repo_manager input configuration files.
+# All tasks run on localhost (OIM).
+#
+# Usage:
+#   ansible-playbook playbooks/validate/validate_config.yml -e 'project_name=project_default'
+# =============================================================================
 
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
-
-- name: Create oim group
-  when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
-  vars:
-    oim_group: true
-
-- name: Local repo subscription validation
+- name: Validate repo_manager configuration
   hosts: localhost
   connection: local
   gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  tags: &common_tags
+  tags:
     - local_repo
     - repo_manager
   tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 1: PRE-FLIGHT SETUP
+    # -------------------------------------------------------------------------
     - name: Ensure repo_manager log directory exists
       ansible.builtin.file:
         path: "{{ repo_manager_log_dir }}"
@@ -44,74 +46,58 @@
         run_subscription_check: true
       when: run_subscription_check is not defined and omnia_run_tags is not defined
 
-    - name: Run subscription validation tasks
-      when: >-
-        'local_repo' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or
-        'repo_manager' in (omnia_run_tags | default(ansible_run_tags | default([]) | list)) or
-        'all' in (ansible_run_tags | default([]) | list)
-      block:
-        - name: Include metadata vars
-          ansible.builtin.include_vars:
-            file: "{{ repo_manager_metadata_file_path | default(omnia_metadata_file) }}"
-            name: oim_shared_path_from_metadata
-          when: repo_manager_metadata_support | default(false) | bool
+    - name: Include metadata vars
+      ansible.builtin.include_vars:
+        file: "{{ omnia_metadata_file }}"
+        name: oim_shared_path_from_metadata
+      when: repo_manager_metadata_support | default(false) | bool
+      failed_when: false
 
-        - name: Validate JSON before loading
-          ansible.builtin.command: "python3 -m json.tool {{ input_project_dir }}/software_config.json"
-          register: json_check
-          changed_when: false
-          failed_when: false
-          ignore_errors: true
+    # -------------------------------------------------------------------------
+    # PHASE 2: LOAD AND VALIDATE SOFTWARE CONFIG
+    # -------------------------------------------------------------------------
+    - name: Validate JSON before loading
+      ansible.builtin.command: "jq . {{ input_project_dir }}/software_config.json"
+      register: json_check
+      changed_when: false
+      failed_when: false
 
-        - name: Fail if JSON is invalid
-          ansible.builtin.fail:
-            msg: |
-              JSON validation failed for software_config.json.
-              File: {{ input_project_dir }}/software_config.json
-              {{ json_check.stderr | default('Unknown jq error') }}
-              Please fix the JSON syntax
-          when: json_check.rc != 0
+    - name: Fail if JSON is invalid
+      ansible.builtin.fail:
+        msg: |
+          JSON validation failed for software_config.json.
+          File: {{ input_project_dir }}/software_config.json
+          {{ json_check.stderr | default('Unknown jq error') }}
+          Please fix the JSON syntax
+      when: json_check.rc != 0
 
-        - name: Load software_config JSON
-          ansible.builtin.set_fact:
-            software_config: "{{ lookup('file', input_project_dir + '/software_config.json') | from_json }}"
+    - name: Load software_config JSON
+      ansible.builtin.set_fact:
+        software_config: "{{ lookup('file', input_project_dir + '/software_config.json') | from_json }}"
 
-        - name: Set cluster OS version
-          ansible.builtin.set_fact:
-            cluster_os_version: "{{ software_config.cluster_os_version }}"
-            cluster_os_type: "{{ software_config.cluster_os_type }}"
+    - name: Set cluster OS version
+      ansible.builtin.set_fact:
+        cluster_os_version: "{{ software_config.cluster_os_version }}"
+        cluster_os_type: "{{ software_config.cluster_os_type }}"
 
-- name: Check RHEL subscription on OIM
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  tasks:
-    - name: Check rhel subscription enabled or not
+    # -------------------------------------------------------------------------
+    # PHASE 3: RHEL SUBSCRIPTION CHECK
+    # -------------------------------------------------------------------------
+    - name: Check RHEL subscription enabled or not
       ansible.builtin.include_role:
         name: ../../roles/validate_subscription
         tasks_from: check_rhel_subscription.yml
-      when: "hostvars['localhost']['run_subscription_check'] | default(false) | bool"
+      when: run_subscription_check | default(false) | bool
 
-- name: Configure RHEL repository URLs on localhost
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  tasks:
-    - name: Configure RHEL os URLS for codeready-builder baseoc appstream repositories
+    - name: Configure RHEL OS URLs for codeready-builder baseos appstream repositories
       ansible.builtin.include_role:
         name: ../../roles/validate_subscription
         tasks_from: configure_rhel_os_urls.yml
-      when: "run_subscription_check | default(false) | bool"
+      when: run_subscription_check | default(false) | bool
 
-- name: Validate repo_manager input config
-  hosts: localhost
-  connection: local
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  roles:
-    - role: ../roles/validate_input
-      tags: *common_tags
+    # -------------------------------------------------------------------------
+    # PHASE 4: INPUT VALIDATION
+    # -------------------------------------------------------------------------
+    - name: Validate repo_manager input configuration
+      ansible.builtin.include_role:
+        name: ../../roles/validate_input

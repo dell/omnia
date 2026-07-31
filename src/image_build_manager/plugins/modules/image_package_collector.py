@@ -26,6 +26,73 @@ from ansible.module_utils.build_image.common_functions import (
     deduplicate_list
 )
 
+DOCUMENTATION = r'''
+---
+module: image_package_collector
+short_description: Collect RPM packages per functional group for image builds
+version_added: "3.0.0"
+description:
+  - Iterates over requested functional groups and collects RPM packages
+    from architecture-specific JSON config files.
+  - Adds role-specific packages from additional_packages.json when enabled.
+  - Returns a dict mapping each functional group to its package list.
+options:
+  functional_groups:
+    description: List of functional group names to collect packages for.
+    required: true
+    type: raw
+  software_config_file:
+    description: Path to software_config.json.
+    required: true
+    type: str
+  input_project_dir:
+    description: Path to the project input directory.
+    required: true
+    type: str
+  additional_json_path:
+    description: Path to additional_packages.json.
+    required: false
+    type: str
+    default: ""
+  service_k8s_version:
+    description: Service Kubernetes version string.
+    required: false
+    type: str
+    default: ""
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Collect packages for functional groups
+  omnia.image_build.image_package_collector:
+    functional_groups:
+      - slurm_node_x86_64
+      - os_x86_64
+    software_config_file: /opt/omnia/input/project_default/software_config.json
+    input_project_dir: /opt/omnia/input/project_default
+  register: pkg_result
+
+- name: Display per-group packages
+  ansible.builtin.debug:
+    var: pkg_result.compute_images_dict
+'''
+
+RETURN = r'''
+compute_images_dict:
+  description: >
+    Dictionary mapping functional group names to their package details.
+    Each entry contains functional_group name and packages list.
+  returned: always
+  type: dict
+  sample:
+    slurm_node_x86_64:
+      functional_group: slurm_node_x86_64
+      packages:
+        - munge
+        - slurm-slurmd
+'''
+
 def get_additional_packages_for_role(additional_json_path, role_name, module):
     """
     Get RPM packages for a specific role from additional_packages.json.

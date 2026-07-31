@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# default variables
+# =============================================================================
+# VALIDATION ROLE VARIABLES
+# =============================================================================
+# NOTE: max_retries, rhel_repo_certs_dir are defined in vars/default.yml
+# =============================================================================
+
+# Default variables
 k8s_support: false
 service_k8s_support: false
 k8s_arch: []
@@ -34,10 +40,8 @@ softwares_var_not_provided: "No softwares variable provided. Skipping."
 softwares_invalid_msg: "Invalid software_name(s) found: {{ softwares_list | difference(software_names) }}. Allowed values: {{ software_names }}"
 
 # Usage: main.yml
-nfs_shared_path: "{{ playbook_dir | dirname }}"
+project_input_path: "{{ input_project_dir }}"
 local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
-# user_reg_cred_input: "{{ project_input_path }}/user_registry_credential.yml"
-# user_reg_key_path: "{{ project_input_path }}/.local_repo_credentials_key"
 var_mount_percentage_limit: 80
 var_mount_overuse_msg: |
   [WARNING] repo_manager.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
@@ -45,8 +49,7 @@ var_mount_overuse_msg: |
   This could result in failures when downloading large packages or images.
 
   For OMNIA disk spaces requirements follow : https://omnia-doc.readthedocs.io/en/latest
-user_repo_cert_dir: "{{ nfs_shared_path }}/user_repo_certs"
-max_retries: 10
+user_repo_cert_dir: "{{ omnia_base_dir }}/user_repo_certs"
 yum_repos_path: "/etc/yum.repos.d"
 yum_conf_path: "/etc/yum.conf"
 dnf_conf_path: "/etc/dnf/dnf.conf"
@@ -57,8 +60,8 @@ python_version: "{{ ansible_python_interpreter }}"
 user_fail_msg: "Failed. Omnia playbooks should run as root user."
 warning_wait_time_warning: 15
 rhel_repo_cert_dir: "{{ rhel_repo_certs_dir }}"
-omnia_rhel_cert_dir: "{{ rhel_repo_certs_dir }}"  # Container path for rhel_repo_certs
-rhel_version: "{{ hostvars['localhost']['cluster_os_version'].split('.')[0] }}"
+omnia_rhel_cert_dir: "{{ rhel_repo_certs_dir }}"
+rhel_version: "{{ cluster_os_version.split('.')[0] | default('10') }}"
 required_repos:
   - codeready-builder
   - baseos
