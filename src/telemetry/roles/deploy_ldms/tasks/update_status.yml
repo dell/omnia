@@ -39,7 +39,7 @@
     ldms_status:
       status: "deployed"
       timestamp: "{{ ansible_date_time.iso8601 }}"
-      vector_ldms_bridge: "{{ 'deployed' if (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool and victoria_metrics_support | default(false) | bool) else 'disabled' }}"
+      vector_ldms_bridge: "{{ 'deployed' if (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool and victoria_metrics_support | default(false) | bool) else 'disabled' }}"   # noqa: yaml[line-length]
 
 - name: Update telemetry status file
   ansible.builtin.copy:

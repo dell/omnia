@@ -58,8 +58,8 @@
 
     - name: Merge newly verified BMCs into telemetry_idrac
       ansible.builtin.set_fact:
-        telemetry_idrac: "{{ (telemetry_idrac | default([])) + retry_filter_output.telemetry_idrac }}"
-        telemetry_idrac_count: "{{ (telemetry_idrac | default([]) | length) + (retry_filter_output.telemetry_idrac | length) }}"
+        telemetry_idrac: "{{ (telemetry_idrac | default([])) + (retry_filter_output.telemetry_idrac | default([])) }}"
+        telemetry_idrac_count: "{{ (telemetry_idrac | default([]) | length) + (retry_filter_output.telemetry_idrac | default([]) | length) }}"
         failed_idrac: "{{ (failed_idrac | default([])) + (retry_filter_output.failed_idrac | default([])) }}"
         failed_idrac_count: "{{ (failed_idrac | default([]) | length) + (retry_filter_output.failed_idrac | default([]) | length) }}"
       when: retry_filter_output.telemetry_idrac is defined

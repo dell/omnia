@@ -25,7 +25,7 @@ Usage — add to every ``ansible.cfg``::
 
     [defaults]
     stdout_callback = omnia_default
-    callback_plugins = <relative-path-to>/common/callback_plugins
+    callback_plugins = <relative-path-to>/plugins/callback
 """
 from __future__ import annotations
 

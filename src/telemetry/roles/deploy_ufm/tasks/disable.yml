@@ -24,14 +24,14 @@
 
 - name: Check if UFM resources exist
   ansible.builtin.command: >
-    kubectl get service ufm-external-service -n {{ telemetry_namespace }}
+    kubectl get service ufm-telemetry-external -n {{ telemetry_namespace }}
   register: ufm_check
   changed_when: false
   failed_when: false
 
 - name: Delete UFM external service
   ansible.builtin.command: >
-    kubectl delete service ufm-external-service -n {{ telemetry_namespace }}
+    kubectl delete service ufm-telemetry-external -n {{ telemetry_namespace }}
   register: delete_result
   changed_when: "'deleted' in delete_result.stdout"
   when: ufm_check.rc == 0

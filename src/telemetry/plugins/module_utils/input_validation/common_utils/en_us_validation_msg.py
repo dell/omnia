@@ -57,25 +57,33 @@ def powerscale_csm_values_not_found_msg(path):
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
         f"CSM Observability values.yaml file not found at '{path}'. "
-        "Please verify the file path is correct in telemetry_config.yml (csm_observability_values_file_path)."
+        "Please verify the file path is correct in "
+        "telemetry_config.yml (csm_observability_values_file_path)."
     )
 POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
-    "CSM Observability values.yaml (path specified in telemetry_config.yml) must contain a valid YAML dictionary."
+    "CSM Observability values.yaml (path specified in "
+    "telemetry_config.yml) must contain a valid YAML dictionary."
 )
 def powerscale_csm_values_parse_error_msg(error):
     """Returns error message when CSM Observability values.yaml fails to parse."""
     return f"Failed to parse CSM Observability values.yaml: {error}"
 POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
-    "CSM Observability values.yaml (path specified in telemetry_config.yml) is missing 'karaviMetricsPowerscale' section."
+    "CSM Observability values.yaml (path specified in "
+    "telemetry_config.yml) is missing "
+    "'karaviMetricsPowerscale' section."
 )
 POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
-    "CSM Metrics PowerScale image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
+    "CSM Metrics PowerScale image is required in CSM "
+    "Observability values.yaml "
+    "(path specified in telemetry_config.yml)."
 )
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
-    "OTEL Collector image is required in CSM Observability values.yaml (path specified in telemetry_config.yml)."
+    "OTEL Collector image is required in CSM Observability "
+    "values.yaml (path specified in telemetry_config.yml)."
 )
 ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_metric_remote_write_endpoint in telemetry_config.yml must have a non-empty 'url' field."
+    "Each additional_metric_remote_write_endpoint in "
+    "telemetry_config.yml must have a non-empty 'url' field."
 )
 ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG = (
     "URL in telemetry_config.yml must start with 'http://' or 'https://'."
@@ -90,10 +98,12 @@ def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_
     """Returns error message when CSM values.yaml image version doesn't match service_k8s (versioned)."""
     return (
         f"Image version mismatch for '{image_name}': "
-        f"CSM Observability values.yaml has '{values_image}' but "
-        f"service_k8s (versioned) has '{service_k8s_image}'. "
-        f"Please update service_k8s (versioned) to match the values.yaml version "
-        f"and re-run local_repo.yml to mirror the correct image to Pulp."
+        f"CSM Observability values.yaml has '{values_image}' "
+        f"but service_k8s (versioned) has "
+        f"'{service_k8s_image}'. "
+        f"Please update service_k8s (versioned) to match the "
+        f"values.yaml version and re-run local_repo.yml to "
+        f"mirror the correct image to Pulp."
     )
 # pylint: enable=invalid-name
 
@@ -149,11 +159,13 @@ PACKAGE_URL_INVALID_MSG = (
 )
 CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
     "cluster_mount path does not exist on kube_vip host. "
-    "Ensure the NFS mount point exists on the Kubernetes cluster before running telemetry deployment. "
+    "Ensure the NFS mount point exists on the Kubernetes "
+    "cluster before running telemetry deployment. "
     "Create the directory or verify the NFS mount is active."
 )
 CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
-    "Cannot validate cluster_mount path existence: kube_vip is not defined in telemetry_config.yml. "
+    "Cannot validate cluster_mount path existence: kube_vip "
+    "is not defined in telemetry_config.yml. "
     "Set kube_vip in telemetry_config.yml first."
 )
 CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
@@ -176,9 +188,12 @@ VICTORIA_METRICS_STORAGE_REQUIRED_MSG = (
 )
 
 VICTORIA_LOGS_STORAGE_REQUIRED_MSG = (
-    "victoria_logs_cluster_storage section is required in telemetry_storage_config.yml "
-    "when victoria_logs is in collection_targets for any telemetry source. "
-    "Please configure victoria_logs_cluster_storage with vlstorage, vlinsert, vlselect, and vlagent."
+    "victoria_logs_cluster_storage section is required in "
+    "telemetry_storage_config.yml "
+    "when victoria_logs is in collection_targets for any "
+    "telemetry source. Please configure "
+    "victoria_logs_cluster_storage with vlstorage, "
+    "vlinsert, vlselect, and vlagent."
 )
 
 VECTOR_STORAGE_REQUIRED_MSG = (
@@ -198,14 +213,18 @@ CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG = (
 )
 
 IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG = (
-    "idrac_telemetry_storage section is required in telemetry_storage_config.yml "
-    "when iDRAC metrics are enabled. Please configure resource requests and limits "
-    "for mysqldb, activemq, receiver, kafka_pump, and victoria_pump containers."
+    "idrac_telemetry_storage section is required in "
+    "telemetry_storage_config.yml "
+    "when iDRAC metrics are enabled. Please configure "
+    "resource requests and limits for mysqldb, activemq, "
+    "receiver, kafka_pump, and victoria_pump containers."
 )
 
 TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (
-    "telemetry_storage_config.yml file not found. This file is required when "
-    "telemetry collection is enabled. Please create the file with appropriate storage configurations."
+    "telemetry_storage_config.yml file not found. This file "
+    "is required when telemetry collection is enabled. "
+    "Please create the file with appropriate storage "
+    "configurations."
 )
 
 def get_validation_initiated(input_file_path):
@@ -234,10 +253,14 @@ def get_logic_success(input_file_path):
 
 # Vector-LDMS validation messages
 VECTOR_LDMS_SOURCE_DISABLED_MSG = (
-    "Vector-LDMS bridge cannot be enabled when telemetry_sources.ldms.metrics_enabled is 'false'. "
-    "Vector-LDMS consumes LDMS metrics from Kafka topic 'ldms'. "
-    "To fix: Either set telemetry_sources.ldms.metrics_enabled=true to enable LDMS data collection, "
-    "or set telemetry_bridges.vector_ldms.metrics_enabled=false to disable the Vector-LDMS bridge."
+    "Vector-LDMS bridge cannot be enabled when "
+    "telemetry_sources.ldms.metrics_enabled is 'false'. "
+    "Vector-LDMS consumes LDMS metrics from Kafka topic "
+    "'ldms'. To fix: Either set "
+    "telemetry_sources.ldms.metrics_enabled=true to enable "
+    "LDMS data collection, or set "
+    "telemetry_bridges.vector_ldms.metrics_enabled=false "
+    "to disable the Vector-LDMS bridge."
 )
 
 # CSM Observability - Unsupported metrics validation messages

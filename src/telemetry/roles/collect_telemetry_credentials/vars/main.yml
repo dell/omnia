@@ -39,9 +39,9 @@ telemetry_cred_config:
     - password: ldms_sampler_password
       condition: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
     - username: csi_username
-      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"
+      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"  # noqa: yaml[line-length]
     - password: csi_password
-      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"
+      condition: "{{ (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) }}"  # noqa: yaml[line-length]
     - username: ufm_username
       condition: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
     - password: ufm_password

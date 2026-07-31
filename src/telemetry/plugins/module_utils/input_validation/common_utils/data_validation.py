@@ -15,6 +15,7 @@
 #!/usr/bin/python
 
 """Main L1 Validation code. Get the JSON schema and input file to validate"""
+# pylint: disable=import-error,no-name-in-module
 
 import json
 import jsonschema
@@ -23,7 +24,7 @@ from ansible.module_utils.input_validation.common_utils import en_us_validation_
 from ansible.module_utils.input_validation.common_utils import logical_validation
 
 
-def schema(config):
+def schema(config):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """
     Validates the input file against a JSON schema.
 
@@ -62,7 +63,8 @@ def schema(config):
         if "omnia_config" in input_file_path:
             if "slurm_cluster" in input_data:
                 for cluster in input_data["slurm_cluster"]:
-                    if "node_discovery_mode" in cluster and isinstance(cluster["node_discovery_mode"], str):
+                    if ("node_discovery_mode" in cluster
+                        and isinstance(cluster["node_discovery_mode"], str)):
                         cluster["node_discovery_mode"] = cluster["node_discovery_mode"].lower()
 
         # Load schema
@@ -70,7 +72,10 @@ def schema(config):
             j_schema = json.load(schema_file)
         logger.debug(en_us_validation_msg.get_validation_initiated(input_file_path))
 
-        validator = jsonschema.Draft7Validator(j_schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER)
+        validator = jsonschema.Draft7Validator(
+            j_schema,
+            format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER
+        )
         errors = sorted(validator.iter_errors(input_data), key=lambda e: e.path)
 
         # if errors exist, then print an error with the line number
@@ -83,9 +88,11 @@ def schema(config):
                     error.message = en_us_validation_msg.INVALID_GROUP_NAME_MSG
                 elif "ports" in error_path:
                     error.message = en_us_validation_msg.INVALID_SWITCH_PORTS_MSG
+                # pylint: disable=fixme
                 # TODO: Add a syntax error message for roles
                 # elif 'is not of type' in error.message:
                 #     error.message = en_us_validation_msg.INVALID_ATTRIBUTES_ROLE_MSG
+                # pylint: enable=fixme
                 error_msg = f"Validation Error at {error_path}: {error.message}"
                 # For passwords, mask the value so that no password values are logged
                 if error.path and error.path[-1] in passwords_set:
@@ -125,15 +132,37 @@ def schema(config):
         message = f"Value error at {input_file_path}: {valueerror}"
         logger.error(message)
         error_bucket.append(message)
-    except Exception as exception:
+    except Exception as exception:  # pylint: disable=broad-exception-caught
         message = f"An unexpected error occurred: {exception}"
         logger.error(message)
         error_bucket.append(message)
     logger.info(en_us_validation_msg.get_schema_success(input_file_path))
     return error_bucket
 
+def _log_line_number(extension, input_file_path, error_key,
+                     omnia_base_dir, project_name, module, logger):
+    """Log the line number of a validation error based on file extension."""
+    result = None
+    if "yml" in extension:
+        result = get.yml_line_number(
+            input_file_path, error_key, omnia_base_dir, project_name
+        )
+    elif "json" in extension:
+        result = get.json_line_number(input_file_path, error_key, module)
+    if result is None:
+        return
+    line_number, is_line_num = result
+    if line_number:
+        message = (
+            f"Error occurs on line {line_number}"
+            if is_line_num
+            else f"Error occurs on object or list on line {line_number}"
+        )
+        logger.error(message)
+
+
 # Code to run the L2 validation validate_input_logic function.
-def logic(config):
+def logic(config):  # pylint: disable=too-many-locals
     """
     Validates the logic of the input file.
 
@@ -188,30 +217,10 @@ def logic(config):
                 logger.error(err_msg)
 
                 # log the line number based off of the input config file extension
-                if "yml" in extension:
-                    result = get.yml_line_number(
-                        input_file_path, error_key, omnia_base_dir, project_name
-                    )
-                    if result is not None:
-                        line_number, is_line_num = result
-                        if line_number:
-                            message = (
-                                f"Error occurs on line {line_number}"
-                                if is_line_num
-                                else f"Error occurs on object or list on line {line_number}"
-                            )
-                            logger.error(message)
-                elif "json" in extension:
-                    result = get.json_line_number(input_file_path, error_key, module)
-                    if result is not None:
-                        line_number, is_line_num = result
-                        if line_number:
-                            message = (
-                                f"Error occurs on line {line_number}"
-                                if is_line_num
-                                else f"Error occurs on object or list on line {line_number}"
-                            )
-                            logger.error(message)
+                _log_line_number(
+                    extension, input_file_path, error_key,
+                    omnia_base_dir, project_name, module, logger
+                )
 
             logger.error(en_us_validation_msg.get_logic_failed(input_file_path))
             return error_bucket
@@ -220,7 +229,7 @@ def logic(config):
         error_bucket.append(message)
         logger.error(message, exc_info=True)
         return error_bucket
-    except Exception as exception:
+    except Exception as exception:  # pylint: disable=broad-exception-caught
         message = f"An unexpected error occurred: {exception}"
         error_bucket.append(message)
         logger.error(message, exc_info=True)
