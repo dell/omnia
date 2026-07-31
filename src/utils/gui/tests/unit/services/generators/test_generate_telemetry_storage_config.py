@@ -14,8 +14,7 @@
 
 """Unit tests for generate_telemetry_storage_config."""
 
-import pytest
-
+# pylint: disable=missing-function-docstring,redefined-outer-name
 from backend.services.config_file_generators import (
     generate_telemetry_storage_config,
     _flatten_csm_metrics_powerscale_storage,

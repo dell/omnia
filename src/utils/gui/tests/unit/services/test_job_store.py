@@ -14,6 +14,7 @@
 
 """Unit tests for JobStore."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import pytest
 
 from backend.services.job_store import JobStore, TooManyConcurrentJobsError

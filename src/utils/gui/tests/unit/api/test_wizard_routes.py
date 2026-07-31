@@ -14,6 +14,7 @@
 
 """Unit tests for wizard API routes."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import time
 import pytest
 from fastapi.testclient import TestClient
@@ -29,23 +30,33 @@ def client():
 
 
 
-
 def _poll_job(client, job_id, timeout=5.0, interval=0.1):
+    """Poll a generation job until it completes or times out."""
     deadline = time.monotonic() + timeout
     last_resp = None
     while time.monotonic() < deadline:
-        resp = client.get(f"/api/v1/config/generate-all/{job_id}")
+        resp = client.get(
+            f"/api/v1/config/generate-all/{job_id}",
+        )
         last_resp = resp
-        if resp.status_code == 200 and resp.json().get("status") in ("completed", "failed"):
+        status = resp.json().get("status")
+        if resp.status_code == 200 and status in (
+            "completed", "failed",
+        ):
             return resp
         time.sleep(interval)
     return last_resp
+
+
 class TestGenerateAllEndpoint:
     """Tests for POST /api/v1/config/generate-all."""
 
     def test_returns_job_id(self, client, tmp_path, sample_wizard_data):
         sample_wizard_data["output_dir"] = str(tmp_path)
-        response = client.post("/api/v1/config/generate-all", json=sample_wizard_data)
+        response = client.post(
+            "/api/v1/config/generate-all",
+            json=sample_wizard_data,
+        )
         assert response.status_code == 200
         data = response.json()
         assert "job_id" in data
@@ -53,7 +64,10 @@ class TestGenerateAllEndpoint:
 
     def test_get_job_status(self, client, tmp_path, sample_wizard_data):
         sample_wizard_data["output_dir"] = str(tmp_path)
-        create_response = client.post("/api/v1/config/generate-all", json=sample_wizard_data)
+        create_response = client.post(
+            "/api/v1/config/generate-all",
+            json=sample_wizard_data,
+        )
         job_id = create_response.json()["job_id"]
 
         status_response = _poll_job(client, job_id)
@@ -61,7 +75,9 @@ class TestGenerateAllEndpoint:
         assert "status" in status_response.json()
 
     def test_get_nonexistent_job_returns_404(self, client):
-        response = client.get("/api/v1/config/generate-all/nonexistent-id")
+        response = client.get(
+            "/api/v1/config/generate-all/nonexistent-id",
+        )
         assert response.status_code == 404
 
 

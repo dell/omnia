@@ -14,8 +14,8 @@
 
 """Unit tests for generate_pxe_mapping_file."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import csv
-import pytest
 
 from backend.services.config_file_generators import generate_pxe_mapping_file
 
@@ -29,7 +29,7 @@ class TestGeneratePxeMappingFile:
 
         csv_path = tmp_path / "pxe_mapping_file.csv"
         assert csv_path.exists()
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8') as f:
             reader = csv.reader(f)
             header = next(reader)
         expected = [
@@ -44,7 +44,7 @@ class TestGeneratePxeMappingFile:
         generate_pxe_mapping_file(wizard_data, tmp_path, lambda p: None)
 
         csv_path = tmp_path / "pxe_mapping_file.csv"
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8') as f:
             reader = csv.reader(f)
             rows = list(reader)
         assert len(rows) == 3  # header + 2 data rows

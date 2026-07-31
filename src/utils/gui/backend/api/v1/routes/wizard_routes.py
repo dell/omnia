@@ -18,27 +18,42 @@ Provides API endpoints for configuration generation and validation.
 """
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
-from typing import Dict, Any, Optional
+import shutil
+import tempfile
+import uuid
+import zipfile
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-from ....services.wizard_generator_service import WizardGeneratorService, GENERATED_CONFIG_FILENAMES
-from ....services.job_store import JobStore, TooManyConcurrentJobsError
-from ....api.v1.schemas.wizard_schemas import (
-    DownloadFilesRequest
+from fastapi import (
+    APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 )
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
+
+# pylint: disable=relative-beyond-top-level
+from ....services.wizard_generator_service import (
+    WizardGeneratorService,
+    GENERATED_CONFIG_FILENAMES,
+)
+from ....services.job_store import JobStore, TooManyConcurrentJobsError
+from ....api.v1.schemas.wizard_schemas import DownloadFilesRequest
+# pylint: enable=relative-beyond-top-level
 from ..dependencies import get_wizard_generator_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def run_catalog_generation(job_id: str, wizard_data: Dict[str, Any], 
-                          output_dir: Optional[Path],
-                          wizard_generator_service: WizardGeneratorService,
-                          job_store: JobStore) -> None:
+def run_catalog_generation(
+    job_id: str,
+    wizard_data: Dict[str, Any],
+    output_dir: Optional[Path],
+    wizard_generator_service: WizardGeneratorService,
+    job_store: JobStore,
+) -> None:
     """Run catalog generation in background.
-    
+
     Args:
         job_id: Job identifier
         wizard_data: Wizard configuration data
@@ -61,11 +76,19 @@ def run_catalog_generation(job_id: str, wizard_data: Dict[str, Any],
         )
 
         logger.info("Config generation completed for job %s", job_id)
-        job_store.update_job(job_id, progress=100, status="completed", result=result)
+        job_store.update_job(
+            job_id, progress=100,
+            status="completed", result=result,
+        )
 
-    except Exception as e:
-        logger.exception("Config generation failed for job %s", job_id)
-        job_store.update_job(job_id, status="failed", error=str(e), result={"error": str(e)})
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "Config generation failed for job %s", job_id,
+        )
+        job_store.update_job(
+            job_id, status="failed",
+            error=str(e), result={"error": str(e)},
+        )
 
 
 # Endpoints
@@ -74,32 +97,43 @@ async def generate_all(
     wizard_data: Dict[str, Any],
     background_tasks: BackgroundTasks,
     request: Request,
-    wizard_generator_service: WizardGeneratorService = Depends(get_wizard_generator_service)
+    wizard_generator_service: WizardGeneratorService = Depends(
+        get_wizard_generator_service,
+    ),
 ) -> Dict[str, str]:
     """Trigger configuration generation.
-    
+
     Args:
         wizard_data: Wizard configuration data
         background_tasks: FastAPI background tasks
         request: FastAPI request object
         wizard_generator_service: Wizard generator service instance
-        
+
     Returns:
         Dictionary with job_id
     """
     job_store = request.app.state.job_store
-    
+
     try:
         job_id = job_store.create_job()
-    except TooManyConcurrentJobsError:
-        raise HTTPException(429, "Too many generation jobs in progress. Please wait.")
-    
+    except TooManyConcurrentJobsError as e:
+        raise HTTPException(
+            429,
+            "Too many generation jobs in progress. "
+            "Please wait.",
+        ) from e
+
     # Extract output_dir without mutating the request body
     output_dir = wizard_data.get("output_dir", None)
-    output_path = Path(output_dir).expanduser().resolve() if output_dir else None
-    
-    generation_data = {k: v for k, v in wizard_data.items() if k != "output_dir"}
-    
+    output_path = (
+        Path(output_dir).expanduser().resolve()
+        if output_dir else None
+    )
+    generation_data = {
+        k: v for k, v in wizard_data.items()
+        if k != "output_dir"
+    }
+
     background_tasks.add_task(
         run_catalog_generation,
         job_id,
@@ -108,7 +142,7 @@ async def generate_all(
         wizard_generator_service,
         job_store
     )
-    
+
     logger.info("Started config generation job %s", job_id)
     return {"job_id": job_id, "status": "pending"}
 
@@ -137,29 +171,21 @@ async def download_files(
     request: DownloadFilesRequest
 ):
     """Download generated configuration files as a ZIP archive.
-    
+
     Args:
         request: DownloadFilesRequest containing input_dir path
-        
+
     Returns:
         ZIP file containing all generated configuration files
     """
-    from fastapi.responses import FileResponse
-    from starlette.background import BackgroundTask
-    import zipfile
-    import tempfile
-    import shutil
-    from pathlib import Path
-    import uuid
-    
     input_dir = request.input_dir
     if not input_dir:
         raise HTTPException(400, "input_dir is required")
-    
+
     input_path = Path(input_dir)
     if not input_path.exists():
         raise HTTPException(404, f"Input directory not found: {input_dir}")
-    
+
     # Only include files that were generated by the wizard
     files_to_zip = [
         input_path / filename
@@ -167,33 +193,41 @@ async def download_files(
         if (input_path / filename).is_file()
     ]
     if not files_to_zip:
-        raise HTTPException(status_code=400, detail="No configuration files generated. Please generate files before downloading.")
-    
+        raise HTTPException(
+            status_code=400,
+            detail="No configuration files generated. "
+            "Please generate files before downloading.",
+        )
+
     # Create a temporary directory for the ZIP file
-    temp_dir = Path(tempfile.gettempdir()) / f"omnia-download-{uuid.uuid4()}"
+    temp_dir = (
+        Path(tempfile.gettempdir()) / f"omnia-download-{uuid.uuid4()}"
+    )
     temp_dir.mkdir(exist_ok=True)
     zip_path = temp_dir / "omnia-config-files.zip"
-    
+
     try:
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file_path in files_to_zip:
                 zipf.write(file_path, file_path.name)
-        
+
         # Return the file with a background task to clean up
         def cleanup():
             try:
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            except Exception as e:
+            except OSError as e:
                 logger.warning("Failed to cleanup temp directory %s: %s", temp_dir, e)
-        
+
         return FileResponse(
             zip_path,
             media_type="application/zip",
             filename="omnia-config-files.zip",
             background=BackgroundTask(cleanup)
         )
-    except Exception as e:
+    except OSError as e:
         logger.exception("Failed to create ZIP file")
         # Clean up on error
         shutil.rmtree(temp_dir, ignore_errors=True)
-        raise HTTPException(500, f"Failed to create ZIP file: {str(e)}")
+        raise HTTPException(
+            500, f"Failed to create ZIP file: {e}"
+        ) from e

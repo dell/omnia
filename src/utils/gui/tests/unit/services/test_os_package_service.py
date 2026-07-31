@@ -14,8 +14,9 @@
 
 """Unit tests for OSPackageService."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import json
-import os
+
 import pytest
 
 from backend.services.os_package_service import OSPackageService

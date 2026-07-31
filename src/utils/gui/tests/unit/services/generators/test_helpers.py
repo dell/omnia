@@ -14,9 +14,7 @@
 
 """Unit tests for config_file_generators helper functions."""
 
-import pytest
-import yaml
-
+# pylint: disable=missing-function-docstring,redefined-outer-name
 from backend.services.config_file_generators import (
     has_meaningful_data,
     _deep_merge,

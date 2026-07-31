@@ -14,8 +14,10 @@
 
 """Generator-specific pytest fixtures."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
+from typing import Any, Dict, List
+
 import pytest
-from typing import Dict, Any, List
 
 
 @pytest.fixture

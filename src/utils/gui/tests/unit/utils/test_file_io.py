@@ -14,6 +14,7 @@
 
 """Unit tests for file I/O utilities."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import json
 import yaml
 import pytest
@@ -54,7 +55,7 @@ class TestWriteJson:
         data = {"alpha": 1, "beta": [2, 3], "gamma": {"nested": True}}
         path = tmp_path / "round_trip.json"
         write_json(path, data)
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             loaded = json.load(f)
         assert loaded == data
 
@@ -71,7 +72,7 @@ class TestWriteYaml:
         data = {"alpha": 1, "beta": [2, 3], "gamma": {"nested": True}}
         path = tmp_path / "round_trip.yml"
         write_yaml(path, data)
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             loaded = yaml.safe_load(f)
         assert loaded == data
 

@@ -14,8 +14,8 @@
 
 """Unit tests for generate_admin_inventory_csv."""
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
 import csv
-import pytest
 
 from backend.services.config_file_generators import generate_admin_inventory_csv
 
@@ -29,10 +29,14 @@ class TestGenerateAdminInventoryCsv:
 
         csv_path = tmp_path / "admin_inventory.csv"
         assert csv_path.exists()
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8') as f:
             reader = csv.reader(f)
             header = next(reader)
-        expected = ["SERVICE_TAG", "GROUP_NAME", "FUNCTIONAL_GROUP_NAME", "ROW", "RACK", "SLOT", "RANGE"]
+        expected = [
+            "SERVICE_TAG", "GROUP_NAME",
+            "FUNCTIONAL_GROUP_NAME", "ROW",
+            "RACK", "SLOT", "RANGE",
+        ]
         assert header == expected
 
     def test_writes_correct_row_count(self, tmp_path, sample_admin_inventory_rows):
@@ -40,7 +44,7 @@ class TestGenerateAdminInventoryCsv:
         generate_admin_inventory_csv(wizard_data, tmp_path, lambda p: None)
 
         csv_path = tmp_path / "admin_inventory.csv"
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8') as f:
             reader = csv.reader(f)
             rows = list(reader)
         assert len(rows) == 3  # header + 2 data rows
@@ -80,7 +84,7 @@ class TestGenerateAdminInventoryCsv:
         generate_admin_inventory_csv(wizard_data, tmp_path, lambda p: None)
 
         csv_path = tmp_path / "admin_inventory.csv"
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8') as f:
             reader = csv.DictReader(f)
             row = next(reader)
         assert "EXTRA_FIELD" not in row
@@ -92,7 +96,7 @@ class TestGenerateAdminInventoryCsv:
         generate_admin_inventory_csv(wizard_data, tmp_path, lambda p: None)
 
         csv_path = tmp_path / "admin_inventory.csv"
-        with open(csv_path) as f:
+        with open(csv_path, encoding='utf-8') as f:
             reader = csv.DictReader(f)
             row = next(reader)
         assert row["GROUP_NAME"] == ""

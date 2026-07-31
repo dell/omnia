@@ -14,15 +14,17 @@
 
 """Unit tests for generate_additional_cloud_init."""
 
-import pytest
-
+# pylint: disable=missing-function-docstring,redefined-outer-name
 from backend.services.config_file_generators import generate_additional_cloud_init
 
 
 class TestGenerateAdditionalCloudInit:
     """Tests for generate_additional_cloud_init generator."""
 
-    def test_runcmd_objects_transformed_to_strings(self, tmp_path, noop_write_yaml, sample_cloud_init_data):
+    def test_runcmd_objects_transformed_to_strings(
+        self, tmp_path, noop_write_yaml,
+        sample_cloud_init_data,
+    ):
         generate_additional_cloud_init(sample_cloud_init_data, tmp_path, noop_write_yaml)
         output = tmp_path / "additional_cloud_init.yml"
         assert output.exists()

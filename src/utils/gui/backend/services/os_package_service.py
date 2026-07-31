@@ -40,10 +40,10 @@ _SAFE_PATH_RE = re.compile(r'^[a-zA-Z0-9._-]+$')
 
 class OSPackageService:
     """Service for extracting OS packages from config directory.
-    
+
     This service reads the actual config JSON files from input/config/
     and extracts package definitions based on bundle membership.
-    
+
     It categorizes packages as:
     - Functional: service_k8s, slurm_custom, additional_packages
     - Infrastructure: csi_driver_powerscale
@@ -77,7 +77,7 @@ class OSPackageService:
 
     # Fallback regex for version suffix stripping
     _VERSION_SUFFIX_RE = re.compile(r'[-_]v?\d+(\.\d+)*$')
-    
+
     def __init__(self, settings=None, config_dir: Optional[str] = None):
         """Initialize service with settings or config directory path.
 
@@ -107,7 +107,7 @@ class OSPackageService:
 
     def __repr__(self) -> str:
         return f"OSPackageService(config_dir={self.config_dir!r})"
-    
+
     def list_available_combinations(self) -> List[Dict[str, str]]:
         """List all available OS/arch/version combinations.
 
@@ -164,7 +164,7 @@ class OSPackageService:
 
         logger.info("Found %d OS combinations", len(combinations))
         return sorted(combinations, key=lambda x: (x['os_family'], x['version'], x['arch']))
-    
+
     def list_available_bundles(
         self,
         arch: str,
@@ -172,15 +172,15 @@ class OSPackageService:
         version: str
     ) -> List[Dict[str, Any]]:
         """List all available bundles for a given OS/arch/version.
-        
+
         Args:
             arch: Architecture (x86_64, aarch64)
             os_family: OS family (rhel; ubuntu is disabled for later release)
             version: OS version (10.0, 9.5)
-        
+
         Returns:
             List of bundle dictionaries with name, type, package_count
-            
+
         Example:
             [
                 {"name": "default_packages", "type": "os", "package_count": 38},
@@ -209,10 +209,10 @@ class OSPackageService:
         for file in files:
             if not file.endswith('.json'):
                 continue
-            
+
             bundle_name, _ = os.path.splitext(file)
             file_path = os.path.join(config_path, file)
-            
+
             try:
                 data = self._load_json_cached(file_path)
                 package_count = self._count_packages(data)
@@ -227,9 +227,9 @@ class OSPackageService:
                 })
             except (json.JSONDecodeError, OSError, KeyError, TypeError) as exc:
                 logger.error("Error reading %s: %s", file, exc)
-        
+
         return sorted(bundles, key=lambda x: x['name'])
-    
+
     def get_bundle_packages(
         self,
         arch: str,
@@ -238,16 +238,16 @@ class OSPackageService:
         bundle_name: str
     ) -> Dict[str, List[Dict]]:
         """Get packages from a specific bundle, organized by section.
-        
+
         Args:
             arch: Architecture
             os_family: OS family
             version: OS version
             bundle_name: Bundle name (e.g., "default_packages")
-        
+
         Returns:
             Dictionary mapping section names to package lists
-            
+
         Example:
             {
                 "default_packages": [
@@ -272,14 +272,14 @@ class OSPackageService:
         except (json.JSONDecodeError, OSError) as exc:
             logger.error("Error reading bundle %s: %s", bundle_name, exc)
             return {}
-        
+
         result = {}
         for section_name, pkg in self._iter_packages(data):
             package_data = self._build_package_data(pkg)
             result.setdefault(section_name, []).append(package_data)
 
         return result
-    
+
     def _extract_version_from_url(self, url: str) -> Optional[str]:
         """Extract version from a tarball URL.
 
@@ -295,7 +295,7 @@ class OSPackageService:
                 return match.group(1)
 
         return None
-    
+
     def get_os_packages(
         self,
         arch: str,
@@ -335,14 +335,14 @@ class OSPackageService:
             b for b in all_bundles
             if b['type'] == 'os' and (include_bundles is None or b['name'] in include_bundles)
         ]
-        
+
         result = {}
         for bundle in os_bundles:
             bundle_packages = self.get_bundle_packages(arch, os_family, version, bundle['name'])
             result.update(bundle_packages)
-        
+
         return result
-    
+
     def search_packages(
         self,
         arch: str,
@@ -393,10 +393,10 @@ class OSPackageService:
         for file in files:
             if not file.endswith('.json'):
                 continue
-            
+
             bundle_name, _ = os.path.splitext(file)
             file_path = os.path.join(config_path, file)
-            
+
             try:
                 data = self._load_json_cached(file_path)
 
@@ -408,9 +408,9 @@ class OSPackageService:
                         results.append(result_item)
             except (json.JSONDecodeError, OSError, KeyError, TypeError) as exc:
                 logger.error("Error searching in %s: %s", file, exc)
-        
+
         return sorted(results, key=lambda x: x['package'])
-    
+
     def reload(self) -> None:
         """Force re-read from disk on the next access.
 
@@ -444,7 +444,7 @@ class OSPackageService:
                 data = json.load(f)
             self._json_cache[filepath] = data
             return data
-    
+
     def _count_packages(self, data: dict) -> int:
         """Count total packages in bundle data."""
         return sum(
@@ -488,10 +488,10 @@ class OSPackageService:
                     logger.warning("Missing required key(s) in package: %s", pkg)
                     continue
                 yield section_name, pkg
-    
+
     def _extract_bundle_name(self, filename_stem: str) -> str:
         """Strip version suffix from a config filename stem.
-        
+
         This uses the same logic as generate_catalog.py for consistency.
 
         Examples:
@@ -517,15 +517,15 @@ class OSPackageService:
         # Fallback: try generic regex stripping
         stripped = self._VERSION_SUFFIX_RE.sub('', filename_stem)
         return stripped
-    
+
     def _classify_bundle(self, bundle_name: str) -> str:
         """Classify bundle as functional, infra, or os.
-        
+
         Uses _extract_bundle_name to handle version suffixes.
         """
         # Extract base bundle name (strip version suffix)
         base_name = self._extract_bundle_name(bundle_name)
-        
+
         if base_name in self._FUNCTIONAL_BUNDLES:
             return "functional"
         elif base_name in self._INFRA_BUNDLES:
