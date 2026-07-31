@@ -30,7 +30,7 @@ pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # Usage: create_node_dir.yml
-nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes_{{ target_category | default('kubernetes') }}.yaml"
 worker_components:
   - 'kubernetes'
   - 'kubelet'

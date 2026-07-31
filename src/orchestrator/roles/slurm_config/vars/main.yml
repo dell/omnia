@@ -64,8 +64,7 @@ cmpt_dir:
 innodb_buffer_pool_size: 4G
 innodb_lock_wait_timeout: 900
 conf_server: "--conf-server {{ ctld_list | join(',') }}"
-# TODO tmp
-nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes_{{ target_category | default('slurm') }}.yaml"
 bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
 bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
 clear_slurm_files: false

@@ -1,0 +1,35 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Set SELinux context for orchestrator data directories.
+# Consolidated from duplicate tasks in orchestration_mapping_nodes.yml (lines 19-29)
+# and configure_bss_cloud_init.yml (lines 143-153).
+
+- name: Set openchami SELinux context for Local flow
+  ansible.builtin.command: >
+    chcon -R system_u:object_r:container_file_t:s0
+    "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
+  changed_when: true
+  failed_when: false
+  when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+- name: Set openchami SELinux context for NFS internal flow
+  ansible.builtin.command: >
+    chcon -R system_u:object_r:container_file_t:s0
+    "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+  changed_when: true
+  failed_when: false
+  when:
+    - hostvars['localhost']['omnia_share_option'] == 'NFS'
+    - hostvars['localhost']['nfs_type'] | default('') == 'internal'
