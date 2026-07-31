@@ -59,3 +59,5 @@ s3_efi_images_bucket: "efi-images"
 # Retry and delay settings
 max_retries: 10
 delay_count: 5
+image_pull_retries: 3
+image_pull_delay: 10

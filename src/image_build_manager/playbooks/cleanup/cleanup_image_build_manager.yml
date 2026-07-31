@@ -20,6 +20,7 @@
 #   ansible-playbook cleanup_image_build_manager.yml --tags minio                 # MinIO only
 #   ansible-playbook cleanup_image_build_manager.yml --tags registry              # Registry only
 #   ansible-playbook cleanup_image_build_manager.yml --skip-tags credentials      # Skip credential removal
+#   ansible-playbook cleanup_image_build_manager.yml --tags data                  # Domain data dirs only
 #   ansible-playbook cleanup_image_build_manager.yml --skip-tags minio            # Skip MinIO cleanup
 #
 # When imported from image_build_manager.yml, image_build_setup is already done.

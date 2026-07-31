@@ -71,6 +71,16 @@
         - name: Flush handlers to reload systemd
           ansible.builtin.meta: flush_handlers
 
+        - name: Pre-pull MinIO image to avoid quadlet pull timeout
+          containers.podman.podman_image:
+            name: "{{ minio_image }}"
+            tag: "{{ minio_release_tag }}"
+            state: present
+          register: minio_image_pull
+          retries: "{{ image_pull_retries }}"
+          delay: "{{ image_pull_delay }}"
+          until: minio_image_pull is succeeded
+
         - name: Enable and start MinIO service
           ansible.builtin.systemd_service:
             name: minio

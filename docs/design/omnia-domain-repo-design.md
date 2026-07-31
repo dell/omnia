@@ -634,6 +634,33 @@ if __name__ == '__main__':
 
 > **Galaxy import fails** if any module is missing `DOCUMENTATION`, `EXAMPLES`, or `RETURN`. Validate with: `ansible-doc omnia.<collection>.<module>`
 
+### Input Validation Module Structure
+
+Every domain that validates user-supplied configuration MUST organize its validation code under `plugins/module_utils/input_validation/` using a **four-directory** layout:
+
+```
+plugins/module_utils/input_validation/
+├── __init__.py
+├── core/                          # Engine, config, file I/O
+│   ├── config.py                  # Domain-specific constants, paths, file mappings
+│   ├── file_utils.py              # File reading, YAML/JSON parsing, line-number lookup
+│   ├── utils.py                   # create_error_msg(), create_file_path(), helpers
+│   └── validation_engine.py       # L1 schema + L2 logic orchestration & routing
+├── messages/                      # All user-facing error/warning strings
+│   ├── common_messages.py         # Shared messages (log formatting, generic errors)
+│   └── <domain>_messages.py       # Domain-specific messages (one per concern)
+├── schema/                        # JSON Schema files for L1 validation
+│   └── *.json                     # One per input config file (Draft-7)
+└── validators/                    # Per-config L2 business-logic validators
+    └── <config>_validator.py      # One per config file; exposes validate()
+```
+
+**Rules**:
+1. Error messages MUST live in `messages/` as `UPPER_SNAKE_CASE` constants — **never** inline strings in validators.
+2. `core/config.py` MUST contain only domain-specific constants. No cross-domain constants.
+3. `validation_engine.py` routes to validators via dict mapping; it MUST NOT contain domain-specific logic.
+4. Each domain owns its full validation stack — do NOT import from `common/library/`.
+
 ### Naming
 
 - `snake_case` for modules, functions, methods, variables.
