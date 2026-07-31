@@ -1,64 +1,78 @@
-# Image Build Manager — Architecture Overview
+# Image Build Manager -- Architecture
 
 ## System Context
 
 ```
-                    ┌─────────────────────────────────────────────┐
-                    │      Image Build Manager                      │
-                    │                                             │
-  ┌──────────┐      │  ┌────────────┐  ┌────────────┐  ┌────────┐│      ┌──────────┐
-  │ config   │─────▶│  │ Validate   │─▶│ Prepare    │─▶│ Build  ││─────▶│ S3 / OCI │
-  │  .yml    │      │  │ (schema +  │  │ (MinIO +   │  │ (base +││      │ Artifacts│
-  │ + repo   │      │  │  runtime)  │  │  registry) │  │ compute││      │          │
-  │ _status  │      │  └────────────┘  └────────────┘  └────────┘│      └──────────┘
-  └──────────┘      └─────────────────────────────────────────────┘
+  repo_status.yml                                                    build_status.yml
+  functional_group_packages.yml                                      S3 artifacts
+  +---------------------+     +-------------------------------------+     +-----------+
+  |                     |     |       Image Build Manager            |     |           |
+  |  repo_manager       |---->|                                     |---->| orchestr- |
+  |  (upstream)         |     |  setup -> validate -> prepare       |     | ator      |
+  |                     |     |         -> build -> write_status    |     | (consumer)|
+  +---------------------+     +-------------------------------------+     +-----------+
+                                        |              |
+                                   MinIO S3      OCI Registry
+                                  (boot-images)  (image-builder)
 ```
 
 ## Execution Mode
 
-**Bare-metal** — the only supported execution mode. The playbook runs
-directly on the RHEL host via `ansible-playbook`. All tasks execute locally
-(`connection: local`) except aarch64 builds which SSH to an ARM node.
+**Bare-metal only.** Runs directly on RHEL host via `ansible-playbook`.
+All tasks execute locally (`connection: local`) except aarch64 builds
+which SSH to a remote ARM node.
 
 ## Execution Flow
 
-### 1. Setup (`image_build_setup` role — tag: always)
+### Step 0: Setup (tag: always)
+
+Role: `image_build_setup`
 
 - Validate tags and tag combinations
-- Load and validate `config.yml` — hostname regex, IPv4, absolute path checks
-- Set project dirs, host vars
-- Validate all prerequisite files exist (fail-fast):
-  - `image_build_config.yml`
-  - `repo_manager_output_path` directory
-  - `repo_status.yml` inside it
-  - `functional_group_packages.yml` inside it
-- Load `repo_status.yml` → RPM repo URLs, cert paths
-- Validate repo manager certificate exists at absolute path (optional)
-- Build repo lists, set repo manager facts, s3_endpoint
+- Load environment variables from `omnia.env`
+- Set project directories and host vars
+- Validate prerequisite files exist (fail-fast):
+  `image_build_config.yml`, `repo_status.yml`, `functional_group_packages.yml`
+- Load `repo_status.yml` -- RPM repo URLs, cert paths, OS metadata
+- Validate repo manager certificate (optional -- skip if empty)
 
-### 2. Validate (`--tags validate`)
+### Step 1: Validate (tag: validate)
 
-- Schema validation of `image_build_config.yml` against JSON schema
-- Logic validation (S3 provider, aarch64 host, repo_status pre-check)
+Roles: `validate_image_build_input`, `validate_build_runtime`
+
+- L1 schema validation via `input_validation/schema/image_build_config.json`
+- L2 logic validation (S3 provider, aarch64 host, async timing)
 - No credentials required
 
-### 3. Prepare (`--tags prepare`)
+### Step 2: Credentials (tag: always, skipped for validate/cleanup)
 
-- Collect S3 credentials (interactive prompts, Ansible Vault)
-- Deploy MinIO S3 (if provider=minio) via Podman Quadlet
+Role: `collect_build_credentials`
+
+- Prompt for S3 access/secret keys (Ansible Vault encrypted)
+- Prompt for aarch64 SSH password (if ARM host configured)
+
+### Step 3: Prepare (tag: prepare)
+
+Roles: `deploy_minio`, `deploy_registry`
+
+- Deploy MinIO S3 via Podman Quadlet (if provider=minio)
 - Deploy local OCI container registry via Podman Quadlet
+- Create S3 buckets: `boot-images`, `efi-images`
 
-### 4. Build (`--tags build`)
+### Step 4: Build (tag: build)
 
-- Write `functional_groups_config.yml` from `image_build_config.yml`
-- Load `functional_group_packages.yml` → `base_image_packages` + `compute_images_dict`
-- Fetch RPM repo URLs from `repo_status.yml`
+Roles: `fetch_build_packages`, `build_os_images`
+
+- Write `functional_groups_config.yml` from config
+- Load `functional_group_packages.yml` -- split into `base_image_packages` + `compute_images_dict`
 - Build base OS image (OpenCHAMI image-builder or image-thrillhouse)
-- Build compute images per functional group (OpenCHAMI image-builder or image-thrillhouse)
-- Upload to S3 (boot-images + efi-images buckets)
-- Write `build_status.yml` with artifact paths
+- Build compute images per functional group with concurrency control
+- Upload artifacts to S3 (boot-images + efi-images buckets)
+- Write `build_status.yml` with per-group S3 artifact paths
 
-### 5. Cleanup (`--tags cleanup`)
+### Step 5: Cleanup (tag: cleanup)
+
+Role: `cleanup_build_artifacts`
 
 - Stop and remove MinIO + Registry containers
 - Remove build artifacts, credentials, S3 data
@@ -67,22 +81,18 @@ directly on the RHEL host via `ansible-playbook`. All tasks execute locally
 ## Role Dependency Graph
 
 ```
-image_build_setup ─────────────────────────────────────────┐
-       │                                                   │
-       ▼                                                   ▼
-validate_image_build_input                    collect_build_credentials
-       │                                                   │
-       ▼                                                   ▼
-validate_build_runtime                        deploy_minio + deploy_registry
-       │                                                   │
-       ▼                                                   ▼
-fetch_build_packages ──────────────────────▶ build_os_images
-       │                                                   │
-       │                                                   ▼
-       │                                     write_build_status
-       │
-       ▼
-cleanup_build_artifacts
+image_build_setup
+       |
+       +---> validate_image_build_input ---> validate_build_runtime
+       |
+       +---> collect_build_credentials
+       |           |
+       |           +---> deploy_minio
+       |           +---> deploy_registry
+       |
+       +---> fetch_build_packages ---> build_os_images ---> write_build_status
+       |
+       +---> cleanup_build_artifacts
 ```
 
 ## Data Contract
@@ -91,33 +101,22 @@ cleanup_build_artifacts
 
 | File | Source | Purpose |
 |------|--------|---------|
-| `config.yml` | User-created (repo root) | Host + project settings |
-| `image_build_config.yml` | `input/project_default/` | S3, functional groups, build params |
-| `repo_status.yml` | `/opt/omnia/repo_manager/output/<project_name>/` | RPM repo URLs + OS metadata + cert paths |
-| `functional_group_packages.yml` | `/opt/omnia/repo_manager/output/<project_name>/` | Functional group → RPM package mapping |
+| `image_build_config.yml` | `input/project_default/` | S3, groups, build params |
+| `repo_status.yml` | repo_manager output | RPM repo URLs, OS metadata, certs |
+| `functional_group_packages.yml` | repo_manager output | Group-to-RPM mapping |
 
 ### Outputs
 
-| File | Purpose |
-|------|---------|
-| `build_status.yml` | S3 artifact paths per functional group |
-| Validation logs | `/opt/omnia/image_build_manager/log/<project>/` |
-
-## Key Paths
-
-| Path | Purpose |
-|------|---------|
-| `/opt/omnia/image_build_manager/` | Shared path — MinIO data, registry, workdir, logs |
-| `/opt/omnia/image_build_manager/log/playbooks/` | Ansible playbook logs |
-| `/opt/omnia/repo_manager/output/<project_name>/` | Upstream repo_manager output directory |
-| `/opt/omnia/pulp/settings/certs/pulp_webserver.crt` | Repo manager TLS certificate (read as-is) |
+| File | Location | Purpose |
+|------|----------|---------|
+| `build_status.yml` | `output/<project>/` | S3 artifact paths per functional group |
 
 ## Key Design Decisions
 
-1. **No `software_config.json`** — replaced by `functional_group_packages.yml`
-2. **Bare-metal only** — no container or Omnia core required
-3. **Absolute cert paths** — read directly from `repo_status.yml`, no staging
-4. **Config uses `host`** — generic key name (not `build_host`), works for all repos
-5. **Single mapping file** — `functional_group_packages.yml` is the single source
+1. **Standalone domain** -- no dependency on other domains at code level
+2. **Contract-based** -- reads `repo_status.yml`, writes `build_status.yml`
+3. **No `software_config.json`** -- replaced by `functional_group_packages.yml`
+4. **Bare-metal only** -- no container or Omnia core required for playbook
+5. **Single mapping file** -- `functional_group_packages.yml` is the single source
    of truth for which RPMs go into each image variant
-6. **Standalone** — no dependency on `omnia_core` container or mono-repo
+6. **Dual builder support** -- `image-builder` (standard) or `image-thrillhouse` (next-gen)

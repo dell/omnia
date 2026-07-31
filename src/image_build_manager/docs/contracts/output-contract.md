@@ -1,32 +1,26 @@
-# image_build_manager — Output Contract
+# Image Build Manager -- Output Contract
 
-> **Last Updated**: Jul 21, 2026 | **Domain**: `image_build_manager`
-
-This document defines all output artifacts produced by the `image_build_manager` domain.
+**Domain**: `image_build_manager` | **Collection**: `omnia.image_build`
 
 ---
 
 ## 1. build_status.yml
 
-**Purpose**: Reports the result of the image build process, including S3 endpoints and per-architecture image paths. Consumed by the `provision` domain for BSS template rendering and image validation.
+**Purpose**: Reports image build results with S3 artifact paths per functional group.
 
-**Location**:
-- **Latest**: `output/project_default/build_status.yml`
-- **Versioned**: `output/project_default/image_build_manager/build_status_<version>_<timestamp>.yml`
+**Location**: `output/<project>/build_status.yml`
 
-**Producer**: `image_build_manager.yml` (Step 8 — Write build_status)
+**Producer**: `build_os_images` role (write_build_status task)
 
-**Consumers**:
-- `provision/roles/provision_validations/tasks/validate_image.yml`
-- `provision/roles/configure_ochami/tasks/configure_bss_group.yml`
+**Consumer**: `orchestrator` domain (image validation and BSS template rendering)
 
 ### Structure
 
 ```yaml
-overall_status: "success"   # "success" or "failed"
+overall_status: "success"
 
 s3_configurations:
-  endpoint_url: "http://10.20.0.1:9000"   # MinIO: auto-detected; PowerScale: from config
+  endpoint_url: "http://10.20.0.1:9000"
   bucket: "boot-images"
 
 functional_group_images:
@@ -42,111 +36,71 @@ functional_group_images:
       image: "boot-images/slurm_node_aarch64/rhel-..."
 ```
 
-### Field Definitions
+### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `overall_status` | string | `"success"` if all requested builds completed; `"failed"` otherwise |
-| `s3_configurations.endpoint_url` | string | S3-compatible endpoint URL for boot image retrieval |
-| `s3_configurations.bucket` | string | S3 bucket name (always `"boot-images"`) |
-| `functional_group_images` | list | Architecture-grouped list of built image entries |
-| `functional_group_images[].x86_64` | list | x86_64 image entries (omitted if no x86_64 builds) |
-| `functional_group_images[].aarch64` | list | aarch64 image entries (omitted if no aarch64 builds) |
-| `*.functional_group` | string | Functional group name (includes arch suffix, e.g., `slurm_node_x86_64`) |
-| `*.kernel` | string | S3 key for the kernel (vmlinuz) |
-| `*.initrd` | string | S3 key for the initramfs image |
-| `*.image` | string | S3 key prefix for the rootfs image |
+| `overall_status` | string | `"success"` or `"failed"` |
+| `s3_configurations.endpoint_url` | string | S3 endpoint URL |
+| `s3_configurations.bucket` | string | Always `"boot-images"` |
+| `functional_group_images[].functional_group` | string | Group name with arch suffix |
+| `functional_group_images[].kernel` | string | S3 key for vmlinuz |
+| `functional_group_images[].initrd` | string | S3 key for initramfs |
+| `functional_group_images[].image` | string | S3 key for rootfs |
 
-### S3 Endpoint Behavior
+### S3 Endpoint
 
 | Provider | Behavior |
 |----------|----------|
-| **MinIO** | Auto-detected as `http://<admin_nic_ip>:9000` when `endpoint_url` is empty in input config |
-| **PowerScale** | Uses configured `endpoint_url` as-is from `image_build_config.yml` |
-
-### Consumers Behavior
-
-| Consumer | What It Reads | Purpose |
-|----------|---------------|---------|
-| `validate_image.yml` | `overall_status`, `s3_configurations`, `functional_group_images` | Validates images exist in S3 before provisioning |
-| `configure_bss_group.yml` | `functional_group_images[].kernel`, `initrd`, `image` | Renders BSS boot templates per functional group |
+| MinIO | Auto-detected: `http://<admin_nic_ip>:9000` |
+| PowerScale | Uses `endpoint_url` from config |
 
 ---
 
 ## 2. Deployed Services
 
-The `prepare_image_build_manager.yml` sub-playbook deploys the following services on the OIM host as side-effects:
+Services deployed on OIM host by the `prepare` tag:
 
 ### MinIO (when provider != powerscale)
 
 | Item | Value |
 |------|-------|
-| Service name | `minio.service` |
-| Quadlet file | `/etc/containers/systemd/minio.container` |
-| S3 data directory | `{{ oim_shared_path }}/omnia/openchami/s3/data/s3` |
+| Service | `minio.service` (Podman Quadlet) |
 | Ports | `9000` (API), `9001` (Console) |
-| Health check | `http://localhost:9000/minio/health/live` |
-| S3 buckets created | `boot-images`, `efi-images` |
+| Buckets | `boot-images`, `efi-images` |
 
 ### Container Registry (always)
 
 | Item | Value |
 |------|-------|
-| Service name | `registry.service` |
-| Quadlet file | `/etc/containers/systemd/registry.container` |
-| Storage directory | `/opt/omnia/registry/data` |
-| OCI data | `{{ oim_shared_path }}/omnia/openchami/s3/data/oci` |
-| Port | `5000` |
-| Health check | `http://localhost:5000/v2/` |
+| Service | `registry.service` (Podman Quadlet) |
+| Port | `5000` (HTTP) |
 
-### omnia.target Updates
-
-Services are appended to the existing `omnia.target` `Requires=` line:
-- `registry.service` — always appended
-- `minio.service` — appended only when provider != `powerscale`
+Both services are added to `omnia.target`.
 
 ---
 
-## 3. Built Container Images
-
-The image-builder container is built by `src/image_build_manager/containers/build_images.sh` and pushed to the local registry:
-
-| Image | Registry Path | Description |
-|-------|---------------|-------------|
-| `image-builder` | `localhost:5000/image-builder:latest` | Builds OS boot images (kernel, initramfs, rootfs) |
-
----
-
-## 4. S3 Artifacts
-
-Images built by `image_creation` role are uploaded to S3 with the following key structure:
+## 3. S3 Artifacts
 
 ```
 boot-images/
-├── efi-images/
-│   ├── <functional_group>/
-│   │   └── rhel-<functional_group>_omnia_<version>/
-│   │       ├── vmlinuz
-│   │       └── initramfs-<kernel_version>.img
-│   └── ...
-├── <functional_group>/
-│   └── rhel-<functional_group>_omnia_<version>/
-│       └── <rootfs files>
-└── ...
++-- efi-images/
+|   +-- <functional_group>/
+|       +-- rhel-<group>_omnia_<version>/
+|           +-- vmlinuz
+|           +-- initramfs-<kernel>.img
++-- <functional_group>/
+    +-- rhel-<group>_omnia_<version>/
+        +-- <rootfs files>
 ```
-
-| Bucket | Contents |
-|--------|----------|
-| `boot-images` | Full OS images (rootfs) and EFI boot artifacts (kernel, initramfs) |
 
 ---
 
-## 5. Cleanup
+## 4. Cleanup
 
-Running `cleanup_image_build_manager.yml` removes all output artifacts:
-- MinIO container, data, S3 buckets
-- Registry container and storage
-- `build_status.yml` (latest + versioned)
+`cleanup_image_build_manager.yml` removes:
+- MinIO + Registry containers and data
+- `build_status.yml`
+- S3 buckets and artifacts
 - `omnia.target` service entries
-- s3cmd configuration
-- Credentials (opt-in with `--tags credentials`)
+- Credentials and s3cmd config

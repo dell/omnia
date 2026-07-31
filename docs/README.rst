@@ -10,6 +10,8 @@ Per-script documentation lives in ``src/main/docs/``.
 ::
 
   docs/
+  ├── architecture.md               Overall architecture (all domains)
+  ├── galaxy-testing-guide.md       Galaxy collection end-to-end testing
   ├── code-style/                   Code style guides (Ansible, Python, Jinja2, test automation)
   ├── design/                       Cross-domain design documents
   │   ├── domain-integration.md
@@ -28,8 +30,8 @@ Environment Configuration
 Environment variables are configured in ``src/main/omnia.env`` and installed
 system-wide by ``omnia.sh --setup-venv``:
 
-- ``/etc/omnia/omnia.env`` — persistent system-wide copy
-- ``/etc/profile.d/omnia-env.sh`` — auto-sources the env on every login shell
+- ``/etc/omnia/omnia.env`` -- persistent system-wide copy
+- ``/etc/profile.d/omnia-env.sh`` -- auto-sources the env on every login shell
 
 After setup, all scripts, playbooks, and new shells automatically have access
 to Omnia environment variables. No manual sourcing is required.

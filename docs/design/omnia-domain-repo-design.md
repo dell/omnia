@@ -51,7 +51,7 @@ Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 ├── requirements.txt                  # Python deps: ansible-core>=2.20, jmespath, etc.
 ├── requirements.yml                  # Ansible Galaxy collections
 ├── README.md                         # Quick start, prerequisites, usage
-├── copy-input.sh                     # Input staging script (called by omnia.sh)
+├── domain-init.sh                     # Input staging script (called by omnia.sh)
 ├── ansible.cfg                       # Ansible configuration
 ├── .gitignore
 ├── docs/                             # Domain-specific documentation
@@ -87,7 +87,7 @@ Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 - **`plugins/`** follows the Ansible Galaxy standard — modules, module_utils, and callback plugins.
 - **No output or log directories in the domain tree** — all runtime output goes to `<shared_path>/`.
 - Every source file MUST start with the Dell Apache 2.0 copyright header.
-- **`copy-input.sh`** stages input files from `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
+- **`domain-init.sh`** stages input files from `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
 
 ---
 
@@ -633,6 +633,33 @@ if __name__ == '__main__':
 ```
 
 > **Galaxy import fails** if any module is missing `DOCUMENTATION`, `EXAMPLES`, or `RETURN`. Validate with: `ansible-doc omnia.<collection>.<module>`
+
+### Input Validation Module Structure
+
+Every domain that validates user-supplied configuration MUST organize its validation code under `plugins/module_utils/input_validation/` using a **four-directory** layout:
+
+```
+plugins/module_utils/input_validation/
+├── __init__.py
+├── core/                          # Engine, config, file I/O
+│   ├── config.py                  # Domain-specific constants, paths, file mappings
+│   ├── file_utils.py              # File reading, YAML/JSON parsing, line-number lookup
+│   ├── utils.py                   # create_error_msg(), create_file_path(), helpers
+│   └── validation_engine.py       # L1 schema + L2 logic orchestration & routing
+├── messages/                      # All user-facing error/warning strings
+│   ├── common_messages.py         # Shared messages (log formatting, generic errors)
+│   └── <domain>_messages.py       # Domain-specific messages (one per concern)
+├── schema/                        # JSON Schema files for L1 validation
+│   └── *.json                     # One per input config file (Draft-7)
+└── validators/                    # Per-config L2 business-logic validators
+    └── <config>_validator.py      # One per config file; exposes validate()
+```
+
+**Rules**:
+1. Error messages MUST live in `messages/` as `UPPER_SNAKE_CASE` constants — **never** inline strings in validators.
+2. `core/config.py` MUST contain only domain-specific constants. No cross-domain constants.
+3. `validation_engine.py` routes to validators via dict mapping; it MUST NOT contain domain-specific logic.
+4. Each domain owns its full validation stack — do NOT import from `common/library/`.
 
 ### Naming
 
