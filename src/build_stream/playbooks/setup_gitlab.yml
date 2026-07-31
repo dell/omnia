@@ -37,7 +37,7 @@
     - role: ../roles/build_stream_setup
       vars:
         create_oim_group: true
-  when: not build_stream_setup_done | default(false) | bool
+      when: not build_stream_setup_done | default(false) | bool
 
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
