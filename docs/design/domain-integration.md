@@ -33,7 +33,7 @@ Both scripts are installed to `/usr/local/bin/` (or sourced from the repo) and o
 
 3. **Installs dependencies** — `pip install` from each domain's `requirements.txt`
 
-4. **Stages domain inputs** — calls each domain's `copy-input.sh` to copy input files from the domain repo to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+4. **Stages domain inputs** — calls each domain's `domain-init.sh` to copy input files from the domain repo to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 
 5. **Runs domain playbooks** — executes `ansible-playbook` for each domain in sequence
 
@@ -59,7 +59,7 @@ omnia.sh --setup-venv
   ├── 2. Create/activate Python venv
   ├── 3. pip install -r requirements.txt (per domain)
   ├── 4. ansible-galaxy collection install -r requirements.yml (per domain)
-  └── 5. Call copy-input.sh (per domain)
+  └── 5. Call domain-init.sh (per domain)
 
 omnia.sh --run <domain> [--tags <tags>]
   │
@@ -69,9 +69,9 @@ omnia.sh --run <domain> [--tags <tags>]
   └── 4. Write domain status to <OMNIA_DATA_PATH>/<domain>/output/<project>/<domain>_status.yml
 ```
 
-### 2.4 Domain `copy-input.sh` Contract
+### 2.4 Domain `domain-init.sh` Contract
 
-Every domain MUST provide a `copy-input.sh` script at the domain root. This script:
+Every domain MUST provide a `domain-init.sh` script at the domain root. This script:
 
 - **Input**: Receives `OMNIA_DATA_PATH` and `PROJECT_NAME` as environment variables
 - **Action**: Copies input files from `<domain>/input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
@@ -79,7 +79,7 @@ Every domain MUST provide a `copy-input.sh` script at the domain root. This scri
 
 ```bash
 #!/bin/bash
-# copy-input.sh — Stage domain input files to OMNIA_DATA_PATH
+# domain-init.sh — Stage domain input files to OMNIA_DATA_PATH
 DEST="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${PROJECT_NAME}"
 mkdir -p "$DEST"
 cp -r input/"${PROJECT_NAME}"/* "$DEST"/
@@ -274,7 +274,7 @@ $ omnia-cli status image_build_manager
 
 When creating a new Omnia domain, ensure:
 
-- [ ] `copy-input.sh` exists at domain root
+- [ ] `domain-init.sh` exists at domain root
 - [ ] Domain writes `<domain>_status.yml` to `<OMNIA_DATA_PATH>/<domain>/output/<project>/`
 - [ ] Domain reads system env vars from `/etc/omnia/omnia.env` (via `lookup('env', ...)`)
 - [ ] Domain is registered in `omnia.sh` domain list

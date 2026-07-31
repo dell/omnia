@@ -169,7 +169,7 @@ cp $IMAGE_BUILD_HOME/samples/repo_manager_output/functional_group_packages.yml \
    /opt/omnia/repo_manager/output/project_default/
 
 # Copy input config
-$IMAGE_BUILD_HOME/copy-input.sh
+$IMAGE_BUILD_HOME/domain-init.sh
 ```
 
 ### Validate Only (no credentials)

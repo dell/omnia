@@ -285,5 +285,5 @@ All Python code MUST pass the following gates before merge:
 
 ### 7.4 ShellCheck (Shell Script Lint)
 
-- All `.sh` files (e.g., `copy-input.sh`) MUST pass `shellcheck` with zero errors
+- All `.sh` files (e.g., `domain-init.sh`) MUST pass `shellcheck` with zero errors
 - Warnings (SC-level) SHOULD be addressed; suppressions allowed with `# shellcheck disable=SCXXXX` and a justification comment

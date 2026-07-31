@@ -51,7 +51,7 @@ Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 ├── requirements.txt                  # Python deps: ansible-core>=2.20, jmespath, etc.
 ├── requirements.yml                  # Ansible Galaxy collections
 ├── README.md                         # Quick start, prerequisites, usage
-├── copy-input.sh                     # Input staging script (called by omnia.sh)
+├── domain-init.sh                     # Input staging script (called by omnia.sh)
 ├── ansible.cfg                       # Ansible configuration
 ├── .gitignore
 ├── docs/                             # Domain-specific documentation
@@ -87,7 +87,7 @@ Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 - **`plugins/`** follows the Ansible Galaxy standard — modules, module_utils, and callback plugins.
 - **No output or log directories in the domain tree** — all runtime output goes to `<shared_path>/`.
 - Every source file MUST start with the Dell Apache 2.0 copyright header.
-- **`copy-input.sh`** stages input files from `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
+- **`domain-init.sh`** stages input files from `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
 
 ---
 

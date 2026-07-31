@@ -253,5 +253,5 @@ All Ansible/YAML code MUST pass the following gates before merge:
 
 ### 11.4 ShellCheck (Shell Script Lint)
 
-- All `.sh` files (e.g., `copy-input.sh`) MUST pass `shellcheck` with zero errors
+- All `.sh` files (e.g., `domain-init.sh`) MUST pass `shellcheck` with zero errors
 - Suppressions allowed with `# shellcheck disable=SCXXXX` and a justification comment
