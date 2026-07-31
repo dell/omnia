@@ -1,0 +1,15 @@
+name: domain-completion-checker
+version: 1.0.0
+description: "Validates Omnia domain Galaxy compliance, structure, input validation, and independence. Use when assessing domain migration readiness or scoring domain completion."
+author: abhishek
+role: engineering
+domain: engineering
+tags:
+  - domain-compliance
+  - ansible-galaxy
+  - validation
+  - migration-readiness
+dependencies: []
+status: active
+created: 2026-07-30
+updated: 2026-07-30
