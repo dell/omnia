@@ -51,13 +51,13 @@
       ansible.builtin.systemd:
         name: openchami.target
         state: stopped
-      ignore_errors: true
+      failed_when: false
 
     - name: Disable OpenCHAMI target
       ansible.builtin.systemd:
         name: openchami.target
         enabled: false
-      ignore_errors: true
+      failed_when: false
 
     - name: Wait for services to stop
       ansible.builtin.pause:
@@ -65,12 +65,14 @@
 
     - name: Remove OpenCHAMI containers
       ansible.builtin.shell: |
+        set -o pipefail
         podman ps -a --filter "label=io.openchami" --format "{{ '{{' }}.ID{{ '}}' }}" | xargs -r podman rm -f
       changed_when: true
       failed_when: false
 
     - name: Remove OpenCHAMI pods
       ansible.builtin.shell: |
+        set -o pipefail
         podman pod ls --filter "label=io.openchami" --format "{{ '{{' }}.ID{{ '}}' }}" | xargs -r podman pod rm -f
       changed_when: true
       failed_when: false
@@ -82,25 +84,25 @@
       loop:
         - "{{ openchami_config_dir }}"
         - "{{ ochami_dir }}"
-      ignore_errors: true
+      failed_when: false
 
     - name: Remove OpenCHAMI workdir (nodes, inventories, boot, cloud-init)
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}"
         state: absent
-      ignore_errors: true
+      failed_when: false
 
     - name: Remove OpenCHAMI logs
       ansible.builtin.file:
         path: "{{ openchami_log_dir }}"
         state: absent
-      ignore_errors: true
+      failed_when: false
 
     - name: Remove generated inventories
       ansible.builtin.file:
         path: "{{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/output/project_default/orchestrator') }}/inventories"
         state: absent
-      ignore_errors: true
+      failed_when: false
 
     - name: Revert resolv.conf DNS changes (unlock and restore)
       block:

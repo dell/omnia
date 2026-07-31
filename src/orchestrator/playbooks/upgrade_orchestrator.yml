@@ -84,7 +84,7 @@
         dest: "{{ upgrade_backup_dir }}/configs/"
         remote_src: true
         mode: preserve
-      ignore_errors: true
+      failed_when: false
 
     - name: Backup SMD component endpoints
       ansible.builtin.shell: |
@@ -117,7 +117,7 @@
         dest: "{{ upgrade_backup_dir }}/workdir/"
         remote_src: true
         mode: preserve
-      ignore_errors: true
+      failed_when: false
 
     - name: Record backup metadata
       ansible.builtin.copy:
@@ -138,7 +138,7 @@
     - name: Include deploy_openchami vars for image list
       ansible.builtin.include_vars:
         file: "{{ role_path | default(playbook_dir + '/../roles/deploy_openchami') }}/vars/main.yml"
-      ignore_errors: true
+      failed_when: false
 
     - name: Pull updated OpenCHAMI container images
       ansible.builtin.command: "podman pull {{ item }}"

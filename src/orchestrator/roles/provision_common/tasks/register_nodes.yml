@@ -135,7 +135,7 @@
 
 - name: Discover nodes in SMD (upsert, no --overwrite)
   block:
-    - name: Register {{ target_category }} nodes in SMD
+    - name: Register nodes in SMD for target category
       ansible.builtin.command: >
         /usr/bin/ochami discover static -f yaml
         -d @"{{ nodes_dir }}/nodes_{{ target_category }}.yaml"

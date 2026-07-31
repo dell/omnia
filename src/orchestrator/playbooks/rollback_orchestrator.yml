@@ -70,7 +70,7 @@
       ansible.builtin.systemd:
         name: openchami.target
         state: stopped
-      ignore_errors: true
+      failed_when: false
 
     - name: Wait for services to stop
       ansible.builtin.pause:
@@ -92,7 +92,7 @@
         remote_src: true
         mode: preserve
       when: rollback_backup_dir is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: Start OpenCHAMI services with restored configuration
       ansible.builtin.systemd:
