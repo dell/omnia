@@ -36,8 +36,20 @@ from omnia_auto import (
     TestReport,
     get_current_report,
     set_current_report,
-    run_playbook,
+    run_playbook as _run_playbook,
 )
+
+from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+
+
+def run_playbook(tag=None, **kwargs):
+    """Wrapper that injects module-specific playbook and workdir."""
+    return _run_playbook(
+        playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
+        playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
+        tag=tag,
+        **kwargs,
+    )
 
 # --- Build Image verification ---
 from .build_image_func import (

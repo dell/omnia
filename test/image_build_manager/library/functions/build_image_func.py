@@ -34,7 +34,12 @@ from typing import Dict, Any, List
 import yaml
 
 from .host_func import load_test_config
+from omnia_auto import read_remote_env, resolve_domain_input_path
 from ..vars.common_vars import (
+    DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    IBM_CONFIG_FILE,
     MINIO_CONTAINER,
     REGISTRY_CONTAINER,
     REGISTRY_PORT,
@@ -43,7 +48,6 @@ from ..vars.common_vars import (
     SHARED_PATH,
     IMAGE_TYPES,
     CMDS,
-    FIREWALL_PORTS,
     LISTENING_PORTS,
     SYSTEMD_SERVICES,
     CREDENTIALS_FILE_NAME,
@@ -68,6 +72,34 @@ def _get_project_name() -> str:
     return config["project_name"]
 
 
+def _get_remote_ibm_config_path(host) -> str:
+    """Get the deployed image_build_config.yml path on target.
+
+    Uses env vars to resolve::
+
+        <OMNIA_DATA_PATH>/image_build_manager/input/<project>/image_build_config.yml
+    """
+    input_dir = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+    )
+    return f"{input_dir}/{IBM_CONFIG_FILE}"
+
+
+def _load_remote_ibm_config(host) -> dict:
+    """Load image_build_config.yml from the target host.
+
+    Returns parsed YAML as dict, or empty dict on failure.
+    """
+    cfg_path = _get_remote_ibm_config_path(host)
+    cmd = host.run(f"cat {cfg_path} 2>/dev/null")
+    if cmd.rc != 0 or not cmd.stdout.strip():
+        return {}
+    try:
+        return yaml.safe_load(cmd.stdout) or {}
+    except yaml.YAMLError:
+        return {}
+
+
 def get_configured_functional_groups(
     host, arch: str = None
 ) -> List[str]:
@@ -83,35 +115,8 @@ def get_configured_functional_groups(
     Returns:
         List of functional group name strings.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
-    project_name = _get_project_name()
-
-    # Try deployed config first, then clone path
-    paths_to_try = []
-    if clone_path:
-        paths_to_try.append(
-            f"{clone_path}/src/input/{project_name}"
-            "/image_build_config.yml"
-        )
-    paths_to_try.append(
-        f"/root/standalone/image-build-manager/src/input"
-        f"/{project_name}/image_build_config.yml"
-    )
-
-    content = ""
-    for cfg_path in paths_to_try:
-        cmd = host.run(f"cat {cfg_path} 2>/dev/null")
-        if cmd.rc == 0 and cmd.stdout.strip():
-            content = cmd.stdout
-            break
-
-    if not content:
-        return []
-
-    try:
-        cfg = yaml.safe_load(content)
-    except yaml.YAMLError:
+    cfg = _load_remote_ibm_config(host)
+    if not cfg:
         return []
 
     fg_list = cfg.get("functional_groups", [])
@@ -136,32 +141,9 @@ def _get_s3_provider(host) -> str:
 
     Returns 'minio' or 'powerscale' or empty string.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
-    project_name = _get_project_name()
-
-    paths_to_try = []
-    if clone_path:
-        paths_to_try.append(
-            f"{clone_path}/src/input/{project_name}"
-            "/image_build_config.yml"
-        )
-    paths_to_try.append(
-        f"/root/standalone/image-build-manager/src/input"
-        f"/{project_name}/image_build_config.yml"
-    )
-
-    for cfg_path in paths_to_try:
-        cmd = host.run(f"cat {cfg_path} 2>/dev/null")
-        if cmd.rc == 0 and cmd.stdout.strip():
-            try:
-                cfg = yaml.safe_load(cmd.stdout)
-                s3_cfg = cfg.get("s3_configurations", {})
-                return s3_cfg.get("provider", "minio").lower()
-            except yaml.YAMLError:
-                pass
-
-    return "minio"
+    cfg = _load_remote_ibm_config(host)
+    s3_cfg = cfg.get("s3_configurations", {})
+    return s3_cfg.get("provider", "minio").lower()
 
 
 # =============================================================================
@@ -792,21 +774,24 @@ def _get_image_packages_from_config(
     """Get expected packages for a functional group from deployed config.
 
     Reads functional_group_packages.yml on the target host.
-    """
-    config = load_test_config()
-    clone_path = config["clone_path"]
-    project = _get_project_name()
 
-    # Try repo_manager output on target
+    Resolves the repo_manager output directory from the deployed
+    image_build_config.yml (repo_manager_output_path) or falls
+    back to ``<OMNIA_DATA_PATH>/repo_manager/output/<project>/``.
+    """
+    # Resolve repo_manager output dir from deployed config
+    ibm_cfg = _load_remote_ibm_config(host)
+    configured_path = ibm_cfg.get("repo_manager_output_path", "")
+    if configured_path:
+        repo_output_dir = os.path.dirname(configured_path)
+    else:
+        data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+        repo_output_dir = f"{data_path}/repo_manager/output/{project}"
+
     paths_to_try = [
-        "/opt/omnia/repo_manager/output/"
-        f"{project}/functional_group_packages.yml",
+        f"{repo_output_dir}/functional_group_packages.yml",
     ]
-    if clone_path:
-        paths_to_try.insert(0, (
-            f"{clone_path}/src/input/{project}/"
-            "repo_manager_output/functional_group_packages.yml"
-        ))
 
     for pkg_path in paths_to_try:
         cmd = host.run(f"cat {pkg_path} 2>/dev/null")
@@ -1219,10 +1204,9 @@ def check_credentials_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'results', 'details'.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
-    project = _get_project_name()
-    input_dir = f"{clone_path}/src/input/{project}"
+    input_dir = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+    )
 
     files_to_check = [
         f"{input_dir}/{CREDENTIALS_FILE_NAME}",
@@ -1424,10 +1408,9 @@ def check_credentials_present(host) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'details'.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
-    project = _get_project_name()
-    input_dir = f"{clone_path}/src/input/{project}"
+    input_dir = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+    )
     cred_path = f"{input_dir}/{CREDENTIALS_FILE_NAME}"
 
     cmd = host.run(CMDS["file_exists"].format(path=cred_path))
@@ -1444,11 +1427,13 @@ def check_credentials_present(host) -> Dict[str, Any]:
 
 
 def check_clone_status(host) -> Dict[str, Any]:
-    """Verify the repo is cloned on the target and report details.
+    """Verify the project code is synced to the target.
+
+    Checks that the clone_path directory exists and contains
+    the expected domain directory structure.
 
     Returns:
-        Dict with 'success', 'clone_path', 'remote_url', 'branch',
-        'last_commit', 'details'.
+        Dict with 'success', 'clone_path', 'details'.
     """
     config = load_test_config()
     clone_path = config["clone_path"]
@@ -1458,36 +1443,22 @@ def check_clone_status(host) -> Dict[str, Any]:
         return {
             "success": False,
             "clone_path": clone_path,
-            "details": f"  Clone path NOT FOUND: {clone_path}",
+            "details": f"  Project path NOT FOUND: {clone_path}",
         }
 
-    url_cmd = host.run(
-        CMDS["git_remote_url"].format(path=clone_path)
-    )
-    branch_cmd = host.run(
-        CMDS["git_branch"].format(path=clone_path)
-    )
-    log_cmd = host.run(
-        CMDS["git_log_last"].format(path=clone_path)
-    )
-
-    remote_url = url_cmd.stdout.strip() if url_cmd.rc == 0 else "unknown"
-    branch = branch_cmd.stdout.strip() if branch_cmd.rc == 0 else "unknown"
-    last_commit = log_cmd.stdout.strip() if log_cmd.rc == 0 else "unknown"
+    # Check for domain directory as a basic sync validation
+    ibm_dir = f"{clone_path}/src/image_build_manager"
+    ibm_check = host.run(CMDS["dir_exists"].format(path=ibm_dir))
+    has_ibm = ibm_check.rc == 0 and "exists" in ibm_check.stdout
 
     details_lines = [
         f"  Path: {clone_path}",
-        f"  Remote: {remote_url}",
-        f"  Branch: {branch}",
-        f"  Last commit: {last_commit}",
+        f"  image_build_manager: {'present' if has_ibm else 'NOT FOUND'}",
     ]
 
     return {
-        "success": True,
+        "success": has_ibm,
         "clone_path": clone_path,
-        "remote_url": remote_url,
-        "branch": branch,
-        "last_commit": last_commit,
         "details": "\n".join(details_lines),
     }
 
@@ -1552,12 +1523,7 @@ def check_input_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'details'.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
-    project = _get_project_name()
-    cfg_path = (
-        f"{clone_path}/src/input/{project}/image_build_config.yml"
-    )
+    cfg_path = _get_remote_ibm_config_path(host)
 
     cmd = host.run(CMDS["file_exists"].format(path=cfg_path))
     exists = cmd.rc == 0 and "exists" in cmd.stdout

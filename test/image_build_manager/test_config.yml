@@ -62,7 +62,7 @@ clone_path: "/root/omnia"
 # =============================================================================
 # The active dataset under test/image_build_manager/datasets/<dataset>/.
 # Each dataset folder contains:
-#   input/                            — Synced to <clone_path>/src/image_build_manager/input/<project_name>/
+#   input/                            — Synced to <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
 #     image_build_config.yml          — Image build domain input file
 #     image_build_credentials.yml     — Vault-encrypted credentials
 #   repo_manager_output/              — Synced to repo_manager_output_dir (from image_build_config.yml)
@@ -74,8 +74,8 @@ clone_path: "/root/omnia"
 dataset: "data_set_01"
 
 # Project name on the target server. Typically same as dataset.
-# Maps to: <clone_path>/src/image_build_manager/input/<project_name>/
-# Maps to: <shared_path>/output/<project_name>/
+# Maps to: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
+# Maps to: <OMNIA_DATA_PATH>/image_build_manager/output/<project_name>/
 # Only change if the target uses a different project name than the dataset.
 project_name: "project_default"
 
@@ -93,7 +93,7 @@ sync_output: false
 # SYNC — IMAGE BUILD INPUT
 # =============================================================================
 # When true, pushes the local dataset input/ files to the target server.
-# Syncs: datasets/<dataset>/input/ -> <clone_path>/src/image_build_manager/input/<project_name>/
+# Syncs: datasets/<dataset>/input/ -> <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
 #
 # This ensures the target server has the correct image_build_config.yml
 # and credentials before running the playbook.

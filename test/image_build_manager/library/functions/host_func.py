@@ -41,6 +41,10 @@ from omnia_auto import (
     get_setting,
     sync_files,
     log,
+    connection_params,
+    read_remote_env,
+    ensure_remote_dir,
+    resolve_domain_input_path,
 )
 
 
@@ -51,95 +55,19 @@ from omnia_auto import (                          # noqa: F401
     run_on_host,
 )
 
-
-# =============================================================================
-# INTERNAL: resolve mode + SSH params from config
-# =============================================================================
-
-def _connection_params() -> dict:
-    """Build mode/ip/user/password/ssh_opts from test_config + creds."""
-    config = load_test_config()
-    creds = load_test_credentials()
-    local = is_local_execution()
-
-    return {
-        "mode": "local" if local else "ssh",
-        "ip": config.get("oim_server_ip", "").strip() or None,
-        "user": config.get("oim_ssh_user", "root"),
-        "password": creds.get("oim_password") or None,
-        "ssh_opts": get_setting(
-            "ssh_opts",
-            "-o StrictHostKeyChecking=no "
-            "-o UserKnownHostsFile=/dev/null "
-            "-o LogLevel=ERROR",
-        ),
-    }
+from ..vars.common_vars import (
+    DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    IBM_CONFIG_FILE,
+)
 
 
 # =============================================================================
-# INTERNAL: read env var from target host
+# NOTE: connection_params, read_remote_env, ensure_remote_dir, and
+#       resolve_domain_input_path are now in the omnia-auto pip package.
+#       They are imported above and used directly.
 # =============================================================================
-
-_OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
-
-
-def _read_remote_env(host, var_name: str, default: str = "") -> str:
-    """Read an environment variable from the target host via testinfra.
-
-    Sources ``/etc/omnia/omnia.env`` first so that values set by
-    ``omnia.sh -s`` are available even in non-login SSH sessions
-    (testinfra uses non-login shells which skip ``/etc/profile.d/``).
-
-    Args:
-        host: Testinfra host object.
-        var_name: Environment variable name (e.g. ``OMNIA_DATA_PATH``).
-        default: Fallback if the variable is unset or empty.
-
-    Returns:
-        The env var value, stripped, or *default*.
-    """
-    cmd = (
-        f"test -f {_OMNIA_ENV_FILE} && set -a && . {_OMNIA_ENV_FILE} && set +a; "
-        f"echo ${{{var_name}}}"
-    )
-    result = host.run(cmd)
-    value = result.stdout.strip() if result.rc == 0 else ""
-    return value or default
-
-
-def _resolve_remote_input_path(host) -> str:
-    """Build the remote input directory from target env vars.
-
-    Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
-    and assembles::
-
-        <OMNIA_DATA_PATH>/image_build_manager/input/<OMNIA_PROJECT_NAME>/
-
-    Falls back to ``/opt/omnia`` and ``project_default`` respectively.
-    """
-    data_path = _read_remote_env(host, "OMNIA_DATA_PATH", "/opt/omnia")
-    project = _read_remote_env(host, "OMNIA_PROJECT_NAME", "project_default")
-    remote_input = f"{data_path}/image_build_manager/input/{project}"
-    log(f"Resolved remote input path: {remote_input}", "INFO")
-    return remote_input
-
-
-# =============================================================================
-# INTERNAL: ensure remote directory exists
-# =============================================================================
-
-def _ensure_remote_dir(host, path: str) -> None:
-    """Create a directory on the target if it does not exist.
-
-    Uses ``mkdir -p`` via testinfra so syncing won't fail when the
-    playbook hasn't been run yet (the playbook normally creates these
-    directories during ``load_config.yml``).
-    """
-    result = host.run(f"mkdir -p {path}")
-    if result.rc != 0:
-        log(f"Failed to create remote dir {path}: {result.stderr.strip()}", "WARN")
-    else:
-        log(f"Ensured remote directory exists: {path}", "DEBUG")
 
 
 # =============================================================================
@@ -158,7 +86,7 @@ def sync_project_to_remote(host) -> Dict[str, Any]:  # pylint: disable=unused-ar
     Dest:   ``<clone_path>/`` on the target server
     """
     config = load_test_config()
-    conn = _connection_params()
+    conn = connection_params()
 
     # Repo root: test/image_build_manager/ -> test/ -> omnia/
     repo_root = os.path.dirname(os.path.dirname(get_module_root()))
@@ -185,13 +113,15 @@ def sync_image_build_input(host) -> Dict[str, Any]:
     Source: datasets/<dataset>/input/
     """
     config = load_test_config()
-    conn = _connection_params()
+    conn = connection_params()
 
     local_input = os.path.join(
         get_module_root(), "datasets", config["dataset"], "input",
     )
-    remote_input = _resolve_remote_input_path(host)
-    _ensure_remote_dir(host, remote_input)
+    remote_input = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+    )
+    ensure_remote_dir(host, remote_input)
 
     return sync_files(
         mode=conn["mode"], src=local_input, dest=remote_input,
@@ -207,34 +137,38 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:  # pylint: disable=unused-
     dataset. Falls back to /opt/omnia/repo_manager/output/<project_name>/.
     """
     config = load_test_config()
-    conn = _connection_params()
+    conn = connection_params()
     dataset = config["dataset"]
 
     local_output = os.path.join(
         get_module_root(), "datasets", dataset, "repo_manager_output",
     )
 
-    # Read repo_manager_output_dir from image_build_config.yml
+    # Read repo_manager_output_path from image_build_config.yml
+    # The config has repo_manager_output_path pointing to repo_status.yml;
+    # we need its parent directory.
     local_ibm_config = os.path.join(
         get_module_root(), "datasets", dataset, "input",
-        "image_build_config.yml",
+        IBM_CONFIG_FILE,
     )
-    # Fallback: read project from target env or config
-    project = config.get("project_name", "project_default")
-    remote_output_dir = (
-        f"/opt/omnia/repo_manager/output/{project}"
-    )
+    # Derive from target env vars — no fallbacks
+    data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+    remote_output_dir = f"{data_path}/repo_manager/output/{project}"
+
     if os.path.isfile(local_ibm_config):
         try:
             with open(local_ibm_config, "r", encoding="utf-8") as fh:
                 ibm_cfg = yaml.safe_load(fh) or {}
-            configured_dir = ibm_cfg.get("repo_manager_output_dir", "")
-            if configured_dir:
-                remote_output_dir = configured_dir
+            configured_path = ibm_cfg.get("repo_manager_output_path", "")
+            if configured_path:
+                # repo_manager_output_path points to repo_status.yml
+                # — use its parent directory as the sync destination
+                remote_output_dir = os.path.dirname(configured_path)
         except (yaml.YAMLError, OSError):
             pass
 
-    _ensure_remote_dir(host, remote_output_dir)
+    ensure_remote_dir(host, remote_output_dir)
 
     return sync_files(
         mode=conn["mode"], src=local_output, dest=remote_output_dir,

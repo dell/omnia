@@ -38,6 +38,24 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
 REPO_ROOT = os.path.dirname(MODULE_ROOT)
 
 # =============================================================================
+# DOMAIN IDENTITY
+# =============================================================================
+
+# Domain name used for remote path resolution
+DOMAIN_NAME = "image_build_manager"
+
+# Environment variable names on the target host
+ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+
+# =============================================================================
+# INPUT FILE NAMES
+# =============================================================================
+
+# Domain config file (inside the domain input directory)
+IBM_CONFIG_FILE = "image_build_config.yml"
+
+# =============================================================================
 # PLAYBOOK CONFIGURATION (module-specific)
 # =============================================================================
 
