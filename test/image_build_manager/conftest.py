@@ -334,9 +334,6 @@ def pytest_runtest_makereport(item, call):
 
 
 
-
-
-
 # =============================================================================
 # SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
 # =============================================================================

@@ -45,15 +45,31 @@ from omnia_auto import (
     read_remote_env,
     ensure_remote_dir,
     resolve_domain_input_path,
-)
-
-
-# Re-export common functions so existing callers keep working
-from omnia_auto import (                          # noqa: F401
     get_testinfra_host,
     encrypt_test_credentials,
     run_on_host,
 )
+
+# Declare public API — re-exports for consumer convenience
+__all__ = [
+    "load_test_config",
+    "load_test_credentials",
+    "is_local_execution",
+    "get_module_root",
+    "get_setting",
+    "sync_files",
+    "log",
+    "connection_params",
+    "read_remote_env",
+    "ensure_remote_dir",
+    "resolve_domain_input_path",
+    "get_testinfra_host",
+    "encrypt_test_credentials",
+    "run_on_host",
+    "sync_project_to_remote",
+    "sync_image_build_input",
+    "sync_repo_manager_output",
+]
 
 from ..vars.common_vars import (
     DOMAIN_NAME,
@@ -74,7 +90,7 @@ from ..vars.common_vars import (
 # MODULE-SPECIFIC SYNC
 # =============================================================================
 
-def sync_project_to_remote(host) -> Dict[str, Any]:  # pylint: disable=unused-argument
+def sync_project_to_remote(_host) -> Dict[str, Any]:
     """Sync the local omnia project tree to clone_path on target.
 
     Copies the complete project from the local monorepo to the remote
@@ -130,7 +146,7 @@ def sync_image_build_input(host) -> Dict[str, Any]:
     )
 
 
-def sync_repo_manager_output(host) -> Dict[str, Any]:  # pylint: disable=unused-argument
+def sync_repo_manager_output(host) -> Dict[str, Any]:
     """Push repo_manager_output from dataset to target.
 
     Reads repo_manager_output_dir from image_build_config.yml in the

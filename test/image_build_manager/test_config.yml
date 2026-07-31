@@ -128,4 +128,3 @@ report_name: image_test_report
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_id: ""
-

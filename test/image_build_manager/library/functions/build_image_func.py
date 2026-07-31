@@ -846,8 +846,8 @@ def verify_image_packages(
             "details": f"No {arch} functional groups configured",
         }
 
-    temp_image = "/tmp/ibm_test_image"
-    temp_mount = "/tmp/ibm_test_mount"
+    temp_image = "/tmp/ibm_test_image"  # nosec B108 — remote host temp path via SSH
+    temp_mount = "/tmp/ibm_test_mount"  # nosec B108 — remote host temp path via SSH
 
     # Cleanup before start
     host.run(f"umount {temp_mount} 2>/dev/null")

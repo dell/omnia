@@ -3,3 +3,4 @@ pytest-testinfra>=10.0
 pyyaml>=6.0
 ansible-core>=2.15
 pylint>=3.0
+omnia-auto @ git+https://github.com/balajikumaran-c-s/omnia-auto.git@main

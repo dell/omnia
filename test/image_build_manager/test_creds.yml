@@ -15,11 +15,11 @@
 # =============================================================================
 # Image Build Manager — Test Credentials
 # =============================================================================
-# SSH password for the target server (oim_server_ip).
-# This file is auto-encrypted with Ansible Vault on the first test run.
+# This file is auto-encrypted with Ansible Vault on first test run.
+# Fill in values below, then run tests — the file will be encrypted in-place.
 #
-# IMPORTANT: Set your actual password before running tests.
-#            Never commit this file with a real password.
+# oim_password: SSH password for the remote target server (oim_server_ip).
+#               Leave empty if using passwordless SSH (key-based auth).
 # =============================================================================
 
 ---

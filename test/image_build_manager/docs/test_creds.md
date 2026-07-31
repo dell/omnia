@@ -19,7 +19,7 @@ SSH credentials for connecting to the remote OIM server.
 
 ```yaml
 # test_creds.yml
-oim_password: "your_ssh_password"
+oim_password: "<SSH_PASSWORD>"
 ```
 
 ### 2. Run tests
@@ -39,7 +39,7 @@ If you use `ssh-copy-id` for key-based authentication, set `oim_password`
 to any non-empty value (the password itself is not used):
 
 ```yaml
-oim_password: "placeholder"
+oim_password: "any"
 ```
 
 ---
@@ -51,7 +51,7 @@ If you need to change the password:
 1. Delete the vault key: `rm .test_creds.key`
 2. Replace `test_creds.yml` with plain text:
    ```yaml
-   oim_password: "new_password"
+   oim_password: "<NEW_PASSWORD>"
    ```
 3. Run tests — the framework will re-encrypt automatically.
 

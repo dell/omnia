@@ -38,18 +38,7 @@ from omnia_auto import (
     set_current_report,
     run_playbook as _run_playbook,
 )
-
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
-
-
-def run_playbook(tag=None, **kwargs):
-    """Wrapper that injects module-specific playbook and workdir."""
-    return _run_playbook(
-        playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
-        playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
-        tag=tag,
-        **kwargs,
-    )
 
 # --- Build Image verification ---
 from .build_image_func import (
@@ -64,21 +53,18 @@ from .build_image_func import (
     check_containers_removed,
     check_s3_artifacts_removed,
     verify_image_packages,
-    # Cleanup extended
     check_services_removed,
     check_firewall_ports_removed,
     check_s3cfg_removed,
     check_credentials_removed,
     check_build_output_removed,
     check_registry_cleaned,
-    # Prepare extended
     check_s3cmd_configured,
     check_firewall_ports_open,
     check_services_active,
     check_credentials_present,
     check_clone_status,
     check_registry_reachable,
-    # Validate extended
     check_input_config_exists,
 )
 
@@ -88,3 +74,13 @@ from .validation_func import (
     validate_all,
     ConfigValidationError,
 )
+
+
+def run_playbook(tag=None, **kwargs):
+    """Wrapper that injects module-specific playbook and workdir."""
+    return _run_playbook(
+        playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
+        playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
+        tag=tag,
+        **kwargs,
+    )
