@@ -48,6 +48,7 @@
       ansible.builtin.command: >
         helm -n {{ telemetry_namespace }} install victoria-metrics-operator
         {{ victoria_operator_pkg }}
+      changed_when: true
 
     - name: Wait for VictoriaMetrics operator deployment
       ansible.builtin.command: >
@@ -58,6 +59,10 @@
     - name: Log operator auto-install
       ansible.builtin.debug:
         msg: "{{ victoria_operator_auto_install_msg }}"
+  rescue:
+    - name: VictoriaMetrics operator install failed for VictoriaLogs
+      ansible.builtin.fail:
+        msg: "{{ vl_operator_install_failed_msg }}"
 
 - name: Fail if operator not installed and no tarball available
   ansible.builtin.fail:
@@ -77,7 +82,14 @@
     kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
     deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
+  register: vl_operator_wait
+  failed_when: false
   when: operator_check.rc == 0
+
+- name: VictoriaMetrics operator not ready (VictoriaLogs)
+  ansible.builtin.fail:
+    msg: "{{ vl_operator_not_ready_msg }}"
+  when: operator_check.rc == 0 and vl_operator_wait.rc | default(0) != 0
 
 - name: Wait for VictoriaLogs CRDs
   ansible.builtin.command: kubectl get crd {{ item }}
@@ -96,11 +108,15 @@
   loop:
     - victorialogs-operator-vlcluster.yaml
     - victorialogs-operator-vlagent.yaml
+    - victorialogs-vlagent-config.yaml
   register: vl_manifest_stats
 
 - name: Build VictoriaLogs manifest existence map
   ansible.builtin.set_fact:
-    _vl_manifests: "{{ dict(vl_manifest_stats.results | map(attribute='item') | zip(vl_manifest_stats.results | map(attribute='stat') | map(attribute='exists'))) }}"
+    _vl_manifests: >-
+      {{ dict(vl_manifest_stats.results | map(attribute='item') |
+      zip(vl_manifest_stats.results | map(attribute='stat') |
+      map(attribute='exists'))) }}
 
 - name: Apply VLCluster CR
   ansible.builtin.command: >
@@ -115,3 +131,10 @@
   register: vlagent_apply
   changed_when: "'created' in vlagent_apply.stdout or 'configured' in vlagent_apply.stdout"
   when: _vl_manifests['victorialogs-operator-vlagent.yaml'] | default(false)
+
+- name: Apply VLAgent syslog config
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victorialogs-vlagent-config.yaml
+  register: vlagent_config_apply
+  changed_when: "'created' in vlagent_config_apply.stdout or 'configured' in vlagent_config_apply.stdout"
+  when: _vl_manifests['victorialogs-vlagent-config.yaml'] | default(false)

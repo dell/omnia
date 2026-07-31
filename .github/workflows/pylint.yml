@@ -71,6 +71,7 @@ jobs:
           if [ -n "$FILES" ]; then
             FAILED=0
             FAILED_FILES=""
+            FAILED_DETAILS=""
             for file in $FILES; do
               echo "Checking $file"
               OUTPUT=$(
@@ -90,6 +91,11 @@ jobs:
                 echo "::error::$file scored $SCORE (< $PYLINT_THRESHOLD)"
                 FAILED=1
                 FAILED_FILES="$FAILED_FILES\n  - $file (score: $SCORE)"
+                # Collect actual lint errors (filter out rating/separator lines)
+                ERRORS=$(echo "$OUTPUT" | grep -E '^[^ ]+\.py:[0-9]+:' || true)
+                if [ -n "$ERRORS" ]; then
+                  FAILED_DETAILS="${FAILED_DETAILS}\n\n  ── $file ($SCORE) ──\n${ERRORS}"
+                fi
               fi
             done
             echo ""
@@ -99,6 +105,13 @@ jobs:
             if [ "$FAILED" -eq 1 ]; then
               echo "Files below threshold ($PYLINT_THRESHOLD):"
               echo -e "$FAILED_FILES"
+              if [ -n "$FAILED_DETAILS" ]; then
+                echo ""
+                echo "───────────────────────────────────────────"
+                echo "           LINT ERRORS"
+                echo "───────────────────────────────────────────"
+                echo -e "$FAILED_DETAILS"
+              fi
               echo "==========================================="
               exit 1
             else

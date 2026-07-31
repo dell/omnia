@@ -1,0 +1,10 @@
+[MASTER]
+# Ansible Galaxy collections use plugins/ directory structure
+# pylint cannot resolve ansible.module_utils.* at static analysis time
+
+[MESSAGES CONTROL]
+# E0401 (import-error): Ansible resolves module_utils imports at runtime
+#   via ansible.cfg library/module_utils paths — not standard Python imports.
+# E0611 (no-name-in-module): Related to E0401 — submodule not found in module.
+#   Both are safe to suppress for ansible.module_utils.* imports only.
+disable=import-error,no-name-in-module

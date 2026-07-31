@@ -20,7 +20,7 @@
 #
 # NOTE: kube_vip presence, format, and IPv4 octet-range validation are
 # performed by the input validation playbook (L1 schema + L2 logic in
-# library/module_utils/input_validation/). This task only checks
+# plugins/module_utils/input_validation/). This task only checks
 # live network connectivity, which cannot be done during static validation.
 #
 # Steps:
@@ -42,7 +42,7 @@
       Ping output: {{ ping_result.stdout | default('no output') }}
   when: ping_result.rc != 0
 
-- name: Check kube_vip SSH (port {{ precheck_ssh_port }}) is reachable
+- name: Check kube_vip SSH is reachable on port {{ precheck_ssh_port }}
   ansible.builtin.wait_for:
     host: "{{ kube_vip }}"
     port: "{{ precheck_ssh_port }}"

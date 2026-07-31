@@ -24,25 +24,24 @@
 
 - name: Check if VAST resources exist
   ansible.builtin.command: >
-    kubectl get deployment vector-vast -n {{ telemetry_namespace }}
+    kubectl get service vast-telemetry-external -n {{ telemetry_namespace }}
   register: vast_check
   changed_when: false
   failed_when: false
 
-- name: Scale down VAST resources
+- name: Delete VAST external service
   ansible.builtin.command: >
-    kubectl scale deployment vector-vast
-    -n {{ telemetry_namespace }} --replicas=0
-  register: scale_down_result
-  changed_when: "'scaled' in scale_down_result.stdout"
+    kubectl delete service vast-telemetry-external -n {{ telemetry_namespace }}
+  register: delete_svc_result
+  changed_when: "'deleted' in delete_svc_result.stdout"
   when: vast_check.rc == 0
 
-- name: Display scale down result
+- name: Display result
   ansible.builtin.debug:
-    msg: "Scaling down VAST telemetry to 0 replicas"
+    msg: "VAST telemetry resources removed"
   when: vast_check.rc == 0
 
 - name: VAST resources not found
   ansible.builtin.debug:
-    msg: "VAST telemetry resources not found, nothing to scale down"
+    msg: "VAST telemetry resources not found, nothing to remove"
   when: vast_check.rc != 0

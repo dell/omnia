@@ -69,7 +69,7 @@ spec:
   
   # Relabel configs
   relabelConfigs:
-{% for cluster in ps_clusters %}
+{% for cluster in ps_clusters | default([]) %}
     - sourceLabels: [__address__]
       targetLabel: cluster
       replacement: "{{ cluster.clusterName }}"

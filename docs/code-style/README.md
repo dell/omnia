@@ -1,4 +1,4 @@
-# Code Style Guides — Image Build Manager
+# Code Style Guides -- Omnia
 
 Coding standards per language/tool. All code PRs are reviewed against these guides.
 Based on [Dell Omnia Code Style Guides](https://github.com/dell/omnia).

@@ -344,23 +344,23 @@ ACTIVATE_EOF
 # Copy Domain Input Files
 # ─────────────────────────────────────────────────────────────────────────────
 copy_domain_inputs() {
-    echo -e "${BLUE}Copying domain input files to ${OMNIA_DATA_PATH}/ ...${NC}"
+    echo -e "${BLUE}Initializing domains (log dirs + input files) to ${OMNIA_DATA_PATH}/ ...${NC}"
     local copied=0
     for domain in "${DOMAINS[@]}"; do
-        local copy_script="$SRC_DIR/$domain/copy-input.sh"
-        if [ -f "$copy_script" ]; then
-            chmod +x "$copy_script"
-            if bash "$copy_script"; then
+        local init_script="$SRC_DIR/$domain/domain-init.sh"
+        if [ -f "$init_script" ]; then
+            chmod +x "$init_script"
+            if bash "$init_script"; then
                 copied=$((copied + 1))
             else
-                echo -e "${YELLOW}WARNING: copy-input.sh failed for $domain — continuing${NC}"
+                echo -e "${YELLOW}WARNING: domain-init.sh failed for $domain — continuing${NC}"
             fi
         fi
     done
     if [ "$copied" -eq 0 ]; then
-        echo -e "${YELLOW}No copy-input.sh scripts found in any domain${NC}"
+        echo -e "${YELLOW}No domain-init.sh scripts found in any domain${NC}"
     else
-        echo -e "${GREEN}Input copy scripts completed for ${copied} domain(s)${NC}"
+        echo -e "${GREEN}Domain init scripts completed for ${copied} domain(s)${NC}"
     fi
 }
 

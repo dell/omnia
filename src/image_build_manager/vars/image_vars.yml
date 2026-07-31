@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# MOVED: image_vars.yml is common across domains.
-# Canonical location: src/common/vars/image_vars.yml
-# This file is kept as a redirect for backward compatibility.
-# If you need to include image vars, use: ../../common/vars/image_vars.yml
-
-# image_build_manager-specific S3 constants (fixed bucket names — NOT user-modifiable)
+# image_build_manager-specific S3 constants (fixed bucket names -- NOT user-modifiable)
 s3_boot_images_bucket: "boot-images"
 s3_efi_images_bucket: "efi-images"
 

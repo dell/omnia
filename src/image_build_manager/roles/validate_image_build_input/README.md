@@ -4,7 +4,7 @@ Validates input configuration files (image_build_config.yml, credentials) using 
 
 ## Requirements
 
-- Valid JSON schema files in `plugins/module_utils/image_build_validation/schema/`
+- Valid JSON schema files in `plugins/module_utils/input_validation/schema/`
 - Python 3.12+
 
 ## Role Variables
