@@ -1855,8 +1855,11 @@ backup_openchami_data() {
         mkdir -p '${backup_base%/}/openchami/openchami_data'
         cp -a /opt/omnia/openchami/. '${backup_base%/}/openchami/openchami_data/' 2>&1
     "; then
-        echo "[WARN] [ORCHESTRATOR] Failed to backup OpenCHAMI data — upgrade will continue"
-        return 0
+        echo "[ERROR] [ORCHESTRATOR] Failed to backup OpenCHAMI data"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade cannot proceed without complete OpenCHAMI backup (rollback safety)"
+        # Clean any partial backup to avoid misleading rollback attempts
+        podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/openchami/openchami_data'" >/dev/null 2>&1 || true
+        return 1
     fi
 
     # Verify configs_vars.yaml was captured
