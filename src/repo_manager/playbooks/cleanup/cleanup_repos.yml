@@ -237,11 +237,7 @@
             path: "/etc/systemd/system/{{ pulp_container_name | default('pulp') }}.service"
             state: absent
           register: pulp_service_file_result
-
-        - name: Reload systemd daemon
-          ansible.builtin.systemd_service:
-            daemon_reload: true
-          when: pulp_service_file_result.changed
+          notify: Reload systemd daemon
 
         - name: Check if pulp_config directory exists
           ansible.builtin.stat:
@@ -304,3 +300,8 @@
           - "NOTE: If the deleted artifact is required by any software, you must rerun repo_manager.yml to sync the artifact(s) again."
           - "If the artifact(s) is not synced in local repo, subsequent playbooks having dependency may fail"
           - "============================================================================================================================"
+
+  handlers:
+    - name: Reload systemd daemon
+      ansible.builtin.systemd_service:
+        daemon_reload: true

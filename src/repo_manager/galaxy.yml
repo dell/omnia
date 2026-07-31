@@ -14,9 +14,9 @@ license:
   - Apache-2.0
 tags:
   - hpc
-  - repo-manager
+  - infrastructure
   - pulp
-  - content-management
+  - repomanager
   - dell
   - omnia
 dependencies:
