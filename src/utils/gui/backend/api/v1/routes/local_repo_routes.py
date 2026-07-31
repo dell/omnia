@@ -1,0 +1,140 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+Local repository routes for Config Editor Module
+
+Provides API endpoints for local repository configuration generation.
+"""
+
+import logging
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from fastapi import (
+    APIRouter, BackgroundTasks, Depends, HTTPException, Request,
+)
+
+# pylint: disable=relative-beyond-top-level
+from ....api.v1.dependencies import get_local_repo_generator_service
+from ....services.job_store import (
+    JobStore, TooManyConcurrentJobsError,
+)
+from ....services.local_repo_generator_service import (
+    LocalRepoGeneratorService,
+)
+# pylint: enable=relative-beyond-top-level
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+
+def run_local_repo_generation(
+    job_id: str,
+    data: Dict[str, Any],
+    output_dir: Optional[Path],
+    local_repo_generator_service: LocalRepoGeneratorService,
+    job_store: JobStore,
+) -> None:
+    """Run local repo generation in background.
+
+    Args:
+        job_id: Job identifier
+        data: Local repo management data
+        output_dir: Optional output directory Path
+        local_repo_generator_service: Local repo generator service instance
+        job_store: Job store instance for tracking state
+    """
+    try:
+        job_store.update_job(job_id, status="in_progress", progress=10)
+
+        result = local_repo_generator_service.generate_local_repo_configs(
+            job_id=job_id,
+            update_job=job_store.update_job,
+            data=data,
+            output_dir=output_dir,
+        )
+
+        logger.info(
+            "Local repo config generation completed for job %s",
+            job_id,
+        )
+        job_store.update_job(
+            job_id, progress=100, status="completed", result=result,
+        )
+
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "Local repo config generation failed for job %s",
+            job_id,
+        )
+        job_store.update_job(
+            job_id, status="failed",
+            error=str(e), result={"error": str(e)},
+        )
+
+
+@router.post("/generate")
+async def generate_local_repo(
+    data: Dict[str, Any],
+    background_tasks: BackgroundTasks,
+    request: Request,
+    local_repo_generator_service: LocalRepoGeneratorService = Depends(
+        get_local_repo_generator_service,
+    ),
+) -> Dict[str, str]:
+    """Trigger local repository configuration generation.
+
+    Args:
+        data: Local repo management data with RHEL section (Ubuntu is disabled for later release)
+        background_tasks: FastAPI background tasks
+        request: FastAPI request object
+        local_repo_generator_service: Local repo generator service instance
+
+    Returns:
+        Dictionary with job_id
+    """
+    job_store = request.app.state.job_store
+
+    try:
+        job_id = job_store.create_job()
+    except TooManyConcurrentJobsError as e:
+        raise HTTPException(
+            429,
+            "Too many generation jobs in progress. "
+            "Please wait.",
+        ) from e
+
+    output_dir = data.get("output_dir", None)
+    output_path = (
+        Path(output_dir).expanduser().resolve()
+        if output_dir else None
+    )
+
+    generation_data = {
+        k: v for k, v in data.items() if k != "output_dir"
+    }
+
+    background_tasks.add_task(
+        run_local_repo_generation,
+        job_id,
+        generation_data,
+        output_path,
+        local_repo_generator_service,
+        job_store,
+    )
+
+    logger.info(
+        "Started local repo config generation job %s", job_id,
+    )
+    return {"job_id": job_id, "status": "pending"}

@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+Configuration settings for Config Editor Module
+
+Provides environment-based configuration management using standard environment variables.
+"""
+
+import os
+from typing import Optional
+from pathlib import Path
+
+
+class Settings:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+    """Application settings loaded from environment variables."""
+
+    def __init__(self):
+        # API Configuration
+        self.api_title = os.getenv("API_TITLE", "OMNIA Config Editor API")
+        self.api_description = os.getenv(
+            "API_DESCRIPTION",
+            "Backend API for OMNIA Configuration Editor GUI",
+        )
+        self.api_version = os.getenv("API_VERSION", "1.0.0")
+        self.api_prefix = os.getenv("API_PREFIX", "/api/v1")
+
+        # Server Configuration
+        self.host = os.getenv("HOST", "0.0.0.0")  # nosec B104
+        self.port = int(os.getenv("PORT", "8000"))
+        self.reload = os.getenv("RELOAD", "true").lower() == "true"
+        self.log_level = os.getenv("LOG_LEVEL", "info")
+
+        # CORS Configuration
+        cors_origins_str = os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000,"
+            "http://localhost:3001,http://127.0.0.1:3001",
+        )
+        self.cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+        self.cors_allow_credentials = (
+            os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+        )
+        self.cors_allow_methods = os.getenv("CORS_ALLOW_METHODS", "*").split(",")
+        self.cors_allow_headers = os.getenv("CORS_ALLOW_HEADERS", "*").split(",")
+
+        # Path Configuration
+        # Repository root
+        self.base_dir = (
+            Path(__file__).parent.parent.parent.parent.parent.parent
+        )
+        self.build_stream_dir = self.base_dir / "src" / "build_stream"
+        self.gui_dir = self.base_dir / "src" / "utils" / "gui"
+        # Base input for bundle files (repo root/src/input)
+        self.base_input_dir = self.base_dir / "src" / "input"
+        self.examples_dir = self.base_dir / "src" / "examples"
+
+        # Output Configuration
+        self.output_dir = self.gui_dir / "out"
+
+        # Environment
+        self.environment = os.getenv("ENVIRONMENT", "development")
+        self.debug = os.getenv("DEBUG", "true").lower() == "true"
+
+
+# Global settings instance
+_settings: Optional[Settings] = None  # pylint: disable=invalid-name
+
+
+def get_settings() -> Settings:
+    """Get or create the global settings instance."""
+    global _settings  # pylint: disable=global-statement
+    if _settings is None:
+        _settings = Settings()
+    return _settings
