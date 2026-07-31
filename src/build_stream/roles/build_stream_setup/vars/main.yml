@@ -30,10 +30,12 @@ upgrade_in_progress_msg: >-
   "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
 
 # --- Input project directory ---
-omnia_input_dir: /opt/omnia/build_stream/input
-omnia_output_dir: /opt/omnia/build_stream/output
+# omnia_data_path is set from OMNIA_DATA_PATH env or defaults to /opt/omnia
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+omnia_input_dir: "{{ omnia_data_path }}/build_stream/input"
+omnia_output_dir: "{{ omnia_data_path }}/build_stream/output"
 omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
-omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
+omnia_metadata_file_path: "{{ omnia_data_path }}/.data/oim_metadata.yml"
 omnia_input_config_syntax_fail_msg: >-
   Unable to load the Omnia project configuration file at {{ omnia_input_config_file }}.
   Please ensure the file exists and has valid YAML syntax before re-running the playbook.
@@ -44,7 +46,7 @@ project_dir_not_exist_fail_msg: >-
 # --- Standalone defaults (used only when standalone_mode is true) ---
 standalone_input_project_dir: "{{ standalone_oim_shared_path }}/build_stream/input/project_default"
 standalone_output_project_dir: "{{ standalone_oim_shared_path }}/build_stream/output/project_default"
-standalone_oim_shared_path: "/opt/omnia"
+standalone_oim_shared_path: "{{ omnia_data_path }}"
 
 # --- OIM group ---
 oim_host_port: "22"

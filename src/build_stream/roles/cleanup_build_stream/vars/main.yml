@@ -41,14 +41,14 @@ postgres_cleanup_directory:
   - "{{ omnia_nfs_share }}/postgres"
 
 # ── Automation framework cleanup ───────────────────────────────────
-automation_base_dir: "/opt/omnia/automation"
+automation_base_dir: "{{ omnia_nfs_share }}/automation"
 automation_venv_dir: "{{ automation_base_dir }}/.venv"
 automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
 
 # ── Credential cleanup ─────────────────────────────────────────────
 _bs_input_dir: >-
   {{ hostvars['localhost']['input_project_dir']
-     | default('/opt/omnia/build_stream/input/project_default') }}
+     | default(omnia_nfs_share ~ '/build_stream/input/project_default') }}
 bs_credential_config: "{{ _bs_input_dir }}/build_stream_credentials.yml"
 bs_credential_config_key: "{{ _bs_input_dir }}/.build_stream_credentials_key"
 bs_oauth_credential_config: "{{ _bs_input_dir }}/build_stream_oauth_credentials.yml"

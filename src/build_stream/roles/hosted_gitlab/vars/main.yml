@@ -137,12 +137,15 @@ gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: >-
-  {{ (role_path ~ '/../../../examples/catalog/catalog_rhel.json')
+  {{ (playbook_dir ~ '/../examples/catalog/catalog_rhel.json')
      if (hostvars['localhost']['standalone_mode'] | default(false) | bool)
      else '/omnia/examples/catalog/catalog_rhel.json' }}
 gitlab_input_repo_dir: "input"
 # Use NFS input_project_dir for user-configured files instead of default repo files
-gitlab_input_nfs_root: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/build_stream/input/project_default') }}"
+gitlab_input_nfs_root: >-
+  {{ hostvars['localhost']['input_project_dir']
+     | default((lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true))
+               ~ '/build_stream/input/project_default') }}
 gitlab_input_files:
   - name: "high_availability_config.yml"
     src: "{{ gitlab_input_nfs_root }}/high_availability_config.yml"

@@ -68,7 +68,14 @@ RUN apk del .build-deps
 COPY init_s3cfg.sh /usr/local/bin/init_s3cfg.sh
 RUN chmod +x /usr/local/bin/init_s3cfg.sh
 
-# ── Application directories ─────────────────────────────────
+# -------------------------------------------------------
+# APP SOURCE: Code is NOT embedded in the image.
+# It is deployed to NFS via copy-input.sh (called by
+# omnia.sh --setup-venv) and mounted into the container
+# at runtime via the NFS volume mount.
+# -------------------------------------------------------
+
+# Create app and SSL directories
 ENV APP_DIR=/opt/omnia/build_stream
 WORKDIR ${APP_DIR}
 RUN mkdir -p /etc/ssl/omnia

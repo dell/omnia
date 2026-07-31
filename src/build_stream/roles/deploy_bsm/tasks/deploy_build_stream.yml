@@ -340,7 +340,7 @@
           containers.podman.podman_container_exec:
             name: "{{ build_stream_container_name }}"
             command: >
-              python -m alembic -c /opt/omnia/build_stream/infra/db/alembic.ini upgrade head
+              python -m alembic -c {{ omnia_path }}/build_stream/infra/db/alembic.ini upgrade head
             env:
               DB_USER: "{{ postgres_user }}"
               DB_PASSWORD: "{{ postgres_password }}"
@@ -348,7 +348,7 @@
               DB_NAME: "{{ postgres_db_name }}"
           register: alembic_result
           changed_when: "'Running upgrade' in alembic_result.stdout"
-          no_log: false
+          no_log: true
 
         - name: Display migration result
           ansible.builtin.debug:

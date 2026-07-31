@@ -45,12 +45,12 @@ Environment=MINIO_HOST={{ admin_nic_ip }}:9000
 Environment=MINIO_USE_HTTPS=False
 
 # Authentication and OAuth configuration
-Environment=ANSIBLE_VAULT_PASSWORD_FILE="/opt/omnia/build_stream/input/project_default/.build_stream_credentials_key"
-Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
-Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
-Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream_root/api/.auth/keys/jwt_private.pem"
-Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream_root/api/.auth/keys/jwt_public.pem"
-Environment=BUILD_STREAM_CONFIG_PATH="/opt/omnia/build_stream/build_stream.ini"
+Environment=ANSIBLE_VAULT_PASSWORD_FILE="{{ omnia_path }}/build_stream/input/project_default/.build_stream_credentials_key"
+Environment=OAUTH_CLIENTS_VAULT_PATH="{{ omnia_path }}/build_stream/input/project_default/build_stream_credentials.yml"
+Environment=AUTH_CONFIG_VAULT_PATH="{{ omnia_path }}/build_stream/input/project_default/build_stream_credentials.yml"
+Environment=JWT_PRIVATE_KEY_PATH="{{ omnia_path }}/build_stream_root/api/.auth/keys/jwt_private.pem"
+Environment=JWT_PUBLIC_KEY_PATH="{{ omnia_path }}/build_stream_root/api/.auth/keys/jwt_public.pem"
+Environment=BUILD_STREAM_CONFIG_PATH="{{ omnia_path }}/build_stream/build_stream.ini"
 Environment=NFS_ARTIFACT_BASE={{ omnia_path }}/build_stream_root
 
 # Volume mounts (NFS shared path)

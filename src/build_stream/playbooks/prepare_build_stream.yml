@@ -114,12 +114,12 @@
 
     - name: Load OIM metadata for shared path
       ansible.builtin.include_vars:
-        file: "{{ omnia_metadata_file_path | default('/opt/omnia/.data/oim_metadata.yml') }}"
+        file: "{{ omnia_metadata_file_path | default((lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)) ~ '/.data/oim_metadata.yml') }}"
       when: not (standalone_mode | default(false) | bool)
 
     - name: "[standalone] Set oim_shared_path from standalone default"
       ansible.builtin.set_fact:
-        oim_shared_path: "{{ standalone_oim_shared_path | default('/opt/omnia') }}"
+        oim_shared_path: "{{ standalone_oim_shared_path | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)) }}"
       when:
         - standalone_mode | default(false) | bool
         - oim_shared_path is not defined
@@ -144,49 +144,10 @@
         standalone_mode: "{{ standalone_mode | default(false) }}"
       no_log: true
 
-# ── Self-contained code deployment (no omnia_core dependency) ──────
-# The omnia_build_stream image embeds app/ at /app-source/.
-# We extract it to NFS before deploying the container so that the
-# NFS volume mount provides the code at /opt/omnia/build_stream.
-- name: Deploy build_stream app code to NFS shared path
-  hosts: oim
-  gather_facts: false
-  vars:
-    bs_image: "docker.io/dellhpcomniaaisolution/omnia_build_stream:1.1"
-    bs_extract_container: "bs_app_extract"
-    bs_nfs_dest: "{{ oim_shared_path }}/build_stream"
-  tasks:
-    - name: Ensure build_stream directory exists on NFS
-      ansible.builtin.file:
-        path: "{{ bs_nfs_dest }}"
-        state: directory
-        mode: "0755"
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-
-    - name: Pull omnia_build_stream image (source of app code)
-      containers.podman.podman_image:
-        name: "{{ bs_image }}"
-        state: present
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-
-    - name: Create temporary container to extract app code
-      ansible.builtin.command:
-        cmd: "podman create --name {{ bs_extract_container }} {{ bs_image }} /bin/true"
-      register: bs_create_result
-      changed_when: true
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-
-    - name: Extract app code from image to NFS
-      ansible.builtin.command:
-        cmd: "podman cp {{ bs_extract_container }}:/app-source/. {{ bs_nfs_dest }}/"
-      changed_when: true
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-
-    - name: Remove temporary extraction container
-      ansible.builtin.command:
-        cmd: "podman rm {{ bs_extract_container }}"
-      changed_when: true
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+# ── App code deployment ───────────────────────────────────────────
+# App source code is deployed to NFS via copy-input.sh (called by
+# omnia.sh --setup-venv). No temp container extraction needed.
+# The container mounts {{ omnia_path }} at /opt/omnia at runtime.
 
 - name: Deploy Postgres container for BuildStream
   hosts: oim
