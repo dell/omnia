@@ -59,7 +59,8 @@ bash setup_env.sh
 source .venv/bin/activate
 
 # Step 4 — Install the omnia-auto package
-pip install /path/to/omnia_auto-1.0.0-py3-none-any.whl
+pip install omnia-auto                  # from PyPI
+# OR: pip install /path/to/omnia_auto-1.0.0-py3-none-any.whl   # from local wheel
 
 # Step 5 — Configure the test
 vi test_config.yml       # Set oim_server_ip and clone_path
@@ -230,6 +231,56 @@ test/image_build_manager/
     └── cleanup/                 # Cleanup tag
         └── cleanup/
 ```
+
+---
+
+## Using the `omnia-auto` Pip Package
+
+This module uses the **[omnia-auto](https://github.com/balajikumaran-c-s/omnia-auto)**
+pip package for all common test automation utilities.  The package provides:
+
+| Category | Functions used |
+|----------|---------------|
+| **Config** | `configure()`, `load_test_config()`, `load_test_credentials()`, `get_setting()` |
+| **Host** | `get_testinfra_host()`, `is_local_execution()`, `run_on_host()`, `connection_params()` |
+| **Remote utils** | `read_remote_env()`, `ensure_remote_dir()`, `resolve_domain_input_path()` |
+| **Sync** | `sync_files()`, `clone_repo()` |
+| **Runner** | `run_playbook()` — wrapped with module-specific playbook/workdir |
+| **Formatting** | `TestLogger`, `Colors`, `Symbols`, `log()`, `add_session_result()`, `print_summary_table()` |
+| **Report** | `TestReport`, `set_current_report()`, `get_current_report()` |
+
+### How this module integrates with `omnia-auto`
+
+**Step 1 — `conftest.py`** calls `omnia_auto.configure()` to register the test directory and config files.
+
+**Step 2 — `library/functions/__init__.py`** imports from `omnia_auto` and wraps `run_playbook()` with module-specific defaults:
+
+```python
+from omnia_auto import run_playbook as _run_playbook
+from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+
+def run_playbook(tag=None, **kwargs):
+    return _run_playbook(
+        playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
+        playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
+        tag=tag, **kwargs,
+    )
+```
+
+**Step 3 — Test files** call the wrapper without needing to know the playbook details:
+
+```python
+from library.functions import run_playbook, TestLogger
+
+def test_prepare_phase():
+    tl = TestLogger("Verify prepare phase", "TC_PR_001")
+    result = run_playbook(tag="prepare", timeout=1800)
+    assert result["success"], result["error"]
+```
+
+For the full `omnia-auto` API reference, see the package's
+[USAGE.md](https://github.com/balajikumaran-c-s/omnia-auto/blob/main/USAGE.md)
+and [docs/](https://github.com/balajikumaran-c-s/omnia-auto/tree/main/docs).
 
 ---
 
