@@ -44,7 +44,7 @@
   changed_when: false
   failed_when: false
 
-- name: Install Strimzi Kafka operator
+- name: Install Strimzi Kafka operator  # noqa: no-changed-when
   ansible.builtin.command: >
     helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
     {{ strimzi_kafka_pkg }}

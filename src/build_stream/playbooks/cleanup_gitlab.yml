@@ -33,8 +33,10 @@
   connection: local
   gather_facts: false
   tags: always
-  roles:
-    - role: ../roles/build_stream_setup
+  tasks:
+    - name: Run build_stream_setup role
+      ansible.builtin.include_role:
+        name: ../roles/build_stream_setup
       when: not build_stream_setup_done | default(false) | bool
 
 - name: Load build_stream domain credentials

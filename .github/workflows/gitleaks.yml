@@ -29,7 +29,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/repo \
             -w /repo \
-            ghcr.io/gitleaks/gitleaks:latest \
+            harbor.dell.com/devsecops/devsecops-gitleaks@sha256:0f6c2ca3432fd1f06da468df03acb8821654736591c2fd862f55e75cacaf64f5 \
             detect \
             --source /repo \
             --config /repo/.github/workflows/.gitleaks.toml \

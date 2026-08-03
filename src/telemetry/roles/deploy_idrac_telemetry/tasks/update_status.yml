@@ -33,7 +33,7 @@
   ansible.builtin.set_fact:
     _bmc_count: "{{ (telemetry_config.idrac_telemetry_configurations.oim_bmc_ips | dict2items | selectattr('value', 'ne', '') | list | length) | default(0) }}"
 
-- name: Update telemetry status with iDRAC result
+- name: Update telemetry status with iDRAC result  # noqa: yaml[line-length]
   ansible.builtin.copy:
     dest: "{{ telemetry_status_file }}"
     content: |

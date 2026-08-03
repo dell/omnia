@@ -19,6 +19,9 @@ src/build_stream/MagicMock/
 src/build_stream/pyproject.toml
 src/build_stream/tests/demo/demo_client_credentials.json
 src/build_stream/update_playbook_watcher.sh
+src/build_stream/input/default.yml
+src/build_stream/output/
+src/build_stream/test-results.xml
 
 # RPM build artifacts
 src/rpm_build/**/*.rpm

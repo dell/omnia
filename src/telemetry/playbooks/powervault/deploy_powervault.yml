@@ -1,4 +1,3 @@
----
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,28 +13,32 @@
 # limitations under the License.
 
 ---
-vars_files:
-  - ../../roles/common/vars/main.yml
+- name: "PowerVault Telemetry | Prerequisites"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../../roles/common/vars/main.yml
+  pre_tasks:
+    - name: Load telemetry config (only if not already loaded)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+      when: telemetry_config is not defined
 
-pre_tasks:
-  - name: Load telemetry config (only if not already loaded)
-    ansible.builtin.include_role:
-      name: common
-      tasks_from: load_telemetry_config
-    when: telemetry_config is not defined
+    - name: Derive sink support flags (only if not already derived)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: derive_sink_support_flags
+      when: kafka_support is not defined
 
-  - name: Derive sink support flags (only if not already derived)
-    ansible.builtin.include_role:
-      name: common
-      tasks_from: derive_sink_support_flags
-    when: kafka_support is not defined
-
-  - name: Add kube_vip to inventory (only if not already added)
-    ansible.builtin.add_host:
-      name: "{{ kube_vip }}"
-      groups: kube_vip_group
-      ansible_user: root
-    when: kube_vip_group is not defined
+    - name: Add kube_vip to inventory (only if not already added)
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+      when: kube_vip_group is not defined
 
 - name: Deploy PowerVault Telemetry
   hosts: kube_vip_group

@@ -52,7 +52,7 @@
         _input_base: "{{ telemetry_input_base | default('/opt/omnia/input/project_default') }}"
         _input_project: "{{ telemetry_input_project | default('telemetry') }}"
 
-    - name: "Run L1 + L2 validation for telemetry input files"
+    - name: "Run L1 + L2 validation for telemetry input files"  # noqa: syntax-check[unknown-module]
       validate_input:
         omnia_base_dir: "{{ _input_base }}"
         project_name: "{{ _input_project }}"
