@@ -27,7 +27,7 @@ environment, checks prerequisites, parses `repo_status.yml` via the
 
 | Module | Purpose |
 |--------|---------|
-| `omnia.image_build.parse_repo_status` | Parses `repo_status.yml`, extracts OS version, repo port, and builds per-arch repo lists |
+| `parse_repo_status` | Parses `repo_status.yml`, extracts OS version, repo port, and builds per-arch repo lists |
 
 ## Role Variables
 

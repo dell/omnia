@@ -47,7 +47,7 @@ repo_manager:
   certificates:
     server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
     server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
-    certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs
+    certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"
 
 repositories:
   "10.0":
@@ -128,10 +128,10 @@ file_repos:
       likwid: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/likwid/"
       osu_micro_benchmarks: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/osu-micro-benchmarks/"
       imb: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/imb/"
-      nfs_subdir_external_provisioner_4_0_18: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/nfs-subdir-external-provisioner-4.0.18/"
+      nfs_subdir_external_provisioner_4_0_18: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/nfs-subdir-external-provisioner-4.0.18/"  # noqa: yaml[line-length]
       helm_v3_20_1_amd64: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/helm-v3.20.1-amd64/"
-      victoria_metrics_operator_0_59_3: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/victoria-metrics-operator-0.59.3/"
-      strimzi_kafka_operator_helm_3_chart_1_0_1: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-helm-3-chart-1.0.1/"
+      victoria_metrics_operator_0_59_3: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/victoria-metrics-operator-0.59.3/"  # noqa: yaml[line-length]
+      strimzi_kafka_operator_helm_3_chart_1_0_1: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-helm-3-chart-1.0.1/"  # noqa: yaml[line-length]
       cert_manager_v1_10_0: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/cert-manager-v1.10.0/"
 
     manifest:

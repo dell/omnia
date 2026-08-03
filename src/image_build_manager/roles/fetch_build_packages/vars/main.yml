@@ -26,6 +26,3 @@ functional_group_absent_msg: |
   Failure: No {{ build_arch }} functional groups found.
   Please ensure {{ build_arch }} functional groups are defined in image_build_config.yml
   (config mode) or available in the catalog (catalog mode).
-build_stream_prerequisite_fail_msg: |
-  Build Stream mode is enabled. Manual execution is not supported.
-  Please trigger this workflow via the GitLab pipeline.

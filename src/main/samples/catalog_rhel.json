@@ -382,7 +382,8 @@
       },
       "baseos_group_10.0": {
         "name": "baseos_group_10.0",
-        "type": "group",
+        "type": "base_os",
+        "os_version": "10.0",
         "description": "base os packages for rhel cluster nodes",
         "components": [
           "systemd",

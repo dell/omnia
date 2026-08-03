@@ -19,8 +19,7 @@
 # Catalog mode: Loads catalog JSON and resolves packages via parse_catalog.yml.
 # Both modes produce the same output shape:
 #   - base_image_packages (list of RPM names)
-#   - compute_images_dict (dict of functional_group -> {functional_group, packages})
-#   - service_k8s_version (string, empty if no k8s packages)
+#   - compute_images_dict (dict of functional_group -> {functional_group, packages[, os_version]})
 #   - rhel_tag (cluster OS version string)
 
 - name: Set common facts for package resolution
@@ -59,10 +58,6 @@
           {{ result }}
         cacheable: true
 
-    - name: Set service_k8s_version (not available in config mode)
-      ansible.builtin.set_fact:
-        service_k8s_version: ""
-        cacheable: true
 
 # ==========================================================================
 # Catalog mode: resolve packages from catalog JSON
@@ -80,7 +75,7 @@
       Resolved {{ compute_images_dict | length }} functional groups
       (source={{ _pkg_source }}),
       {{ base_image_packages | length }} base packages,
-      service_k8s_version={{ service_k8s_version | default('') }}
+      rhel_tag={{ rhel_tag }}
     verbosity: 1
 
 - name: Fetch repo manager endpoint repos

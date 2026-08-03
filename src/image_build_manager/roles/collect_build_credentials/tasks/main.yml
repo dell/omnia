@@ -72,19 +72,6 @@
             --vault-password-file "{{ image_build_credential_file.vault_path }}"
           changed_when: false
 
-    # Refresh stat after file creation so Steps 4-4b see the new file
-    - name: Refresh credential file stat after creation
-      ansible.builtin.stat:
-        path: "{{ image_build_credential_file.file_path }}"
-      register: image_build_cred_file_stat
-      when: image_build_file_created is defined and image_build_file_created is changed
-
-    - name: Refresh vault key stat after creation
-      ansible.builtin.stat:
-        path: "{{ image_build_credential_file.vault_path }}"
-      register: image_build_vault_key_stat
-      when: image_build_file_created is defined and image_build_file_created is changed
-
     # Step 3: Create vault key if file exists but key is missing
     - name: Ensure vault key exists for existing credential file
       ansible.builtin.lineinfile:

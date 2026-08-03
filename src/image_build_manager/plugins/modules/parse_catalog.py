@@ -31,8 +31,7 @@ description:
     C(functionallayer) -> C(groups) -> C(packages).
   - Filters packages by C(packagetype) and C(sources[].architecture).
   - Separates base OS packages from compute group packages.
-  - Extracts C(service_k8s_version) from kubeadm RPM or kube_apiserver
-    image tag.
+  - Extracts OS version from base_os groups for multi-version builds.
 options:
   catalog_file:
     description: Absolute path to the catalog JSON file.
@@ -77,7 +76,7 @@ EXAMPLES = r'''
       {{ catalog_result.layer_count }} layers,
       {{ catalog_result.base_image_packages | length }} base pkgs,
       {{ catalog_result.compute_images_dict | length }} compute groups,
-      k8s={{ catalog_result.service_k8s_version }}
+      os_versions={{ catalog_result.cluster_os_versions }}
 
 - name: Resolve aarch64 packages with custom baseos prefix
   omnia.image_build.parse_catalog:
@@ -92,6 +91,20 @@ catalog_identifier:
   description: Catalog identifier string from catalog JSON.
   returned: always
   type: str
+cluster_os_version:
+  description:
+    - Primary OS version extracted from the first base_os group.
+    - Derived from C(os_version) field in groups with C(type=base_os).
+    - Empty string if no base_os group declares an os_version.
+  returned: always
+  type: str
+cluster_os_versions:
+  description:
+    - List of all unique OS versions found across base_os groups.
+    - Supports multi-version image builds.
+  returned: always
+  type: list
+  elements: str
 base_image_packages:
   description:
     - Deduplicated list of RPM package names from base OS layers.
@@ -106,13 +119,6 @@ compute_images_dict:
     - Only non-baseos layers are included.
   returned: always
   type: dict
-service_k8s_version:
-  description:
-    - Kubernetes version extracted from kubeadm RPM package name
-      or kube_apiserver image tag.
-    - Empty string if no Kubernetes packages found.
-  returned: always
-  type: str
 layer_count:
   description: Number of functional layers matching build_arch.
   returned: always
@@ -161,6 +167,25 @@ def _filter_layers_by_arch(
     ]
 
 
+def _is_baseos_component(
+    comp_name: str, group: dict, baseos_prefix: str
+) -> bool:
+    """Check if a component belongs to the base OS layer.
+
+    Args:
+        comp_name: Component name from the layer.
+        group: Group definition from catalog.
+        baseos_prefix: Prefix for base OS group detection.
+
+    Returns:
+        True if this is a base OS component.
+    """
+    return (
+        group.get("type") == "base_os"
+        or comp_name.startswith(baseos_prefix)
+    )
+
+
 def _resolve_layer_packages(
     layer: dict,
     groups: dict,
@@ -171,6 +196,11 @@ def _resolve_layer_packages(
 ) -> dict:
     """Resolve RPM packages for a single functional layer.
 
+    Layer classification uses the **layer name**: layers whose name starts
+    with the baseos_prefix are base OS layers.  All others are compute
+    layers.  For compute layers only non-baseos component packages are
+    collected (the base image already contains baseos packages).
+
     Args:
         layer: Functional layer dict with 'name' and 'components'.
         groups: Catalog groups dict.
@@ -180,16 +210,32 @@ def _resolve_layer_packages(
         baseos_prefix: Prefix to identify base OS groups.
 
     Returns:
-        Dict with keys: functional_group, packages, is_baseos.
+        Dict with keys: functional_group, packages, is_baseos, os_versions.
     """
+    layer_name = layer.get("name", "")
+    # Derive layer-level prefix from component-level baseos_prefix.
+    # "baseos_group" → "baseos" — matches layer names like
+    # "baseos_rhel_10_0_x86_64" while baseos_prefix matches
+    # component names like "baseos_group_10.0".
+    _layer_prefix = baseos_prefix.split("_group")[0]
+    is_baseos_layer = layer_name.startswith(_layer_prefix)
+
     layer_pkgs: list[str] = []
-    is_baseos = False
+    os_versions: list[str] = []
 
     for comp_name in layer.get("components", []):
-        if comp_name.startswith(baseos_prefix):
-            is_baseos = True
-
         group = groups.get(comp_name, {})
+        comp_is_baseos = _is_baseos_component(
+            comp_name, group, baseos_prefix
+        )
+
+        if comp_is_baseos:
+            os_ver = group.get("os_version", "")
+            if os_ver and os_ver not in os_versions:
+                os_versions.append(os_ver)
+            if not is_baseos_layer:
+                continue
+
         for pkg_key in group.get("components", []):
             pkg = packages.get(pkg_key, {})
             if pkg.get("packagetype", "") != package_type:
@@ -203,41 +249,12 @@ def _resolve_layer_packages(
                 layer_pkgs.append(pkg["name"])
 
     return {
-        "functional_group": layer["name"],
+        "functional_group": layer_name,
         "packages": layer_pkgs,
-        "is_baseos": is_baseos,
+        "is_baseos": is_baseos_layer,
+        "os_versions": os_versions,
     }
 
-
-def _extract_k8s_version(packages: dict) -> str:
-    """Extract Kubernetes version from catalog packages.
-
-    Tries kubeadm RPM first (name format: kubeadm-X.Y.Z),
-    then falls back to kube_apiserver image tag.
-
-    Args:
-        packages: Catalog packages dict.
-
-    Returns:
-        Version string or empty string.
-    """
-    for key, pkg in packages.items():
-        if (
-            key.startswith("kubeadm_")
-            and pkg.get("packagetype") == "rpm"
-        ):
-            parts = pkg.get("name", "").split("-")
-            if len(parts) > 1:
-                return parts[-1]
-
-    for key, pkg in packages.items():
-        if (
-            key == "kube_apiserver"
-            and pkg.get("packagetype") == "image"
-        ):
-            return pkg.get("tag", "")
-
-    return ""
 
 
 def _deduplicate(items: list) -> list:
@@ -274,7 +291,7 @@ def resolve_catalog(
 
     Returns:
         Dict with catalog_identifier, base_image_packages,
-        compute_images_dict, service_k8s_version, layer_count.
+        compute_images_dict, cluster_os_version(s), layer_count.
     """
     catalog = _load_catalog(catalog_file)
     identifier = catalog.get("identifier", "")
@@ -296,23 +313,29 @@ def resolve_catalog(
 
     base_packages: list[str] = []
     compute_dict: dict = {}
+    all_os_versions: list[str] = []
     for name, data in resolved.items():
         if data["is_baseos"]:
             base_packages.extend(data["packages"])
         else:
+            layer_ver = data["os_versions"][0] if data.get("os_versions") else ""
             compute_dict[name] = {
                 "functional_group": name,
                 "packages": data["packages"],
+                "os_version": layer_ver,
             }
+        for ver in data.get("os_versions", []):
+            if ver and ver not in all_os_versions:
+                all_os_versions.append(ver)
 
     base_packages = _deduplicate(base_packages)
-    k8s_version = _extract_k8s_version(packages)
 
     return {
         "catalog_identifier": identifier,
+        "cluster_os_version": all_os_versions[0] if all_os_versions else "",
+        "cluster_os_versions": all_os_versions,
         "base_image_packages": base_packages,
         "compute_images_dict": compute_dict,
-        "service_k8s_version": k8s_version,
         "layer_count": len(arch_layers),
     }
 

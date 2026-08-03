@@ -103,8 +103,8 @@
             method: GET
             status_code: 200
           register: minio_health
-          retries: 10
-          delay: 5
+          retries: "{{ health_check_retries }}"
+          delay: "{{ health_check_delay }}"
           until: minio_health.status == 200
 
     - name: Install s3cmd and configure S3 buckets

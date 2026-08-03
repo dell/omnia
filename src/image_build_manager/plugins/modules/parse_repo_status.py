@@ -77,15 +77,17 @@ repo_port:
   type: int
 repo_manager_repos_x86_64:
   description:
-    - List of repo dicts for x86_64 architecture.
-    - Each dict has keys C(name), C(base_url), C(gpg).
+    - List of repo dicts for x86_64 architecture, merged from all OS versions.
+    - Each dict has keys C(name), C(base_url), C(gpg), C(os_version).
+    - Repo names are prefixed with version (e.g., C(10_0_baseos)).
   returned: always
   type: list
   elements: dict
 repo_manager_repos_aarch64:
   description:
-    - List of repo dicts for aarch64 architecture.
-    - Each dict has keys C(name), C(base_url), C(gpg).
+    - List of repo dicts for aarch64 architecture, merged from all OS versions.
+    - Each dict has keys C(name), C(base_url), C(gpg), C(os_version).
+    - Repo names are prefixed with version (e.g., C(10_0_baseos)).
   returned: always
   type: list
   elements: dict
@@ -217,15 +219,23 @@ def parse_repo_status(file_path: str) -> dict:
     versions = list(repositories.keys())
     os_version = versions[0] if versions else "10.0"
 
-    version_repos = repositories.get(os_version, {})
-    repo_port = _find_repo_port(version_repos)
+    repo_port = DEFAULT_PORT
+    repos_x86: list = []
+    repos_aarch64: list = []
+    for ver in versions:
+        version_repos = repositories.get(ver, {})
+        if repo_port == DEFAULT_PORT:
+            repo_port = _find_repo_port(version_repos)
 
-    repos_x86 = _build_repo_list(
-        version_repos.get("x86_64", {})
-    )
-    repos_aarch64 = _build_repo_list(
-        version_repos.get("aarch64", {})
-    )
+        ver_prefix = str(ver).replace(".", "_")
+        for entry in _build_repo_list(version_repos.get("x86_64", {})):
+            entry["name"] = f"{ver_prefix}_{entry['name']}"
+            entry["os_version"] = str(ver)
+            repos_x86.append(entry)
+        for entry in _build_repo_list(version_repos.get("aarch64", {})):
+            entry["name"] = f"{ver_prefix}_{entry['name']}"
+            entry["os_version"] = str(ver)
+            repos_aarch64.append(entry)
 
     repo_mgr = data.get("repo_manager", {})
     certs = repo_mgr.get("certificates", {}) if isinstance(repo_mgr, dict) else {}

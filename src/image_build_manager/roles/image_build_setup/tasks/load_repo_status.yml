@@ -21,7 +21,7 @@
 
 # --- Parse repo_status.yml via Python module ---
 - name: Parse repo_status.yml via module
-  omnia.image_build.parse_repo_status:
+  parse_repo_status:
     repo_status_file: "{{ repo_manager_output_path }}"
   register: _repo_status_result
 
