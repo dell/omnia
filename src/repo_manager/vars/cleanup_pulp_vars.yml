@@ -23,15 +23,15 @@
 # =============================================================================
 
 # Directories/files to remove during Pulp cleanup (runs on OIM)
-# NOTE: We intentionally keep {{ omnia_base_dir }}/pulp/pulp_ha directory intact
-# because it may be mounted. We only delete the cli.toml file inside it.
+# The pulp_config_base_dir contains all Pulp-related data:
+#   - pulp_config/pulp/          - Pulp container data, settings, certs
+#   - pulp_config/log/pulp/      - Pulp logs
+#   - pulp_config/pulp_ha/       - HA config and CLI config (cli.toml)
 pulp_cleanup_directory:
-  - "{{ omnia_base_dir }}/pulp/pulp_ha/cli.toml"
-  - "{{ omnia_base_dir }}/pulp/settings"
-  - "{{ omnia_base_dir }}/pulp/nginx"
-  - "{{ omnia_base_dir }}/log/pulp"
+  - "{{ pulp_config_base_dir }}"
   - "{{ omnia_base_dir }}/rhel_repo_certs"
   - "{{ omnia_base_dir }}/offline_repo"
+  - "{{ ansible_env.HOME }}/.config/pulp"
 
 # Track file created by Pulp HTTPS config
 track_file_path: "{{ pulp_crt_track_file }}"

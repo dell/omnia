@@ -35,6 +35,52 @@ from ansible.module_utils.local_repo.config import (
 )
 from ansible.module_utils.local_repo.software_utils import build_repo_name
 
+DOCUMENTATION = r"""
+---
+module: process_rpm_config
+short_description: Process RPM repository configuration
+description:
+  - This module processes RPM repository configuration files.
+  - It validates and transforms repository definitions for Pulp.
+version_added: "1.0.0"
+options:
+    config_path:
+      description: Path to RPM configuration file
+      required: true
+      type: str
+    arch:
+      description: Target architecture
+      required: true
+      type: str
+    os_version:
+      description: Target OS version
+      required: true
+      type: str
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Process RPM configuration
+  process_rpm_config:
+    config_path: /opt/omnia/input/repo_manager_config.yml
+    arch: x86_64
+    os_version: "9.4"
+  register: rpm_config
+"""
+
+RETURN = r"""
+repositories:
+  description: Processed repository definitions
+  type: list
+  returned: success
+repo_count:
+  description: Number of repositories
+  type: int
+  returned: success
+"""
+
 
 def validate_command_input(value):
     """
@@ -1542,7 +1588,7 @@ def main():
     module_args = {
         "local_config": {"type": "list", "required": True},
         # nosec B108 - Default path, actual path is configurable via parameter
-        "log_dir": {"type": "str", "required": False, "default": "/opt/omnia/log/repomanager/thread_logs"},
+        "log_dir": {"type": "str", "required": False, "default": "/opt/omnia/log/repo_manager/thread_logs"},
         "additional_repos_config": {"type": "dict", "required": False, "default": None},
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},

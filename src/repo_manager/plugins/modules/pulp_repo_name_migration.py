@@ -1,4 +1,51 @@
 from ansible.module_utils.local_repo import config
+DOCUMENTATION = r"""
+---
+module: pulp_repo_name_migration
+short_description: Migrate Pulp repository names to new format
+description:
+  - This module migrates Pulp repository names from old to new naming convention.
+  - It handles renaming of repositories, remotes, and distributions.
+version_added: "1.0.0"
+options:
+    old_prefix:
+      description: Old repository name prefix
+      required: false
+      type: str
+    new_prefix:
+      description: New repository name prefix
+      required: false
+      type: str
+    dry_run:
+      description: Perform dry run without changes
+      required: false
+      type: bool
+      default: False
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Migrate repository names
+  pulp_repo_name_migration:
+    old_prefix: "local_"
+    new_prefix: "omnia_"
+    dry_run: false
+"""
+
+RETURN = r"""
+migrated_repos:
+  description: List of migrated repositories
+  type: list
+  returned: success
+migration_count:
+  description: Number of migrations performed
+  type: int
+  returned: success
+"""
+
+
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,0 +1,74 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# ROLLBACK REPO MANAGER
+# =============================================================================
+# Placeholder for future rollback functionality.
+# This playbook will handle reverting repo_manager to a previous version.
+#
+# Rollback Flow (to be implemented):
+#   1. Validate snapshot exists
+#      - Check <state_path>/.upgrade_snapshot/ is present
+#
+#   2. Stop domain services
+#      - Stop Pulp container
+#      - Verify services stopped
+#
+#   3. Restore state from snapshot
+#      - Remove current state directories
+#      - Restore from .upgrade_snapshot/
+#      - Restore service configs
+#
+#   4. Restart services
+#      - Reload systemd
+#      - Start services with restored config
+#
+#   5. Verify rollback
+#      - Check services are healthy
+#      - Validate data integrity
+#      - Restore .domain_version.yml from snapshot
+#
+#   6. Cleanup
+#      - Optionally remove .upgrade_snapshot/ after verified rollback
+#
+# Usage:
+#   ansible-playbook repo_manager.yml --tags rollback
+# =============================================================================
+
+- name: Rollback Repo Manager
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Display rollback placeholder message
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "REPO MANAGER ROLLBACK - NOT YET IMPLEMENTED"
+          - "============================================"
+          - ""
+          - "This playbook is a placeholder for future rollback functionality."
+          - ""
+          - "When implemented, this will:"
+          - "  1. Validate that an upgrade snapshot exists"
+          - "  2. Stop Pulp services"
+          - "  3. Restore state from snapshot"
+          - "  4. Restart services with restored configuration"
+          - "  5. Verify rollback success"
+          - "  6. Cleanup snapshot (optional)"
+          - ""
+          - "============================================"
