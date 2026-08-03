@@ -12,55 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Step 5: Load repo_status.yml and validate
-# Step 6: Set repo manager facts and build repo lists
+# Step 5: Load repo_status.yml and validate via Python module
+# Step 6: Set repo facts and build repo lists
 #
-# Loads repo_status.yml, validates required sections, checks the repo manager
-# certificate exists (optional), sets repo manager facts, and builds
-# architecture-specific repo lists for downstream build playbooks.
+# Uses plugins/modules/parse_repo_status.py for repo_status.yml parsing,
+# port extraction, and repo list building. Validates repo manager certificate
+# (from image_build_config.yml) and sets S3 endpoint facts.
 
-# --- Load and validate repo_status.yml ---
-- name: Load repo_status.yml
-  ansible.builtin.include_vars:
-    file: "{{ repo_manager_output_path }}"
+# --- Parse repo_status.yml via Python module ---
+- name: Parse repo_status.yml via module
+  omnia.image_build.parse_repo_status:
+    repo_status_file: "{{ repo_manager_output_path }}"
+  register: _repo_status_result
 
-- name: Set OS facts from repo_status.yml
+# --- Set OS and repo facts from module output ---
+- name: Set OS and repo facts from parsed repo_status
   ansible.builtin.set_fact:
-    cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
-    cluster_os_version: "{{ cluster_os_version | default('10.0') }}"
+    cluster_os_type: "{{ _repo_status_result.cluster_os_type }}"
+    cluster_os_version: "{{ _repo_status_result.cluster_os_version }}"
+    repo_port: "{{ _repo_status_result.repo_port }}"
+    repo_manager_repos_x86_64: "{{ _repo_status_result.repo_manager_repos_x86_64 }}"
+    repo_manager_repos_aarch64: "{{ _repo_status_result.repo_manager_repos_aarch64 }}"
     cacheable: true
 
-- name: Validate repo_status.yml has required sections
-  ansible.builtin.assert:
-    that:
-      - repo_manager is defined
-      - repo_manager.port is defined
-    fail_msg: "{{ repo_status_missing_section_fail_msg }}"
-    quiet: true
-
-# --- Resolve functional_group_packages.yml path from package_list ---
-- name: Set package_list_path from repo_status.yml
+# --- Validate repo manager certificate (optional — from image_build_config.yml) ---
+- name: Set cert path fact from config
   ansible.builtin.set_fact:
-    package_list_path: >-
-      {{ repo_manager.package_list | default(
-         (repo_manager_output_path | dirname) + '/functional_group_packages.yml'
-      ) }}
-    cacheable: true
-
-- name: Validate functional_group_packages.yml exists
-  ansible.builtin.stat:
-    path: "{{ package_list_path }}"
-  register: _pkg_list_check
-
-- name: Fail if functional_group_packages.yml not found
-  ansible.builtin.fail:
-    msg: "{{ functional_group_packages_not_found_fail_msg }}"
-  when: not _pkg_list_check.stat.exists
-
-# --- Validate repo manager certificate (optional — skipped when not configured) ---
-- name: Set cert path fact
-  ansible.builtin.set_fact:
-    _cert_path: "{{ repo_manager.certificates.server_crt | default('') }}"
+    _cert_path: "{{ repo_cert_path | default('') }}"
 
 - name: Validate repo manager certificate exists
   ansible.builtin.stat:
@@ -75,10 +53,9 @@
     - _cert_path | length > 0
     - not (_repo_cert_check.stat.exists | default(false))
 
-# --- Set repo manager and S3 facts ---
-- name: Set repo manager and S3 facts from repo_status.yml
+# --- Set S3 and cert facts ---
+- name: Set S3 and cert facts
   ansible.builtin.set_fact:
-    repo_port: "{{ repo_manager.port }}"
     repo_cert_path: "{{ _cert_path }}"
     s3_endpoint: >-
       {{ s3_configurations.endpoint_url
@@ -87,51 +64,3 @@
                if s3_configurations.provider | default('minio') == 'minio'
                else '') }}
     cacheable: true
-
-# --- Build repo lists ---
-- name: Build repo lists from repo_status.yml
-  when: rpm_repos is defined
-  block:
-    - name: Initialize repo lists
-      ansible.builtin.set_fact:
-        repo_manager_repos_x86_64: []
-        repo_manager_repos_aarch64: []
-        rpm_repos_aarch64: "{{ rpm_repos.aarch64 | default({}) }}"
-
-    - name: Build x86_64 repo list from rpm_repos
-      ansible.builtin.set_fact:
-        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
-      loop: "{{ (rpm_repos.x86_64 | default({})) | dict2items }}"
-      loop_control:
-        loop_var: item
-
-    - name: Build aarch64 repo list from rpm_repos
-      ansible.builtin.set_fact:
-        repo_manager_repos_aarch64: "{{ repo_manager_repos_aarch64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
-      loop: "{{ (rpm_repos.aarch64 | default({})) | dict2items }}"
-      loop_control:
-        loop_var: item
-
-    - name: Build x86_64 repo list from user_repos
-      ansible.builtin.set_fact:
-        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
-      loop: "{{ (user_repos.x86_64 | default({})) | dict2items }}"
-      loop_control:
-        loop_var: item
-      when: user_repos is defined
-
-    - name: Build aarch64 repo list from user_repos
-      ansible.builtin.set_fact:
-        repo_manager_repos_aarch64: "{{ repo_manager_repos_aarch64 + [{'name': item.key, 'base_url': item.value, 'gpg': ''}] }}"
-      loop: "{{ (user_repos.aarch64 | default({})) | dict2items }}"
-      loop_control:
-        loop_var: item
-      when: user_repos is defined
-
-    - name: Make repo lists cacheable
-      ansible.builtin.set_fact:
-        repo_manager_repos_x86_64: "{{ repo_manager_repos_x86_64 }}"
-        repo_manager_repos_aarch64: "{{ repo_manager_repos_aarch64 }}"
-        cacheable: true
-  # NOTE: repo list loop set_facts above cannot be further consolidated
-  # because Ansible loops append to the list incrementally.

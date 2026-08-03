@@ -101,6 +101,12 @@ if __name__ == '__main__':
 - Use `module.fail_json(msg="...")` for failures — never `sys.exit()`
 - Always set `changed=True/False` accurately
 
+### 4.4 Module-First Data Processing
+- Prefer Python modules over complex Jinja2 templates for data processing
+- See Ansible Style Guide §12 for decision criteria and examples
+- Module core logic SHOULD be in standalone functions (testable without Ansible)
+- `main()` SHOULD only wire `AnsibleModule` params to core functions
+
 ## 5. Ansible Galaxy Module Documentation (REQUIRED)
 
 Every Python module under `plugins/modules/*.py` MUST contain three documentation constants for Galaxy import compliance. Galaxy import **fails** without them.

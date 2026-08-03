@@ -15,7 +15,7 @@
 ---
 
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
-functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] | default('') }}"
 
 # Architecture-agnostic variables — build_arch is set by the calling playbook
 build_image_completion_msg: |
@@ -23,9 +23,9 @@ build_image_completion_msg: |
   To boot {{ build_arch }} nodes execute provision/provision.yml playbook.
 
 functional_group_absent_msg: |
-  Failure: No {{ build_arch }} functional groups found in functional_group_config.
+  Failure: No {{ build_arch }} functional groups found.
   Please ensure {{ build_arch }} functional groups are defined in image_build_config.yml
-  to execute build_image_{{ build_arch }}.yml successfully.
+  (config mode) or available in the catalog (catalog mode).
 build_stream_prerequisite_fail_msg: |
   Build Stream mode is enabled. Manual execution is not supported.
   Please trigger this workflow via the GitLab pipeline.

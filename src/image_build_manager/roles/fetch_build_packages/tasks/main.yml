@@ -13,57 +13,37 @@
 #  limitations under the License.
 ---
 # ==========================================================================
-# Load packages from functional_group_packages.yml
+# Dual-mode package resolution: config vs catalog
 # ==========================================================================
+# Config mode:  Loads package_groups.yml from input project directory.
+# Catalog mode: Loads catalog JSON and resolves packages via parse_catalog.yml.
+# Both modes produce the same output shape:
+#   - base_image_packages (list of RPM names)
+#   - compute_images_dict (dict of functional_group -> {functional_group, packages})
+#   - service_k8s_version (string, empty if no k8s packages)
+#   - rhel_tag (cluster OS version string)
 
-- name: Load functional group package mapping
+- name: Set common facts for package resolution
+  ansible.builtin.set_fact:
+    _pkg_source: "{{ hostvars['localhost']['functional_groups_source'] | default('config') }}"
+    rhel_tag: "{{ hostvars['localhost']['cluster_os_version'] | default('10.0') }}"
+    cacheable: true
+
+# ==========================================================================
+# Config mode: load package_groups.yml from input project directory
+# ==========================================================================
+- name: Load packages from package_groups.yml (config mode)
+  when: _pkg_source == 'config'
   block:
-    - name: Load functional_group_packages.yml
+    - name: Load package_groups.yml
       ansible.builtin.include_vars:
-        file: "{{ package_list_path }}"
+        file: "{{ input_project_dir }}/package_groups.yml"
         name: _fg_pkg_mapping
 
     - name: Set base_image_packages from mapping
       ansible.builtin.set_fact:
         base_image_packages: "{{ _fg_pkg_mapping.base_packages | default([]) }}"
         cacheable: true
-
-    # --- Functional group source resolution ---
-    - name: Auto-detect functional groups from repo_status
-      when: hostvars['localhost']['functional_groups_source'] | default('config') == 'repo_status'
-      block:
-        - name: Build functional_groups list from functional_group_packages.yml
-          ansible.builtin.set_fact:
-            _auto_fg_list: >-
-              {% set result = [] -%}
-              {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
-                {% if (fg_data.packages | default([]) | length) > 0 -%}
-                  {% set _ = result.append({'name': fg_name}) -%}
-                {% endif -%}
-              {% endfor -%}
-              {{ result }}
-
-        - name: Filter out aarch64 groups when no ARM host is configured
-          ansible.builtin.set_fact:
-            functional_groups: >-
-              {% set result = [] -%}
-              {% for fg in _auto_fg_list -%}
-                {% if fg.name.endswith('_aarch64') -%}
-                  {% if (hostvars['localhost']['aarch64_inventory_host_ip'] | default('') | length) > 0 -%}
-                    {% set _ = result.append(fg) -%}
-                  {% endif -%}
-                {% else -%}
-                  {% set _ = result.append(fg) -%}
-                {% endif -%}
-              {% endfor -%}
-              {{ result }}
-            cacheable: true
-
-        - name: Display auto-detected functional groups
-          ansible.builtin.debug:
-            msg: >-
-              Auto-detected {{ functional_groups | length }} functional groups from repo_status:
-              {{ functional_groups | map(attribute='name') | list | join(', ') }}
 
     - name: Build compute_images_dict from mapping + enabled functional_groups
       ansible.builtin.set_fact:
@@ -79,22 +59,29 @@
           {{ result }}
         cacheable: true
 
-    - name: Set cluster OS version from repo_status
-      ansible.builtin.set_fact:
-        rhel_tag: "{{ hostvars['localhost']['cluster_os_version'] | default(cluster_os_version | default('10.0')) }}"
-
-    - name: Set service_k8s_version (empty unless overridden)
+    - name: Set service_k8s_version (not available in config mode)
       ansible.builtin.set_fact:
         service_k8s_version: ""
         cacheable: true
 
-    - name: Debug package resolution
-      ansible.builtin.debug:
-        msg: >-
-          Resolved {{ compute_images_dict | length }} functional groups
-          (source={{ hostvars['localhost']['functional_groups_source'] | default('config') }}),
-          {{ base_image_packages | length }} base packages
-        verbosity: 1
+# ==========================================================================
+# Catalog mode: resolve packages from catalog JSON
+# ==========================================================================
+- name: Load packages from catalog JSON (catalog mode)
+  ansible.builtin.include_tasks: parse_catalog.yml
+  when: _pkg_source == 'catalog'
+
+# ==========================================================================
+# Common: debug and fetch repos
+# ==========================================================================
+- name: Debug package resolution
+  ansible.builtin.debug:
+    msg: >-
+      Resolved {{ compute_images_dict | length }} functional groups
+      (source={{ _pkg_source }}),
+      {{ base_image_packages | length }} base packages,
+      service_k8s_version={{ service_k8s_version | default('') }}
+    verbosity: 1
 
 - name: Fetch repo manager endpoint repos
   ansible.builtin.include_tasks: fetch_repo_manager_repos.yml

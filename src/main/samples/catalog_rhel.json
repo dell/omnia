@@ -1,0 +1,180 @@
+{
+  "catalog": {
+    "name": "omnia services catalog - rhel 10.0",
+    "version": "1.0",
+    "identifier": "omnia-services-rhel-10-0",
+    "description": "Sample catalog for omnia hpc and kubernetes services on rhel 10.0 x86_64 and aarch64",
+    "functionallayer": [
+      {
+        "name": "slurm_node_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group_10.0",
+          "slurm_custom_group",
+          "slurm_node_group"
+        ]
+      },
+      {
+        "name": "baseos_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group_10.0",
+          "admin_debug_group"
+        ]
+      },
+      {
+        "name": "baseos_rhel_10_0_aarch64",
+        "components": [
+          "baseos_group_10.0",
+          "admin_debug_group"
+        ]
+      },
+      {
+        "name": "service_kube_node_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group_10.0",
+          "service_k8s_common_group",
+          "service_kube_node_group"
+        ]
+      }
+    ],
+    "groups": {
+      "baseos_group_10.0": {
+        "components": [
+          "baseos_release",
+          "dnf_utils",
+          "tar"
+        ]
+      },
+      "admin_debug_group": {
+        "components": [
+          "strace",
+          "tcpdump"
+        ]
+      },
+      "slurm_custom_group": {
+        "components": [
+          "munge"
+        ]
+      },
+      "slurm_node_group": {
+        "components": [
+          "slurm_slurmd"
+        ]
+      },
+      "service_k8s_common_group": {
+        "components": [
+          "kubeadm_1_35_1",
+          "kubelet_1_35_1"
+        ]
+      },
+      "service_kube_node_group": {
+        "components": [
+          "cri_o"
+        ]
+      }
+    },
+    "packages": {
+      "baseos_release": {
+        "name": "baseos-release",
+        "version": "10.0",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/baseos/baseos-release-10.0.x86_64.rpm" },
+          { "architecture": "aarch64", "url": "https://repo.example.com/baseos/baseos-release-10.0.aarch64.rpm" }
+        ]
+      },
+      "dnf_utils": {
+        "name": "dnf-utils",
+        "version": "4.4.0",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/baseos/dnf-utils-4.4.0.x86_64.rpm" },
+          { "architecture": "aarch64", "url": "https://repo.example.com/baseos/dnf-utils-4.4.0.aarch64.rpm" }
+        ]
+      },
+      "tar": {
+        "name": "tar",
+        "version": "1.35",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/baseos/tar-1.35.x86_64.rpm" },
+          { "architecture": "aarch64", "url": "https://repo.example.com/baseos/tar-1.35.aarch64.rpm" }
+        ]
+      },
+      "strace": {
+        "name": "strace",
+        "version": "6.7",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/appstream/strace-6.7.x86_64.rpm" },
+          { "architecture": "aarch64", "url": "https://repo.example.com/appstream/strace-6.7.aarch64.rpm" }
+        ]
+      },
+      "tcpdump": {
+        "name": "tcpdump",
+        "version": "4.99.4",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/appstream/tcpdump-4.99.4.x86_64.rpm" },
+          { "architecture": "aarch64", "url": "https://repo.example.com/appstream/tcpdump-4.99.4.aarch64.rpm" }
+        ]
+      },
+      "munge": {
+        "name": "munge",
+        "version": "0.5.16",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/appstream/munge-0.5.16.x86_64.rpm" }
+        ]
+      },
+      "slurm_slurmd": {
+        "name": "slurm-slurmd",
+        "version": "24.05.3",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/slurm/slurm-slurmd-24.05.3.x86_64.rpm" }
+        ]
+      },
+      "kubeadm_1_35_1": {
+        "name": "kubeadm-1.35.1",
+        "version": "1.35.1",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/k8s/kubeadm-1.35.1.x86_64.rpm" }
+        ]
+      },
+      "kubelet_1_35_1": {
+        "name": "kubelet-1.35.1",
+        "version": "1.35.1",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/k8s/kubelet-1.35.1.x86_64.rpm" }
+        ]
+      },
+      "cri_o": {
+        "name": "cri-o",
+        "version": "1.31.2",
+        "packagetype": "rpm",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/k8s/cri-o-1.31.2.x86_64.rpm" }
+        ]
+      },
+      "kube_apiserver": {
+        "name": "kube-apiserver",
+        "version": "1.35.1",
+        "packagetype": "image",
+        "tag": "v1.35.1",
+        "sources": [
+          { "architecture": "x86_64", "url": "registry.k8s.io/kube-apiserver:v1.35.1" }
+        ]
+      },
+      "doca_ofed_repo": {
+        "name": "doca-ofed-repo",
+        "version": "24.10",
+        "packagetype": "rpm_repo",
+        "sources": [
+          { "architecture": "x86_64", "url": "https://repo.example.com/doca/doca-ofed-24.10.repo" }
+        ]
+      }
+    }
+  }
+}
