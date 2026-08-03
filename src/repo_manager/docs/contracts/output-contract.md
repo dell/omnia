@@ -95,7 +95,7 @@ geopm,tarball,x86_64,success,geopm_x86_64,https://...,2026-07-30T12:05:00Z
 
 ### 3. Validation Logs
 
-**Location**: `/opt/omnia/log/repo_manager/repo_manager.log`
+**Location**: `/var/log/omnia/repo_manager/repo_manager.log`
 
 **Purpose**: Detailed logs of validation operations
 

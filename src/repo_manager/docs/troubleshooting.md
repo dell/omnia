@@ -180,13 +180,13 @@ ansible-playbook repo_manager.yml --tags status
 
 **Error**:
 ```
-Permission denied: /opt/omnia/log/repo_manager/
+Permission denied: /var/log/omnia/repo_manager/
 ```
 
 **Fix**: Ensure the log directory exists with proper permissions:
 ```bash
-mkdir -p /opt/omnia/log/repo_manager/
-chmod 755 /opt/omnia/log/repo_manager/
+mkdir -p /var/log/omnia/repo_manager/
+chmod 755 /var/log/omnia/repo_manager/
 ```
 
 ---
@@ -274,7 +274,7 @@ ansible-playbook repo_manager.yml --tags status
 
 | Log Type | Location |
 |----------|----------|
-| Ansible playbook logs | `/opt/omnia/log/repo_manager/repo_manager.log` |
+| Ansible playbook logs | `/var/log/omnia/repo_manager/repo_manager.log` |
 | Pulp API logs | `podman logs pulp-api` |
 | Pulp content logs | `podman logs pulp-content` |
 | Pulp worker logs | `podman logs pulp-worker` |

@@ -98,7 +98,7 @@ cleanup_pulp ──────────────────────�
 |------|---------|
 | `repo_status.yml` | Repository URLs, cert paths, OS metadata for cluster nodes |
 | Download status CSV | `/opt/omnia/repo_manager/output/<project_name>/` |
-| Validation logs | `/opt/omnia/log/repo_manager/repo_manager.log` |
+| Validation logs | `/var/log/omnia/repo_manager/repo_manager.log` |
 
 ## Key Paths
 
@@ -106,7 +106,7 @@ cleanup_pulp ──────────────────────�
 |------|---------|
 | `/opt/omnia/repo_manager/` | Base directory for repo manager operations |
 | `/opt/omnia/repo_manager/output/<project_name>/` | Output directory for repo_status.yml and status files |
-| `/opt/omnia/log/repo_manager/` | Log files for repo manager operations |
+| `/var/log/omnia/repo_manager/` | Log files for repo manager operations |
 | `/usr/local/bin/pulp` | System-wide Pulp CLI symlink |
 | `/opt/omnia/pulp_config/pulp/settings/certs/` | Pulp SSL/TLS certificates |
 | `/opt/omnia/pulp_config/log/pulp/` | Pulp server logs |
