@@ -19,7 +19,7 @@ import os
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.software_utils  import (
+from ansible.module_utils.local_repo.software_utils import (
     get_software_names_and_arch,
     check_csv_existence,
     get_failed_software,
@@ -37,6 +37,47 @@ from ansible.module_utils.local_repo.software_utils  import (
     parse_additional_repos,
     validate_additional_repos_names
 )
+
+DOCUMENTATION = r"""
+---
+module: prepare_tasklist
+short_description: Prepare task list for parallel execution
+description:
+  - This module prepares a list of tasks for parallel execution.
+  - It parses configuration and creates executable task definitions.
+version_added: "1.0.0"
+options:
+    config:
+      description: Configuration dictionary
+      required: true
+      type: dict
+    task_type:
+      description: Type of tasks to prepare
+      required: true
+      type: str
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Prepare sync task list
+  prepare_tasklist:
+    config: "{{ repo_config }}"
+    task_type: sync
+  register: tasklist
+"""
+
+RETURN = r"""
+tasks:
+  description: List of prepared tasks
+  type: list
+  returned: success
+task_count:
+  description: Number of tasks prepared
+  type: int
+  returned: success
+"""
 
 # Import configuration constants individually (excluding fresh_installation_status)
 from ansible.module_utils.local_repo.config import (

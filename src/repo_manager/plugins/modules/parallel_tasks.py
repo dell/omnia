@@ -33,6 +33,58 @@ from ansible.module_utils.local_repo.download_common import (
     process_pip,
     process_rpm_file
 )
+
+DOCUMENTATION = r"""
+---
+module: parallel_tasks
+short_description: Execute tasks in parallel with thread pool
+description:
+  - This module executes multiple tasks in parallel using a thread pool.
+  - It is used for parallel repository synchronization and downloads.
+version_added: "1.0.0"
+options:
+    tasks:
+      description: List of tasks to execute
+      required: true
+      type: list
+    max_workers:
+      description: Maximum number of parallel workers
+      required: false
+      type: int
+      default: 4
+    timeout:
+      description: Timeout per task in seconds
+      required: false
+      type: int
+      default: 7200
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Execute parallel sync tasks
+  parallel_tasks:
+    tasks: "{{ sync_tasks }}"
+    max_workers: 4
+    timeout: 7200
+  register: parallel_result
+"""
+
+RETURN = r"""
+results:
+  description: Results from all tasks
+  type: list
+  returned: always
+failed_tasks:
+  description: List of failed tasks
+  type: list
+  returned: always
+success_count:
+  description: Number of successful tasks
+  type: int
+  returned: always
+"""
 from ansible.module_utils.local_repo.download_image import process_image
 from ansible.module_utils.local_repo.download_rpm import process_rpm
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger

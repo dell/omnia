@@ -32,7 +32,7 @@ REPO_MANAGER_BASE_DIR = os.environ.get('REPO_MANAGER_BASE_DIR') or os.path.abspa
 OMNIA_BASE_DIR = os.environ.get('OMNIA_BASE_DIR') or os.path.abspath(
     os.path.join(REPO_MANAGER_BASE_DIR, '..', '..'))
 
-REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'log', 'repomanager')
+REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'log', 'repo_manager')
 REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_BASE_DIR, '.data')
 REPO_MANAGER_INPUT_DIR = os.path.join(REPO_MANAGER_BASE_DIR, 'input')
 

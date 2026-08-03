@@ -20,6 +20,47 @@ import json
 import os
 
 from ansible.module_utils.basic import AnsibleModule
+DOCUMENTATION = r"""
+---
+module: fetch_credential_rule
+short_description: Fetch credential validation rules
+description:
+  - This module retrieves credential validation rules from configuration.
+  - It returns the rules for validating specific credential fields.
+version_added: "1.0.0"
+options:
+    credential_name:
+      description: Name of the credential to fetch rules for
+      required: true
+      type: str
+    rules_file:
+      description: Path to the credential rules file
+      required: false
+      type: str
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Fetch rules for pulp_password
+  fetch_credential_rule:
+    credential_name: pulp_password
+  register: credential_rule
+"""
+
+RETURN = r"""
+rule:
+  description: The credential validation rule
+  type: dict
+  returned: success
+mandatory:
+  description: Whether the credential is mandatory
+  type: bool
+  returned: success
+"""
+
+
 
 
 def load_rules(file_path):
