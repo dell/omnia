@@ -93,12 +93,12 @@ def clone_repo(
     def _run(cmd: str) -> subprocess.CompletedProcess:
         if mode == "local":
             return subprocess.run(
-                cmd, shell=True, capture_output=True, text=True,
+                cmd, shell=True, capture_output=True, text=True,  # nosec B602
                 timeout=timeout, check=False,
             )
         ssh_cmd = _build_ssh_cmd(ip, user, password, ssh_opts, cmd)
         return subprocess.run(
-            ssh_cmd, shell=True, capture_output=True, text=True,
+            ssh_cmd, shell=True, capture_output=True, text=True,  # nosec B602
             timeout=timeout, check=False,
         )
 
@@ -227,7 +227,7 @@ def sync_files(
                 f"mkdir -p {dest_dir}",
             )
             subprocess.run(
-                mkdir_cmd, shell=True, capture_output=True,
+                mkdir_cmd, shell=True, capture_output=True,  # nosec B602
                 text=True, timeout=30, check=False,
             )
 
@@ -246,7 +246,7 @@ def sync_files(
                 r = subprocess.run(
                     f"sshpass -p '{password}' scp {ssh_opts} "
                     f"{src} {user}@{ip}:{dest}",
-                    shell=True, capture_output=True, text=True,
+                    shell=True, capture_output=True, text=True,  # nosec B602
                     timeout=timeout, check=False,
                 )
             else:

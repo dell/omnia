@@ -5,8 +5,8 @@ inside the **omnia monorepo**. Validates playbook deployment, container
 infrastructure (MinIO + Registry), S3 storage, container registry, build
 output, and image package contents.
 
-Uses the **`omnia-auto`** pip package for common test utilities (host
-connection, playbook runner, report generation, formatting).
+Uses the **`omnia-auto`** package (from `test/plugins/`) for common test
+utilities (host connection, playbook runner, report generation, formatting).
 
 ---
 
@@ -58,9 +58,8 @@ bash setup_env.sh
 # Step 3 — Activate the virtual environment
 source .venv/bin/activate
 
-# Step 4 — Install the omnia-auto package
-pip install omnia-auto                  # from PyPI
-# OR: pip install /path/to/omnia_auto-1.0.0-py3-none-any.whl   # from local wheel
+# Step 4 — omnia-auto is installed automatically from test/plugins/dist/
+# (via requirements.txt → ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl)
 
 # Step 5 — Configure the test
 vi test_config.yml       # Set oim_server_ip and clone_path
@@ -236,8 +235,9 @@ test/image_build_manager/
 
 ## Using the `omnia-auto` Pip Package
 
-This module uses the **[omnia-auto](https://github.com/balajikumaran-c-s/omnia-auto)**
-pip package for all common test automation utilities.  The package provides:
+This module uses the **[omnia-auto](../plugins/)** package (installed from
+`test/plugins/dist/omnia_auto-1.0.0-py3-none-any.whl`) for all common test
+automation utilities.  The package provides:
 
 | Category | Functions used |
 |----------|---------------|
@@ -279,8 +279,7 @@ def test_prepare_phase():
 ```
 
 For the full `omnia-auto` API reference, see the package's
-[USAGE.md](https://github.com/balajikumaran-c-s/omnia-auto/blob/main/USAGE.md)
-and [docs/](https://github.com/balajikumaran-c-s/omnia-auto/tree/main/docs).
+[USAGE.md](../plugins/USAGE.md) and [docs/](../plugins/docs/).
 
 ---
 

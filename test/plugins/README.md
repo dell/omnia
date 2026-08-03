@@ -19,29 +19,23 @@ Provides formatting, host connectivity, Ansible playbook execution, file synchro
 
 ## Installation
 
+### From pre-built wheel (recommended for monorepo consumers)
+
+```bash
+# From the omnia repository root:
+pip install test/plugins/dist/omnia_auto-1.0.0-py3-none-any.whl
+```
+
 ### From PyPI
 
 ```bash
 pip install omnia-auto
 ```
 
-### From wheel (internal distribution)
-
-```bash
-pip install omnia_auto-1.0.0-py3-none-any.whl
-```
-
-### From Git
-
-```bash
-pip install git+https://github.com/balajikumaran-c-s/omnia-auto.git@v1.0.0
-```
-
 ### From source (editable / development)
 
 ```bash
-git clone https://github.com/balajikumaran-c-s/omnia-auto.git
-cd omnia-auto
+cd test/plugins/
 pip install -e ".[dev]"
 ```
 
@@ -132,15 +126,17 @@ python -m twine upload dist/*
 ## Project Structure
 
 ```
-omnia-auto/
+test/plugins/                       # Parent folder inside omnia monorepo
 ├── pyproject.toml                  # Package metadata and build config
 ├── MANIFEST.in                     # Source distribution manifest
-├── README.md                       # This file (shown on PyPI)
+├── README.md                       # This file
 ├── USAGE.md                        # Quick function reference
 ├── CHANGELOG.md                    # Version history
 ├── PUBLISHING.md                   # PyPI publishing guide
 ├── CONTRIBUTING.md                 # Coding standards, pylint, security rules
 ├── LICENSE                         # Apache 2.0
+├── dist/                           # Pre-built wheel for pip install
+│   └── omnia_auto-1.0.0-py3-none-any.whl
 ├── docs/                           # Detailed per-category usage guides
 │   ├── 01_configuration.md
 │   ├── 02_formatting.md
@@ -149,13 +145,14 @@ omnia-auto/
 │   ├── 05_runner.md
 │   ├── 06_report.md
 │   └── 07_full_example.md
-└── src/omnia_auto/
+└── omnia_auto/                     # Python package (import omnia_auto)
     ├── __init__.py                 # Public API exports + __version__
     ├── py.typed                    # PEP 561 type-checking marker
     ├── functions/
     │   ├── formatting_func.py      # Colors, Symbols, TestLogger, log()
     │   ├── host_func.py            # Config, credentials, testinfra, connection_params
-    │   ├── report_func.py          # TestReport (JSON + interactive HTML)
+    │   ├── report_func.py          # TestReport class and core logic
+    │   ├── report_html.py          # HTML/CSS report generation
     │   ├── runner_func.py          # run_playbook() with live streaming
     │   └── sync_func.py            # clone_repo(), sync_files()
     ├── vars/
