@@ -28,6 +28,43 @@
         base_image_packages: "{{ _fg_pkg_mapping.base_packages | default([]) }}"
         cacheable: true
 
+    # --- Functional group source resolution ---
+    - name: Auto-detect functional groups from repo_status
+      when: hostvars['localhost']['functional_groups_source'] | default('config') == 'repo_status'
+      block:
+        - name: Build functional_groups list from functional_group_packages.yml
+          ansible.builtin.set_fact:
+            _auto_fg_list: >-
+              {% set result = [] -%}
+              {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
+                {% if (fg_data.packages | default([]) | length) > 0 -%}
+                  {% set _ = result.append({'name': fg_name}) -%}
+                {% endif -%}
+              {% endfor -%}
+              {{ result }}
+
+        - name: Filter out aarch64 groups when no ARM host is configured
+          ansible.builtin.set_fact:
+            functional_groups: >-
+              {% set result = [] -%}
+              {% for fg in _auto_fg_list -%}
+                {% if fg.name.endswith('_aarch64') -%}
+                  {% if (hostvars['localhost']['aarch64_inventory_host_ip'] | default('') | length) > 0 -%}
+                    {% set _ = result.append(fg) -%}
+                  {% endif -%}
+                {% else -%}
+                  {% set _ = result.append(fg) -%}
+                {% endif -%}
+              {% endfor -%}
+              {{ result }}
+            cacheable: true
+
+        - name: Display auto-detected functional groups
+          ansible.builtin.debug:
+            msg: >-
+              Auto-detected {{ functional_groups | length }} functional groups from repo_status:
+              {{ functional_groups | map(attribute='name') | list | join(', ') }}
+
     - name: Build compute_images_dict from mapping + enabled functional_groups
       ansible.builtin.set_fact:
         compute_images_dict: >-
@@ -35,7 +72,7 @@
           {% for fg in functional_groups -%}
             {% set fg_name = fg.name if fg is mapping else fg -%}
             {% if fg_name.endswith('_' + build_arch) -%}
-              {% set pkgs = (_fg_pkg_mapping.functional_groups[fg_name].packages | default([])) -%}
+              {% set pkgs = _fg_pkg_mapping.functional_groups[fg_name].packages | default([]) -%}
               {% set _ = result.update({fg_name: {'functional_group': fg_name, 'packages': pkgs}}) -%}
             {% endif -%}
           {% endfor -%}
@@ -53,8 +90,11 @@
 
     - name: Debug package resolution
       ansible.builtin.debug:
-        msg: "Resolved {{ compute_images_dict | length }} functional groups, {{ base_image_packages | length }} base packages"
+        msg: >-
+          Resolved {{ compute_images_dict | length }} functional groups
+          (source={{ hostvars['localhost']['functional_groups_source'] | default('config') }}),
+          {{ base_image_packages | length }} base packages
         verbosity: 1
 
-- name: Fetch pulp endpoint repos
-  ansible.builtin.include_tasks: fetch_pulp_repos.yml
+- name: Fetch repo manager endpoint repos
+  ansible.builtin.include_tasks: fetch_repo_manager_repos.yml

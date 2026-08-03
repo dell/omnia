@@ -1,30 +1,29 @@
 ---
 name: Pylint
-
 'on':
   pull_request:
     branches:
       - main
       - staging
-      - release_1.7.1
-      - pub/build_stream
-      - pub/telemetry
-      - pub/q2_upgrade
-      - pub/q3_main
-
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.12"]
     env:
       PYLINT_THRESHOLD: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -36,45 +35,262 @@ jobs:
             httpx argon2-cffi pyyaml dependency-injector
 
       - name: Get changed Python files (excluding deleted)
+        if: github.event_name == 'pull_request'
         id: changed-files
         run: |
           git fetch origin ${{ github.base_ref }}
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD -- '*.py' || true)
-
           FILES=""
           for f in $CHANGED; do
             if [ -f "$f" ]; then
               FILES="$FILES $f"
             fi
           done
-
-          FILES=$(echo "$FILES" | xargs)  # Trim extra spaces
-
+          FILES=$(echo "$FILES" | tr '\n' ' ' | sed 's/^ *//;s/ *$//')
           echo "Filtered files: $FILES"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
-      - name: Run pylint on changed files
-        if: steps.changed-files.outputs.files != ''
+      - name: No Python files changed
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files == ''
         run: |
-          echo "Running pylint on:"
-          echo "${{ steps.changed-files.outputs.files }}"
+          echo "No Python files changed in this PR."
+          echo "Skipping pylint."
 
-          # Filter out files from the excluded directory
-          EXCL="^src/playbooks/discovery/roles/"
-          EXCL+="telemetry/files/nersc-ldms-aggr/"
+      - name: Run pylint on changed files (PR validation)
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        run: |
+          echo "Running pylint on changed files (per-file validation):"
+          echo "${{ steps.changed-files.outputs.files }}"
           FILES=$(echo \
             "${{ steps.changed-files.outputs.files }}" | \
             tr ' ' '\n' | \
-            grep -v "$EXCL" | xargs)
-
+            grep -v 'telemetry/files/nersc-ldms-aggr/' | \
+            grep -v '__init__\.py$' | \
+            tr '\n' ' ' | sed 's/^ *//;s/ *$//')
           if [ -n "$FILES" ]; then
-            # Set PYTHONPATH to include build_stream directory
-            # for proper import resolution
-            # This allows pylint to resolve both relative imports
-            # in build_stream and regular imports elsewhere
-            PYTHONPATH=.:./src/build_stream pylint $FILES \
-              --fail-under=${PYLINT_THRESHOLD}
+            FAILED=0
+            FAILED_FILES=""
+            for file in $FILES; do
+              echo "Checking $file"
+              OUTPUT=$(
+                PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
+              )
+              SCORE=$(
+                echo "$OUTPUT" |
+                grep -oE 'rated at [0-9.-]+/10' |
+                awk '{print $3}' |
+                cut -d/ -f1
+              )
+              SCORE=${SCORE:-0}
+              echo "$file -> $SCORE"
+              if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
+                'BEGIN { exit !(score < threshold) }'
+              then
+                echo "::error::$file scored $SCORE (< $PYLINT_THRESHOLD)"
+                FAILED=1
+                FAILED_FILES="$FAILED_FILES\n  - $file (score: $SCORE)"
+              fi
+            done
+            echo ""
+            echo "==========================================="
+            echo "           PYLINT SUMMARY"
+            echo "==========================================="
+            if [ "$FAILED" -eq 1 ]; then
+              echo "Files below threshold ($PYLINT_THRESHOLD):"
+              echo -e "$FAILED_FILES"
+              echo "==========================================="
+              exit 1
+            else
+              echo "All files passed (>= $PYLINT_THRESHOLD). No issues found."
+              echo "==========================================="
+            fi
           else
             echo "No files to lint after filtering."
           fi
+
+      - name: Run pylint full repository scan (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Running pylint on all Python files in repository (domain-wise)"
+
+          DOMAINS=(
+            src/repo_manager
+            src/image_build_manager
+            src/discovery
+            src/orchestrator
+            src/telemetry
+            src/utils
+            src/build_stream
+            src/main
+            test/repo_manager
+            test/image_build_manager
+            test/discovery
+            test/orchestrator
+            test/telemetry
+            test/utils
+            test/build_stream
+            test/main
+          )
+
+          > pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+          echo "  Pylint Score Report - Full Repository Scan (Domain-Wise)" >> pylint-report.txt
+          echo "  Generated: $(date)" >> pylint-report.txt
+          echo "  Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+          echo "" >> pylint-report.txt
+
+          TOTAL_PASS=0
+          TOTAL_FAIL=0
+          TOTAL_FILES=0
+          DOMAIN_SUMMARY=""
+
+          for domain in "${DOMAINS[@]}"; do
+            echo ""
+            echo "=========================================="
+            echo "Scanning domain: $domain"
+            echo "=========================================="
+
+            if [ ! -d "$domain" ]; then
+              echo "WARNING: Directory $domain not found, skipping."
+              echo "[$domain] SKIPPED — directory not found" >> pylint-report.txt
+              echo "" >> pylint-report.txt
+              DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|0|0|0|N/A\n"
+              continue
+            fi
+
+            FILES=$(find "$domain" \
+              -type f \
+              -name "*.py" \
+              -not -path "*/.git/*" \
+              -not -path "*/.venv/*" \
+              -not -path "*/venv/*" \
+              -not -name "__init__.py" | \
+              grep -v 'telemetry/files/nersc-ldms-aggr/' || true)
+
+            FILE_COUNT=$(echo "$FILES" | grep -c '.' 2>/dev/null || echo 0)
+
+            if [ -z "$FILES" ] || [ "$FILE_COUNT" -eq 0 ]; then
+              echo "No Python files found in $domain"
+              echo "--------------------------------------------" >> pylint-report.txt
+              echo "DOMAIN: $domain" >> pylint-report.txt
+              echo "  No Python files found" >> pylint-report.txt
+              echo "" >> pylint-report.txt
+              DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|0|0|0|N/A\n"
+              continue
+            fi
+
+            DOMAIN_PASS=0
+            DOMAIN_FAIL=0
+            DOMAIN_FAILED_FILES=""
+
+            echo "--------------------------------------------" >> pylint-report.txt
+            echo "DOMAIN: $domain ($FILE_COUNT files)" >> pylint-report.txt
+            echo "--------------------------------------------" >> pylint-report.txt
+
+            for file in $FILES; do
+              OUTPUT=$(
+                PYTHONPATH=.:./src/build_stream pylint "$file" 2>/dev/null || true
+              )
+              SCORE=$(
+                echo "$OUTPUT" |
+                grep -oE 'rated at [0-9.-]+/10' |
+                awk '{print $3}' |
+                cut -d/ -f1
+              )
+              SCORE=${SCORE:-0}
+
+              if awk -v score="$SCORE" -v threshold="$PYLINT_THRESHOLD" \
+                'BEGIN { exit !(score >= threshold) }'
+              then
+                STATUS="PASS"
+                DOMAIN_PASS=$((DOMAIN_PASS + 1))
+              else
+                STATUS="FAIL"
+                DOMAIN_FAIL=$((DOMAIN_FAIL + 1))
+                DOMAIN_FAILED_FILES="$DOMAIN_FAILED_FILES\n    - $file (score: $SCORE)"
+              fi
+
+              echo "  $file -> $SCORE [$STATUS]" | tee -a pylint-report.txt
+            done
+
+            DOMAIN_TOTAL=$((DOMAIN_PASS + DOMAIN_FAIL))
+            if [ "$DOMAIN_TOTAL" -gt 0 ]; then
+              DOMAIN_RATE=$(awk -v p="$DOMAIN_PASS" -v t="$DOMAIN_TOTAL" \
+                'BEGIN { printf "%.1f", (p/t)*100 }')
+            else
+              DOMAIN_RATE="N/A"
+            fi
+
+            echo "" >> pylint-report.txt
+            echo "  Summary: PASS=$DOMAIN_PASS  FAIL=$DOMAIN_FAIL  Total=$DOMAIN_TOTAL  Pass Rate=${DOMAIN_RATE}%" >> pylint-report.txt
+            if [ "$DOMAIN_FAIL" -gt 0 ]; then
+              echo "  Failed files:" >> pylint-report.txt
+              echo -e "$DOMAIN_FAILED_FILES" >> pylint-report.txt
+            fi
+            echo "" >> pylint-report.txt
+
+            TOTAL_PASS=$((TOTAL_PASS + DOMAIN_PASS))
+            TOTAL_FAIL=$((TOTAL_FAIL + DOMAIN_FAIL))
+            TOTAL_FILES=$((TOTAL_FILES + DOMAIN_TOTAL))
+
+            DOMAIN_SUMMARY="${DOMAIN_SUMMARY}${domain}|${DOMAIN_PASS}|${DOMAIN_FAIL}|${DOMAIN_TOTAL}|${DOMAIN_RATE}%\n"
+          done
+
+          echo "============================================================" >> pylint-report.txt
+          echo "  DOMAIN SUMMARY" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+          printf "  %-30s %6s %6s %6s %10s\n" \
+            "Domain" "Pass" "Fail" "Total" "Pass Rate" >> pylint-report.txt
+          echo "  ------------------------------------------------------------" >> pylint-report.txt
+
+          echo -e "$DOMAIN_SUMMARY" | while IFS='|' read -r dname dpass dfail dtotal drate; do
+            if [ -n "$dname" ]; then
+              printf "  %-30s %6s %6s %6s %10s\n" \
+                "$dname" "$dpass" "$dfail" "$dtotal" "$drate" >> pylint-report.txt
+            fi
+          done
+
+          echo "  ------------------------------------------------------------" >> pylint-report.txt
+
+          if [ "$TOTAL_FILES" -gt 0 ]; then
+            OVERALL_RATE=$(awk -v p="$TOTAL_PASS" -v t="$TOTAL_FILES" \
+              'BEGIN { printf "%.1f", (p/t)*100 }')
+          else
+            OVERALL_RATE="N/A"
+          fi
+
+          printf "  %-30s %6s %6s %6s %10s\n" \
+            "TOTAL" "$TOTAL_PASS" "$TOTAL_FAIL" "$TOTAL_FILES" "${OVERALL_RATE}%" >> pylint-report.txt
+
+          echo "============================================================" >> pylint-report.txt
+          echo "  Threshold: $PYLINT_THRESHOLD" >> pylint-report.txt
+          echo "============================================================" >> pylint-report.txt
+
+          echo ""
+          echo "==========================================="
+          echo "           PYLINT SUMMARY"
+          echo "==========================================="
+          echo "  PASS:  $TOTAL_PASS"
+          echo "  FAIL:  $TOTAL_FAIL"
+          echo "  TOTAL: $TOTAL_FILES"
+          echo "  Rate:  ${OVERALL_RATE}%"
+          if [ "$TOTAL_FAIL" -gt 0 ]; then
+            echo ""
+            echo "  $TOTAL_FAIL files scored below threshold $PYLINT_THRESHOLD"
+            echo "==========================================="
+            echo "::error::$TOTAL_FAIL files across all domains scored below threshold $PYLINT_THRESHOLD"
+            exit 1
+          else
+            echo ""
+            echo "  All files passed (>= $PYLINT_THRESHOLD). No issues found."
+            echo "==========================================="
+          fi
+
+      - name: Upload pylint report
+        if: github.event_name == 'workflow_dispatch' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pylint-report
+          path: pylint-report.txt

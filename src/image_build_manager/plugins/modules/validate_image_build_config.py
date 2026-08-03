@@ -41,6 +41,74 @@ from ansible.module_utils.image_build_validation.image_build_validation_flow imp
     validate_credentials_logic,
 )
 
+DOCUMENTATION = r'''
+---
+module: validate_image_build_config
+short_description: Validate image build configuration files
+version_added: "3.0.0"
+description:
+  - Performs L1 (JSON schema) validation on image_build_config.yml and
+    image_build_credentials.yml.
+  - Performs L2 (cross-field logic) validation on config values.
+  - Skips Ansible Vault encrypted files automatically.
+  - Returns structured validation results with error details and log path.
+options:
+  input_project_dir:
+    description: Path to the project input directory containing config files.
+    required: true
+    type: str
+  schema_dir:
+    description: Path to the directory containing JSON schema files.
+    required: true
+    type: str
+  log_dir:
+    description: Override default log directory for validation logs.
+    required: false
+    type: str
+    default: ""
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Validate image build configuration
+  omnia.image_build.validate_image_build_config:
+    input_project_dir: /opt/omnia/image_build_manager/input/project_default
+    schema_dir: "{{ role_path }}/../../../plugins/module_utils/image_build_validation/schema"
+  register: validation
+
+- name: Fail if validation errors found
+  ansible.builtin.fail:
+    msg: "{{ validation.errors | join('; ') }}"
+  when: validation.validation_failed
+'''
+
+RETURN = r'''
+validation_failed:
+  description: Whether any validation errors were found.
+  returned: always
+  type: bool
+errors:
+  description: List of validation error messages.
+  returned: always
+  type: list
+  elements: str
+valid_files:
+  description: List of files that passed validation.
+  returned: always
+  type: list
+  elements: str
+invalid_files:
+  description: List of files that failed validation.
+  returned: always
+  type: list
+  elements: str
+log_file:
+  description: Path to the validation log file.
+  returned: always
+  type: str
+'''
+
 
 VALIDATION_LOG_PATH = "/opt/omnia/image_build_manager/log/"  # Default — overridden by log_dir param
 

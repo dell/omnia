@@ -17,9 +17,21 @@
 rhel_x86_64_base_image_name: "rhel-x86_64_base"
 rhel_aarch64_base_image_name: "rhel-aarch64_base"
 
+# --- image-builder base commands (Python image-build binary) ---
 base_image_commands:
   - "dracut --add 'dmsquash-live livenet network-manager' --install '/usr/lib/systemd/systemd-sysroot-fstab-check' --kver $(basename /lib/modules/*) -N -f --logfile /tmp/dracut.log 2>/dev/null"   # noqa: yaml[line-length]
   - "echo DRACUT LOG:; cat /tmp/dracut.log"
+
+# --- image-thrillhouse base commands (Go image-thrillhouse binary) ---
+# Thrillhouse needs additional steps: vmlinuz copy, dracut-lib.sh glob fix,
+# overlay driver inclusion, and systemctl default target.
+thrillhouse_base_image_commands:
+  - "KVER=$(basename /lib/modules/*); if [ -f /lib/modules/$KVER/vmlinuz ] && [ ! -f /boot/vmlinuz-$KVER ]; then cp /lib/modules/$KVER/vmlinuz /boot/vmlinuz-$KVER; fi"   # noqa: yaml[line-length]
+  - "DLIB=$(rpm -ql dracut | grep 'dracut-lib.sh$' | head -1) && sed -i 's|ld-\\*\\.so|ld*.so*|g' \"$DLIB\""   # noqa: yaml[line-length]
+  - "DLIB=$(rpm -ql dracut | grep 'dracut-lib.sh$' | head -1) && grep 'ld\\*\\.so\\*' \"$DLIB\""   # noqa: yaml[line-length]
+  - "dracut --add 'dmsquash-live livenet network-manager' --add-drivers 'overlay' --install '/usr/lib/systemd/systemd-sysroot-fstab-check' --kver $(basename /lib/modules/*) -N -f --logfile /tmp/dracut.log 2>/dev/null"   # noqa: yaml[line-length]
+  - "echo DRACUT LOG:; cat /tmp/dracut.log"
+  - "systemctl set-default multi-user.target"
 
 #  x86_64 compute commands
 os_x86_64_compute_commands:

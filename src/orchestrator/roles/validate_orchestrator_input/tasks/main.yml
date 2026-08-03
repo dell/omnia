@@ -61,7 +61,7 @@
 
 # Run the validate_orchestrator_config module (L1 + L2)
 - name: Run orchestrator configuration validation
-  validate_orchestrator_config:
+  omnia.orchestrator.validate_orchestrator_config:
     input_project_dir: "{{ input_dir }}"
     schema_dir: "{{ orchestrator_schema_dir }}"
   register: orchestrator_validation_result

@@ -123,6 +123,9 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
                 node_list = json.load(fh)
             split = ldmsd_conf.get("agg_count", 1)
             midpoint = len(node_list) // split
+            # Handle case where midpoint is 0 (empty or single-node list)
+            if midpoint == 0:
+                midpoint = 1
             for index, sub_list in enumerate(self.split_list(node_list, midpoint)):
                 sub_host_map_file = host_map_file.replace(".json", f"-{index}.json")
                 with open(sub_host_map_file, 'w', encoding='utf-8') as fh:

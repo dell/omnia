@@ -1,8 +1,8 @@
-# Omnia Domain Repository — Generic Design & Coding Standard
+# Omnia Domain Collection — Design & Coding Standard
 
 **Version**: 1.0
-**Audience**: All Omnia domain developers (image_build_manager, repo_manager, provision, telemetry, etc.)
-**Purpose**: Standard repository structure, coding rules, and conventions that every Omnia domain repository MUST follow.
+**Audience**: All Omnia domain developers (image_build_manager, repo_manager, discovery, orchestrator, telemetry, etc.)
+**Purpose**: Standard Ansible Galaxy collection structure, coding rules, and conventions that every Omnia domain MUST follow.
 
 ---
 
@@ -42,64 +42,128 @@ No container runtime is required for the playbook itself (Podman is used only fo
 
 ## 2. Repository Structure
 
-Every domain repository MUST follow this layout:
+Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 
 ```
-<domain-name>/
-├── config.yml.sample              # Sample config — users copy to config.yml
-├── requirements.txt               # Python deps: ansible-core>=2.20, jmespath, etc.
-├── requirements.yml               # Ansible Galaxy collections
-├── README.md                      # Quick start, prerequisites, usage
+<domain_name>/                        # e.g. image_build_manager
+├── galaxy.yml                        # Collection metadata + version + dependencies
+├── meta/runtime.yml                  # Ansible version compatibility
+├── requirements.txt                  # Python deps: ansible-core>=2.20, jmespath, etc.
+├── requirements.yml                  # Ansible Galaxy collections
+├── README.md                         # Quick start, prerequisites, usage
+├── copy-input.sh                     # Input staging script (called by omnia.sh)
+├── ansible.cfg                       # Ansible configuration
 ├── .gitignore
-├── .github/
-│   └── workflows/ci.yml          # CI pipeline (lint, test)
-├── docs/                          # Domain-specific documentation
-│   ├── design/                    # Architecture and design documents
-│   ├── code-style/                # Code style guides (ansible, python, jinja2, etc.)
-│   └── contracts/                 # Input/output contracts
-├── test/                          # Unit + integration tests
-└── src/                           # All Ansible code
-    ├── ansible.cfg                # Ansible configuration
-    ├── <domain_name>.yml          # Entry point playbook — ONLY role/playbook imports
-    ├── roles/                     # One role per responsibility
-    │   └── <role_name>/
-    │       ├── tasks/main.yml     # Entry point
-    │       ├── vars/main.yml      # ALL error messages, constants
-    │       ├── defaults/main.yml  # User-overridable defaults (rare)
-    │       ├── templates/         # Jinja2 templates
-    │       ├── files/             # Static files
-    │       └── handlers/main.yml  # Handlers
-    ├── playbooks/                 # Sub-playbooks per flow
-    ├── library/                   # Custom Ansible modules (Python)
-    ├── module_utils/              # Shared Python module utilities
-    ├── callback_plugins/          # Output callback plugins
-    ├── vars/                      # Shared cross-role variables
-    └── input/                     # Project input files
-        └── <project_name>/        # Per-project input directory
+├── docs/                             # Domain-specific documentation
+│   ├── design/                       # Architecture and design documents
+│   ├── code-style/                   # Code style guides (ansible, python, jinja2, etc.)
+│   └── contracts/                    # Input/output contracts
+├── test/                             # Unit + integration tests
+├── plugins/                          # Ansible Galaxy standard plugin directory
+│   ├── modules/                      # Custom modules (FQCN: omnia.<collection>.<module>)
+│   ├── module_utils/                 # Shared Python utilities for modules
+│   └── callback/                     # Callback plugins
+├── playbooks/                        # Entry point + sub-playbooks
+│   └── <domain_name>.yml             # Entry point — ONLY role/playbook imports
+├── roles/                            # One role per responsibility
+│   └── <role_name>/
+│       ├── tasks/main.yml            # Entry point
+│       ├── vars/main.yml             # ALL error messages, constants
+│       ├── defaults/main.yml         # User-overridable defaults (rare)
+│       ├── templates/                # Jinja2 templates
+│       ├── files/                    # Static files
+│       └── handlers/main.yml         # Handlers
+├── vars/                             # Shared cross-role variables
+├── containers/                       # Container build files (if applicable)
+├── samples/                          # Sample files for upstream contracts
+└── input/                            # Project input files
+    └── <project_name>/               # Per-project input directory
+        └── <domain>_config.yml       # Domain config
 ```
 
 ### Key Rules
 
-- **`src/<domain>.yml`** is the ONLY entry point. It MUST contain only `roles:` and `import_playbook:` — no inline `tasks:`.
-- **No output or log directories under `src/`** — all runtime output goes to `<shared_path>/`.
-- Every file MUST start with the Dell Apache 2.0 copyright header.
+- **`playbooks/<domain>.yml`** is the ONLY entry point. It MUST contain only `roles:` and `import_playbook:` — no inline `tasks:`.
+- **`plugins/`** follows the Ansible Galaxy standard — modules, module_utils, and callback plugins.
+- **No output or log directories in the domain tree** — all runtime output goes to `<shared_path>/`.
+- Every source file MUST start with the Dell Apache 2.0 copyright header.
+- **`copy-input.sh`** stages input files from `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
 
 ---
 
 ## 3. Configuration Design
 
-### `config.yml` (Repo Root)
+### System-Wide Configuration (`/etc/omnia/omnia.env`)
 
-Every domain has a `config.yml` at the repo root with this structure:
+System-wide configuration is installed by `omnia.sh --setup-venv` and sourced by all domains:
+
+```bash
+# /etc/omnia/omnia.env
+SYSTEM_HOSTNAME="oim"
+SYSTEM_DOMAIN_NAME="omnia.cluster"
+SYSTEM_ADMIN_NIC_IPV4="172.16.107.254"
+OMNIA_DATA_PATH="/opt/omnia"
+```
+
+### Domain-Specific Configuration (`input/<project>/<domain>_config.yml`)
+
+Each domain has its own configuration file under the project input directory:
+
+```
+input/
+└── project_default/
+    └── <domain>_config.yml           # Domain-specific configuration
+```
+
+
+### Reading Configuration in Playbooks
+
+Playbooks read configuration via:
+
+1. **System env vars** (via `lookup('env', ...)`):
+   ```yaml
+   - name: Load system configuration
+     ansible.builtin.set_fact:
+       system_hostname: "{{ lookup('env', 'SYSTEM_HOSTNAME') }}"
+       system_domain: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') }}"
+       system_admin_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') }}"
+       omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') }}"
+   ```
+
+2. **Domain config file** (via `include_vars`):
+   ```yaml
+   - name: Load domain configuration
+     ansible.builtin.include_vars:
+       file: "{{ input_project_dir }}/<domain>_config.yml"
+       name: domain_config
+   ```
+
+### Environment Validation Module
+
+All domains MUST use the `validate_omnia_env` module to validate system environment variables before proceeding. This module:
+
+- Checks that all required env vars are set (`SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`, `SYSTEM_ADMIN_NIC_IPV4`, `OMNIA_DATA_PATH`)
+- Validates `SYSTEM_HOSTNAME` format (alphanumeric + hyphens, no dots)
+- Validates `SYSTEM_ADMIN_NIC_IPV4` as a valid IPv4 address
+- Validates `OMNIA_DATA_PATH` as an absolute path
+- Returns detailed error messages if validation fails
+
+**Usage in setup role**:
 
 ```yaml
-project_name: "project_default"
+- name: Validate system environment
+  validate_omnia_env:
+    required_vars:
+      - SYSTEM_HOSTNAME
+      - SYSTEM_ADMIN_NIC_IPV4
+      - OMNIA_DATA_PATH
+      - SYSTEM_DOMAIN_NAME
+  register: env_validation
 
-host:
-  hostname: "oim"                  # Short hostname (NOT FQDN), alphanumeric + hyphens
-  shared_path: "/opt/omnia/<domain_name>"  # Absolute path — persistent storage
-  domain_name: "omnia.cluster"     # Domain suffix
-  admin_nic_ip: "172.16.107.254"  # Admin NIC IPv4 address
+- name: Fail if environment validation fails
+  ansible.builtin.fail:
+    msg: "{{ env_validation.errors | join('\n') }}"
+  when: env_validation.failed | default(false)
 ```
 
 ### Validation Rules
@@ -107,28 +171,28 @@ host:
 | Field | Rule |
 |-------|------|
 | `project_name` | Non-empty string |
-| `host.hostname` | Regex: `^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$` |
-| `host.admin_nic_ip` | Valid IPv4 (use `ansible.utils.ipv4` filter) |
-| `host.shared_path` | Absolute path starting with `/` |
-| `host.domain_name` | Non-empty string |
+| `SYSTEM_HOSTNAME` | Regex: `^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$` |
+| `SYSTEM_ADMIN_NIC_IPV4` | Valid IPv4 (use `ansible.utils.ipv4` filter) |
+| `OMNIA_DATA_PATH` | Absolute path starting with `/` |
+| `SYSTEM_DOMAIN_NAME` | Non-empty string |
 
 ### Derived Paths
 
-From `config.yml`, the setup role derives:
+From system env vars and domain config, the setup role derives:
 
 | Variable | Value |
 |----------|-------|
-| `input_project_dir` | `{{ playbook_dir }}/input/{{ project_name }}` |
-| `output_project_dir` | `{{ shared_path }}/output/{{ project_name }}` |
-| `log_dir` | `{{ shared_path }}/log/{{ project_name }}` |
-| `shared_path` | `{{ config.host.shared_path }}` |
-| `host_name` | `{{ config.host.hostname }}` |
+| `input_project_dir` | `{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}` |
+| `output_project_dir` | `{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}` |
+| `log_dir` | `{{ omnia_data_path }}/{{ domain_name }}/log/{{ project_name }}` |
+| `shared_path` | `{{ omnia_data_path }}/{{ domain_name }}` |
+| `host_name` | `{{ lookup('env', 'SYSTEM_HOSTNAME') }}` |
 
 ---
 
 ## 4. Entry Point Playbook Rules
 
-The main playbook (`src/<domain>.yml`) orchestrates the domain workflow.
+The main playbook (`playbooks/<domain>.yml`) orchestrates the domain workflow.
 
 ### Structure
 
@@ -136,11 +200,15 @@ The main playbook (`src/<domain>.yml`) orchestrates the domain workflow.
 ---
 # <domain_name>.yml — Entry point for <domain_name> domain.
 #
-# Tags:
-#   validate  — Validate configuration only
+# Tags (common across all domains):
+#   precheck  — Environment + connectivity precheck (no credentials)
+#   validate  — Validate configuration only (no credentials)
 #   prepare   — Deploy infrastructure
-#   build     — Execute main workflow
+#   execute   — Main domain workflow (alias for domain-specific action)
+#   build     — Execute main workflow (domain-specific)
 #   cleanup   — Remove everything
+#   upgrade   — Upgrade flow (placeholder)
+#   rollback  — Rollback flow (placeholder)
 #
 # Steps:
 #   Step 0: Setup — load config, validate host, check prereqs
@@ -177,7 +245,9 @@ The main playbook (`src/<domain>.yml`) orchestrates the domain workflow.
 # Flow: build/execute
 - name: Execute main workflow
   ansible.builtin.import_playbook: playbooks/execute.yml
-  tags: build
+  tags:
+    - build
+    - execute
 ```
 
 ### Rules
@@ -191,7 +261,7 @@ The main playbook (`src/<domain>.yml`) orchestrates the domain workflow.
 
 ## 5. Sub-Playbook Rules
 
-Sub-playbooks live in `src/playbooks/` and handle specific flows.
+Sub-playbooks live in `playbooks/` and handle specific flows.
 
 ### Naming
 
@@ -234,6 +304,9 @@ Every domain MUST have a setup role that runs first (tag: `always`). It handles:
 4. **ALL error messages in `vars/main.yml`** — never inline in tasks.
 5. Private variables prefixed with `_` (e.g., `_prereq_checks`).
 6. Each role is self-contained — no cross-role variable leaking.
+7. **Every role MUST have `README.md`** — description, requirements, variables, dependencies, example.
+8. **Every role MUST have `meta/main.yml`** — Galaxy metadata (author, description, license, min_ansible_version).
+9. Galaxy import **fails** if any role is missing `README.md` or `meta/main.yml`.
 
 ---
 
@@ -338,9 +411,9 @@ loop_control:
 | Pattern | Purpose | Example |
 |---------|---------|---------|
 | `*_dir` | Directory path | `input_project_dir` |
-| `*_path` | File or directory path | `pulp_cert_host_path` |
+| `*_path` | File or directory path | `repo_cert_path` |
 | `*_file` | Stat register for a file | `_config_file` |
-| `*_check` | Validation register | `_pulp_cert_check` |
+| `*_check` | Validation register | `_cert_check` |
 | `_*` (underscore prefix) | Private/internal variable | `_prereq_checks` |
 
 ### Message naming
@@ -400,7 +473,7 @@ loop_control:
 | Path | Purpose |
 |------|---------|
 | `/opt/omnia/repo_manager/output/<project_name>/` | repo_manager contract output |
-| `/opt/omnia/pulp/settings/certs/` | Pulp TLS certificates |
+| `/opt/omnia/repo_manager/output/<project>/certs/` | Repo manager TLS certificates |
 
 ### Rules
 
@@ -501,6 +574,8 @@ outputs:
 
 ### Module Structure
 
+Every module under `plugins/modules/*.py` MUST include `DOCUMENTATION`, `EXAMPLES`, and `RETURN` blocks for Galaxy import compliance:
+
 ```python
 #!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
@@ -509,6 +584,36 @@ outputs:
 """Module docstring describing purpose."""
 
 from ansible.module_utils.basic import AnsibleModule
+
+DOCUMENTATION = r'''
+---
+module: my_module
+short_description: One-line summary
+version_added: "3.0.0"
+description:
+  - Detailed description of what the module does.
+options:
+  param1:
+    description: What this parameter controls.
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Example usage
+  omnia.image_build.my_module:
+    param1: value
+  register: result
+'''
+
+RETURN = r'''
+result:
+  description: Operation result.
+  returned: always
+  type: str
+'''
 
 
 def main():
@@ -526,6 +631,8 @@ def main():
 if __name__ == '__main__':
     main()
 ```
+
+> **Galaxy import fails** if any module is missing `DOCUMENTATION`, `EXAMPLES`, or `RETURN`. Validate with: `ansible-doc omnia.<collection>.<module>`
 
 ### Naming
 
@@ -765,3 +872,276 @@ Before submitting a PR, verify:
 - [ ] Copyright header on all source files
 - [ ] `ansible-lint` passes with no errors
 - [ ] Python modules pass `pylint` with score ≥ 8.0
+- [ ] All `plugins/modules/*.py` have `DOCUMENTATION`, `EXAMPLES`, `RETURN` blocks
+- [ ] All `roles/*/README.md` files exist
+- [ ] All `roles/*/meta/main.yml` files exist
+- [ ] `galaxy.yml` tags use `snake_case` (no hyphens)
+- [ ] `ansible-doc` renders correctly for every custom module
+
+---
+
+## 17. Common Tags
+
+All domain playbooks MUST support these common tags for consistent UX across domains:
+
+| Tag | Description | Credentials |
+|-----|-------------|-------------|
+| `precheck` | Environment precheck (env vars set, connectivity, system state) | No |
+| `validate` | Schema + logic validation of input configuration | No |
+| `prepare` | Deploy prerequisites (containers, services, infrastructure) | Yes |
+| `execute` | Main domain workflow (alias for domain-specific action) | Yes |
+| `build` | Domain-specific main build/execution phase | Yes |
+| `cleanup` | Stop services, remove artifacts, credentials | No |
+| `upgrade` | Upgrade flow (placeholder — future release) | No |
+| `rollback` | Rollback flow (placeholder — future release) | No |
+
+### Rules
+
+1. **`precheck` and `validate` MUST skip credential collection.** These are safe to run before creds exist.
+2. **`execute` MUST be an alias for the domain’s primary action tag.** For `image_build_manager`, `execute` = `build`.
+3. **Tag validation** in the setup role MUST reject unknown tags and invalid combinations.
+4. **Domain-specific sub-tags** are allowed (e.g., `x86_64`, `aarch64`, `deploy`, `download`) but the common set above is mandatory.
+5. **Invalid combinations** MUST be defined in `vars/main.yml` under `invalid_tag_combinations` and enforced by `validate_tags.yml`.
+
+---
+
+## 18. Common Modules
+
+These Python modules are designed to be **reusable across all domains**. Each domain SHOULD copy or symlink them into its `plugins/modules/` directory.
+
+### `validate_system_environment.py`
+
+**Purpose**: Validate that required Omnia environment variables are set and consistent with the actual system.
+
+**Checks performed**:
+- All required env vars are non-empty (`SYSTEM_ADMIN_NIC_IPV4`, `SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`, `OMNIA_DATA_PATH`)
+- `SYSTEM_HOSTNAME` matches the OS hostname
+- `SYSTEM_ADMIN_NIC_IPV4` exists on a local network interface
+- `OMNIA_DATA_PATH` directory exists or its parent is available
+
+**Usage in a playbook**:
+
+```yaml
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - SYSTEM_HOSTNAME
+      - OMNIA_DATA_PATH
+    validate_hostname: true
+    validate_ip: true
+    validate_paths: true
+  register: env_check
+```
+
+**When to use**: In the setup role’s `precheck` flow, or at the start of any domain’s setup role.
+
+### `image_build_orchestrator.py`
+
+**Purpose**: Run parallel image builds with configurable concurrency control.
+
+**Key features**:
+- Configurable `max_parallel` (0 = unlimited, all at once)
+- Per-build status tracking (queued → running → completed/failed)
+- Structured results with duration and log paths
+- Per-build timeout support
+
+**Usage in a playbook**:
+
+```yaml
+- name: Build images in parallel
+  image_build_orchestrator:
+    build_commands: "{{ build_cmd_list }}"
+    max_parallel: "{{ build_image_max_parallel | default(0) }}"
+    timeout: "{{ build_image_job_async | default(7200) }}"
+  register: build_results
+```
+
+### Adoption Checklist
+
+When adding a common module to a new domain:
+
+1. Copy the `.py` file to `<domain>/plugins/modules/`
+2. Add a playbook task that calls the module in the setup role
+3. Verify the module works with the domain’s venv (`pip install` any deps)
+4. Add tests for the module in the domain’s test suite
+
+---
+
+## 19. Ansible Galaxy Collections Migration
+
+Each domain is structured as an **Ansible Galaxy collection** for packaging, distribution, and versioning.
+
+### Collection Namespace
+
+| Namespace | Domain | Collection Name |
+|-----------|--------|-----------------|
+| `omnia` | image_build_manager | `omnia.image_build` |
+| `omnia` | repo_manager | `omnia.repo_manager` |
+| `omnia` | discovery | `omnia.discovery` |
+| `omnia` | orchestrator | `omnia.orchestrator` |
+| `omnia` | telemetry | `omnia.telemetry` |
+
+### Collection Structure
+
+Every domain MUST include these Galaxy-standard directories:
+
+```
+<domain>/
+├── galaxy.yml                    # Collection metadata
+├── meta/runtime.yml              # Ansible version compatibility
+├── plugins/
+│   ├── modules/                  # FQCN: omnia.<collection>.<module>
+│   ├── module_utils/             # Shared Python utilities
+│   └── callback/                 # Callback plugins
+├── roles/                        # Ansible roles
+├── playbooks/                    # Entry point + sub-playbooks
+├── requirements.txt              # Python dependencies
+└── requirements.yml              # Galaxy collection dependencies
+```
+
+### Module Referencing
+
+All custom modules MUST be referenced by FQCN:
+
+```yaml
+# Correct — uses FQCN
+- name: Validate config
+  omnia.image_build.validate_image_build_config:
+    input_project_dir: "{{ input_project_dir }}"
+
+# Wrong — short name (breaks when installed as Galaxy collection)
+- name: Validate config
+  validate_image_build_config:
+    input_project_dir: "{{ input_project_dir }}"
+```
+
+### Inter-Domain Dependencies
+
+Domains consume each other’s **output contracts** (YAML files), never import code directly.
+
+```
+repo_manager ─── repo_status.yml ───▶ image_build_manager
+image_build_manager ─── build_status.yml ───▶ orchestrator
+```
+
+Dependencies are declared in `requirements.yml` for Galaxy resolution but are not hard-linked at the code level.
+
+---
+
+## 20. Ansible Galaxy Import Compliance
+
+Every domain collection MUST pass Galaxy import validation before publishing. The following rules are **mandatory**.
+
+### 20.1 Module Documentation Blocks
+
+Every Python module under `plugins/modules/*.py` MUST contain three documentation string constants:
+
+```python
+DOCUMENTATION = r'''
+---
+module: <module_name>
+short_description: One-line summary
+version_added: "3.0.0"
+description:
+  - Detailed description of what the module does.
+options:
+  param_name:
+    description: What this parameter controls.
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Example usage
+  omnia.image_build.<module_name>:
+    param_name: value
+  register: result
+'''
+
+RETURN = r'''
+return_value:
+  description: What this return value contains.
+  returned: always
+  type: str
+'''
+```
+
+**Rules**:
+- All three blocks (`DOCUMENTATION`, `EXAMPLES`, `RETURN`) are **required** — Galaxy import fails without them.
+- `EXAMPLES` MUST use FQCN (`omnia.<collection>.<module>`) in task names.
+- `RETURN` MUST document every key returned by `module.exit_json()`.
+- Place doc blocks after imports, before the first function definition.
+- Validate locally with `ansible-doc omnia.<collection>.<module>` before publishing.
+
+### 20.2 Role README and Metadata
+
+Every role under `roles/<role_name>/` MUST contain:
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `README.md` | Role description, requirements, variables, example, dependencies | **Yes** |
+| `meta/main.yml` | Galaxy metadata (author, description, license, min_ansible_version) | **Yes** |
+
+**README.md minimum content**:
+```markdown
+# <role_name>
+
+<One-paragraph description>
+
+## Requirements
+
+<List of prerequisites>
+
+## Role Variables
+
+<Key variables or reference to defaults/vars>
+
+## Dependencies
+
+<List of dependent roles or "None">
+
+## Example
+
+```yaml
+- hosts: localhost
+  roles:
+    - <role_name>
+```
+```
+
+**meta/main.yml minimum content**:
+```yaml
+---
+galaxy_info:
+  author: Dell Omnia Team
+  description: <role description>
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+
+dependencies: []
+```
+
+### 20.3 galaxy.yml Tag Rules
+
+- Tags MUST use `snake_case` — **no hyphens** (e.g., `image_build` not `image-build`).
+- Tags MUST be lowercase alphanumeric with underscores only.
+- Galaxy rejects tags with hyphens, spaces, or special characters.
+
+### 20.4 Pre-Publish Validation Checklist
+
+Before running `ansible-galaxy collection build && ansible-galaxy collection publish`:
+
+```text
+[ ] galaxy.yml exists with valid namespace, name, version
+[ ] version incremented from previous publish
+[ ] tags use snake_case (no hyphens)
+[ ] plugins/modules/*.py all have DOCUMENTATION, EXAMPLES, RETURN blocks
+[ ] ansible-doc works for every module
+[ ] roles/*/README.md exists for every role
+[ ] roles/*/meta/main.yml exists for every role
+[ ] build_ignore excludes test files, __pycache__, .git
+[ ] ansible-galaxy collection build succeeds without errors
+```

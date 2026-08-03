@@ -13,8 +13,8 @@
 #  limitations under the License.
 ---
 
-- name: Include prepare pulp image task (x86_64 only)
-  ansible.builtin.include_tasks: prepare_pulp_image.yml
+- name: Include prepare repo builder image task (x86_64 only)
+  ansible.builtin.include_tasks: prepare_repo_builder_image.yml
   when: build_arch == 'x86_64'
 
 - name: Include global variables from common folder
@@ -24,11 +24,11 @@
 - name: Build image common tasks for {{ build_arch }}
   ansible.builtin.include_tasks: "build_image_common_{{ build_arch }}.yml"
 
-- name: Invoking {{ build_arch }} build base image playbook
+- name: Invoke build base image playbook for {{ build_arch }}
   ansible.builtin.include_tasks: "build_base_image_{{ build_arch }}.yml"
   tags: base_image
 
-- name: Invoking {{ build_arch }} build rhel compute image playbooks
+- name: Invoke build rhel compute image playbooks for {{ build_arch }}
   ansible.builtin.include_tasks: "build_compute_image_{{ build_arch }}.yml"
   tags: compute_image
 
@@ -47,16 +47,20 @@
 
 - name: Build image list entries
   vars:
-    _fg_k8s_sfx: "{{ (item.key is match('service_kube_')) | ternary('_k8s_' + hostvars['localhost']['service_k8s_version'] | default(''), '') }}"
+    _fg_k8s_sfx: >-
+      {{ (item.key is match('service_kube_'))
+         | ternary('_k8s_' + (hostvars['localhost']['service_k8s_version'] | default('')), '') }}
     _image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ _fg_k8s_sfx }}"
+    _current_image:
+      functional_group: "{{ item.key }}"
+      kernel: "boot-images/efi-images/{{ item.key }}/{{ _image_name }}/vmlinuz"
+      initrd: "boot-images/efi-images/{{ item.key }}/{{ _image_name }}/initramfs.img"
+      image: "boot-images/{{ item.key }}/{{ _image_name }}"
   ansible.builtin.set_fact:
-    _new_images: "{{ _new_images + [{
-      'functional_group': item.key,
-      'kernel': 'boot-images/efi-images/' + item.key + '/' + _image_name + '/vmlinuz',
-      'initrd': 'boot-images/efi-images/' + item.key + '/' + _image_name + '/initramfs.img',
-      'image': 'boot-images/' + item.key + '/' + _image_name
-    }] }}"
+    _new_images: "{{ (_new_images | default([])) + [_current_image] }}"
   loop: "{{ compute_images_dict | dict2items }}"
+  loop_control:
+    loop_var: item
 
 - name: Merge with existing build_completed_images
   ansible.builtin.set_fact:

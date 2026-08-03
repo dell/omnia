@@ -18,9 +18,10 @@
 # This role handles the deployment of the Pulp container.
 #
 # Steps:
-#   1. Set deployment facts (hostname, protocol, IP, credentials)
-#   2. Pull Pulp container image
-#   3. Deploy container (HTTP or HTTPS based on configuration)
+#   1. Setup pulp CLI (create symlink to /usr/local/bin/pulp)
+#   2. Set deployment facts (hostname, protocol, IP, credentials)
+#   3. Pull Pulp container image
+#   4. Deploy container (HTTP or HTTPS based on configuration)
 #
 # Required Variables (from roles/deploy_pulp/vars/main.yml and vars/default.yml):
 #   - pulp_protocol_https: boolean (true for HTTPS, false for HTTP)
@@ -29,12 +30,19 @@
 #   - pulp_password: Admin password for Pulp (from credentials)
 #
 # Pre-requisites:
-#   - OIM host group created
+#   - Virtual environment activated with pulp-cli installed
 #   - Credentials fetched (pulp_username, pulp_password available)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# STEP 1: SET DEPLOYMENT FACTS
+# STEP 1: SETUP PULP CLI
+# -----------------------------------------------------------------------------
+
+- name: Setup pulp CLI symlink
+  ansible.builtin.include_tasks: setup_pulp_cli.yml
+
+# -----------------------------------------------------------------------------
+# STEP 2: SET DEPLOYMENT FACTS
 # -----------------------------------------------------------------------------
 
 - name: Load repo_manager endpoint configuration
@@ -45,14 +53,8 @@
 - name: Set Pulp server IP and credentials from endpoint config
   ansible.builtin.set_fact:
     pulp_server_ip: "{{ endpoint_config.pulp_server_ip }}"
-    pulp_username: "{{ hostvars['localhost']['pulp_username'] | default('admin', true) }}"
-    pulp_password: "{{ hostvars['localhost']['pulp_password'] | default('') }}"
-
-- name: Propagate pulp_protocol_https to localhost
-  ansible.builtin.set_fact:
-    pulp_protocol_https: "{{ pulp_protocol_https }}"
-  delegate_to: localhost
-  run_once: true
+    pulp_username: "{{ pulp_username | default('admin', true) }}"
+    pulp_password: "{{ pulp_password | default('') }}"
 
 - name: Display deployment configuration
   ansible.builtin.debug:
@@ -63,14 +65,14 @@
       - "Image: {{ pulp_image }}"
 
 # -----------------------------------------------------------------------------
-# STEP 2: PULL PULP CONTAINER IMAGE
+# STEP 3: PULL PULP CONTAINER IMAGE
 # -----------------------------------------------------------------------------
 
 - name: Pull Pulp container image
   ansible.builtin.include_tasks: pull_image.yml
 
 # -----------------------------------------------------------------------------
-# STEP 3: DEPLOY PULP CONTAINER
+# STEP 4: DEPLOY PULP CONTAINER
 # -----------------------------------------------------------------------------
 
 - name: Deploy Pulp container over HTTP

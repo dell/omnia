@@ -27,6 +27,75 @@ from ansible.module_utils.build_image.common_functions import (
     deduplicate_list
 )
 
+DOCUMENTATION = r'''
+---
+module: base_image_package_collector
+short_description: Collect RPM packages for base image creation
+version_added: "3.0.0"
+description:
+  - Collects RPM package names from default_packages.json, additional_packages.json,
+    and admin_debug_packages.json.
+  - Returns a combined, deduplicated flat list of package names for base image building.
+options:
+  default_json_path:
+    description: Path to default_packages.json.
+    required: true
+    type: str
+  additional_json_path:
+    description: Path to additional_packages.json.
+    required: false
+    type: str
+    default: ""
+  admin_debug_json_path:
+    description: Path to admin_debug_packages.json.
+    required: false
+    type: str
+    default: ""
+  software_config_path:
+    description: Path to software_config.json (controls feature flags).
+    required: true
+    type: str
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Collect base image packages
+  omnia.image_build.base_image_package_collector:
+    default_json_path: /opt/omnia/input/project_default/config/x86_64/rhel/10.0/default_packages.json
+    additional_json_path: /opt/omnia/input/project_default/config/x86_64/rhel/10.0/additional_packages.json
+    admin_debug_json_path: /opt/omnia/input/project_default/config/x86_64/rhel/10.0/admin_debug_packages.json
+    software_config_path: /opt/omnia/input/project_default/software_config.json
+  register: base_pkgs
+
+- name: Display collected packages
+  ansible.builtin.debug:
+    var: base_pkgs.base_image_packages
+'''
+
+RETURN = r'''
+base_image_packages:
+  description: Combined deduplicated list of all base image RPM packages.
+  returned: always
+  type: list
+  elements: str
+default_packages:
+  description: Packages from default_packages.json.
+  returned: always
+  type: list
+  elements: str
+additional_packages:
+  description: Global packages from additional_packages.json.
+  returned: always
+  type: list
+  elements: str
+admin_debug_packages:
+  description: Packages from admin_debug_packages.json.
+  returned: always
+  type: list
+  elements: str
+'''
+
 
 def collect_default_packages(json_path, module):
     """

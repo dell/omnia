@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Dell Omnia Team
+  description: Prepare ARM64 build hosts for cross-architecture image building
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+
+dependencies: []

@@ -6,13 +6,9 @@ name: Bandit Security Scan
     branches:
       - main
       - staging
-      - release_1.7.1
-      - pub/build_stream
-      - pub/q2_dev
-      - pub/telemetry
-      - pub/q2_upgrade
-      - pub/q2_ansible
-      - pub/q3_main
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
 
 jobs:
   bandit:

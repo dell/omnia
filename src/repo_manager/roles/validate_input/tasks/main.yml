@@ -21,16 +21,11 @@
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
   when: omnia_run_tags is not defined
 
-- name: Set validation messages
-  ansible.builtin.set_fact:
-    validation_success_msg: "{{ messages.validation_success }}"
-    validation_error_msg: "{{ messages.validation_error }}"
-
 - name: Run input validation module
   validate_input:
-    omnia_base_dir: "{{ (input_dir + '/../') | ansible.builtin.realpath }}"
-    project_name: "{{ project_name }}"
-    input_project_dir: "{{ input_dir }}"
+    omnia_base_dir: "{{ omnia_base_dir }}"
+    project_name: "{{ project_name | default(project_default) }}"
+    input_project_dir: "{{ input_project_dir }}"
     tag_names: "{{ input_validate_tags }}"
     module_utils_path: "{{ (role_path + '/../../library/module_utils/') | ansible.builtin.realpath }}"
     csv_file_path: "{{ csv_file_path }}"

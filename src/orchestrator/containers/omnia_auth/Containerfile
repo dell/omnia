@@ -1,0 +1,46 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Containerfile for omnia_auth — OpenLDAP authentication service
+# NOTE: slapd.conf, bootstrap.ldif, and TLS certs are bind-mounted at
+# runtime via Quadlet Volume directives (see auth.j2).
+
+FROM cgr.dev/chainguard/wolfi-base
+
+# Install OpenLDAP server and clients
+RUN apk update && apk add --no-cache \
+    openldap \
+    openldap-back-mdb \
+    openldap-clients \
+    ca-certificates-bundle
+
+# Create ldap user/group — Wolfi does NOT auto-create this
+# BusyBox syntax: addgroup/adduser (not groupadd/useradd)
+RUN addgroup -S ldap && adduser -S -D -H -G ldap ldap
+
+# Pre-create data directory (runtime re-creates if a volume is mounted over it)
+RUN mkdir -p /var/lib/openldap/openldap-data /run/openldap && \
+    chown -R ldap:ldap /var/lib/openldap /run/openldap
+
+VOLUME /var/lib/openldap/openldap-data
+
+EXPOSE 389 636
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD ldapwhoami -x -H ldap://localhost || exit 1
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

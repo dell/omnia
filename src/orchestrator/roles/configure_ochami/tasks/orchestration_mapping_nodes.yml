@@ -128,7 +128,11 @@
       vars:
         nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
         kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
-        k8s_functional_groups: "{{ hostvars['localhost']['k8s_functional_groups'] | default(['service_kube_control_plane_first_x86_64', 'service_kube_control_plane_x86_64', 'service_kube_node_x86_64']) }}"
+        k8s_functional_groups: >-
+          {{ hostvars['localhost']['k8s_functional_groups'] |
+          default(['service_kube_control_plane_first_x86_64',
+          'service_kube_control_plane_x86_64',
+          'service_kube_node_x86_64']) }}
 
     - name: Generate Slurm inventory file
       ansible.builtin.template:
@@ -138,7 +142,13 @@
       delegate_to: localhost
       vars:
         nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
-        slurm_functional_groups: "{{ hostvars['localhost']['slurm_functional_groups'] | default(['slurm_control_node_x86_64', 'slurm_node_x86_64', 'login_node_x86_64', 'login_compiler_node_x86_64', 'slurm_node_aarch64', 'login_node_aarch64', 'login_compiler_node_aarch64']) }}"
+        slurm_functional_groups: >-
+          {{ hostvars['localhost']['slurm_functional_groups'] |
+          default(['slurm_control_node_x86_64',
+          'slurm_node_x86_64', 'login_node_x86_64',
+          'login_compiler_node_x86_64', 'slurm_node_aarch64',
+          'login_node_aarch64',
+          'login_compiler_node_aarch64']) }}
 
     - name: Delete smd configuration
       ansible.builtin.include_tasks: delete_smd_config.yml

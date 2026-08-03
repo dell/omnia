@@ -124,6 +124,52 @@ def validate_credentials_logic(cred_data, config_data, errors, logger=None):
                 logger.error(msg)
 
 
+def validate_functional_groups_source(config_data, errors, logger=None):
+    """
+    Validate functional_groups_source and functional_groups consistency.
+
+    Rules:
+    - When functional_groups_source is 'config', functional_groups list must exist and be non-empty.
+    - When functional_groups_source is 'repo_status', functional_groups list is optional.
+    """
+    source = config_data.get("functional_groups_source", "config")
+    fg_list = config_data.get("functional_groups", [])
+
+    if source == "config" and (not fg_list or not isinstance(fg_list, list) or len(fg_list) == 0):
+        msg = ("image_build_config: functional_groups list is required and must be non-empty "
+               "when functional_groups_source is 'config'.")
+        errors.append(msg)
+        if logger:
+            logger.error(msg)
+
+    if source == "repo_status" and fg_list:
+        msg = ("image_build_config: functional_groups list is defined but "
+               "functional_groups_source is 'repo_status'. The list will be ignored; "
+               "groups are auto-detected from repo_manager output.")
+        if logger:
+            logger.warning(msg)
+
+
+def validate_build_concurrency(config_data, errors, logger=None):
+    """
+    Validate build concurrency settings.
+
+    Rules:
+    - max_parallel must be 0 (unlimited) or a positive integer.
+    """
+    build_image = config_data.get("build_image", {})
+    if not build_image:
+        return
+
+    max_parallel = build_image.get("max_parallel", 0)
+    if not isinstance(max_parallel, int) or max_parallel < 0:
+        msg = ("image_build_config: build_image.max_parallel must be 0 (unlimited) "
+               "or a positive integer.")
+        errors.append(msg)
+        if logger:
+            logger.error(msg)
+
+
 def validate_image_build_config(config_data, logger=None):
     """
     Run all L2 validation rules on image_build_config.yml data.
@@ -139,4 +185,6 @@ def validate_image_build_config(config_data, logger=None):
     validate_s3_config(config_data, errors, logger)
     validate_aarch64_config(config_data, errors, logger)
     validate_build_image_settings(config_data, errors, logger)
+    validate_functional_groups_source(config_data, errors, logger)
+    validate_build_concurrency(config_data, errors, logger)
     return errors

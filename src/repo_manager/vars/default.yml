@@ -17,6 +17,8 @@
 # =============================================================================
 # All paths are relative to repo_manager_base_dir so the src/ directory can be
 # copied anywhere. This file is included by all playbooks.
+#
+# NOTE: All playbooks run on localhost (OIM). There is no SSH to remote hosts.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -29,6 +31,13 @@ repo_manager_base_dir: "{{ playbook_dir | dirname | dirname }}"
 # Project default identifier
 project_default: "project_default"
 repo_manager_metadata_support: false
+
+# -----------------------------------------------------------------------------
+# OMNIA BASE DIRECTORY CONFIGURATION
+# -----------------------------------------------------------------------------
+# Runtime-generated files (Pulp config, RHEL entitlement certificates) live
+# outside the repo_manager source tree at /opt/omnia.
+omnia_base_dir: "/opt/omnia"
 
 # -----------------------------------------------------------------------------
 # DATA DIRECTORIES
@@ -50,35 +59,27 @@ omnia_metadata_file: "{{ omnia_base_dir }}/.data/oim_metadata.yml"
 # -----------------------------------------------------------------------------
 # ENDPOINT CONFIGURATION
 # -----------------------------------------------------------------------------
-# Endpoint configuration file path
 repo_manager_endpoint_config: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
-
-# Endpoint config error messages
 endpoint_config_file_not_found_msg: "repo_manager_endpoint_config.yml file not found in input folder."
 endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_endpoint_config.yml."
 
 # -----------------------------------------------------------------------------
-# OIM SHARED PATH CONFIGURATION
+# PULP SERVER CONFIGURATION
 # -----------------------------------------------------------------------------
-# The oim_shared_path is read from the metadata file which contains the actual
-# NFS share path from the OIM host. This is used for tasks that need to know
-# the OIM host path (e.g., for NFS exports).
-#
-# IMPORTANT: Inside the omnia_core container, the NFS share is mounted at
-# /opt/omnia, NOT at oim_shared_path. Use container paths for file operations.
-#
-# Path Mapping:
-#   OIM Host: {{ oim_shared_path }}/omnia/src/repo_manager
-#   Container: /omnia/src/repo_manager (which is repo_manager_base_dir)
+pulp_config_dir: "{{ omnia_base_dir }}/pulp"
+pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
+pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
+pulp_crt_track_file: "{{ pulp_config_dir }}/pulp_crt_track.txt"
+pulp_container_name: "pulp"
+pulp_image: "docker.io/pulp/pulp:3.113"
+pulp_protocol_https: true
 
-# Container mount point for NFS share
-oim_shared_path: "{{ (oim_shared_path_from_metadata | default({})).get('oim_shared_path', '') }}"
-
-# NFS configuration (read from metadata)
-nfs_server_share_path: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_share_path', '') }}"
-omnia_share_option: "{{ (oim_shared_path_from_metadata | default({})).get('omnia_share_option', 'NFS') }}"
-nfs_type: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_type', '') }}"
-nfs_server_ip: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_ip', '') }}"
+# -----------------------------------------------------------------------------
+# RHEL SUBSCRIPTION CERTIFICATES
+# -----------------------------------------------------------------------------
+rhel_repo_certs_dir: "{{ omnia_base_dir }}/rhel_repo_certs"
+rhel_redhat_repo_file: "{{ rhel_repo_certs_dir }}/redhat.repo"
+rhel_uep_cert_file: "{{ rhel_repo_certs_dir }}/redhat-uep.pem"
 
 # -----------------------------------------------------------------------------
 # FILE PERMISSIONS
@@ -88,20 +89,15 @@ file_permissions_644: "0644"
 file_permissions_600: "0600"
 
 # -----------------------------------------------------------------------------
-# OMNIA BASE DIRECTORY CONFIGURATION
+# RETRY CONFIGURATION
 # -----------------------------------------------------------------------------
-# Runtime-generated files (Pulp config, RHEL entitlement certificates) live
-# outside the repo_manager source tree at /opt/omnia.
+max_retries: 10
 
-omnia_base_dir: "/opt/omnia"
-
-# Pulp server configuration and certificates
-pulp_config_dir: "{{ omnia_base_dir }}/pulp"
-pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
-pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
-pulp_crt_track_file: "{{ pulp_config_dir }}/pulp_crt_track.txt"
-
-# RHEL subscription entitlement certificates
-rhel_repo_certs_dir: "{{ omnia_base_dir }}/rhel_repo_certs"
-rhel_redhat_repo_file: "{{ rhel_repo_certs_dir }}/redhat.repo"
-rhel_uep_cert_file: "{{ rhel_repo_certs_dir }}/redhat-uep.pem"
+# -----------------------------------------------------------------------------
+# OIM SHARED PATH CONFIGURATION (for NFS scenarios)
+# -----------------------------------------------------------------------------
+oim_shared_path: "{{ (oim_shared_path_from_metadata | default({})).get('oim_shared_path', omnia_base_dir) }}"
+nfs_server_share_path: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_share_path', '') }}"
+omnia_share_option: "{{ (oim_shared_path_from_metadata | default({})).get('omnia_share_option', 'Local') }}"
+nfs_type: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_type', '') }}"
+nfs_server_ip: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_ip', '') }}"

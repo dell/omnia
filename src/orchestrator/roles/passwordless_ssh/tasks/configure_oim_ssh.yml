@@ -61,6 +61,7 @@
     path: /etc/hosts
     create: true
     mode: '0644'
+    unsafe_writes: true
     marker: "# {mark} OMNIA_CLUSTER_NODES"
     block: |
       {% for h in omnia_hosts_map | dict2items %}

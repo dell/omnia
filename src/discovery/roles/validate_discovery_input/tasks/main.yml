@@ -37,7 +37,7 @@
 
 # Run the validate_discovery_config module (L1 + L2)
 - name: Run discovery configuration validation
-  validate_discovery_config:
+  omnia.discovery.validate_discovery_config:
     input_project_dir: "{{ input_project_dir }}"
     schema_dir: "{{ discovery_schema_dir }}"
   register: discovery_validation_result

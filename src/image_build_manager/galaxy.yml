@@ -1,7 +1,7 @@
 ---
 namespace: omnia
 name: image_build
-version: 2.3.0
+version: 3.0.0
 readme: README.md
 authors:
   - Dell Technologies <omnia-support@dell.com>
@@ -12,8 +12,9 @@ description: >-
 license:
   - Apache-2.0
 tags:
+  - infrastructure
   - hpc
-  - image-build
+  - image_build
   - openchami
   - minio
   - dell
