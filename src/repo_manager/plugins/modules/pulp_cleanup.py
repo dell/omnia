@@ -1,4 +1,57 @@
 from ansible.module_utils.local_repo import config
+DOCUMENTATION = r"""
+---
+module: pulp_cleanup
+short_description: Clean up Pulp repositories and distributions
+description:
+  - This module cleans up Pulp repositories, distributions, and remotes.
+  - It can selectively remove specific repositories or perform full cleanup.
+version_added: "1.0.0"
+options:
+    cleanup_type:
+      description: Type of cleanup (repos/distributions/all)
+      required: true
+      type: str
+    repo_names:
+      description: List of repository names to clean
+      required: false
+      type: list
+    force:
+      description: Force cleanup without confirmation
+      required: false
+      type: bool
+      default: False
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Clean up all Pulp repositories
+  pulp_cleanup:
+    cleanup_type: all
+    force: true
+
+- name: Clean up specific repositories
+  pulp_cleanup:
+    cleanup_type: repos
+    repo_names:
+      - baseos
+      - appstream
+"""
+
+RETURN = r"""
+cleaned_repos:
+  description: List of cleaned repositories
+  type: list
+  returned: success
+cleaned_count:
+  description: Number of items cleaned
+  type: int
+  returned: success
+"""
+
+
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

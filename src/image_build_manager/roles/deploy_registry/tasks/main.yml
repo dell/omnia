@@ -48,6 +48,16 @@
     - name: Flush handlers to reload systemd
       ansible.builtin.meta: flush_handlers
 
+    - name: Pre-pull registry image to avoid quadlet pull timeout
+      containers.podman.podman_image:
+        name: "{{ registry_image }}"
+        tag: "{{ registry_tag }}"
+        state: present
+      register: registry_image_pull
+      retries: "{{ image_pull_retries }}"
+      delay: "{{ image_pull_delay }}"
+      until: registry_image_pull is succeeded
+
     - name: Enable and start registry service
       ansible.builtin.systemd_service:
         name: registry

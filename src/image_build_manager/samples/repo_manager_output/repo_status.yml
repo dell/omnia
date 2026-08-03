@@ -29,7 +29,7 @@
 #      mkdir -p /opt/omnia/repo_manager/output/project_default
 #      cp repo_status.yml /opt/omnia/repo_manager/output/project_default/
 #   2. Edit the copied file with your actual repo manager URLs and cert paths
-#   3. Verify: ./src/main/omnia-cli repo-manager
+#   3. Verify: omnia-cli repo-manager
 #
 # image_build_manager pre-check validates:
 #   1. File exists at repo_manager_output_path

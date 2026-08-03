@@ -24,20 +24,21 @@ The core container is **not required**. Bare-metal is the only supported executi
 | 8 | **omnia.target** (systemd) | `prepare_image_build_manager.yml`, `cleanup` | Service | ✅ Skipped in standalone |
 | 9 | **`/opt/omnia/` hardcoded paths** | All role vars files | Paths | ✅ All defaults removed — use `config.yml` paths |
 | 10 | **Credential utility** | Replaced by `collect_build_credentials` role | Eliminated | ✅ Done |
-| 11 | **common/callback_plugins/** | Local copy at `callback_plugins/omnia_default.py` | Eliminated | ✅ Done |
-| 12 | **common/library/modules/** | All 5 modules local at `library/modules/` | Eliminated | ✅ Done |
-| 13 | **common/library/module_utils/** | `build_image/` + `image_build_validation/` local | Eliminated | ✅ Done |
+| 11 | **common/callback_plugins/** | Local copy at `plugins/callback_plugins/omnia_default.py` | Eliminated | ✅ Done |
+| 12 | **common/library/modules/** | All 8 modules local at `plugins/modules/` | Eliminated | ✅ Done |
+| 13 | **common/library/module_utils/** | `build_image/` + `input_validation/` local at `plugins/module_utils/` | Eliminated | ✅ Done |
 | 14 | **common/vars/** | `common_vars` inlined into `image_build_setup/vars/main.yml` | Eliminated | ✅ Done |
 | 15 | **playbooks/utils/** | All absorbed into domain roles | Eliminated | ✅ Done |
 
 ### 1.2 Self-Containment Summary
 
 ```
-✅ ansible.cfg           — fully local paths (library, module_utils, callback_plugins, roles)
-✅ callback_plugins/     — local copy of omnia_default.py
-✅ library/modules/      — all 5 modules (base_image_package_collector, image_package_collector,
-                           functional_group_parser, generate_functional_groups, validate_image_build_config)
-✅ library/module_utils/ — build_image/ + image_build_validation/ fully local
+✅ ansible.cfg           — fully local paths (plugins/modules, plugins/module_utils, plugins/callback_plugins, roles)
+✅ plugins/callback_plugins/ — local copy of omnia_default.py
+✅ plugins/modules/      — all 8 modules (validate_image_build_config, validate_system_environment,
+                           validate_yaml_schema, image_build_orchestrator, image_package_collector,
+                           base_image_package_collector, generate_functional_groups, functional_group_parser)
+✅ plugins/module_utils/ — build_image/ + input_validation/ fully local
 ✅ credential flow       — collect_build_credentials role
 ✅ validation flow       — validate_image_build_input role + validate_image_build_config module
 ✅ functional groups     — defined in image_build_config.yml (standalone); generate_functional_groups commented out
@@ -58,7 +59,7 @@ All 9 Omnia coupling points have been resolved:
 | 5 | `software_config.json` | **Replaced by `functional_group_packages.yml`** — direct RPM mapping, no software_config.json needed |
 | 6 | Core container | Mode A (bare-metal) + Mode B (domain container) — no `omnia_core` needed |
 | 7 | `omnia.target` | Skipped in standalone mode |
-| 8 | `/opt/omnia/` in `ansible.cfg` | Uses `./log/` and `/tmp/.ansible/` |
+| 8 | `/opt/omnia/` in `ansible.cfg` | Uses `/var/log/omnia/<domain>/` and `/tmp/.ansible/` |
 | 9 | `/opt/omnia/` defaults in vars | All `/opt/omnia` fallback defaults removed from role vars |
 
 ---
@@ -618,7 +619,7 @@ log_dir: "./log"
 | `software_config.json` (OS fields) | `repo_status.yml → cluster_os_type, cluster_os_version` | `repo_status.yml` |
 | `software_config.json` (softwares) | Same file — no change | `software_config.json` |
 | `repo_status.yml` (from repo_manager) | User-provided `repo_status.yml` — same format | `repo_status.yml` |
-| `/opt/omnia/log/` | `config.yml → log_dir` | `config.yml` |
+| `/var/log/omnia/<domain>/` | Standard OS log location | `/var/log/omnia/` |
 | `image_build_config.yml` | Same file — no change | `image_build_config.yml` |
 | `image_build_credentials.yml` | Same file — no change | Ansible Vault |
 
@@ -738,21 +739,21 @@ they read facts set by setup, not Omnia paths directly.
 ### 6.2 `ansible.cfg` — Standalone-Aware Logging
 
 ```ini
-# Current (Omnia-coupled):
-log_path = /opt/omnia/image_build_manager/log/image_build_manager.log
-remote_tmp = /opt/omnia/tmp/.ansible/tmp/
-
-# Standalone-ready (use env var fallback):
-# NOTE: ansible.cfg doesn't support Jinja — use environment variables instead
-log_path = %(LOG_DIR)s/image_build_manager.log
+# Standard Omnia log location:
+log_path = /var/log/omnia/image_build_manager/image_build_manager.log
 remote_tmp = /tmp/.ansible/tmp/
+
+# Override via environment variable in standalone/CI:
+# export ANSIBLE_LOG_PATH=/custom/path/image_build_manager.log
+#
+# Directory setup: sudo ./domain-init.sh (or manually: sudo mkdir -p /var/log/omnia/image_build_manager)
 ```
 
-**Practical approach**: Keep `/opt/omnia/` in `ansible.cfg` for mono-repo compatibility.
-Override via environment variable in standalone mode:
+**Practical approach**: Use `/var/log/omnia/<domain>/` in `ansible.cfg` (standard OS log location).
+Override via environment variable in standalone/CI mode:
 
 ```bash
-export ANSIBLE_LOG_PATH=./log/image_build_manager.log
+export ANSIBLE_LOG_PATH=/var/log/omnia/image_build_manager/image_build_manager.log
 ansible-playbook image_build_manager.yml
 ```
 
@@ -797,8 +798,8 @@ In standalone mode, the path is configured in `config.yml` or defaults to `./rep
 
 | File | Occurrences | Decoupling Strategy |
 |------|------------|---------------------|
-| `ansible.cfg` | 2 (log_path, remote_tmp) | Override via `$ANSIBLE_LOG_PATH` env var |
-| `playbooks/ansible.cfg` | 2 (same) | Same override |
+| `ansible.cfg` | 1 (log_path) | Uses `/var/log/omnia/<domain>/<name>.log` (flat, no subfolders) |
+| `playbooks/ansible.cfg` | 1 (log_path) | Same flat pattern |
 | `image_build_setup/vars/main.yml` | 5 (input/output dirs, metadata, lock) | Already handled by mode detection |
 | `cleanup_build_artifacts/vars/main.yml` | 4 (oim_shared, registry, output) | Use `hostvars['localhost']` facts (already does) |
 | `deploy_minio/vars/main.yml` | 1 (oim_shared_path default) | Default fallback OK — overridden by facts |
@@ -959,13 +960,22 @@ image-build-manager/                      # STANDALONE REPO
 │       │   ├── __init__.py
 │       │   ├── common_functions.py
 │       │   └── config.py
-│       └── image_build_validation/
+│       └── input_validation/
 │           ├── __init__.py
-│           ├── image_build_validation_flow.py
-│           └── schema/
-│               ├── image_build_config.json
-│               ├── image_build_credentials.json
-│               └── functional_groups_config.json
+│           ├── core/
+│           │   ├── config.py
+│           │   ├── file_utils.py
+│           │   ├── utils.py
+│           │   └── validation_engine.py
+│           ├── messages/
+│           │   └── image_build_messages.py
+│           ├── schema/
+│           │   ├── image_build_config.json
+│           │   ├── image_build_credentials.json
+│           │   └── functional_groups_config.json
+│           └── validators/
+│               ├── image_build_config_validator.py
+│               └── image_build_credentials_validator.py
 ├── playbooks/
 │   ├── ansible.cfg
 │   ├── prepare_image_build_manager.yml

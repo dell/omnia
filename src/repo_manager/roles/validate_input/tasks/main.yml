@@ -27,7 +27,7 @@
     project_name: "{{ project_name | default(project_default) }}"
     input_project_dir: "{{ input_project_dir }}"
     tag_names: "{{ input_validate_tags }}"
-    module_utils_path: "{{ (role_path + '/../../library/module_utils/') | ansible.builtin.realpath }}"
+    module_utils_path: "{{ (role_path + '/../../plugins/module_utils/') | ansible.builtin.realpath }}"
     csv_file_path: "{{ csv_file_path }}"
   environment:
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"

@@ -21,7 +21,8 @@
 # -----------------------------------------------------------------------------
 # PATH CONFIGURATION (computed from oim_shared_path)
 # -----------------------------------------------------------------------------
-shared_storage_path: "{{ oim_shared_path }}/omnia"
+# All Pulp data is stored under pulp_config/ subdirectory
+shared_storage_path: "{{ oim_shared_path }}/pulp_config"
 pulp_shared_path: "{{ shared_storage_path }}/pulp"
 pulp_logs_dir: "{{ shared_storage_path }}/log/pulp"
 pulp_ha_dir: "{{ pulp_config_dir }}/pulp_ha"

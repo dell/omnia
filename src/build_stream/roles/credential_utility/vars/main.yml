@@ -21,8 +21,8 @@
 # ============================================================================
 
 # Single credential file for the build_stream domain
-bs_credential_file_path: "{{ input_project_dir }}/build_stream/build_stream_credentials.yml"
-bs_credential_vault_path: "{{ input_project_dir }}/build_stream/.build_stream_credentials_key"
+bs_credential_file_path: "{{ input_project_dir }}/build_stream_credentials.yml"
+bs_credential_vault_path: "{{ input_project_dir }}/.build_stream_credentials_key"
 
 credential_files:
   - credential_type: "Build Stream"

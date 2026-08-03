@@ -1,4 +1,3 @@
----
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +11,43 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-- name: Cleanup SFM Telemetry
-  hosts: kube_vip_group
-  gather_facts: true
-  any_errors_fatal: true
 
+# =============================================================================
+# SFM Telemetry Cleanup
+# =============================================================================
+# Removes SFM exporter deployment, service, and scrape config.
+#
+# Standalone usage:
+#   ansible-playbook playbooks/sfm/cleanup_sfm.yml
+#
+# Via main cleanup (tag-based):
+#   ansible-playbook playbooks/cleanup.yml --tags cleanup_sfm
+# =============================================================================
+
+- name: "Cleanup SFM Telemetry"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../vars/cleanup.yml
   tasks:
-    - name: Placeholder task for SFM telemetry cleanup
+    - name: "SFM | Delete resources"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ sfm_resources }}"
+      loop_control:
+        label: "{{ item.type }}/{{ item.name }}"
+      changed_when: false
+      failed_when: false
+
+    - name: "SFM | Force delete pods"
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pod -l {{ sfm_pod_label }}
+        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+      changed_when: false
+      failed_when: false
+
+    - name: "SFM | Cleanup complete"
       ansible.builtin.debug:
-        msg: "SFM telemetry cleanup - to be implemented"
+        msg: "SFM telemetry cleanup completed"

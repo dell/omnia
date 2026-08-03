@@ -24,42 +24,51 @@
 #   Phase 3: Full-stack kustomize apply (kubectl apply -k deployments/)
 
 # ── Phase 0: Prerequisites ───────────────────────────────────────────────────
-- import_playbook: telemetry_prereq.yml
+- name: "Phase 0 | Load telemetry prerequisites"
+  ansible.builtin.import_playbook: telemetry_prereq.yml
   tags: deploy
 
 # ── Phase 1: Component manifest generation ───────────────────────────────────
 # Each component playbook: installs operators if needed, generates manifests
-- import_playbook: idrac/deploy_idrac_telemetry.yml
+- name: "Phase 1 | Deploy iDRAC telemetry"
+  ansible.builtin.import_playbook: idrac/deploy_idrac_telemetry.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
 
-- import_playbook: ldms/deploy_ldms.yml
+- name: "Phase 1 | Deploy LDMS telemetry"
+  ansible.builtin.import_playbook: ldms/deploy_ldms.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
 
-- import_playbook: powerscale/deploy_powerscale.yml
+- name: "Phase 1 | Deploy PowerScale telemetry"
+  ansible.builtin.import_playbook: powerscale/deploy_powerscale.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
-- import_playbook: ufm/deploy_ufm.yml
+- name: "Phase 1 | Deploy UFM telemetry"
+  ansible.builtin.import_playbook: ufm/deploy_ufm.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
 
-- import_playbook: vast/deploy_vast.yml
+- name: "Phase 1 | Deploy VAST telemetry"
+  ansible.builtin.import_playbook: vast/deploy_vast.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.vast.metrics_enabled | default(false) | bool
 
-- import_playbook: ome/deploy_ome.yml
+- name: "Phase 1 | Deploy OME telemetry"
+  ansible.builtin.import_playbook: ome/deploy_ome.yml
   tags: deploy
   when: >-
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
-- import_playbook: dcgm/deploy_dcgm.yml
+- name: "Phase 1 | Deploy DCGM telemetry"
+  ansible.builtin.import_playbook: dcgm/deploy_dcgm.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.dcgm.metrics_enabled | default(false) | bool
 
-- import_playbook: sfm/deploy_sfm.yml
+- name: "Phase 1 | Deploy SFM telemetry"
+  ansible.builtin.import_playbook: sfm/deploy_sfm.yml
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.sfm.metrics_enabled | default(false) | bool
 

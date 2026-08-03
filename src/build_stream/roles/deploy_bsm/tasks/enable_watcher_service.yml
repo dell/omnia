@@ -15,7 +15,7 @@
 
 - name: Check build_stream directory exists in oim_shared_path
   ansible.builtin.stat:
-    path: "{{ oim_shared_path }}/omnia/build_stream"
+    path: "{{ oim_shared_path }}/build_stream"
   register: build_stream_stat
 
 - name: Fail if build_stream directory missing
@@ -25,7 +25,7 @@
 
 - name: Create playbook_queue directory
   ansible.builtin.file:
-    path: "{{ oim_shared_path }}/omnia/playbook_queue"
+    path: "{{ oim_shared_path }}/build_stream/playbook_queue"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 

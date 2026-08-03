@@ -26,13 +26,14 @@ omnia_target: "/etc/systemd/system/omnia.target"
 playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 
 # ── NFS cleanup directories ────────────────────────────────────────
-omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia"
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
 build_stream_cleanup_directory:
-  - "{{ omnia_nfs_share }}/log/build_stream"
-  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/build_stream/log"
+  - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
   - "{{ omnia_nfs_share }}/build_stream_ssl"
   - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream_enabled"
   - "{{ omnia_nfs_share }}/build_stream"
 
 # ── Postgres cleanup ───────────────────────────────────────────────
@@ -40,15 +41,18 @@ postgres_cleanup_directory:
   - "{{ omnia_nfs_share }}/postgres"
 
 # ── Automation framework cleanup ───────────────────────────────────
-automation_base_dir: "/opt/omnia/automation"
+automation_base_dir: "{{ omnia_nfs_share }}/automation"
 automation_venv_dir: "{{ automation_base_dir }}/.venv"
 automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
 
 # ── Credential cleanup ─────────────────────────────────────────────
-bs_credential_config: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/build_stream/build_stream_credentials.yml"
-bs_credential_config_key: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/build_stream/.build_stream_credentials_key"
-bs_oauth_credential_config: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/build_stream_oauth_credentials.yml"
-bs_oauth_credential_config_key: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/.build_stream_oauth_credentials_key"
+_bs_input_dir: >-
+  {{ hostvars['localhost']['input_project_dir']
+     | default(omnia_nfs_share ~ '/build_stream/input/project_default') }}
+bs_credential_config: "{{ _bs_input_dir }}/build_stream_credentials.yml"
+bs_credential_config_key: "{{ _bs_input_dir }}/.build_stream_credentials_key"
+bs_oauth_credential_config: "{{ _bs_input_dir }}/build_stream_oauth_credentials.yml"
+bs_oauth_credential_config_key: "{{ _bs_input_dir }}/.build_stream_oauth_credentials_key"
 
 # ── Retry / resilience ─────────────────────────────────────────────
 max_retries: 5

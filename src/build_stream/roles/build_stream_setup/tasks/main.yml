@@ -21,21 +21,66 @@
 #   3. Load OIM metadata
 #   4. Create oim inventory group
 
+# =====================================================================
+# Standalone-mode branch — runs directly on the host, no omnia_core
+# =====================================================================
+- name: "[standalone] Set input/output dirs from local paths"
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ standalone_input_project_dir }}"
+    output_project_dir: "{{ standalone_output_project_dir }}"
+    oim_shared_path: "{{ standalone_oim_shared_path }}"
+    project_dir_status: true
+    cacheable: true
+  when: standalone_mode | default(false) | bool
+
+- name: "[standalone] Verify the local input directory exists"
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: verify_standalone_dir
+  when: standalone_mode | default(false) | bool
+
+- name: "[standalone] Fail if local input directory is missing"
+  ansible.builtin.fail:
+    msg: "Standalone input directory {{ input_project_dir }} does not exist."
+  when:
+    - standalone_mode | default(false) | bool
+    - not (verify_standalone_dir.stat.exists | default(false))
+
+- name: "[standalone] Ensure output directory exists"
+  ansible.builtin.file:
+    path: "{{ output_project_dir }}"
+    state: directory
+    mode: "0755"
+  when: standalone_mode | default(false) | bool
+
+- name: "[standalone] Skip remaining container-dependent steps"
+  ansible.builtin.set_fact:
+    build_stream_setup_done: true
+    cacheable: true
+  when: standalone_mode | default(false) | bool
+
+# =====================================================================
+# Container-mode branch — original logic (requires omnia_core)
+# =====================================================================
+
 # --- Step 1: Upgrade guard ---
 - name: Check upgrade lock file
   ansible.builtin.stat:
     path: "{{ upgrade_lock_path }}"
   register: upgrade_lock
+  when: not (standalone_mode | default(false) | bool)
 
 - name: Block playbook while upgrade is in progress
   ansible.builtin.fail:
     msg: "{{ upgrade_in_progress_msg }}"
   when:
+    - not (standalone_mode | default(false) | bool)
     - upgrade_lock.stat.exists
     - not (upgrade_mode | default(false) | bool)
 
 # --- Step 2: Load omnia project config ---
 - name: Load omnia project config file
+  when: not (standalone_mode | default(false) | bool)
   block:
     - name: Include omnia project config file
       ansible.builtin.include_vars: "{{ omnia_input_config_file }}"
@@ -51,34 +96,40 @@
     output_project_dir: "{{ omnia_output_dir }}/{{ project_name }}"
     project_dir_status: true
     cacheable: true
+  when: not (standalone_mode | default(false) | bool)
 
 - name: Verify the project directory exists
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"
   register: verify_project_dir
+  when: not (standalone_mode | default(false) | bool)
 
 - name: Fail if project directory does not exist
   ansible.builtin.fail:
     msg: "{{ project_dir_not_exist_fail_msg }}"
-  when: not verify_project_dir.stat
+  when:
+    - not (standalone_mode | default(false) | bool)
+    - not verify_project_dir.stat
 
 # --- Step 3: Load OIM metadata ---
 - name: Include oim metadata vars
   ansible.builtin.include_vars: "{{ omnia_metadata_file_path }}"
+  when: not (standalone_mode | default(false) | bool)
 
 # --- Step 4: Create oim inventory group ---
 - name: Create {{ oim_host_group }} group # noqa: name[template]
   ansible.builtin.add_host:
     hostname: "{{ oim_host_group }}"
-    ansible_host: "localhost"
+    ansible_host: "{{ '127.0.0.1' if (standalone_mode | default(false) | bool) else 'localhost' }}"
     ansible_port: "{{ oim_host_port }}"
+    ansible_connection: "{{ 'local' if (standalone_mode | default(false) | bool) else 'ssh' }}"
     groups: "{{ oim_host_group }}"
   when:
     - create_oim_group | default(false) | bool
 
-# --- Step 5: Set build_stream guard facts ---
-- name: Set build_stream setup guard facts
+# --- Step 5: Set guard fact so downstream plays can skip re-runs ---
+- name: Mark build_stream_setup as done
   ansible.builtin.set_fact:
     build_stream_setup_done: true
-    omnia_run_tags: "{{ omnia_run_tags | default(['build_stream']) }}"
     cacheable: true
+  when: not (standalone_mode | default(false) | bool)

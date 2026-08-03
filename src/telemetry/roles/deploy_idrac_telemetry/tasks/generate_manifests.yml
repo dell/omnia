@@ -37,21 +37,21 @@
     src: "{{ role_path }}/templates/activemq-config.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/idrac/activemq-config.yaml"
     mode: "0644"
-    force: yes
+    force: true
 
 - name: Render iDRAC telemetry StatefulSet
   ansible.builtin.template:
     src: "{{ role_path }}/templates/idrac_telemetry_statefulset.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/idrac/idrac_telemetry_statefulset.yaml"
     mode: "0644"
-    force: yes
+    force: true
 
 - name: Render iDRAC kustomization
   ansible.builtin.template:
     src: "{{ role_path }}/templates/kustomization.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/idrac/kustomization.yaml"
     mode: "0644"
-    force: yes
+    force: true
 
 - name: Log manifest generation complete
   ansible.builtin.debug:

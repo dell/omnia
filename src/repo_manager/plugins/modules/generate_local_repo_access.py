@@ -94,6 +94,35 @@ author:
     - Dell Technologies
 '''
 
+EXAMPLES = r'''
+- name: Generate repo_status.yml
+  generate_local_repo_access:
+    pulp_server_ip: 192.168.1.100
+    pulp_server_port: 2225
+    pulp_protocol: https
+    cluster_os_type: rhel
+    cluster_os_version: "9.4"
+    repo_config: partial
+    output_path: /opt/omnia/output/repo_status.yml
+    certs_dir: /opt/omnia/pulp/settings/certs
+    local_repo_config_path: /opt/omnia/input/repo_manager_config.yml
+'''
+
+RETURN = r'''
+rpm_repos_count:
+    description: Number of RPM repositories found
+    type: int
+    returned: success
+file_repos_count:
+    description: Number of file repositories found
+    type: int
+    returned: success
+msg:
+    description: Status message
+    type: str
+    returned: always
+'''
+
 try:
     import yaml
     HAS_YAML = True
@@ -148,13 +177,13 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
     def fetch_distributions(self):
         """Fetch all relevant distributions from Pulp."""
         self.rpm_distributions = self.run_pulp_command(
-            "/usr/local/bin/pulp rpm distribution list 2>/dev/null"
+            "/usr/local/bin/pulp rpm distribution list"
         )
         self.file_distributions = self.run_pulp_command(
-            "/usr/local/bin/pulp file distribution list 2>/dev/null"
+            "/usr/local/bin/pulp file distribution list"
         )
         self.python_distributions = self.run_pulp_command(
-            "/usr/local/bin/pulp python distribution list 2>/dev/null"
+            "/usr/local/bin/pulp python distribution list"
         )
 
     def _normalise_base_url(self, base_url):
@@ -175,8 +204,12 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
 
     @staticmethod
     def _yaml_key(name):
-        """Convert a repository/package name to a YAML-friendly key."""
-        key = re.sub(r'[^0-9a-zA-Z_]', '_', name)
+        """Convert a repository/package name to a YAML-friendly key.
+
+        Preserves hyphens for readability (e.g., kubernetes-v1-35).
+        """
+        # Replace characters that are not alphanumeric, underscore, or hyphen
+        key = re.sub(r'[^0-9a-zA-Z_\-]', '_', name)
         key = re.sub(r'_+', '_', key)
         return key.strip('_')
 
@@ -213,58 +246,95 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             'rest': parts[6:],
         }
 
+    def _extract_repo_name_from_distribution(self, dist):
+        """Extract the repository name from a distribution.
+
+        Returns tuple of (arch, repo_name) or (None, None) if cannot parse.
+        """
+        base_url = dist.get('base_url', '')
+        base_path = dist.get('base_path', '')
+        name = dist.get('name', '')
+
+        if not base_url:
+            return None, None
+
+        # Try to parse from base_path first
+        parsed = self._parse_base_path(base_path)
+        if parsed and parsed['content_type'] == 'rpms':
+            arch = parsed['arch']
+            rest = parsed['rest']
+            if not rest:
+                return None, None
+
+            # The repo name is the last part of the path
+            repo_name = rest[-1] if rest else ''
+
+            # Strip the ``<arch>_<os>_<ver>_`` prefix if present
+            prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
+            if repo_name.startswith(prefix):
+                repo_name = repo_name[len(prefix):]
+
+            return arch, repo_name
+
+        # Fallback: derive architecture and repo name from the distribution name
+        arch = None
+        if name.startswith('x86_64_'):
+            arch = 'x86_64'
+        elif name.startswith('aarch64_'):
+            arch = 'aarch64'
+        else:
+            return None, None
+
+        prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
+        if name.startswith(prefix):
+            repo_name = name[len(prefix):]
+        else:
+            repo_name = name.split('_', 1)[1] if '_' in name else name
+
+        return arch, repo_name
+
     def parse_rpm_distributions(self):
-        """Parse RPM distributions by reading their base_path."""
-        rpm_repos = {'x86_64': {}, 'aarch64': {}}
+        """Parse RPM distributions and return a dict organized by version and arch.
+
+        Returns:
+            dict: {
+                '<version>': {
+                    '<arch>': {
+                        '<repo_name>': {'url': '<url>'} or {}
+                    }
+                }
+            }
+        """
+        repositories = {}
 
         for dist in self.rpm_distributions:
             base_url = dist.get('base_url', '')
-            base_path = dist.get('base_path', '')
-            name = dist.get('name', '')
+            arch, repo_name = self._extract_repo_name_from_distribution(dist)
 
-            if not base_url:
+            if not arch or not repo_name:
                 continue
 
-            parsed = self._parse_base_path(base_path)
-            if parsed and parsed['content_type'] == 'rpms':
-                arch = parsed['arch']
-                rest = parsed['rest']
-                if not rest:
-                    continue
-                repo_name = rest[0]
-                if len(rest) > 1:
-                    repo_name = f"{repo_name}_" + '/'.join(rest[1:])
+            # Use the cluster_os_version as the version key
+            version = self.cluster_os_version
 
-                # Strip the ``<arch>_<os>_<ver>_`` prefix that some RPM
-                # distributions embed in the repo name.
-                prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
-                if repo_name.startswith(prefix):
-                    repo_name = repo_name[len(prefix):]
+            if version not in repositories:
+                repositories[version] = {'x86_64': {}, 'aarch64': {}}
 
-                key = self._yaml_key(repo_name)
-                if arch in rpm_repos:
-                    rpm_repos[arch][key] = self._normalise_base_url(base_url)
-                continue
+            if arch not in repositories[version]:
+                repositories[version][arch] = {}
 
-            # Fallback: derive architecture and repo name from the distribution name.
-            arch = None
-            if name.startswith('x86_64_'):
-                arch = 'x86_64'
-            elif name.startswith('aarch64_'):
-                arch = 'aarch64'
-            else:
-                continue
-
-            prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
-            if name.startswith(prefix):
-                repo_name = name[len(prefix):]
-            else:
-                repo_name = name.split('_', 1)[1] if '_' in name else name
-
+            # Use hyphen-friendly key
             key = self._yaml_key(repo_name)
-            rpm_repos[arch][key] = self._normalise_base_url(base_url)
+            if base_url:
+                repositories[version][arch][key] = {'url': self._normalise_base_url(base_url)}
+            else:
+                repositories[version][arch][key] = {}
 
-        return rpm_repos
+        # Ensure both architectures exist even if empty
+        if self.cluster_os_version not in repositories:
+            repositories[self.cluster_os_version] = {'x86_64': {}, 'aarch64': {}}
+
+        return repositories
 
     def _add_file_distribution(self, file_repos, dist):
         """Add a single file/python distribution to the file_repos map."""
@@ -317,114 +387,109 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             f"/{self.cluster_os_version}/{content_type}/"
         )
 
-    def _expected_repo_name(self, arch, name):
-        """Build the Pulp repository name from config fields."""
-        return f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_{name}"
+    def load_user_registries(self):
+        """Load user registry configurations from repo_manager_config.yml.
 
-    def _find_pulp_url_for_user_repo(self, rpm_repos, arch, repo_name):
-        """Return the Pulp distribution URL for a named user repo if it exists."""
-        if arch not in rpm_repos:
-            return None
-
-        # Direct key match using the sanitized repo name.
-        key = self._yaml_key(repo_name)
-        if key in rpm_repos[arch]:
-            return rpm_repos[arch][key]
-
-        # Match by the repository name embedded in the distribution base_path.
-        expected_name = self._expected_repo_name(arch, repo_name)
-        for url in rpm_repos[arch].values():
-            parsed = urlparse(url)
-            if not parsed.path:
-                continue
-            path = parsed.path.rstrip('/')
-            # Path ends with /rpms/<full_repo_name> or /rpms/<full_repo_name>/<version>
-            if path.endswith('/' + expected_name):
-                return url
-            parts = path.split('/')
-            if len(parts) >= 2 and parts[-2] == expected_name:
-                return url
-
-        return None
-
-    def load_user_repos(self, rpm_repos=None):
-        """Load user-defined repositories from repo_manager_config.yml.
-
-        Maps each user repo name to its Pulp distribution URL. Falls back to
-        the original URL from repo_manager_config.yml only when no matching
-        Pulp distribution is found.
+        Returns:
+            dict: Registry configurations with TLS settings
         """
-        user_repos = {'x86_64': {}, 'aarch64': {}}
-        rpm_repos = rpm_repos or {}
+        registries = {}
 
         if not self.local_repo_config_path or not os.path.exists(self.local_repo_config_path):
-            return user_repos
+            return registries
 
         try:
             with open(self.local_repo_config_path, 'r', encoding='utf-8') as config_file:
                 config = yaml.safe_load(config_file)
 
             if not config:
-                return user_repos
+                return registries
 
-            for arch in ('x86_64', 'aarch64'):
-                for repo in config.get(f'user_repo_url_{arch}', []) or []:
-                    if not isinstance(repo, dict) or not repo.get('name') or not repo.get('url'):
-                        continue
-                    pulp_url = self._find_pulp_url_for_user_repo(
-                        rpm_repos, arch, repo['name']
-                    )
-                    user_repos[arch][repo['name']] = pulp_url or repo['url']
+            # Load user_registry entries
+            user_registries = config.get('user_registry', []) or []
+            for reg in user_registries:
+                if not isinstance(reg, dict) or not reg.get('name'):
+                    continue
+
+                name = reg['name']
+                registry_config = {}
+
+                if reg.get('host'):
+                    registry_config['host'] = reg['host']
+                if reg.get('port'):
+                    registry_config['port'] = reg['port']
+
+                # TLS configuration
+                tls_config = {}
+                if reg.get('cert_path'):
+                    tls_config['capath'] = reg['cert_path']
+                if reg.get('client_cert_path'):
+                    tls_config['clientcertpath'] = reg['client_cert_path']
+                if reg.get('client_key_path'):
+                    tls_config['clientkeypath'] = reg['client_key_path']
+                if 'insecure' in reg:
+                    tls_config['insecure'] = reg['insecure']
+
+                if tls_config:
+                    registry_config['tls'] = tls_config
+
+                if registry_config:
+                    registries[name] = registry_config
 
         except (OSError, yaml.YAMLError):
             pass
 
-        return user_repos
+        return registries
 
     def generate_yaml_content(self):
         """Generate the repo_status.yml content using actual Pulp distribution URLs."""
         self.fetch_distributions()
 
-        rpm_repos = self.parse_rpm_distributions()
+        repositories = self.parse_rpm_distributions()
         file_repos = self.parse_file_distributions()
-        user_repos = self.load_user_repos(rpm_repos)
+        registries = self.load_user_registries()
 
+        # Build the data structure matching the expected format
         data = {
             'overall_status': str(self.overall_status).lower(),
             'cluster_os_type': str(self.cluster_os_type),
-            'cluster_os_version': str(self.cluster_os_version),
             'repo_config': str(self.repo_config),
-            'repo_manager': {
-                'port': self.pulp_server_port,
-                'certificates': {
-                    'server_crt': f'{self.certs_dir}/pulp_webserver.crt',
-                    'server_key': f'{self.certs_dir}/pulp_webserver.key',
-                    'certs_dir': self.certs_dir,
-                },
-            },
-            'rpm_repos': rpm_repos,
-            'file_repos': file_repos,
-            'user_repos': user_repos,
-            'tarball_base_url': self._legacy_type_url(file_repos, 'tarball'),
-            'manifest_base_url': self._legacy_type_url(file_repos, 'manifest'),
-            'pip_base_url': self._legacy_type_url(file_repos, 'pip_module'),
-            'git_base_url': self._legacy_type_url(file_repos, 'git'),
-            'offline_tarball_path': self._legacy_type_url(file_repos, 'tarball'),
-            'offline_manifest_path': self._legacy_type_url(file_repos, 'manifest'),
-            'offline_pip_module_path': self._legacy_type_url(file_repos, 'pip_module'),
-            'offline_git_path': self._legacy_type_url(file_repos, 'git'),
-            'offline_shell_path': self._legacy_type_url(file_repos, 'shell'),
-            'offline_iso_path': self._legacy_type_url(file_repos, 'iso'),
-            'offline_ansible_galaxy_collection_path': self._legacy_type_url(
-                file_repos, 'ansible_galaxy_collection'
-            ),
+            'repositories': repositories,
         }
 
+        # Add registries section if any exist
+        if registries:
+            data['registries'] = registries
+
+        # Add file_repos section
+        if file_repos and (file_repos.get('x86_64') or file_repos.get('aarch64')):
+            data['file_repos'] = file_repos
+
+        # Add legacy base URLs
+        data['tarball_base_url'] = self._legacy_type_url(file_repos, 'tarball')
+        data['manifest_base_url'] = self._legacy_type_url(file_repos, 'manifest')
+        data['pip_base_url'] = self._legacy_type_url(file_repos, 'pip_module')
+        data['git_base_url'] = self._legacy_type_url(file_repos, 'git')
+        data['offline_tarball_path'] = self._legacy_type_url(file_repos, 'tarball')
+        data['offline_manifest_path'] = self._legacy_type_url(file_repos, 'manifest')
+        data['offline_pip_module_path'] = self._legacy_type_url(file_repos, 'pip_module')
+        data['offline_git_path'] = self._legacy_type_url(file_repos, 'git')
+        data['offline_shell_path'] = self._legacy_type_url(file_repos, 'shell')
+        data['offline_iso_path'] = self._legacy_type_url(file_repos, 'iso')
+        data['offline_ansible_galaxy_collection_path'] = self._legacy_type_url(
+            file_repos, 'ansible_galaxy_collection'
+        )
+
         # Custom YAML dumper that quotes string values but not keys
+        # and renders empty dicts as {} on same line
         class QuotedValueDumper(yaml.SafeDumper):
-            """Custom YAML dumper that quotes string values."""
+            """Custom YAML dumper that quotes string values and handles empty dicts."""
 
         def quoted_mapping_representer(dumper, mapping_data):
+            # Empty dict should be rendered as {}
+            if not mapping_data:
+                return dumper.represent_mapping('tag:yaml.org,2002:map', mapping_data, flow_style=True)
+
             pairs = []
             for key, value in mapping_data.items():
                 key_node = dumper.represent_data(key)
