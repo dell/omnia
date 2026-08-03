@@ -145,6 +145,7 @@
         repo_config: "{{ repo_config }}"
         output_path: "{{ output_dir }}/repo_status.yml"
         certs_dir: "{{ pulp_certs_dir }}"
+        ssl_certificates: "{{ ssl_certificates | default({}) }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
       register: generate_result
 
