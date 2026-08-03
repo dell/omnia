@@ -17,6 +17,50 @@
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.validate_utils import validate_certificates
+DOCUMENTATION = r"""
+---
+module: validate_user_repo
+short_description: Validate user repository configuration
+description:
+  - This module validates user-defined repository configurations.
+  - It checks repository URLs, credentials, and accessibility.
+version_added: "1.0.0"
+options:
+    repositories:
+      description: List of repository configurations
+      required: true
+      type: list
+    check_connectivity:
+      description: Check repository connectivity
+      required: false
+      type: bool
+      default: True
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Validate user repositories
+  validate_user_repo:
+    repositories:
+      - name: custom-repo
+        url: https://repo.example.com/packages
+    check_connectivity: true
+"""
+
+RETURN = r"""
+valid_repos:
+  description: List of valid repositories
+  type: list
+  returned: always
+invalid_repos:
+  description: List of invalid repositories
+  type: list
+  returned: always
+"""
+
+
 
 """Ansible module to validate certificates for a repository."""
 
