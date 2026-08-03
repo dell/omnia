@@ -15,11 +15,12 @@
 # limitations under the License.
 
 # =============================================================================
-# domain-init.sh — Copy repo_manager input files to runtime data path
+# domain-init.sh — Initialize repo_manager domain runtime environment
 # =============================================================================
 #
-# Copies input files from the source tree to the Omnia data directory so that
-# Ansible playbooks read from a stable runtime location.
+# Performs first-time domain setup:
+#   1. Creates Ansible log directory:  /var/log/omnia/repo_manager/
+#   2. Copies input files from source tree to runtime data path
 #
 # Source:      src/repo_manager/input/<project>/
 # Destination: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
@@ -30,6 +31,11 @@
 #   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
 # Called automatically by: omnia.sh --setup-venv
+#
+# Manual alternative (if not using this script):
+#   sudo mkdir -p /var/log/omnia/repo_manager
+#   chmod 755 /var/log/omnia/repo_manager
+#   cp -a input/project_default/ <OMNIA_DATA_PATH>/repo_manager/input/project_default/
 # =============================================================================
 
 set -euo pipefail
@@ -159,11 +165,30 @@ copy_project_input() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Create Ansible log directory under /var/log/omnia/
+# ansible.cfg log_path points here — Ansible cannot create parent dirs.
+# All ansible.cfg log files are flat (no subfolders).
+# ─────────────────────────────────────────────────────────────────────────────
+create_log_directory() {
+    local log_dir="/var/log/omnia/${DOMAIN_NAME}"
+    if [ ! -d "$log_dir" ]; then
+        mkdir -p "$log_dir"
+        chmod 755 "$log_dir"
+        echo -e "  ${GREEN}[${DOMAIN_NAME}] Created Ansible log directory: ${log_dir}${NC}"
+    else
+        echo -e "  ${GREEN}[${DOMAIN_NAME}] Ansible log directory exists: ${log_dir}${NC}"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
     _parse_args "$@"
     _load_env
+
+    # Create Ansible log directory (ansible.cfg log_path)
+    create_log_directory
 
     # Copy the configured project
     copy_project_input "$OMNIA_PROJECT_NAME"
