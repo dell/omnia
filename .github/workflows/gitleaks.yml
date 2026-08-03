@@ -13,7 +13,7 @@ name: Secret Leak Scan
 jobs:
   gitleaks:
     name: Scan for secrets
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
 
     permissions:
       contents: read
