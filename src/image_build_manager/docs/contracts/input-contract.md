@@ -18,7 +18,7 @@
 | `s3_configurations.endpoint_url` | string | No | `""` | Auto-detected for MinIO; required for PowerScale |
 | `repo_manager_output_path` | string | Yes | `/opt/omnia/repo_manager/output/project_default/repo_status.yml` | Path to upstream `repo_status.yml` |
 | `image_build_type` | string | No | `"image-builder"` | `image-builder` or `image-thrillhouse` |
-| `functional_groups_source` | string | No | `"config"` | `config` (manual) or `repo_status` (auto-detect) |
+| `functional_groups_source` | string | No | `"config"` | `config` (manual `package_groups.yml`) or `catalog` (catalog JSON via `CATALOG_FILE_PATH` env var) |
 | `functional_groups[].name` | string | Conditional | -- | Groups to build (when source=config) |
 | `build_image.max_parallel` | int | No | `0` | Concurrent builds; 0 = unlimited |
 | `build_image.job_async` | int | No | `7200` | Async timeout (seconds) |

@@ -76,7 +76,7 @@ Sub-tags: `x86_64`, `aarch64` (run specific architecture only).
 | `image_build_config.yml` | `input/project_default/` | Yes |
 | `repo_status.yml` | repo_manager output | Yes |
 | `package_groups.yml` | `input/project_default/` | When `functional_groups_source: "config"` |
-| `catalog_rhel.json` | repo_manager catalog output | When `functional_groups_source: "catalog"` |
+| `catalog_rhel.json` | `CATALOG_FILE_PATH` env var | When `functional_groups_source: "catalog"` |
 | `image_build_credentials.yml` | Auto-generated (Vault) | Yes (except validate/cleanup) |
 
 ### Output
@@ -99,7 +99,6 @@ See `docs/contracts/` for full contract specifications.
 | **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
 | **Groups** | `functional_groups_source` (`config` / `catalog`), `functional_groups[]` |
-| **Catalog** | `catalog_file` (path to catalog JSON — used when source is `catalog`) |
 | **Concurrency** | `build_image.max_parallel`, `job_async`, `job_retry`, `job_delay` |
 | **ARM** | `aarch64_inventory_host_ip`, `aarch64_ssh_user` |
 
@@ -110,6 +109,7 @@ See `docs/contracts/` for full contract specifications.
 | `SYSTEM_ADMIN_NIC_IPV4` | **required** | Admin NIC IPv4 (S3 + registry endpoint) |
 | `OMNIA_DATA_PATH` | `/opt/omnia` | Root data directory |
 | `OMNIA_PROJECT_NAME` | `project_default` | Project name |
+| `CATALOG_FILE_PATH` | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` | Catalog JSON path (when `functional_groups_source: "catalog"`) |
 
 ---
 

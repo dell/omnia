@@ -315,7 +315,7 @@ Phase 1 builds the following extension points for Ubuntu:
 | `cluster_os_type` from `repo_status.yml` | Used for RHEL only (`rhel`) | Add `ubuntu` value |
 | Package type filter in `parse_catalog.yml` | Hardcoded `rpm` | Add `deb` branch based on `cluster_os_type` |
 | Template matrix in `build_os_images/vars/main.yml` | RHEL entries only | Add `ubuntu` entries |
-| `catalog_file` in `image_build_config.yml` | Points to RHEL catalog | Point to Ubuntu catalog |
+| `CATALOG_FILE_PATH` env var | Points to RHEL catalog | Point to Ubuntu catalog |
 | OS-agnostic variable names (`arch_repos`, etc.) | Aliases for `rhel_*` vars | Used directly by Ubuntu templates |
 | Functional layer naming `{role}_{os}_{ver}_{arch}` | RHEL versions only | Add Ubuntu versions |
 
@@ -389,12 +389,12 @@ Use case:     Manual control over exact packages per functional group
 #### Mode 2: `"catalog"` — Catalog-Driven Package Resolution
 
 ```
-Source file:  Configurable via catalog_file in image_build_config.yml
+Source file:  Configurable via CATALOG_FILE_PATH environment variable (omnia.env)
 Location:     $OMNIA_DATA_PATH/catalog/ (convention)
 Use case:     Automated package resolution from repo_manager catalog
 ```
 
-- Reads catalog JSON from `catalog_file` path (configured in `image_build_config.yml`)
+- Reads catalog JSON from `CATALOG_FILE_PATH` environment variable (set in `omnia.env`)
 - Three-level resolution: `functionallayer` → `groups` → `packages`
 - Filters by `packagetype` and `sources[].architecture`
 - Extracts `service_k8s_version` from `kubeadm_*` package name
@@ -407,7 +407,7 @@ Use case:     Automated package resolution from repo_manager catalog
 
 | Concern | `"config"` | `"catalog"` |
 |---------|-----------|------------|
-| **Package source** | `input/{project}/package_groups.yml` | Path from `catalog_file` in config |
+| **Package source** | `input/{project}/package_groups.yml` | Path from `CATALOG_FILE_PATH` env var |
 | **Package format** | Flat YAML (group → package list) | JSON (functionallayer → groups → packages) |
 | **service_k8s_version** | Empty string | Extracted from catalog |
 | **catalog_identifier** | Not set | Set from `catalog.identifier` |
@@ -629,7 +629,7 @@ Two clean modes, no fallback, no `"repo_status"` mode:
 | Mode | `functional_groups_source` | Package Source | Group Source |
 |------|--------------------------|----------------|-------------|
 | **Manual** | `"config"` (default) | `input/{project}/package_groups.yml` | `functional_groups` list in config or extra-vars |
-| **Catalog** | `"catalog"` | `catalog_file` from `image_build_config.yml` | `functional_groups` list in config, extra-vars, OR auto-detect from catalog |
+| **Catalog** | `"catalog"` | `CATALOG_FILE_PATH` env var | `functional_groups` list in config, extra-vars, OR auto-detect from catalog |
 
 Build-stream mode always uses explicit functional_groups from extra-vars, so
 `functional_groups_source` only affects WHERE packages are resolved from.
@@ -738,19 +738,17 @@ fallback to `software_config.json` becomes a safety net rather than the primary 
 
 ### 5.8 Catalog Path Resolution
 
-#### 5.8.1 Design Decision: Configurable Path in image_build_config.yml
+#### 5.8.1 Design Decision: CATALOG_FILE_PATH Environment Variable
 
-The catalog file path is configured directly in `image_build_config.yml` as `catalog_file`.
-The filename is NOT fixed and NOT auto-derived from `cluster_os_type`.
+The catalog file path is set via the `CATALOG_FILE_PATH` environment variable
+(defined in `omnia.env`), not in `image_build_config.yml`.
 
-**Why configurable path (not fixed filename or env var):**
-- **Multiple catalogs supported** — Users can point to different catalog files for
-  different builds (e.g., `catalog_rhel_10_0.json`, `catalog_rhel_10_2.json`,
-  `custom_dev_catalog.json`)
-- **No fixed naming convention** — Filename is whatever repo_manager produces or
-  the user creates; no hardcoded `catalog_{os_type}.json` pattern
-- **Simple** — One config field, no env var chain, no resolution priority
-- **Consistent** — Same pattern as `repo_manager_output_path` (explicit path in config)
+**Why env var (not config field):**
+- **Consistent with omnia.env pattern** — Environment-level settings belong in `omnia.env`
+- **Multiple catalogs supported** — Users can override per-run via env var
+  (e.g., `CATALOG_FILE_PATH=/opt/omnia/catalog/catalog_rhel_10_2.json`)
+- **Simpler config** — Fewer fields in `image_build_config.yml`
+- **Default provided** — `omnia.env` ships with a sensible default
 
 #### 5.8.2 Catalog Directory Convention
 
@@ -764,37 +762,36 @@ Catalog files live under `$OMNIA_DATA_PATH/catalog/`:
 ```
 
 This is a **convention** (not enforced) — the user can place the catalog file
-anywhere and point `catalog_file` to it.
+anywhere and set `CATALOG_FILE_PATH` to point to it.
 
-#### 5.8.3 Configuration in image_build_config.yml
+#### 5.8.3 Configuration in omnia.env
 
-```yaml
-# ---------------------------------------------------------------------------
-# 6. Catalog (when functional_groups_source: "catalog")
-# ---------------------------------------------------------------------------
-# Full path to catalog JSON file produced by repo_manager.
+```bash
+# Catalog JSON file path (used when functional_groups_source: "catalog")
 # Contains functional layers, groups, and package definitions.
-# Multiple catalogs are supported — change this path per build.
-# Only used when functional_groups_source is set to "catalog".
-catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
+# Override per-run: CATALOG_FILE_PATH=/path/to/custom_catalog.json
+CATALOG_FILE_PATH="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
 ```
 
 #### 5.8.4 Implementation in validate_prereqs.yml
 
 ```yaml
-# Only validate catalog_file when source is "catalog"
+# catalog_file fact is set from CATALOG_FILE_PATH env var
+catalog_file: "{{ lookup('ansible.builtin.env', 'CATALOG_FILE_PATH') | default('', true) }}"
+
+# Validate catalog file exists (catalog mode)
+- name: Fail if CATALOG_FILE_PATH env var is not set
+  ansible.builtin.fail:
+    msg: "CATALOG_FILE_PATH environment variable is not set."
+  when:
+    - functional_groups_source == 'catalog'
+    - catalog_file | length == 0
+
 - name: Stat catalog file
   ansible.builtin.stat:
     path: "{{ catalog_file }}"
   register: _catalog_check
-  when: functional_groups_source | default('config') == 'catalog'
-
-- name: Fail if catalog file not found
-  ansible.builtin.fail:
-    msg: "{{ catalog_not_found_fail_msg }}"
-  when:
-    - functional_groups_source | default('config') == 'catalog'
-    - not (_catalog_check.stat.exists | default(false))
+  when: functional_groups_source == 'catalog'
 ```
 
 #### 5.8.5 Implementation in fetch_build_packages/tasks/main.yml
@@ -828,23 +825,22 @@ catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
 #### 5.8.6 No Fallback, No Resolution Chain
 
 This is a clean new design:
-- If `functional_groups_source: "catalog"` and `catalog_file` doesn't exist → **fail**
+- If `functional_groups_source: "catalog"` and `CATALOG_FILE_PATH` is unset or file missing → **fail**
 - If `functional_groups_source: "config"` and `package_groups.yml` doesn't exist → **fail**
 - No auto-detection between modes
-- No env var override
 - No backward compatibility with old `functional_group_packages.yml` location
 
 #### 5.8.7 Runtime Path Examples
 
-```
-# RHEL 10.0 production build:
-catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
+```bash
+# RHEL 10.0 production build (default in omnia.env):
+CATALOG_FILE_PATH="/opt/omnia/catalog/catalog_rhel.json"
 
-# RHEL 10.2 upgrade test:
-catalog_file: "/opt/omnia/catalog/catalog_rhel_10_2.json"
+# RHEL 10.2 upgrade test (override per-run):
+CATALOG_FILE_PATH="/opt/omnia/catalog/catalog_rhel_10_2.json"
 
 # Developer custom catalog:
-catalog_file: "/home/dev/my_test_catalog.json"
+CATALOG_FILE_PATH="/home/dev/my_test_catalog.json"
 ```
 
 ### 5.9 package_groups.yml — Renamed and Relocated Input File
@@ -915,7 +911,7 @@ naturally — **no code changes are needed for new minor versions**.
 | Catalog `identifier` | Encodes version (e.g., `omnia-services-rhel-10-0`) — each catalog targets one version |
 | Catalog `functionallayer` names | Include version (e.g., `slurm_node_rhel_10_0_x86_64`) — version-specific |
 | Catalog `baseos_group_{version}` | Version in group name (e.g., `baseos_group_10.0`) — auto-adapts |
-| `catalog_file` in config | User points to version-specific catalog — full control |
+| `CATALOG_FILE_PATH` env var | User points to version-specific catalog — full control |
 | RPM repo URLs | Version-encoded in `repo_status.yml` URLs — no code impact |
 | Build templates | Same `dnf` package manager across all RHEL minor versions — no change |
 
@@ -927,7 +923,7 @@ To build for a different RHEL minor version:
    `repositories.{new_version}` keys and a matching catalog JSON
 2. User updates `image_build_config.yml`:
    - `repo_manager_output_path` → points to new `repo_status.yml`
-   - `catalog_file` → points to version-specific catalog (e.g., `catalog_rhel_10_2.json`)
+   - `CATALOG_FILE_PATH` env var → points to version-specific catalog (e.g., `catalog_rhel_10_2.json`)
    - `functional_groups` → uses version-specific names (e.g., `slurm_node_rhel_10_2_x86_64`)
 3. Run the build — no code changes needed
 
@@ -1021,7 +1017,7 @@ resolves `package_list_path` from `repo_manager.package_list`.
 - Set `service_k8s_version: ""`
 
 **When `functional_groups_source: "catalog"`:**
-- Call `omnia.image_build.parse_catalog` Python module with `catalog_file` and `build_arch`
+- Call `omnia.image_build.parse_catalog` Python module with catalog path (from `CATALOG_FILE_PATH`) and `build_arch`
 - Module performs three-level resolution: `functionallayer` → `groups` → `packages`
 - Module filters packages by `packagetype == 'rpm'` and `sources[].architecture == build_arch`
 - Module extracts `service_k8s_version` from `kubeadm_*` RPM name or `kube_apiserver` image tag
@@ -1066,11 +1062,7 @@ resolves `package_list_path` from `repo_manager.package_list`.
 
 **Changes:**
 - Update `functional_groups_source` comments: `"config"` or `"catalog"` (remove `"repo_status"`)
-- Add new section 6 for `catalog_file` configuration:
-  ```yaml
-  # 6. Catalog (when functional_groups_source: "catalog")
-  catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
-  ```
+- `catalog_file` removed from config — now set via `CATALOG_FILE_PATH` env var in `omnia.env`
 - Update functional group names in comments to new naming convention
 - Update functional_groups list entries to new names:
   ```yaml
@@ -1079,7 +1071,7 @@ resolves `package_list_path` from `repo_manager.package_list`.
     - name: "slurm_control_node_rhel_10_0_x86_64"
   ```
 - Update comments: when source is `"config"`, packages come from `package_groups.yml`
-  in the input directory; when `"catalog"`, from `catalog_file`
+  in the input directory; when `"catalog"`, from `CATALOG_FILE_PATH` env var
 
 #### 6.2.2 `roles/fetch_build_packages/tasks/check_functional_group.yml`
 

@@ -94,7 +94,7 @@ def _validate_functional_groups_source(config_data, errors, logger=None):
 
     Rules:
     - When functional_groups_source is 'config', functional_groups list must exist and be non-empty.
-    - When functional_groups_source is 'repo_status', functional_groups list is optional.
+    - When functional_groups_source is 'catalog', functional_groups list is optional (auto-detect from catalog).
     """
     source = config_data.get("functional_groups_source", "config")
     fg_list = config_data.get("functional_groups", [])
@@ -104,7 +104,7 @@ def _validate_functional_groups_source(config_data, errors, logger=None):
         if logger:
             logger.error(msg.FUNCTIONAL_GROUPS_REQUIRED_MSG)
 
-    if source == "repo_status" and fg_list:
+    if source == "catalog" and fg_list:
         if logger:
             logger.warning(msg.FUNCTIONAL_GROUPS_IGNORED_MSG)
 

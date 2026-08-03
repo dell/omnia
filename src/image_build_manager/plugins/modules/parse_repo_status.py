@@ -89,6 +89,13 @@ repo_manager_repos_aarch64:
   returned: always
   type: list
   elements: dict
+repo_cert_path:
+  description:
+    - TLS certificate path derived from repo_manager.certificates.server_crt.
+    - Consumers mount this into build containers for CA trust.
+    - Empty string when repo_manager section or cert is not configured.
+  returned: always
+  type: str
 '''
 
 DEFAULT_PORT = 2225
@@ -220,12 +227,17 @@ def parse_repo_status(file_path: str) -> dict:
         version_repos.get("aarch64", {})
     )
 
+    repo_mgr = data.get("repo_manager", {})
+    certs = repo_mgr.get("certificates", {}) if isinstance(repo_mgr, dict) else {}
+    repo_cert_path = certs.get("server_crt", "")
+
     return {
         "cluster_os_type": os_type,
         "cluster_os_version": str(os_version),
         "repo_port": repo_port,
         "repo_manager_repos_x86_64": repos_x86,
         "repo_manager_repos_aarch64": repos_aarch64,
+        "repo_cert_path": repo_cert_path if repo_cert_path else "",
     }
 
 

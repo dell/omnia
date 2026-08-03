@@ -21,7 +21,7 @@ Both modes produce the **same output shape**:
 - Network access to RPM repositories (or local Pulp mirror)
 - Valid `repo_status.yml` with repository URLs
 - **Config mode**: `package_groups.yml` in `input/<project>/`
-- **Catalog mode**: Catalog JSON at path specified in `image_build_config.yml`
+- **Catalog mode**: Catalog JSON at path from `CATALOG_FILE_PATH` environment variable
 
 ## Modules Used
 
@@ -47,5 +47,5 @@ See `vars/main.yml` for the full list.
 
 # Catalog mode — set in image_build_config.yml:
 #   functional_groups_source: "catalog"
-#   catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
+# Set CATALOG_FILE_PATH in omnia.env (e.g., /opt/omnia/catalog/catalog_rhel.json)
 ```

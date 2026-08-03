@@ -11,11 +11,11 @@ environment, checks prerequisites, parses `repo_status.yml` via the
 3. Validates prerequisites (dual-mode stat checks):
    - `repo_status.yml` — always required
    - `package_groups.yml` — when `functional_groups_source: "config"`
-   - `catalog_file` — when `functional_groups_source: "catalog"`
+   - `CATALOG_FILE_PATH` env var — when `functional_groups_source: "catalog"`
 4. Parses `repo_status.yml` via `omnia.image_build.parse_repo_status` module
 5. Sets OS facts (`cluster_os_type`, `cluster_os_version`, `repo_port`)
 6. Builds per-architecture repo lists (`repo_manager_repos_x86_64`, `repo_manager_repos_aarch64`)
-7. Validates repo manager certificate (if configured)
+7. Validates repo manager certificate (from `repo_manager.certificates.server_crt` in `repo_status.yml`)
 8. Sets S3 endpoint facts
 
 ## Requirements

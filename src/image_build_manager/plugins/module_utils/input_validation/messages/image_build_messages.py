@@ -73,8 +73,8 @@ FUNCTIONAL_GROUPS_REQUIRED_MSG = (
 
 FUNCTIONAL_GROUPS_IGNORED_MSG = (
     "image_build_config: functional_groups list is defined but "
-    "functional_groups_source is 'repo_status'. The list will be ignored; "
-    "groups are auto-detected from repo_manager output."
+    "functional_groups_source is 'catalog'. The list will be ignored; "
+    "groups are auto-detected from catalog JSON."
 )
 
 # =============================================================================

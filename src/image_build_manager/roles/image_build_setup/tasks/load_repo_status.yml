@@ -17,7 +17,7 @@
 #
 # Uses plugins/modules/parse_repo_status.py for repo_status.yml parsing,
 # port extraction, and repo list building. Validates repo manager certificate
-# (from image_build_config.yml) and sets S3 endpoint facts.
+# (derived from repo_status.yml) and sets S3 endpoint facts.
 
 # --- Parse repo_status.yml via Python module ---
 - name: Parse repo_status.yml via module
@@ -35,10 +35,10 @@
     repo_manager_repos_aarch64: "{{ _repo_status_result.repo_manager_repos_aarch64 }}"
     cacheable: true
 
-# --- Validate repo manager certificate (optional — from image_build_config.yml) ---
-- name: Set cert path fact from config
+# --- Validate repo manager certificate (derived from repo_status.yml) ---
+- name: Set cert path fact from repo_status
   ansible.builtin.set_fact:
-    _cert_path: "{{ repo_cert_path | default('') }}"
+    _cert_path: "{{ _repo_status_result.repo_cert_path | default('') }}"
 
 - name: Validate repo manager certificate exists
   ansible.builtin.stat:

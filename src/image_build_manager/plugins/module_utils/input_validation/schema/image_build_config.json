@@ -45,8 +45,8 @@
         },
         "functional_groups_source": {
             "type": "string",
-            "enum": ["config", "repo_status"],
-            "description": "Where to source functional groups: 'config' uses the manual list below; 'repo_status' auto-detects from repo_manager output.",
+            "enum": ["config", "catalog"],
+            "description": "Where to source functional groups: 'config' uses the manual list and package_groups.yml; 'catalog' resolves packages from the catalog JSON (CATALOG_FILE_PATH env var).",
             "default": "config"
         },
         "functional_groups": {

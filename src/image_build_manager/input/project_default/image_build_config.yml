@@ -20,12 +20,14 @@
 # Edit this file, then run: ./domain-init.sh  (or omnia.sh -s)
 #
 # Sections:
-#   1. Upstream Dependency    — repo_manager output path, certificates
+#   1. Upstream Dependency    — repo_manager output path
 #   2. S3 Storage Backend     — S3 provider and endpoint
 #   3. Image Builder          — builder type, container image, build controls
 #   4. Functional Groups      — which OS image variants to build
-#   5. Catalog File           — catalog JSON path (when source is "catalog")
-#   6. ARM Build Host         — aarch64 remote build host
+#   5. ARM Build Host         — aarch64 remote build host
+#
+# NOTE: catalog_file is sourced from CATALOG_FILE_PATH environment variable
+# (set in omnia.env). It is NOT configured here.
 #
 # Valid functional group names (config mode — legacy flat names):
 #   x86_64:  os_x86_64, slurm_node_x86_64, slurm_control_node_x86_64,
@@ -56,13 +58,9 @@
 # ---------------------------------------------------------------------------
 # Full path to repo_status.yml produced by repo_manager.
 # Contains RPM repo URLs organized by version and architecture.
+# TLS certificate path is derived from repo_manager.certificates.server_crt in repo_status.yml.
 # Convention: /opt/omnia/repo_manager/output/<project_name>/repo_status.yml
 repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
-
-# Path to repo manager TLS certificate for RPM repo HTTPS access.
-# Used to mount into build containers for CA trust.
-# Leave empty ("") to skip certificate mounting (e.g., when using HTTP or system-trusted certs).
-repo_cert_path: ""
 
 
 # ---------------------------------------------------------------------------
@@ -130,18 +128,7 @@ functional_groups:
 
 
 # ---------------------------------------------------------------------------
-# 5. Catalog File (when functional_groups_source: "catalog")
-# ---------------------------------------------------------------------------
-# Full path to the catalog JSON produced by repo_manager.
-# Only used when functional_groups_source is "catalog".
-# The catalog defines functionallayer → groups → packages with architecture
-# and packagetype metadata. Only RPM packages are extracted for image builds.
-# Convention: /opt/omnia/catalog/catalog_rhel.json
-catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
-
-
-# ---------------------------------------------------------------------------
-# 6. ARM Build Host (aarch64)
+# 5. ARM Build Host (aarch64)
 # ---------------------------------------------------------------------------
 # IP address of the ARM admin node for aarch64 image builds.
 # Leave empty ("") to skip aarch64 builds entirely.

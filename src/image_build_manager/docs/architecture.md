@@ -33,8 +33,8 @@ Role: `image_build_setup`
 - Set project directories and host vars
 - Validate prerequisite files exist (fail-fast):
   `image_build_config.yml`, `repo_status.yml`, `functional_group_packages.yml`
-- Load `repo_status.yml` -- RPM repo URLs, cert paths, OS metadata
-- Validate repo manager certificate (optional -- skip if empty)
+- Load `repo_status.yml` -- RPM repo URLs, OS metadata, `repo_manager.certificates.server_crt`
+- Validate repo manager certificate (derived from `repo_status.yml`; skip if empty)
 
 ### Step 1: Validate (tag: validate)
 
