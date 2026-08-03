@@ -20,55 +20,9 @@
 
 - name: Ensure build_stream deployment directory exists
   ansible.builtin.file:
-    path: "{{ omnia_path }}/omnia/build_stream"
+    path: "{{ omnia_path }}/build_stream"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
-
-- name: Sync app/ (API server, watcher, scripts) to NFS shared path
-  ansible.posix.synchronize:
-    src: "{{ bs_app_source }}"
-    dest: "{{ bs_rsync_destination }}"
-    mode: push
-    archive: true
-    checksum: true
-    rsync_opts:
-      - "--exclude=.venv"
-      - "--exclude=__pycache__"
-      - "--exclude=*.pyc"
-      - "--exclude=.pytest_cache"
-      - "--exclude=.mypy_cache"
-      - "--exclude=.coverage"
-      - "--exclude=htmlcov"
-  delegate_to: localhost
-
-- name: Sync playbook/Ansible code to omnia_core container
-  block:
-    - name: Create staging directory on OIM host
-      ansible.builtin.tempfile:
-        state: directory
-        prefix: bs_playbook_sync_
-      register: bs_staging_dir
-
-    - name: Extract playbook files from omnia_core container to OIM staging
-      ansible.builtin.command:
-        cmd: >-
-          podman cp
-          {{ core_container_name }}:{{ bs_playbook_source }}
-          {{ bs_staging_dir.path }}/
-      changed_when: true
-
-    - name: Copy staged playbook files back into omnia_core container
-      ansible.builtin.command:
-        cmd: >-
-          podman cp
-          {{ bs_staging_dir.path }}/build_stream/.
-          {{ core_container_name }}:{{ bs_playbook_destination }}
-      changed_when: true
-
-    - name: Remove staging directory
-      ansible.builtin.file:
-        path: "{{ bs_staging_dir.path }}"
-        state: absent
 
 - name: Enable playbook watcher service
   ansible.builtin.include_tasks: enable_watcher_service.yml

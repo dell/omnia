@@ -110,19 +110,12 @@
 # Output: {{ output_project_dir }}/build_status.yml (NFS-shared)
 # Includes per-functional-group image details with S3 paths for kernel, initrd, image.
 - name: Write build_status.yml output
-  hosts: localhost
-  connection: local
-  gather_facts: true
+  ansible.builtin.import_playbook: build/write_build_status.yml
   tags:
     - x86_64
     - aarch64
     - build
     - execute
-  tasks:
-    - name: Write build status
-      ansible.builtin.include_role:
-        name: build_os_images
-        tasks_from: write_build_status.yml
 
 # =========================================================================
 # FLOW: cleanup — Remove MinIO, registry, build artifacts (opt-in only)

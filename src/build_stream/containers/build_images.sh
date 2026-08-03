@@ -133,6 +133,23 @@ echo -e "${BLUE}Tag:          ${BUILD_STREAM_TAG}${NC}"
 echo ""
 
 BUILD_DIR="${SCRIPT_DIR}/omnia_build_stream"
+# app/ lives outside the build context; stage it in temporarily
+APP_SRC="${SCRIPT_DIR}/../app"
+APP_STAGE="${BUILD_DIR}/app"
+
+if [ ! -d "$APP_SRC" ]; then
+    echo -e "${RED}Error: app/ directory not found at ${APP_SRC}${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}Staging app/ into build context...${NC}"
+rm -rf "$APP_STAGE"
+cp -a "$APP_SRC" "$APP_STAGE"
+# Exclude development artifacts from the image
+rm -rf "${APP_STAGE}/.venv" "${APP_STAGE}/__pycache__" \
+       "${APP_STAGE}/.pytest_cache" "${APP_STAGE}/.mypy_cache" \
+       "${APP_STAGE}/.coverage" "${APP_STAGE}/htmlcov" \
+       "${APP_STAGE}/tests"
 
 cd "$BUILD_DIR" || exit 1
 
@@ -156,6 +173,9 @@ elif [ "$BUILD_TOOL" = "docker" ]; then
 fi
 
 cd - > /dev/null || exit 1
+
+# Clean up staged app/ from build context
+rm -rf "$APP_STAGE"
 
 if [ $BUILD_RESULT -eq 0 ]; then
     echo -e "\n${GREEN}omnia_build_stream:${BUILD_STREAM_TAG} built successfully.${NC}"

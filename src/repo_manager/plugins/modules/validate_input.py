@@ -34,6 +34,57 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+DOCUMENTATION = r"""
+---
+module: validate_input
+short_description: Validate input configuration files
+description:
+  - This module validates input configuration files against schemas.
+  - It performs comprehensive validation of repo_manager configuration.
+version_added: "1.0.0"
+options:
+    config_path:
+      description: Path to configuration file
+      required: true
+      type: str
+    schema_path:
+      description: Path to JSON schema file
+      required: false
+      type: str
+    strict:
+      description: Enable strict validation mode
+      required: false
+      type: bool
+      default: True
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Validate repo_manager configuration
+  validate_input:
+    config_path: /opt/omnia/input/repo_manager_config.yml
+    strict: true
+  register: validation_result
+"""
+
+RETURN = r"""
+valid:
+  description: Whether configuration is valid
+  type: bool
+  returned: always
+errors:
+  description: List of validation errors
+  type: list
+  returned: on_error
+warnings:
+  description: List of validation warnings
+  type: list
+  returned: always
+"""
+
+
 
 
 def validate_csv_structure(csv_file_path, logger=None):

@@ -87,8 +87,10 @@ image-build-manager/
     ├── image_build_manager.yml  # Main playbook entry point
     ├── roles/                   # All Ansible roles
     ├── playbooks/               # Sub-playbooks
-    ├── library/                 # Custom Ansible modules
-    ├── callback_plugins/        # Output callback
+    ├── plugins/                 # Custom Ansible modules and module_utils
+    │   ├── modules/
+    │   ├── module_utils/
+    │   └── callback_plugins/    # Output callback
     ├── vars/                    # Shared variables
     ├── input/                   # User input files
     │   └── project_default/
@@ -300,9 +302,9 @@ Figure: Image Build Manager data flow in Mode A (bare-metal)
 | 8 | `omnia.target` | Skipped in Mode A |
 | 9 | `/opt/omnia/` defaults | Config-driven via `host.shared_path` |
 | 10 | Credential utility | Replaced by `collect_build_credentials` role |
-| 11 | `common/callback_plugins/` | Local copy at `callback_plugins/omnia_default.py` |
-| 12 | `common/library/modules/` | All modules local at `library/modules/` |
-| 13 | `common/library/module_utils/` | Fully local at `library/module_utils/` |
+| 11 | `common/callback_plugins/` | Local copy at `plugins/callback_plugins/omnia_default.py` |
+| 12 | `common/library/modules/` | All modules local at `plugins/modules/` |
+| 13 | `common/library/module_utils/` | Fully local at `plugins/module_utils/` |
 | 14 | `common/vars/` | Inlined into `image_build_setup/vars/main.yml` |
 | 15 | `playbooks/utils/` | Absorbed into domain roles |
 | 16 | Pulp certificates | Read directly from absolute path in `repo_status.yml` |

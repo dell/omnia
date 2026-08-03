@@ -14,7 +14,17 @@
 
 ---
 # BuildStream Domain — Top-Level Entry Playbook
-# Usage: cd src/build_stream && ansible-playbook build_stream.yml
+#
+# Container mode (inside omnia_core):
+#   ansible-playbook build_stream.yml
+#
+# Standalone mode (directly on the host, no omnia_core):
+#   ansible-playbook build_stream.yml -e standalone_mode=true
+#
+# Standalone mode reads config from the local input/ directory
+# (input/build_stream_config.yml) and does not require
+# /opt/omnia container-internal paths or OIM metadata.
+# Override the NFS shared path:  -e standalone_oim_shared_path=/nfs
 #
 # This playbook orchestrates the full BuildStream domain:
 #   1. Upgrade check + input directory resolution (shared utilities)
@@ -39,8 +49,6 @@
   connection: local
   roles:
     - credential_utility
-  vars:
-    build_stream_config_dir: "build_stream"
   tags: always
 
 - name: Prepare BuildStream infrastructure (Postgres + GitLab + BSM)

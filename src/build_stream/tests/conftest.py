@@ -35,6 +35,42 @@ if 'sqlalchemy.dialects.postgresql' not in sys.modules:
 
 sys.modules['sqlalchemy.dialects.postgresql'].JSONB = _sa_JSON
 
+# Shim api.vault_client for Python 3.11 compatibility.
+# The real vault_client.py uses nested-quote f-strings (PEP 701, Python 3.12+)
+# which cause a SyntaxError on Python 3.11. Pre-inject a lightweight module
+# so the import chain (auth.routes -> vault_client) never parses the real file.
+if sys.version_info < (3, 12) and 'api.vault_client' not in sys.modules:
+    import types as _types
+    _vc_shim = _types.ModuleType('api.vault_client')
+    _vc_shim.__doc__ = "Python 3.11 test shim for api.vault_client"
+
+    class _VaultError(Exception):
+        """Base exception for vault operations."""
+
+    class _VaultDecryptError(_VaultError):
+        """Exception raised when vault decryption fails."""
+
+    class _VaultEncryptError(_VaultError):
+        """Exception raised when vault encryption fails."""
+
+    class _VaultNotFoundError(_VaultError):
+        """Exception raised when vault file is not found."""
+
+    class _VaultClient:  # pylint: disable=too-few-public-methods
+        """Stub VaultClient for test collection on Python 3.11."""
+        def __init__(self, vault_password_file=None, oauth_clients_vault_path=None,
+                     auth_config_vault_path=None):
+            self.vault_password_file = vault_password_file
+            self.oauth_clients_vault_path = oauth_clients_vault_path
+            self.auth_config_vault_path = auth_config_vault_path
+
+    _vc_shim.VaultError = _VaultError
+    _vc_shim.VaultDecryptError = _VaultDecryptError
+    _vc_shim.VaultEncryptError = _VaultEncryptError
+    _vc_shim.VaultNotFoundError = _VaultNotFoundError
+    _vc_shim.VaultClient = _VaultClient
+    sys.modules['api.vault_client'] = _vc_shim
+
 # Patch infra.db.session engine creation for SQLite compatibility
 # SQLite does not support pool_size/max_overflow parameters
 import infra.db.session as _db_session_mod  # noqa: E402 pylint: disable=wrong-import-position,ungrouped-imports

@@ -51,10 +51,7 @@
 
 - name: Build versioned output path
   ansible.builtin.set_fact:
-    _versioned_build_status: >-
-      {{ _output_domain }}/build_status_{{ _omnia_version }}_
-      {{ ansible_date_time.date | regex_replace('-', '') }}_
-      {{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml
+    _versioned_build_status: "{{ _output_domain }}/build_status_{{ _omnia_version }}_{{ ansible_date_time.date | regex_replace('-', '') }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.yml"  # noqa: yaml[line-length]
 
 - name: Write versioned build_status copy
   ansible.builtin.template:

@@ -1,4 +1,4 @@
-# Ansible / YAML Style Guide — Image Build Manager
+# Ansible / YAML Style Guide -- Omnia
 
 Based on [Dell Omnia Ansible Style Guide](https://github.com/dell/omnia).
 
@@ -218,3 +218,40 @@ find roles -path "*/meta/main.yml"
 # Build and check
 ansible-galaxy collection build
 ```
+
+---
+
+## 11. Security & Quality Gates
+
+All Ansible/YAML code MUST pass the following gates before merge:
+
+| Gate | Tool | Requirement | Enforcement |
+|------|------|-------------|-------------|
+| **Ansible Lint** | `ansible-lint` | Zero errors with `production` profile | CI PR gate |
+| **YAML Lint** | `yamllint` | Zero errors | CI PR gate |
+| **Secret Leak Detection** | `gitleaks` | Zero findings | CI pre-commit / PR gate |
+| **SAST** | Checkmarx | Zero High/Critical findings | CI or scheduled scan |
+| **Shell Script Lint** | `shellcheck` | Zero errors in `.sh` files | CI lint step |
+
+### 11.1 Ansible-Lint Compliance
+
+- All playbooks, roles, and task files MUST pass `ansible-lint` with zero errors
+- Use `production` profile: `ansible-lint -p production`
+- Suppressions allowed with `# noqa: <rule>` and a justification comment
+- Key enforced rules: named tasks, FQCN, no bare variables, no `command` when module exists
+
+### 11.2 Gitleaks (Secret Leak Prevention)
+
+- No hardcoded passwords, API keys, tokens, or credentials in any YAML file
+- Use Ansible Vault for sensitive data — reference via `{{ vault_secret_name }}`
+- CI runs `gitleaks detect` on every PR
+
+### 11.3 Checkmarx (SAST)
+
+- Zero High or Critical findings allowed in merged code
+- Medium findings SHOULD be addressed within the same sprint
+
+### 11.4 ShellCheck (Shell Script Lint)
+
+- All `.sh` files (e.g., `domain-init.sh`) MUST pass `shellcheck` with zero errors
+- Suppressions allowed with `# shellcheck disable=SCXXXX` and a justification comment

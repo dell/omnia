@@ -86,7 +86,7 @@ repo_status_not_found_fail_msg: >-
   Run repo_manager first, or copy the sample file:
     mkdir -p {{ repo_manager_output_path | dirname }}
     cp input/project_default/repo_manager_output/repo_status.yml {{ repo_manager_output_path }}
-  Then verify: ./src/main/omnia-cli repo-manager
+  Then verify: omnia-cli repo-manager
 functional_group_packages_not_found_fail_msg: >-
   functional_group_packages.yml not found at {{ package_list_path | default('unknown') }}.
   This file defines the RPM packages for each functional group.

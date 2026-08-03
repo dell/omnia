@@ -17,7 +17,7 @@
 # =============================================================================
 #
 # Per-domain input configuration for the image_build_manager domain.
-# Edit this file, then run: ./copy-input.sh  (or omnia.sh -s)
+# Edit this file, then run: ./domain-init.sh  (or omnia.sh -s)
 #
 # Sections:
 #   1. Upstream Dependency    — repo_manager output path

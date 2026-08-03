@@ -1,0 +1,29 @@
+# =============================================================================
+# Repo Manager — Python Requirements
+# =============================================================================
+# Install into the shared Omnia venv:
+#   ./src/main/omnia.sh --setup-venv
+# Or manually:
+#   pip install -r requirements.txt
+# =============================================================================
+
+# --- Core Ansible ---
+ansible-core>=2.20
+
+# --- Python Libraries ---
+PyYAML>=6.0.3
+jmespath>=1.0.1
+jsonschema>=4.17
+cryptography>=48.0.0
+netaddr>=1.3.0
+prettytable>=3.9.0
+requests>=2.32.5
+
+# --- Pulp CLI Support ---
+pulpcore-client>=3.22
+pulp-ansible>=0.20.0
+pulp-cli>=0.24.0
+pulp-container>=2.21.0
+pulp-file>=1.14.0
+pulp-python>=3.8.0
+pulp-rpm>=3.22.0

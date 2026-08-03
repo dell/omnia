@@ -19,6 +19,7 @@
 # Shared by both metrics and logs deployments
 
 - name: Create telemetry directories
+  when: cluster_mount | default('') != ''
   block:
     - name: Create telemetry subdirectory
       ansible.builtin.file:
@@ -31,12 +32,12 @@
         path: "{{ telemetry_deployments_dir }}"
         state: directory
         mode: "{{ victoria_dir_mode }}"
-  when: cluster_mount | default('') != ''
 
 - name: Download VictoriaMetrics operator package
   when:
     - cluster_mount | default('') != ''
     - telemetry_packages_config.telemetry_packages.victoria_metrics_operator | default('') != ''
+  run_once: true
   block:
     - name: Check if VictoriaMetrics operator tarball exists
       ansible.builtin.stat:
@@ -62,7 +63,6 @@
       ansible.builtin.fail:
         msg: "{{ victoria_tarball_not_found_msg }}"
       when: not (victoria_tarball_verify.stat.exists | default(false))
-  run_once: true
 
 - name: Set victoria_operator_pkg path
   ansible.builtin.set_fact:

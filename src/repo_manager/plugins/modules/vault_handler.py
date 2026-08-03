@@ -26,6 +26,58 @@ from ansible.module_utils.local_repo.common_functions import (
     load_vault_yaml,
 )
 
+DOCUMENTATION = r"""
+---
+module: vault_handler
+short_description: Encrypt, decrypt, or view Ansible Vault files
+description:
+  - This module handles Ansible Vault operations including encryption, decryption, and viewing of vault-encrypted files.
+  - It uses the ansible-vault library to perform cryptographic operations.
+version_added: "1.0.0"
+options:
+    file_path:
+      description: Path to the file to encrypt/decrypt/view
+      required: true
+      type: str
+    vault_key:
+      description: Path to the vault password file
+      required: true
+      type: str
+    mode:
+      description: Operation mode
+      required: true
+      type: str
+      choices: ['encrypt', 'decrypt', 'view']
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Encrypt a credentials file
+  vault_handler:
+    file_path: /opt/omnia/input/credentials.yml
+    vault_key: /opt/omnia/input/.vault_key
+    mode: encrypt
+
+- name: Decrypt a credentials file
+  vault_handler:
+    file_path: /opt/omnia/input/credentials.yml
+    vault_key: /opt/omnia/input/.vault_key
+    mode: decrypt
+"""
+
+RETURN = r"""
+changed:
+  description: Whether the file was modified
+  type: bool
+  returned: always
+msg:
+  description: Status message
+  type: str
+  returned: always
+"""
+
 
 def main():
     """Run the vault handler module."""

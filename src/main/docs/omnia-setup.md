@@ -25,7 +25,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 6. **Upgrades pip** — Ensures latest pip, setuptools, wheel
 7. **Installs per-domain pip packages** — Discovers and installs `requirements.txt` from all domains
 8. **Installs Galaxy collections** — Discovers and installs `requirements.yml` from all domains
-9. **Copies domain input files** — Runs each domain's `copy-input.sh` to stage input files from `src/<domain>/input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+9. **Initializes domains** — Runs each domain's `domain-init.sh` to create Ansible log directories and stage input files from `src/<domain>/input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 10. **Displays summary** — Shows venv path, Python version, Ansible version, and installed collections
 
 Use `--skip-input-copy` to skip step 9 (e.g., in CI pipelines or when input files are managed externally).
@@ -134,21 +134,25 @@ WARNING: No requirements.txt found in any domain
 
 **Solution**: This is a warning, not an error. It means no domains have Python dependencies. If you expect dependencies, check that domain directories exist under `src/`.
 
-### Input Copy Failed
+### Domain Init Failed
 
 ```
-WARNING: copy-input.sh failed for image_build_manager — continuing
+WARNING: domain-init.sh failed for image_build_manager — continuing
 ```
 
-**Solution**: Check that the domain's `copy-input.sh` exists and is executable. Run it manually to see the error:
+**Solution**: Check that the domain's `domain-init.sh` exists and is executable. Run it manually to see the error:
 ```bash
-bash src/image_build_manager/copy-input.sh
+bash src/image_build_manager/domain-init.sh
 ```
 
-### No copy-input.sh Scripts Found
+### No domain-init.sh Scripts Found
 
 ```
-No copy-input.sh scripts found in any domain
+No domain-init.sh scripts found in any domain
 ```
 
-**Solution**: This means no domain has a `copy-input.sh` script yet. Input files will not be staged to the runtime data path. The Ansible roles will fall back to copying from the source tree when the playbook runs.
+**Solution**: This means no domain has a `domain-init.sh` script yet. Ansible log directories will not be created automatically, and input files will not be staged to the runtime data path. Run manually:
+```bash
+sudo mkdir -p /var/log/omnia/<domain>
+cp -a src/<domain>/input/project_default/ <OMNIA_DATA_PATH>/<domain>/input/project_default/
+```
