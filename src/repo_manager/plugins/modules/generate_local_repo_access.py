@@ -149,6 +149,7 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         self.local_repo_config_path = module.params.get('local_repo_config_path', '')
         self.repo_config = module.params.get('repo_config', 'partial')
         self.overall_status = module.params.get('overall_status', 'success')
+        self.ssl_certificates = module.params.get('ssl_certificates', {})
 
         self.base_url = f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
         self.rpm_distributions = []
@@ -454,6 +455,18 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             'overall_status': str(self.overall_status).lower(),
             'cluster_os_type': str(self.cluster_os_type),
             'repo_config': str(self.repo_config),
+            'repo_manager': {
+                'port': self.pulp_server_port,
+                'certificates': {
+                    'server_crt': self.ssl_certificates.get(
+                        'server_crt', f"{self.certs_dir}/pulp_webserver.crt"
+                    ),
+                    'server_key': self.ssl_certificates.get(
+                        'server_key', f"{self.certs_dir}/pulp_webserver.key"
+                    ),
+                    'certs_dir': self.ssl_certificates.get('certs_dir', self.certs_dir),
+                }
+            },
             'repositories': repositories,
         }
 
@@ -541,7 +554,8 @@ def main():
             'certs_dir': {'type': 'str', 'required': True},
             'local_repo_config_path': {'type': 'str', 'default': ''},
             'repo_config': {'type': 'str', 'default': 'partial'},
-            'overall_status': {'type': 'str', 'default': 'success'}
+            'overall_status': {'type': 'str', 'default': 'success'},
+            'ssl_certificates': {'type': 'dict', 'default': {}}
         },
         supports_check_mode=True
     )
