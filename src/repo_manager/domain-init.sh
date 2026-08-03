@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # =============================================================================
-# copy-input.sh — Copy repo_manager input files to runtime data path
+# domain-init.sh — Copy repo_manager input files to runtime data path
 # =============================================================================
 #
 # Copies input files from the source tree to the Omnia data directory so that
@@ -25,9 +25,9 @@
 # Destination: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
 #
 # Usage:
-#   ./copy-input.sh                        # Uses env vars (must be exported)
-#   ./copy-input.sh --force                # Overwrite without prompting
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./copy-input.sh
+#   ./domain-init.sh                        # Uses env vars (must be exported)
+#   ./domain-init.sh --force                # Overwrite without prompting
+#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
 # Called automatically by: omnia.sh --setup-venv
 # =============================================================================

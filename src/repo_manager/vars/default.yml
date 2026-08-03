@@ -49,7 +49,7 @@ repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 # -----------------------------------------------------------------------------
 # CONSTRUCTED PATHS
 # -----------------------------------------------------------------------------
-# Input path matches copy-input.sh destination: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
+# Input path matches domain-init.sh destination: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
 input_project_dir: "{{ omnia_base_dir }}/repo_manager/input/{{ project_name | default(project_default) }}"
 # Output path follows standard: <shared_path>/output/<project_name>/
 output_project_dir: "{{ omnia_base_dir }}/repo_manager/output/{{ project_name | default(project_default) }}"

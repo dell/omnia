@@ -59,7 +59,7 @@ source /opt/omnia/venv/bin/activate
 # 3. Edit repo_manager_config.yml in the SOURCE tree, then re-stage
 vi src/repo_manager/input/project_default/repo_manager_config.yml
 vi src/repo_manager/input/project_default/software_config.json
-./src/repo_manager/copy-input.sh             # Re-copy to runtime path
+./src/repo_manager/domain-init.sh             # Re-copy to runtime path
 
 # 4. Run playbooks (cd into the playbooks directory)
 cd src/repo_manager/playbooks
@@ -79,7 +79,7 @@ cd cleanup   && ansible-playbook cleanup_pulp.yml
 
 Input files are **edited in the source tree** and **staged to the runtime data path** before
 playbook execution. The staging happens automatically during `omnia.sh -s`, or you can
-run `copy-input.sh` manually after editing.
+run `domain-init.sh` manually after editing.
 
 ```
 Source (git repo)                          Runtime (data path)
@@ -245,7 +245,7 @@ repo_manager/                       # omnia.repo_manager collection
 │   ├── repo_operations/             # Download and status generation
 │   └── cleanup/                     # Cleanup operations
 ├── vars/                            # Shared variables
-├── copy-input.sh                    # Copies input/ to runtime data path
+├── domain-init.sh                    # Copies input/ to runtime data path
 ├── input/                           # User input (source — staged to runtime)
 │   └── project_default/
 │       ├── repo_manager_config.yml  # User configuration
