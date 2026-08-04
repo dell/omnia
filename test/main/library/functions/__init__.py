@@ -13,79 +13,85 @@
 # limitations under the License.
 
 """
-Main Module — Functions
+Omnia Main — Functions
 
-Self-contained functions for the main module covering:
-- Config: Config loading, storage validation
-- Formatting: Colors, Symbols, TestLogger
-- Host: Testinfra connection, config loading, container exec
-- Runner: PlaybookRunner with live-streaming shell execution
-- Report: HTML + JSON test report generation
-- NFS: Internal NFS server setup/cleanup on RHEL
-- Omnia.sh: Install/uninstall verification functions
+Common utilities come from the omnia_auto package.
+Module-specific functions remain here.
 """
 
-# --- Formatting ---
-from .formatting_func import (
+# --- Common (from omnia_auto package) ---
+from omnia_auto import (
     Colors,
     Symbols,
     log,
     set_debug_mode,
     TestLogger,
     get_test_output,
-)
-
-# --- Host / Config ---
-from .host_func import (
     get_testinfra_host,
     load_test_config,
     load_test_credentials,
-    encrypt_test_credentials,
     get_module_root,
-    run_on_oim,
-    run_in_container,
+    run_on_host,
     is_local_execution,
-)
-
-# --- Runner ---
-from .runner_func import PlaybookRunner
-
-# --- Report ---
-from .report_func import (
     TestReport,
     get_current_report,
     set_current_report,
 )
 
-# --- NFS ---
-from .nfs_func import (
-    setup_internal_nfs_server,
-    verify_nfs_server_running,
-    cleanup_internal_nfs_server,
+# --- Omnia Main verification ---
+from .omnia_main_func import (
+    run_omnia_cmd,
+    run_omnia_cmd_expect_error,
+    check_env_file_installed,
+    check_profile_drop_in,
+    check_env_vars_loaded,
+    check_venv_created,
+    check_ansible_available,
+    check_base_dirs_created,
+    check_activate_helper,
+    check_domain_log_dirs,
+    check_domain_input_staged,
+    check_help_output,
+    check_error_contains,
 )
 
-# --- Omnia.sh verification and deploy ---
-from .omnia_sh_func import (
-    check_omnia_sh_exists,
-    validate_nfs_config,
-    check_container_running,
-    check_file_exists,
-    check_service_running,
-    check_ssh_to_container,
-    check_ssh_from_container,
-    check_metadata_file,
-    check_container_not_running,
-    check_service_not_exists,
-    check_fstab_entry_removed,
-    check_mount_removed,
-    check_ssh_key_pair_exists,
-    check_ssh_config_entry,
-    check_authorized_key,
-    check_container_image_exists,
-    check_omnia_dir_in_container,
-    check_log_dirs_exist,
-    check_omnia_version,
-    check_ssh_key_pair_removed,
-    check_ssh_config_entry_removed,
-    check_known_hosts_cleaned,
+# --- Validation ---
+from .validation_func import (
+    validate_test_config,
+    validate_all,
+    ConfigValidationError,
 )
+
+__all__ = [
+    "Colors",
+    "Symbols",
+    "log",
+    "set_debug_mode",
+    "TestLogger",
+    "get_test_output",
+    "get_testinfra_host",
+    "load_test_config",
+    "load_test_credentials",
+    "get_module_root",
+    "run_on_host",
+    "is_local_execution",
+    "TestReport",
+    "get_current_report",
+    "set_current_report",
+    "run_omnia_cmd",
+    "run_omnia_cmd_expect_error",
+    "check_env_file_installed",
+    "check_profile_drop_in",
+    "check_env_vars_loaded",
+    "check_venv_created",
+    "check_ansible_available",
+    "check_base_dirs_created",
+    "check_activate_helper",
+    "check_domain_log_dirs",
+    "check_domain_input_staged",
+    "check_help_output",
+    "check_error_contains",
+    "validate_test_config",
+    "validate_all",
+    "ConfigValidationError",
+]

@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Omnia Main — FVT test scenarios."""
+"""Setup/environment suite — environment file and variable tests."""
