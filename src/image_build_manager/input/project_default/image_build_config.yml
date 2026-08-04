@@ -92,7 +92,7 @@ build_image:
 #               Groups are read from catalog.functionallayer[] and filtered
 #               by build_arch. Packages resolved from catalog groups/packages.
 #               OS type and version are extracted from the catalog baseos group.
-functional_groups_source: "config"
+functional_groups_source: "catalog"
 
 
 # ---------------------------------------------------------------------------
