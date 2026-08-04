@@ -7,6 +7,7 @@ Core entry points for the Omnia Infrastructure Manager (OIM).
 | `omnia.sh` | Setup script — creates venv, installs deps, copies domain input files |
 | `omnia-cli` | Status and diagnostics CLI |
 | `omnia.env` | Environment configuration (single source of truth) |
+| `samples/` | Reference files (catalog JSON, etc.) for documentation and testing |
 
 ---
 
@@ -70,7 +71,7 @@ Step 7 ensures Ansible roles read input from a stable runtime location
 `--skip-input-copy` to skip this step (e.g., in CI or if you manage input files
 externally).
 
-Each domain provides a `copy-input.sh` script that handles the copy. The script
+Each domain provides a `domain-init.sh` script that handles the copy. The script
 is idempotent and only overwrites files that differ.
 
 ---
@@ -105,6 +106,8 @@ After `./omnia.sh -s`, the following structure is created at `$OMNIA_DATA_PATH`:
 /opt/omnia/
 ├── venv/                              # Shared Python venv
 ├── .data/                             # Internal metadata
+├── catalog/                           # Catalog JSON files (from repo_manager)
+│   └── catalog_rhel.json              # RHEL services catalog
 └── <domain>/                          # One per domain (repeats for each)
     ├── input/<project>/                # Staged input files (copied from src/)
     │   └── <domain>_config.yml         # Domain-specific config
@@ -128,7 +131,7 @@ src/<domain>/input/<project>/   ──copy──>  /opt/omnia/<domain>/input/<pr
 ```
 
 - **Edit** input files in the source tree (`src/<domain>/input/<project>/`)
-- **Run** `./omnia.sh -s` or manually invoke `src/<domain>/copy-input.sh` to stage them
+- **Run** `./omnia.sh -s` or manually invoke `src/<domain>/domain-init.sh` to stage them
 - **Playbooks** read from the runtime location only
 
 ---

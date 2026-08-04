@@ -17,7 +17,7 @@
 # =============================================================================
 #
 # Per-domain input configuration for the image_build_manager domain.
-# Edit this file, then run: ./copy-input.sh  (or omnia.sh -s)
+# Edit this file, then run: ./domain-init.sh  (or omnia.sh -s)
 #
 # Sections:
 #   1. Upstream Dependency    — repo_manager output path
@@ -26,13 +26,8 @@
 #   4. Functional Groups      — which OS image variants to build
 #   5. ARM Build Host         — aarch64 remote build host
 #
-# Valid functional group names:
-#   x86_64:  os_x86_64, slurm_node_x86_64, slurm_control_node_x86_64,
-#            service_kube_control_plane_first_x86_64,
-#            service_kube_control_plane_x86_64, service_kube_node_x86_64,
-#            login_node_x86_64, login_compiler_node_x86_64
-#   aarch64: os_aarch64, slurm_node_aarch64, login_node_aarch64,
-#            login_compiler_node_aarch64
+# NOTE: catalog_file is sourced from CATALOG_FILE_PATH environment variable
+# (set in omnia.env). It is NOT configured here.
 #
 # S3 bucket names are FIXED constants (do NOT change):
 #   boot-images  — OS boot images (kernel, initramfs, rootfs)
@@ -44,7 +39,8 @@
 # 1. Upstream Dependency
 # ---------------------------------------------------------------------------
 # Full path to repo_status.yml produced by repo_manager.
-# Contains RPM repo URLs, OS metadata, certificate paths, and package list path.
+# Contains RPM repo URLs organized by version and architecture.
+# TLS certificate path is derived from repo_manager.certificates.server_crt in repo_status.yml.
 # Convention: /opt/omnia/repo_manager/output/<project_name>/repo_status.yml
 repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
 
@@ -88,29 +84,15 @@ build_image:
 # 4. Functional Groups
 # ---------------------------------------------------------------------------
 # functional_groups_source: Where the list of groups to build comes from.
-#   "config"      — Use the functional_groups list below (manual selection).
-#   "repo_status" — Auto-detect from repo_manager output. All groups with
-#                   packages in functional_group_packages.yml are built.
-#                   aarch64 groups are skipped if no ARM host is configured.
-functional_groups_source: "config"
-
-# functional_groups: Image variants to build (used when source is "config").
-# Each name MUST end with _x86_64 or _aarch64.
-# RPM packages per group are defined in functional_group_packages.yml
-# (path from repo_status.yml → repo_manager.package_list).
-functional_groups:
-  # - name: "os_x86_64"
-  - name: "slurm_node_x86_64"
-  - name: "slurm_control_node_x86_64"
-  # - name: "service_kube_control_plane_first_x86_64"
-  # - name: "service_kube_control_plane_x86_64"
-  # - name: "service_kube_node_x86_64"
-  # - name: "login_node_x86_64"
-  # - name: "login_compiler_node_x86_64"
-  # - name: "os_aarch64"
-  # - name: "slurm_node_aarch64"
-  # - name: "login_node_aarch64"
-  # - name: "login_compiler_node_aarch64"
+#   "config"  — Groups and packages come from package_groups.yml in this
+#               project directory. All groups defined in package_groups.yml
+#               matching the build architecture (_x86_64 / _aarch64 suffix)
+#               are built automatically. No separate group list needed.
+#   "catalog" — Auto-resolve from catalog JSON (CATALOG_FILE_PATH env var).
+#               Groups are read from catalog.functionallayer[] and filtered
+#               by build_arch. Packages resolved from catalog groups/packages.
+#               OS type and version are extracted from the catalog baseos group.
+functional_groups_source: "catalog"
 
 
 # ---------------------------------------------------------------------------

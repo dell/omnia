@@ -44,7 +44,7 @@ nfs_not_configured_msg: >
 aarch64_image_fail_msg: >
   Unable to pull the Ochami aarch64 image builder image.
   Make sure the aarch64 image builder image is available in your container registry.
-  Verify image_build_config.yml and functional_group_packages.yml are correctly configured.
+  Verify image_build_config.yml and catalog/package_groups configuration are correct.
 regctl_not_found_msg: >
   regctl binary not found at {{ ochami_aarch_64_dir }}/regctl.
   Please run prepare_oim.yml playbook to download the regctl binary.

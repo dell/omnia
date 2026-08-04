@@ -16,164 +16,144 @@
 # PULP DEPLOYMENT PLAYBOOK
 # =============================================================================
 # This playbook deploys and configures the Pulp repository server container.
+# All tasks run on localhost (OIM).
 #
 # NOTE: Input validation is NOT included in this playbook.
 #       Run validation separately before deployment:
 #       ansible-playbook playbooks/validate/validate_config.yml --tags local_repo
 #
 # Workflow:
-#   1. Pre-flight: Load project config, create OIM group
-#   2. Credentials: Fetch required credentials (pulp_password)
-#   3. Network: Configure network and SSH known hosts
-#   4. Pre-checks: Verify existing container status
-#   5. Deployment: Pull image and deploy Pulp container (HTTP/HTTPS)
-#   6. Configuration: Configure Pulp CLI and certificates
-#   7. Verification: Verify Pulp is running and healthy
+#   1. Pre-flight: Load project config, fetch credentials
+#   2. Pre-checks: Verify existing container status
+#   3. Deployment: Pull image and deploy Pulp container (HTTP/HTTPS)
+#   4. Configuration: Configure Pulp CLI and certificates
+#   5. Verification: Verify Pulp is running and healthy
 #
 # Usage:
-#   # Full deployment
 #   ansible-playbook playbooks/deploy/deploy_pulp.yml -e 'project_name=project_default'
-#
-#   # With validation first (recommended)
-#   ansible-playbook playbooks/validate/validate_config.yml --tags local_repo -e 'project_name=project_default'
-#   ansible-playbook playbooks/deploy/deploy_pulp.yml -e 'project_name=project_default'
-#
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# PHASE 1: PRE-FLIGHT SETUP
-# -----------------------------------------------------------------------------
-
-- name: "Phase 1.1: Include input project directory"
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
-  tags: always
-
-- name: "Phase 1.2: Create OIM host group"
-  when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
-  vars:
-    oim_group: true
-  tags: always
-
-# -----------------------------------------------------------------------------
-# PHASE 2: CREDENTIALS
-# -----------------------------------------------------------------------------
-
-- name: "Phase 2: Fetch configuration credentials"
-  ansible.builtin.import_playbook: ../prepare/get_config_credentials.yml
-  tags:
-    - pulp
-    - credentials
-
-# -----------------------------------------------------------------------------
-# PHASE 3: NETWORK CONFIGURATION
-# -----------------------------------------------------------------------------
-
-- name: "Phase 3: Configure network and known hosts"
+- name: Deploy Pulp container
   hosts: localhost
   connection: local
-  gather_facts: false
-  tags: always
+  gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
+  tags: pulp
   tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 1: PRE-FLIGHT SETUP
+    # -------------------------------------------------------------------------
+    - name: Display deployment start
+      ansible.builtin.debug:
+        msg:
+          - "========== PULP DEPLOYMENT =========="
+          - "Project: {{ project_name | default(project_default) }}"
+          - "======================================"
+
+    - name: Load credentials
+      ansible.builtin.include_role:
+        name: ../../roles/credential
+      vars:
+        credential_action: all
+
     - name: Read endpoint configuration
       ansible.builtin.include_role:
         name: ../../roles/pulp_validation
         tasks_from: read_endpoint_config.yml
 
-    - name: Add OIM to SSH known hosts
-      ansible.builtin.include_role:
-        name: ../../roles/common
-        tasks_from: add_known_hosts.yml
-
-# -----------------------------------------------------------------------------
-# PHASE 4: PRE-DEPLOYMENT CHECKS
-# -----------------------------------------------------------------------------
-
-- name: "Phase 4: Pre-deployment container checks"
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 2: PRE-DEPLOYMENT CHECKS
+    # -------------------------------------------------------------------------
     - name: Run pre-flight checks
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: preflight_checks.yml
 
-# -----------------------------------------------------------------------------
-# PHASE 5: PULP CONTAINER DEPLOYMENT
-# -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # PHASE 2.5: CHECK IF PULP IS ALREADY DEPLOYED
+    # -------------------------------------------------------------------------
+    - name: Check if Pulp container is already running
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: existing_container_check
+      failed_when: false
 
-- name: "Phase 5: Deploy Pulp container on OIM host"
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  pre_tasks:
+    - name: Set container status fact
+      ansible.builtin.set_fact:
+        pulp_container_running: >-
+          {{ (existing_container_check.containers | length > 0) and
+             (existing_container_check.containers[0].State.Status == 'running') }}
+
+    - name: Check pulp status if container is running
+      ansible.builtin.command: /usr/local/bin/pulp status
+      register: pulp_status_check
+      changed_when: false
+      failed_when: false
+      when: pulp_container_running | default(false)
+
+    - name: Set pulp healthy fact
+      ansible.builtin.set_fact:
+        pulp_healthy: >-
+          {{ pulp_status_check.rc == 0 and
+             (pulp_status_check.stdout | from_json).database_connection.connected }}
+      when: pulp_container_running | default(false)
+
+    - name: Display Pulp already deployed message
+      ansible.builtin.debug:
+        msg:
+          - "========== PULP ALREADY DEPLOYED =========="
+          - "Pulp container is running and healthy"
+          - "Skipping deployment process"
+          - "Container: {{ pulp_container_name }}"
+          - "Status: {{ existing_container_check.containers[0].State.Status }}"
+          - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
+          - "Port: 2225"
+          - "=========================================="
+      when: pulp_healthy | default(false)
+
+    - name: Skip deployment if Pulp is already healthy
+      ansible.builtin.meta: end_play
+      when: pulp_healthy | default(false)
+
+    # -------------------------------------------------------------------------
+    # PHASE 3: DEPLOY PULP CONTAINER
+    # -------------------------------------------------------------------------
     - name: Display deployment info
       ansible.builtin.debug:
         msg:
-          - "========== PULP DEPLOYMENT =========="
-          - "Target host: {{ inventory_hostname }}"
+          - "========== DEPLOYING PULP =========="
           - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
           - "Image: {{ pulp_image }}"
-          - "======================================"
-  roles:
-    - role: ../roles/common
-    - role: ../roles/deploy_pulp
+          - "===================================="
 
-# -----------------------------------------------------------------------------
-# PHASE 6: PULP CLI CONFIGURATION
-# -----------------------------------------------------------------------------
+    - name: Run common role setup
+      ansible.builtin.include_role:
+        name: ../../roles/common
 
-- name: "Phase 6: Configure Pulp CLI"
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  tasks:
-    - name: Load repo_manager endpoint configuration
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
-        name: endpoint_config
+    - name: Deploy Pulp container
+      ansible.builtin.include_role:
+        name: ../../roles/deploy_pulp
 
-    - name: Set Pulp protocol from endpoint config
-      ansible.builtin.set_fact:
-        _pulp_protocol_https: "{{ endpoint_config.pulp_https_enabled | default(true) | bool }}"
-
+    # -------------------------------------------------------------------------
+    # PHASE 4: CONFIGURE PULP CLI
+    # -------------------------------------------------------------------------
     - name: Configure Pulp CLI for HTTP
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: configure_cli_http.yml
-      when: not _pulp_protocol_https | bool
+      when: not pulp_protocol_https | bool
 
     - name: Configure Pulp CLI for HTTPS
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: configure_cli_https.yml
-      when: _pulp_protocol_https | bool
+      when: pulp_protocol_https | bool
 
-# -----------------------------------------------------------------------------
-# PHASE 7: VERIFICATION
-# -----------------------------------------------------------------------------
-
-- name: "Phase 7: Verify Pulp deployment"
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: pulp
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 5: VERIFICATION
+    # -------------------------------------------------------------------------
     - name: Verify Pulp container status
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
@@ -185,5 +165,5 @@
           - "========== DEPLOYMENT COMPLETE =========="
           - "Pulp container is running successfully"
           - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
-          - "Port: {{ '2225' }}"
+          - "Port: 2225"
           - "=========================================="

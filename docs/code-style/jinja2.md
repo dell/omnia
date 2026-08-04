@@ -1,4 +1,4 @@
-# Jinja2 Template Style Guide — Image Build Manager
+# Jinja2 Template Style Guide -- Omnia
 
 Based on [Dell Omnia Jinja2 Style Guide](https://github.com/dell/omnia).
 

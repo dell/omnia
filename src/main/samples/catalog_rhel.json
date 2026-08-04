@@ -1,0 +1,1949 @@
+{
+  "catalog": {
+    "name": "omnia services catalog - rhel 10.0 (slurm-only test)",
+    "version": "1.0",
+    "identifier": "omnia-services-rhel-10-0-slurm-test",
+    "description": "minimal test catalog containing only slurm control node and slurm node functional layers for x86_64. baseos and admin_debug groups include a representative subset of packages. use catalog_rhel.json for the full production catalog.",
+    "functionallayer": [
+      {
+        "name": "slurm_control_node_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group_10.0",
+          "slurm_custom_group",
+          "openldap_group",
+          "slurm_control_node_group"
+        ]
+      },
+      {
+        "name": "slurm_node_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group_10.0",
+          "slurm_custom_group",
+          "openldap_group",
+          "slurm_node_group"
+        ]
+      }
+    ],
+    "groups": {
+      "baseos_group_10.0": {
+        "name": "baseos_group_10.0",
+        "type": "base_os",
+        "os_version": "10.0",
+        "os": "rhel",
+        "description": "base os packages for rhel cluster nodes",
+        "components": [
+          "systemd",
+          "systemd_udev",
+          "kernel",
+          "dracut",
+          "dracut_live",
+          "dracut_network",
+          "squashfs_tools",
+          "nfs_utils",
+          "nfs4_acl_tools",
+          "networkmanager",
+          "nm_connection_editor",
+          "iproute",
+          "iputils",
+          "curl",
+          "bash",
+          "coreutils",
+          "grep",
+          "sed",
+          "gawk",
+          "findutils",
+          "util_linux",
+          "kbd",
+          "lsof",
+          "cryptsetup",
+          "lvm2",
+          "device_mapper",
+          "rsyslog",
+          "chrony",
+          "sudo",
+          "gzip",
+          "wget",
+          "cloud_init",
+          "glibc_langpack_en",
+          "gedit"
+        ]
+      },
+      "admin_debug_group": {
+        "name": "admin_debug_group",
+        "type": "group",
+        "description": "admin and debug packages for cluster node diagnostics and development",
+        "components": [
+          "which",
+          "tcpdump",
+          "traceroute",
+          "iperf3",
+          "fping",
+          "dmidecode",
+          "hwloc",
+          "hwloc_libs",
+          "lshw",
+          "pciutils",
+          "vim_enhanced",
+          "emacs",
+          "zsh",
+          "openssh",
+          "openssh_server",
+          "openssh_clients",
+          "rsync",
+          "file",
+          "libcurl",
+          "tar",
+          "bzip2",
+          "man_db",
+          "man_pages",
+          "strace",
+          "kexec_tools",
+          "openssl_devel",
+          "ipmitool",
+          "gdb",
+          "gdb_gdbserver",
+          "lldb",
+          "lldb_devel",
+          "valgrind",
+          "valgrind_devel",
+          "ltrace",
+          "kernel_tools",
+          "perf",
+          "papi_rpm",
+          "papi_devel",
+          "papi_libs",
+          "cmake",
+          "make",
+          "autoconf",
+          "automake",
+          "libtool",
+          "gcc",
+          "gcc_cpp",
+          "gcc_gfortran",
+          "binutils",
+          "binutils_devel",
+          "clustershell",
+          "bash_completion"
+        ]
+      },
+      "slurm_custom_group": {
+        "name": "slurm_custom_group",
+        "type": "group",
+        "description": "common slurm packages shared across all slurm functional layers",
+        "components": [
+          "munge",
+          "firewalld",
+          "python3_firewall",
+          "pmix",
+          "nvidia_hpc_benchmarks",
+          "apptainer",
+          "doca_ofed",
+          "iscsi_initiator_utils",
+          "device_mapper_multipath",
+          "sg3_utils",
+          "lsscsi",
+          "imb",
+          "osu_micro_benchmarks",
+          "likwid",
+          "geopm",
+          "papi",
+          "msr_safe",
+          "sionlib"
+        ]
+      },
+      "slurm_control_node_group": {
+        "name": "slurm_control_node_group",
+        "type": "group",
+        "description": "packages specific to slurm control node",
+        "components": [
+          "slurm_slurmctld",
+          "slurm_slurmdbd",
+          "python3_pymysql",
+          "mariadb_server"
+        ]
+      },
+      "slurm_node_group": {
+        "name": "slurm_node_group",
+        "type": "group",
+        "description": "packages specific to slurm compute nodes",
+        "components": [
+          "slurm_slurmd",
+          "slurm_pam_slurm",
+          "kernel_devel",
+          "kernel_headers"
+        ]
+      },
+      "ldms_group": {
+        "name": "ldms_group",
+        "type": "group",
+        "description": "ldms lightweight distributed metric service packages",
+        "components": [
+          "python3_devel",
+          "python3_cython",
+          "openssl_libs",
+          "ovis_ldms"
+        ]
+      },
+      "openmpi_group": {
+        "name": "openmpi_group",
+        "type": "group",
+        "description": "openmpi packages for hpc compute and login nodes",
+        "components": [
+          "openmpi",
+          "pmix_devel",
+          "munge_devel",
+          "gcc_cpp",
+          "make"
+        ]
+      },
+      "openldap_group": {
+        "name": "openldap_group",
+        "type": "group",
+        "description": "openldap client and authentication packages",
+        "components": [
+          "openldap_clients",
+          "nss_pam_ldapd",
+          "sssd",
+          "oddjob_mkhomedir",
+          "authselect"
+        ]
+      },
+      "ucx_group": {
+        "name": "ucx_group",
+        "type": "group",
+        "description": "ucx unified communication framework packages",
+        "components": [
+          "ucx",
+          "gcc_cpp",
+          "make"
+        ]
+      }
+    },
+    "packages": {
+      "systemd": {
+        "name": "systemd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "systemd_udev": {
+        "name": "systemd-udev",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel": {
+        "name": "kernel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dracut": {
+        "name": "dracut",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dracut_live": {
+        "name": "dracut-live",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dracut_network": {
+        "name": "dracut-network",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "squashfs_tools": {
+        "name": "squashfs-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nfs_utils": {
+        "name": "nfs-utils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nfs4_acl_tools": {
+        "name": "nfs4-acl-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "networkmanager": {
+        "name": "NetworkManager",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nm_connection_editor": {
+        "name": "nm-connection-editor",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iproute": {
+        "name": "iproute",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iputils": {
+        "name": "iputils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "curl": {
+        "name": "docker.io/curlimages/curl",
+        "packagetype": "image",
+        "tag": "8.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bash": {
+        "name": "bash",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "coreutils": {
+        "name": "coreutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "grep": {
+        "name": "grep",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sed": {
+        "name": "sed",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gawk": {
+        "name": "gawk",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "findutils": {
+        "name": "findutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "util_linux": {
+        "name": "util-linux",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kbd": {
+        "name": "kbd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lsof": {
+        "name": "lsof",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cryptsetup": {
+        "name": "cryptsetup",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lvm2": {
+        "name": "lvm2",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "device_mapper": {
+        "name": "device-mapper",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "rsyslog": {
+        "name": "rsyslog",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "chrony": {
+        "name": "chrony",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sudo": {
+        "name": "sudo",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gzip": {
+        "name": "gzip",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "wget": {
+        "name": "wget",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cloud_init": {
+        "name": "cloud-init",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "glibc_langpack_en": {
+        "name": "glibc-langpack-en",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gedit": {
+        "name": "gedit",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "which": {
+        "name": "which",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "tcpdump": {
+        "name": "tcpdump",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "traceroute": {
+        "name": "traceroute",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iperf3": {
+        "name": "iperf3",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "fping": {
+        "name": "fping",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dmidecode": {
+        "name": "dmidecode",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "hwloc": {
+        "name": "hwloc",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "hwloc_libs": {
+        "name": "hwloc-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lshw": {
+        "name": "lshw",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pciutils": {
+        "name": "pciutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "vim_enhanced": {
+        "name": "vim-enhanced",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "emacs": {
+        "name": "emacs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "zsh": {
+        "name": "zsh",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssh": {
+        "name": "openssh",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssh_server": {
+        "name": "openssh-server",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssh_clients": {
+        "name": "openssh-clients",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "rsync": {
+        "name": "rsync",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "file": {
+        "name": "file",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "libcurl": {
+        "name": "libcurl",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "tar": {
+        "name": "tar",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bzip2": {
+        "name": "bzip2",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "man_db": {
+        "name": "man-db",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "man_pages": {
+        "name": "man-pages",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "strace": {
+        "name": "strace",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kexec_tools": {
+        "name": "kexec-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssl_devel": {
+        "name": "openssl-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ipmitool": {
+        "name": "ipmitool",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gdb": {
+        "name": "gdb",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gdb_gdbserver": {
+        "name": "gdb-gdbserver",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lldb": {
+        "name": "lldb",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lldb_devel": {
+        "name": "lldb-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "valgrind": {
+        "name": "valgrind",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "valgrind_devel": {
+        "name": "valgrind-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ltrace": {
+        "name": "ltrace",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel_tools": {
+        "name": "kernel-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "perf": {
+        "name": "perf",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi_rpm": {
+        "name": "papi",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi_devel": {
+        "name": "papi-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi_libs": {
+        "name": "papi-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cmake": {
+        "name": "cmake",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "make": {
+        "name": "make",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "autoconf": {
+        "name": "autoconf",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "automake": {
+        "name": "automake",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "libtool": {
+        "name": "libtool",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gcc": {
+        "name": "gcc",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gcc_cpp": {
+        "name": "gcc-c++",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gcc_gfortran": {
+        "name": "gcc-gfortran",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "binutils": {
+        "name": "binutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "binutils_devel": {
+        "name": "binutils-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "clustershell": {
+        "name": "clustershell",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bash_completion": {
+        "name": "bash-completion",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "munge": {
+        "name": "munge",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "firewalld": {
+        "name": "firewalld",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_firewall": {
+        "name": "python3-firewall",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pmix": {
+        "name": "pmix",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvidia_hpc_benchmarks": {
+        "name": "nvcr.io/nvidia/hpc-benchmarks",
+        "packagetype": "image",
+        "tag": "25.09",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "apptainer": {
+        "name": "apptainer",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "doca_ofed": {
+        "name": "doca-ofed",
+        "packagetype": "rpm_repo",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "doca",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iscsi_initiator_utils": {
+        "name": "iscsi-initiator-utils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "device_mapper_multipath": {
+        "name": "device-mapper-multipath",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sg3_utils": {
+        "name": "sg3_utils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lsscsi": {
+        "name": "lsscsi",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "imb": {
+        "name": "imb",
+        "packagetype": "tarball",
+        "url": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/imb-v2021.8.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "osu_micro_benchmarks": {
+        "name": "osu-micro-benchmarks",
+        "packagetype": "tarball",
+        "url": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "likwid": {
+        "name": "likwid",
+        "packagetype": "tarball",
+        "url": "https://github.com/rrze-hpc/likwid/archive/refs/tags/v5.4.1.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "geopm": {
+        "name": "geopm",
+        "packagetype": "tarball",
+        "url": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi": {
+        "name": "papi",
+        "packagetype": "tarball",
+        "url": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "msr_safe": {
+        "name": "msr-safe",
+        "packagetype": "tarball",
+        "url": "https://github.com/llnl/msr-safe/archive/refs/tags/v1.7.0.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sionlib": {
+        "name": "sionlib",
+        "packagetype": "tarball",
+        "url": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_slurmctld": {
+        "name": "slurm-slurmctld",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_slurmdbd": {
+        "name": "slurm-slurmdbd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_pymysql": {
+        "name": "python3-PyMySQL",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "mariadb_server": {
+        "name": "mariadb-server",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_slurmd": {
+        "name": "slurm-slurmd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_pam_slurm": {
+        "name": "slurm-pam_slurm",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel_devel": {
+        "name": "kernel-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel_headers": {
+        "name": "kernel-headers",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_devel": {
+        "name": "python3-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_cython": {
+        "name": "python3-cython",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssl_libs": {
+        "name": "openssl-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openmpi": {
+        "name": "openmpi",
+        "packagetype": "tarball",
+        "url": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pmix_devel": {
+        "name": "pmix-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "munge_devel": {
+        "name": "munge-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openldap_clients": {
+        "name": "openldap-clients",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nss_pam_ldapd": {
+        "name": "nss-pam-ldapd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sssd": {
+        "name": "sssd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "oddjob_mkhomedir": {
+        "name": "oddjob-mkhomedir",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "authselect": {
+        "name": "authselect",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ucx": {
+        "name": "ucx",
+        "packagetype": "tarball",
+        "url": "https://github.com/openucx/ucx/releases/download/v1.18.0/ucx-1.18.0.tar.gz",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

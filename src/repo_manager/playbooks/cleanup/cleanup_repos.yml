@@ -28,6 +28,13 @@
 #   ansible-playbook cleanup_repos.yml -e "cleanup_files=all"
 #   ansible-playbook cleanup_repos.yml -e "cleanup_repos=all" -e "cleanup_containers=all" -e "cleanup_files=all"
 #
+#   # Cleanup Pulp config directory (stops container, removes pulp_config/):
+#   ansible-playbook cleanup_repos.yml -e "cleanup_pulp_config=true"
+#   ansible-playbook cleanup_repos.yml -e "cleanup_pulp_config=true" -e "force=true"
+#
+#   # Full cleanup (all artifacts + pulp config):
+#   ansible-playbook cleanup_repos.yml -e "cleanup_repos=all" -e "cleanup_containers=all" -e "cleanup_files=all" -e "cleanup_pulp_config=true" -e "force=true"
+#
 #   # Examples: x86_64_rhel_10.0_epel, aarch64_rhel_10.0_epel, x86_64_rhel_10.0_appstream, aarch64_rhel_10.0_baseos
 #   # Note: Repository names follow the format <arch>_<os_type>_<os_version>_<name>
 
@@ -38,7 +45,46 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   pre_tasks:
-    # Step 0: Load software_config to determine OS type and version
+    # Step 0: Setup pulp CLI
+    - name: Check if pulp CLI exists at /usr/local/bin/pulp
+      ansible.builtin.stat:
+        path: /usr/local/bin/pulp
+      register: pulp_system_cli_check
+
+    - name: Find pulp CLI path from current environment
+      ansible.builtin.command: which pulp
+      register: pulp_which_result
+      changed_when: false
+      failed_when: false
+      when: not pulp_system_cli_check.stat.exists
+
+    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
+      ansible.builtin.file:
+        src: "{{ pulp_which_result.stdout }}"
+        dest: /usr/local/bin/pulp
+        state: link
+      when:
+        - not pulp_system_cli_check.stat.exists
+        - pulp_which_result.rc | default(1) == 0
+        - pulp_which_result.stdout | default('') | length > 0
+
+    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
+      ansible.builtin.command: /usr/local/bin/pulp --version
+      register: pulp_cli_version
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if pulp CLI is not available
+      ansible.builtin.fail:
+        msg: |
+          Pulp CLI not found at /usr/local/bin/pulp.
+          Please ensure pulp-cli is installed and the virtual environment is activated:
+            source <venv_path>/bin/activate
+            pip install pulp-cli
+          Then run the playbook again to create the symlink automatically.
+      when: pulp_cli_version.rc != 0
+
+    # Step 1: Load software_config to determine OS type and version
     - name: Load software_config.json
       ansible.builtin.include_vars:
         file: '{{ input_project_dir | default("/opt/omnia/input/project_default/repo_manager") }}/software_config.json'
@@ -54,7 +100,8 @@
       ansible.builtin.set_fact:
         has_cleanup_input: "{{ (cleanup_repos | default([]) | length > 0) or
           (cleanup_containers | default([]) | length > 0) or
-          (cleanup_files | default([]) | length > 0) }}"
+          (cleanup_files | default([]) | length > 0) or
+          (cleanup_pulp_config | default(false) | bool) }}"
 
     - name: Validate input - at least one cleanup type must be specified
       ansible.builtin.assert:
@@ -65,6 +112,7 @@
             cleanup_repos: ['repo1', 'repo2']
             cleanup_containers: ['container1', 'container2']
             cleanup_files: ['file1', 'file2']
+            cleanup_pulp_config: true
 
     # Step 2: User Confirmation
     - name: Parse cleanup lists - repos
@@ -95,6 +143,7 @@
           - "Repositories : {{ (repo_list | default([]) | join(', ')) if repo_list | default([]) | length > 0 else 'None' }}"
           - "Containers   : {{ (container_list | default([]) | join(', ')) if container_list | default([]) | length > 0 else 'None' }}"
           - "Files        : {{ (file_list | default([]) | join(', ')) if file_list | default([]) | length > 0 else 'None' }}"
+          - "Pulp Config  : {{ 'YES (will stop container and remove pulp_config/)' if cleanup_pulp_config | default(false) | bool else 'No' }}"
           - "====================================="
 
     - name: Set force skip confirmation flag
@@ -130,7 +179,7 @@
         - not user_confirmed
 
   tasks:
-    # Step 3: Call Python Module
+    # Step 3: Call Python Module for artifact cleanup
     - name: Execute cleanup ( This task might take sometime )
       pulp_cleanup:
         cleanup_repos: "{{ repo_list | default([]) }}"
@@ -145,6 +194,96 @@
         REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
         OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
       register: cleanup_result
+      when: (repo_list | default([]) | length > 0) or
+            (container_list | default([]) | length > 0) or
+            (file_list | default([]) | length > 0)
+
+    # Step 4: Cleanup Pulp Config Directory (if requested)
+    - name: Cleanup Pulp config directory
+      when: cleanup_pulp_config | default(false) | bool
+      block:
+        - name: Check if Pulp container is running
+          containers.podman.podman_container_info:
+            name: "{{ pulp_container_name | default('pulp') }}"
+          register: pulp_container_info
+          failed_when: false
+
+        - name: Stop Pulp container if running
+          containers.podman.podman_container:
+            name: "{{ pulp_container_name | default('pulp') }}"
+            state: stopped
+          when:
+            - pulp_container_info.containers | default([]) | length > 0
+            - pulp_container_info.containers[0].State.Running | default(false)
+          register: pulp_stop_result
+
+        - name: Remove Pulp container
+          containers.podman.podman_container:
+            name: "{{ pulp_container_name | default('pulp') }}"
+            state: absent
+          when: pulp_container_info.containers | default([]) | length > 0
+          register: pulp_remove_result
+
+        - name: Stop and disable Pulp systemd service
+          ansible.builtin.systemd_service:
+            name: "{{ pulp_container_name | default('pulp') }}"
+            state: stopped
+            enabled: false
+          failed_when: false
+          register: pulp_service_result
+
+        - name: Remove Pulp systemd service file
+          ansible.builtin.file:
+            path: "/etc/systemd/system/{{ pulp_container_name | default('pulp') }}.service"
+            state: absent
+          register: pulp_service_file_result
+          notify: Reload systemd daemon
+
+        - name: Check if pulp_config directory exists
+          ansible.builtin.stat:
+            path: "{{ pulp_config_base_dir }}"
+          register: pulp_config_dir_stat
+
+        - name: Remove pulp_config directory
+          ansible.builtin.file:
+            path: "{{ pulp_config_base_dir }}"
+            state: absent
+          when: pulp_config_dir_stat.stat.exists
+          register: pulp_config_cleanup_result
+
+        - name: Remove Pulp CLI config directory
+          ansible.builtin.file:
+            path: "{{ ansible_env.HOME }}/.config/pulp"
+            state: absent
+          register: pulp_cli_config_cleanup
+
+        - name: Display Pulp config cleanup results
+          ansible.builtin.debug:
+            msg:
+              - "========== PULP CONFIG CLEANUP =========="
+              - "Container stopped: {{ pulp_stop_result.changed | default(false) }}"
+              - "Container removed: {{ pulp_remove_result.changed | default(false) }}"
+              - "Service disabled: {{ pulp_service_result.changed | default(false) }}"
+              - "Service file removed: {{ pulp_service_file_result.changed | default(false) }}"
+              - "Config directory removed: {{ pulp_config_cleanup_result.changed | default(false) }}"
+              - "CLI config removed: {{ pulp_cli_config_cleanup.changed | default(false) }}"
+              - "Config path: {{ pulp_config_base_dir }}"
+              - "==========================================="
+
+    # Set default cleanup_result if only pulp_config cleanup was requested
+    - name: Set default cleanup result for pulp_config only cleanup
+      ansible.builtin.set_fact:
+        cleanup_result:
+          total: 0
+          success_count: 0
+          failed_count: 0
+          status_file: "N/A (pulp_config cleanup only)"
+          pretty_table_lines: ["Pulp config cleanup completed. No artifact cleanup performed."]
+      when:
+        - cleanup_pulp_config | default(false) | bool
+        - (repo_list | default([]) | length == 0)
+        - (container_list | default([]) | length == 0)
+        - (file_list | default([]) | length == 0)
 
   post_tasks:
     # Step 4: Display Results
@@ -161,3 +300,8 @@
           - "NOTE: If the deleted artifact is required by any software, you must rerun repo_manager.yml to sync the artifact(s) again."
           - "If the artifact(s) is not synced in local repo, subsequent playbooks having dependency may fail"
           - "============================================================================================================================"
+
+  handlers:
+    - name: Reload systemd daemon
+      ansible.builtin.systemd_service:
+        daemon_reload: true

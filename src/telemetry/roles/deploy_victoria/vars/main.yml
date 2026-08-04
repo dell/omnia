@@ -31,9 +31,6 @@ telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # VictoriaMetrics Cluster Configuration
 victoria_deployment_mode: "cluster"
-victoria_cluster:
-  enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
-  tls_enabled: true
 
 # Certificate directory
 victoria_cert_dir: "{{ telemetry_deploy_dir }}/certs/victoria"

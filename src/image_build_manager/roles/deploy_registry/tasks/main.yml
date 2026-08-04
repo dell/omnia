@@ -48,6 +48,16 @@
     - name: Flush handlers to reload systemd
       ansible.builtin.meta: flush_handlers
 
+    - name: Pre-pull registry image to avoid quadlet pull timeout
+      containers.podman.podman_image:
+        name: "{{ registry_image }}"
+        tag: "{{ registry_tag }}"
+        state: present
+      register: registry_image_pull
+      retries: "{{ image_pull_retries }}"
+      delay: "{{ image_pull_delay }}"
+      until: registry_image_pull is succeeded
+
     - name: Enable and start registry service
       ansible.builtin.systemd_service:
         name: registry
@@ -70,6 +80,44 @@
         method: GET
         status_code: 200
       register: registry_health
-      retries: 10
-      delay: 3
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_delay }}"
       until: registry_health.status == 200
+
+# --- regctl installation and configuration ---
+- name: Check if regctl binary is already installed
+  ansible.builtin.stat:
+    path: "{{ regctl_dest }}"
+  register: _regctl_stat
+
+- name: Install and configure regctl
+  when: not _regctl_stat.stat.exists
+  block:
+    - name: Install regctl binary
+      ansible.builtin.get_url:
+        url: "{{ regctl_url }}"
+        dest: "{{ regctl_dest }}"
+        mode: "{{ file_perm_rwx }}"
+        timeout: 120
+      register: regctl_download
+      retries: "{{ download_retries }}"
+      delay: "{{ download_delay }}"
+      until: regctl_download is succeeded
+
+    - name: Configure regctl to use HTTP for local registry
+      ansible.builtin.command:
+        cmd: >-
+          /usr/local/bin/regctl registry set --tls disabled
+          {{ hostvars['localhost']['admin_nic_ip'] }}:{{ registry_port }}
+      changed_when: true
+
+    - name: Verify regctl config
+      ansible.builtin.command:
+        cmd: cat ~/.regctl/config.json
+      changed_when: false
+      register: regctl_config
+
+    - name: Display regctl config
+      ansible.builtin.debug:
+        msg: "{{ regctl_config.stdout_lines }}"
+        verbosity: 1

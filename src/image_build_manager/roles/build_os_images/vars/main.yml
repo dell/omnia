@@ -24,7 +24,7 @@ pull_image_failure_msg: |
     1. Repo manager registry: {repo_path}
     2. Direct upstream:       {upstream_image}
   Ensure either the repo manager has synced the image or the host has internet access.
-omnia_version: "{{ hostvars['localhost']['omnia_version'] | default('2.2.0.0') }}"
+omnia_version: "{{ hostvars['localhost']['omnia_version'] }}"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
@@ -117,6 +117,11 @@ base_image_failure_msg: |
 compute_image_failure_msg: |
   {{ build_arch }} compute image build job did not complete successfully.
   Check logs at {{ image_build_log_dir }} for respective functional group for more details.
+
+regctl_not_found_fail_msg: >-
+  regctl binary not found at /usr/local/bin/regctl.
+  Run the deploy_registry role (prepare_image_build_manager.yml) first
+  to install regctl and configure registry TLS.
 
 
 # preflight_selinux_check.yml

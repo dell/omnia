@@ -27,132 +27,101 @@ Usage in a playbook:
   - name: Validate image build configuration
     validate_image_build_config:
       input_project_dir: "{{ input_project_dir }}"
-      schema_dir: "{{ role_path }}/../../../plugins/module_utils/image_build_validation/schema"
+      schema_dir: "{{ role_path }}/../../../plugins/module_utils/input_validation/schema"
 """
 
-import json
 import logging
 import os
 
-import yaml
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.image_build_validation.image_build_validation_flow import (
-    validate_image_build_config,
-    validate_credentials_logic,
+from ansible.module_utils.input_validation.core.config import (
+    VALIDATION_FILES,
 )
+from ansible.module_utils.input_validation.core.file_utils import (
+    is_vault_encrypted,
+    load_json,
+    load_yaml,
+)
+from ansible.module_utils.input_validation.core.utils import create_logger
+from ansible.module_utils.input_validation.core.validation_engine import (
+    logic as validate_image_build_config,
+    logic_credentials as validate_credentials_logic_new,
+    schema as validate_against_schema,
+)
+from ansible.module_utils.input_validation.messages import (
+    image_build_messages as msg,
+)
+
+DOCUMENTATION = r'''
+---
+module: validate_image_build_config
+short_description: Validate image build configuration files
+version_added: "3.0.0"
+description:
+  - Performs L1 (JSON schema) validation on image_build_config.yml and
+    image_build_credentials.yml.
+  - Performs L2 (cross-field logic) validation on config values.
+  - Skips Ansible Vault encrypted files automatically.
+  - Returns structured validation results with error details and log path.
+options:
+  input_project_dir:
+    description: Path to the project input directory containing config files.
+    required: true
+    type: str
+  schema_dir:
+    description: Path to the directory containing JSON schema files.
+    required: true
+    type: str
+  log_dir:
+    description: Override default log directory for validation logs.
+    required: false
+    type: str
+    default: ""
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Validate image build configuration
+  omnia.image_build.validate_image_build_config:
+    input_project_dir: /opt/omnia/image_build_manager/input/project_default
+    schema_dir: "{{ role_path }}/../../../plugins/module_utils/input_validation/schema"
+  register: validation
+
+- name: Fail if validation errors found
+  ansible.builtin.fail:
+    msg: "{{ validation.errors | join('; ') }}"
+  when: validation.validation_failed
+'''
+
+RETURN = r'''
+validation_failed:
+  description: Whether any validation errors were found.
+  returned: always
+  type: bool
+errors:
+  description: List of validation error messages.
+  returned: always
+  type: list
+  elements: str
+valid_files:
+  description: List of files that passed validation.
+  returned: always
+  type: list
+  elements: str
+invalid_files:
+  description: List of files that failed validation.
+  returned: always
+  type: list
+  elements: str
+log_file:
+  description: Path to the validation log file.
+  returned: always
+  type: str
+'''
 
 
 VALIDATION_LOG_PATH = "/opt/omnia/image_build_manager/log/"  # Default — overridden by log_dir param
-
-# Files to validate and their corresponding schema names
-VALIDATION_FILES = [
-    {
-        "config_file": "image_build_config.yml",
-        "schema_file": "image_build_config.json",
-        "required": True,
-    },
-    {
-        "config_file": "image_build_credentials.yml",
-        "schema_file": "image_build_credentials.json",
-        "required": False,
-    },
-]
-
-
-def create_logger(project_name):
-    """Create a logger for image_build validation."""
-    log_file = os.path.join(
-        VALIDATION_LOG_PATH, f"image_build_validation_{project_name}.log"
-    )
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    logging.basicConfig(
-        filename=log_file,
-        format="%(asctime)s %(levelname)s %(message)s",
-        filemode="w",
-    )
-    logger = logging.getLogger("image_build_validation")
-    logger.setLevel(logging.DEBUG)
-    return logger, log_file
-
-
-# Ansible Vault header prefix
-VAULT_HEADER = "$ANSIBLE_VAULT"
-
-
-def is_vault_encrypted(path):
-    """Check if a file is Ansible Vault encrypted."""
-    if not os.path.isfile(path):
-        return False
-    with open(path, "r", encoding="utf-8") as f:
-        first_line = f.readline().strip()
-    return first_line.startswith(VAULT_HEADER)
-
-
-def load_yaml(path):
-    """Load a YAML file, returning None on failure."""
-    if not os.path.isfile(path):
-        return None
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
-
-
-def load_json(path):
-    """Load a JSON file, returning None on failure."""
-    if not os.path.isfile(path):
-        return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def validate_against_schema(data, schema, file_label, errors, logger):
-    """
-    Validate data against a JSON schema (L1).
-    Uses basic type/required/enum checks without jsonschema dependency.
-    """
-    if not schema or not data:
-        return
-
-    schema_type = schema.get("type")
-    if schema_type == "object" and not isinstance(data, dict):
-        msg = f"{file_label}: Expected object at top level, got {type(data).__name__}"
-        errors.append(msg)
-        logger.error(msg)
-        return
-
-    # Check required properties
-    required = schema.get("required", [])
-    properties = schema.get("properties", {})
-    for req_key in required:
-        if req_key not in data:
-            msg = f"{file_label}: Missing required property '{req_key}'"
-            errors.append(msg)
-            logger.error(msg)
-
-    # Check enum constraints
-    for prop_name, prop_schema in properties.items():
-        if prop_name not in data:
-            continue
-        value = data[prop_name]
-
-        if "enum" in prop_schema and value not in prop_schema["enum"]:
-            msg = (f"{file_label}: Property '{prop_name}' has invalid value "
-                   f"'{value}'. Allowed: {prop_schema['enum']}")
-            errors.append(msg)
-            logger.error(msg)
-
-        # Recurse into nested objects
-        if prop_schema.get("type") == "object" and isinstance(value, dict):
-            validate_against_schema(
-                value, prop_schema, f"{file_label}.{prop_name}", errors, logger
-            )
-
-    # Check additionalProperties constraint
-    if schema.get("additionalProperties") is False:
-        extra_keys = set(data.keys()) - set(properties.keys())
-        for extra in extra_keys:
-            msg = f"{file_label}: Unexpected property '{extra}'"
-            errors.append(msg)
-            logger.error(msg)
 
 
 def run_module():
@@ -171,11 +140,9 @@ def run_module():
     project_name = os.path.basename(input_project_dir)
 
     # Use provided log_dir or fall back to default
-    if log_dir:
-        global VALIDATION_LOG_PATH
-        VALIDATION_LOG_PATH = log_dir
-    logger, log_file = create_logger(project_name)
-    logger.info("=== Image Build Manager Validation Start ===")
+    log_path = log_dir if log_dir else VALIDATION_LOG_PATH
+    logger, log_file = create_logger(log_path, project_name)
+    logger.info(msg.VALIDATION_START_MSG)
 
     all_errors = []
     valid_files = []
@@ -189,10 +156,10 @@ def run_module():
 
         if not os.path.isfile(config_path):
             if vf["required"]:
-                msg = f"Required file not found: {config_path}"
-                all_errors.append(msg)
+                err = msg.required_file_not_found_msg(config_path)
+                all_errors.append(err)
                 invalid_files.append(config_path)
-                logger.error(msg)
+                logger.error(err)
             else:
                 logger.info(f"Optional file not found (skipped): {config_path}")
             continue
@@ -206,22 +173,22 @@ def run_module():
 
         data = load_yaml(config_path)
         if data is None:
-            msg = f"Failed to parse YAML: {config_path}"
-            all_errors.append(msg)
+            err = msg.yaml_parse_failed_msg(config_path)
+            all_errors.append(err)
             invalid_files.append(config_path)
-            logger.error(msg)
+            logger.error(err)
             continue
 
-        schema = load_json(schema_path)
-        if schema is None:
-            msg = f"Schema file not found: {schema_path}"
-            all_errors.append(msg)
-            logger.error(msg)
+        schema_def = load_json(schema_path)
+        if schema_def is None:
+            err = msg.schema_file_not_found_msg(schema_path)
+            all_errors.append(err)
+            logger.error(err)
             continue
 
         file_errors = []
         file_label = os.path.basename(config_path)
-        validate_against_schema(data, schema, file_label, file_errors, logger)
+        validate_against_schema(data, schema_def, file_label, file_errors, logger)
 
         if file_errors:
             all_errors.extend(file_errors)
@@ -247,9 +214,8 @@ def run_module():
         if os.path.isfile(cred_path) and not is_vault_encrypted(cred_path):
             cred_data = load_yaml(cred_path)
             if cred_data and isinstance(cred_data, dict):
-                cred_errors = []
-                validate_credentials_logic(
-                    cred_data, config_data, cred_errors, logger
+                cred_errors = validate_credentials_logic_new(
+                    cred_data, config_data, logger
                 )
                 if cred_errors:
                     all_errors.extend(cred_errors)
@@ -258,7 +224,7 @@ def run_module():
                     f"Credential file is not a dict (possibly vault-encrypted): {cred_path}"
                 )
 
-    logger.info("=== Image Build Manager Validation End ===")
+    logger.info(msg.VALIDATION_END_MSG)
 
     validation_failed = len(all_errors) > 0
     status = "failed" if validation_failed else "completed"

@@ -115,3 +115,8 @@ victoria_logs_cluster:
       failure_threshold: 3
       timeout: 5
     resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_logs_cluster_storage.vlagent.resources }}"
+
+# Error messages
+vm_operator_not_ready_msg: >-
+  VM operator not ready within {{ victoria_operator_wait_timeout }}.
+  Check: kubectl -n {{ telemetry_namespace }} logs deploy/victoria-metrics-operator

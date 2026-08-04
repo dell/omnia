@@ -16,6 +16,7 @@
 # GENERATE LOCAL REPO ACCESS PLAYBOOK
 # =============================================================================
 # This playbook generates repo_status.yml with comprehensive repository URLs.
+# All tasks run on localhost (OIM).
 #
 # The generated file contains:
 #   - Pulp server configuration
@@ -28,37 +29,59 @@
 #
 # Usage:
 #   ansible-playbook playbooks/repo_operations/generate_repo_status.yml -e 'project_name=project_default'
-#
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# PHASE 1: PRE-FLIGHT SETUP
-# -----------------------------------------------------------------------------
-
-- name: "Phase 1.1: Include input project directory"
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../prepare/include_input_dir.yml
-  tags: always
-
-- name: "Phase 1.2: Create OIM host group"
-  when: not oim_group_status | default(false) | bool
-  ansible.builtin.import_playbook: ../prepare/create_container_group.yml
-  vars:
-    oim_group: true
-  tags: always
-
-# -----------------------------------------------------------------------------
-# PHASE 2: GET PULP STATUS
-# -----------------------------------------------------------------------------
-
-- name: "Phase 2: Get Pulp server status"
+- name: Generate repo_status.yml
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 0: SETUP PULP CLI
+    # -------------------------------------------------------------------------
+    - name: Check if pulp CLI exists at /usr/local/bin/pulp
+      ansible.builtin.stat:
+        path: /usr/local/bin/pulp
+      register: pulp_system_cli_check
+
+    - name: Find pulp CLI path from current environment
+      ansible.builtin.command: which pulp
+      register: pulp_which_result
+      changed_when: false
+      failed_when: false
+      when: not pulp_system_cli_check.stat.exists
+
+    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
+      ansible.builtin.file:
+        src: "{{ pulp_which_result.stdout }}"
+        dest: /usr/local/bin/pulp
+        state: link
+      when:
+        - not pulp_system_cli_check.stat.exists
+        - pulp_which_result.rc | default(1) == 0
+        - pulp_which_result.stdout | default('') | length > 0
+
+    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
+      ansible.builtin.command: /usr/local/bin/pulp --version
+      register: pulp_cli_version
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if pulp CLI is not available
+      ansible.builtin.fail:
+        msg: |
+          Pulp CLI not found at /usr/local/bin/pulp.
+          Please ensure pulp-cli is installed and the virtual environment is activated:
+            source <venv_path>/bin/activate
+            pip install pulp-cli
+          Then run the playbook again to create the symlink automatically.
+      when: pulp_cli_version.rc != 0
+
+    # -------------------------------------------------------------------------
+    # PHASE 1: GET PULP STATUS
+    # -------------------------------------------------------------------------
     - name: Read endpoint configuration
       ansible.builtin.include_role:
         name: ../../roles/pulp_validation
@@ -102,21 +125,9 @@
           - "Repo Config: {{ repo_config }}"
           - "======================================"
 
-# -----------------------------------------------------------------------------
-# PHASE 3: GENERATE LOCAL REPO ACCESS FILE
-# -----------------------------------------------------------------------------
-
-- name: "Phase 3: Generate repo_status.yml"
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  vars_files:
-    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-  vars:
-    output_file: "{{ output_dir }}/repo_status.yml"
-    certs_dir: "{{ pulp_certs_dir }}"
-  tasks:
+    # -------------------------------------------------------------------------
+    # PHASE 2: GENERATE LOCAL REPO ACCESS FILE
+    # -------------------------------------------------------------------------
     - name: Ensure output directory exists
       ansible.builtin.file:
         path: "{{ output_dir }}"
@@ -132,8 +143,9 @@
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
         repo_config: "{{ repo_config }}"
-        output_path: "{{ output_file }}"
-        certs_dir: "{{ certs_dir }}"
+        output_path: "{{ output_dir }}/repo_status.yml"
+        certs_dir: "{{ pulp_certs_dir }}"
+        ssl_certificates: "{{ ssl_certificates | default({}) }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
       register: generate_result
 

@@ -21,7 +21,8 @@
 # -----------------------------------------------------------------------------
 # PATH CONFIGURATION (computed from oim_shared_path)
 # -----------------------------------------------------------------------------
-shared_storage_path: "{{ oim_shared_path }}/omnia"
+# All Pulp data is stored under pulp_config/ subdirectory
+shared_storage_path: "{{ oim_shared_path }}/pulp_config"
 pulp_shared_path: "{{ shared_storage_path }}/pulp"
 pulp_logs_dir: "{{ shared_storage_path }}/log/pulp"
 pulp_ha_dir: "{{ pulp_config_dir }}/pulp_ha"
@@ -37,10 +38,9 @@ pulp_pgsql_dir_permissions: "0700"
 # -----------------------------------------------------------------------------
 # CONTAINER CONFIGURATION
 # -----------------------------------------------------------------------------
+# NOTE: pulp_container_name, pulp_image, pulp_protocol_https are defined
+#       in vars/default.yml to avoid duplication.
 device_name: "/dev/fuse:/dev/fuse:rwm"
-pulp_container_name: "pulp"
-pulp_protocol_https: true
-pulp_image: "docker.io/pulp/pulp:3.113"
 
 # Retry configuration
 pull_image_retries: 5

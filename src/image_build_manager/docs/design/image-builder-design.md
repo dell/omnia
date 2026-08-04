@@ -23,27 +23,40 @@ and cleanup lifecycle.
 src/image_build_manager/
 ├── image_build_manager.yml              # Top-level orchestrator
 ├── ansible.cfg                          # Domain config (fully local paths)
-├── callback_plugins/
-│   └── omnia_default.py                 # Local copy — stdout callback
-├── library/                             # Domain-specific Python modules
+├── plugins/
 │   ├── modules/
 │   │   ├── base_image_package_collector.py
 │   │   ├── image_package_collector.py
 │   │   ├── functional_group_parser.py
 │   │   ├── generate_functional_groups.py
-│   │   └── validate_image_build_config.py
-│   └── module_utils/
-│       ├── build_image/
-│       │   ├── __init__.py
-│       │   ├── common_functions.py       # JSON/YAML loaders, package helpers
-│       │   └── config.py                 # ROLE_SPECIFIC_KEYS, FUNCTIONAL_GROUP_LAYER_MAP
-│       └── image_build_validation/
+│   │   ├── validate_image_build_config.py
+│   │   ├── validate_system_environment.py
+│   │   ├── validate_yaml_schema.py
+│   │   └── image_build_orchestrator.py
+│   ├── module_utils/
+│   │   ├── build_image/
+│   │   │   ├── __init__.py
+│   │   │   ├── common_functions.py       # JSON/YAML loaders, package helpers
+│   │   │   └── config.py                 # ROLE_SPECIFIC_KEYS, FUNCTIONAL_GROUP_LAYER_MAP
+│   │   └── input_validation/
 │           ├── __init__.py
-│           ├── image_build_validation_flow.py
-│           └── schema/
-│               ├── image_build_config.json
-│               ├── image_build_credentials.json
-│               └── functional_groups_config.json
+│           ├── core/
+│           │   ├── __init__.py
+│           │   ├── config.py                   # domain constants, file mappings
+│           │   ├── file_utils.py               # YAML/JSON loaders, vault detection
+│           │   ├── utils.py                    # logger factory, helpers
+│           │   └── validation_engine.py        # L1 schema() + L2 logic() entry points
+│           ├── messages/
+│           │   ├── __init__.py
+│           │   └── image_build_messages.py     # all validation message constants
+│           ├── schema/
+│           │   ├── image_build_config.json
+│           │   ├── image_build_credentials.json
+│           │   └── functional_groups_config.json
+│           └── validators/
+│               ├── __init__.py
+│               ├── image_build_config_validator.py       # L2 config rules
+│               └── image_build_credentials_validator.py  # L2 credential rules
 ├── playbooks/
 │   ├── ansible.cfg                      # Standalone sub-playbook config
 │   ├── prepare_image_build_manager.yml  # Deploy MinIO + Registry + SELinux preflight
@@ -89,15 +102,15 @@ src/image_build_manager/
 | Credential key | `.image_build_credentials_key` |
 | Input subdir | `input/project_default/image_build_manager/` |
 | Output subdir | `output/project_default/image_build_manager/` |
-| Log path | `/opt/omnia/image_build_manager/log/image_build_manager.log` |
+| Ansible log path | `/var/log/omnia/image_build_manager/image_build_manager.log` |
 
 ### Ansible Config (ansible.cfg)
 
 ```ini
-library = library/modules
-module_utils = library/module_utils
+library = plugins/modules
+module_utils = plugins/module_utils
 roles_path = roles
-callback_plugins = callback_plugins
+callback_plugins = plugins/callback_plugins
 ```
 
 All paths are fully local — **zero references to `../common/`**.
@@ -199,7 +212,7 @@ The image_build_manager uses a **two-tier validation architecture**:
                         ▼
 ┌─────────────────────────────────────────────────────────┐
 │         validate_image_build_config module              │
-│   (library/modules/validate_image_build_config.py)      │
+│   (plugins/modules/validate_image_build_config.py)     │
 ├─────────────────────────────────────────────────────────┤
 │  L1: JSON Schema Validation                             │
 │    ├── image_build_config.json                          │
@@ -219,8 +232,8 @@ The image_build_manager uses a **two-tier validation architecture**:
 
 | Level | What | Where | When |
 |-------|------|-------|------|
-| **L1 — Schema** | JSON Schema type/required/enum checks | `validate_image_build_config.py` + `schema/*.json` | Always (Step 1) |
-| **L2 — Logic** | Cross-field business rules | `image_build_validation_flow.py` | Always (Step 1) |
+| **L1 — Schema** | JSON Schema type/required/enum checks | `core/validation_engine.py` + `schema/*.json` | Always (Step 1) |
+| **L2 — Logic** | Cross-field business rules | `validators/image_build_config_validator.py` | Always (Step 1) |
 | **L3 — Runtime** | File existence, S3 reachability, cert validity | `validate_build_runtime` role | Before build (in build playbooks) |
 
 ### 5.3 Validated Files
@@ -264,16 +277,18 @@ ansible-playbook image_build_manager.yml --tags validate
 
 Other domains can adopt this pattern:
 
-1. Create `library/modules/validate_<domain>_config.py` using the same skeleton
-2. Create `library/module_utils/<domain>_validation/schema/` with JSON schemas
-3. Create `library/module_utils/<domain>_validation/<domain>_validation_flow.py` for L2 rules
-4. Create `roles/validate_<domain>_input/` role with tasks + vars
-5. Add `validate_<domain>_config.yml` sub-playbook
-6. Update `ansible.cfg` with `library = library/modules:../common/library/modules`
+1. Create `plugins/modules/validate_<domain>_config.py` using the same skeleton
+2. Create `plugins/module_utils/input_validation/schema/` with JSON schemas
+3. Create `plugins/module_utils/input_validation/validators/` for L2 rules
+4. Create `plugins/module_utils/input_validation/messages/` for error constants
+5. Create `plugins/module_utils/input_validation/core/` for config + engine
+6. Create `roles/validate_<domain>_input/` role with tasks + vars
+7. Update `ansible.cfg` to point to `plugins/`
 
 **Template files to copy**:
 - `validate_image_build_config.py` → rename and adjust `VALIDATION_FILES` list
-- `image_build_validation_flow.py` → replace L2 rules with domain-specific logic
+- `input_validation/validators/` → replace L2 rules with domain-specific logic
+- `input_validation/messages/` → domain-specific error constants
 - `roles/validate_image_build_input/` → rename role, update vars
 
 ---
@@ -354,16 +369,16 @@ All modules, module_utils, callback plugins, and roles are local.
 
 | Source (common) | Local Copy | Why |
 |-----------------|-----------|-----|
-| `common/callback_plugins/omnia_default.py` | `callback_plugins/omnia_default.py` | Stdout callback — needed by ansible.cfg |
-| `common/library/module_utils/build_image/` | `library/module_utils/build_image/` | Used by `base_image_package_collector.py`, `image_package_collector.py` |
-| `common/library/modules/generate_functional_groups.py` | `library/modules/generate_functional_groups.py` | Used by `generate_functional_groups` role |
-| `common/library/module_utils/input_validation/common_utils/config.py` → `FUNCTIONAL_GROUP_LAYER_MAP` | Inlined into `library/module_utils/build_image/config.py` | Used by `generate_functional_groups.py` |
+| `common/callback_plugins/omnia_default.py` | `plugins/callback_plugins/omnia_default.py` | Stdout callback — needed by ansible.cfg |
+| `common/library/module_utils/build_image/` | `plugins/module_utils/build_image/` | Used by `base_image_package_collector.py`, `image_package_collector.py` |
+| `common/library/modules/generate_functional_groups.py` | `plugins/modules/generate_functional_groups.py` | Used by `generate_functional_groups` role |
+| `common/library/module_utils/input_validation/common_utils/config.py` → `FUNCTIONAL_GROUP_LAYER_MAP` | Inlined into `plugins/module_utils/build_image/config.py` | Used by `generate_functional_groups.py` |
 
 ### 7.2 What Was Eliminated (Not Needed)
 
 | Dependency | Reason Not Needed |
 |------------|-------------------|
-| `common/library/module_utils/input_validation/` | Domain has own `image_build_validation/` with schemas + flow |
+| `common/library/module_utils/input_validation/` | Domain has own `input_validation/` with core, messages, schema, validators |
 | `common/library/modules/validate_input.py` | Replaced by `validate_image_build_config.py` |
 | `../playbooks/input_validation/roles` | Replaced by `validate_image_build_input` role |
 | `../playbooks/utils/credential_utility` | Replaced by `image_build_credentials` role |

@@ -21,8 +21,11 @@
 # PULP SERVER ENDPOINT
 # =============================================================================
 
-# Pulp server IP address (also used for OIM SSH connection)
-pulp_server_ip: "172.16.107.254"
+# Pulp server IP address
+# IMPORTANT: Replace "xx.xx.xx.xx" with your actual OIM server IP address.
+# This should match the SYSTEM_ADMIN_NIC_IPV4 environment variable from omnia.env.
+# Example: pulp_server_ip: "172.16.107.254"
+pulp_server_ip: "xx.xx.xx.xx"
 
 # Pulp server port
 pulp_server_port: 2225
@@ -36,8 +39,10 @@ pulp_https_enabled: true
 # =============================================================================
 # SSL CERTIFICATES
 # =============================================================================
+# These paths are under OMNIA_DATA_PATH/pulp_config/ (/opt/omnia/pulp_config by default).
+# Modify only if using a custom OMNIA_DATA_PATH or certificate location.
 
 ssl_certificates:
-  server_crt: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
-  server_key: "/opt/omnia/pulp/settings/certs/pulp_webserver.key"
-  certs_dir: "/opt/omnia/pulp/settings/certs"
+  server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
+  server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
+  certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"

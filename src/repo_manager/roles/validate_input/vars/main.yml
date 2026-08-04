@@ -18,7 +18,6 @@
 
 # Input directory configuration
 input_dir: "{{ input_project_dir }}"
-project_name: "{{ input_dir | basename }}"
 
 # CSV validation configuration for build_image playbook
 csv_file_path: ""
@@ -35,13 +34,11 @@ input_validate_tags: >-
 # VALIDATION MESSAGES
 # =============================================================================
 
-messages:
-  validation_success: >-
-    Successfully validated repo_manager input config file(s).
-    Note: There might be warnings - please review the log file at
-    {{ repo_manager_log_dir }}/validation_omnia_{{ input_dir | basename }}.log
-    for details.
+validation_success_msg: >-
+  Successfully validated repo_manager input config file(s).
+  Note: There might be warnings - please review the log file at
+  {{ repo_manager_log_dir }}/validation.log for details.
 
-  validation_error: >-
-    Input validation failed. Please check the validation output above
-    for detailed error information.
+validation_error_msg: >-
+  Input validation failed. Please check the validation output above
+  for detailed error information.

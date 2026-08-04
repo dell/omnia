@@ -86,19 +86,31 @@ repo_status_not_found_fail_msg: >-
   Run repo_manager first, or copy the sample file:
     mkdir -p {{ repo_manager_output_path | dirname }}
     cp input/project_default/repo_manager_output/repo_status.yml {{ repo_manager_output_path }}
-  Then verify: ./src/main/omnia-cli repo-manager
+  Then verify: omnia-cli repo-manager
 functional_group_packages_not_found_fail_msg: >-
   functional_group_packages.yml not found at {{ package_list_path | default('unknown') }}.
   This file defines the RPM packages for each functional group.
-  Check repo_manager.package_list in {{ repo_manager_output_path }}
-  or copy the sample file to {{ repo_manager_output_path | dirname }}/.
+  Run repo_manager first, or switch to catalog mode by setting
+  functional_groups_source to 'catalog' in image_build_config.yml.
+package_groups_not_found_fail_msg: >-
+  package_groups.yml not found at {{ input_project_dir }}/package_groups.yml.
+  This file defines the RPM packages for each functional group in config mode.
+  Create this file manually or switch to catalog mode by setting
+  functional_groups_source to 'catalog' in image_build_config.yml.
+catalog_not_found_fail_msg: >-
+  Catalog file not found at {{ catalog_file | default('unknown') }}.
+  When functional_groups_source is 'catalog', the catalog JSON must exist.
+  Run repo_manager to generate it, or set functional_groups_source to 'config'
+  and use package_groups.yml instead.
 repo_cert_not_found_fail_msg: >-
-  Repo manager certificate not found at {{ repo_manager.certificates.server_crt | default('unknown') }}.
-  Ensure repo_manager has been run and the certificate exists on this host.
+  Repo manager certificate not found at {{ _cert_path | default('unknown') }}.
+  This path is derived from repo_manager.certificates.server_crt in repo_status.yml.
+  Ensure the certificate exists, or remove the repo_manager.certificates section
+  from repo_status.yml to skip certificate mounting.
 repo_status_missing_section_fail_msg: >-
-  repo_status.yml is missing required 'repo_manager' section.
-  Ensure repo_manager.port and repo_manager.package_list are present
-  in {{ repo_manager_output_path }}. Certificates are optional.
+  repo_status.yml is missing required sections.
+  Ensure 'repositories' dict and 'cluster_os_type' are present
+  in {{ repo_manager_output_path }}.
 image_build_config_not_found_fail_msg: >-
   image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
   This file is required. See docs/contracts/input-contract.md for the expected format.

@@ -15,22 +15,8 @@
 # =============================================================================
 # PULP VALIDATION ROLE VARIABLES
 # =============================================================================
-
-# -----------------------------------------------------------------------------
-# ENDPOINT CONFIGURATION
-# -----------------------------------------------------------------------------
-repo_manager_endpoint_config: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
-endpoint_config_syntax_fail_msg: >-
-  Failed. Syntax errors present in repo_manager_endpoint_config.yml.
-  Fix errors and re-run playbook again.
-endpoint_config_file_not_found_msg: >-
-  repo_manager_endpoint_config.yml file not found in input folder.
-  Please create the file with Pulp endpoint configuration.
-
-# -----------------------------------------------------------------------------
-# PULP CONTAINER CONFIGURATION
-# -----------------------------------------------------------------------------
-pulp_container_name: "pulp"
+# NOTE: pulp_container_name is defined in vars/default.yml to avoid duplication.
+# =============================================================================
 
 # -----------------------------------------------------------------------------
 # PULP ENDPOINT CONFIGURATION
@@ -53,4 +39,4 @@ pulp_status_fail_msg: "Pulp endpoint is not up. Status code: {{ result.status }}
 pulp_container_success_msg: "The {{ pulp_container_name }} container is up and running."
 pulp_container_fail_msg: >-
   The Pulp Container is not found on the OIM.
-  Please run deploy_pulp.yml first, and then rerun repo_manager.yml
+  Please run playbooks/deploy/deploy_pulp.yml first, and then rerun repo_manager.yml

@@ -15,51 +15,120 @@
 # =============================================================================
 # REPO MANAGER TOP-LEVEL PLAYBOOK
 # =============================================================================
-# This playbook orchestrates all repo_manager operations using tags.
+# This playbook orchestrates repo_manager operations with tag support.
+# All tasks run on localhost (OIM).
 #
 # Usage:
 #   # Deploy Pulp server
-#   ansible-playbook playbooks/repo_manager.yml --tags deploy
+#   ansible-playbook repo_manager.yml --tags deploy
 #
 #   # Validate inputs
-#   ansible-playbook playbooks/repo_manager.yml --tags validate
+#   ansible-playbook repo_manager.yml --tags validate
 #
 #   # Download and sync packages/repositories
-#   ansible-playbook playbooks/repo_manager.yml --tags download
+#   ansible-playbook repo_manager.yml --tags download
 #
 #   # Generate repo_status.yml
-#   ansible-playbook playbooks/repo_manager.yml --tags generate
+#   ansible-playbook repo_manager.yml --tags status
 #
 #   # Cleanup Pulp server
-#   ansible-playbook playbooks/repo_manager.yml --tags cleanup
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp
 #
-#   # Cleanup specific repositories, containers, or files
-#   ansible-playbook playbooks/repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"
+#   # Cleanup specific repositories
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"
 #
-#   # Full workflow (deploy, validate, download, generate)
-#   ansible-playbook playbooks/repo_manager.yml
+#   # Full workflow: validate -> deploy -> download -> status
+#   ansible-playbook repo_manager.yml --tags "validate,deploy,download,status"
+#
+#   # Run all operations (except cleanup)
+#   ansible-playbook repo_manager.yml --skip-tags cleanup
+#
+#   # Upgrade repo_manager (placeholder)
+#   ansible-playbook repo_manager.yml --tags upgrade
+#
+#   # Rollback repo_manager (placeholder)
+#   ansible-playbook repo_manager.yml --tags rollback
 # =============================================================================
 
+# -------------------------------------------------------------------------
+# SETUP
+# -------------------------------------------------------------------------
+- name: Repo Manager Orchestrator - Setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  roles:
+    - role: repo_manager_setup
+  tags: always
+
+# -------------------------------------------------------------------------
+# DEPLOY PULP
+# -------------------------------------------------------------------------
 - name: Deploy Pulp server
-  ansible.builtin.import_playbook: deploy/deploy_pulp.yml
-  tags: deploy
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/deploy/deploy_pulp.yml"
+  tags:
+    - deploy
 
-- name: Validate inputs
-  ansible.builtin.import_playbook: validate/validate_config.yml
-  tags: validate
+# -------------------------------------------------------------------------
+# VALIDATE INPUTS
+# -------------------------------------------------------------------------
+- name: Validate input configurations
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/validate/validate_config.yml"
+  tags:
+    - validate
 
-- name: Download and sync packages
-  ansible.builtin.import_playbook: repo_operations/download.yml
-  tags: download
+# -------------------------------------------------------------------------
+# DOWNLOAD PACKAGES
+# -------------------------------------------------------------------------
+- name: Download and sync packages/repositories
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/repo_operations/download.yml"
+  tags:
+    - download
 
+# -------------------------------------------------------------------------
+# GENERATE STATUS
+# -------------------------------------------------------------------------
 - name: Generate repo_status.yml
-  ansible.builtin.import_playbook: repo_operations/generate_repo_status.yml
-  tags: generate
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/repo_operations/generate_repo_status.yml"
+  tags:
+    - status
 
-- name: Cleanup Pulp
-  ansible.builtin.import_playbook: cleanup/cleanup_pulp.yml
-  tags: cleanup
+# -------------------------------------------------------------------------
+# CLEANUP PULP
+# -------------------------------------------------------------------------
+- name: Cleanup Pulp server and data
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_pulp.yml"
+  tags:
+    - never
+    - cleanup_pulp
+    - cleanup
 
+# -------------------------------------------------------------------------
+# CLEANUP REPOS
+# -------------------------------------------------------------------------
 - name: Cleanup specific repositories
-  ansible.builtin.import_playbook: cleanup/cleanup_repos.yml
-  tags: cleanup_repos
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_repos.yml"
+  tags:
+    - never
+    - cleanup_repos
+    - cleanup
+
+# -------------------------------------------------------------------------
+# UPGRADE (Placeholder)
+# -------------------------------------------------------------------------
+- name: Upgrade Repo Manager
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/upgrade_repo_manager.yml"
+  tags:
+    - never
+    - upgrade
+
+# -------------------------------------------------------------------------
+# ROLLBACK (Placeholder)
+# -------------------------------------------------------------------------
+- name: Rollback Repo Manager
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/rollback_repo_manager.yml"
+  tags:
+    - never
+    - rollback

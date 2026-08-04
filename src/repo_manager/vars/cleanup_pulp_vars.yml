@@ -17,45 +17,24 @@
 # =============================================================================
 # All variables for cleanup_pulp playbook are defined here.
 # Import this file at the start of cleanup playbooks.
+#
+# NOTE: pulp_container_name, pulp_image, pulp_protocol_https, max_retries
+#       are defined in vars/default.yml to avoid duplication.
 # =============================================================================
 
-# Pulp container configuration
-pulp_container_name: "pulp"
-pulp_image: "docker.io/pulp/pulp:3.113"
-pulp_protocol_https: true
-
-# Retry configuration
-max_retries: 5
-
-# NFS share prefix used by deploy_pulp
-omnia_nfs_share: "{{ oim_shared_path }}/omnia"
-
-# Directories/files to remove during Pulp cleanup (runs on OIM host)
-# NOTE: We intentionally keep {{ omnia_nfs_share }}/pulp/pulp_ha directory intact
-# because it is mounted into omnia_core container at /root/.config/pulp.
-# Deleting it would cause a stale mount and break omnia_core without restart.
-# We only delete the cli.toml file inside it, not the directory itself.
-#
-# Path mapping (OIM host paths, not container paths):
-#   Container: /opt/omnia/... (mounted via NFS)
-#   OIM Host: {{ omnia_nfs_share }}/...
+# Directories/files to remove during Pulp cleanup (runs on OIM)
+# The pulp_config_base_dir contains all Pulp-related data:
+#   - pulp_config/pulp/          - Pulp container data, settings, certs
+#   - pulp_config/log/pulp/      - Pulp logs
+#   - pulp_config/pulp_ha/       - HA config and CLI config (cli.toml)
 pulp_cleanup_directory:
-  - "{{ omnia_nfs_share }}/pulp/pulp_ha/cli.toml"
-  - "{{ omnia_nfs_share }}/pulp/settings"
-  - "{{ omnia_nfs_share }}/pulp/nginx"
-  # Do NOT delete {{ omnia_nfs_share }}/pulp - it contains pulp_ha which is mounted in omnia_core
-  - "{{ omnia_nfs_share }}/log/pulp"
-  - "{{ omnia_nfs_share }}/rhel_repo_certs"
-  - "{{ omnia_nfs_share }}/offline_repo"
-  # Legacy paths kept for cleanup of old installations
-  - "{{ omnia_nfs_share }}/src/repo_manager/pulp"
-  - "{{ omnia_nfs_share }}/src/repo_manager/offline_repo"
-  - "{{ omnia_nfs_share }}/src/repo_manager/rhel_repo_certs"
-  - "{{ omnia_nfs_share }}/src/repo_manager/input/{{ project_default }}/.local_repo_credentials_key"
-  # Do NOT delete {{ oim_shared_path | dirname }}/pulp - same reason as above
+  - "{{ pulp_config_base_dir }}"
+  - "{{ omnia_base_dir }}/rhel_repo_certs"
+  - "{{ omnia_base_dir }}/offline_repo"
+  - "{{ ansible_env.HOME }}/.config/pulp"
 
-# Track file created by Pulp HTTPS config (OIM host path)
-track_file_path: "{{ omnia_nfs_share }}/pulp/pulp_crt_track.txt"
+# Track file created by Pulp HTTPS config
+track_file_path: "{{ pulp_crt_track_file }}"
 
 # Omnia target file that may reference pulp.service
 omnia_target: "/etc/systemd/system/omnia.target"
@@ -69,15 +48,13 @@ omnia_target: "/etc/systemd/system/omnia.target"
 #   Preserve logs:  ansible-playbook cleanup_pulp.yml -e "cleanup_logs=false"
 # =============================================================================
 
-# Default: Delete entire log directory for fresh deployment
 cleanup_logs: true
 
 # Cleanup instructions message
 cleanup_pulp_note: |
   [Post-Cleanup Actions Required]
   1. Pulp container and related data have been removed.
-  2. To redeploy Pulp, run the deploy_pulp.yml playbook.
+  2. To redeploy Pulp, run: ansible-playbook playbooks/deploy/deploy_pulp.yml
   3. The offline_repo directory has been removed. You must re-sync repositories if needed.
-  4. The pulp_ha directory is preserved to maintain omnia_core mount stability.
-  5. The log directory has been cleaned for fresh deployment.
-  6. To preserve logs, run with: -e "cleanup_logs=false"
+  4. The log directory has been cleaned for fresh deployment.
+  5. To preserve logs, run with: -e "cleanup_logs=false"
