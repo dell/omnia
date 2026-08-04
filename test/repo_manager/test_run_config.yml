@@ -1,0 +1,183 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Test Run Configuration — Repo Manager
+# =============================================================================
+#
+# Configure which test suites to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable suites and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Suite definitions
+# -----------------------------------------------------------------------------
+# Each suite has:
+#   order:   <int>         - Execution order (ascending). Order values MUST
+#                            be unique across enabled suites; duplicate
+#                            order values are a configuration error.
+#   run:     true/false    - Whether to execute this suite
+#   suite:   <folder>      - FVT folder name under fvt/ to run
+#   marker:  <expression>  - Marker filter expression (empty = all tests)
+#
+# Marker expression syntax:
+#   Single:   "sanity"                  - tests with @pytest.mark.sanity
+#   OR:       "sanity,functional"       - tests with EITHER marker
+#   AND:      "sanity+functional"       - tests with BOTH markers
+#
+# Available markers:
+#   Quality:       sanity, functional, regression
+#
+# Available suites (under fvt/):
+#   repo_manager  - Full end-to-end: validate + deploy + download + status.
+#                    Supported markers: sanity
+#
+#   validate      - Deploy with --tags validate, verify input validation.
+#                    Supported markers: sanity
+#
+#   deploy        - Deploy with --tags deploy, verify Pulp server is running.
+#                    Supported markers: sanity
+#
+#   download      - Deploy with --tags download, verify packages/repos synced.
+#                    Supported markers: sanity
+#
+#   status        - Deploy with --tags status, verify repo_status.yml generated.
+#                    Supported markers: sanity
+#
+#   cleanup       - Deploy with --tags cleanup_pulp, verify Pulp server and
+#                    data cleaned up.
+#                    Supported markers: sanity
+#
+# Valid playbook tags (from src/repo_manager/playbooks/repo_manager.yml):
+#   validate, deploy, download, status,
+#   cleanup_pulp, cleanup_repos, upgrade, rollback
+# =============================================================================
+
+---
+
+# =============================================================================
+# Execution Options
+# =============================================================================
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
+skip_on_failure: false
+
+scenarios:
+
+  # =========================================================================
+  # repo_manager - Full end-to-end (validate + deploy + download + status)
+  # =========================================================================
+  # Deploys repo_manager.yml (no tags - default: validate + deploy + download + status).
+  # Then verifies the complete state: Pulp server running, repos synced,
+  # repo_status.yml generated.
+  #
+  # Supported suites (subfolders inside fvt/repo_manager/):
+  #   pulp        - Pulp container and service checks
+  #   repo_status - repo_status.yml verification
+  #
+  # Supported markers:
+  #   sanity    - Baseline must-pass tests
+  repo_manager:
+    order: 1
+    run: true
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # validate - Deploy validate + verify input configuration
+  # =========================================================================
+  # Runs: ansible-playbook repo_manager.yml --tags validate
+  # Then verifies: input validation output and status.
+  #
+  # Supported suites (subfolders inside fvt/validate/):
+  #   status - Validation status checks
+  #
+  # Supported markers:
+  #   sanity    - Baseline must-pass tests
+  validate:
+    order: 10
+    run: false
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # deploy - Deploy Pulp server + verify containers
+  # =========================================================================
+  # Runs: ansible-playbook repo_manager.yml --tags deploy
+  # Then verifies: Pulp containers running, ports accessible.
+  #
+  # Supported suites (subfolders inside fvt/deploy/):
+  #   pulp - Pulp container and endpoint verification
+  #
+  # Supported markers:
+  #   sanity    - Baseline must-pass tests
+  deploy:
+    order: 20
+    run: false
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # download - Download packages + verify repo sync
+  # =========================================================================
+  # Runs: ansible-playbook repo_manager.yml --tags download
+  # Then verifies: packages downloaded, repos synced to Pulp.
+  #
+  # Supported suites (subfolders inside fvt/download/):
+  #   packages - Package download verification
+  #   repos    - Repository sync verification
+  #
+  # Supported markers:
+  #   sanity    - Baseline must-pass tests
+  download:
+    order: 30
+    run: false
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # status - Generate repo_status.yml + verify output
+  # =========================================================================
+  # Runs: ansible-playbook repo_manager.yml --tags status
+  # Then verifies: repo_status.yml generated with correct content.
+  #
+  # Supported suites (subfolders inside fvt/status/):
+  #   status - repo_status.yml content verification
+  #
+  # Supported markers:
+  #   sanity    - Baseline must-pass tests
+  status:
+    order: 40
+    run: false
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # cleanup - Cleanup Pulp server + verify removal
+  # =========================================================================
+  # Runs: ansible-playbook repo_manager.yml --tags cleanup_pulp
+  # Then verifies: Pulp containers stopped/removed, data cleaned up.
+  #
+  # Supported suites (subfolders inside fvt/cleanup/):
+  #   cleanup - Pulp container removal and data cleanup verification
+  #
+  # Supported markers:
+  #   sanity    - Baseline must-pass tests
+  cleanup:
+    order: 50
+    run: false
+    suite: ""
+    marker: "sanity"

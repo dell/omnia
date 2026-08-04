@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+reports/
+.test_creds.key
+datasets/*/output/
+.progress_notes.md
