@@ -139,7 +139,42 @@
     image_build_manager_output_path: "{{ _orch_config.image_build_manager_output_path | default(default_build_status_path) }}"
     cacheable: true
 
-# Step 7: Create OIM host group (only when oim_group is explicitly enabled)
+# Step 7: Load repo_manager output (repo_status.yml)
+- name: Resolve repo_manager output path
+  ansible.builtin.set_fact:
+    repo_manager_output_path: "{{ _orch_config.repo_manager_output_path | default(default_repo_status_path) }}"
+    cacheable: true
+
+- name: Check if repo_status.yml exists
+  ansible.builtin.stat:
+    path: "{{ repo_manager_output_path }}"
+  register: _repo_status_stat
+
+- name: Load repo_status.yml from repo_manager output
+  ansible.builtin.include_vars:
+    file: "{{ repo_manager_output_path }}"
+  when: _repo_status_stat.stat.exists
+
+- name: Set repo_manager facts from repo_status.yml
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
+    cluster_os_version: "{{ cluster_os_version | default('10.0') }}"
+    pulp_port: "{{ repo_manager.port | default(2225) }}"
+    pulp_cert_path: "{{ repo_manager.certificates.server_crt | default('/opt/omnia/pulp/settings/certs/pulp_webserver.crt') }}"
+    pulp_certs_dir: "{{ repo_manager.certificates.certs_dir | default('/opt/omnia/pulp/settings/certs') }}"
+    cacheable: true
+  when: _repo_status_stat.stat.exists
+
+- name: Warn if repo_status.yml is missing
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: repo_status.yml not found at '{{ repo_manager_output_path }}'.
+      Run repo_manager.yml first to generate it, or set repo_manager_output_path
+      in orchestrator_config.yml. Downstream roles (k8s_config, slurm_config)
+      may fail without repo URLs.
+  when: not _repo_status_stat.stat.exists
+
+# Step 8: Create OIM host group (only when oim_group is explicitly enabled)
 - name: Create OIM host group {{ oim_host_group }}
   ansible.builtin.add_host:
     hostname: "{{ oim_host_group }}"

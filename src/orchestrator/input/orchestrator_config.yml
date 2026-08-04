@@ -63,3 +63,10 @@ kernel_version_override: ""
 additional_cloud_init_config_file: ""
 
 image_build_manager_output_path: "/opt/omnia/output/project_default/image_build_manager/build_status.yml"
+
+#### Optional
+# Path to repo_status.yml produced by repo_manager.
+# Contains RPM repo URLs, Pulp certificate paths, and offline content paths
+# consumed by k8s_config, slurm_config, and cloud-init templates.
+# Default: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
