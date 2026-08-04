@@ -341,16 +341,18 @@ ACTIVATE_EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Copy Domain Input Files
+# Initialize Domain Input Files
 # ─────────────────────────────────────────────────────────────────────────────
-copy_domain_inputs() {
+init_domains() {
+    load_env
+
     echo -e "${BLUE}Initializing domains (log dirs + input files) to ${OMNIA_DATA_PATH}/ ...${NC}"
     local copied=0
     for domain in "${DOMAINS[@]}"; do
         local init_script="$SRC_DIR/$domain/domain-init.sh"
         if [ -f "$init_script" ]; then
             chmod +x "$init_script"
-            if bash "$init_script"; then
+            if bash "$init_script" "$@"; then
                 copied=$((copied + 1))
             else
                 echo -e "${YELLOW}WARNING: domain-init.sh failed for $domain — continuing${NC}"
@@ -362,6 +364,108 @@ copy_domain_inputs() {
     else
         echo -e "${GREEN}Domain init scripts completed for ${copied} domain(s)${NC}"
     fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Run Domain Playbook
+# ─────────────────────────────────────────────────────────────────────────────
+run_domain() {
+    local domain="$1"
+    shift
+    local tags=""
+    local extra_args=()
+
+    # Parse remaining args for --tags
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --tags|-t)
+                if [ $# -lt 2 ]; then
+                    echo -e "${RED}ERROR: --tags requires a value${NC}"
+                    exit 1
+                fi
+                tags="$2"
+                shift 2
+                ;;
+            *)
+                extra_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    # Validate domain exists
+    local domain_found=false
+    for d in "${DOMAINS[@]}"; do
+        if [ "$d" = "$domain" ]; then
+            domain_found=true
+            break
+        fi
+    done
+
+    if [ "$domain_found" = false ]; then
+        echo -e "${RED}ERROR: Unknown domain '$domain'${NC}"
+        echo -e "${YELLOW}Available domains: ${DOMAINS[*]}${NC}"
+        exit 1
+    fi
+
+    # Find the domain playbook
+    local playbook=""
+    for candidate in \
+        "$SRC_DIR/$domain/playbooks/${domain}.yml" \
+        "$SRC_DIR/$domain/playbooks/main.yml"; do
+        if [ -f "$candidate" ]; then
+            playbook="$candidate"
+            break
+        fi
+    done
+
+    if [ -z "$playbook" ]; then
+        echo -e "${RED}ERROR: No playbook found for domain '$domain'${NC}"
+        echo -e "${YELLOW}Expected: src/$domain/playbooks/${domain}.yml${NC}"
+        exit 1
+    fi
+
+    # Activate venv
+    load_env
+    if [ ! -f "$OMNIA_VENV_PATH/bin/activate" ]; then
+        echo -e "${RED}ERROR: Venv not found at $OMNIA_VENV_PATH${NC}"
+        echo -e "${YELLOW}Run './omnia.sh -s' first to create the venv${NC}"
+        exit 1
+    fi
+
+    # shellcheck disable=SC1091
+    source "$OMNIA_VENV_PATH/bin/activate"
+
+    # Build ansible-playbook command
+    local cmd=("ansible-playbook" "$playbook")
+    if [ -n "$tags" ]; then
+        cmd+=("--tags" "$tags")
+    fi
+    if [ ${#extra_args[@]} -gt 0 ]; then
+        cmd+=("${extra_args[@]}")
+    fi
+
+    echo -e "${BLUE}Running: ${cmd[*]}${NC}"
+    echo -e "${BLUE}Domain:  $domain${NC}"
+    echo -e "${BLUE}Playbook: $playbook${NC}"
+    [ -n "$tags" ] && echo -e "${BLUE}Tags:    $tags${NC}"
+    echo ""
+
+    cd "$SRC_DIR/$domain"
+    "${cmd[@]}"
+    local rc=$?
+
+    deactivate 2>/dev/null || true
+    return $rc
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Validate Domain Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+validate_domain() {
+    local domain="$1"
+    echo -e "${BLUE}Validating domain: $domain${NC}"
+    run_domain "$domain" --tags validate
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -379,13 +483,23 @@ USAGE:
   $0 <command> [options]
 
 SETUP COMMANDS:
-  --setup-venv, -s      Create/update the shared Python venv (pip + Galaxy collections)
+  --setup-venv, -s      Create/update the shared Python venv (pip + Galaxy collections).
                         Also copies domain input files to the runtime data path.
-  --help, -h            Show this help message
+  --init, -i            Run all domain-init.sh scripts (stage input files to NFS share).
+                        Called automatically by --setup-venv unless --skip-init.
+
+EXECUTION COMMANDS:
+  --run, -r <domain> [--tags <tags>] [extra ansible args]
+                        Activate venv and run the specified domain's playbook.
+                        Passes --tags and any extra args to ansible-playbook.
+  --validate <domain>   Validate a domain's configuration (shortcut for --run <domain> --tags validate).
 
 OPTIONS:
-  --skip-input-copy     Skip copying domain input files during --setup-venv.
-                        Useful in CI or when input files are managed externally.
+  --skip-init           Skip running domain-init.sh scripts during --setup-venv.
+  --help, -h            Show this help message.
+
+DOMAINS:
+  ${DOMAINS[*]}
 
 DIAGNOSTICS (see omnia-cli):
   omnia-cli status [--project <name>]         All domain statuses
@@ -416,26 +530,23 @@ EXAMPLES:
   # First-time setup:
   vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
   ./omnia.sh -s                                # Installs env + venv + input files
-  ./omnia.sh -s --skip-input-copy              # Installs env + venv only
+  ./omnia.sh -s --skip-init                   # Installs env + venv only
 
-  # After setup:
-  #   New login shells automatically load environment variables.
-  #
-  #   For immediate use in current shell:
-  #   source /opt/omnia/activate-omnia.sh
+  # Stage domain input files (without full setup):
+  ./omnia.sh --init                            # Run all domain-init.sh scripts
 
-  # Install CLI:
-  sudo cp omnia-cli /usr/local/bin/
-  sudo chmod +x /usr/local/bin/omnia-cli
+  # Run a domain playbook:
+  ./omnia.sh --run image_build_manager --tags prepare
+  ./omnia.sh -r repo_manager --tags build
+  ./omnia.sh -r telemetry                      # Run all tags
 
-  # Check domain status:
+  # Validate a domain:
+  ./omnia.sh --validate image_build_manager
+  ./omnia.sh --validate repo_manager
+
+  # Diagnostics:
   omnia-cli status               # All domains
   omnia-cli repo-manager         # Repo manager details
-
-  # Run component playbooks (after venv setup):
-  source /opt/omnia/activate-omnia.sh
-  cd src/image_build_manager/playbooks
-  ansible-playbook image_build_manager.yml --tags validate
 EOF
 }
 
@@ -445,17 +556,55 @@ EOF
 main() {
     local skip_input_copy=false
     local command=""
+    local run_domain_name=""
+    local run_extra_args=()
 
-    # Parse all arguments
+    if [ $# -eq 0 ]; then
+        show_help
+        exit 0
+    fi
+
+    # Parse arguments — first pass to identify the command
     while [ $# -gt 0 ]; do
         case "$1" in
             --setup-venv|-s)
                 command="setup-venv"
                 shift
                 ;;
-            --skip-input-copy)
+            --skip-init)
                 skip_input_copy=true
                 shift
+                ;;
+            --init|-i)
+                command="init"
+                shift
+                ;;
+            --run|-r)
+                command="run"
+                if [ $# -lt 2 ]; then
+                    echo -e "${RED}ERROR: --run requires a domain name${NC}"
+                    echo -e "${YELLOW}Usage: $0 --run <domain> [--tags <tags>]${NC}"
+                    echo -e "${YELLOW}Domains: ${DOMAINS[*]}${NC}"
+                    exit 1
+                fi
+                run_domain_name="$2"
+                shift 2
+                # Collect remaining args for ansible-playbook
+                while [ $# -gt 0 ]; do
+                    run_extra_args+=("$1")
+                    shift
+                done
+                ;;
+            --validate)
+                command="validate"
+                if [ $# -lt 2 ]; then
+                    echo -e "${RED}ERROR: --validate requires a domain name${NC}"
+                    echo -e "${YELLOW}Usage: $0 --validate <domain>${NC}"
+                    echo -e "${YELLOW}Domains: ${DOMAINS[*]}${NC}"
+                    exit 1
+                fi
+                run_domain_name="$2"
+                shift 2
                 ;;
             --help|-h)
                 command="help"
@@ -471,14 +620,23 @@ main() {
         esac
     done
 
-    case "${command:-help}" in
+    case "$command" in
         setup-venv)
             setup_venv
             if [ "$skip_input_copy" = false ]; then
-                copy_domain_inputs
+                init_domains
             else
-                echo -e "${YELLOW}Skipping input file copy (--skip-input-copy)${NC}"
+                echo -e "${YELLOW}Skipping domain init (--skip-init)${NC}"
             fi
+            ;;
+        init)
+            init_domains
+            ;;
+        run)
+            run_domain "$run_domain_name" "${run_extra_args[@]}"
+            ;;
+        validate)
+            validate_domain "$run_domain_name"
             ;;
         help)
             show_help

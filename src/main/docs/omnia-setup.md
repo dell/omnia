@@ -6,14 +6,17 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 | Command | Description |
 |---------|-------------|
-| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, copy domain input files |
+| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh |
+| `--init, -i` | Run all domain-init.sh scripts (stage input files to NFS share) |
+| `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
+| `--validate <domain>` | Validate a domain's configuration (shortcut for --run with validate tag) |
 | `--help, -h` | Show help message |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `--skip-input-copy` | Skip copying domain input files during `--setup-venv` (useful in CI or when input files are managed externally) |
+| `--skip-init` | Skip running domain-init.sh scripts during `--setup-venv` (useful in CI or when input files are managed externally) |
 
 ## What `--setup-venv` Does
 
@@ -25,14 +28,15 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 6. **Upgrades pip** — Ensures latest pip, setuptools, wheel
 7. **Installs per-domain pip packages** — Discovers and installs `requirements.txt` from all domains
 8. **Installs Galaxy collections** — Discovers and installs `requirements.yml` from all domains
-9. **Initializes domains** — Runs each domain's `domain-init.sh` to create Ansible log directories and stage input files from `src/<domain>/input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+9. **Initializes domains** — Runs each domain's `domain-init.sh` to create Ansible log directories and stage input files from flat `src/<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 10. **Displays summary** — Shows venv path, Python version, Ansible version, and installed collections
 
-Use `--skip-input-copy` to skip step 9 (e.g., in CI pipelines or when input files are managed externally).
+Use `--skip-init` to skip step 9 (e.g., in CI pipelines or when input files are managed externally).
 
 ```bash
 ./omnia.sh -s                      # Full setup: venv + input copy
-./omnia.sh -s --skip-input-copy    # Venv only, skip input file staging
+./omnia.sh -s --skip-init          # Venv only, skip input file staging
+./omnia.sh --init                  # Stage input files only
 ```
 
 ## Example Output
@@ -154,5 +158,6 @@ No domain-init.sh scripts found in any domain
 **Solution**: This means no domain has a `domain-init.sh` script yet. Ansible log directories will not be created automatically, and input files will not be staged to the runtime data path. Run manually:
 ```bash
 sudo mkdir -p /var/log/omnia/<domain>
-cp -a src/<domain>/input/project_default/ <OMNIA_DATA_PATH>/<domain>/input/project_default/
+mkdir -p <OMNIA_DATA_PATH>/<domain>/input/project_default
+cp -a src/<domain>/input/*.yml <OMNIA_DATA_PATH>/<domain>/input/project_default/
 ```

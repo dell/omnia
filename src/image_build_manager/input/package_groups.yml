@@ -19,8 +19,9 @@
 # User-editable package mapping for image_build_manager "config" mode.
 # Used when functional_groups_source: "config" in image_build_config.yml.
 #
-# This file lives in the project input directory:
-#   input/<project_name>/package_groups.yml
+# This file is a template shipped in the source tree under input/.
+# domain-init.sh copies it to the runtime project directory:
+#   <OMNIA_DATA_PATH>/image_build_manager/input/<project>/package_groups.yml
 #
 # Structure:
 #   base_packages     — RPM names installed in ALL images (the base OS layer)
