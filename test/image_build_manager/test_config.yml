@@ -65,18 +65,21 @@ clone_path: "/root/omnia"
 #   input/                            — Synced to <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
 #     image_build_config.yml          — Image build domain input file
 #     image_build_credentials.yml     — Vault-encrypted credentials
-#   repo_manager_output/              — Synced to repo_manager_output_dir (from image_build_config.yml)
+#     package_groups.yml              — Functional group → RPM package mapping
+#   repo_manager_output/              — Synced to repo_manager_output_dir (when sync_output: true)
 #     repo_status.yml                 — RPM repo URLs, cert paths
-#     functional_group_packages.yml   — Package lists per functional group
-#     certs/                          — Pulp TLS certificates
+#
+# Available datasets:
+#   data_set_01 — Offline/partial repo config (Pulp-based repos)
+#   data_set_02 — Internet-connected repo config (direct RHEL CDN URLs)
 #
 # The dataset name selects the local folder under test/image_build_manager/datasets/.
 dataset: "data_set_01"
 
-# Project name on the target server. Typically same as dataset.
-# Maps to: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
-# Maps to: <OMNIA_DATA_PATH>/image_build_manager/output/<project_name>/
-# Only change if the target uses a different project name than the dataset.
+# Project name on the target server.
+# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
+# Input syncs to: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
+# Output read from: <OMNIA_DATA_PATH>/image_build_manager/output/<project_name>/
 project_name: "project_default"
 
 # =============================================================================
@@ -98,14 +101,6 @@ sync_output: false
 # This ensures the target server has the correct image_build_config.yml
 # and credentials before running the playbook.
 sync_image_build_input: true
-
-# =============================================================================
-# SHARED PATH (runtime output on target host)
-# =============================================================================
-# The shared path where image_build_manager stores runtime output.
-# The playbook writes build_status.yml and logs under this directory.
-# Convention: /opt/omnia/image_build_manager
-shared_path: "/opt/omnia/image_build_manager"
 
 # =============================================================================
 # REPORT CONFIGURATION

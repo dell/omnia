@@ -16,18 +16,18 @@ datasets/
     input/                              # Synced to: <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
       image_build_config.yml            # Image build domain input file
       image_build_credentials.yml       # Vault-encrypted S3 credentials
+      package_groups.yml                # Functional group → RPM package mapping (config mode)
     repo_manager_output/                # Synced to repo_manager_output_dir (when sync_output: true)
-      repo_status.yml
-      functional_group_packages.yml
-      certs/
+      repo_status.yml                   # RPM repo URLs, cert paths
 ```
 
 ### Required Files
 
 | File | Description |
 |------|-------------|
-| `input/image_build_config.yml` | S3 backend, repo_manager output path, functional groups, ARM host IP |
-| `input/image_build_credentials.yml` | S3 and provision credentials (Vault-encrypted) |
+| `input/image_build_config.yml` | S3 backend, repo_manager output path, functional groups source, ARM host IP |
+| `input/image_build_credentials.yml` | S3 and ARM SSH credentials (Vault-encrypted on first run) |
+| `input/package_groups.yml` | OS metadata, base packages, and functional group RPM mappings (config mode) |
 
 ### Sync Behavior
 
@@ -40,18 +40,24 @@ The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target
 server's `/etc/omnia/omnia.env` to resolve the sync destination. Directories
 are created automatically if they don't exist.
 
-## Default Dataset: `data_set_01`
+## Available Datasets
 
-See [`data_set_01/README.md`](data_set_01/README.md) for field details.
+| Dataset | repo_status | Description |
+|---------|-------------|-------------|
+| `data_set_01` | `repo_status.yml` | Offline/partial repo config — Pulp-based repos on admin NIC IP |
+| `data_set_02` | `repo_status.yml` (internet) | Internet-connected repo config — direct RHEL CDN URLs |
+
+Both datasets share the same `image_build_config.yml`, `package_groups.yml`, and
+`image_build_credentials.yml` input files. The difference is the `repo_status.yml`
+in `repo_manager_output/` which determines where RPM packages are fetched from.
 
 ## Creating a New Dataset
 
 ```bash
-mkdir -p datasets/my_dataset/{input,repo_manager_output/certs}
+mkdir -p datasets/my_dataset/{input,repo_manager_output}
 # Copy and edit:
-cp datasets/data_set_01/input/image_build_config.yml datasets/my_dataset/input/
-cp datasets/data_set_01/input/image_build_credentials.yml datasets/my_dataset/input/
-cp -r datasets/data_set_01/repo_manager_output/* datasets/my_dataset/repo_manager_output/
+cp datasets/data_set_01/input/* datasets/my_dataset/input/
+cp datasets/data_set_01/repo_manager_output/* datasets/my_dataset/repo_manager_output/
 # Update test_config.yml:
 #   dataset: "my_dataset"
 ```

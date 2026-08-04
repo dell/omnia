@@ -15,7 +15,8 @@ not from a `config.yml`.
 data_set_01/
 ├── input/                              # Synced to: <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
 │   ├── image_build_config.yml          # Image build domain configuration
-│   └── image_build_credentials.yml     # S3 credentials (Vault-encrypted)
+│   ├── image_build_credentials.yml     # S3 credentials (Vault-encrypted)
+│   └── package_groups.yml             # Functional group → RPM package mapping (config mode)
 └── repo_manager_output/                # Synced to repo_manager_output_dir (from image_build_config.yml)
     ├── repo_status.yml                 # RPM repo URLs, OS version, cert paths
     ├── functional_group_packages.yml   # Package lists per functional group

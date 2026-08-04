@@ -29,24 +29,6 @@
 # NOTE: catalog_file is sourced from CATALOG_FILE_PATH environment variable
 # (set in omnia.env). It is NOT configured here.
 #
-# Valid functional group names (config mode — legacy flat names):
-#   x86_64:  os_x86_64, slurm_node_x86_64, slurm_control_node_x86_64,
-#            service_kube_control_plane_first_x86_64,
-#            service_kube_control_plane_x86_64, service_kube_node_x86_64,
-#            login_node_x86_64, login_compiler_node_x86_64
-#   aarch64: os_aarch64, slurm_node_aarch64, login_node_aarch64,
-#            login_compiler_node_aarch64
-#
-# Valid functional group names (catalog mode — {role}_{os}_{ver}_{arch}):
-#   x86_64:  baseos_rhel_10_0_x86_64, slurm_node_rhel_10_0_x86_64,
-#            slurm_control_node_rhel_10_0_x86_64,
-#            service_kube_control_plane_first_rhel_10_0_x86_64,
-#            service_kube_control_plane_rhel_10_0_x86_64,
-#            service_kube_node_rhel_10_0_x86_64,
-#            login_node_rhel_10_0_x86_64, login_compiler_node_rhel_10_0_x86_64
-#   aarch64: baseos_rhel_10_0_aarch64, slurm_node_rhel_10_0_aarch64,
-#            login_node_rhel_10_0_aarch64, login_compiler_node_rhel_10_0_aarch64
-#
 # S3 bucket names are FIXED constants (do NOT change):
 #   boot-images  — OS boot images (kernel, initramfs, rootfs)
 #   efi-images   — EFI boot artifacts
@@ -102,29 +84,15 @@ build_image:
 # 4. Functional Groups
 # ---------------------------------------------------------------------------
 # functional_groups_source: Where the list of groups to build comes from.
-#   "config"  — Use the functional_groups list below + package_groups.yml
-#               in this project directory. Manual selection of groups.
-#   "catalog" — Auto-resolve from catalog JSON (see Section 5).
+#   "config"  — Groups and packages come from package_groups.yml in this
+#               project directory. All groups defined in package_groups.yml
+#               matching the build architecture (_x86_64 / _aarch64 suffix)
+#               are built automatically. No separate group list needed.
+#   "catalog" — Auto-resolve from catalog JSON (CATALOG_FILE_PATH env var).
 #               Groups are read from catalog.functionallayer[] and filtered
 #               by build_arch. Packages resolved from catalog groups/packages.
+#               OS type and version are extracted from the catalog baseos group.
 functional_groups_source: "config"
-
-# functional_groups: Image variants to build (used when source is "config").
-# Each name MUST end with _x86_64 or _aarch64.
-# RPM packages per group are defined in package_groups.yml (this project dir).
-functional_groups:
-  # - name: "os_x86_64"
-  - name: "slurm_node_x86_64"
-  - name: "slurm_control_node_x86_64"
-  # - name: "service_kube_control_plane_first_x86_64"
-  # - name: "service_kube_control_plane_x86_64"
-  # - name: "service_kube_node_x86_64"
-  # - name: "login_node_x86_64"
-  # - name: "login_compiler_node_x86_64"
-  # - name: "os_aarch64"
-  # - name: "slurm_node_aarch64"
-  # - name: "login_node_aarch64"
-  # - name: "login_compiler_node_aarch64"
 
 
 # ---------------------------------------------------------------------------

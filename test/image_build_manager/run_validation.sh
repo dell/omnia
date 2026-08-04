@@ -268,6 +268,7 @@ sc = cfg.get('scenarios', {}).get('${name}', {})
 print(f'run_flag={str(sc.get(\"run\", False)).lower()}')
 print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 print(f'suite_cfg={sc.get(\"suite\", \"\")}')
+print(f'command_cfg={sc.get(\"command\", \"test\")}')
 ")"
         total=$((total + 1))
         if [[ "$run_flag" != "true" ]]; then
@@ -276,13 +277,13 @@ print(f'suite_cfg={sc.get(\"suite\", \"\")}')
             continue
         fi
 
-        echo -e "  ${CYAN}RUN${NC}   ${name} (marker=${marker_cfg:-none}, suite=${suite_cfg:-all})"
+        echo -e "  ${CYAN}RUN${NC}   ${name} (command=${command_cfg:-test}, marker=${marker_cfg:-none}, suite=${suite_cfg:-all})"
 
         local extra_args=""
         [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
         [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
 
-        if "$0" "$name" test $extra_args; then
+        if "$0" "$name" "${command_cfg:-test}" $extra_args; then
             echo -e "  ${GREEN}PASS${NC}  ${name}"
             passed=$((passed + 1))
         else

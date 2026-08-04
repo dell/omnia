@@ -50,7 +50,6 @@ REQUIRED_FIELDS = [
     "dataset",
     "project_name",
     "clone_path",
-    "shared_path",
     "report_path",
     "report_name",
 ]
@@ -135,13 +134,6 @@ def validate_test_config() -> Dict[str, Any]:
     if not os.path.isabs(clone_path):
         errors.append(
             f"clone_path must be absolute: {clone_path}"
-        )
-
-    # --- Shared path ---
-    shared_path = config["shared_path"]
-    if not os.path.isabs(shared_path):
-        errors.append(
-            f"shared_path must be absolute: {shared_path}"
         )
 
     # --- Report path ---

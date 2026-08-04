@@ -28,7 +28,7 @@ deletes and re-clones).
 | `mode` | `str` | **Yes** | `"local"` — clone on local machine. `"ssh"` — clone on a remote host. | `"ssh"` |
 | `url` | `str` | **Yes** | Git clone URL. | `"https://github.com/dell/omnia.git"` |
 | `dest` | `str` | **Yes** | Where to clone the repo. If `mode="ssh"`, this is a path on the remote host. | `"/root/omnia"` |
-| `ip` | `str` | **Required for SSH** | Target host IP address. Only needed when `mode="ssh"`. | `"100.10.0.84"` |
+| `ip` | `str` | **Required for SSH** | Target host IP address. Only needed when `mode="ssh"`. | `"10.20.0.100"` |
 | `user` | `str` | No | SSH username. Default: `"root"`. | `"root"` |
 | `password` | `str` | No | SSH password. If provided, `sshpass` is used automatically. If not provided, key-based auth is assumed. | `"my_password"` |
 | `ssh_opts` | `str` | No | SSH options string. Default: `"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"`. | `"-o StrictHostKeyChecking=no"` |
@@ -101,7 +101,7 @@ result = clone_repo(
     mode="ssh",
     url="https://github.com/dell/omnia.git",
     dest="/root/omnia",
-    ip="100.10.0.84",
+    ip="10.20.0.100",
     user="root",
     force=True,    # deletes /root/omnia and clones fresh
     timeout=600,   # allow 10 minutes
@@ -122,7 +122,7 @@ Uses `rsync` for directories and `cp`/`scp` for single files.
 | `mode` | `str` | **Yes** | `"local"` — copy locally. `"ssh"` — copy to a remote host. | `"ssh"` |
 | `src` | `str` | **Yes** | Source path on the **local** machine. Can be a file or directory. | `"/root/my-module/test/datasets/data_set_01/input"` |
 | `dest` | `str` | **Yes** | Destination path. If `mode="ssh"`, this is a path on the remote host. | `"/opt/omnia/ibm/input/project_default"` |
-| `ip` | `str` | **Required for SSH** | Target host IP address. Only needed when `mode="ssh"`. | `"100.10.0.84"` |
+| `ip` | `str` | **Required for SSH** | Target host IP address. Only needed when `mode="ssh"`. | `"10.20.0.100"` |
 | `user` | `str` | No | SSH username. Default: `"root"`. | `"root"` |
 | `password` | `str` | No | SSH password. If provided, `sshpass` is used. | `"my_password"` |
 | `ssh_opts` | `str` | No | SSH options string. Default: `"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"`. | `"-o StrictHostKeyChecking=no"` |
@@ -178,7 +178,7 @@ result = sync_files(
 )
 
 assert result["success"], result["error"]
-# [OK] Synced /root/.../input -> root@100.10.0.84:/opt/omnia/.../project_default
+# [OK] Synced /root/.../input -> root@10.20.0.100:/opt/omnia/.../project_default
 ```
 
 ### Example — sync locally

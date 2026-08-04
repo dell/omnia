@@ -33,8 +33,9 @@ from typing import Dict, Any, List
 
 import yaml
 
-from .host_func import load_test_config
 from omnia_auto import read_remote_env, resolve_domain_input_path
+
+from .host_func import load_test_config
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
@@ -61,9 +62,14 @@ from ..vars.common_vars import (
 # =============================================================================
 
 def _get_shared_path() -> str:
-    """Get shared_path from test_config or default."""
+    """Get shared_path from test_config or fall back to constant.
+
+    The shared_path is derived from OMNIA_DATA_PATH env var on the target:
+        <OMNIA_DATA_PATH>/image_build_manager
+    Falls back to the SHARED_PATH constant (/opt/omnia/image_build_manager).
+    """
     config = load_test_config()
-    return config["shared_path"]
+    return config.get("shared_path", SHARED_PATH)
 
 
 def _get_project_name() -> str:
@@ -100,13 +106,51 @@ def _load_remote_ibm_config(host) -> dict:
         return {}
 
 
+def _get_built_groups_from_status(host, arch: str = None) -> List[str]:
+    """Extract actually built group names from build_status.yml.
+
+    In catalog mode, the playbook resolves group names to the full
+    ``{role}_{os}_{ver}_{arch}`` format (e.g. slurm_node_rhel_10_0_x86_64).
+    This helper reads build_status.yml to discover those actual names.
+
+    Returns:
+        List of built functional group name strings (may be empty).
+    """
+    status = check_build_status_file(host)
+    if not status.get("success") or "data" not in status:
+        return []
+
+    groups = []
+    fg_images = status["data"].get("functional_group_images", [])
+    for arch_block in fg_images:
+        if isinstance(arch_block, dict):
+            for _key, entries in arch_block.items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if isinstance(entry, dict):
+                        fg_name = entry.get("functional_group", "")
+                        if fg_name:
+                            groups.append(fg_name)
+
+    if arch:
+        groups = [g for g in groups if arch in g]
+
+    return groups
+
+
 def get_configured_functional_groups(
     host, arch: str = None
 ) -> List[str]:
     """Get functional groups from image_build_config.yml on target.
 
-    Reads the deployed image_build_config.yml (not the local dataset)
-    to discover which functional groups were configured for building.
+    In **config** mode, reads the ``functional_groups`` list from the
+    deployed image_build_config.yml.
+
+    In **catalog** mode, the config list contains short (legacy) names
+    but the playbook resolves them to ``{role}_{os}_{ver}_{arch}`` format.
+    This function returns the *actually built* names from build_status.yml
+    so that S3, registry, and package checks match correctly.
 
     Args:
         host: testinfra host object
@@ -118,6 +162,15 @@ def get_configured_functional_groups(
     cfg = _load_remote_ibm_config(host)
     if not cfg:
         return []
+
+    # Prefer actual built names from build_status.yml when available.
+    # In catalog mode the playbook expands short names (slurm_node_x86_64)
+    # to full names (slurm_node_rhel_10_0_x86_64). Even in config mode the
+    # build output may use expanded names. Using the built names ensures
+    # S3, registry, and package checks match the real artifacts.
+    built = _get_built_groups_from_status(host, arch=arch)
+    if built:
+        return built
 
     fg_list = cfg.get("functional_groups", [])
     groups = []
@@ -359,7 +412,7 @@ def check_s3_bucket_images(
     s3_files = _parse_s3_listing(s3_output)
 
     # Display names for image types
-    _TYPE_DISPLAY = {
+    type_display = {
         "initramfs": "initramfs",
         "vmlinuz": "vmlinuz",
         "rhel": "rootfs",
@@ -392,7 +445,7 @@ def check_s3_bucket_images(
                 elif img_type not in info["filename"]:
                     continue
                 found = True
-                display_name = _TYPE_DISPLAY.get(
+                display_name = type_display.get(
                     img_type, img_type
                 )
                 group_result["found_images"].append(img_type)

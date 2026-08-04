@@ -30,6 +30,10 @@
 #                            be unique across enabled suites; duplicate
 #                            order values are a configuration error.
 #   run:     true/false    - Whether to execute this suite
+#   command: <string>      - Execution mode: deploy, verify, or test (default: test)
+#                            deploy  = Run the playbook only
+#                            verify  = Run verification tests only (skip playbook)
+#                            test    = Deploy + Verify (full flow)
 #   suite:   <folder>      - FVT folder name under fvt/ to run
 #   marker:  <expression>  - Marker filter expression (empty = all tests)
 #
@@ -98,6 +102,7 @@ scenarios:
   image_build_manager:
     order: 1
     run: true
+    command: "test"
     suite: ""
     marker: "sanity"
 
@@ -117,6 +122,7 @@ scenarios:
   prepare:
     order: 10
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
 
@@ -139,6 +145,7 @@ scenarios:
   build:
     order: 20
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
 
@@ -157,6 +164,7 @@ scenarios:
   validate:
     order: 30
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
 
@@ -176,5 +184,6 @@ scenarios:
   cleanup:
     order: 40
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
