@@ -49,21 +49,6 @@
             "description": "Where to source functional groups: 'config' derives groups from package_groups.yml keys; 'catalog' resolves groups and packages from catalog JSON (CATALOG_FILE_PATH env var).",
             "default": "config"
         },
-        "functional_groups": {
-            "type": "array",
-            "description": "DEPRECATED: No longer used. Functional groups are now derived from package_groups.yml keys (config mode) or catalog layers (catalog mode). Kept in schema for backward compatibility only.",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Functional group name (e.g., os_x86_64, slurm_node_x86_64)."
-                    }
-                },
-                "required": ["name"],
-                "additionalProperties": false
-            }
-        },
         "build_image": {
             "type": "object",
             "description": "Build image async job and concurrency settings.",
