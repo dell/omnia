@@ -33,7 +33,7 @@ Both scripts are installed to `/usr/local/bin/` (or sourced from the repo) and o
 
 3. **Installs dependencies** — `pip install` from each domain's `requirements.txt`
 
-4. **Stages domain inputs** — calls each domain's `domain-init.sh` to copy input files from the domain repo to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+4. **Stages domain inputs** — calls each domain's `domain-init.sh` to copy flat input template files from the domain repo's `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 
 5. **Runs domain playbooks** — executes `ansible-playbook` for each domain in sequence
 
@@ -47,7 +47,7 @@ DOMAIN_NAME="image_build_manager"
 DOMAIN_PATH="src/image_build_manager"
 DOMAIN_PLAYBOOK="playbooks/image_build_manager.yml"
 DOMAIN_DESCRIPTION="Build OS images for compute nodes"
-DOMAIN_TAGS="prepare,build,cleanup"
+DOMAIN_TAGS="precheck,validate,prepare,build,cleanup,upgrade,rollback"
 ```
 
 ### 2.3 Domain Execution Flow
@@ -61,28 +61,32 @@ omnia.sh --setup-venv
   ├── 4. ansible-galaxy collection install -r requirements.yml (per domain)
   └── 5. Call domain-init.sh (per domain)
 
-omnia.sh --run <domain> [--tags <tags>]
+omnia.sh --run <domain> [--tags <tags>]   # or: omnia.sh -r <domain> --tags <tags>
   │
   ├── 1. Source /etc/omnia/omnia.env
   ├── 2. Activate venv
   ├── 3. ansible-playbook <domain>/playbooks/<domain>.yml --tags <tags>
   └── 4. Write domain status to <OMNIA_DATA_PATH>/<domain>/output/<project>/<domain>_status.yml
+
+omnia.sh --validate <domain>              # shortcut for --run <domain> --tags validate
+omnia.sh --init                           # run all domain-init.sh scripts
 ```
 
 ### 2.4 Domain `domain-init.sh` Contract
 
 Every domain MUST provide a `domain-init.sh` script at the domain root. This script:
 
-- **Input**: Receives `OMNIA_DATA_PATH` and `PROJECT_NAME` as environment variables
-- **Action**: Copies input files from `<domain>/input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+- **Input**: Receives `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` as environment variables
+- **Action**: Copies flat input template files from `<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 - **Idempotent**: Safe to run multiple times
+- **No project subdirectory in source**: Input files live flat in `input/`; the project subdirectory is created only at the runtime destination
 
 ```bash
 #!/bin/bash
 # domain-init.sh — Stage domain input files to OMNIA_DATA_PATH
-DEST="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${PROJECT_NAME}"
+DEST="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${OMNIA_PROJECT_NAME}"
 mkdir -p "$DEST"
-cp -r input/"${PROJECT_NAME}"/* "$DEST"/
+cp -a input/. "$DEST"/
 ```
 
 ### 2.5 Environment Variables Available to Domains
