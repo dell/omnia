@@ -63,10 +63,6 @@ iso_target_directory: "/opt/omnia/iso_output"
 # Default: false (reuses existing ISO)
 rebuild_iso: true
 
-# ISO exposure duration in minutes (how long iDRAC exposes the ISO as CD-ROM).
-# Default: 1080 minutes (18 hours)
-# expose_duration: 1080
-
 # Force reinstallation even if the target node is already reachable via SSH.
 # Default: false
 # force_reinstall: false
@@ -80,5 +76,4 @@ rebuild_iso: true
 # netmask: "255.255.255.0"
 # gateway: ""
 # dns: ""
-# network_device: ""
 # timezone: "UTC"
