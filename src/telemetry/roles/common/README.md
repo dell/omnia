@@ -5,7 +5,7 @@ Shared telemetry utilities — loads telemetry config, validates prerequisites, 
 ## Requirements
 
 - Ansible >= 2.20
-- RHEL/Rocky Linux 9.x or 10.x
+- RHEL/Rocky Linux 10.x
 
 ## Role Variables
 

@@ -9,7 +9,7 @@ This role should run first (tag: `always`) before any other telemetry role.
 ## Requirements
 
 - Ansible >= 2.20
-- RHEL/Rocky Linux 9.x or 10.x
+- RHEL/Rocky Linux 10.x
 
 ## Role Variables
 

@@ -5,7 +5,7 @@ Deploys SFM (Smart Fabric Manager) telemetry for network fabric monitoring
 ## Requirements
 
 - Ansible >= 2.20
-- RHEL/Rocky Linux 9.x or 10.x
+- RHEL/Rocky Linux 10.x
 
 ## Role Variables
 

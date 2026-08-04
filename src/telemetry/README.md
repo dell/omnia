@@ -10,7 +10,7 @@ deployment, cleanup, upgrade, and rollback operations.
 |-------------|---------|
 | Ansible     | >= 2.20 |
 | Python      | >= 3.12 |
-| OS          | RHEL/Rocky Linux 9.x or 10.x |
+| OS          | RHEL/Rocky Linux 10.x |
 | Kubernetes  | Required for sink deployments (VictoriaMetrics, Kafka) |
 
 ## Quick Start

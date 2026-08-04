@@ -5,7 +5,7 @@ Deploys OME (OpenManage Enterprise) telemetry collection for infrastructure moni
 ## Requirements
 
 - Ansible >= 2.20
-- RHEL/Rocky Linux 9.x or 10.x
+- RHEL/Rocky Linux 10.x
 
 ## Role Variables
 

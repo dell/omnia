@@ -5,7 +5,7 @@ Deploys NVIDIA DCGM (Data Center GPU Manager) telemetry for GPU monitoring
 ## Requirements
 
 - Ansible >= 2.20
-- RHEL/Rocky Linux 9.x or 10.x
+- RHEL/Rocky Linux 10.x
 
 ## Role Variables
 

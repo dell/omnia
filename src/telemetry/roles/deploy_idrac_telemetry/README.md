@@ -5,7 +5,7 @@ Deploys iDRAC telemetry collection for Dell server hardware monitoring
 ## Requirements
 
 - Ansible >= 2.20
-- RHEL/Rocky Linux 9.x or 10.x
+- RHEL/Rocky Linux 10.x
 
 ## Role Variables
 
