@@ -19,11 +19,11 @@
 # Usage:
 #   ansible-playbook telemetry.yml --tags <tag_name>
 #
-# Tags:
+# Tags (standard domain tags):
 #   precheck   - Precheck environment for telemetry
-#   validation - Input validation of telemetry configuration
+#   validate   - Input validation of telemetry configuration (alias: validation)
 #   cleanup    - Cleanup telemetry
-#   deploy     - Deploy all enabled telemetry (default)
+#   execute    - Deploy all enabled telemetry (alias: deploy)
 #   upgrade    - Upgrade telemetry
 #   rollback   - Rollback telemetry
 #
@@ -63,7 +63,7 @@
 # ---------------------------------------------------------------------------
 - name: "Validation | Validate telemetry input files"
   ansible.builtin.import_playbook: playbooks/validation.yml
-  tags: [validation]
+  tags: [validate, validation]
 
 # ---------------------------------------------------------------------------
 # Cleanup — tag-based cleanup of telemetry components
@@ -76,10 +76,10 @@
   ansible.builtin.import_playbook: playbooks/cleanup.yml
   tags: [cleanup]
 
-# Deploy: Deploy all telemetry sources
-- name: "Deploy | Deploy all telemetry sources"
+# Deploy / Execute: Deploy all telemetry sources
+- name: "Execute | Deploy all telemetry sources"
   ansible.builtin.import_playbook: playbooks/deploy.yml
-  tags: deploy
+  tags: [execute, deploy]
 
 # Upgrade: Upgrade telemetry components
 - name: "Upgrade | Upgrade telemetry components"

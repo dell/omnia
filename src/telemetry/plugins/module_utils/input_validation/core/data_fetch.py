@@ -21,8 +21,8 @@ import os
 import json
 
 # pylint: disable=import-error,no-name-in-module
-from ansible.module_utils.input_validation.common_utils import validation_utils
-from ansible.module_utils.input_validation.common_utils import config
+from ansible.module_utils.input_validation.core import validation_utils
+from ansible.module_utils.input_validation.core import config
 
 
 # Function to get all files of a specific type recursively from a directory
