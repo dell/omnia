@@ -1,6 +1,7 @@
 # deploy_minio
 
-Deploys MinIO S3-compatible object storage as a Podman Quadlet systemd service for image build artifact storage.
+Deploys MinIO S3-compatible object storage as a Podman Quadlet systemd service
+for image build artifact storage.
 
 ## Requirements
 
@@ -10,6 +11,10 @@ Deploys MinIO S3-compatible object storage as a Podman Quadlet systemd service f
 ## Role Variables
 
 See `defaults/main.yml` and `vars/main.yml` for the full list.
+
+Key variables:
+- `health_check_retries` / `health_check_delay` — MinIO readiness polling
+- `download_retries` / `download_delay` — MinIO image pull retries
 
 ## Dependencies
 

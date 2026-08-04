@@ -6,13 +6,6 @@
     "description": "minimal test catalog containing only slurm control node and slurm node functional layers for x86_64. baseos and admin_debug groups include a representative subset of packages. use catalog_rhel.json for the full production catalog.",
     "functionallayer": [
       {
-        "name": "baseos_rhel_10_0_x86_64",
-        "components": [
-          "baseos_group_10.0",
-          "admin_debug_group"
-        ]
-      },
-      {
         "name": "slurm_control_node_rhel_10_0_x86_64",
         "components": [
           "baseos_group_10.0",
@@ -27,9 +20,6 @@
           "baseos_group_10.0",
           "slurm_custom_group",
           "openldap_group",
-          "ldms_group",
-          "openmpi_group",
-          "ucx_group",
           "slurm_node_group"
         ]
       }
@@ -39,6 +29,7 @@
         "name": "baseos_group_10.0",
         "type": "base_os",
         "os_version": "10.0",
+        "os": "rhel",
         "description": "base os packages for rhel cluster nodes",
         "components": [
           "systemd",
@@ -1820,20 +1811,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "ovis_ldms": {
-        "name": "ovis-ldms",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "ldms",
             "name": "rhel",
             "version": [
               "10.0"

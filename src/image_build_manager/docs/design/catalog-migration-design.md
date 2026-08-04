@@ -1,6 +1,6 @@
 # Catalog Migration Design: Replace functional_group_packages.yml with catalog JSON
 
-## Status: DRAFT — Pending Review
+## Status: IMPLEMENTED
 
 ---
 
@@ -355,16 +355,21 @@ Step 3: Partition resolved packages by packagetype:
 
 ### 5.2 Base Image Package Resolution
 
-The catalog treats `baseos_group_{version}` as the base OS package group.
-Every functionallayer includes `baseos_group_{version}` in its components.
+Layer classification uses the **layer name prefix**, not component membership.
+The `baseos_prefix` parameter (default: `baseos_group`) is split at `_group` to
+derive the layer-level prefix `baseos`. This ensures:
 
-For the base image:
-- Resolve `baseos_group_{version}` → all RPM packages = `base_image_packages`
-- Also include `admin_debug_group` if present in the layer
+- **Base OS layers** (name starts with `baseos`, e.g. `baseos_rhel_10_0_x86_64`):
+  All component packages are collected into `base_image_packages`.
+- **Compute layers** (any other name, e.g. `slurm_node_rhel_10_0_x86_64`):
+  Only non-baseos component packages are collected. Baseos components within
+  compute layers contribute their `os_version` but their packages are skipped
+  (they are already in the base image).
 
-For compute images:
-- Resolve all groups EXCEPT `baseos_group_{version}` → RPM packages = `compute_packages`
-- This avoids duplicating base packages in the compute layer
+> **Note**: The previous implementation classified layers based on whether they
+> *contained* a baseos component, which incorrectly treated compute layers as
+> baseos when they referenced `baseos_group_*`. This was fixed to use the layer
+> name prefix instead.
 
 ### 5.3 Package Source Modes: "config" vs "catalog"
 
@@ -380,11 +385,15 @@ Use case:     Manual control over exact packages per functional group
 ```
 
 - Reads `package_groups.yml` from `{{ input_project_dir }}/`
+- `os` / `os_version` fields → `cluster_os_type` / `cluster_os_version` / `rhel_tag`
 - `base_packages` list → `base_image_packages`
 - `functional_groups.{name}.packages` → `compute_images_dict`
-- Functional groups to build: from `functional_groups` list in `image_build_config.yml`
+- Functional groups to build: derived from `functional_groups` keys in `package_groups.yml`,
+  filtered by architecture suffix (`_x86_64` / `_aarch64`)
+- No separate `functional_groups` list needed in `image_build_config.yml`
 - `service_k8s_version`: set to empty string (not available in this mode)
 - **No catalog file required** — purely manual package control
+- For multi-OS support, each OS project directory has its own `package_groups.yml`
 
 #### Mode 2: `"catalog"` — Catalog-Driven Package Resolution
 
@@ -397,11 +406,12 @@ Use case:     Automated package resolution from repo_manager catalog
 - Reads catalog JSON from `CATALOG_FILE_PATH` environment variable (set in `omnia.env`)
 - Three-level resolution: `functionallayer` → `groups` → `packages`
 - Filters by `packagetype` and `sources[].architecture`
+- Extracts `cluster_os_type` from baseos group's `os` field (e.g. `rhel`)
+- Extracts `cluster_os_version` from baseos group's `os_version` field (e.g. `10.0`)
 - Extracts `service_k8s_version` from `kubeadm_*` package name
 - Sets `catalog_identifier` fact for traceability
-- Functional groups to build:
-  - From `functional_groups` list in config (explicit selection)
-  - OR auto-detect all groups from `catalog.functionallayer[]` filtered by `build_arch`
+- Functional groups to build: auto-detected from `catalog.functionallayer[]` filtered by `build_arch`
+- No separate `functional_groups` list needed in `image_build_config.yml`
 
 #### Mode Comparison
 
@@ -409,9 +419,10 @@ Use case:     Automated package resolution from repo_manager catalog
 |---------|-----------|------------|
 | **Package source** | `input/{project}/package_groups.yml` | Path from `CATALOG_FILE_PATH` env var |
 | **Package format** | Flat YAML (group → package list) | JSON (functionallayer → groups → packages) |
+| **OS metadata source** | `os` / `os_version` fields in `package_groups.yml` | baseos group's `os` / `os_version` fields |
+| **Group source** | Keys of `package_groups.yml` | `catalog.functionallayer[]` filtered by arch |
 | **service_k8s_version** | Empty string | Extracted from catalog |
 | **catalog_identifier** | Not set | Set from `catalog.identifier` |
-| **Group auto-detect** | Not supported | Supported (all groups for arch) |
 | **User editable** | Yes (input file) | No (repo_manager produces it) |
 | **When to use** | Custom/dev builds, override packages | Production builds, standard pipeline |
 
@@ -1075,17 +1086,15 @@ resolves `package_list_path` from `repo_manager.package_list`.
 
 #### 6.2.2 `roles/fetch_build_packages/tasks/check_functional_group.yml`
 
-**Current**: Loads `functional_groups_config.yml` and regex-matches group names ending with `_{arch}`.
-
-**Changes:**
-- The regex `'_' + build_arch + '$'` still works with new names (they still end with `_x86_64` or `_aarch64`)
-- No code change required — the regex is architecture-suffix agnostic
+**IMPLEMENTED**: Now reads functional groups from `package_groups.yml` keys (config mode).
+Skipped entirely in catalog mode (groups come from catalog layers).
+The architecture suffix check (`_x86_64` / `_aarch64`) still works with both naming styles.
 
 #### 6.2.3 `roles/fetch_build_packages/vars/main.yml`
 
-**Changes:**
-- Replace `functional_groups_file_path` variable or add `catalog_file_path` alongside it
-- Update `functional_group_absent_msg` if the error message references old file names
+**IMPLEMENTED:**
+- Removed `functional_groups_file_path` variable (no longer needed)
+- Updated `functional_group_absent_msg` to reference both config and catalog modes
 
 ### 6.3 Tier 3: Validation (MUST change)
 
@@ -1098,9 +1107,10 @@ resolves `package_list_path` from `repo_manager.package_list`.
 
 #### 6.3.2 `roles/validate_build_runtime/tasks/main.yml`
 
-**Changes:**
-- No changes required — validates `s3_configurations`, `functional_groups_config.yml`,
-  `aarch64_inventory_host_ip`, and `overall_status`. None of these are affected.
+**IMPLEMENTED:**
+- Removed `functional_groups_file_path` variable from vars
+- Updated `validate_fg_config_fail_msg` to reference both config and catalog modes
+- No longer references `functional_groups_config.yml`
 
 ### 6.4 Tier 4: Build Templates (CONDITIONAL changes)
 

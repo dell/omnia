@@ -15,7 +15,6 @@
 ---
 
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
-functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] | default('') }}"
 
 # Architecture-agnostic variables — build_arch is set by the calling playbook
 build_image_completion_msg: |
@@ -24,5 +23,5 @@ build_image_completion_msg: |
 
 functional_group_absent_msg: |
   Failure: No {{ build_arch }} functional groups found.
-  Please ensure {{ build_arch }} functional groups are defined in image_build_config.yml
-  (config mode) or available in the catalog (catalog mode).
+  Config mode: Ensure package_groups.yml has functional groups with _{{ build_arch }} suffix.
+  Catalog mode: Ensure the catalog JSON contains functional layers for {{ build_arch }}.

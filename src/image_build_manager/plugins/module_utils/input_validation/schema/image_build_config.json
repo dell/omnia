@@ -46,25 +46,23 @@
         "functional_groups_source": {
             "type": "string",
             "enum": ["config", "catalog"],
-            "description": "Where to source functional groups: 'config' uses the manual list and package_groups.yml; 'catalog' resolves packages from the catalog JSON (CATALOG_FILE_PATH env var).",
+            "description": "Where to source functional groups: 'config' derives groups from package_groups.yml keys; 'catalog' resolves groups and packages from catalog JSON (CATALOG_FILE_PATH env var).",
             "default": "config"
         },
         "functional_groups": {
             "type": "array",
-            "description": "Functional groups defining image variants to build. Each group must end with _x86_64 or _aarch64.",
+            "description": "DEPRECATED: No longer used. Functional groups are now derived from package_groups.yml keys (config mode) or catalog layers (catalog mode). Kept in schema for backward compatibility only.",
             "items": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "Functional group name (e.g., os_x86_64, slurm_node_x86_64).",
-                        "pattern": "^(os|slurm_node|slurm_control_node|login_node|login_compiler_node|service_kube_control_plane_first|service_kube_control_plane|service_kube_node)_(x86_64|aarch64)$"
+                        "description": "Functional group name (e.g., os_x86_64, slurm_node_x86_64)."
                     }
                 },
                 "required": ["name"],
                 "additionalProperties": false
-            },
-            "minItems": 1
+            }
         },
         "build_image": {
             "type": "object",

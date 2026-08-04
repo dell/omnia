@@ -98,7 +98,7 @@ See `docs/contracts/` for full contract specifications.
 | **S3 storage** | `s3_configurations.provider` (minio / powerscale), `endpoint_url` |
 | **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
-| **Groups** | `functional_groups_source` (`config` / `catalog`), `functional_groups[]` |
+| **Groups** | `functional_groups_source` (`config` / `catalog`) |
 | **Concurrency** | `build_image.max_parallel`, `job_async`, `job_retry`, `job_delay` |
 | **ARM** | `aarch64_inventory_host_ip`, `aarch64_ssh_user` |
 
@@ -132,7 +132,7 @@ image_build_manager/
 |   |   +-- base_image_package_collector.py   Base image RPM packages
 |   |   +-- generate_functional_groups.py     Functional groups from CSV
 |   |   +-- functional_group_parser.py        Normalize group input
-|   |   +-- parse_catalog.py                  Catalog JSON → RPM package resolution
+|   |   +-- parse_catalog.py                  Catalog JSON → RPM package resolution (layer-name classification)
 |   |   +-- parse_repo_status.py              repo_status.yml → repo lists + OS facts
 |   +-- module_utils/
 |   |   +-- input_validation/             L1+L2 validation framework
@@ -149,10 +149,10 @@ image_build_manager/
 |   +-- validate_build_runtime            Runtime environment checks
 |   +-- collect_build_credentials         S3 + SSH credential prompts (Vault)
 |   +-- deploy_minio                      MinIO S3 via Podman Quadlet
-|   +-- deploy_registry                   OCI registry via Podman Quadlet
+|   +-- deploy_registry                   OCI registry via Podman Quadlet + regctl
 |   +-- fetch_build_packages              Dual-mode package resolution (config/catalog)
 |   +-- prepare_aarch64_node              Prepare ARM build host
-|   +-- build_os_images                   OpenCHAMI image builds + S3 upload
+|   +-- build_os_images                   OpenCHAMI image builds + S3 upload + regctl verify
 |   +-- cleanup_build_artifacts           Remove services + artifacts
 +-- playbooks/
 |   +-- image_build_manager.yml           Entry point
@@ -176,7 +176,10 @@ image_build_manager/
 
 ### Config Mode (`functional_groups_source: "config"`)
 
-Short names from `package_groups.yml`:
+Functional groups derived from `package_groups.yml` keys (filtered by architecture suffix).
+OS type and version from `os` / `os_version` fields in `package_groups.yml`.
+
+Available groups in default `package_groups.yml`:
 
 | x86_64 | aarch64 |
 |--------|---------|
@@ -191,7 +194,10 @@ Short names from `package_groups.yml`:
 
 ### Catalog Mode (`functional_groups_source: "catalog"`)
 
-Full names from `catalog.functionallayer[]` (auto-detected):
+Full names auto-detected from `catalog.functionallayer[]`.
+OS type from baseos group's `os` field; version from `os_version` field.
+
+Example groups from a typical catalog:
 
 | x86_64 | aarch64 |
 |--------|---------|

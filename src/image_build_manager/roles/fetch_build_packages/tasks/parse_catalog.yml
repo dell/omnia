@@ -35,8 +35,9 @@
     cluster_os_versions: "{{ _catalog_result.cluster_os_versions }}"
     cacheable: true
 
-- name: Override OS version from catalog base_os group
+- name: Override OS type and version from catalog base_os group
   ansible.builtin.set_fact:
+    cluster_os_type: "{{ _catalog_result.cluster_os_type }}"
     cluster_os_version: "{{ _catalog_result.cluster_os_version }}"
     rhel_tag: "{{ _catalog_result.cluster_os_version }}"
     cacheable: true

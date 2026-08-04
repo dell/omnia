@@ -40,6 +40,13 @@
 #   input/project_ubuntu/package_groups.yml (future).
 # =============================================================================
 
+# --- OS metadata ---
+# Used by image_build_manager to set cluster_os_type and cluster_os_version
+# when running in config mode. For multi-OS support, each OS project directory
+# will have its own package_groups.yml with the appropriate os/os_version.
+os: "rhel"
+os_version: "10.0"
+
 # --- Base OS packages (installed in every image) ---
 base_packages:
   - systemd

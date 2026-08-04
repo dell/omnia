@@ -18,8 +18,7 @@
 | `s3_configurations.endpoint_url` | string | No | `""` | Auto-detected for MinIO; required for PowerScale |
 | `repo_manager_output_path` | string | Yes | `/opt/omnia/repo_manager/output/project_default/repo_status.yml` | Path to upstream `repo_status.yml` |
 | `image_build_type` | string | No | `"image-builder"` | `image-builder` or `image-thrillhouse` |
-| `functional_groups_source` | string | No | `"config"` | `config` (manual `package_groups.yml`) or `catalog` (catalog JSON via `CATALOG_FILE_PATH` env var) |
-| `functional_groups[].name` | string | Conditional | -- | Groups to build (when source=config) |
+| `functional_groups_source` | string | No | `"config"` | `config` (groups from `package_groups.yml` keys) or `catalog` (groups from catalog JSON via `CATALOG_FILE_PATH` env var) |
 | `build_image.max_parallel` | int | No | `0` | Concurrent builds; 0 = unlimited |
 | `build_image.job_async` | int | No | `7200` | Async timeout (seconds) |
 | `build_image.job_retry` | int | No | `240` | Retry count |
@@ -55,17 +54,23 @@
 
 **Location**: Path from `repo_manager_output_path` in config
 
+### Supported Formats
+
+The `parse_repo_status` module supports **both** the old and new `repo_status.yml` formats:
+
+| Format | Key Structure | When |
+|--------|--------------|------|
+| **Old** | `rpm_repos.{arch}.{repo}`, `user_repos`, `repo_manager.port` | Legacy repo_manager output |
+| **New** | `repositories.{version}.{arch}.{repo}.url` | Current repo_manager output |
+
 ### Key Fields Consumed
 
 | Field | Purpose |
-|-------|---------|
+|-------|--------|
 | `overall_status` | Must be `"success"` to proceed |
-| `cluster_os_type` / `cluster_os_version` | Build target OS |
-| `rpm_repos.x86_64` / `rpm_repos.aarch64` | RPM repository URLs |
-| `user_repos.*` | User-defined RPM repos |
-| `repo_manager.port` | HTTPS port (default: 2225) |
-| `repo_manager.certificates.server_crt` | TLS cert path (optional) |
-| `repo_manager.package_list` | Path to `functional_group_packages.yml` |
+| `cluster_os_type` | Build target OS type (e.g. `rhel`) |
+| `repositories.{version}.{arch}` | RPM repository URLs (new format) |
+| `rpm_repos.{arch}` / `user_repos.{arch}` | RPM repository URLs (old format) |
 
 ### Validation Rules
 
@@ -77,35 +82,97 @@
 
 ---
 
-## 4. functional_group_packages.yml (upstream contract)
+## 4. package_groups.yml (config mode)
 
-**Purpose**: RPM package mapping per functional group.
+**Purpose**: OS metadata and RPM package mapping per functional group (config mode only).
 
-**Producer**: `repo_manager` domain
+**Location**: `input/<project>/package_groups.yml`
 
-**Location**: Path from `repo_manager.package_list` in `repo_status.yml`
+**Used when**: `functional_groups_source: "config"`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `base_packages` | list[string] | RPMs installed in every image |
-| `functional_groups.<name>.packages` | list[string] | Additional RPMs per group |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `os` | string | No | OS type (e.g. `rhel`, `ubuntu`). Sets `cluster_os_type`. |
+| `os_version` | string | No | OS version (e.g. `10.0`). Sets `cluster_os_version` and `rhel_tag`. |
+| `base_packages` | list[string] | Yes | RPMs installed in every image |
+| `functional_groups.<name>.packages` | list[string] | Yes | Additional RPMs per group |
+
+Functional groups are derived from the keys in `functional_groups` dict, filtered by
+architecture suffix (`_x86_64` / `_aarch64`). No separate group list is needed in
+`image_build_config.yml`.
+
+For multi-OS support, each OS project directory has its own `package_groups.yml`
+with the appropriate `os`, `os_version`, and package names.
 
 ---
 
-## 5. Dependency Diagram
+## 5. catalog JSON (catalog mode)
+
+**Purpose**: Full package catalog with three-level resolution (functionallayer → groups → packages).
+
+**Producer**: `repo_manager` domain
+
+**Location**: Path from `CATALOG_FILE_PATH` environment variable
+
+**Used when**: `functional_groups_source: "catalog"`
+
+### Key Fields Consumed
+
+| Field | Purpose |
+|-------|--------|
+| `catalog.identifier` | Catalog identity for traceability |
+| `catalog.functionallayer[]` | Layer definitions with components |
+| `catalog.groups.{name}` | Group definitions with component keys |
+| `catalog.packages.{key}` | Package metadata (name, packagetype, sources) |
+
+### Layer Classification
+
+Layers are classified as **base OS** or **compute** by their **name prefix**:
+
+| Pattern | Classification | Result |
+|---------|---------------|--------|
+| Name starts with `baseos` | Base OS | Packages → `base_image_packages` |
+| Any other name | Compute | Non-baseos packages → `compute_images_dict` |
+
+Compute layers that reference `baseos_group_*` components extract `os_version` and
+`os` (OS type) but skip those packages (already in the base image).
+
+### Module Return Values (catalog mode)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `catalog_identifier` | string | Catalog identity string for traceability |
+| `cluster_os_type` | string | OS type from baseos group's `os` field (e.g. `rhel`) |
+| `cluster_os_version` | string | Primary OS version from first baseos group |
+| `cluster_os_versions` | list[string] | All unique OS versions across baseos groups |
+| `base_image_packages` | list[string] | Deduplicated RPM names from baseos layers |
+| `compute_images_dict` | dict | Keyed by layer name, each with `functional_group`, `packages`, `os_version` |
+| `layer_count` | int | Number of functional layers matching build_arch |
+
+---
+
+## 6. Dependency Diagram
 
 ```
 image_build_config.yml         repo_manager output
 +--------------------+         +------------------------------+
-| functional_groups  |         | repo_status.yml              |
-| s3_configurations  |         | functional_group_packages.yml|
-| image_build_type   |         | certificates (optional)      |
-+---------+----------+         +-------------+----------------+
+| functional_groups_ |         | repo_status.yml              |
+|   source           |         | catalog_rhel.json (catalog)  |
+| s3_configurations  |         +------------------------------+
+| image_build_type   |
++---------+----------+         package_groups.yml (config)
+          |                    +------------------------------+
+          |                    | os, os_version               |
+          |                    | base_packages                |
+          |                    | functional_groups.*.packages |
+          |                    +-------------+----------------+
           |                                  |
           +----------------+-----------------+
                            |
                   image_build_manager.yml
                            |
-                  base_image_packages <-- base_packages
-                  compute_images_dict <-- functional_groups
+                  cluster_os_type     <-- baseos group 'os' / package_groups 'os'
+                  cluster_os_version  <-- baseos group 'os_version' / package_groups
+                  base_image_packages <-- baseos layer / base_packages
+                  compute_images_dict <-- compute layers / functional_groups
 ```

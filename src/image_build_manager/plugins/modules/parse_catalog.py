@@ -31,7 +31,13 @@ description:
     C(functionallayer) -> C(groups) -> C(packages).
   - Filters packages by C(packagetype) and C(sources[].architecture).
   - Separates base OS packages from compute group packages.
-  - Extracts OS version from base_os groups for multi-version builds.
+  - Extracts OS type and version from base_os groups for multi-version builds.
+  - Layer classification uses the B(layer name), not component membership.
+    Layers whose name starts with the baseos prefix (e.g. C(baseos_rhel_10_0_x86_64))
+    are base OS layers; all others are compute layers.
+  - Compute layers that reference base OS components only extract the
+    C(os_version) from them; base OS packages are skipped to avoid
+    duplication with the base image.
 options:
   catalog_file:
     description: Absolute path to the catalog JSON file.
@@ -53,9 +59,12 @@ options:
     default: rpm
   baseos_prefix:
     description:
-      - Component name prefix used to identify base OS groups.
-      - Groups whose name starts with this prefix contribute to
-        C(base_image_packages) instead of C(compute_images_dict).
+      - Component name prefix used to identify base OS groups within a layer.
+      - The layer-level prefix is derived by stripping C(_group) from this value
+        (e.g. C(baseos_group) -> C(baseos)). Layers whose name starts with
+        the derived prefix are classified as base OS layers.
+      - Within compute layers, components matching this prefix are skipped
+        (their packages are already in the base image).
     required: false
     type: str
     default: baseos_group
@@ -76,6 +85,7 @@ EXAMPLES = r'''
       {{ catalog_result.layer_count }} layers,
       {{ catalog_result.base_image_packages | length }} base pkgs,
       {{ catalog_result.compute_images_dict | length }} compute groups,
+      os_type={{ catalog_result.cluster_os_type }},
       os_versions={{ catalog_result.cluster_os_versions }}
 
 - name: Resolve aarch64 packages with custom baseos prefix
@@ -96,6 +106,12 @@ cluster_os_version:
     - Primary OS version extracted from the first base_os group.
     - Derived from C(os_version) field in groups with C(type=base_os).
     - Empty string if no base_os group declares an os_version.
+  returned: always
+  type: str
+cluster_os_type:
+  description:
+    - OS type extracted from the first base_os group's C(os) field.
+    - E.g. C(rhel), C(ubuntu). Empty string if not declared.
   returned: always
   type: str
 cluster_os_versions:
@@ -222,6 +238,7 @@ def _resolve_layer_packages(
 
     layer_pkgs: list[str] = []
     os_versions: list[str] = []
+    os_type: str = ""
 
     for comp_name in layer.get("components", []):
         group = groups.get(comp_name, {})
@@ -233,6 +250,7 @@ def _resolve_layer_packages(
             os_ver = group.get("os_version", "")
             if os_ver and os_ver not in os_versions:
                 os_versions.append(os_ver)
+            os_type = group.get("os", "")
             if not is_baseos_layer:
                 continue
 
@@ -253,6 +271,7 @@ def _resolve_layer_packages(
         "packages": layer_pkgs,
         "is_baseos": is_baseos_layer,
         "os_versions": os_versions,
+        "os_type": os_type,
     }
 
 
@@ -314,6 +333,7 @@ def resolve_catalog(
     base_packages: list[str] = []
     compute_dict: dict = {}
     all_os_versions: list[str] = []
+    os_type: str = ""
     for name, data in resolved.items():
         if data["is_baseos"]:
             base_packages.extend(data["packages"])
@@ -327,11 +347,14 @@ def resolve_catalog(
         for ver in data.get("os_versions", []):
             if ver and ver not in all_os_versions:
                 all_os_versions.append(ver)
+        if not os_type and data.get("os_type"):
+            os_type = data["os_type"]
 
     base_packages = _deduplicate(base_packages)
 
     return {
         "catalog_identifier": identifier,
+        "cluster_os_type": os_type,
         "cluster_os_version": all_os_versions[0] if all_os_versions else "",
         "cluster_os_versions": all_os_versions,
         "base_image_packages": base_packages,

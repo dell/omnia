@@ -68,9 +68,13 @@
     #   max_parallel>0 → controlled concurrency (e.g., 4 at a time)
     # NOTE: delegate_to sends the module to the aarch64 host for execution.
 
+    - name: Initialize orchestrator command list
+      ansible.builtin.set_fact:
+        _orchestrator_cmds: []
+
     - name: Build orchestrator command list
       ansible.builtin.set_fact:
-        _orchestrator_cmds: "{{ (_orchestrator_cmds | default([])) + [_current_cmd] }}"
+        _orchestrator_cmds: "{{ _orchestrator_cmds + [_current_cmd] }}"
       vars:
         _current_cmd:
           name: "{{ item.key }}"

@@ -14,9 +14,6 @@
 ---
 # Variables and error messages for image_build_manager input validation
 
-# File paths used by validation tasks (already set by image_build_setup)
-functional_groups_file_path: "{{ functional_groups_config_path }}"
-
 # Fixed S3 bucket names — NOT user-modifiable
 s3_boot_images_bucket: "boot-images"
 s3_efi_images_bucket: "efi-images"
@@ -34,9 +31,10 @@ validate_s3_bucket_fail_msg: >
   (boot-images and efi-images) and cannot be changed by the user.
 
 validate_fg_config_fail_msg: >
-  functional_groups_config.yml not found at {{ functional_groups_file_path }}.
-  This file is auto-generated from functional_groups in image_build_config.yml.
-  Ensure image_build_config.yml has at least one functional group enabled.
+  No functional groups found for the target architecture.
+  Config mode: Ensure package_groups.yml in {{ input_project_dir }}
+  has at least one functional group defined with a matching _x86_64 or _aarch64 suffix.
+  Catalog mode: Ensure the catalog JSON contains functional layers for the target architecture.
 
 validate_aarch64_host_fail_msg: >
   aarch64_inventory_host_ip is empty but aarch64 build was requested.

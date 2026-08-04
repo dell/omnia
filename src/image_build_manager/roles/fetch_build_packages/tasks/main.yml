@@ -44,15 +44,22 @@
         base_image_packages: "{{ _fg_pkg_mapping.base_packages | default([]) }}"
         cacheable: true
 
-    - name: Build compute_images_dict from mapping + enabled functional_groups
+    - name: Set OS metadata from package_groups.yml
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ _fg_pkg_mapping.os | default(cluster_os_type | default('rhel')) }}"
+        cluster_os_version: "{{ _fg_pkg_mapping.os_version | default(cluster_os_version | default('10.0')) }}"
+        rhel_tag: "{{ _fg_pkg_mapping.os_version | default(rhel_tag | default('10.0')) }}"
+        cacheable: true
+      when: _fg_pkg_mapping.os is defined or _fg_pkg_mapping.os_version is defined
+
+    - name: Build compute_images_dict from package_groups.yml keys
       ansible.builtin.set_fact:
         compute_images_dict: >-
           {% set result = {} -%}
-          {% for fg in functional_groups -%}
-            {% set fg_name = fg.name if fg is mapping else fg -%}
+          {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
             {% if fg_name.endswith('_' + build_arch) -%}
-              {% set pkgs = _fg_pkg_mapping.functional_groups[fg_name].packages | default([]) -%}
-              {% set _ = result.update({fg_name: {'functional_group': fg_name, 'packages': pkgs}}) -%}
+              {% set pkgs = fg_data.packages | default([]) -%}
+              {% set _ = result.update({fg_name: {'functional_group': fg_name, 'packages': pkgs, 'os_version': _fg_pkg_mapping.os_version | default(rhel_tag | default('10.0'))}}) -%}
             {% endif -%}
           {% endfor -%}
           {{ result }}

@@ -21,15 +21,21 @@ vi /opt/omnia/repo_manager/output/project_default/repo_status.yml
 ### 2. No x86_64 functional groups found
 
 ```
-No x86_64 functional groups found in functional_group_config.
+No functional groups found for the target architecture.
 ```
 
-**Fix**: Enable at least one group in `input/project_default/image_build_config.yml`:
+**Fix** (config mode): Ensure `input/project_default/package_groups.yml` has at least
+one functional group defined with a matching `_x86_64` or `_aarch64` suffix:
 ```yaml
 functional_groups:
-  - name: "os_x86_64"
-  - name: "slurm_node_x86_64"
+  slurm_node_x86_64:
+    packages:
+      - munge
+      - slurm-slurmd
 ```
+
+**Fix** (catalog mode): Ensure the catalog JSON at `CATALOG_FILE_PATH` contains
+functional layers ending with `_x86_64` or `_aarch64`.
 
 ---
 
@@ -56,7 +62,31 @@ Repo manager certificate not found at .../pulp_webserver.crt
 
 ---
 
-### 5. Package not found during build
+### 5. Compute image builds skipped / `_orchestrator_cmds` undefined
+
+```
+No compute image groups resolved for x86_64 — skipping compute builds
+```
+or:
+```
+'_orchestrator_cmds' is undefined
+```
+
+**Cause**: `compute_images_dict` is empty — no compute functional groups were resolved.
+
+**Fix** (catalog mode): Verify the catalog JSON contains non-baseos functional layers
+for the target architecture. The `parse_catalog` module classifies layers by their
+**name prefix**: layers starting with `baseos` are base OS; all others are compute.
+If all layers are named `baseos_*`, no compute groups will be resolved.
+
+**Fix** (config mode): Ensure `package_groups.yml` contains entries in
+`functional_groups` dict with architecture-matching keys (e.g. `slurm_node_x86_64`).
+Functional groups are now derived from `package_groups.yml` keys — no separate list
+in `image_build_config.yml` is needed.
+
+---
+
+### 6. Package not found during build
 
 ```
 No match for argument: <package-name>
@@ -69,7 +99,7 @@ No match for argument: <package-name>
 
 ---
 
-### 6. Registry TLS error
+### 7. Registry TLS error
 
 ```
 http: server gave HTTP response to HTTPS client
@@ -82,7 +112,7 @@ http: server gave HTTP response to HTTPS client
 
 ---
 
-### 7. DNS resolution failure
+### 8. DNS resolution failure
 
 ```
 dial tcp: lookup <hostname>.vm.cluster: no such host
@@ -111,8 +141,8 @@ export SYSTEM_ADMIN_NIC_IPV4=<your_admin_ip>
 cd playbooks
 ansible-playbook image_build_manager.yml --tags validate -vvv
 
-# Check functional groups output
-cat /opt/omnia/image_build_manager/output/project_default/.data/functional_groups_config.yml
+# Check package_groups.yml functional groups
+grep -A2 'functional_groups:' /opt/omnia/image_build_manager/input/project_default/package_groups.yml
 
 # Dry-run validation
 ansible-playbook image_build_manager.yml --tags validate --check
