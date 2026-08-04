@@ -22,8 +22,12 @@
 #       Run validation separately before deployment:
 #       ansible-playbook playbooks/validate/validate_config.yml --tags local_repo
 #
+# PREREQUISITES:
+#   - Credentials: Will be prompted automatically if not already configured
+#     (Credentials are preserved across deployments unless explicitly deleted)
+#
 # Workflow:
-#   1. Pre-flight: Load project config, fetch credentials
+#   1. Pre-flight: Check and load credentials (prompt if missing)
 #   2. Pre-checks: Verify existing container status
 #   3. Deployment: Pull image and deploy Pulp container (HTTP/HTTPS)
 #   4. Configuration: Configure Pulp CLI and certificates
@@ -52,11 +56,32 @@
           - "Project: {{ project_name | default(project_default) }}"
           - "======================================"
 
-    - name: Load credentials
+    - name: Check if credentials already exist
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
+      register: credentials_file_check
+
+    - name: Set credential existence fact
+      ansible.builtin.set_fact:
+        credentials_exist: "{{ credentials_file_check.stat.exists }}"
+
+    - name: Display credential status
+      ansible.builtin.debug:
+        msg: "Credentials {{ 'already exist - skipping credential prompt' if credentials_exist else 'not found - will prompt for credentials' }}"
+
+    - name: Get credentials (prompt user)
       ansible.builtin.include_role:
         name: ../../roles/credential
       vars:
         credential_action: all
+      when: not credentials_exist
+
+    - name: Load existing credentials
+      ansible.builtin.include_role:
+        name: ../../roles/credential
+      vars:
+        credential_action: create
+      when: credentials_exist
 
     - name: Read endpoint configuration
       ansible.builtin.include_role:

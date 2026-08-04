@@ -320,7 +320,7 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         task (dict): The task to be processed, containing details like the package to be processed.
         determine_function (function): A function that determines the function to call
         and its arguments for the task.
-        user_data: content from software_config.json
+        user_data: content from catalog configuration
         version_variables: softwarename_version for versioned softwares
         arc: Architecture of software
         repo_store_path (str): Path to the repository where task-related files are stored.
@@ -363,7 +363,8 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         # If an error occurs, put a failure result in the queue indicating task failure
         # Return a safe, generic error message to caller
         safe_error_message = "Task execution failed due to an internal error."
-        result_queue.put({"task": task, "status": "FAILED", "output": "", "error": safe_error_message })
+        package_name = task.get("package", task.get("Name", "unknown"))
+        result_queue.put({"task": task, "package": package_name, "status": "FAILED", "output": "", "error": safe_error_message, "logname": f"package_status_{os.getpid()}.log"})
 
 
 def execute_parallel(

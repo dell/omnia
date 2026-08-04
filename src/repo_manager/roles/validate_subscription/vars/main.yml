@@ -26,7 +26,6 @@ redhat_repo_file: "/etc/yum.repos.d/redhat.repo"
 # Usage: configure_rhel_os_urls.yml
 project_input_path: "{{ input_project_dir }}"
 local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
-sw_config_json_path: "{{ project_input_path }}/software_config.json"
 omnia_rhel_cert_dir: "{{ rhel_repo_cert_dir }}"
 required_repos:
   - codeready-builder

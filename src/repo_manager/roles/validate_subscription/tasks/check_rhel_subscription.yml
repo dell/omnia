@@ -60,7 +60,7 @@
       changed_when: false
       failed_when: false
 
-    - name: Set subscription release from software_config.json
+    - name: Set subscription release from cluster OS version
       ansible.builtin.command:
         cmd: >
           subscription-manager release --set="{{ hostvars['localhost']['cluster_os_version'] }}"

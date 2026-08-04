@@ -25,7 +25,13 @@ import json
 import re
 import shlex
 from multiprocessing import Lock
+from datetime import datetime, timezone
 from ansible.module_utils.local_repo.config import ARCH_SUFFIXES, STATUS_CSV_HEADER
+from ansible.module_utils.local_repo.mirror_status import (
+    load_mirror_index,
+    save_mirror_index,
+    update_mirror_index_entry
+)
 
 
 def mask_sensitive_data(cmd_string):
@@ -185,7 +191,8 @@ def _prefix_repo_name_with_arch(repo_name: str, status_file_path: str, logger) -
     return repo_name
 
 
-def _update_existing_line(line: str, package_name: str, package_type: str, status: str, repo_name: str, status_file_path: str) -> str:
+def _update_existing_line(line: str, package_name: str, package_type: str, status: str,
+                          repo_name: str, status_file_path: str, catalog_name: str = "") -> str:
     """Update an existing line in status file.
 
     Args:
@@ -195,25 +202,33 @@ def _update_existing_line(line: str, package_name: str, package_type: str, statu
         status: New status
         repo_name: Repository name
         status_file_path: Path for architecture extraction
+        catalog_name: Catalog name for multi-catalog tracking
 
     Returns:
         str: Updated line content
     """
     parts = line.strip().split(',')
-    if len(parts) >= 4:
-        final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
+    final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
+    if len(parts) >= 5:
         parts[2] = final_repo_name if final_repo_name else ''
         parts[3] = status
+        parts[4] = catalog_name
+        return ','.join(parts) + '\n'
+    if len(parts) >= 4:
+        parts[2] = final_repo_name if final_repo_name else ''
+        parts[3] = status
+        parts.append(catalog_name)
         return ','.join(parts) + '\n'
 
     # Handle short lines
-    final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
-    return f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status}\n"
+    return f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status},{catalog_name}\n"
 
 
-def write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock: Lock, repo_name=None):
+def write_status_to_file(status_file_path, package_name, package_type, status, logger,
+                          file_lock: Lock, repo_name=None, catalog_name=""):
     """
     Writes or updates the status of a package in the status file.
+    Also updates mirror_index.json with the package status.
 
     Args:
         status_file_path: Path to the status file
@@ -223,6 +238,7 @@ def write_status_to_file(status_file_path, package_name, package_type, status, l
         logger: Logger instance
         file_lock: Lock for thread safety
         repo_name: Optional repository name (for RPMs)
+        catalog_name: Optional catalog name for multi-catalog tracking
     """
     logger.info("#" * 30 + f" {write_status_to_file.__name__} start " + "#" * 30)
 
@@ -232,11 +248,19 @@ def write_status_to_file(status_file_path, package_name, package_type, status, l
     try:
         with file_lock:  # Ensure only one process can write at a time
             if os.path.exists(status_file_path):
-                _update_existing_file(status_file_path, package_name, package_type, status, repo_name)
+                _update_existing_file(status_file_path, package_name, package_type,
+                                       status, repo_name, catalog_name)
             else:
-                _create_new_file(status_file_path, package_name, package_type, status, repo_name)
+                _create_new_file(status_file_path, package_name, package_type,
+                                  status, repo_name, catalog_name)
 
             logger.info(f"Status written to {status_file_path} for {package_name}.")
+            
+            # Update mirror_index.json
+            _update_mirror_index_for_package(
+                status_file_path, package_name, package_type, status, 
+                repo_name, catalog_name, logger
+            )
     except OSError as e:
         logger.error(f"Failed to write to status file: {status_file_path}. Error: {str(e)}")
         raise RuntimeError(
@@ -246,7 +270,8 @@ def write_status_to_file(status_file_path, package_name, package_type, status, l
         logger.info("#" * 30 + f" {write_status_to_file.__name__} end " + "#" * 30)
 
 
-def _update_existing_file(status_file_path, package_name, package_type, status, repo_name):
+def _update_existing_file(status_file_path, package_name, package_type, status,
+                           repo_name, catalog_name=""):
     """Update existing status file with new package status."""
     with open(status_file_path, "r", encoding='utf-8') as f:
         lines = f.readlines()
@@ -261,7 +286,8 @@ def _update_existing_file(status_file_path, package_name, package_type, status, 
         for line in lines[1:]:  # Skip header
             if line.startswith(f"{package_name},"):
                 updated_line = _update_existing_line(
-                    line, package_name, package_type, status, repo_name, status_file_path
+                    line, package_name, package_type, status, repo_name,
+                    status_file_path, catalog_name
                 )
                 f.write(updated_line)
                 updated = True
@@ -270,12 +296,109 @@ def _update_existing_file(status_file_path, package_name, package_type, status, 
 
         if not updated:
             final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
-            f.write(f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status}\n")
+            f.write(f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status},{catalog_name}\n")
 
 
-def _create_new_file(status_file_path, package_name, package_type, status, repo_name):
+def _create_new_file(status_file_path, package_name, package_type, status,
+                      repo_name, catalog_name=""):
     """Create new status file with package status."""
     with open(status_file_path, "w", encoding='utf-8') as f:
         f.write(STATUS_CSV_HEADER)
         final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
-        f.write(f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status}\n")
+        f.write(f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status},{catalog_name}\n")
+
+
+def _update_mirror_index_for_package(status_file_path, package_name, package_type, 
+                                      status, repo_name, catalog_name, logger):
+    """
+    Update mirror_index.json when a package status is written to status.csv.
+    
+    Args:
+        status_file_path: Path to the status file (used to derive mirror_index path)
+        package_name: Name of the package
+        package_type: Type of the package (rpm, image, etc.)
+        status: Status (Success, Failed, etc.)
+        repo_name: Repository name (for RPMs)
+        catalog_name: Catalog name
+        logger: Logger instance
+    """
+    try:
+        # Derive mirror_index.json path from status_file_path
+        # Expected path: .../rhel/10.0/x86_64/software_name/status.csv
+        # Mirror index: .../rhel/10.0/mirror_status/mirror_index.json
+        
+        path_parts = status_file_path.split(os.sep)
+        
+        # Find the OS type and version in the path
+        os_type_idx = -1
+        for i, part in enumerate(path_parts):
+            if part in ['rhel', 'ubuntu', 'rocky']:
+                os_type_idx = i
+                break
+        
+        if os_type_idx == -1 or os_type_idx + 1 >= len(path_parts):
+            logger.debug(f"Could not derive mirror_index path from {status_file_path}")
+            return
+        
+        # Construct mirror_index path: .../os_type/os_version/mirror_status/mirror_index.json
+        base_path = os.sep.join(path_parts[:os_type_idx + 2])  # Include os_type and os_version
+        mirror_index_path = os.path.join(base_path, "mirror_status", "mirror_index.json")
+        
+        if not os.path.exists(mirror_index_path):
+            logger.debug(f"Mirror index not found at {mirror_index_path}, skipping update")
+            return
+        
+        # Load mirror index
+        mirror_data = load_mirror_index(mirror_index_path, logger)
+        if not mirror_data:
+            logger.warning(f"Failed to load mirror index from {mirror_index_path}")
+            return
+        
+        # Check if package exists in mirror index
+        packages = mirror_data["MirrorIndex"].get("packages", {})
+        
+        # For images, the package_name in status.csv includes tag (e.g., docker.io/curl:8.17.0)
+        # but mirror_index.json stores it without tag (e.g., docker.io/curl)
+        # Try to find the package with and without tag
+        package_key = package_name
+        if package_type == "image" and package_name not in packages:
+            # Try removing tag/version after last colon
+            if ':' in package_name:
+                package_key = package_name.rsplit(':', 1)[0]
+                logger.debug(f"Image package '{package_name}' not found, trying without tag: '{package_key}'")
+        
+        if package_key not in packages:
+            logger.debug(f"Package '{package_name}' (key: '{package_key}') not found in mirror index, skipping update")
+            return
+        
+        # Map status.csv status to mirror index status
+        # status.csv: "Success" or "Failed"
+        # mirror_index: "mirrored", "failed", or "pending"
+        mirror_status = "mirrored" if status == "Success" else "failed"
+        error_msg = "" if status == "Success" else "Package download/verification failed"
+        
+        # Get package info from mirror index
+        pkg_info = packages[package_key]
+        
+        # Update mirror index entry (use package_key which may be different from package_name for images)
+        update_mirror_index_entry(
+            mirror_data=mirror_data,
+            package_name=package_key,
+            pkg_type=package_type,
+            version=pkg_info.get("version", ""),
+            arch=pkg_info.get("arch", ""),
+            composite_hash=pkg_info.get("hash", ""),
+            source=pkg_info.get("source", ""),
+            catalogs=pkg_info.get("catalogs", [catalog_name] if catalog_name else []),
+            status=mirror_status,
+            error=error_msg,
+            repo_name=repo_name or pkg_info.get("repo_name", "")
+        )
+        
+        # Save updated mirror index
+        save_mirror_index(mirror_index_path, mirror_data, logger)
+        logger.debug(f"Updated mirror index for package '{package_key}' (original: '{package_name}') with status '{mirror_status}'")
+        
+    except Exception as e:
+        # Don't fail the main operation if mirror index update fails
+        logger.warning(f"Failed to update mirror index for package '{package_name}': {e}")
