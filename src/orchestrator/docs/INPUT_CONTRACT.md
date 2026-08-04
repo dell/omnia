@@ -137,24 +137,50 @@ functional_group_images:
 ```yaml
 overall_status: "success"
 cluster_os_type: "rhel"
-cluster_os_version: "10.0"
+repo_config: "partial"
 
 repo_manager:
   port: 2225
   certificates:
-    server_crt: /opt/omnia/pulp/settings/certs/pulp_webserver.crt
-    server_key: /opt/omnia/pulp/settings/certs/pulp_webserver.key
-    certs_dir: /opt/omnia/pulp/settings/certs
+    server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
+    server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
+    certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"
 
-rpm_repos:
+repositories:
+  "10.0":
+    x86_64:
+      baseos:
+        url: "https://<admin_ip>:2225/pulp/content/.../rpms/baseos/"
+      appstream:
+        url: "https://<admin_ip>:2225/pulp/content/.../rpms/appstream/"
+    aarch64:
+      baseos: {}
+
+registries:
+  user_registry1:
+    port: 443
+    tls:
+      capath: "/etc/omnia/certs/.../ca.crt"
+      insecure: false
+
+file_repos:
   x86_64:
-    baseos: "https://<admin_ip>:2225/pulp/content/.../rpms/baseos/"
-    appstream: "https://<admin_ip>:2225/pulp/content/.../rpms/appstream/"
+    git:
+      helm_charts: "https://<admin_ip>:2225/pulp/content/.../git/helm-charts/"
+    tarball:
+      helm_v3_20_1_amd64: "https://<admin_ip>:2225/pulp/content/.../tarball/helm-v3.20.1-amd64/"
+    manifest:
+      calico_v3_31_4: "https://<admin_ip>:2225/pulp/content/.../manifest/calico-v3.31.4/"
+    pip_module:
+      kubernetes_33_1_0: "https://<admin_ip>:2225/pypi/.../pip_module/kubernetes==33.1.0/"
   aarch64: {}
 
 offline_tarball_path: "https://<admin_ip>:2225/pulp/content/.../tarball/"
 offline_manifest_path: "https://<admin_ip>:2225/pulp/content/.../manifest/"
 offline_git_path: "https://<admin_ip>:2225/pulp/content/.../git/"
+offline_pip_module_path: "https://<admin_ip>:2225/pypi/.../pip_module/"
+offline_shell_path: "https://<admin_ip>:2225/pulp/content/.../shell/"
+offline_iso_path: "https://<admin_ip>:2225/pulp/content/.../iso/"
 ```
 
 ### Facts Set from repo_status.yml
@@ -162,14 +188,15 @@ offline_git_path: "https://<admin_ip>:2225/pulp/content/.../git/"
 | Fact | Source | Consumer |
 |------|--------|----------|
 | `cluster_os_type` | `cluster_os_type` | `k8s_config`, `slurm_config`, cloud-init templates |
-| `cluster_os_version` | `cluster_os_version` | `k8s_config`, `slurm_config`, cloud-init templates |
 | `pulp_port` | `repo_manager.port` | All Pulp URL references (replaces hardcoded `2225`) |
 | `pulp_cert_path` | `repo_manager.certificates.server_crt` | `k8s_config`, `slurm_config` (cert copy to nodes) |
 | `pulp_certs_dir` | `repo_manager.certificates.certs_dir` | Cloud-init cert NFS mount |
+| `repositories` | `repositories.<version>.<arch>.<repo>.url` | RPM repo URLs keyed by OS version and arch |
+| `registries` | `registries` | Container registry mirror configuration |
+| `file_repos` | `file_repos.<arch>.<type>.<name>` | Git, tarball, manifest, pip URLs |
 | `offline_tarball_path` | `offline_tarball_path` | `k8s_config` (helm, CUDA downloads) |
 | `offline_manifest_path` | `offline_manifest_path` | `k8s_config` (Calico, MetalLB manifests) |
-| `offline_git_path` | `offline_git_path` | `k8s_config` (whereabouts) |
-| `rpm_repos` | `rpm_repos` | Cloud-init repo configuration |
+| `offline_git_path` | `offline_git_path` | `k8s_config` (whereabouts, helm-charts) |
 
 ---
 

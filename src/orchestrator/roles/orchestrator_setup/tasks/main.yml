@@ -158,10 +158,9 @@
 - name: Set repo_manager facts from repo_status.yml
   ansible.builtin.set_fact:
     cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
-    cluster_os_version: "{{ cluster_os_version | default('10.0') }}"
     pulp_port: "{{ repo_manager.port | default(2225) }}"
-    pulp_cert_path: "{{ repo_manager.certificates.server_crt | default('/opt/omnia/pulp/settings/certs/pulp_webserver.crt') }}"
-    pulp_certs_dir: "{{ repo_manager.certificates.certs_dir | default('/opt/omnia/pulp/settings/certs') }}"
+    pulp_cert_path: "{{ repo_manager.certificates.server_crt | default('/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt') }}"
+    pulp_certs_dir: "{{ repo_manager.certificates.certs_dir | default('/opt/omnia/pulp_config/pulp/settings/certs') }}"
     cacheable: true
   when: _repo_status_stat.stat.exists
 
