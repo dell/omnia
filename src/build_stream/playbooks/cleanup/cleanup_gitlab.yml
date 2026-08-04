@@ -34,7 +34,7 @@
   gather_facts: false
   tags: always
   roles:
-    - role: ../roles/build_stream_setup
+    - role: ../../roles/build_stream_setup
       when: not build_stream_setup_done | default(false) | bool
 
 - name: Load build_stream domain credentials
@@ -54,7 +54,7 @@
         bs_credential_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
 
     - name: Decrypt and include build_stream credentials
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
       vars:
         credential_file_path: "{{ bs_credential_file_path }}"
         vault_password_file: "{{ bs_credential_vault_path }}"

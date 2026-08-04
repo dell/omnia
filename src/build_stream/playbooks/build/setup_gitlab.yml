@@ -34,7 +34,7 @@
   gather_facts: false
   tags: always
   roles:
-    - role: ../roles/build_stream_setup
+    - role: ../../roles/build_stream_setup
       vars:
         create_oim_group: true
       when: not build_stream_setup_done | default(false) | bool
