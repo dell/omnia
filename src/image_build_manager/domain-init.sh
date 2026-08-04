@@ -20,21 +20,26 @@
 #
 # Performs first-time domain setup:
 #   1. Creates Ansible log directory:  /var/log/omnia/image_build_manager/
-#   2. Copies input files from source tree to runtime data path
+#   2. Copies input template files from source tree to runtime data path
 #
-# Source:      src/image_build_manager/input/<project>/
-# Destination: <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
+# Source (flat):   src/image_build_manager/input/
+# Destination:     <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
+#
+# The source input/ directory contains template config files without any
+# project subdirectory.  The project directory (e.g. project_default) is
+# created ONLY at the runtime destination on the NFS share.
 #
 # Usage:
 #   ./domain-init.sh                       # Uses env vars (must be exported)
 #   ./domain-init.sh --force               # Overwrite without prompting
 #   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
-# Called automatically by: omnia.sh --setup-venv
+# Called automatically by: omnia.sh --init  or  omnia.sh --setup-venv
 #
 # Manual alternative (if not using this script):
 #   sudo mkdir -p /var/log/omnia/image_build_manager
-#   cp -a input/project_default/ <OMNIA_DATA_PATH>/image_build_manager/input/project_default/
+#   mkdir -p /opt/omnia/image_build_manager/input/project_default
+#   cp -a input/*.yml /opt/omnia/image_build_manager/input/project_default/
 # =============================================================================
 
 set -euo pipefail
@@ -85,7 +90,6 @@ _load_env() {
 # ─────────────────────────────────────────────────────────────────────────────
 _check_existing_files() {
     local dest_dir="$1"
-    local project="$2"
 
     # No destination — safe to proceed
     [ -d "$dest_dir" ] || return 0
@@ -105,7 +109,7 @@ _check_existing_files() {
     echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
 
     # List files that would be overwritten
-    local src_dir="$SCRIPT_DIR/input/${project}"
+    local src_dir="$SCRIPT_DIR/input"
     local overwrite_list
     overwrite_list=$(cd "$src_dir" && find . -type f | sed 's|^\./||' | sort)
     for f in $overwrite_list; do
@@ -120,32 +124,41 @@ _check_existing_files() {
         return 1
     fi
 
-    echo -en "  ${YELLOW}Overwrite existing files for project '${project}'? [y/N]: ${NC}"
+    echo -en "  ${YELLOW}Overwrite existing files for project '${OMNIA_PROJECT_NAME}'? [y/N]: ${NC}"
     read -r response
     case "$response" in
         [yY]|[yY][eE][sS]) return 0 ;;
         *)
-            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped project '${project}' — no files overwritten${NC}"
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped project '${OMNIA_PROJECT_NAME}' — no files overwritten${NC}"
             return 1
             ;;
     esac
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Copy input files for a single project
+# Copy flat input/ files to the runtime project directory
+# Source:  src/<domain>/input/            (flat — no project subdirectory)
+# Dest:   <OMNIA_DATA_PATH>/<domain>/input/<project>/
 # ─────────────────────────────────────────────────────────────────────────────
-copy_project_input() {
-    local project="$1"
-    local src_dir="$SCRIPT_DIR/input/${project}"
-    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${project}"
+copy_input_files() {
+    local src_dir="$SCRIPT_DIR/input"
+    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${OMNIA_PROJECT_NAME}"
 
     if [ ! -d "$src_dir" ]; then
-        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory for project '${project}' at ${src_dir} — skipping${NC}"
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
+        return 0
+    fi
+
+    # Check that source has files (ignore subdirectories)
+    local src_count
+    src_count=$(find "$src_dir" -maxdepth 1 -type f 2>/dev/null | wc -l)
+    if [ "$src_count" -eq 0 ]; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input files in ${src_dir} — skipping${NC}"
         return 0
     fi
 
     # Check for existing files and prompt if needed
-    if ! _check_existing_files "$dest_dir" "$project"; then
+    if ! _check_existing_files "$dest_dir"; then
         return 0
     fi
 
@@ -153,14 +166,14 @@ copy_project_input() {
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --update "$src_dir/" "$dest_dir/"
+        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
     else
-        cp -a "$src_dir/." "$dest_dir/"
+        cp -a "$src_dir"/. "$dest_dir/"
     fi
 
     local count
     count=$(find "$dest_dir" -type f | wc -l)
-    echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) for project '${project}' → ${dest_dir}${NC}"
+    echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -188,18 +201,8 @@ main() {
     # Create Ansible log directory (ansible.cfg log_path)
     create_log_directory
 
-    # Copy the configured project
-    copy_project_input "$OMNIA_PROJECT_NAME"
-
-    # Also copy any other project directories that exist in input/
-    for project_dir in "$SCRIPT_DIR/input"/*/; do
-        [ -d "$project_dir" ] || continue
-        local project
-        project=$(basename "$project_dir")
-        if [ "$project" != "$OMNIA_PROJECT_NAME" ]; then
-            copy_project_input "$project"
-        fi
-    done
+    # Copy flat input files to the runtime project directory
+    copy_input_files
 }
 
 main "$@"
