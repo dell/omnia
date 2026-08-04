@@ -332,8 +332,22 @@ case "$SCENARIO" in
         exit 0
         ;;
     --completion)
-        echo "Tab completion is automatically registered in .venv/bin/activate."
-        echo "Run: source .venv/bin/activate"
+        # Output a shell snippet users can eval to get tab completion
+        # without running setup_env.sh. Usage: eval "$(./run_validation.sh --completion)"
+        cat << COMPLETION_EOF
+run_validation() { "${SCRIPT_DIR}/run_validation.sh" "\$@"; }
+_run_validation_completions() {
+    local cur prev; cur="\${COMP_WORDS[\$COMP_CWORD]}"; prev="\${COMP_WORDS[\$COMP_CWORD-1]}"
+    local fvt_dir="${SCRIPT_DIR}/fvt"
+    local scenarios=""; if [ -d "\${fvt_dir}" ]; then for d in "\${fvt_dir}"/*/; do [ -d "\$d" ] || continue; local n; n="\$(basename "\$d")"; [ "\$n" = "__pycache__" ] && continue; scenarios="\${scenarios} \${n}"; done; fi
+    local commands="deploy verify test"; local special="all list help --config --help"; local options="--suite --marker -v --verbose --debug"; local markers="sanity x86_64 aarch64 functional regression deploy"
+    case "\$COMP_CWORD" in
+        1) COMPREPLY=( \$(compgen -W "\${scenarios} \${special}" -- "\$cur") ) ;;
+        2) case "\$prev" in list|help|--help|-h|--config) COMPREPLY=() ;; *) COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") ) ;; esac ;;
+        *) case "\$prev" in --suite) local sc="\${COMP_WORDS[1]}"; local suites=""; if [ -d "\${fvt_dir}/\${sc}" ]; then for d in "\${fvt_dir}/\${sc}"/*/; do [ -d "\$d" ] || continue; local n; n="\$(basename "\$d")"; [ "\$n" = "__pycache__" ] && continue; suites="\${suites} \${n}"; done; fi; COMPREPLY=( \$(compgen -W "\${suites}" -- "\$cur") ) ;; --marker) COMPREPLY=( \$(compgen -W "\${markers}" -- "\$cur") ) ;; *) COMPREPLY=( \$(compgen -W "\${options}" -- "\$cur") ) ;; esac ;; esac
+}
+complete -F _run_validation_completions run_validation
+COMPLETION_EOF
         exit 0
         ;;
     all)
