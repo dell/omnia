@@ -1,1 +1,0 @@
-../OUTPUT_CONTRACT.md

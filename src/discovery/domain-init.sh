@@ -15,16 +15,16 @@
 # limitations under the License.
 
 # =============================================================================
-# copy-input.sh — Copy orchestrator input files to runtime data path
+# domain-init.sh — Initialize discovery domain runtime directories and inputs
 # =============================================================================
 #
 # Copies:
-#   1. input/ config templates → <OMNIA_DATA_PATH>/orchestrator/input/<project>/
+#   1. input/ config templates → <OMNIA_DATA_PATH>/discovery/input/<project>/
 #
 # Usage:
-#   ./copy-input.sh
-#   ./copy-input.sh --force
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./copy-input.sh
+#   ./domain-init.sh
+#   ./domain-init.sh --force
+#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
 # Called automatically by: omnia.sh --setup-venv
 # =============================================================================
@@ -32,7 +32,7 @@
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly DOMAIN_NAME="orchestrator"
+readonly DOMAIN_NAME="discovery"
 
 # --- Resolve environment variables ---
 OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
@@ -69,7 +69,6 @@ log "Setting up ${DOMAIN_NAME} domain..."
 # Create required directories
 ensure_dir "$INPUT_DST"
 ensure_dir "$LOG_DIR"
-ensure_dir "${OMNIA_DATA_PATH}/.data"
 
 # Copy input templates (only if not already present)
 if [[ -d "$INPUT_SRC" ]]; then

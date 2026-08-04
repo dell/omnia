@@ -1,4 +1,4 @@
 # Python dependencies for omnia.discovery collection
-ansible-core>=2.14
+ansible-core>=2.20
 jinja2>=3.0
 pyyaml>=5.4

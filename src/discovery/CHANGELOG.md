@@ -11,9 +11,5 @@ All notable changes to the `omnia.discovery` collection will be documented in th
 - Input validation with JSON schemas for `discovery_config.yml` and `credential_rules.json`.
 - L2 semantic validation flow for OME IP reachability checks.
 - Domain-level documentation: `DISCOVERY_DESIGN.md`, `INPUT_CONTRACT.md`, `OUTPUT_CONTRACT.md`.
-- Domain completion checker skill.
-
-### Changed
-- Migrated from legacy `library/` to `plugins/` directory structure.
 - All module references use FQCN (`ansible.builtin.*`).
 - Zero `../common/` cross-domain imports.
