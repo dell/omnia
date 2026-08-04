@@ -59,7 +59,13 @@
           {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
             {% if fg_name.endswith('_' + build_arch) -%}
               {% set pkgs = fg_data.packages | default([]) -%}
-              {% set _ = result.update({fg_name: {'functional_group': fg_name, 'packages': pkgs, 'os_version': _fg_pkg_mapping.os_version | default(rhel_tag | default('10.0'))}}) -%}
+              {% set _ = result.update({
+                fg_name: {
+                  'functional_group': fg_name,
+                  'packages': pkgs,
+                  'os_version': _fg_pkg_mapping.os_version | default(rhel_tag | default('10.0'))
+                }
+              }) -%}
             {% endif -%}
           {% endfor -%}
           {{ result }}
