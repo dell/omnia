@@ -102,19 +102,19 @@
 
     - name: Check if high_availability_config.yml exists
       ansible.builtin.stat:
-        path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+        path: "{{ orchestrator_input_dir }}/high_availability_config.yml"
       delegate_to: localhost
       register: ha_config_stat
 
     - name: Fail if high_availability_config.yml doesn't exist
       ansible.builtin.fail:
-        msg: "high_availability_config.yml not found at {{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml. Please provide the high_availability_config.yml file to configure kube_vip."
+        msg: "high_availability_config.yml not found at {{ orchestrator_input_dir }}/high_availability_config.yml. Please provide the high_availability_config.yml file to configure kube_vip."
       delegate_to: localhost
       when: not ha_config_stat.stat.exists | default(false)
 
     - name: Load high_availability_config.yml to get kube_vip
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+        file: "{{ orchestrator_input_dir }}/high_availability_config.yml"
         name: ha_config
       delegate_to: localhost
       when: ha_config_stat.stat.exists | default(false)

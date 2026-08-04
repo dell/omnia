@@ -130,6 +130,7 @@ dcgm_health_check_retries: 3
 
 # Usage: fetch_additional_images.yml
 input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
+orchestrator_input_dir: "{{ playbook_dir | dirname }}/input"
 software_config_file_path: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/software_config.json"
 local_repo_config_path: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/local_repo_config.yml"
 
