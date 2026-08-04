@@ -13,15 +13,13 @@
 #  limitations under the License.
 ---
 
-- name: Set base image suffix when build stream inputs present
+- name: Set base image suffix from image tag
   ansible.builtin.set_fact:
-    base_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
-    rhel_base_image_name: "{{ rhel_arch_base_image_name }}_{{ build_stream_job_id }}-{{ image_key | default('') }}"
-  when:
-    - enable_build_stream | default(false) | bool
-    - (build_stream_job_id | default('') | length) > 0
-    - (image_key | default('') | length) > 0
+    base_image_suffix: "{{ _image_tag_suffix | default('') }}"
+    rhel_base_image_name: "{{ rhel_arch_base_image_name }}{{ _image_tag_suffix | default('') }}"
+  when: (_image_tag_suffix | default('') | length) > 0
 
+# --- Pre-build setup ---
 - name: Create ochami images directory
   ansible.builtin.file:
     path: "{{ openchami_work_dir }}/images"
@@ -34,63 +32,94 @@
     state: directory
     mode: "{{ dir_permissions_755 }}"
 
-- name: Create x86_64 base image log file
-  ansible.builtin.file:
-    path: "{{ image_build__base_image_log_path }}"
-    state: touch
-    mode: "{{ dir_permissions_644 }}"
-
 - name: Render x86_64 base image build config
   ansible.builtin.template:
     src: "{{ openchami_base_image_config_template }}"
     dest: "{{ openchami_work_dir }}/images/{{ rhel_arch_base_image_name }}-{{ rhel_tag }}.yaml"
     mode: "{{ dir_permissions_644 }}"
 
-- name: Build and verify x86_64 base osimage
+# --- Base image cache check ---
+# Compute a hash of base_image_packages to detect changes.
+# If the hash matches the previous build, skip the rebuild.
+- name: Compute base image package hash
+  ansible.builtin.set_fact:
+    _base_pkg_hash: "{{ base_image_packages | sort | join(',') | hash('sha256') }}"
+
+- name: Set base image hash file path
+  ansible.builtin.set_fact:
+    _base_hash_file: "{{ image_build_log_dir }}/.base_image_pkg_hash_{{ build_arch }}"
+
+- name: Check previous base image package hash
+  ansible.builtin.slurp:
+    src: "{{ _base_hash_file }}"
+  register: _prev_base_hash
+  failed_when: false
+
+- name: Determine if base image rebuild is needed
+  ansible.builtin.set_fact:
+    _base_rebuild_needed: >-
+      {{ _prev_base_hash is failed
+         or (_prev_base_hash.content | default('') | b64decode | trim) != _base_pkg_hash }}
+
+- name: Skip base image build (packages unchanged)
+  ansible.builtin.debug:
+    msg: >-
+      Skipping x86_64 base image build — package list unchanged
+      (hash={{ _base_pkg_hash[:12] }}...).
+      Delete {{ _base_hash_file }} to force rebuild.
+  when: not (_base_rebuild_needed | bool)
+
+# --- Build via Python orchestrator ---
+- name: Build x86_64 base image
+  when: _base_rebuild_needed | bool
   block:
-    - name: Build x86_64 base osimage
-      ansible.builtin.shell:
-        cmd: |
-          set -o pipefail
-          podman run --rm --device /dev/fuse --network host \
-            {{ ochami_mounts | join(' ') }} \
-            {{ ochami_image | join(' ') }} \
-            {{ ochami_base_command | join(' ') }} \
-            > '{{ image_build__base_image_log_path }}' 2>&1
-      async: "{{ job_async }}"
-      poll: 0
-      register: base_image_build
-      changed_when: true
-
-    - name: Wait for x86_64 base image build to complete
-      ansible.builtin.async_status:
-        jid: "{{ base_image_build.ansible_job_id }}"
-      register: job_result
-      until: job_result.finished
-      retries: "{{ job_retry }}"
-      delay: "{{ job_delay }}"
-
-    - name: Configure regctl to use HTTP for local registry
-      ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
-      changed_when: false
-      failed_when: false
-
-    - name: Verify the x86_64 base osimage in registry
-      ansible.builtin.command:
-        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
-      changed_when: false
-      register: verify_base_osimage
-
-    - name: Fail if x86_64 base osimage not created
-      ansible.builtin.fail:
-        msg: "Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}"
-      when: (host_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
-
-    - name: Verify x86_64 base osimage output
+    - name: "[BUILD] x86_64 base image — {{ rhel_arch_base_image_name }}"
       ansible.builtin.debug:
-        msg: "{{ verify_base_osimage.stdout_lines }}"
+        msg: >-
+          Starting base image build:
+          image={{ rhel_arch_base_image_name }},
+          packages={{ base_image_packages | length }},
+          log={{ image_build__base_image_log_path }},
+          timeout={{ job_async }}s
 
-  rescue:
-    - name: Fail the build if the base image build fails
-      ansible.builtin.fail:
-        msg: "{{ base_image_failure_msg }}"
+    - name: Run x86_64 base image build via orchestrator
+      image_build_orchestrator:
+        build_commands:
+          - name: "base_{{ rhel_arch_base_image_name }}"
+            cmd: >-
+              podman run --rm --device /dev/fuse --network host
+              {{ ochami_mounts | join(' ') }}
+              {{ ochami_image | join(' ') }}
+              {{ ochami_base_command | join(' ') }}
+            log_path: "{{ image_build__base_image_log_path }}"
+        max_parallel: 1
+        timeout: "{{ job_async | int }}"
+      register: base_orchestrator_result
+
+    - name: Display x86_64 base image build summary
+      ansible.builtin.debug:
+        msg: "Base image build: {{ base_orchestrator_result.summary }}"
+
+    - name: Save base image package hash
+      ansible.builtin.copy:
+        content: "{{ _base_pkg_hash }}"
+        dest: "{{ _base_hash_file }}"
+        mode: "{{ dir_permissions_644 }}"
+
+# --- Registry verification ---
+- name: Verify the x86_64 base osimage in registry
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
+  changed_when: false
+  register: verify_base_osimage
+
+- name: Fail if x86_64 base osimage not created
+  ansible.builtin.fail:
+    msg: >-
+      Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}.
+      Check log: {{ image_build__base_image_log_path }}
+  when: (host_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
+
+- name: Display verified x86_64 base osimage
+  ansible.builtin.debug:
+    msg: "{{ verify_base_osimage.stdout_lines }}"

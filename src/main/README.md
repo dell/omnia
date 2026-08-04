@@ -7,6 +7,7 @@ Core entry points for the Omnia Infrastructure Manager (OIM).
 | `omnia.sh` | Setup script — creates venv, installs deps, copies domain input files |
 | `omnia-cli` | Status and diagnostics CLI |
 | `omnia.env` | Environment configuration (single source of truth) |
+| `samples/` | Reference files (catalog JSON, etc.) for documentation and testing |
 
 ---
 
@@ -105,6 +106,8 @@ After `./omnia.sh -s`, the following structure is created at `$OMNIA_DATA_PATH`:
 /opt/omnia/
 ├── venv/                              # Shared Python venv
 ├── .data/                             # Internal metadata
+├── catalog/                           # Catalog JSON files (from repo_manager)
+│   └── catalog_rhel.json              # RHEL services catalog
 └── <domain>/                          # One per domain (repeats for each)
     ├── input/<project>/                # Staged input files (copied from src/)
     │   └── <domain>_config.yml         # Domain-specific config

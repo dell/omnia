@@ -31,8 +31,11 @@ export SYSTEM_ADMIN_NIC_IPV4=<your_admin_ip>
 mkdir -p /opt/omnia/repo_manager/output/project_default
 cp samples/repo_manager_output/repo_status.yml \
    /opt/omnia/repo_manager/output/project_default/
-cp samples/repo_manager_output/functional_group_packages.yml \
-   /opt/omnia/repo_manager/output/project_default/
+
+# 2b. For catalog mode: copy catalog JSON
+mkdir -p /opt/omnia/catalog
+cp samples/repo_manager_output/catalog_rhel.json \
+   /opt/omnia/catalog/
 
 # 3. Initialize domain (creates log dir + copies input files)
 vi input/project_default/image_build_config.yml
@@ -72,7 +75,8 @@ Sub-tags: `x86_64`, `aarch64` (run specific architecture only).
 |------|--------|----------|
 | `image_build_config.yml` | `input/project_default/` | Yes |
 | `repo_status.yml` | repo_manager output | Yes |
-| `functional_group_packages.yml` | repo_manager output | Yes |
+| `package_groups.yml` | `input/project_default/` | When `functional_groups_source: "config"` |
+| `catalog_rhel.json` | `CATALOG_FILE_PATH` env var | When `functional_groups_source: "catalog"` |
 | `image_build_credentials.yml` | Auto-generated (Vault) | Yes (except validate/cleanup) |
 
 ### Output
@@ -94,7 +98,7 @@ See `docs/contracts/` for full contract specifications.
 | **S3 storage** | `s3_configurations.provider` (minio / powerscale), `endpoint_url` |
 | **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
-| **Groups** | `functional_groups_source` (config / repo_status), `functional_groups[]` |
+| **Groups** | `functional_groups_source` (`config` / `catalog`) |
 | **Concurrency** | `build_image.max_parallel`, `job_async`, `job_retry`, `job_delay` |
 | **ARM** | `aarch64_inventory_host_ip`, `aarch64_ssh_user` |
 
@@ -105,6 +109,7 @@ See `docs/contracts/` for full contract specifications.
 | `SYSTEM_ADMIN_NIC_IPV4` | **required** | Admin NIC IPv4 (S3 + registry endpoint) |
 | `OMNIA_DATA_PATH` | `/opt/omnia` | Root data directory |
 | `OMNIA_PROJECT_NAME` | `project_default` | Project name |
+| `CATALOG_FILE_PATH` | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` | Catalog JSON path (when `functional_groups_source: "catalog"`) |
 
 ---
 
@@ -118,7 +123,7 @@ image_build_manager/
 +-- ansible.cfg
 +-- domain-init.sh
 +-- plugins/
-|   +-- modules/                          8 modules (FQCN: omnia.image_build.*)
+|   +-- modules/                          10 modules (FQCN: omnia.image_build.*)
 |   |   +-- validate_image_build_config.py    L1+L2 config validation
 |   |   +-- validate_system_environment.py    Env var + system validation
 |   |   +-- validate_yaml_schema.py           Generic JSON Schema validator
@@ -127,6 +132,8 @@ image_build_manager/
 |   |   +-- base_image_package_collector.py   Base image RPM packages
 |   |   +-- generate_functional_groups.py     Functional groups from CSV
 |   |   +-- functional_group_parser.py        Normalize group input
+|   |   +-- parse_catalog.py                  Catalog JSON → RPM package resolution (layer-name classification)
+|   |   +-- parse_repo_status.py              repo_status.yml → repo lists + OS facts
 |   +-- module_utils/
 |   |   +-- input_validation/             L1+L2 validation framework
 |   |   |   +-- core/                     Config, file utils, validation engine
@@ -137,15 +144,15 @@ image_build_manager/
 |   +-- callback/
 |       +-- omnia_default.py              Custom callback plugin
 +-- roles/                                10 roles
-|   +-- image_build_setup                 Setup: load env, validate prereqs
+|   +-- image_build_setup                 Setup: load env, validate prereqs, parse repo_status
 |   +-- validate_image_build_input        L1+L2 config validation
 |   +-- validate_build_runtime            Runtime environment checks
 |   +-- collect_build_credentials         S3 + SSH credential prompts (Vault)
 |   +-- deploy_minio                      MinIO S3 via Podman Quadlet
-|   +-- deploy_registry                   OCI registry via Podman Quadlet
-|   +-- fetch_build_packages              Load functional group packages
+|   +-- deploy_registry                   OCI registry via Podman Quadlet + regctl
+|   +-- fetch_build_packages              Dual-mode package resolution (config/catalog)
 |   +-- prepare_aarch64_node              Prepare ARM build host
-|   +-- build_os_images                   OpenCHAMI image builds + S3 upload
+|   +-- build_os_images                   OpenCHAMI image builds + S3 upload + regctl verify
 |   +-- cleanup_build_artifacts           Remove services + artifacts
 +-- playbooks/
 |   +-- image_build_manager.yml           Entry point
@@ -167,7 +174,12 @@ image_build_manager/
 
 ## Functional Groups
 
-Valid groups (from `FUNCTIONAL_GROUP_LAYER_MAP`):
+### Config Mode (`functional_groups_source: "config"`)
+
+Functional groups derived from `package_groups.yml` keys (filtered by architecture suffix).
+OS type and version from `os` / `os_version` fields in `package_groups.yml`.
+
+Available groups in default `package_groups.yml`:
 
 | x86_64 | aarch64 |
 |--------|---------|
@@ -179,6 +191,24 @@ Valid groups (from `FUNCTIONAL_GROUP_LAYER_MAP`):
 | `service_kube_control_plane_first_x86_64` | |
 | `service_kube_control_plane_x86_64` | |
 | `service_kube_node_x86_64` | |
+
+### Catalog Mode (`functional_groups_source: "catalog"`)
+
+Full names auto-detected from `catalog.functionallayer[]`.
+OS type from baseos group's `os` field; version from `os_version` field.
+
+Example groups from a typical catalog:
+
+| x86_64 | aarch64 |
+|--------|---------|
+| `baseos_rhel_10_0_x86_64` | `baseos_rhel_10_0_aarch64` |
+| `slurm_node_rhel_10_0_x86_64` | `slurm_node_rhel_10_0_aarch64` |
+| `slurm_control_node_rhel_10_0_x86_64` | `slurm_control_node_rhel_10_0_aarch64` |
+| `login_node_rhel_10_0_x86_64` | `login_node_rhel_10_0_aarch64` |
+| `login_compiler_node_rhel_10_0_x86_64` | `login_compiler_node_rhel_10_0_aarch64` |
+| `service_kube_control_plane_first_rhel_10_0_x86_64` | |
+| `service_kube_control_plane_rhel_10_0_x86_64` | |
+| `service_kube_node_rhel_10_0_x86_64` | |
 
 ---
 
@@ -231,6 +261,7 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 | `docs/contracts/input-contract.md` | Input file specifications |
 | `docs/contracts/output-contract.md` | Output file specifications |
 | `docs/design/` | Design documents |
+| `docs/design/catalog-migration-design.md` | Catalog migration design (dual-mode package resolution) |
 
 ---
 

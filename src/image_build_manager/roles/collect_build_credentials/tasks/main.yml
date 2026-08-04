@@ -195,6 +195,7 @@
           ansible.builtin.include_vars:
             file: "{{ image_build_credential_file.file_path }}"
           no_log: true
+          when: _final_decrypt_result.rc | default(0) == 0
 
         - name: Re-encrypt after final load
           ansible.builtin.command: >-

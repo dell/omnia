@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# configure_registry.yml — Shared task to compute registry host and configure regctl TLS.
+# configure_registry.yml — Compute registry host and verify regctl is installed.
+# TLS configuration is handled by the deploy_registry role.
 #
 # Inputs (must be set before including):
 #   host_name     — OIM short hostname
@@ -29,7 +30,17 @@
   ansible.builtin.set_fact:
     registry_host: "{{ hostvars['localhost']['admin_nic_ip'] if hostvars['localhost']['standalone_mode'] | default(false) else _fqdn }}"
 
-- name: Configure regctl to use HTTP for local registry
-  ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
+- name: Verify regctl binary is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/regctl
+  register: _regctl_stat
+
+- name: Fail if regctl is not installed
+  ansible.builtin.fail:
+    msg: "{{ regctl_not_found_fail_msg }}"
+  when: not _regctl_stat.stat.exists
+
+- name: Ensure regctl TLS disabled for registry_host
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
   changed_when: false
-  failed_when: false
