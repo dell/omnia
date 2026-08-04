@@ -13,7 +13,9 @@
 # limitations under the License.
 
 """
-Download — Packages suite.
+Repo Operations — Status — repo_status.yml verification suite.
 
-TC_DL_004: Verify repo_status.yml reports success
+TC_ST_002: Verify Pulp container running (prerequisite)
+TC_ST_003: Verify repo_status.yml exists
+TC_ST_004: Verify repo_status.yml has expected content
 """

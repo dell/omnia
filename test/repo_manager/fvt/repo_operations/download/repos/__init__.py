@@ -13,13 +13,9 @@
 # limitations under the License.
 
 """
-Functional Verification Tests (FVT) for repo_manager.
+Repo Operations — Download — Repos verification suite.
 
-Scenario directories mirror src/repo_manager/playbooks/:
-
-    validate         — Validate input configuration
-    deploy           — Deploy Pulp server
-    repo_operations  — Download packages and generate repo status
-    cleanup          — Cleanup Pulp server and data
-    repo_manager     — Full end-to-end verification (validate + deploy + download + status)
+TC_DL_002: Verify software_config.json is valid
+TC_DL_003: Verify repos are synced in Pulp
+TC_DL_004: Verify repo_status.yml generated after download
 """

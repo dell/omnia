@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Repo Manager Download — Deploy.
+Repo Operations — Download Deploy.
 
 TC_DL_000: Deploy repo_manager.yml --tags download
 """

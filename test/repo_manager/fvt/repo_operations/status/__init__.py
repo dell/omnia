@@ -13,8 +13,15 @@
 # limitations under the License.
 
 """
-Status — repo_status.yml verification suite.
+Repo Operations — Status suite.
 
+ansible-playbook repo_manager.yml --tags status
+
+Generates repo_status.yml and verifies its content.
+
+Reference: src/repo_manager/playbooks/repo_operations/generate_repo_status.yml
+
+TC_ST_000: Run repo_manager.yml --tags status
 TC_ST_002: Verify Pulp container running (prerequisite)
 TC_ST_003: Verify repo_status.yml exists
 TC_ST_004: Verify repo_status.yml has expected content

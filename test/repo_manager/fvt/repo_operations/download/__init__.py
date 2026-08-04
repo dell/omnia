@@ -13,9 +13,16 @@
 # limitations under the License.
 
 """
-Download — Repos verification suite.
+Repo Operations — Download suite.
 
-TC_DL_002: Verify software_config.json is valid
-TC_DL_003: Verify repos are synced in Pulp
-TC_DL_004: Verify repo_status.yml generated after download
+ansible-playbook repo_manager.yml --tags download
+
+Downloads and syncs packages/repositories into Pulp,
+generates repo_status.yml.
+
+Reference: src/repo_manager/playbooks/repo_operations/download.yml
+
+Suites:
+    repos/      — TC_DL_002-004: Repository sync and status file verification
+    packages/   — TC_DL_005: Package download status verification
 """

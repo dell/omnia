@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Status scenario — repo_status.yml verification.
+Repo Operations — Download — Packages suite.
 
-Tags: --tags status
+TC_DL_005: Verify repo_status.yml reports success
 """

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Repo Manager Download — Repository Verification Tests.
+Repo Operations — Download — Repository Verification Tests.
 
 Validates repository state after ``--tags download``.
 References: src/repo_manager/roles/parse_and_download/

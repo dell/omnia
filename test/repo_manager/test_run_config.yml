@@ -42,24 +42,23 @@
 #   Quality:       sanity, functional, regression
 #
 # Available suites (under fvt/):
-#   repo_manager  - Full end-to-end: validate + deploy + download + status.
-#                    Supported markers: sanity
+#   repo_manager    - Full end-to-end: validate + deploy + download + status.
+#                      Supported markers: sanity
 #
-#   validate      - Deploy with --tags validate, verify input validation.
-#                    Supported markers: sanity
+#   validate        - Deploy with --tags validate, verify input validation.
+#                      Supported markers: sanity
 #
-#   deploy        - Deploy with --tags deploy, verify Pulp server is running.
-#                    Supported markers: sanity
+#   deploy          - Deploy with --tags deploy, verify Pulp server is running.
+#                      Supported markers: sanity
 #
-#   download      - Deploy with --tags download, verify packages/repos synced.
-#                    Supported markers: sanity
+#   repo_operations - Download packages and generate repo status.
+#                      Mirrors src/repo_manager/playbooks/repo_operations/.
+#                      Sub-suites: download (--tags download), status (--tags status)
+#                      Supported markers: sanity
 #
-#   status        - Deploy with --tags status, verify repo_status.yml generated.
-#                    Supported markers: sanity
-#
-#   cleanup       - Deploy with --tags cleanup_pulp, verify Pulp server and
-#                    data cleaned up.
-#                    Supported markers: sanity
+#   cleanup         - Deploy with --tags cleanup_pulp, verify Pulp server and
+#                      data cleaned up.
+#                      Supported markers: sanity
 #
 # Valid playbook tags (from src/repo_manager/playbooks/repo_manager.yml):
 #   validate, deploy, download, status,
@@ -131,36 +130,23 @@ scenarios:
     marker: "sanity"
 
   # =========================================================================
-  # download - Download packages + verify repo sync
+  # repo_operations - Download packages + generate repo status
   # =========================================================================
-  # Runs: ansible-playbook repo_manager.yml --tags download
-  # Then verifies: packages downloaded, repos synced to Pulp.
+  # Mirrors src/repo_manager/playbooks/repo_operations/.
+  # Contains two sub-suites:
+  #   download/ — ansible-playbook repo_manager.yml --tags download
+  #               Verifies: packages downloaded, repos synced to Pulp.
+  #   status/   — ansible-playbook repo_manager.yml --tags status
+  #               Verifies: repo_status.yml generated with correct content.
   #
-  # Supported suites (subfolders inside fvt/download/):
-  #   packages - Package download verification
-  #   repos    - Repository sync verification
+  # Supported suites (subfolders inside fvt/repo_operations/):
+  #   download  - Download + verify packages/repos (sub-suites: repos, packages)
+  #   status    - Status generation + verify repo_status.yml (sub-suite: status)
   #
   # Supported markers:
   #   sanity    - Baseline must-pass tests
-  download:
+  repo_operations:
     order: 30
-    run: false
-    suite: ""
-    marker: "sanity"
-
-  # =========================================================================
-  # status - Generate repo_status.yml + verify output
-  # =========================================================================
-  # Runs: ansible-playbook repo_manager.yml --tags status
-  # Then verifies: repo_status.yml generated with correct content.
-  #
-  # Supported suites (subfolders inside fvt/status/):
-  #   status - repo_status.yml content verification
-  #
-  # Supported markers:
-  #   sanity    - Baseline must-pass tests
-  status:
-    order: 40
     run: false
     suite: ""
     marker: "sanity"

@@ -13,12 +13,13 @@
 # limitations under the License.
 
 """
-Download scenario — ansible-playbook repo_manager.yml --tags download.
+Repo Operations scenario — download and status operations.
 
-Downloads and syncs packages/repositories into Pulp,
-generates repo_status.yml.
+Mirrors src/repo_manager/playbooks/repo_operations/ which contains:
+    - download.yml (--tags download)
+    - generate_repo_status.yml (--tags status)
 
 Suites:
-    repos/      — TC_DL_002-003: Repository sync and status file verification
-    packages/   — TC_DL_004: Package download status verification
+    download/   — TC_DL_000-005: Download packages/repos and verify sync
+    status/     — TC_ST_000-004: Generate and verify repo_status.yml
 """

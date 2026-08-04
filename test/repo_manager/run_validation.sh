@@ -36,7 +36,7 @@
 #   repo_manager     Full end-to-end (deploy without tags + verify)
 #   validate         Validate tag tests
 #   deploy           Deploy tag tests
-#   download         Download tag tests
+#   repo_operations  Download + status tag tests
 #   cleanup          Cleanup tag tests
 # =============================================================================
 
@@ -387,7 +387,7 @@ case "$SCENARIO" in
         echo "  repo_manager    Full end-to-end (deploy without tags + verify)"
         echo "  validate        Deploy --tags validate + verify inputs"
         echo "  deploy          Deploy --tags deploy + verify Pulp container"
-        echo "  download        Deploy --tags download + verify repo sync"
+        echo "  repo_operations Download + status (suites: download, status)"
         echo "  cleanup         Deploy --tags cleanup + verify removal"
         echo ""
         echo -e "${YELLOW}Markers:${NC}"
@@ -419,7 +419,7 @@ case "$SCENARIO" in
         echo "  $0 validate test"
         echo ""
         echo "  # Deploy download tag, verify x86_64 repos only"
-        echo "  $0 download test --marker x86_64"
+        echo "  $0 repo_operations test --suite download --marker x86_64"
         echo ""
         echo "  # Run cleanup (deploy + verify removal)"
         echo "  $0 cleanup test"
@@ -434,11 +434,12 @@ case "$SCENARIO" in
         echo "  $0 --config"
         echo ""
         echo -e "${YELLOW}Typical Workflow:${NC}"
-        echo "  $0 cleanup test                          # 1. Clean previous state"
-        echo "  $0 validate test                          # 2. Validate inputs"
-        echo "  $0 deploy test                            # 3. Deploy Pulp container"
-        echo "  $0 download test --marker x86_64          # 4. Download repos"
-        echo "  $0 repo_manager verify --marker sanity    # 5. Full verification"
+        echo "  $0 cleanup test                                     # 1. Clean previous state"
+        echo "  $0 validate test                                     # 2. Validate inputs"
+        echo "  $0 deploy test                                       # 3. Deploy Pulp container"
+        echo "  $0 repo_operations test --suite download             # 4. Download repos"
+        echo "  $0 repo_operations test --suite status               # 5. Generate repo status"
+        echo "  $0 repo_manager verify --marker sanity               # 6. Full verification"
         echo ""
         echo -e "${YELLOW}Configuration:${NC}"
         echo "  test_config.yml      Target server, sync, report settings"

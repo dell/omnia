@@ -230,7 +230,7 @@ def pytest_sessionstart(session):
     # Detect scenario name from test paths (fvt/<scenario>/...)
     valid_scenarios = {
         "repo_manager", "validate", "deploy",
-        "download", "cleanup",
+        "repo_operations", "cleanup",
     }
     module_name = "repo_manager"
     test_paths = session.config.args if hasattr(session.config, 'args') else []

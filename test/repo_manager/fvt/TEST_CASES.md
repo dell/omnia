@@ -53,26 +53,28 @@ Valid tags: `validate`, `deploy`, `download`, `status`, `cleanup_pulp`, `cleanup
 
 ---
 
-## download
+## repo_operations
+
+Mirrors `src/repo_manager/playbooks/repo_operations/`.
+
+### download (--tags download)
 
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
-| TC_DL_000 | `test_deploy_download` | *(root)* | deploy, sanity | Deploy repo_manager.yml --tags download |
-| TC_DL_002 | `test_software_config_valid` | repos/ | sanity | Verify software_config.json is valid |
-| TC_DL_003 | `test_repos_synced` | repos/ | functional | Verify repositories are synced in Pulp |
-| TC_DL_004 | `test_repo_status_generated` | repos/ | sanity | Verify repo_status.yml generated after download |
-| TC_DL_005 | `test_repo_status_success` | packages/ | sanity | Verify repo_status.yml reports success |
+| TC_DL_000 | `test_deploy_download` | download/ | deploy, sanity | Deploy repo_manager.yml --tags download |
+| TC_DL_002 | `test_software_config_valid` | download/repos/ | sanity | Verify software_config.json is valid |
+| TC_DL_003 | `test_repos_synced` | download/repos/ | functional | Verify repositories are synced in Pulp |
+| TC_DL_004 | `test_repo_status_generated` | download/repos/ | sanity | Verify repo_status.yml generated after download |
+| TC_DL_005 | `test_repo_status_success` | download/packages/ | sanity | Verify repo_status.yml reports success |
 
----
-
-## status
+### status (--tags status)
 
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
-| TC_ST_000 | `test_run_status` | *(root)* | deploy, sanity | Deploy repo_manager.yml --tags status |
-| TC_ST_002 | `test_pulp_running_for_status` | status/ | sanity | Verify Pulp container running (prerequisite) |
-| TC_ST_003 | `test_repo_status_exists` | status/ | sanity | Verify repo_status.yml exists |
-| TC_ST_004 | `test_repo_status_content` | status/ | functional | Verify repo_status.yml has expected content |
+| TC_ST_000 | `test_run_status` | status/ | deploy, sanity | Deploy repo_manager.yml --tags status |
+| TC_ST_002 | `test_pulp_running_for_status` | status/status/ | sanity | Verify Pulp container running (prerequisite) |
+| TC_ST_003 | `test_repo_status_exists` | status/status/ | sanity | Verify repo_status.yml exists |
+| TC_ST_004 | `test_repo_status_content` | status/status/ | functional | Verify repo_status.yml has expected content |
 
 ---
 
@@ -98,7 +100,7 @@ Valid tags: `validate`, `deploy`, `download`, `status`, `cleanup_pulp`, `cleanup
 | repo_manager | TC_RM_ | 10 |
 | validate | TC_VL_ | 5 |
 | deploy | TC_DP_ | 9 |
-| download | TC_DL_ | 5 |
-| status | TC_ST_ | 4 |
+| repo_operations/download | TC_DL_ | 5 |
+| repo_operations/status | TC_ST_ | 4 |
 | cleanup | TC_CL_ | 8 |
 | **Total** | | **41** |

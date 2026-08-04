@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Repo Manager Download — Package Verification Tests.
+Repo Operations — Download — Package Verification Tests.
 
 Validates package download status:
   TC_DL_005: Verify repo_status.yml reports success

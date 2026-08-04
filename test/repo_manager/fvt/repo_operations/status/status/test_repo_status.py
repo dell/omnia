@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Repo Manager Status — Verification Tests.
+Repo Operations — Status — Verification Tests.
 
 Validates repo_status.yml generation after ``--tags status``.
 References: src/repo_manager/playbooks/repo_operations/generate_repo_status.yml

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Status playbook execution test.
+Repo Operations — Status playbook execution test.
 
   TC_ST_000: Run repo_manager.yml --tags status
 """
