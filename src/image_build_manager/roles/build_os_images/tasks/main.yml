@@ -47,10 +47,7 @@
 
 - name: Build image list entries
   vars:
-    _fg_k8s_sfx: >-
-      {{ (item.key is match('service_kube_'))
-         | ternary('_k8s_' + (hostvars['localhost']['service_k8s_version'] | default('')), '') }}
-    _image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ _fg_k8s_sfx }}"
+    _image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
     _current_image:
       functional_group: "{{ item.key }}"
       kernel: "boot-images/efi-images/{{ item.key }}/{{ _image_name }}/vmlinuz"

@@ -33,18 +33,6 @@
 - name: Run PowerScale S3 endpoint validation
   ansible.builtin.include_tasks: powerscale_check.yml
 
-- name: Validate functional groups config exists
-  ansible.builtin.stat:
-    path: "{{ functional_groups_file_path }}"
-  register: fg_config_file
-
-- name: Fail if functional_groups_config.yml not found
-  ansible.builtin.fail:
-    msg: "{{ validate_fg_config_fail_msg }}"
-  when:
-    - not fg_config_file.stat.exists
-    - enable_build_stream | default(false) | bool
-
 - name: Validate aarch64 host IP (if aarch64 build requested)
   ansible.builtin.assert:
     that:

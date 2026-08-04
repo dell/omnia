@@ -30,7 +30,7 @@
   ansible.builtin.set_fact:
     _output_base: "{{ output_project_dir }}"
     _output_domain: "{{ output_project_dir }}"
-    _omnia_version: "{{ omnia_version | default('2.2.0.0') }}"
+    _omnia_version: "{{ omnia_version }}"
 
 - name: Ensure output directories exist
   ansible.builtin.file:

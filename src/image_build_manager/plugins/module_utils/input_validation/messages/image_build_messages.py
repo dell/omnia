@@ -67,14 +67,15 @@ MAX_PARALLEL_INVALID_MSG = (
 # =============================================================================
 
 FUNCTIONAL_GROUPS_REQUIRED_MSG = (
-    "image_build_config: functional_groups list is required and must be "
-    "non-empty when functional_groups_source is 'config'."
+    "image_build_config: functional_groups list in image_build_config.yml is "
+    "deprecated. Groups are now derived from package_groups.yml keys (config "
+    "mode) or catalog layers (catalog mode)."
 )
 
 FUNCTIONAL_GROUPS_IGNORED_MSG = (
-    "image_build_config: functional_groups list is defined but "
-    "functional_groups_source is 'repo_status'. The list will be ignored; "
-    "groups are auto-detected from repo_manager output."
+    "image_build_config: functional_groups list in image_build_config.yml is "
+    "deprecated and will be ignored. Groups are derived from package_groups.yml "
+    "keys (config mode) or catalog layers (catalog mode)."
 )
 
 # =============================================================================

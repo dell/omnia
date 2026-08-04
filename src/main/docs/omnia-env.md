@@ -17,6 +17,7 @@ The `omnia.env` file is the **single source of configuration** for Omnia deploym
 | `SYSTEM_HOSTNAME` | Short hostname of the OIM host (NOT FQDN) | `oim` |
 | `SYSTEM_DOMAIN_NAME` | Domain name of the OIM host | `omnia.cluster` |
 | `OMNIA_VENV_PATH` | Path to the shared Python virtual environment | `/opt/omnia/venv` |
+| `CATALOG_FILE_PATH` | Convention path for catalog JSON (reference only — actual path is set in `image_build_config.yml`) | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` |
 
 ## Component Override Variables
 
@@ -84,7 +85,17 @@ SYSTEM_DOMAIN_NAME=omnia.cluster
 OMNIA_VENV_PATH=/opt/omnia/venv
 
 # Omnia release version.
-# OMNIA_VERSION=2.2
+OMNIA_VERSION=2.3
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ CATALOG — Repo Manager catalog for image build package resolution        │
+# └───────────────────────────────────────────────────────────────────────────┘
+
+# Default catalog JSON location (convention path).
+# The actual catalog_file path is set in image_build_config.yml (Section 5).
+# This env var documents the convention; image_build_manager reads
+# the catalog path from its domain config, not from this env var.
+CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/catalog_rhel.json
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │ COMPONENT OVERRIDES — Change only for non-standard layouts               │

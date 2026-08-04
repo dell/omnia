@@ -12,31 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# ============================================================================
-# functional_group_packages.yml — Functional Group → RPM Package Mapping
-# ============================================================================
-# This file is the single source of truth for which RPM packages belong to
-# each functional group.
+# =============================================================================
+# package_groups.yml — RHEL RPM Package Groups (Config Mode)
+# =============================================================================
 #
-# Producer: repo_manager domain (local_repo.yml) or manual creation
-# Consumer: image_build_manager (fetch_build_packages role)
+# User-editable package mapping for image_build_manager "config" mode.
+# Used when functional_groups_source: "config" in image_build_config.yml.
 #
-# This is a REFERENCE TEMPLATE. In production, repo_manager generates this file.
-#
-# Runtime location (created by repo_manager or copied manually):
-#   /opt/omnia/repo_manager/output/<project_name>/functional_group_packages.yml
-#
-# Manual setup: see repo_status.yml header for instructions.
+# This file lives in the project input directory:
+#   input/<project_name>/package_groups.yml
 #
 # Structure:
-#   base_packages     — RPMs installed in ALL images (the base OS layer)
+#   base_packages     — RPM names installed in ALL images (the base OS layer)
 #   functional_groups — dict keyed by functional group name
 #     Each group has:
-#       packages: list of RPM package names for that group's image layer
+#       packages: list of RPM package names for that group's compute layer
 #
-# To customize: add/remove RPM names under the appropriate group.
-# Package names must match what's available in the configured RPM repos.
-# ============================================================================
+# Naming convention (config mode): {role}_{arch}
+#   e.g., slurm_node_x86_64, login_node_aarch64
+#
+# For catalog mode, package resolution comes from catalog JSON instead.
+# See image_build_config.yml Section 5.
+#
+# Multi-OS support (Phase 2):
+#   Each OS project directory will have its own package_groups.yml.
+#   RHEL uses RPM names here; Ubuntu will use DEB names in a separate
+#   input/project_ubuntu/package_groups.yml (future).
+# =============================================================================
+
+# --- OS metadata ---
+# Used by image_build_manager to set cluster_os_type and cluster_os_version
+# when running in config mode. For multi-OS support, each OS project directory
+# will have its own package_groups.yml with the appropriate os/os_version.
+os: "rhel"
+os_version: "10.0"
 
 # --- Base OS packages (installed in every image) ---
 base_packages:

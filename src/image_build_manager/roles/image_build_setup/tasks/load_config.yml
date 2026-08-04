@@ -16,8 +16,8 @@
 # Step 3: Set project dirs and host vars
 #
 # Reads environment variables directly (user must export them before running).
-# Required env vars: OMNIA_DATA_PATH, SYSTEM_ADMIN_NIC_IPV4, SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME
-# Optional env vars: OMNIA_PROJECT_NAME
+# Required env vars: OMNIA_VERSION, OMNIA_DATA_PATH, SYSTEM_ADMIN_NIC_IPV4, SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME
+# Optional env vars: OMNIA_PROJECT_NAME, IMAGE_BUILD_MANAGER_DATA_PATH
 
 # --- Resolve domain root directory (works from any playbook location) ---
 - name: Set domain root directory
@@ -29,6 +29,7 @@
 - name: Resolve configuration from environment
   ansible.builtin.set_fact:
     omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    omnia_version: "{{ lookup('env', 'OMNIA_VERSION') | default('', true) }}"
     project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
     admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
     host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
@@ -57,12 +58,21 @@
         export SYSTEM_DOMAIN_NAME=omnia.cluster
   when: domain_name | length == 0
 
+- name: Fail if OMNIA_VERSION is not set
+  ansible.builtin.fail:
+    msg: >-
+      OMNIA_VERSION is not set. Export it before running:
+        export OMNIA_VERSION=2.2.0.0
+      This version string is embedded in image names (e.g., rhel-<group>_omnia_2.2.0.0).
+  when: omnia_version | length == 0
+
 - name: Validate configured environment
   ansible.builtin.debug:
     msg:
       - "SYSTEM_HOSTNAME: {{ host_name }}"
       - "SYSTEM_DOMAIN_NAME: {{ domain_name }}"
       - "SYSTEM_ADMIN_NIC_IPV4: {{ admin_nic_ip }}"
+      - "OMNIA_VERSION: {{ omnia_version }}"
       - "OMNIA_DATA_PATH: {{ omnia_data_path }}"
       - "OMNIA_PROJECT_NAME: {{ project_name }}"
 

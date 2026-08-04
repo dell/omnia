@@ -90,23 +90,28 @@ def _validate_build_image_settings(config_data, errors, logger=None):
 
 def _validate_functional_groups_source(config_data, errors, logger=None):
     """
-    Validate functional_groups_source and functional_groups consistency.
+    Validate functional_groups_source value.
 
     Rules:
-    - When functional_groups_source is 'config', functional_groups list must exist and be non-empty.
-    - When functional_groups_source is 'repo_status', functional_groups list is optional.
+    - functional_groups_source must be 'config' or 'catalog'.
+    - In config mode, groups are derived from package_groups.yml keys (not from image_build_config.yml).
+    - In catalog mode, groups are auto-detected from catalog layers.
+    - The deprecated functional_groups[] list in image_build_config.yml is ignored.
     """
     source = config_data.get("functional_groups_source", "config")
+
+    if source not in ("config", "catalog"):
+        error = f"Invalid functional_groups_source: '{source}'. Must be 'config' or 'catalog'."
+        errors.append(error)
+        if logger:
+            logger.error(error)
+
     fg_list = config_data.get("functional_groups", [])
-
-    if source == "config" and (not fg_list or not isinstance(fg_list, list) or len(fg_list) == 0):
-        errors.append(msg.FUNCTIONAL_GROUPS_REQUIRED_MSG)
-        if logger:
-            logger.error(msg.FUNCTIONAL_GROUPS_REQUIRED_MSG)
-
-    if source == "repo_status" and fg_list:
-        if logger:
-            logger.warning(msg.FUNCTIONAL_GROUPS_IGNORED_MSG)
+    if fg_list and logger:
+        logger.warning(
+            "functional_groups[] in image_build_config.yml is deprecated and ignored. "
+            "Groups are derived from package_groups.yml keys (config mode) or catalog layers (catalog mode)."
+        )
 
 
 def _validate_build_concurrency(config_data, errors, logger=None):

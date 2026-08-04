@@ -29,3 +29,12 @@ max_retries: 10
 delay_count: 5
 image_pull_retries: 3
 image_pull_delay: 10
+health_check_retries: 10
+health_check_delay: 3
+download_retries: 5
+download_delay: 10
+
+# regctl
+regctl_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64"
+regctl_dest: "/usr/local/bin/regctl"
+file_perm_rwx: "0755"
