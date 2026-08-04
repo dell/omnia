@@ -43,7 +43,7 @@ from .host_func import (
     is_local_execution,
 )
 from .formatting_func import TestLogger, Colors, Symbols
-from ..vars.common_vars import get_setting
+from ..vars.common_vars import get_setting, get_module_root
 from ..messages.runner_msgs import (
     RUNNER_LOG_MSGS,
     RUNNER_ASSERT_MSGS,
@@ -98,12 +98,6 @@ def run_playbook(
     v = verbosity if verbosity is not None else get_setting("default_verbosity", 1)
     t = timeout if timeout is not None else get_setting("default_timeout", 7200)
 
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        return _fail(
-            playbook or "unknown", 0.0,
-            "'clone_path' must be set in test_config.yml",
-        )
     if playbook is None:
         return _fail(
             "unknown", 0.0,
@@ -114,7 +108,21 @@ def run_playbook(
             playbook, 0.0,
             "'playbook_workdir' argument is required",
         )
-    workdir = os.path.join(clone_path, playbook_workdir)
+
+    if local_mode:
+        # Local: resolve playbook path from source tree (repo root)
+        # module_root = test/<module>/ → repo root is two levels up
+        repo_root = os.path.dirname(os.path.dirname(get_module_root()))
+        workdir = os.path.join(repo_root, playbook_workdir)
+    else:
+        # Remote: use clone_path on the target server
+        clone_path = config.get("clone_path", "")
+        if not clone_path:
+            return _fail(
+                playbook, 0.0,
+                "'clone_path' must be set in test_config.yml for remote execution",
+            )
+        workdir = os.path.join(clone_path, playbook_workdir)
 
     logger_name = get_setting("runner_logger_name", "playbook_runner")  # safe default
     log = TestLogger(logger_name)

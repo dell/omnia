@@ -54,7 +54,9 @@ oim_ssh_port: 22
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # Playbook runs from <clone_path>/src/image_build_manager/playbooks/
 #
-# clone_path:   Absolute path on the target where the project code is synced.
+# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
 clone_path: "/omnia"
 
 # venv_path:    Path to Python virtual environment on the target server.
@@ -105,7 +107,7 @@ sync_output: false
 #
 # This ensures the target server has the correct image_build_config.yml
 # and credentials before running the playbook.
-sync_image_build_input: true
+sync_image_build_input: false
 
 # =============================================================================
 # REPORT CONFIGURATION

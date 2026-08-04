@@ -133,7 +133,7 @@ vi datasets/data_set_01/input/image_build_credentials.yml
 | Setting | Required | Default | Description |
 |---------|----------|---------|-------------|
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
-| `clone_path` | Yes | `/omnia` | Path on the target where project code is synced. |
+| `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
 | `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
 | `dataset` | Yes | `data_set_01` | Active dataset folder under `datasets/`. |
 | `project_name` | No | `project_default` | Project name for input/output paths on target. |
