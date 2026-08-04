@@ -25,7 +25,7 @@
 #   3. Creates output directories:
 #      - <OMNIA_DATA_PATH>/telemetry/output/<project>/
 #
-# Source:      src/telemetry/input/<project>/
+# Source:      src/telemetry/input/
 # Destination: <OMNIA_DATA_PATH>/telemetry/input/<project>/
 #
 # Usage:
@@ -38,7 +38,7 @@
 # Manual alternative (if not using this script):
 #   sudo mkdir -p /var/log/omnia/telemetry
 #   chmod 755 /var/log/omnia/telemetry
-#   cp -a input/project_default/ <OMNIA_DATA_PATH>/telemetry/input/project_default/
+#   cp -a input/ <OMNIA_DATA_PATH>/telemetry/input/<project_name>/
 # =============================================================================
 
 set -euo pipefail
@@ -140,11 +140,11 @@ _check_existing_files() {
 # -----------------------------------------------------------------------------
 copy_project_input() {
     local project="$1"
-    local src_dir="$SCRIPT_DIR/input/${project}"
+    local src_dir="$SCRIPT_DIR/input"
     local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${project}"
 
     if [ ! -d "$src_dir" ]; then
-        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory for project '${project}' at ${src_dir} — skipping${NC}"
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
         return 0
     fi
 

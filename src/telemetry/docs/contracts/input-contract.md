@@ -49,8 +49,9 @@ The telemetry domain may read the following upstream output files:
 
 ## File Location
 
-- **Source**: `src/telemetry/input/project_default/`
-- **Runtime**: `<OMNIA_DATA_PATH>/telemetry/input/<project>/`
+- **Source (repository)**: `src/telemetry/input/`
+- **Runtime (copied by domain-init.sh)**: `<OMNIA_DATA_PATH>/telemetry/input/<PROJECT_NAME>/`
+- **Default runtime path**: `/opt/omnia/telemetry/input/project_default/`
 - **Cluster Inventory**: Specified in `telemetry_config.yml` via `cluster_inventory` parameter (e.g., `/opt/omnia/input/project_default/orchestrator_inventory.yml`)
 
 ## Validation
