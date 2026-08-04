@@ -2,7 +2,7 @@
 
 All notable changes to the `omnia.discovery` collection will be documented in this file.
 
-## [2.2.0] - 2026-07-30
+## [3.0.0] - 2026-07-30
 
 ### Added
 - Galaxy collection structure for discovery domain.
