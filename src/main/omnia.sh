@@ -409,15 +409,12 @@ run_domain() {
     fi
 
     # Find the domain playbook
-    local playbook=""
-    for candidate in \
-        "$SRC_DIR/$domain/playbooks/${domain}.yml" \
-        "$SRC_DIR/$domain/playbooks/main.yml"; do
-        if [ -f "$candidate" ]; then
-            playbook="$candidate"
-            break
-        fi
-    done
+    local playbook="$SRC_DIR/$domain/playbooks/${domain}.yml"
+    if [ ! -f "$playbook" ]; then
+        echo -e "${RED}ERROR: No playbook found for domain '$domain'${NC}"
+        echo -e "${YELLOW}Expected: src/$domain/playbooks/${domain}.yml${NC}"
+        exit 1
+    fi
 
     if [ -z "$playbook" ]; then
         echo -e "${RED}ERROR: No playbook found for domain '$domain'${NC}"
