@@ -52,7 +52,9 @@
   tags: always
 
 - name: Prepare BuildStream infrastructure (Postgres + GitLab + BSM)
-  ansible.builtin.import_playbook: playbooks/prepare_build_stream.yml
+  ansible.builtin.import_playbook: prepare/prepare_build_stream.yml
+  tags: [prepare, build]
 
 - name: Configure GitLab CI/CD
-  ansible.builtin.import_playbook: playbooks/setup_gitlab.yml
+  ansible.builtin.import_playbook: build/setup_gitlab.yml
+  tags: [execute, build]

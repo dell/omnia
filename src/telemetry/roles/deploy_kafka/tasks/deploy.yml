@@ -37,16 +37,16 @@
   changed_when: false
   failed_when: false
 
-- name: Install or upgrade Strimzi Kafka operator  # noqa: no-changed-when
+- name: Install or upgrade Strimzi Kafka operator
   block:
-    - name: Install Strimzi Kafka operator  # noqa: no-changed-when
+    - name: Install Strimzi Kafka operator
       ansible.builtin.command: >
         helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
         {{ strimzi_kafka_pkg }}
       when: strimzi_status.rc != 0
       changed_when: true
 
-    - name: Upgrade Strimzi Kafka operator  # noqa: no-changed-when
+    - name: Upgrade Strimzi Kafka operator
       ansible.builtin.command: >
         helm -n {{ telemetry_namespace }} upgrade strimzi-cluster-operator
         {{ strimzi_kafka_pkg }}

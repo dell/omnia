@@ -28,12 +28,12 @@
   connection: local
   gather_facts: true
   vars:
-    bs_cred_file: "{{ input_project_dir | default(playbook_dir ~ '/../input') }}/build_stream_credentials.yml"
-    bs_vault_file: "{{ input_project_dir | default(playbook_dir ~ '/../input') }}/.build_stream_credentials_key"
+    bs_cred_file: "{{ input_project_dir | default(playbook_dir ~ '/../../input') }}/build_stream_credentials.yml"
+    bs_vault_file: "{{ input_project_dir | default(playbook_dir ~ '/../../input') }}/.build_stream_credentials_key"
   tasks:
     - name: Load build_stream configuration
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir | default(playbook_dir ~ '/../input') }}/build_stream_config.yml"
+        file: "{{ input_project_dir | default(playbook_dir ~ '/../../input') }}/build_stream_config.yml"
 
     - name: Validate enable_build_stream is set
       ansible.builtin.assert:
@@ -145,7 +145,7 @@
       no_log: true
 
 # ── App code deployment ───────────────────────────────────────────
-# App source code is deployed to NFS via copy-input.sh (called by
+# App source code is deployed to NFS via domain-init.sh (called by
 # omnia.sh --setup-venv). No temp container extraction needed.
 # The container mounts {{ omnia_path }} at /opt/omnia at runtime.
 
@@ -183,6 +183,6 @@
           gitlab_https_port: {{ gitlab_https_port | default(443) }}
           gitlab_url: "https://{{ gitlab_host | default('') }}:{{ gitlab_https_port | default(443) }}"
           bsm_api_url: "https://{{ build_stream_host_ip | default('') }}:{{ build_stream_port | default(8010) }}"
-        dest: "{{ playbook_dir }}/../output/build_stream_status.yml"
+        dest: "{{ playbook_dir }}/../../output/build_stream_status.yml"
         mode: "0644"
       when: enable_build_stream | default(false) | bool

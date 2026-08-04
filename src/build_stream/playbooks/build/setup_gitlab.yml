@@ -33,10 +33,8 @@
   connection: local
   gather_facts: false
   tags: always
-  tasks:
-    - name: Run build_stream_setup role
-      ansible.builtin.include_role:
-        name: ../roles/build_stream_setup
+  roles:
+    - role: ../../roles/build_stream_setup
       vars:
         create_oim_group: true
       when: not build_stream_setup_done | default(false) | bool

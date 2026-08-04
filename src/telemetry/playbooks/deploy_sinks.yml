@@ -70,7 +70,16 @@
     # --- Parse and validate sinks variable ---
     - name: Normalize sinks variable to a list
       ansible.builtin.set_fact:
-        sinks_list: "{{ (sinks | from_yaml) if (sinks is string) else (sinks if sinks is defined else sinks_default) }}"
+        sinks_list: >-
+          {%- if sinks is defined -%}
+            {%- if sinks is string -%}
+              {{ sinks | from_yaml }}
+            {%- else -%}
+              {{ sinks }}
+            {%- endif -%}
+          {%- else -%}
+            {{ sinks_default }}
+          {%- endif -%}
 
     - name: Ensure sinks is a valid non-empty list
       ansible.builtin.assert:
@@ -148,7 +157,7 @@
     - name: Deploy Kafka
       when: deploy_kafka
       block:
-        - name: "Kafka | Include deploy_kafka role (infrastructure only)"  # noqa: var-naming[no-role-prefix]
+        - name: "Kafka | Include deploy_kafka role (infrastructure only)"
           ansible.builtin.include_role:
             name: deploy_kafka
           vars:
