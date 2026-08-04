@@ -15,9 +15,9 @@
 """
 Image Build Build — Registry & Status Verification.
 
-TC_BD_004: Verify x86_64 images in registry after build
-TC_BD_005: Verify build_status.yml after build
-TC_BD_006: Verify functional groups built
+Verify x86_64 images in registry after build
+Verify build_status.yml after build
+Verify functional groups built
 """
 
 import pytest
@@ -28,9 +28,9 @@ from library.functions import (
     check_build_status_file,
     check_functional_groups_built,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import SHARED_PATH
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -40,9 +40,10 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_registry_images_x86_64(host):
-    """TC_BD_004: Verify x86_64 images in registry after build."""
+    """Verify x86_64 images in registry after build."""
+    tc = TC["registry_images_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(TEST_NAMES["registry_images"].format(arch=arch), "TC_BD_004")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_images(host, arch=arch)
     url = result.get("registry_url", "unknown")
 
@@ -66,8 +67,9 @@ def test_registry_images_x86_64(host):
 @pytest.mark.sanity
 @pytest.mark.order(4)
 def test_build_status(host):
-    """TC_BD_005: Verify build_status.yml after build."""
-    tl = TestLogger(TEST_NAMES["build_status_file"], "TC_BD_005")
+    """Verify build_status.yml after build."""
+    tc = TC["build_status_file"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_build_status_file(host)
 
     if result["success"]:
@@ -86,11 +88,10 @@ def test_build_status(host):
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_functional_groups_x86_64(host):
-    """TC_BD_006: Verify functional groups built after build tag."""
+    """Verify functional groups built after build tag."""
+    tc = TC["functional_groups_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(
-        TEST_NAMES["functional_groups_built"].format(arch=arch), "TC_BD_006"
-    )
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_functional_groups_built(host, arch=arch)
 
     if result.get("skipped"):

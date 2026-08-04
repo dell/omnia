@@ -19,6 +19,6 @@ Builds x86_64 and aarch64 OS images, pushes to S3 and registry,
 writes build_status.yml.
 
 Suites:
-    s3/         — TC_BD_002-003: S3 image verification per architecture
-    registry/   — TC_BD_004-006: Registry images, build status, functional groups
+    s3/         — S3 image verification per architecture
+    registry/   — Registry images, build status, functional groups
 """

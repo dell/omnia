@@ -15,7 +15,7 @@
 """
 Image Build Manager — S3 suite.
 
-TC_IB_003: Verify S3 buckets exist
-TC_IB_004: Verify x86_64 images in S3
-TC_IB_005: Verify aarch64 images in S3
+Verify S3 buckets exist
+Verify x86_64 images in S3
+Verify aarch64 images in S3
 """

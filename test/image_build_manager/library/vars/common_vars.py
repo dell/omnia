@@ -23,6 +23,7 @@ Only module-specific constants remain here.
 """
 
 import os
+import re
 
 # =============================================================================
 # DIRECTORY PATHS
@@ -118,6 +119,55 @@ BUILD_STATUS_PATH = (
 # Image artifact types in S3 (per functional group)
 IMAGE_TYPES = ["initramfs", "vmlinuz", "rhel"]
 
+# Image type display names for S3 verification output
+IMAGE_TYPE_DISPLAY = {
+    "initramfs": "initramfs",
+    "vmlinuz": "vmlinuz",
+    "rhel": "rootfs",
+}
+
+# Functional group packages filename
+FG_PACKAGES_FILENAME = "functional_group_packages.yml"
+
+# =============================================================================
+# SQUASHFS / IMAGE VERIFICATION PATHS
+# =============================================================================
+
+# Temp directory for downloading and mounting S3 images
+IMAGE_VERIFY_TEMP_IMAGE = "/tmp/ibm_test_image"
+IMAGE_VERIFY_TEMP_MOUNT = "/tmp/ibm_test_mount"
+
+# Package required for squashfs image verification
+SQUASHFS_PACKAGE = "squashfs-tools"
+
+# S3 bucket for boot images
+S3_BOOT_IMAGES_BUCKET = "s3://boot-images"
+
+# =============================================================================
+# CONFIG VALIDATION CONSTANTS
+# =============================================================================
+
+# IPv4 address regex pattern
+IPV4_PATTERN = re.compile(
+    r'^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}'
+    r'(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$'
+)
+
+# Required fields in test_config.yml
+REQUIRED_CONFIG_FIELDS = [
+    "dataset",
+    "project_name",
+    "clone_path",
+    "report_path",
+    "report_name",
+]
+
+# Required files inside a dataset directory
+REQUIRED_DATASET_FILES = [
+    "input/image_build_config.yml",
+    "input/image_build_credentials.yml",
+]
+
 # =============================================================================
 # CENTRALIZED SHELL COMMANDS
 # =============================================================================
@@ -202,4 +252,43 @@ CMDS = {
         " | grep -c '{pattern}'"
     ),
     "squashfs_check": "which unsquashfs 2>/dev/null",
+    "squashfs_tools_check": (
+        "which unsquashfs 2>/dev/null || "
+        "rpm -q {package} 2>/dev/null"
+    ),
+    "squashfs_tools_install": (
+        "dnf install -y {package} 2>&1"
+    ),
+    # --- Image mount / verify ---
+    "umount": "umount {flags} {path} 2>/dev/null",
+    "rm_file": "rm -f {path} 2>/dev/null",
+    "rm_dir": "rm -rf {path} 2>/dev/null",
+    "mkdir_p": "mkdir -p {path}",
+    "mount_squashfs": (
+        "mount -t squashfs -o ro {image} {mount} 2>/dev/null"
+    ),
+    "s3cmd_get": (
+        "s3cmd get {s3_path} {dest} --force 2>/dev/null"
+    ),
+    "rpm_list_installed": (
+        "rpm --root={root} -qa 2>/dev/null"
+    ),
+    # --- Registry (regctl) ---
+    "regctl_repo_ls": (
+        "regctl repo ls --limit 500 {registry} 2>/dev/null"
+    ),
+    # --- Registry (curl, scheme-agnostic) ---
+    "curl_registry_catalog_scheme": (
+        "curl -sk {scheme}://localhost:{port}/v2/_catalog"
+        " 2>/dev/null"
+    ),
+    # --- Podman (container running check) ---
+    "podman_ps_running": (
+        "podman ps --format '{{{{.Names}}}} {{{{.Status}}}}'"
+        " --filter name=^{container}$ 2>/dev/null"
+    ),
+    "podman_ps_all_status": (
+        "podman ps -a --format '{{{{.Names}}}} {{{{.Status}}}}'"
+        " --filter name=^{container}$ 2>/dev/null"
+    ),
 }

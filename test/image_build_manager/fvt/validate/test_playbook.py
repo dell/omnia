@@ -15,14 +15,15 @@
 """
 Image Build Validate — Deploy.
 
-TC_VL_001: Deploy image_build_manager --tags validate
+Deploy image_build_manager --tags validate
 """
 
 import pytest
 
 from library.functions import TestLogger, run_playbook
+from library.vars import TEST_CASES as TC
+from library.vars.common_vars import PLAYBOOK_ENTRY_POINT
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -32,11 +33,10 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_validate(host):
-    """TC_VL_001: Deploy image_build_manager --tags validate."""
-    tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="validate"), "TC_VL_001"
-    )
-    result = run_playbook(tag="validate")
+    """Deploy image_build_manager --tags validate."""
+    tc = TC["deploy_validate"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag="validate")
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(

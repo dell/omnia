@@ -15,9 +15,9 @@
 """
 Image Builder — S3 Verification Tests.
 
-TC_IB_003: Verify required S3 buckets exist
-TC_IB_004: Verify x86_64 images pushed to S3
-TC_IB_005: Verify aarch64 images pushed to S3
+Verify required S3 buckets exist
+Verify x86_64 images pushed to S3
+Verify aarch64 images pushed to S3
 """
 
 import pytest
@@ -27,9 +27,9 @@ from library.functions import (
     check_s3_buckets,
     check_s3_bucket_images,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import SHARED_PATH
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -40,8 +40,9 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_s3_buckets_created(host):
-    """TC_IB_003: Verify required S3 buckets exist."""
-    tl = TestLogger(TEST_NAMES["s3_buckets_created"], "TC_IB_003")
+    """Verify required S3 buckets exist."""
+    tc = TC["ib_s3_buckets"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_buckets(host)
 
     if result["success"]:
@@ -88,9 +89,10 @@ def _format_s3_details(result):
 @pytest.mark.sanity
 @pytest.mark.order(4)
 def test_s3_bucket_images_x86_64(host):
-    """TC_IB_004: Verify x86_64 images pushed to S3."""
+    """Verify x86_64 images pushed to S3."""
+    tc = TC["ib_s3_images_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(TEST_NAMES["s3_bucket_images"].format(arch=arch), "TC_IB_004")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_bucket_images(host, arch=arch)
 
     if result.get("skipped"):
@@ -119,9 +121,10 @@ def test_s3_bucket_images_x86_64(host):
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_s3_bucket_images_aarch64(host):
-    """TC_IB_005: Verify aarch64 images pushed to S3."""
+    """Verify aarch64 images pushed to S3."""
+    tc = TC["ib_s3_images_aarch64"]
     arch = "aarch64"
-    tl = TestLogger(TEST_NAMES["s3_bucket_images"].format(arch=arch), "TC_IB_005")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_bucket_images(host, arch=arch)
 
     if result.get("skipped"):

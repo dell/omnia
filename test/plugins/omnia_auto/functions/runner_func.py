@@ -98,7 +98,12 @@ def run_playbook(
     v = verbosity if verbosity is not None else get_setting("default_verbosity", 1)
     t = timeout if timeout is not None else get_setting("default_timeout", 7200)
 
-    clone_path = config.get("clone_path", "/root/omnia")
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        return _fail(
+            playbook or "unknown", 0.0,
+            "'clone_path' must be set in test_config.yml",
+        )
     if playbook is None:
         return _fail(
             "unknown", 0.0,
@@ -285,7 +290,7 @@ def _stream_cmd(
                 playbook=playbook,
                 tag=(",".join(tag) if isinstance(tag, list) else tag) or "all",
                 rc=rc, duration=duration,
-                log_path=config.get("shared_path", "/opt/omnia") + "/log/",
+                log_path=config.get("shared_path", "") + "/log/",
                 workdir=os.path.join(clone_path, pb_workdir),
             ),
             rc=rc, output="\n".join(output_lines),

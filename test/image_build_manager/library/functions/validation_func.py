@@ -24,14 +24,14 @@ from typing import Dict, Any, List
 
 import yaml
 
-IPV4_PATTERN = re.compile(
-    r'^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}'
-    r'(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$'
+from ..vars.common_vars import (
+    IPV4_PATTERN,
+    REQUIRED_CONFIG_FIELDS,
+    REQUIRED_DATASET_FILES,
+    MODULE_ROOT,
 )
 
-# Module root: functions/ -> library/ -> test/
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_MODULE_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
+_MODULE_ROOT = MODULE_ROOT
 
 
 class ConfigValidationError(Exception):
@@ -46,18 +46,6 @@ def _validate_ip(value: str, field: str) -> List[str]:
     return errors
 
 
-REQUIRED_FIELDS = [
-    "dataset",
-    "project_name",
-    "clone_path",
-    "report_path",
-    "report_name",
-]
-
-REQUIRED_DATASET_FILES = [
-    "input/image_build_config.yml",
-    "input/image_build_credentials.yml",
-]
 
 
 def validate_test_config() -> Dict[str, Any]:
@@ -89,7 +77,7 @@ def validate_test_config() -> Dict[str, Any]:
         config = yaml.safe_load(f) or {}
 
     # --- Required fields ---
-    for field in REQUIRED_FIELDS:
+    for field in REQUIRED_CONFIG_FIELDS:
         if field not in config or config[field] is None:
             errors.append(
                 f"Required field missing in test_config.yml: {field}"

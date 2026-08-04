@@ -16,8 +16,8 @@
 Image Build Validate — Input Validation Verification.
 
 Validates that --tags validate checked the input configuration:
-  TC_VL_002: Verify image_build_config.yml exists on target
-  TC_VL_003: Verify credentials file is present on target
+  Verify image_build_config.yml exists on target
+  Verify credentials file is present on target
 """
 
 import pytest
@@ -27,17 +27,16 @@ from library.functions import (
     check_input_config_exists,
     check_credentials_present,
 )
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-)
+from library.vars import TEST_CASES as TC
+from library.messages import TEST_LOG_MSGS as LOG
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_input_config_exists(host):
-    """TC_VL_002: Verify image_build_config.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["input_config_exists"], "TC_VL_002")
+    """Verify image_build_config.yml exists on target."""
+    tc = TC["input_config_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_input_config_exists(host)
 
     if result["success"]:
@@ -51,8 +50,9 @@ def test_input_config_exists(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_credentials_present(host):
-    """TC_VL_003: Verify credentials file present on target."""
-    tl = TestLogger(TEST_NAMES["credentials_present"], "TC_VL_003")
+    """Verify credentials file present on target."""
+    tc = TC["credentials_present_vl"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_credentials_present(host)
 
     if result["success"]:
