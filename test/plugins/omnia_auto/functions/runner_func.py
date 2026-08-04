@@ -126,8 +126,11 @@ def run_playbook(
             RUNNER_ASSERT_MSGS["sshpass_missing"],
         )
 
+    venv_path = config.get("venv_path", "")
+    # venv_path is optional - if provided, venv is activated before ansible-playbook
+
     ansible_cmd = _build_ansible_cmd(
-        playbook, workdir, v, extra_vars, tag, limit,
+        playbook, workdir, v, extra_vars, tag, limit, venv_path,
     )
 
     if local_mode:
@@ -161,14 +164,19 @@ def _build_ansible_cmd(
     extra_vars: Optional[Dict[str, str]],
     tag,
     limit: Optional[str],
+    venv_path: str = "",
 ) -> str:
     """Build the ``ansible-playbook`` command string."""
     v_flag = f" -{'v' * verbosity}" if verbosity > 0 else ""
 
-    parts = [
+    parts = []
+    # Activate venv if specified
+    if venv_path:
+        parts.append(f"source {venv_path}/bin/activate &&")
+    parts.extend([
         f"cd {workdir} &&",
         f"COLUMNS={get_setting('line_width', 160)} ansible-playbook {playbook}{v_flag}",  # 160 safe default
-    ]
+    ])
 
     if extra_vars:
         for key, val in extra_vars.items():

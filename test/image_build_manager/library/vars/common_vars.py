@@ -134,8 +134,8 @@ FG_PACKAGES_FILENAME = "functional_group_packages.yml"
 # =============================================================================
 
 # Temp directory for downloading and mounting S3 images
-IMAGE_VERIFY_TEMP_IMAGE = "/tmp/ibm_test_image"
-IMAGE_VERIFY_TEMP_MOUNT = "/tmp/ibm_test_mount"
+IMAGE_VERIFY_TEMP_IMAGE = "/tmp/ibm_test_image"  # nosec B108
+IMAGE_VERIFY_TEMP_MOUNT = "/tmp/ibm_test_mount"  # nosec B108
 
 # Package required for squashfs image verification
 SQUASHFS_PACKAGE = "squashfs-tools"

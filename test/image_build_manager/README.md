@@ -128,6 +128,16 @@ vi datasets/data_set_01/input/image_build_credentials.yml
 | `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) |
 | `test_run_config.yml` | Batch execution: scenario order, markers, suites |
 
+### Key Settings in `test_config.yml`
+
+| Setting | Required | Default | Description |
+|---------|----------|---------|-------------|
+| `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
+| `clone_path` | Yes | `/omnia` | Path on the target where project code is synced. |
+| `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
+| `dataset` | Yes | `data_set_01` | Active dataset folder under `datasets/`. |
+| `project_name` | No | `project_default` | Project name for input/output paths on target. |
+
 ### Execution Modes
 
 - **Local mode** (`oim_server_ip: ""`): Tests run on the current machine.
