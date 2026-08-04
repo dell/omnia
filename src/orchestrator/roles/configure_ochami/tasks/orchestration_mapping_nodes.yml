@@ -108,7 +108,9 @@
 
     - name: Fail if high_availability_config.yml doesn't exist
       ansible.builtin.fail:
-        msg: "high_availability_config.yml not found at {{ orchestrator_input_dir }}/high_availability_config.yml. Please provide the high_availability_config.yml file to configure kube_vip."
+        msg: >-
+          high_availability_config.yml not found at {{ orchestrator_input_dir }}/high_availability_config.yml.
+          Please provide the high_availability_config.yml file to configure kube_vip.
       delegate_to: localhost
       when: not ha_config_stat.stat.exists | default(false)
 
