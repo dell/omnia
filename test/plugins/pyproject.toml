@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omnia-auto"
+version = "1.0.0"
+description = "Reusable test automation utilities for Dell Omnia — formatting, host connectivity, playbook execution, file sync, and reporting."
+readme = {file = "README.md", content-type = "text/markdown"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Balaji Kumaran", email = "balajikumaran.cs@dell.com"}
+]
+maintainers = [
+    {name = "Balaji Kumaran", email = "balajikumaran.cs@dell.com"}
+]
+keywords = [
+    "testing", "automation", "omnia", "dell",
+    "pytest", "testinfra", "ansible", "infrastructure",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "pytest>=7.0.0",
+    "pytest-testinfra>=9.0.0",
+    "PyYAML>=6.0",
+    "paramiko>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+    "pytest-cov",
+    "black",
+    "pylint",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/balajikumaran-c-s/omnia-auto"
+Repository = "https://github.com/balajikumaran-c-s/omnia-auto.git"
+Documentation = "https://github.com/balajikumaran-c-s/omnia-auto/blob/main/USAGE.md"
+Changelog = "https://github.com/balajikumaran-c-s/omnia-auto/blob/main/CHANGELOG.md"
+Issues = "https://github.com/balajikumaran-c-s/omnia-auto/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+omnia_auto = ["py.typed"]
