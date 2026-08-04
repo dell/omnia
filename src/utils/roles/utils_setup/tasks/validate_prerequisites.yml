@@ -1,0 +1,30 @@
+---
+- name: Check Ansible version
+  ansible.builtin.assert:
+    that:
+      - ansible_version.full is version('2.19', '>=')
+    fail_msg: "Ansible 2.19 or later is required. Current version: {{ ansible_version.full }}"
+    success_msg: "Ansible version check passed: {{ ansible_version.full }}"
+
+- name: Check Python version
+  ansible.builtin.assert:
+    that:
+      - ansible_python_version is version('3.12', '>=')
+    fail_msg: "Python 3.12 or later is required. Current version: {{ ansible_python_version }}"
+    success_msg: "Python version check passed: {{ ansible_python_version }}"
+
+- name: Verify required Python modules
+  ansible.builtin.command: python3 -c "import {{ item }}"
+  loop:
+    - yaml
+    - json
+    - re
+  changed_when: false
+  failed_when: false
+  register: python_module_check
+
+- name: Report missing Python modules
+  ansible.builtin.fail:
+    msg: "Required Python module not found: {{ item.item }}"
+  when: item.rc != 0
+  loop: "{{ python_module_check.results }}"

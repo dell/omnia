@@ -1,0 +1,6 @@
+---
+- name: Write utils domain status file
+  ansible.builtin.include_tasks: write_status_file.yml
+
+- name: Validate status file
+  ansible.builtin.include_tasks: validate_status_file.yml
