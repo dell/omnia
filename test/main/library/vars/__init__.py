@@ -22,6 +22,7 @@ from .common_vars import (
     MODULE_ROOT,
     REPO_ROOT,
     DOMAIN_NAME,
+    OMNIA_RELEASE,
     OMNIA_SH_PATH,
     OMNIA_ENV_PATH,
     OMNIA_CLI_PATH,
@@ -37,6 +38,10 @@ from .common_vars import (
     REQUIRED_ENV_VARS,
     OPTIONAL_ENV_VARS,
     VALID_CLI_COMMANDS,
+    VALID_CLI_OPTIONS,
+    OMNIA_CLI_COMMANDS,
+    OMNIA_CLI_DOMAINS,
+    OMNIA_CLI_HELP_SECTIONS,
     CMDS,
 )
 
@@ -44,6 +49,7 @@ __all__ = [
     "MODULE_ROOT",
     "REPO_ROOT",
     "DOMAIN_NAME",
+    "OMNIA_RELEASE",
     "OMNIA_SH_PATH",
     "OMNIA_ENV_PATH",
     "OMNIA_CLI_PATH",
@@ -59,5 +65,9 @@ __all__ = [
     "REQUIRED_ENV_VARS",
     "OPTIONAL_ENV_VARS",
     "VALID_CLI_COMMANDS",
+    "VALID_CLI_OPTIONS",
+    "OMNIA_CLI_COMMANDS",
+    "OMNIA_CLI_DOMAINS",
+    "OMNIA_CLI_HELP_SECTIONS",
     "CMDS",
 ]

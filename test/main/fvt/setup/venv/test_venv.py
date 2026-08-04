@@ -17,6 +17,8 @@ Omnia Main Setup — Venv Verification.
 
 TC_SU_005: Verify Python venv created at OMNIA_VENV_PATH
 TC_SU_006: Verify ansible is available in venv
+TC_SU_009: Verify pip packages installed in venv
+TC_SU_010: Verify Galaxy collections installed in venv
 """
 
 import pytest
@@ -25,6 +27,8 @@ from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import (
     check_venv_created,
     check_ansible_available,
+    check_pip_packages,
+    check_galaxy_collections,
 )
 from library.messages import (
     TEST_NAMES,
@@ -75,5 +79,54 @@ def test_ansible_available(host):
         tl.failed(LOG["ansible_missing"])
 
     assert result["success"], ASSERT["ansible_missing"].format(
+        path=venv_path,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(6)
+def test_pip_packages_installed(host):
+    """TC_SU_009: Verify pip packages installed in venv."""
+    tl = TestLogger(
+        TEST_NAMES["pip_packages_installed"], "TC_SU_009"
+    )
+    result = check_pip_packages(host)
+
+    if result["success"]:
+        tl.passed(LOG["pip_ok"].format(
+            packages=result["details"]
+        ))
+    else:
+        tl.failed(LOG["pip_missing"].format(
+            count=len(result.get("missing", []))
+        ))
+
+    assert result["success"], ASSERT["pip_packages_missing"].format(
+        missing_list="\n".join(
+            f"\u2551   - {p}" for p in result.get("missing", [])
+        ),
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(7)
+def test_galaxy_collections_installed(host):
+    """TC_SU_010: Verify Galaxy collections installed in venv."""
+    tl = TestLogger(
+        TEST_NAMES["galaxy_collections_installed"], "TC_SU_010"
+    )
+    config = load_test_config()
+    venv_path = config.get("venv_path", "/opt/omnia/venv")
+
+    result = check_galaxy_collections(host)
+
+    if result["success"]:
+        tl.passed(LOG["galaxy_ok"].format(
+            count=result["details"]
+        ))
+    else:
+        tl.failed(LOG["galaxy_missing"])
+
+    assert result["success"], ASSERT["galaxy_missing"].format(
         path=venv_path,
     )

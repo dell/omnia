@@ -19,6 +19,7 @@ vi test_config.yml
 run_validation setup test        # Setup + verify
 run_validation init test         # Init + verify
 run_validation cli verify        # CLI argument tests
+run_validation omnia_cli test    # omnia-cli diagnostics
 run_validation all test          # Run all scenarios
 ```
 
@@ -55,9 +56,13 @@ test/main/
     ├── init/                # omnia.sh --init tests
     │   ├── test_deploy_init.py
     │   └── domain_init/     # Domain-specific init tests
-    └── cli/                 # CLI argument tests
-        ├── test_deploy_cli.py
-        └── commands/        # Command error handling tests
+    ├── cli/                 # CLI argument tests
+    │   ├── test_deploy_cli.py
+    │   └── commands/        # Command error handling tests
+    └── omnia_cli/           # omnia-cli diagnostics tests
+        ├── test_deploy_omnia_cli.py
+        ├── diagnostics/     # status, check, domain commands
+        └── errors/          # Unknown command error tests
 ```
 
 ## Scenarios
@@ -67,6 +72,7 @@ test/main/
 | `setup` | Environment install, venv creation, directory setup | `omnia.sh --setup-venv --skip-init` |
 | `init` | Domain log directories, input file staging | `omnia.sh --init` |
 | `cli` | Help output, error handling, argument parsing | `omnia.sh --help` |
+| `omnia_cli` | Diagnostics CLI: status, check, version, domain queries | `omnia-cli help` |
 
 ## Markers
 

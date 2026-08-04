@@ -53,6 +53,12 @@ from .omnia_main_func import (
     check_domain_input_staged,
     check_help_output,
     check_error_contains,
+    check_pip_packages,
+    check_galaxy_collections,
+    run_omnia_cli_cmd,
+    run_omnia_cli_expect_error,
+    check_cli_help_output,
+    check_cli_version_output,
 )
 
 # --- Validation ---
@@ -91,6 +97,12 @@ __all__ = [
     "check_domain_input_staged",
     "check_help_output",
     "check_error_contains",
+    "check_pip_packages",
+    "check_galaxy_collections",
+    "run_omnia_cli_cmd",
+    "run_omnia_cli_expect_error",
+    "check_cli_help_output",
+    "check_cli_version_output",
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",

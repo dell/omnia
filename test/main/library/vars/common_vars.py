@@ -45,6 +45,7 @@ REPO_ROOT = os.path.dirname(MODULE_ROOT)
 # =============================================================================
 
 DOMAIN_NAME = "main"
+OMNIA_RELEASE = "2.3.0.0"
 
 # Omnia script relative path (from clone_path)
 OMNIA_SH_PATH = "src/main/omnia.sh"
@@ -126,6 +127,38 @@ VALID_CLI_COMMANDS: List[str] = [
 VALID_CLI_OPTIONS: List[str] = [
     "--skip-init",
     "--tags", "-t",
+]
+
+# =============================================================================
+# OMNIA-CLI COMMANDS
+# =============================================================================
+
+OMNIA_CLI_COMMANDS: List[str] = [
+    "status",
+    "check",
+    "repo-manager",
+    "image-build",
+    "version",
+    "help",
+]
+
+# Domains addressable via omnia-cli <domain>
+OMNIA_CLI_DOMAINS: List[str] = [
+    "repo-manager",
+    "image-build",
+    "orchestrator",
+    "discovery",
+    "telemetry",
+    "build-stream",
+]
+
+# Expected sections in omnia-cli help output
+OMNIA_CLI_HELP_SECTIONS: List[str] = [
+    "USAGE:",
+    "COMMANDS:",
+    "OPTIONS:",
+    "ENVIRONMENT:",
+    "EXAMPLES:",
 ]
 
 # =============================================================================
@@ -212,4 +245,41 @@ CMDS: Dict[str, str] = {
     # --- System ---
     "hostname_cmd": "hostname 2>/dev/null",
     "which_cmd": "which {binary} 2>/dev/null",
+    # --- omnia-cli execution ---
+    "omnia_cli_help": (
+        "cd {clone_path} && bash {omnia_cli} help 2>&1"
+    ),
+    "omnia_cli_version": (
+        "cd {clone_path} && bash {omnia_cli} version 2>&1"
+    ),
+    "omnia_cli_status": (
+        "cd {clone_path} && bash {omnia_cli} status 2>&1"
+    ),
+    "omnia_cli_status_project": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " status --project {project} 2>&1"
+    ),
+    "omnia_cli_check": (
+        "cd {clone_path} && bash {omnia_cli} check 2>&1"
+    ),
+    "omnia_cli_repo_manager": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " repo-manager 2>&1"
+    ),
+    "omnia_cli_image_build": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " image-build 2>&1"
+    ),
+    "omnia_cli_domain": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " {domain} 2>&1"
+    ),
+    "omnia_cli_help_domain": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " help {domain} 2>&1"
+    ),
+    "omnia_cli_unknown": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " nonexistent_cmd 2>&1"
+    ),
 }

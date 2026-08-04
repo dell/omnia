@@ -29,11 +29,14 @@ from omnia_auto import load_test_config, run_on_host
 from ..vars.common_vars import (
     CMDS,
     OMNIA_SH_PATH,
+    OMNIA_CLI_PATH,
+    OMNIA_RELEASE,
     SYSTEM_ENV_FILE,
     PROFILE_DROP_IN,
     BASE_DIRS,
     DOMAINS_WITH_INIT,
     OPTIONAL_ENV_VARS,
+    OMNIA_CLI_HELP_SECTIONS,
 )
 
 
@@ -474,3 +477,207 @@ def check_error_contains(
         True if expected string found in output.
     """
     return expected.lower() in output.lower()
+
+
+# =============================================================================
+# VENV CONTENT VERIFICATION
+# =============================================================================
+
+def check_pip_packages(host) -> Dict[str, Any]:
+    """Verify expected pip packages installed in venv.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, missing.
+    """
+    config = load_test_config()
+    venv_path = config.get("venv_path", "/opt/omnia/venv")
+
+    cmd = CMDS["venv_pip_list"].format(venv_path=venv_path)
+    result = run_on_host(host, cmd)
+    output = result.stdout.lower()
+
+    expected_packages = [
+        "ansible-core",
+    ]
+
+    missing: List[str] = []
+    found: List[str] = []
+
+    for pkg in expected_packages:
+        if pkg.lower() in output:
+            found.append(pkg)
+        else:
+            missing.append(pkg)
+
+    if not missing:
+        return {
+            "success": True,
+            "details": ", ".join(found),
+            "error": "",
+            "missing": [],
+        }
+    return {
+        "success": False,
+        "details": f"{len(found)} found, {len(missing)} missing",
+        "error": f"Missing: {', '.join(missing)}",
+        "missing": missing,
+    }
+
+
+def check_galaxy_collections(host) -> Dict[str, Any]:
+    """Verify Galaxy collections installed in venv.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error.
+    """
+    config = load_test_config()
+    venv_path = config.get("venv_path", "/opt/omnia/venv")
+
+    cmd = CMDS["venv_galaxy_list"].format(venv_path=venv_path)
+    result = run_on_host(host, cmd)
+    output = result.stdout.strip()
+
+    # Count collection lines (format: namespace.name  version)
+    lines = [
+        ln for ln in output.split("\n")
+        if ln.strip() and "." in ln.split()[0]
+        if not ln.startswith("#")
+    ]
+
+    if lines:
+        return {
+            "success": True,
+            "details": f"{len(lines)} collection(s)",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": "",
+        "error": "No Galaxy collections found",
+    }
+
+
+# =============================================================================
+# OMNIA-CLI VERIFICATION
+# =============================================================================
+
+def run_omnia_cli_cmd(
+    host, cmd_key: str, **kwargs
+) -> Dict[str, Any]:
+    """Run an omnia-cli command on the target host.
+
+    Args:
+        host: Testinfra host connection.
+        cmd_key: Key into the CMDS dict.
+        **kwargs: Format parameters for the command template.
+
+    Returns:
+        Dict with keys: success, rc, output, error.
+    """
+    config = load_test_config()
+    clone_path = config.get("clone_path", "/root/omnia")
+    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
+
+    cmd = CMDS[cmd_key].format(**kwargs)
+    result = run_on_host(host, cmd)
+
+    return {
+        "success": result.rc == 0,
+        "rc": result.rc,
+        "output": result.stdout.strip(),
+        "error": result.stderr.strip() if result.rc != 0 else "",
+    }
+
+
+def run_omnia_cli_expect_error(
+    host, cmd_key: str, **kwargs
+) -> Dict[str, Any]:
+    """Run an omnia-cli command expecting a non-zero exit code.
+
+    Args:
+        host: Testinfra host connection.
+        cmd_key: Key into the CMDS dict.
+        **kwargs: Format parameters for the command template.
+
+    Returns:
+        Dict with keys: success (True if rc!=0), rc, output, error.
+    """
+    config = load_test_config()
+    clone_path = config.get("clone_path", "/root/omnia")
+    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
+
+    cmd = CMDS[cmd_key].format(**kwargs)
+    result = run_on_host(host, cmd)
+
+    return {
+        "success": result.rc != 0,
+        "rc": result.rc,
+        "output": result.stdout.strip(),
+        "error": result.stderr.strip(),
+    }
+
+
+def check_cli_help_output(host) -> Dict[str, Any]:
+    """Verify omnia-cli help returns expected sections.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, missing_sections.
+    """
+    result = run_omnia_cli_cmd(host, "omnia_cli_help")
+    output = result["output"]
+
+    missing = [
+        s for s in OMNIA_CLI_HELP_SECTIONS if s not in output
+    ]
+
+    if not missing:
+        return {
+            "success": True,
+            "details": (
+                f"All {len(OMNIA_CLI_HELP_SECTIONS)} sections"
+            ),
+            "error": "",
+            "missing_sections": [],
+        }
+    return {
+        "success": False,
+        "details": output[:200],
+        "error": f"Missing: {', '.join(missing)}",
+        "missing_sections": missing,
+    }
+
+
+def check_cli_version_output(host) -> Dict[str, Any]:
+    """Verify omnia-cli version shows release info.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error.
+    """
+    result = run_omnia_cli_cmd(host, "omnia_cli_version")
+    output = result["output"]
+
+    if OMNIA_RELEASE in output:
+        return {
+            "success": True,
+            "details": OMNIA_RELEASE,
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": output[:200],
+        "error": f"Release '{OMNIA_RELEASE}' not found",
+    }

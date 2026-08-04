@@ -87,6 +87,46 @@ TEST_NAMES: Dict[str, str] = {
     "unknown_option_error": (
         "Verify unknown option exits with error"
     ),
+
+    # Setup — venv content verification
+    "pip_packages_installed": (
+        "Verify pip packages installed in venv"
+    ),
+    "galaxy_collections_installed": (
+        "Verify Galaxy collections installed in venv"
+    ),
+
+    # omnia-cli verification
+    "cli_help_output": (
+        "Verify omnia-cli help returns usage text"
+    ),
+    "cli_version_output": (
+        "Verify omnia-cli version shows release info"
+    ),
+    "cli_status_runs": (
+        "Verify omnia-cli status runs successfully"
+    ),
+    "cli_check_runs": (
+        "Verify omnia-cli check runs successfully"
+    ),
+    "cli_status_project_flag": (
+        "Verify omnia-cli status --project flag works"
+    ),
+    "cli_repo_manager": (
+        "Verify omnia-cli repo-manager runs"
+    ),
+    "cli_image_build": (
+        "Verify omnia-cli image-build runs"
+    ),
+    "cli_domain_status": (
+        "Verify omnia-cli <domain> runs"
+    ),
+    "cli_help_domain": (
+        "Verify omnia-cli help <domain> runs"
+    ),
+    "cli_unknown_command": (
+        "Verify omnia-cli unknown command exits with error"
+    ),
 }
 
 # =============================================================================
@@ -185,6 +225,52 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "error_msg_missing": (
         "Error message does not mention: {expected}"
+    ),
+
+    # Venv content
+    "pip_ok": (
+        "Pip packages installed: {packages}"
+    ),
+    "pip_missing": (
+        "{count} required pip package(s) not found"
+    ),
+    "galaxy_ok": (
+        "Galaxy collections installed: {count}"
+    ),
+    "galaxy_missing": (
+        "No Galaxy collections found in venv"
+    ),
+
+    # omnia-cli
+    "cli_help_ok": (
+        "omnia-cli help output contains expected sections"
+    ),
+    "cli_help_missing_section": (
+        "omnia-cli help missing section: {section}"
+    ),
+    "cli_version_ok": (
+        "omnia-cli version shows: {version}"
+    ),
+    "cli_version_missing": (
+        "omnia-cli version output missing release info"
+    ),
+    "cli_status_ok": (
+        "omnia-cli status ran successfully"
+    ),
+    "cli_check_ok": (
+        "omnia-cli check ran successfully"
+    ),
+    "cli_project_ok": (
+        "omnia-cli --project flag accepted: {project}"
+    ),
+    "cli_domain_ok": (
+        "omnia-cli {domain} ran (rc={rc})"
+    ),
+    "cli_domain_help_ok": (
+        "omnia-cli help {domain} shows domain info"
+    ),
+    "cli_unknown_error_ok": (
+        "omnia-cli unknown command exited with error (rc={rc})"
     ),
 }
 
@@ -345,6 +431,65 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 Command: {command}\n"
         "\u2551 Expected: non-zero exit code\n"
         "\u2551 Got: rc={rc}\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "pip_packages_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 PIP PACKAGES MISSING IN VENV\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing:\n"
+        "{missing_list}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: ./omnia.sh --setup-venv\n"
+        "\u2551   2. Or activate venv and pip install\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "galaxy_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 GALAXY COLLECTIONS NOT INSTALLED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Venv: {path}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: ./omnia.sh --setup-venv\n"
+        "\u2551   2. Or: ansible-galaxy collection install\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "cli_help_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OMNIA-CLI HELP OUTPUT INCOMPLETE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing section(s): {sections}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check omnia-cli show_help function\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "cli_version_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OMNIA-CLI VERSION MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected release string in output\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check omnia-cli OMNIA_RELEASE constant\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "cli_status_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OMNIA-CLI STATUS FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run omnia.sh --setup-venv first\n"
+        "\u2551   2. Check OMNIA_DATA_PATH is accessible\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }
