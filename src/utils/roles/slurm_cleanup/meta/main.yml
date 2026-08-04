@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: slurm_cleanup
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Clean up Slurm configuration files and cluster settings
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - slurm
+    - cleanup
+    - configuration
+    - maintenance
+
+dependencies: []

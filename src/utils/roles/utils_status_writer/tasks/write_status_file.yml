@@ -1,0 +1,46 @@
+---
+- name: Create status file directory
+  ansible.builtin.file:
+    path: "{{ utils_status_file_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Write utils domain status file
+  ansible.builtin.copy:
+    content: |
+      ---
+      domain: utils
+      status: {{ utils_domain_status }}
+      playbook: {{ utils_playbook_name | default('unknown') }}
+      version: "2.2.0"
+      started_at: {{ utils_execution_start_time | default(ansible_date_time.iso8601) | quote }}
+      completed_at: {{ utils_execution_end_time | default(ansible_date_time.iso8601) | quote }}
+      {% if utils_role_results %}
+      results:
+      {% for result in utils_role_results %}
+        - role: {{ result.role | default('unknown') }}
+          status: {{ result.status | default('unknown') }}
+          {% if result.details %}
+          details: {{ result.details | to_nice_yaml | indent(10) }}
+          {% endif %}
+      {% endfor %}
+      {% endif %}
+      {% if utils_execution_errors %}
+      errors:
+      {% for error in utils_execution_errors %}
+        - {{ error }}
+      {% endfor %}
+      {% endif %}
+      {% if utils_execution_warnings %}
+      warnings:
+      {% for warning in utils_execution_warnings %}
+        - {{ warning }}
+      {% endfor %}
+      {% endif %}
+    dest: "{{ utils_status_file_path }}"
+    mode: "0644"
+  changed_when: true
+
+- name: Display status file location
+  ansible.builtin.debug:
+    msg: "Utils domain status written to: {{ utils_status_file_path }}"

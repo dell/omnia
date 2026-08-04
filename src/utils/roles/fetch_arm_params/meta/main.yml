@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: fetch_arm_params
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Fetch ARM-specific parameters for ARM64/aarch64 node provisioning
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - arm64
+    - aarch64
+    - provisioning
+    - hardware
+
+dependencies: []

@@ -1,0 +1,43 @@
+---
+namespace: omnia
+name: utils
+version: "2.2.0"
+readme: README.md
+authors:
+  - Dell Technologies Omnia Team
+description: >-
+  Omnia utilities collection providing OS installation, log collection,
+  PXE boot management, and Slurm configuration utilities for HPC clusters.
+license:
+  - Apache-2.0
+license_file: ''
+tags:
+  - hpc
+  - infrastructure
+  - os_installation
+  - log_collection
+  - pxe_boot
+  - slurm
+  - utilities
+dependencies:
+  ansible.utils: ">=4.1.0"
+  containers.podman: ">=1.12.0"
+  community.crypto: ">=2.21.0"
+  community.general: ">=9.4.0"
+repository: https://github.com/dell/omnia
+documentation: https://dell.github.io/omnia
+homepage: https://dell.github.io/omnia
+issues: https://github.com/dell/omnia/issues
+build_ignore:
+  - '*.pyc'
+  - '*.pyo'
+  - '*.pyd'
+  - '__pycache__'
+  - '.tox'
+  - '.pytest_cache'
+  - '.ansible'
+  - '*.swp'
+  - '*.bak'
+  - '~'
+  - '.git'
+  - '.gitignore'

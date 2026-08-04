@@ -1,0 +1,22 @@
+---
+- name: Check if input directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
+  register: input_dir_stat
+  failed_when: not input_dir_stat.stat.exists
+  changed_when: false
+
+- name: Validate configuration files exist
+  ansible.builtin.stat:
+    path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/{{ item }}"
+  loop: "{{ config_files_to_validate }}"
+  register: config_file_stat
+  changed_when: false
+
+- name: Report missing configuration files
+  ansible.builtin.fail:
+    msg: "Required configuration file not found: {{ item.item }}"
+  when: not item.stat.exists
+  loop: "{{ config_file_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"
