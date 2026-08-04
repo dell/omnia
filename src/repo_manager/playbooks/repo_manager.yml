@@ -101,6 +101,7 @@
 - name: Cleanup Pulp server and data
   ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_pulp.yml"
   tags:
+    - never
     - cleanup_pulp
     - cleanup
 
@@ -110,6 +111,7 @@
 - name: Cleanup specific repositories
   ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_repos.yml"
   tags:
+    - never
     - cleanup_repos
     - cleanup
 
