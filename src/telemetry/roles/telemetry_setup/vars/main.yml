@@ -23,7 +23,7 @@
 # -----------------------------------------------------------------------------
 telemetry_log_dir: "/var/log/omnia/telemetry"
 telemetry_output_dir: "{{ omnia_data_path | default('/opt/omnia') }}/telemetry/output"
-telemetry_config_file: "{{ input_project_dir | default('/opt/omnia') }}/telemetry/telemetry_config.yml"
+telemetry_config_file: "{{ input_project_dir | default('/opt/omnia') }}/telemetry_config.yml"
 
 # -----------------------------------------------------------------------------
 # USAGE INFORMATION

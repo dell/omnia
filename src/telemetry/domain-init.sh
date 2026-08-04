@@ -20,7 +20,10 @@
 #
 # Performs first-time domain setup:
 #   1. Creates Ansible log directory:  /var/log/omnia/telemetry/
-#   2. Copies input files from source tree to runtime data path
+#   2. Copies input files from source tree to runtime data path:
+#      - <OMNIA_DATA_PATH>/telemetry/input/<project>/
+#   3. Creates output directories:
+#      - <OMNIA_DATA_PATH>/telemetry/output/<project>/
 #
 # Source:      src/telemetry/input/<project>/
 # Destination: <OMNIA_DATA_PATH>/telemetry/input/<project>/

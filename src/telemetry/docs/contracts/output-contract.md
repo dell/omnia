@@ -11,7 +11,8 @@ completion state to downstream domains and the `omnia-cli`.
 
 Written after telemetry deployment completes (or fails).
 
-**Location**: `<OMNIA_DATA_PATH>/telemetry/output/<project>/telemetry_status.yml`
+**Location**: 
+- `<OMNIA_DATA_PATH>/telemetry/output/<project>/telemetry_status.yml`
 
 | Key | Type | Description |
 |-----|------|-------------|

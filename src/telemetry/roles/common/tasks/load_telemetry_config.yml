@@ -16,8 +16,8 @@
 # =============================================================================
 # Common task: Load telemetry configuration files
 # =============================================================================
-# Loads telemetry_config.yml, telemetry_storage_config.yml, telemetry_packages.yml, and kube_inventory.yml
-# Sets kube_vip (from kube_inventory.yml), telemetry_registry, and cluster_mount variables
+# Loads telemetry_config.yml, telemetry_storage_config.yml, telemetry_packages.yml, and cluster_inventory
+# Sets kube_vip (from cluster_inventory specified in telemetry_config.yml), telemetry_registry, and cluster_mount variables
 # Used by: telemetry.yml, deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, etc.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
@@ -46,7 +46,7 @@
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
-        file: "{{ telemetry_config_file | default(input_project_dir + '/telemetry/telemetry_config.yml') }}"
+        file: "{{ telemetry_config_file | default(input_project_dir + '/telemetry_config.yml') }}"
         name: telemetry_config
 
     - name: Set telemetry_config as cacheable fact
@@ -54,24 +54,29 @@
         telemetry_config: "{{ telemetry_config }}"
         cacheable: true
 
-    - name: Check if kube inventory file exists
+    - name: Check if cluster inventory file exists (from telemetry_config)
       ansible.builtin.stat:
-        path: "{{ kube_inventory_file | default(input_project_dir + '/telemetry/kube_inventory.yml') }}"
-      register: kube_inv_file_stat
+        path: "{{ telemetry_config.cluster_inventory }}"
+      register: cluster_inv_file_stat
+      when: telemetry_config.cluster_inventory is defined and telemetry_config.cluster_inventory | length > 0
 
-    - name: Load kube inventory for kube_vip
+    - name: Load cluster inventory for kube_vip and slurm nodes
       ansible.builtin.include_vars:
-        file: "{{ kube_inventory_file | default(input_project_dir + '/telemetry/kube_inventory.yml') }}"
-        name: kube_inv
-      when: kube_inv_file_stat.stat.exists
+        file: "{{ telemetry_config.cluster_inventory }}"
+        name: cluster_inv
+      when:
+        - telemetry_config.cluster_inventory is defined
+        - telemetry_config.cluster_inventory | length > 0
+        - cluster_inv_file_stat.stat.exists
 
-    - name: Set kube_vip from kube_inventory
+    - name: Set kube_vip from cluster inventory
       ansible.builtin.set_fact:
-        kube_vip: "{{ (kube_inv.all.children.kube_vip_group.hosts | dict2items | first).key }}"
+        kube_vip: "{{ (cluster_inv.all.children.kube_vip_group.hosts | dict2items | first).key }}"
         cacheable: true
       when:
-        - kube_inv_file_stat.stat.exists
-        - kube_inv.all.children.kube_vip_group.hosts is defined
+        - cluster_inv_file_stat is defined
+        - cluster_inv_file_stat.stat.exists
+        - cluster_inv.all.children.kube_vip_group.hosts is defined
 
     - name: Set kube_vip from telemetry_config (fallback)
       ansible.builtin.set_fact:
@@ -83,7 +88,7 @@
 
     - name: Load telemetry storage configuration
       ansible.builtin.include_vars:
-        file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry/telemetry_storage_config.yml') }}"
+        file: "{{ telemetry_storage_config_file | default(input_project_dir + '/telemetry_storage_config.yml') }}"
         name: telemetry_storage_config
 
     - name: Set telemetry_storage_config as cacheable fact
@@ -93,7 +98,7 @@
 
     - name: Load telemetry packages configuration
       ansible.builtin.include_vars:
-        file: "{{ telemetry_packages_file | default(input_project_dir + '/telemetry/telemetry_packages.yml') }}"
+        file: "{{ input_project_dir + '/telemetry_packages.yml' }}"
         name: telemetry_packages_config_loaded
       register: packages_load_result
       failed_when: false

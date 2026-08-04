@@ -25,12 +25,14 @@ telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # Input files (project directory based)
-telemetry_config_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/telemetry/telemetry_config.yml"
-telemetry_storage_config_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/telemetry/telemetry_storage_config.yml"
+telemetry_config_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/telemetry_config.yml"
+telemetry_storage_config_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/telemetry_storage_config.yml"
+telemetry_packages_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/telemetry_packages.yml"
 
-# Orchestrator inventory files (user copies from orchestrator/output/ to telemetry/input/)
-kube_inventory_file: "{{ playbook_dir }}/input/kube_inventory.yml"
-slurm_inventory_file: "{{ playbook_dir }}/input/slurm_inventory.yml"
+# Cluster inventory file (specified in telemetry_config.yml as cluster_inventory)
+# This file contains both Kubernetes and Slurm inventory from orchestrator
+# User should specify the path in telemetry_config.yml, e.g.:
+#   cluster_inventory: "/opt/omnia/input/project_default/orchestrator_inventory.yml"
 
 # Verification timeouts (shared defaults)
 deploy_timeout: "600s"
