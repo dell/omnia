@@ -46,7 +46,7 @@ TEST_CASES = {
         "title": "Deploy image_build_manager (cleanup)",
     },
     "deploy_full": {
-        "id": "TC_IB_000",
+        "id": "TC_IB_001",
         "title": "Deploy image_build_manager (default: prepare + build)",
     },
 
@@ -114,51 +114,51 @@ TEST_CASES = {
 
     # ── Full (image_build_manager) ────────────────────────────────────────
     "ib_storage_backend": {
-        "id": "TC_IB_001",
+        "id": "TC_IB_002",
         "title": "Verify S3 storage backend (MinIO or PowerScale)",
     },
     "ib_registry_container": {
-        "id": "TC_IB_002",
+        "id": "TC_IB_003",
         "title": "Verify registry container is running",
     },
     "ib_s3_buckets": {
-        "id": "TC_IB_003",
+        "id": "TC_IB_004",
         "title": "Verify required S3 buckets exist",
     },
     "ib_s3_images_x86_64": {
-        "id": "TC_IB_004",
+        "id": "TC_IB_005",
         "title": "Verify x86_64 images pushed to S3",
     },
     "ib_s3_images_aarch64": {
-        "id": "TC_IB_005",
+        "id": "TC_IB_006",
         "title": "Verify aarch64 images pushed to S3",
     },
     "ib_registry_x86_64": {
-        "id": "TC_IB_006",
+        "id": "TC_IB_007",
         "title": "Verify x86_64 images in registry",
     },
     "ib_registry_aarch64": {
-        "id": "TC_IB_007",
+        "id": "TC_IB_008",
         "title": "Verify aarch64 images in registry",
     },
     "ib_build_status": {
-        "id": "TC_IB_008",
+        "id": "TC_IB_009",
         "title": "Verify build_status.yml reports success",
     },
     "ib_groups_x86_64": {
-        "id": "TC_IB_009",
+        "id": "TC_IB_010",
         "title": "Verify x86_64 functional groups built",
     },
     "ib_groups_aarch64": {
-        "id": "TC_IB_010",
+        "id": "TC_IB_011",
         "title": "Verify aarch64 functional groups built",
     },
     "ib_packages_x86_64": {
-        "id": "TC_IB_011",
+        "id": "TC_IB_012",
         "title": "Verify packages installed in x86_64 S3 images",
     },
     "ib_packages_aarch64": {
-        "id": "TC_IB_012",
+        "id": "TC_IB_013",
         "title": "Verify packages installed in aarch64 S3 images",
     },
 
