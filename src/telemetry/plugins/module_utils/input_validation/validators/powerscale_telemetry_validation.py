@@ -22,10 +22,10 @@ import json
 import os
 import yaml
 # pylint: disable=import-error,no-name-in-module
-from ansible.module_utils.input_validation.common_utils import (
+from ansible.module_utils.input_validation.messages import (
     en_us_validation_msg
 )
-from ansible.module_utils.input_validation.common_utils.validation_utils import (
+from ansible.module_utils.input_validation.core.validation_utils import (
     create_error_msg
 )
 # pylint: enable=import-error,no-name-in-module

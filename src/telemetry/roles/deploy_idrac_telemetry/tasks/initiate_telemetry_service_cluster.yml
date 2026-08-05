@@ -103,35 +103,25 @@
   ansible.builtin.set_fact:
     filtered_bmc_ip_dict_list: "{{ filtered_bmc_ip_list | map('community.general.dict_kv', 'bmc_ip') | list }}"
 
-# Load kube inventory to get worker node IPs for BMC validation
-- name: Check if kube inventory file exists
-  ansible.builtin.stat:
-    path: "{{ kube_inventory_file }}"
-  register: kube_inv_stat
-  delegate_to: localhost
+# Load cluster inventory to get worker node IPs for BMC validation
+# cluster_inv is loaded in common.load_telemetry_config from telemetry_config.cluster_inventory
+- name: Check if cluster inventory is available
+  ansible.builtin.set_fact:
+    cluster_inv_available: "{{ hostvars['localhost']['cluster_inv'] is defined }}"
 
-- name: Load kube inventory
-  ansible.builtin.include_vars:
-    file: "{{ kube_inventory_file }}"
-    name: kube_inv
-  when: kube_inv_stat.stat.exists
-
-# Build list of all worker node management IPs for BMC validation.
-# The play runs on control plane (via kube-vip) which cannot reach BMC subnets,
-# so we delegate validation to worker nodes that have network access.
-- name: Get all worker node IPs for BMC validation (from kube inventory)
+- name: Get all worker node IPs for BMC validation (from cluster inventory)
   ansible.builtin.set_fact:
     worker_node_list: >-
       {{
-        (kube_inv.all.children.service_kube_node_x86_64.hosts | default({}))
+        (hostvars['localhost']['cluster_inv'].all.children.service_kube_node_x86_64.hosts | default({}))
         | dict2items
         | map(attribute='value')
         | map(attribute='ansible_host')
         | list
       }}
   when:
-    - kube_inv_stat.stat.exists
-    - kube_inv.all.children.service_kube_node_x86_64.hosts is defined
+    - cluster_inv_available | bool
+    - hostvars['localhost']['cluster_inv'].all.children.service_kube_node_x86_64.hosts is defined
 
 - name: Get all worker node IPs for BMC validation (fallback to nodes)
   ansible.builtin.set_fact:

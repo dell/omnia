@@ -52,8 +52,9 @@
           - kube_vip is defined
           - kube_vip | length > 0
         fail_msg: >
-          kube_vip is required. Ensure you have copied kube_inventory.yml from
-          orchestrator/output/kube_inventory.yml to telemetry/input/kube_inventory.yml.
+          kube_vip is required. Ensure you have set cluster_inventory in
+          telemetry_config.yml to point to the orchestrator inventory file
+          (e.g., /opt/omnia/input/project_default/cluster_inventory.yml).
           Run orchestrator.yml first to generate the inventory files.
 
     - name: Add kube_vip to in-memory inventory
