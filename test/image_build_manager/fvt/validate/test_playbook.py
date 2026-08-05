@@ -20,9 +20,13 @@ Deploy image_build_manager --tags validate
 
 import pytest
 
-from library.functions import TestLogger, run_playbook
+from library.functions import TestLogger, run_playbook, load_test_config
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT
+from library.vars.common_vars import (
+    PLAYBOOK_ENTRY_POINT,
+    BUILD_LOG_PATH,
+    SHARED_PATH,
+)
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -50,8 +54,12 @@ def test_deploy_validate(host):
             result.get("error", "See playbook output above"),
         )
 
+    config = load_test_config()
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook="image_build_manager.yml", tag="validate",
         rc=result["rc"], duration=result["duration"],
-        log_path="Check playbook output above",
+        log_path=BUILD_LOG_PATH.format(
+            shared_path=SHARED_PATH,
+            project=config.get("project_name", "project_default"),
+        ),
     )

@@ -116,6 +116,17 @@ BUILD_STATUS_PATH = (
     "{shared_path}/output/{project}/build_status.yml"
 )
 
+# Build log directory template (on target host)
+BUILD_LOG_PATH = (
+    "{shared_path}/log/{project}/"
+)
+
+# Playbook command template (for HOW TO FIX messages)
+PLAYBOOK_CMD = (
+    "cd {clone_path}/src/image_build_manager/playbooks && "
+    "ansible-playbook image_build_manager.yml"
+)
+
 # Image artifact types in S3 (per functional group)
 IMAGE_TYPES = ["initramfs", "vmlinuz", "rhel"]
 
