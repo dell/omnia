@@ -130,7 +130,7 @@ is_local_ip() {
 }
 
 # Version configuration variables
-OMNIA_CORE_CONTAINER_TAG="2.2"  # Default container tag
+OMNIA_CORE_CONTAINER_TAG="2.3"  # Default container tag
 OMNIA_VERSION=""  # Will be read from metadata
 TARGET_OMNIA_VERSION=""  # Target version for upgrade
 TARGET_CONTAINER_TAG=""  # Target container tag for upgrade
@@ -309,7 +309,7 @@ validate_container_image() {
         echo ""
         echo -e "./build_images.sh core core_tag=<tag> omnia_branch=<branch>"
         echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.2.0.0)${NC}"
-        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.2 for v2.2.0.0)${NC}"
+        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.3 for v2.2.0.0)${NC}"
         echo ""
         echo -e "${BLUE}After the image is built successfully, re-run:${NC}"
         echo -e "./omnia.sh --$operation"
@@ -331,7 +331,7 @@ get_container_tag_from_version() {
             echo "2.1"
             ;;
         2.2.*)
-            echo "2.2"
+            echo "2.3"
             ;;
         *)
             # All other versions use major.minor as tag
