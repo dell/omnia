@@ -43,7 +43,7 @@
         cacheable: true
 
 - name: Invoke get_config_credentials.yml
-  ansible.builtin.import_playbook: credential_utility/get_config_credentials.yml
+  ansible.builtin.import_playbook: ../../playbooks/utils/credential_utility/get_config_credentials.yml
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 3: [BSM] Compute effective inventory + capture pre-boot state

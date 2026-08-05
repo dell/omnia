@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# iDRAC configuration
+# These are overridden by extra vars or set_fact from the calling playbook.
+target_bmc_ip: ""
+target_node_ip: ""
+bmc_username: "{{ hostvars['localhost']['bmc_username'] | default('') }}"
+bmc_password: "{{ hostvars['localhost']['bmc_password'] | default('') }}"
+force_reinstall: false
+
+# NFS share base path (server:/path mapping to /opt/omnia)
+# Auto-detected from container mount by fetch_arm_params role
+iso_nfs_share: ""
+
+# Silent installation mode: when true, no interactive prompts are shown
+silent_install: false
+
+# ISO exposure duration (minutes) - how long iDRAC exposes the ISO as CD-ROM
+# Default: 1080 minutes (18 hours)
+expose_duration: 1080
+
+# Error messages
+idrac_unreachable_msg: >-
+  iDRAC at '{{ target_bmc_ip }}' is not reachable.
+  Please verify network connectivity, the BMC IP address, and iDRAC status,
+  then re-run the playbook.
+target_already_reachable_msg: >-
+  Target node at '{{ target_node_ip }}' is already reachable via SSH.
+  Set 'force_reinstall: true' in iso_config.yml to proceed with OS reinstallation.
+no_iso_nfs_share_msg: >-
+  No ISO NFS share path provided ('iso_nfs_share' is empty).
+  The repacked ISO must be accessible via NFS for iDRAC OS deployment.
+  Set 'iso_nfs_share' in iso_config.yml.
+os_deployment_fail_msg: >-
+  Failed to initiate OS deployment via iDRAC on '{{ target_bmc_ip }}'.
+  Please verify NFS share accessibility and iDRAC OS Deployment Service support.
+
+boot_operation_fail_msg: >-
+  Failed to initiate OS deployment via iDRAC on '{{ target_bmc_ip }}'.
+  Boot status: {{ boot_status_details | default('Unknown error') }}.
+  Please verify NFS share accessibility and iDRAC OS Deployment Service support.
+
+# Installation monitoring messages
+sel_error_warning_msg: >-
+  WARNING: Installation-related errors detected in iDRAC System Event Log.
+  This may not indicate actual installation failure. SSH verification will determine final status.
+ssh_wait_fail_msg: >-
+  OS installation failed - target node {{ target_node_ip }} did not become reachable via SSH within 10 minutes.
+  Check the iDRAC virtual console for installation status.
+passwordless_ssh_fail_msg: >-
+  Passwordless SSH access failed. The injected SSH public key may not be configured correctly.
+  Verify that ks_ssh_public_key was properly injected into the kickstart file.
+os_install_success_msg: >-
+  OS installation completed successfully!
+  Hostname: {{ os_verify.stdout_lines[0] | default('unknown') }},
+  OS: {{ os_verify.stdout_lines[1] | default('unknown') }},
+  Passwordless SSH: verified

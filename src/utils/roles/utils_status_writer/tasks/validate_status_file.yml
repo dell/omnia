@@ -1,0 +1,30 @@
+---
+- name: Check if status file exists
+  ansible.builtin.stat:
+    path: "{{ utils_status_file_path }}"
+  register: status_file_stat
+  changed_when: false
+
+- name: Validate status file is readable
+  ansible.builtin.assert:
+    that:
+      - status_file_stat.stat.exists
+      - status_file_stat.stat.readable
+    fail_msg: "Status file not readable: {{ utils_status_file_path }}"
+    success_msg: "Status file validated: {{ utils_status_file_path }}"
+
+- name: Load and validate status file YAML
+  ansible.builtin.include_vars:
+    file: "{{ utils_status_file_path }}"
+    name: utils_status_content
+  register: status_load_result
+  failed_when: status_load_result is failed
+
+- name: Verify required status fields
+  ansible.builtin.assert:
+    that:
+      - utils_status_content.domain is defined
+      - utils_status_content.status is defined
+      - utils_status_content.version is defined
+    fail_msg: "Status file missing required fields"
+    success_msg: "Status file contains all required fields"
