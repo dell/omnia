@@ -237,11 +237,13 @@
                   value: "3"
                 - name: vip_retryperiod
                   value: "1"
-                - name: vip_address
+                - name: address
                   value: {{ kube_vip }}
+                - name: vip_subnet
+                  value: "{{ admin_netmask_bits }}"
                 - name: prometheus_server
                   value: :2112
-                image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                image: ghcr.io/kube-vip/kube-vip:v1.2.2
                 imagePullPolicy: IfNotPresent
                 name: kube-vip
                 resources: {}
