@@ -19,9 +19,9 @@
 
 import json
 import jsonschema
-import ansible.module_utils.input_validation.common_utils.data_fetch as get
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.input_validation.common_utils import logical_validation
+import ansible.module_utils.input_validation.core.data_fetch as get
+from ansible.module_utils.input_validation.messages import en_us_validation_msg
+from ansible.module_utils.input_validation.core import logical_validation
 
 
 def schema(config):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements

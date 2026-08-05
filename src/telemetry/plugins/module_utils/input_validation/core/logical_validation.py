@@ -18,9 +18,9 @@ Standalone version — dispatches only to telemetry validation functions.
 """
 import sys
 
-sys.path.append("module_utils/validation_flows")
+sys.path.append("module_utils/validators")
 
-from ansible.module_utils.input_validation.validation_flows import telemetry_validation
+from ansible.module_utils.input_validation.validators import telemetry_validation
 
 
 def validate_input_logic(

@@ -27,17 +27,124 @@ Functions:
     validate_csv_structure
 """
 
+DOCUMENTATION = r'''
+---
+module: validate_input
+short_description: Validates telemetry input configuration files
+version_added: "3.0.0"
+description:
+  - Performs two-level validation (L1 schema + L2 logic) on telemetry input
+    configuration files (telemetry_config.yml, telemetry_storage_config.yml,
+    telemetry_packages.yml).
+  - L1 validates each file against its JSON Schema under
+    C(plugins/module_utils/input_validation/schema/).
+  - L2 runs cross-field logical validation via
+    C(plugins/module_utils/input_validation/validators/).
+  - Optionally validates CSV structure for PXE mapping files.
+options:
+  omnia_base_dir:
+    description: Absolute path to the Omnia input base directory.
+    type: str
+    required: true
+  project_name:
+    description: Name of the project (subdirectory under omnia_base_dir).
+    type: str
+    required: true
+  tag_names:
+    description: List of validation tags to run (e.g., C(["telemetry"])).
+    type: list
+    elements: str
+    required: true
+  module_utils_path:
+    description: Absolute path to the module_utils directory containing schemas and validators.
+    type: str
+    required: false
+  csv_file_path:
+    description: Optional path to a CSV file for structure validation.
+    type: str
+    required: false
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Validate telemetry input files
+  omnia.telemetry.validate_input:
+    omnia_base_dir: "/opt/omnia/telemetry/input/project_default"
+    project_name: "telemetry"
+    tag_names:
+      - telemetry
+    module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
+
+- name: Validate with CSV structure check
+  omnia.telemetry.validate_input:
+    omnia_base_dir: "/opt/omnia/telemetry/input/project_default"
+    project_name: "telemetry"
+    tag_names:
+      - telemetry
+    module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
+    csv_file_path: "/opt/omnia/telemetry/input/pxe_mapping.csv"
+'''
+
+RETURN = r'''
+validation_failed:
+  description: Whether any validation check failed.
+  type: bool
+  returned: always
+  sample: false
+error_msg:
+  description: Summary messages describing validation outcome.
+  type: list
+  elements: str
+  returned: always
+  sample:
+    - "Input validation completed for: telemetry input configuration(s)."
+    - "Tag(s) run: ['telemetry']. "
+    - "Look at the logs for more details: filename=/var/log/omnia/telemetry/validate_telemetry_input.log"
+log_file:
+  description: Path to the validation log file.
+  type: str
+  returned: always
+  sample: "/var/log/omnia/telemetry/validate_telemetry_input.log"
+errors:
+  description: List of error messages from failed validations.
+  type: list
+  elements: str
+  returned: always
+  sample: []
+valid_files:
+  description: List of input file paths that passed validation.
+  type: list
+  elements: str
+  returned: always
+  sample:
+    - "/opt/omnia/telemetry/input/project_default/telemetry/telemetry_config.yml"
+invalid_files:
+  description: List of input file paths that failed validation.
+  type: list
+  elements: str
+  returned: always
+  sample: []
+tags:
+  description: The validation tags that were executed.
+  type: list
+  elements: str
+  returned: always
+  sample:
+    - telemetry
+'''
+
 import logging
 import os
 import csv
 
 # pylint: disable=no-name-in-module,E0401
-import ansible.module_utils.input_validation.common_utils.data_fetch as fetch
-import ansible.module_utils.input_validation.common_utils.data_validation as validate
-import ansible.module_utils.input_validation.common_utils.data_verification as verify
+import ansible.module_utils.input_validation.core.data_fetch as fetch
+import ansible.module_utils.input_validation.core.data_validation as validate
+import ansible.module_utils.input_validation.core.data_verification as verify
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.input_validation.common_utils import config
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+from ansible.module_utils.input_validation.core import config
+from ansible.module_utils.input_validation.messages import en_us_validation_msg
 
 def validate_csv_structure(csv_file_path, logger=None):
     """
