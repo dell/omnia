@@ -43,7 +43,7 @@
 # ================================
 #
 # 1. repo_config
-#--------------------------
+# --------------------------
 #    Global repository sync policy.
 #    Allowed values:
 #      always  : Sync all packages from all repositories (full mirror)
@@ -51,7 +51,7 @@
 #    This can be overridden per-repository using the 'policy' field.
 #
 # 2. registries
-#--------------------------
+# --------------------------
 #    Container registry configurations.
 #    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
 #
@@ -76,7 +76,7 @@
 #        Prefix      : Registry prefix used inside Pulp
 #
 # 3. repositories
-#--------------------------
+# --------------------------
 #    RPM repository configurations.
 #    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
 #
@@ -171,20 +171,67 @@ repositories:
       appstream: {}
       codeready-builder: {}
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
-      slurm_custom: { url: "http://100.98.69.235/nvml/" , gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      slurm_custom:
+        url: "http://100.98.69.235/nvml/"
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       ldms: {}
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
-      epel:            { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      kubernetes-v1-35: { url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      cri-o-v1-35:     { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      doca:            { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/",   gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key",   sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      docker-ce:       { url: "https://download.docker.com/linux/centos/10/x86_64/stable/",         gpgkey: "https://download.docker.com/linux/centos/gpg",                                                     sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      cuda:            { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      nvidia-hpc-sdk:  { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64",          gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK",                        sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      epel:
+        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
+        gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      kubernetes-v1-35:
+        url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/"
+        gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      cri-o-v1-35:
+        url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
+        gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      doca:
+        url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/"
+        gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      docker-ce:
+        url: "https://download.docker.com/linux/centos/10/x86_64/stable/"
+        gpgkey: "https://download.docker.com/linux/centos/gpg"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      cuda:
+        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/"
+        gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      nvidia-hpc-sdk:
+        url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64"
+        gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
       # Example format:
       #   additional_repos:
-      #     grafana: { url: "https://rpm.grafana.com/", gpgkey: "https://rpm.grafana.com/gpg.key", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      #     grafana:
+      #       url: "https://rpm.grafana.com/"
+      #       gpgkey: "https://rpm.grafana.com/gpg.key"
+      #       policy: "partial"
+      #       caching: true
+      #       sslcacert: ""
+      #       sslclientkey: ""
+      #       sslclientcert: ""
       additional_repos: {}
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
@@ -196,13 +243,45 @@ repositories:
       slurm_custom: {}
       ldms: {}
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
-      epel:            { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      doca:            { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      docker-ce:       { url: "https://download.docker.com/linux/centos/10/aarch64/stable/",        gpgkey: "https://download.docker.com/linux/centos/gpg",                                                    sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      cuda:            { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key", sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      nvidia-hpc-sdk:  { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64",         gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK",                       sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      epel:
+        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
+        gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      doca:
+        url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/"
+        gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      docker-ce:
+        url: "https://download.docker.com/linux/centos/10/aarch64/stable/"
+        gpgkey: "https://download.docker.com/linux/centos/gpg"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      cuda:
+        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/"
+        gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      nvidia-hpc-sdk:
+        url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64"
+        gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
       # Example format:
       #   additional_repos:
-      #     grafana: { url: "https://rpm.grafana.com/", gpgkey: "https://rpm.grafana.com/gpg.key", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      #     grafana:
+      #       url: "https://rpm.grafana.com/"
+      #       gpgkey: "https://rpm.grafana.com/gpg.key"
+      #       policy: "partial"
+      #       caching: true
+      #       sslcacert: ""
+      #       sslclientkey: ""
+      #       sslclientcert: ""
       additional_repos: {}
