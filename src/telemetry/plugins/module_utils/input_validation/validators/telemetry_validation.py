@@ -21,8 +21,8 @@ import os
 import subprocess
 
 import yaml
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
+from ansible.module_utils.input_validation.messages import en_us_validation_msg
+from ansible.module_utils.input_validation.core.validation_utils import create_error_msg
 
 
 def validate_telemetry_config(

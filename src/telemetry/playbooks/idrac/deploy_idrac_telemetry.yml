@@ -47,29 +47,22 @@
         ansible_user: root
       when: kube_vip_group is not defined
 
-    - name: Check if kube inventory file exists
-      ansible.builtin.stat:
-        path: "{{ kube_inventory_file }}"
-      register: kube_inv_stat
-      delegate_to: localhost
+    - name: Check if cluster inventory is available from load_telemetry_config
+      ansible.builtin.set_fact:
+        cluster_inv_available: "{{ hostvars['localhost']['cluster_inv'] is defined }}"
 
-    - name: Load kube inventory for worker node delegation
-      when: kube_inv_stat.stat.exists
+    - name: Load cluster inventory for worker node delegation
+      when: cluster_inv_available | bool
       block:
-        - name: Read kube inventory
-          ansible.builtin.include_vars:
-            file: "{{ kube_inventory_file }}"
-            name: kube_inv
-
         - name: Add K8s worker nodes to in-memory inventory
           ansible.builtin.add_host:
             name: "{{ item.value.ansible_host | default(item.key) }}"
             groups: service_kube_node
             ansible_user: root
-          loop: "{{ kube_inv.all.children.service_kube_node_x86_64.hosts | default({}) | dict2items }}"
+          loop: "{{ hostvars['localhost']['cluster_inv'].all.children.service_kube_node_x86_64.hosts | default({}) | dict2items }}"
           loop_control:
             label: "{{ item.key }}"
-          when: kube_inv.all.children.service_kube_node_x86_64.hosts is defined
+          when: hostvars['localhost']['cluster_inv'].all.children.service_kube_node_x86_64.hosts is defined
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:

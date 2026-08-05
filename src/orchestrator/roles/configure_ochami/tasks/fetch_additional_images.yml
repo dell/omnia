@@ -36,7 +36,7 @@
 
 - name: Set additional_images_dict fact
   ansible.builtin.set_fact:
-    additional_images_dict: "{{ additional_images_output.additional_images_dict }}"
+    additional_images_dict: "{{ additional_images_output.additional_images_dict | default({}) }}"
 
 - name: Debug additional_images_dict
   ansible.builtin.debug:

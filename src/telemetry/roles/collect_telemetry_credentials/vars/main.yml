@@ -19,9 +19,9 @@
 telemetry_credential_file:
   credential_type: "Telemetry"
   template: "{{ role_path }}/templates/telemetry_credential.j2"
-  file_path: "{{ input_project_dir }}/telemetry/telemetry_credentials.yml"
+  file_path: "{{ input_project_dir }}/telemetry_credentials.yml"
   file_mode: "0600"
-  vault_path: "{{ input_project_dir }}/telemetry/.telemetry_credentials_key"
+  vault_path: "{{ input_project_dir }}/.telemetry_credentials_key"
 
 # Credential prompt definitions
 telemetry_cred_config:
