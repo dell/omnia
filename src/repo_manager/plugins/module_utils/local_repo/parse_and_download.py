@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,no-name-in-module
+# pylint: disable=import-error,no-name-in-module,too-many-arguments
+# pylint: disable=too-many-positional-arguments,too-many-locals
 """
 Utility functions for parsing and downloading artifacts.
 
@@ -25,7 +26,6 @@ import json
 import re
 import shlex
 from multiprocessing import Lock
-from datetime import datetime, timezone
 from ansible.module_utils.local_repo.config import ARCH_SUFFIXES, STATUS_CSV_HEADER
 from ansible.module_utils.local_repo.mirror_status import (
     load_mirror_index,
@@ -44,7 +44,7 @@ def mask_sensitive_data(cmd_string):
     return cmd_string
 
 
-def execute_command(cmd_string, logger, type_json=False):
+def execute_command(cmd_string, logger, type_json=False):  # pylint: disable=too-many-return-statements
     """
     Executes a command and captures the output (both stdout and stderr).
 
@@ -94,7 +94,8 @@ def execute_command(cmd_string, logger, type_json=False):
 
         if type_json:
             if not status["stdout"]:
-                logger.error("Command succeeded but returned empty output when JSON was expected")
+                logger.error(
+                    "Command succeeded but returned empty output when JSON was expected")
                 return False
             try:
                 status["stdout"] = json.loads(status["stdout"])
@@ -181,6 +182,7 @@ def _prefix_repo_name_with_arch(repo_name: str, status_file_path: str, logger) -
         os_type, os_version = get_os_info_from_status_path(status_file_path)
         if os_type and os_version:
             # Lazy import to avoid circular dependency (software_utils imports from this module)
+            # pylint: disable=import-outside-toplevel
             from ansible.module_utils.local_repo.software_utils import build_repo_name_prefix
             prefixed_name = build_repo_name_prefix(arch, os_type, os_version) + repo_name
         else:
@@ -221,11 +223,13 @@ def _update_existing_line(line: str, package_name: str, package_type: str, statu
         return ','.join(parts) + '\n'
 
     # Handle short lines
-    return f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status},{catalog_name}\n"
+    repo_val = final_repo_name if final_repo_name else ''
+    return f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n"
 
 
-def write_status_to_file(status_file_path, package_name, package_type, status, logger,
-                          file_lock: Lock, repo_name=None, catalog_name=""):
+def write_status_to_file(status_file_path, package_name, package_type, status,
+                          logger, file_lock: Lock, repo_name=None,
+                          catalog_name=""):
     """
     Writes or updates the status of a package in the status file.
     Also updates mirror_index.json with the package status.
@@ -255,10 +259,10 @@ def write_status_to_file(status_file_path, package_name, package_type, status, l
                                   status, repo_name, catalog_name)
 
             logger.info(f"Status written to {status_file_path} for {package_name}.")
-            
+
             # Update mirror_index.json
             _update_mirror_index_for_package(
-                status_file_path, package_name, package_type, status, 
+                status_file_path, package_name, package_type, status,
                 repo_name, catalog_name, logger
             )
     except OSError as e:
@@ -295,8 +299,11 @@ def _update_existing_file(status_file_path, package_name, package_type, status,
                 f.write(line)
 
         if not updated:
-            final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
-            f.write(f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status},{catalog_name}\n")
+            final_repo_name = _prefix_repo_name_with_arch(
+                repo_name, status_file_path, None)
+            repo_val = final_repo_name if final_repo_name else ''
+            f.write(
+                f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n")
 
 
 def _create_new_file(status_file_path, package_name, package_type, status,
@@ -304,15 +311,18 @@ def _create_new_file(status_file_path, package_name, package_type, status,
     """Create new status file with package status."""
     with open(status_file_path, "w", encoding='utf-8') as f:
         f.write(STATUS_CSV_HEADER)
-        final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
-        f.write(f"{package_name},{package_type},{final_repo_name if final_repo_name else ''},{status},{catalog_name}\n")
+        final_repo_name = _prefix_repo_name_with_arch(
+            repo_name, status_file_path, None)
+        repo_val = final_repo_name if final_repo_name else ''
+        f.write(
+            f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n")
 
 
-def _update_mirror_index_for_package(status_file_path, package_name, package_type, 
+def _update_mirror_index_for_package(status_file_path, package_name, package_type,
                                       status, repo_name, catalog_name, logger):
     """
     Update mirror_index.json when a package status is written to status.csv.
-    
+
     Args:
         status_file_path: Path to the status file (used to derive mirror_index path)
         package_name: Name of the package
@@ -326,61 +336,66 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
         # Derive mirror_index.json path from status_file_path
         # Expected path: .../rhel/10.0/x86_64/software_name/status.csv
         # Mirror index: .../rhel/10.0/mirror_status/mirror_index.json
-        
+
         path_parts = status_file_path.split(os.sep)
-        
+
         # Find the OS type and version in the path
         os_type_idx = -1
         for i, part in enumerate(path_parts):
             if part in ['rhel', 'ubuntu', 'rocky']:
                 os_type_idx = i
                 break
-        
+
         if os_type_idx == -1 or os_type_idx + 1 >= len(path_parts):
             logger.debug(f"Could not derive mirror_index path from {status_file_path}")
             return
-        
-        # Construct mirror_index path: .../os_type/os_version/mirror_status/mirror_index.json
-        base_path = os.sep.join(path_parts[:os_type_idx + 2])  # Include os_type and os_version
+
+        # Construct mirror_index path
+        base_path = os.sep.join(path_parts[:os_type_idx + 2])
         mirror_index_path = os.path.join(base_path, "mirror_status", "mirror_index.json")
-        
+
         if not os.path.exists(mirror_index_path):
-            logger.debug(f"Mirror index not found at {mirror_index_path}, skipping update")
+            logger.debug(
+                f"Mirror index not found at {mirror_index_path}, skipping update")
             return
-        
+
         # Load mirror index
         mirror_data = load_mirror_index(mirror_index_path, logger)
         if not mirror_data:
             logger.warning(f"Failed to load mirror index from {mirror_index_path}")
             return
-        
+
         # Check if package exists in mirror index
         packages = mirror_data["MirrorIndex"].get("packages", {})
-        
-        # For images, the package_name in status.csv includes tag (e.g., docker.io/curl:8.17.0)
-        # but mirror_index.json stores it without tag (e.g., docker.io/curl)
+
+        # For images, the package_name in status.csv includes tag
+        # but mirror_index.json stores it without tag
         # Try to find the package with and without tag
         package_key = package_name
         if package_type == "image" and package_name not in packages:
             # Try removing tag/version after last colon
             if ':' in package_name:
                 package_key = package_name.rsplit(':', 1)[0]
-                logger.debug(f"Image package '{package_name}' not found, trying without tag: '{package_key}'")
-        
+                logger.debug(
+                    f"Image package '{package_name}' not found, "
+                    f"trying without tag: '{package_key}'")
+
         if package_key not in packages:
-            logger.debug(f"Package '{package_name}' (key: '{package_key}') not found in mirror index, skipping update")
+            logger.debug(
+                f"Package '{package_name}' (key: '{package_key}') "
+                f"not found in mirror index, skipping update")
             return
-        
+
         # Map status.csv status to mirror index status
         # status.csv: "Success" or "Failed"
         # mirror_index: "mirrored", "failed", or "pending"
         mirror_status = "mirrored" if status == "Success" else "failed"
         error_msg = "" if status == "Success" else "Package download/verification failed"
-        
+
         # Get package info from mirror index
         pkg_info = packages[package_key]
-        
-        # Update mirror index entry (use package_key which may be different from package_name for images)
+
+        # Update mirror index entry
         update_mirror_index_entry(
             mirror_data=mirror_data,
             package_name=package_key,
@@ -394,11 +409,14 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
             error=error_msg,
             repo_name=repo_name or pkg_info.get("repo_name", "")
         )
-        
+
         # Save updated mirror index
         save_mirror_index(mirror_index_path, mirror_data, logger)
-        logger.debug(f"Updated mirror index for package '{package_key}' (original: '{package_name}') with status '{mirror_status}'")
-        
-    except Exception as e:
+        logger.debug(
+            f"Updated mirror index for package '{package_key}' "
+            f"(original: '{package_name}') with status '{mirror_status}'")
+
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         # Don't fail the main operation if mirror index update fails
-        logger.warning(f"Failed to update mirror index for package '{package_name}': {e}")
+        logger.warning(
+            f"Failed to update mirror index for package '{package_name}': {exc}")

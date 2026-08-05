@@ -26,16 +26,16 @@
 # Usage:
 #   Interactive mode (will prompt for credential deletion):
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default'
-#   
+#
 #   Force delete credentials (no prompt):
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_credentials=true'
-#   
+#
 #   Preserve credentials (no prompt):
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_credentials=false'
-#   
+#
 #   Preserve logs:
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_logs=false'
-#   
+#
 #   Preserve both logs and credentials:
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_logs=false' -e 'cleanup_credentials=false'
 # =============================================================================
@@ -276,18 +276,18 @@
     - name: Prompt user to delete credentials
       ansible.builtin.pause:
         prompt: |
-          
+
           ========================================
           CREDENTIAL CLEANUP CONFIRMATION
           ========================================
           Credential file found at:
             {{ input_project_dir }}/repo_manager_config_credentials.yml
-          
+
           Do you want to delete the credential files? (yes/no)
-          
+
           - yes: Credentials will be deleted and you'll be prompted during next deployment
           - no:  Credentials will be preserved and reused in next deployment
-          
+
           Enter your choice
       register: delete_credentials_prompt
       when:

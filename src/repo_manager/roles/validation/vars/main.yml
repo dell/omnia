@@ -113,5 +113,3 @@ k8s_local_repo_metadata_file_path: "{{ repo_manager_log_dir }}/k8s_local_repo_me
 rhel_os_url_fail_msg: "Failed. Please ensure rhel_os_url is non empty list and
     check if there is any indentation error for variable names in {{ project_input_path }}/repo_manager_config.yml"
 rhel_os_url_fail_url_gpg_key_msg: "Failed. Each item in rhel_os_url should have 'url', 'gpgkey' and 'name' keys defined"
-
-
