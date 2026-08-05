@@ -50,29 +50,9 @@
   vars:
     components: "{{ arch_item.value | dict2items }}"
 
-# to be removed later
-- name: Load software_config.json
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/software_config.json"
-    name: software_config
-
-- name: Generate software JSON file names
+- name: Set architectures from catalog-based task result
   ansible.builtin.set_fact:
-    software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
-
-- name: Create a dictionary of software architectures
-  ansible.builtin.set_fact:
-    fetch_arch: "{{ software_config.softwares | items2dict(key_name='name', value_name='arch') }}"
-
-- name: Combine all architectures into a single list
-  ansible.builtin.set_fact:
-    all_archs: >-
-      {{
-        fetch_arch.values()
-        | select('defined')
-        | flatten
-        | unique
-      }}
+    all_archs: "{{ result.sw_archs | default(['x86_64', 'aarch64']) }}"
 
 - name: Set fact for all_archs_var
   ansible.builtin.set_fact:
@@ -141,9 +121,8 @@
     - metadata_file.stat.exists
     - final_status == 'success'
 
-- name: Persist local repoitory information into metadata file localrepo_metadata.yml
+- name: Persist local repository information into metadata file localrepo_metadata.yml
   localrepo_metadata_manager:
-    software_config_path: "{{ sw_config_json_path }}"
     localrepo_config_path: "{{ local_repo_config_path }}"
     output_file: "{{ metadata_file_path }}"
     update_metadata: "{{ update_metadata }}"

@@ -89,7 +89,7 @@ def schema(config):
                 error_path = ".".join(map(str, error.path))
 
                 # Custom error messages for regex pattern failures
-                if "Groups" == error_path:
+                if "groups" == error_path:
                     error.message = msg.INVALID_GROUP_NAME_MSG
                 elif "ports" in error_path:
                     error.message = msg.INVALID_SWITCH_PORTS_MSG
@@ -266,11 +266,9 @@ def validate_input_logic(
         list: A list of errors encountered during validation.
     """
     # Import validators here to avoid circular imports
-    from ansible.module_utils.input_validation.validators import software_config
     from ansible.module_utils.input_validation.validators import repo_manager_config
 
     validation_functions = {
-        "software_config.json": software_config.validate,
         "repo_manager_config.yml": repo_manager_config.validate,
     }
 

@@ -39,16 +39,14 @@ CSV_FILE_PATH_DEFAULT = [
     os.path.join(REPO_MANAGER_LOG_DIR, "aarch64/status_results_table.csv")  # nosec B108
 ]
 DEFAULT_REPO_STORE_PATH = OMNIA_BASE_DIR
-USER_JSON_FILE_DEFAULT = ""
 DEFAULT_STATUS_FILENAME = "status.csv"
-STATUS_CSV_HEADER = 'name,type,repo_name,status\n'
+STATUS_CSV_HEADER = 'name,type,repo_name,status,catalog_name\n'
 SOFTWARE_CSV_HEADER = "name,status"
 
 # ----------------------------
 # Software tasklist Defaults
 # ----------------------------
 LOCAL_REPO_CONFIG_PATH_DEFAULT = os.path.join(PROJECT_DEFAULT_DIR, "repo_manager_config.yml")
-SOFTWARE_CONFIG_PATH_DEFAULT = os.path.join(PROJECT_DEFAULT_DIR, "software_config.json")
 SOFTWARE_CSV_FILENAME = "software.csv"
 FRESH_INSTALLATION_STATUS = True
 
@@ -154,6 +152,15 @@ STANDARD_LOG_FILE_PATH = os.path.join(REPO_MANAGER_LOG_DIR, "standard.log")
 # ----------------------------
 CERT_KEYS = ["sslcacert", "sslclientkey", "sslclientcert"]
 
+# ----------------------------
+# Multi-Catalog Settings
+# ----------------------------
+MIRROR_STATUS_DIR = "mirror_status"
+MIRROR_INDEX_FILENAME = "mirror_index.json"
+CATALOG_STATUS_SUFFIX = "_catalog_status.json"
+PACKAGE_STATUS_CSV_HEADER = 'name,type,repo_name,status,catalog_name\n'
+GROUP_STATUS_CSV_HEADER = 'name,status\n'
+
 __all__ = [
     "DEFAULT_NTHREADS",
     "DEFAULT_TIMEOUT",
@@ -162,12 +169,10 @@ __all__ = [
     "DEFAULT_SLOG_FILE",
     "CSV_FILE_PATH_DEFAULT",
     "DEFAULT_REPO_STORE_PATH",
-    "USER_JSON_FILE_DEFAULT",
     "DEFAULT_STATUS_FILENAME",
     "STATUS_CSV_HEADER",
     "SOFTWARE_CSV_HEADER",
     "LOCAL_REPO_CONFIG_PATH_DEFAULT",
-    "SOFTWARE_CONFIG_PATH_DEFAULT",
     "SOFTWARE_CSV_FILENAME",
     "FRESH_INSTALLATION_STATUS",
     "PACKAGE_TYPES",
@@ -211,4 +216,9 @@ __all__ = [
     "AGGREGATED_BASE_PATH_TEMPLATE",
     "STANDARD_LOG_FILE_PATH",
     "CERT_KEYS",
+    "MIRROR_STATUS_DIR",
+    "MIRROR_INDEX_FILENAME",
+    "CATALOG_STATUS_SUFFIX",
+    "PACKAGE_STATUS_CSV_HEADER",
+    "GROUP_STATUS_CSV_HEADER",
 ]

@@ -36,8 +36,13 @@ repo_manager_metadata_support: false
 # OMNIA BASE DIRECTORY CONFIGURATION
 # -----------------------------------------------------------------------------
 # Runtime-generated files (Pulp config, RHEL entitlement certificates) live
-# outside the repo_manager source tree at /opt/omnia.
-omnia_base_dir: "/opt/omnia"
+# outside the repo_manager source tree.
+# Reads from OMNIA_DATA_PATH environment variable (default: /opt/omnia)
+omnia_base_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+
+# Project name from environment variable (default: project_default)
+# Reads from OMNIA_PROJECT_NAME environment variable
+omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default(project_default, true) }}"
 
 # -----------------------------------------------------------------------------
 # DATA DIRECTORIES
@@ -49,10 +54,11 @@ repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
 # -----------------------------------------------------------------------------
 # CONSTRUCTED PATHS
 # -----------------------------------------------------------------------------
-# Input path matches domain-init.sh destination: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
-input_project_dir: "{{ omnia_base_dir }}/repo_manager/input/{{ project_name | default(project_default) }}"
-# Output path follows standard: <shared_path>/output/<project_name>/
-output_project_dir: "{{ omnia_base_dir }}/repo_manager/output/{{ project_name | default(project_default) }}"
+# Input path: <OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/
+# Example: /opt/omnia/repo_manager/input/project_default/
+input_project_dir: "{{ omnia_base_dir }}/repo_manager/input/{{ project_name | default(omnia_project_name) }}"
+# Output path: <OMNIA_DATA_PATH>/repo_manager/output/<OMNIA_PROJECT_NAME>/
+output_project_dir: "{{ omnia_base_dir }}/repo_manager/output/{{ project_name | default(omnia_project_name) }}"
 output_dir: "{{ output_project_dir }}"
 log_dir: "{{ repo_manager_log_dir }}"
 repo_store_path: "{{ omnia_base_dir }}"
