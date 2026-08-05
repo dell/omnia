@@ -1,0 +1,26 @@
+---
+galaxy_info:
+  role_name: validate_arm_config
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Validate ARM64/aarch64 configuration for compute node provisioning
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - arm64
+    - aarch64
+    - validation
+    - configuration
+
+dependencies:
+  - role: fetch_arm_params

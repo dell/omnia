@@ -1,0 +1,7 @@
+---
+requires_ansible: '>=2.19.0'
+action_groups:
+  omnia_utils:
+    - fetch_credential_rule
+    - fetch_telemetry_status
+    - validate_credentials
