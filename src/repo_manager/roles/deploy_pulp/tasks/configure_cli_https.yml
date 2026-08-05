@@ -18,9 +18,13 @@
     file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
     name: endpoint_config
 
-- name: Set Pulp server IP from endpoint config
+- name: Get pulp_server_ip from environment variable if not in config
   ansible.builtin.set_fact:
-    pulp_server_ip: "{{ endpoint_config.pulp_server_ip }}"
+    pulp_server_ip_from_env: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') }}"
+
+- name: Set Pulp server IP from endpoint config or environment
+  ansible.builtin.set_fact:
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(pulp_server_ip_from_env) }}"
 
 - name: Validate Pulp password is provided
   ansible.builtin.fail:
@@ -44,6 +48,19 @@
     dest: "{{ config_default_loc }}"
     mode: "{{ logs_dir_permission }}"
     remote_src: true
+
+- name: Ensure user config directory exists
+  ansible.builtin.file:
+    path: /root/.config/pulp
+    state: directory
+    mode: '0755'
+
+- name: Create symbolic link to CLI config in user directory
+  ansible.builtin.file:
+    src: "{{ pulp_config_filepath }}"
+    dest: /root/.config/pulp/cli.toml
+    state: link
+    force: true
 
 - name: Run pulp status command
   ansible.builtin.command: /usr/local/bin/pulp status

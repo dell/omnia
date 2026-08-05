@@ -110,15 +110,16 @@
       failed_when: false
       tags: always
 
-    - name: Load software_config JSON
-      ansible.builtin.set_fact:
-        software_config: "{{ lookup('file', input_project_dir + '/software_config.json') | from_json }}"
+    - name: Load repo_manager_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/repo_manager_config.yml"
+        name: repo_manager_config
 
-    - name: Set cluster OS version
+    - name: Set cluster OS details from catalog config
       ansible.builtin.set_fact:
-        cluster_os_version: "{{ software_config.cluster_os_version }}"
-        cluster_os_type: "{{ software_config.cluster_os_type }}"
-        repo_config: "{{ software_config.repo_config | default('partial') }}"
+        cluster_os_version: "{{ (repo_manager_config.repositories | dict2items | first).key | default('10.0') }}"
+        cluster_os_type: "rhel"
+        repo_config: "{{ repo_manager_config.repo_config | default('partial') }}"
 
     # -------------------------------------------------------------------------
     # PHASE 2: CREDENTIALS

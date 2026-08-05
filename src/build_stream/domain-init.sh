@@ -91,7 +91,6 @@ _load_env() {
 # ---------------------------------------------------------------------------
 _check_existing_files() {
     local dest_dir="$1"
-    local label="$2"
 
     # No destination — safe to proceed
     [ -d "$dest_dir" ] || return 0
@@ -110,18 +109,28 @@ _check_existing_files() {
     echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: ${existing_count} file(s) already exist in ${dest_dir}${NC}"
     echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
 
+    # List files that would be overwritten
+    local src_dir="$SCRIPT_DIR/input"
+    local overwrite_list
+    overwrite_list=$(cd "$src_dir" && find . -type f | sed 's|^\./||' | sort)
+    for f in $overwrite_list; do
+        if [ -f "$dest_dir/$f" ]; then
+            echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
+        fi
+    done
+
     # Non-interactive check (piped input, cron, etc.)
     if [ ! -t 0 ]; then
         echo -e "  ${RED}[${DOMAIN_NAME}] Non-interactive mode — skipping overwrite. Use --force to override.${NC}"
         return 1
     fi
 
-    echo -en "  ${YELLOW}Overwrite existing ${label} files? [y/N]: ${NC}"
+    echo -en "  ${YELLOW}Overwrite existing files for project '${OMNIA_PROJECT_NAME}'? [y/N]: ${NC}"
     read -r response
     case "$response" in
         [yY]|[yY][eE][sS]) return 0 ;;
         *)
-            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped ${label} — no files overwritten${NC}"
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped project '${OMNIA_PROJECT_NAME}' — no files overwritten${NC}"
             return 1
             ;;
     esac
@@ -174,19 +183,55 @@ copy_app_source() {
 }
 
 # ---------------------------------------------------------------------------
-# Copy input files for a single project
+# Copy flat input/ files to the runtime project directory
+# Source:  src/build_stream/input/            (flat — no project subdirectory)
+# Dest:   <OMNIA_DATA_PATH>/build_stream/input/<project>/
 # ---------------------------------------------------------------------------
-copy_project_input() {
-    local project="$1"
-    local src_dir="$SCRIPT_DIR/input/${project}"
-    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${project}"
+copy_input_files() {
+    local src_dir="$SCRIPT_DIR/input"
+    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${OMNIA_PROJECT_NAME}"
 
     if [ ! -d "$src_dir" ]; then
-        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory for project '${project}' at ${src_dir} — skipping${NC}"
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
         return 0
     fi
 
-    if ! _check_existing_files "$dest_dir" "input/${project}"; then
+    # Check that source has files (ignore subdirectories)
+    local src_count
+    src_count=$(find "$src_dir" -maxdepth 1 -type f 2>/dev/null | wc -l)
+    if [ "$src_count" -eq 0 ]; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input files in ${src_dir} — skipping${NC}"
+        return 0
+    fi
+
+    # Check for existing files and prompt if needed
+    if ! _check_existing_files "$dest_dir"; then
+        return 0
+    fi
+
+    mkdir -p "$dest_dir"
+
+    # Use rsync if available (preserves permissions, only copies changed files)
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
+    else
+        cp -a "$src_dir"/. "$dest_dir/"
+    fi
+
+    local count
+    count=$(find "$dest_dir" -type f | wc -l)
+    echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
+}
+
+# ---------------------------------------------------------------------------
+# Copy examples directory (used by GitLab hosted mode)
+# ---------------------------------------------------------------------------
+copy_examples() {
+    local src_dir="$SCRIPT_DIR/examples"
+    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/examples"
+
+    if [ ! -d "$src_dir" ]; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No examples directory at ${src_dir} — skipping${NC}"
         return 0
     fi
 
@@ -200,31 +245,7 @@ copy_project_input() {
 
     local count
     count=$(find "$dest_dir" -type f | wc -l)
-    echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} input file(s) for project '${project}' -> ${dest_dir}${NC}"
-}
-
-# ---------------------------------------------------------------------------
-# Copy top-level input config files (not in a project subdirectory)
-# ---------------------------------------------------------------------------
-copy_top_level_config() {
-    local src_dir="$SCRIPT_DIR/input"
-    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input"
-
-    mkdir -p "$dest_dir"
-
-    # Copy top-level .yml files from input/ (not subdirectories)
-    local copied=0
-    for src_file in "$src_dir"/*.yml; do
-        [ -f "$src_file" ] || continue
-        local basename
-        basename=$(basename "$src_file")
-        cp -a "$src_file" "$dest_dir/$basename"
-        copied=$((copied + 1))
-    done
-
-    if [ "$copied" -gt 0 ]; then
-        echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${copied} top-level config file(s) -> ${dest_dir}${NC}"
-    fi
+    echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied examples directory (${count} files) → ${dest_dir}${NC}"
 }
 
 # ---------------------------------------------------------------------------
@@ -242,21 +263,11 @@ main() {
     # 2. Copy app source code to NFS
     copy_app_source
 
-    # 3. Copy top-level input config files
-    copy_top_level_config
+    # 3. Copy input files from flat input/ to input/<project>/
+    copy_input_files
 
-    # 4. Copy input files for the configured project
-    copy_project_input "$OMNIA_PROJECT_NAME"
-
-    # 5. Copy any other project directories that exist in input/
-    for project_dir in "$SCRIPT_DIR/input"/*/; do
-        [ -d "$project_dir" ] || continue
-        local project
-        project=$(basename "$project_dir")
-        if [ "$project" != "$OMNIA_PROJECT_NAME" ]; then
-            copy_project_input "$project"
-        fi
-    done
+    # 4. Copy examples directory (used by GitLab hosted mode)
+    copy_examples
 }
 
 main "$@"

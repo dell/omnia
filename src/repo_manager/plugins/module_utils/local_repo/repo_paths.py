@@ -39,6 +39,10 @@ PULP_SSL_CA_CERT = os.path.join(OMNIA_BASE_DIR, "pulp", "settings", "certs", "pu
 # Input project directory override (set by Ansible tasks when input is outside the source tree)
 PROJECT_DEFAULT_DIR = os.environ.get('REPO_MANAGER_INPUT_PROJECT_DIR') or PROJECT_DEFAULT_DIR
 
+# Catalog path override (set by Ansible tasks or user environment)
+# If not set, will fall back to catalog_config.catalog in repo_manager_config.yml
+CATALOG_PATH = os.environ.get('CATALOG_FILE_PATH')
+
 # Credentials paths for parallel tasks
 OMNIA_CREDENTIALS_YAML_PATH = os.path.join(PROJECT_DEFAULT_DIR, "repo_manager_config_credentials.yml")
 OMNIA_CREDENTIALS_VAULT_PATH = os.path.join(PROJECT_DEFAULT_DIR, ".repo_manager_config_credentials_key")
@@ -55,6 +59,7 @@ __all__ = [
     "REPO_MANAGER_DATA_DIR",
     "CLI_FILE_PATH",
     "PULP_SSL_CA_CERT",
+    "CATALOG_PATH",
     "OMNIA_CREDENTIALS_YAML_PATH",
     "OMNIA_CREDENTIALS_VAULT_PATH",
     "metadata_rerun_file_path",

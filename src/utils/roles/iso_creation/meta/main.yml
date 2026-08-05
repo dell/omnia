@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: iso_creation
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Create custom OS installation ISO images with Kickstart automation
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - iso
+    - kickstart
+
+dependencies: []
