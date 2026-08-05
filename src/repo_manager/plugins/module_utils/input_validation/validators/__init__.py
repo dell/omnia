@@ -15,11 +15,9 @@
 Validators package.
 
 This package contains validators for different configuration files:
-- software_config: Validates software_config.json
-- repo_manager_config: Validates repo_manager_config.yml
+- repo_manager_config: Validates repo_manager_config.yml (catalog-based approach)
 """
 
-from ansible.module_utils.input_validation.validators import software_config
 from ansible.module_utils.input_validation.validators import repo_manager_config
 
-__all__ = ['software_config', 'repo_manager_config']
+__all__ = ['repo_manager_config']

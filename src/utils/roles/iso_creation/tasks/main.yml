@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Step 1: Check if custom ISO already exists and prompt for action
+- name: Check if custom ISO already exists
+  ansible.builtin.stat:
+    path: "{{ repacked_iso_path }}"
+  register: custom_iso_stat
+
+- name: Prompt to use existing custom ISO or rebuild
+  ansible.builtin.pause:
+    prompt: |-
+      ==============================================================
+      Custom ISO already exists at:
+        {{ repacked_iso_path }}
+
+      Press ENTER to use the existing ISO.
+      Type 'r' then ENTER to rebuild the ISO.
+      ==============================================================
+  register: iso_reuse_prompt
+  when:
+    - custom_iso_stat.stat.exists
+    - not (silent_install | bool)
+
+- name: Set rebuild flag from user input
+  ansible.builtin.set_fact:
+    rebuild_iso: true
+  when:
+    - custom_iso_stat.stat.exists
+    - not (silent_install | bool)
+    - iso_reuse_prompt.user_input | default('') | lower in ['r', 'rebuild']
+
+# Step 2: Render kickstart file to iso_output directory
+- name: Render kickstart file
+  block:
+    - name: Render Kickstart from template
+      ansible.builtin.template:
+        src: "{{ kickstart_template }}.ks.j2"
+        dest: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+        mode: "0644"
+      when: kickstart_file | length == 0
+
+    - name: Process user-provided Kickstart
+      ansible.builtin.include_tasks: inject_user_kickstart.yml
+      vars:
+        kickstart_output_path: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+      when: kickstart_file | length > 0
+
+    - name: Log kickstart creation
+      ansible.builtin.debug:
+        msg: "Kickstart file created at {{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+
+# Step 3: Build custom ISO (if missing or rebuild requested)
+- name: Build custom ISO with NFS kickstart reference
+  ansible.builtin.include_tasks: build_nfs_iso.yml
+  when: not custom_iso_stat.stat.exists or (rebuild_iso | bool)

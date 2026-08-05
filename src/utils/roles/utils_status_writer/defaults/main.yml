@@ -1,0 +1,15 @@
+---
+# Status information
+utils_domain_status: "success"
+utils_playbook_name: ""
+utils_execution_start_time: ""
+utils_execution_end_time: ""
+
+# Results tracking
+utils_role_results: []
+utils_execution_errors: []
+utils_execution_warnings: []
+
+# Status file location
+omnia_data_path: "/opt/omnia"
+utils_status_file_path: "{{ omnia_data_path }}/utils/utils_status.yml"

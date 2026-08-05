@@ -19,6 +19,5 @@ engine.
 """
 
 from ansible.module_utils.input_validation.messages import common_messages
-from ansible.module_utils.input_validation.messages import software_messages
 
-__all__ = ['common_messages', 'software_messages']
+__all__ = ['common_messages']

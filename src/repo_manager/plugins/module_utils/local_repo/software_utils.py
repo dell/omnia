@@ -284,11 +284,13 @@ def transform_package_dict(data, arch_val, logger):
                 # Preserve repo_name if available
                 if "repo_name" in item:
                     repo_mapping[item["package"]] = item["repo_name"]
+                    logger.debug(f"Added repo_mapping: {item['package']} -> {item['repo_name']}")
             elif item.get("type") == "rpm_list":
                 rpm_packages.extend(item["package_list"])
                 # Preserve repo_mapping if available
                 if "repo_mapping" in item:
                     repo_mapping.update(item["repo_mapping"])
+                    logger.debug(f"Merged repo_mapping from rpm_list: {item['repo_mapping']}")
             else:
                 transformed_items.append(item)
 
@@ -301,6 +303,7 @@ def transform_package_dict(data, arch_val, logger):
             # Add repo_mapping if we have any
             if repo_mapping:
                 rpm_task["repo_mapping"] = repo_mapping
+                logger.debug(f"Added repo_mapping to rpm_task for {sw_name}: {repo_mapping}")
             transformed_items.append(rpm_task)
 
         result[arch_val][sw_name] = transformed_items
@@ -352,7 +355,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
         sub_urls (dict): Mapping of architectures to subscription URLs that override
                          default RHEL URLs when provided.
         logger (logging.Logger): Logger instance used for structured logging of process steps.
-        sw_archs (list, optional): List of architectures to process based on software_config.json.
+        sw_archs (list, optional): List of architectures to process from catalog configuration.
                                    If None, defaults to ARCH_SUFFIXES.
         cluster_os_type (str): The cluster OS type (e.g., 'rhel').
         cluster_os_version (str): The cluster OS version (e.g., '10.0').
@@ -1072,7 +1075,7 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
 
     Args:
         local_repo_config_path (str): The path to the local repository configuration file.
-        repo_config (str): Global repo configuration policy from software_config.json.
+        repo_config (str): Global repo configuration policy from repo_manager_config.yml.
         vault_key_path (str): Ansible vault key path for decrypting SSL certificates.
         logger (logging.Logger): Logger instance for structured logging.
 
