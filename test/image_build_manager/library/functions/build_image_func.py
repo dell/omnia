@@ -393,12 +393,16 @@ def check_s3_bucket_images(
 ) -> Dict[str, Any]:
     """Verify images are pushed to S3 for all configured groups.
 
+    Performs fast pre-check of S3 bucket existence before attempting
+    expensive recursive listing. Bails out early if bucket missing.
+
     Args:
         host: testinfra host object
         arch: Architecture filter (x86_64 or aarch64)
 
     Returns:
         Dict with 'success', 'results', 'details', 'error'.
+        Returns success=False immediately if S3 bucket doesn't exist.
     """
     groups = get_configured_functional_groups(host, arch=arch)
     if not groups:
@@ -411,6 +415,25 @@ def check_s3_bucket_images(
                 "skipping S3 check"
             ),
             "error": None,
+        }
+
+    # Fast pre-check: verify the boot-images bucket exists before
+    # running the expensive recursive listing (s3cmd ls -Hr can take
+    # 45+ seconds against a non-existent bucket).
+    bucket_result = check_s3_buckets(host)
+    if S3_BOOT_IMAGES_BUCKET not in bucket_result.get("found", []):
+        return {
+            "success": False,
+            "skipped": False,
+            "results": [],
+            "details": (
+                f"S3 bucket {S3_BOOT_IMAGES_BUCKET} does not exist "
+                "— skipping per-image check"
+            ),
+            "error": (
+                f"S3 bucket {S3_BOOT_IMAGES_BUCKET} not found. "
+                "Run the playbook or: run_validation image_build_manager deploy"
+            ),
         }
 
     s3_cmd = host.run(
@@ -881,12 +904,16 @@ def verify_image_packages(
 ) -> Dict[str, Any]:
     """Download S3 images, mount, and verify RPM packages.
 
+    Performs fast pre-check of S3 bucket existence before attempting
+    image download. Bails out early if bucket missing.
+
     Args:
         host: testinfra host object
         arch: Architecture filter
 
     Returns:
         Dict with 'success', 'results', per-group package details.
+        Returns prerequisite_failed=True if S3 bucket doesn't exist.
     """
     squashfs = _check_squashfs_tools(host)
     if not squashfs["installed"]:
@@ -908,6 +935,20 @@ def verify_image_packages(
 
     temp_image = IMAGE_VERIFY_TEMP_IMAGE
     temp_mount = IMAGE_VERIFY_TEMP_MOUNT
+
+    # Fast pre-check: verify the boot-images bucket exists before
+    # running the expensive recursive listing.
+    bucket_result = check_s3_buckets(host)
+    if S3_BOOT_IMAGES_BUCKET not in bucket_result.get("found", []):
+        return {
+            "success": False,
+            "prerequisite_failed": True,
+            "results": [],
+            "error": (
+                f"S3 bucket {S3_BOOT_IMAGES_BUCKET} not found. "
+                "Run the playbook or: run_validation image_build_manager deploy"
+            ),
+        }
 
     # Cleanup before start
     host.run(CMDS["umount"].format(flags="", path=temp_mount))

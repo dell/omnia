@@ -258,8 +258,22 @@ for name in cfg.get('scenarios', {}):
     print(name)
 ")
 
+    # Read global overrides (dataset, sync_input, sync_output)
+    local global_dataset global_sync_input global_sync_output
+    eval "$(python3 -c "
+import yaml
+with open('${CONFIG_FILE}') as f:
+    cfg = yaml.safe_load(f) or {}
+ds = cfg.get('dataset_override', '')
+si = cfg.get('sync_input_override', '')
+so = cfg.get('sync_output_override', '')
+print(f'global_dataset={ds}')
+print(f'global_sync_input={str(si).lower() if si != \"\" else \"\"}')
+print(f'global_sync_output={str(so).lower() if so != \"\" else \"\"}')
+")"
+
     for name in $scenario_names; do
-        local run_flag marker_cfg suite_cfg
+        local run_flag marker_cfg suite_cfg dataset_cfg sync_input_cfg sync_output_cfg
         eval "$(python3 -c "
 import yaml
 with open('${CONFIG_FILE}') as f:
@@ -269,6 +283,9 @@ print(f'run_flag={str(sc.get(\"run\", False)).lower()}')
 print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 print(f'suite_cfg={sc.get(\"suite\", \"\")}')
 print(f'command_cfg={sc.get(\"command\", \"test\")}')
+print(f'dataset_cfg={sc.get(\"dataset\", \"\")}')
+print(f'sync_input_cfg={str(sc.get(\"sync_input\", \"\")).lower()}')
+print(f'sync_output_cfg={str(sc.get(\"sync_output\", \"\")).lower()}')
 ")"
         total=$((total + 1))
         if [[ "$run_flag" != "true" ]]; then
@@ -277,13 +294,26 @@ print(f'command_cfg={sc.get(\"command\", \"test\")}')
             continue
         fi
 
-        echo -e "  ${CYAN}RUN${NC}   ${name} (command=${command_cfg:-test}, marker=${marker_cfg:-none}, suite=${suite_cfg:-all})"
+        # Resolve dataset: global override > per-scenario > test_config.yml default
+        local effective_dataset="${global_dataset:-${dataset_cfg}}"
+        local effective_sync_input="${global_sync_input:-${sync_input_cfg}}"
+        local effective_sync_output="${global_sync_output:-${sync_output_cfg}}"
+
+        local dataset_info=""
+        [[ -n "$effective_dataset" ]] && dataset_info=", dataset=${effective_dataset}"
+        echo -e "  ${CYAN}RUN${NC}   ${name} (command=${command_cfg:-test}, marker=${marker_cfg:-none}, suite=${suite_cfg:-all}${dataset_info})"
 
         local extra_args=""
         [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
         [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
 
-        if "$0" "$name" "${command_cfg:-test}" $extra_args; then
+        # Pass dataset/sync overrides as environment variables
+        local -a env_vars=()
+        [[ -n "$effective_dataset" ]] && env_vars+=("OMNIA_DATASET_OVERRIDE=${effective_dataset}")
+        [[ -n "$effective_sync_input" ]] && env_vars+=("OMNIA_SYNC_INPUT_OVERRIDE=${effective_sync_input}")
+        [[ -n "$effective_sync_output" ]] && env_vars+=("OMNIA_SYNC_OUTPUT_OVERRIDE=${effective_sync_output}")
+
+        if env "${env_vars[@]}" "$0" "$name" "${command_cfg:-test}" $extra_args; then
             echo -e "  ${GREEN}PASS${NC}  ${name}"
             passed=$((passed + 1))
         else

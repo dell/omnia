@@ -51,6 +51,7 @@ from omnia_auto import (
     set_current_report,
     get_current_report,
     get_test_output,
+    get_last_tc_id,
     encrypt_test_credentials,
     log,
     add_session_result,
@@ -191,6 +192,36 @@ def pytest_collection_modifyitems(session, config, items):
 # SESSION STARTUP — ENCRYPT, CLONE, SYNC
 # =============================================================================
 
+def _apply_dataset_overrides(config):
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_image_build_input"]
+      OMNIA_SYNC_OUTPUT_OVERRIDE  — override config["sync_output"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
+    ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    if ds_override:
+        log(f"Dataset override: {config.get('dataset')} → {ds_override}", "INFO")
+        config["dataset"] = ds_override
+
+    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+    if si_override:
+        config["sync_image_build_input"] = si_override.lower() == "true"
+
+    so_override = os.environ.get("OMNIA_SYNC_OUTPUT_OVERRIDE", "")
+    if so_override:
+        config["sync_output"] = so_override.lower() == "true"
+
+    return config
+
+
 def pytest_sessionstart(session):
     """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
     # Validate config first — fail fast with clear errors
@@ -208,6 +239,10 @@ def pytest_sessionstart(session):
         pass
 
     config = load_test_config()
+
+    # Apply dataset/sync overrides from env vars (set by --config mode)
+    config = _apply_dataset_overrides(config)
+
     host = get_testinfra_host()
 
     if not is_local_execution():
@@ -307,11 +342,8 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    # Extract TC ID from docstring (format: "TC_XX_NNN: ...")
-    tc_id = ""
-    doc = getattr(item.obj, "__doc__", "") or ""
-    if doc.strip().startswith("TC_"):
-        tc_id = doc.strip().split(":", 1)[0].strip()
+    # Get TC ID from TestLogger (set during test execution)
+    tc_id = get_last_tc_id()
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(

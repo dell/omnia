@@ -51,6 +51,38 @@ Both datasets share the same `image_build_config.yml`, `package_groups.yml`, and
 `image_build_credentials.yml` input files. The difference is the `repo_status.yml`
 in `repo_manager_output/` which determines where RPM packages are fetched from.
 
+## Switching Datasets
+
+### Method 1: Edit `test_config.yml` (permanent)
+```yaml
+dataset: "data_set_02"
+```
+
+### Method 2: Per-scenario override in `test_run_config.yml`
+```yaml
+scenarios:
+  prepare:
+    run: true
+    command: "test"
+    dataset: "data_set_02"      # Override for this scenario only
+    sync_input: true             # Sync input files before running
+```
+
+### Method 3: Global override in `test_run_config.yml`
+```yaml
+dataset_override: "data_set_02"   # Applies to ALL scenarios
+sync_input_override: true
+```
+
+### Method 4: Environment variable (one-off)
+```bash
+OMNIA_DATASET_OVERRIDE=data_set_02 ./run_validation.sh build verify
+```
+
+**Priority order**: env var > global override > per-scenario > test_config.yml default.
+
+Invalid dataset names are caught at startup with an error listing available datasets.
+
 ## Creating a New Dataset
 
 ```bash

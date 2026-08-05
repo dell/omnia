@@ -102,11 +102,21 @@ def validate_test_config() -> Dict[str, Any]:
         errors.extend(_validate_ip(str(oim_ip), "oim_server_ip"))
 
     # --- Dataset validation ---
-    dataset = config["dataset"]
+    # Check env override first, then config value
+    dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
     dataset_path = os.path.join(_MODULE_ROOT, "datasets", dataset)
     if not os.path.isdir(dataset_path):
+        available = [
+            d for d in os.listdir(
+                os.path.join(_MODULE_ROOT, "datasets")
+            )
+            if os.path.isdir(
+                os.path.join(_MODULE_ROOT, "datasets", d)
+            )
+        ]
         errors.append(
-            f"Dataset directory not found: datasets/{dataset}/"
+            f"Dataset directory not found: datasets/{dataset}/. "
+            f"Available: {', '.join(sorted(available))}"
         )
     else:
         for rel_file in REQUIRED_DATASET_FILES:

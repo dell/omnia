@@ -31,19 +31,19 @@ TEST_CASES = {
     # ── Deploy (one per scenario) ─────────────────────────────────────────
     "deploy_validate": {
         "id": "TC_VL_001",
-        "title": "Deploy image_build_manager --tags validate",
+        "title": "Deploy image_build_manager (validate)",
     },
     "deploy_prepare": {
         "id": "TC_PR_001",
-        "title": "Deploy image_build_manager --tags prepare",
+        "title": "Deploy image_build_manager (prepare)",
     },
     "deploy_build": {
         "id": "TC_BD_001",
-        "title": "Deploy image_build_manager --tags build",
+        "title": "Deploy image_build_manager (build)",
     },
     "deploy_cleanup": {
         "id": "TC_CL_001",
-        "title": "Deploy image_build_manager --tags cleanup",
+        "title": "Deploy image_build_manager (cleanup)",
     },
     "deploy_full": {
         "id": "TC_IB_000",
