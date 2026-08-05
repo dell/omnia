@@ -110,7 +110,10 @@
 
     - name: Set catalog path
       ansible.builtin.set_fact:
-        catalog_path: "{{ input_project_dir }}/catalog/catalog_rhel.json"
+        catalog_path: >-
+          {{ lookup('env', 'CATALOG_FILE_PATH') |
+             default((input_project_dir | default('/opt/omnia/repo_manager/input/project_default')) +
+                     '/catalog/catalog_rhel.json', true) }}
 
     - name: Load catalog JSON
       ansible.builtin.set_fact:
@@ -118,8 +121,8 @@
 
     - name: Set cluster OS facts from catalog
       ansible.builtin.set_fact:
-        cluster_os_type: "{{ (catalog_data.Catalog.Name | lower | regex_search('(rhel|rocky|almalinux)')) | default('rhel') }}"
-        cluster_os_version: "{{ (catalog_data.Catalog.Name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
+        cluster_os_type: "{{ (catalog_data.catalog.name | lower | regex_search('(rhel)')) | default('rhel') }}"
+        cluster_os_version: "{{ (catalog_data.catalog.name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
         repo_config: "{{ repo_manager_config_data.repo_config_policy | default('partial') }}"
 
     - name: Display Pulp connection info
