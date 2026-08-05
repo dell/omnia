@@ -21,15 +21,6 @@
 # PULP SERVER ENDPOINT
 # =============================================================================
 
-# Pulp server IP address
-# NOTE: This field is OPTIONAL. If not provided, the system will automatically
-#       read from the SYSTEM_ADMIN_NIC_IPV4 environment variable.
-#       Environment variables are set when you run: source /opt/omnia/activate-omnia.sh
-#
-# ONLY set this if you need to override the environment variable.
-# Example: pulp_server_ip: "172.16.107.254"
-# pulp_server_ip: "xx.xx.xx.xx"
-
 # Pulp server port
 pulp_server_port: 2225
 
