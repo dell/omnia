@@ -16,7 +16,6 @@
 - name: Prepare software packages tasklist
   prepare_tasklist:
     csv_file_path: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
-    user_json_file: "{{ sw_config_json_path }}"
     local_repo_config_path: "{{ local_repo_config_path }}"
     log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     key_path: "{{ project_input_path }}"
@@ -27,7 +26,7 @@
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
   register: result
 
-- name: Process URL mirrors from local_repo_config
+- name: Process URL mirrors from repo_manager_config
   process_rpm_config:
     local_config: "{{ result.local_config }}"
     log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"

@@ -67,7 +67,6 @@ OMNIA_REDHAT_REPO = os.path.join(OMNIA_BASE_DIR, "rhel_repo_certs", "redhat.repo
 files = {
     "repo_manager_config": "repo_manager_config.yml",
     "repo_manager_endpoint_config": "repo_manager_endpoint_config.yml",
-    "software_config": "software_config.json",
     "omnia_config": "omnia_config.yml",
     "provision_config": "provision_config.yml",
     "storage_config": "storage_config.yml"
@@ -83,12 +82,11 @@ extensions = {
 # =============================================================================
 
 input_file_inventory = {
-    "local_repo": [files["repo_manager_config"], files["software_config"]],
-    "repo_manager": [files["repo_manager_config"], files["software_config"]],
+    "local_repo": [files["repo_manager_config"]],
+    "repo_manager": [files["repo_manager_config"]],
     "all": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
-        files["software_config"]
     ],
 }
 
