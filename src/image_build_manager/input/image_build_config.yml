@@ -68,16 +68,16 @@ s3_configurations:
 # Each type uses its own config templates and container image.
 image_build_type: "image-builder"
 
-# build_image: Concurrency and timing controls for the build phase.
-#   max_parallel — Max concurrent image builds. 0 = unlimited (all at once).
-#   job_async    — Max async wait per build in seconds.
-#   job_retry    — Max poll retries for async status check.
-#   job_delay    — Delay in seconds between async poll retries.
+# build_image: Concurrency, timing, and caching controls for the build phase.
+#   max_parallel  — Max concurrent image builds. 0 = unlimited (all at once).
+#   build_timeout — Max time per image build in seconds (default: 7200 = 2 hours).
+#                   Passed as timeout to the Python image_build_orchestrator.
+#   force_rebuild — Bypass package hash cache and rebuild all images.
+#                   Set to true to ignore cached hashes. Default: false.
 build_image:
   max_parallel: 0
-  job_async: 7200
-  job_retry: 240
-  job_delay: 30
+  build_timeout: 7200
+  force_rebuild: false
 
 
 # ---------------------------------------------------------------------------

@@ -23,8 +23,8 @@
   block:
     - name: Set compute image suffix from image tag
       ansible.builtin.set_fact:
-        compute_image_suffix: "{{ _image_tag_suffix | default('') }}"
-      when: (_image_tag_suffix | default('') | length) > 0
+        compute_image_suffix: "{{ _image_tag_suffix | default('', true) }}"
+      when: (_image_tag_suffix | default('', true) | length) > 0
 
     # --- Pre-build setup ---
     # 1. Ensure workdir + log directories exist
@@ -59,6 +59,85 @@
       loop_control:
         loop_var: item
 
+    # --- Compute image cache check ---
+    # Per-group hash of packages to detect changes. Skip groups whose
+    # package hash matches the previous build (unless force_rebuild is set).
+    - name: Compute per-group package hashes
+      ansible.builtin.set_fact:
+        _compute_pkg_hashes: >-
+          {% set result = {} -%}
+          {% for fg_name, fg_data in compute_images_dict.items() -%}
+            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') | hash('sha256'))}) -%}
+          {% endfor -%}
+          {{ result }}
+
+    - name: Check previous compute image package hashes
+      ansible.builtin.slurp:
+        src: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
+      register: _prev_compute_hashes
+      failed_when: false
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
+    - name: Determine which compute groups need rebuild
+      ansible.builtin.set_fact:
+        _compute_rebuild_dict: >-
+          {% set result = {} -%}
+          {% set prev_map = {} -%}
+          {% for r in _prev_compute_hashes.results -%}
+            {% if r is not failed and r.content is defined -%}
+              {% set _ = prev_map.update({r.item.key: (r.content | b64decode | trim)}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {% for fg_name, fg_data in compute_images_dict.items() -%}
+            {% set cur_hash = _compute_pkg_hashes[fg_name] -%}
+            {% set prev_hash = prev_map.get(fg_name, '') -%}
+            {% if (force_rebuild | default(false) | bool) or prev_hash != cur_hash -%}
+              {% set _ = result.update({fg_name: fg_data}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ result }}
+        _compute_skipped_groups: >-
+          {% set skipped = [] -%}
+          {% set prev_map = {} -%}
+          {% for r in _prev_compute_hashes.results -%}
+            {% if r is not failed and r.content is defined -%}
+              {% set _ = prev_map.update({r.item.key: (r.content | b64decode | trim)}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {% for fg_name in compute_images_dict.keys() -%}
+            {% set cur_hash = _compute_pkg_hashes[fg_name] -%}
+            {% set prev_hash = prev_map.get(fg_name, '') -%}
+            {% if not (force_rebuild | default(false) | bool) and prev_hash == cur_hash -%}
+              {% set _ = skipped.append(fg_name) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ skipped }}
+
+    - name: Report skipped compute groups (packages unchanged)
+      ansible.builtin.debug:
+        msg: >-
+          Skipping x86_64 compute image builds for groups with unchanged packages:
+          {{ _compute_skipped_groups | join(', ') }}.
+          Set force_rebuild: true in image_build_config.yml to override.
+      when: (_compute_skipped_groups | default([]) | length) > 0
+
+    # --- Backup existing compute images before rebuild ---
+    - name: Backup existing x86_64 compute images before rebuild
+      ansible.builtin.command:
+        cmd: >-
+          /usr/local/bin/regctl image copy
+          {{ registry_host }}:5000/{{ oim_node_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}:{{ item.value.os_version | default(rhel_tag, true) }}
+          {{ registry_host }}:5000/{{ oim_node_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}:{{ item.value.os_version | default(rhel_tag, true) }}_prev
+      changed_when: true
+      failed_when: false
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
     # --- Build via Python orchestrator ---
     # image_build_orchestrator handles ALL concurrency modes:
     #   max_parallel=0 → unlimited (all builds fire at once)
@@ -68,7 +147,7 @@
       ansible.builtin.set_fact:
         _orchestrator_cmds: []
 
-    - name: Build orchestrator command list
+    - name: Build orchestrator command list (only groups needing rebuild)
       ansible.builtin.set_fact:
         _orchestrator_cmds: "{{ _orchestrator_cmds + [_current_cmd] }}"
       vars:
@@ -86,29 +165,49 @@
             {{ ochami_image | join(' ') }}
             {{ ochami_base_command | join(' ') }}
           log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
-      loop: "{{ compute_images_dict | dict2items }}"
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
         loop_var: item
 
-    - name: "Starting x86_64 compute image builds — groups {{ compute_images_dict | length }}"
+    - name: Skip x86_64 compute builds (all groups cached)
+      ansible.builtin.debug:
+        msg: "All x86_64 compute images are up-to-date — skipping builds."
+      when: (_orchestrator_cmds | length) == 0
+
+    - name: "Starting x86_64 compute image builds — groups {{ _compute_rebuild_dict | default({}) | length }}"
       ansible.builtin.debug:
         msg: >-
           Starting x86_64 compute image builds:
-          groups={{ compute_images_dict.keys() | list }},
+          groups={{ _compute_rebuild_dict | default({}) | list }},
           max_parallel={{ max_parallel }},
-          timeout={{ job_async }}s,
+          timeout={{ build_timeout }}s,
           logs={{ image_build_log_dir }}/
+      when: (_orchestrator_cmds | length) > 0
 
     - name: Run x86_64 compute image builds via orchestrator
       image_build_orchestrator:
         build_commands: "{{ _orchestrator_cmds }}"
         max_parallel: "{{ max_parallel | int }}"
-        timeout: "{{ job_async | int }}"
+        timeout: "{{ build_timeout | int }}"
       register: orchestrator_result
+      when: (_orchestrator_cmds | length) > 0
 
     - name: Display x86_64 compute build summary
       ansible.builtin.debug:
         msg: "Build summary: {{ orchestrator_result.summary }}"
+      when: orchestrator_result is defined and orchestrator_result.summary is defined
+
+    # --- Save compute image package hashes for cache ---
+    - name: Save compute image package hashes
+      ansible.builtin.copy:
+        content: "{{ _compute_pkg_hashes[item.key] }}"
+        dest: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
+        mode: "{{ dir_permissions_644 }}"
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+      when: orchestrator_result is defined and (orchestrator_result.summary.failed | default(0) | int) == 0
 
     # --- Registry verification ---
     - name: List x86_64 compute osimages in registry

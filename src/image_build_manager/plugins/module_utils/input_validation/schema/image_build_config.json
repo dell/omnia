@@ -51,7 +51,7 @@
         },
         "build_image": {
             "type": "object",
-            "description": "Build image async job and concurrency settings.",
+            "description": "Build concurrency and timeout settings.",
             "properties": {
                 "max_parallel": {
                     "type": "integer",
@@ -60,26 +60,17 @@
                     "maximum": 64,
                     "default": 0
                 },
-                "job_async": {
+                "build_timeout": {
                     "type": "integer",
-                    "description": "Max async wait for image build (seconds).",
+                    "description": "Per-build timeout in seconds for the Python orchestrator.",
                     "minimum": 600,
                     "maximum": 86400,
                     "default": 7200
                 },
-                "job_retry": {
-                    "type": "integer",
-                    "description": "Max retries for async status check.",
-                    "minimum": 1,
-                    "maximum": 1000,
-                    "default": 240
-                },
-                "job_delay": {
-                    "type": "integer",
-                    "description": "Delay between async status checks (seconds).",
-                    "minimum": 5,
-                    "maximum": 300,
-                    "default": 30
+                "force_rebuild": {
+                    "type": "boolean",
+                    "description": "Bypass package hash cache and force rebuild of all images.",
+                    "default": false
                 }
             },
             "additionalProperties": false

@@ -250,7 +250,8 @@ def _resolve_layer_packages(
             os_ver = group.get("os_version", "")
             if os_ver and os_ver not in os_versions:
                 os_versions.append(os_ver)
-            os_type = group.get("os", "")
+            if not os_type and group.get("os"):
+                os_type = group["os"]
             if not is_baseos_layer:
                 continue
 
