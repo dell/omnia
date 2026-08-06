@@ -123,7 +123,7 @@ def test_deps_only_in_help(host):
     )
     result = run_omnia_cmd(host, "omnia_sh_help")
 
-    found = "--deps-only" in result.get("stdout", "")
+    found = "--deps-only" in result.get("output", "")
 
     if found:
         tl.passed(LOG["help_ok"])
