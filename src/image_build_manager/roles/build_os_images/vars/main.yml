@@ -143,7 +143,9 @@ selinux_install_warn_msg: >-
 s3_backup_skip_msg: >-
   S3 image backup disabled (backup_s3_images: false).
   Set backup_s3_images: true in image_build_config.yml to enable rollback capability.
-s3_backup_success_msg: "Backed up S3 compute images to *_prev for {{ _backup_count }} groups."
+s3_backup_rootfs_msg: "Backing up compute rootfs images: s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}/ → *_prev/"
+s3_backup_efi_msg: "Backing up compute EFI images: s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}/ → *_prev/"
+s3_backup_success_msg: "Backed up {{ _backup_count }} compute image groups (rootfs + EFI) to *_prev."
 s3_backup_failure_msg: >-
   S3 backup failed for some groups. Check s3cmd configuration and S3 bucket accessibility.
   Builds will continue but rollback may not be possible.
