@@ -15,7 +15,7 @@
 """
 Omnia Main Setup — Deploy.
 
-TC_SU_001: Deploy omnia.sh --setup-venv --skip-init
+TC_SU_001: Deploy omnia.sh --setup-venv --deps-only
 """
 
 import pytest
@@ -33,7 +33,7 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_setup_venv(host):
-    """TC_SU_001: Deploy omnia.sh --setup-venv --skip-init."""
+    """TC_SU_001: Deploy omnia.sh --setup-venv --deps-only."""
     tl = TestLogger(
         TEST_NAMES["deploy_setup_venv"], "TC_SU_001"
     )
