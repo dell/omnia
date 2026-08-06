@@ -72,12 +72,15 @@ image_build_type: "image-builder"
 #   max_parallel  — Max concurrent image builds. 0 = unlimited (all at once).
 #   build_timeout — Max time per image build in seconds (default: 7200 = 2 hours).
 #                   Passed as timeout to the Python image_build_orchestrator.
-#   force_rebuild — Bypass package hash cache and rebuild all images.
-#                   Set to true to ignore cached hashes. Default: false.
+#   force_rebuild    — Bypass package hash cache and rebuild all images.
+#                      Set to true to ignore cached hashes. Default: false.
+#   backup_s3_images — Copy existing S3 compute image artifacts to *_prev
+#                      before rebuilding. Enables rollback. Default: false.
 build_image:
   max_parallel: 0
   build_timeout: 7200
   force_rebuild: false
+  backup_s3_images: false
 
 
 # ---------------------------------------------------------------------------

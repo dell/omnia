@@ -125,21 +125,25 @@
           Set force_rebuild: true in image_build_config.yml to override.
       when: (_compute_skipped_groups | default([]) | length) > 0
 
-    # --- Backup existing compute images before rebuild ---
-    - name: Backup existing aarch64 compute images before rebuild
+    # --- Backup existing S3 compute images before rebuild ---
+    - name: Backup existing aarch64 compute images in S3
+      vars:
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
+        _s3_src: "s3://{{ _s3_bucket }}/boot-images/{{ item.key }}/{{ _img_name }}/"
+        _s3_dst: "s3://{{ _s3_bucket }}/boot-images/{{ item.key }}/{{ _img_name }}_prev/"
       ansible.builtin.command:
         cmd: >-
-          /usr/local/bin/regctl image copy
-          {{ registry_host }}:5000/{{ oim_node_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}:{{ item.value.os_version | default(rhel_tag, true) }}
-          {{ registry_host }}:5000/{{ oim_node_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}:{{ item.value.os_version | default(rhel_tag, true) }}_prev
+          s3cmd cp --recursive
+          {{ _s3_src }}
+          {{ _s3_dst }}
       changed_when: true
       failed_when: false
       loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
+      when: backup_s3_images | default(false) | bool
 
     # --- Build via Python orchestrator ---
     # NOTE: delegate_to sends the module to the aarch64 host for execution.

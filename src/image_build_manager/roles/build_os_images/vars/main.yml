@@ -37,6 +37,7 @@ repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 build_timeout: "{{ hostvars['localhost']['build_image_build_timeout'] | default(hostvars['localhost']['build_image_job_async'] | default(7200)) }}"
 max_parallel: "{{ hostvars['localhost']['build_image_max_parallel'] | default(0) }}"
 force_rebuild: "{{ hostvars['localhost']['build_image_force_rebuild'] | default(false) | bool }}"
+backup_s3_images: "{{ hostvars['localhost']['build_image_backup_s3_images'] | default(false) | bool }}"
 
 # ---------------------------------------------------------------------------
 # Build type switching: image-builder vs image-thrillhouse
@@ -137,3 +138,12 @@ selinux_install_warn_msg: >-
   WARNING: Failed to install omnia-crun-bpf SELinux policy module.
   Build will continue but may fail if the eBPF device filter issue is present.
   Check SELinux policy tools and audit log on this node.
+
+# S3 image backup messages
+s3_backup_skip_msg: >-
+  S3 image backup disabled (backup_s3_images: false).
+  Set backup_s3_images: true in image_build_config.yml to enable rollback capability.
+s3_backup_success_msg: "Backed up S3 compute images to *_prev for {{ _backup_count }} groups."
+s3_backup_failure_msg: >-
+  S3 backup failed for some groups. Check s3cmd configuration and S3 bucket accessibility.
+  Builds will continue but rollback may not be possible.

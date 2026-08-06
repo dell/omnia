@@ -76,41 +76,6 @@
       Delete {{ _base_hash_file }} to force rebuild.
   when: not (_base_rebuild_needed | bool)
 
-# --- Backup existing image before rebuild ---
-- name: Backup existing aarch64 base image before rebuild
-  when: _base_rebuild_needed | bool
-  block:
-    - name: Check if aarch64 base image exists in registry
-      ansible.builtin.command:
-        cmd: >-
-          /usr/local/bin/regctl tag ls
-          {{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}
-      register: _base_existing_tags
-      changed_when: false
-      failed_when: false
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
-
-    - name: Tag existing aarch64 base image as backup (_prev)
-      ansible.builtin.command:
-        cmd: >-
-          /usr/local/bin/regctl image copy
-          {{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ rhel_tag }}
-          {{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ rhel_tag }}_prev
-      changed_when: true
-      when:
-        - _base_existing_tags.rc == 0
-        - rhel_tag in (_base_existing_tags.stdout_lines | default([]))
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
-
-    - name: Report backup status
-      ansible.builtin.debug:
-        msg: >-
-          {{ 'Backed up existing base image as ' + rhel_arch_base_image_name + ':' + rhel_tag + '_prev'
-             if (_base_existing_tags.rc == 0 and rhel_tag in (_base_existing_tags.stdout_lines | default([])))
-             else 'No existing base image to backup — first build' }}
-
 # --- Build via Python orchestrator ---
 - name: Build aarch64 base image
   when: _base_rebuild_needed | bool

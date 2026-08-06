@@ -71,6 +71,11 @@
                     "type": "boolean",
                     "description": "Bypass package hash cache and force rebuild of all images.",
                     "default": false
+                },
+                "backup_s3_images": {
+                    "type": "boolean",
+                    "description": "Copy existing S3 compute image artifacts to *_prev before rebuilding.",
+                    "default": false
                 }
             },
             "additionalProperties": false

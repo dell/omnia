@@ -48,7 +48,7 @@
       {%- if (_job_id | default('', true) | length) > 0 -%}
         {%- set _ = parts.append(_job_id) -%}
       {%- endif -%}
-      {%- if parts | length > 0 %}_{{ parts | join('_') }}{%- else %}{%- endif %}
+      {{ ('_' + parts | join('_')) if parts | length > 0 else '' }}
 
 - name: Set omnia image naming suffix
   ansible.builtin.set_fact:
