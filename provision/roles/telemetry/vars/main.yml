@@ -53,7 +53,7 @@ idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idr
 kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}"
 victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}"
 
-activemq_image: "{{ telemetry_images['apache/activemq'] | default('docker.io/apache/activemq:5.19.7') }}"
+activemq_image: "{{ telemetry_images['apache/activemq'] | default('docker.io/apache/activemq:6.3.0') }}"
 activemq_http_port_1: 8161
 activemq_http_port_2: 61616
 messagebus_http_port: 61613
@@ -63,7 +63,7 @@ mysqldb_name: "idrac_telemetrydb"
 idrac_telemetry_service_name: "idrac-telemetry-service"
 mysqldb_container_port1: 3306
 mysqldb_container_port2: 33060
-mysql_image: "{{ telemetry_images['library/mysql'] | default('docker.io/library/mysql:9.3.0') }}"
+mysql_image: "{{ telemetry_images['library/mysql'] | default('docker.io/library/mysql:9.7.2') }}"
 pod_wait_timeout: "10m"
 kafka_skip_verify: true
 
@@ -147,7 +147,7 @@ victoria:
   container_name: "victoriametrics"
   service_name: "victoria-loadbalancer"
   container_port: 8443
-  image: "{{ telemetry_images['victoriametrics/victoria-metrics'] | default('victoriametrics/victoria-metrics:v1.128.0') }}"
+  image: "{{ telemetry_images['victoriametrics/victoria-metrics'] | default('victoriametrics/victoria-metrics:v1.149.0') }}"
   vmsingle:
     replicas: 2
 
@@ -177,7 +177,7 @@ victoria_cluster:
   vmstorage:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.replicas | default(3) }}"
     replication_factor: 2  # Data redundancy: each metric written to 2 of 3 nodes
-    image: "{{ telemetry_images['victoriametrics/vmstorage'] | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
+    image: "{{ telemetry_images['victoriametrics/vmstorage'] | default('victoriametrics/vmstorage:v1.149.0-cluster') }}"
     dedup_min_scrape_interval: "1m"  # Deduplication interval
     resources:
       requests:
@@ -189,7 +189,7 @@ victoria_cluster:
   # VMInsert: Accepts data ingestion and routes to vmstorage
   vminsert:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.replicas | default(2) }}"
-    image: "{{ telemetry_images['victoriametrics/vminsert'] | default('victoriametrics/vminsert:v1.128.0-cluster') }}"
+    image: "{{ telemetry_images['victoriametrics/vminsert'] | default('victoriametrics/vminsert:v1.149.0-cluster') }}"
     # External access configuration
     external_access: true  # Enable LoadBalancer service for external data ingestion
     resources:
@@ -202,7 +202,7 @@ victoria_cluster:
   # VMSelect: Performs queries against vmstorage nodes
   vmselect:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.replicas | default(2) }}"
-    image: "{{ telemetry_images['victoriametrics/vmselect'] | default('victoriametrics/vmselect:v1.128.0-cluster') }}"
+    image: "{{ telemetry_images['victoriametrics/vmselect'] | default('victoriametrics/vmselect:v1.149.0-cluster') }}"
     max_query_duration: "5m"
     max_concurrent_requests: "8"
     cache_data_path: true  # Enable query result caching
@@ -216,7 +216,7 @@ victoria_cluster:
 
   vmagent:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.replicas | default(2) }}"
-    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
+    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.149.0') }}"
     resources:
       requests:
         memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.resources.requests.memory | default('128Mi') }}"
@@ -395,7 +395,7 @@ vmagent:
   rolebinding_name: "vmagent-sd-binding"
   app_name: "vmagent"
   container_name: "vmagent"
-  image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
+  image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.149.0') }}"
   # Single-node URL
   remote_write_url: "https://victoria-loadbalancer.telemetry.svc.cluster.local:8443/api/v1/write"
   # Cluster URL (used when victoria_cluster.enabled: true)
@@ -688,7 +688,7 @@ vector:
     service_name: "vmagent-vector"
     port: 8429  # prometheus_remote_write receiver
     metrics_port: 8429  # vmagent self-metrics
-    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('docker.io/victoriametrics/vmagent:v1.128.0') }}"
+    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('docker.io/victoriametrics/vmagent:v1.149.0') }}"
     replicas: "{{ telemetry_storage_config.vector_storage.vmagent_vector.replicas | default(2) }}"
     pvc_size: "{{ telemetry_storage_config.vector_storage.vmagent_vector.pvc_size | default('5Gi') }}"  # Disk WAL buffer
     remote_write_url: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
