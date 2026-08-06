@@ -18,7 +18,7 @@
 #
 # PostgreSQL data must be backed up before upgrade because:
 # - Pulp 3.80 uses PostgreSQL 12/13
-# - Pulp 3.113 uses PostgreSQL 16
+# - Pulp 3.114.2 uses PostgreSQL 16
 # - PostgreSQL cannot downgrade data files between major versions
 #
 # Without this backup, rollback is not possible.
