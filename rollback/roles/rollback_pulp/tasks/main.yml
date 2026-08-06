@@ -16,7 +16,7 @@
 # ============================================================================
 # rollback_pulp — Main Orchestration
 # ============================================================================
-# Reverse the Pulp upgrade (3.113 → 3.80) by:
+# Reverse the Pulp upgrade (3.114.2 → 3.80) by:
 #   1. Resolving admin NIC IP for health checks
 #   2. Pre-rollback checks (verify Pulp is deployed, backup exists)
 #   3. Stopping the current Pulp container
@@ -29,7 +29,7 @@
 #
 # IMPORTANT: PostgreSQL data must be restored because:
 # - Pulp 3.80 uses PostgreSQL 12/13
-# - Pulp 3.113 uses PostgreSQL 16
+# - Pulp 3.114.2 uses PostgreSQL 16
 # - PostgreSQL cannot downgrade data files between major versions
 #
 # No idempotency check — rollback always executes regardless of current

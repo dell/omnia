@@ -14,7 +14,7 @@
 ---
 
 # ===========================================================================
-# Pulp Container Upgrade Configuration (3.80 → 3.113)
+# Pulp Container Upgrade Configuration (3.80 → 3.114.2)
 # ===========================================================================
 
 # File permissions
@@ -23,7 +23,7 @@ file_permissions_644: "0644"
 
 # Pulp container settings
 pulp_container_name: "pulp"
-pulp_target_tag: "3.113"
+pulp_target_tag: "3.114.2"
 pulp_target_image: "docker.io/pulp/pulp:{{ pulp_target_tag }}"
 
 # Pulp quadlet file path
@@ -60,7 +60,7 @@ pulp_pgsql_path: "{{ pulp_data_base_path }}/pgsql"
 # Backup settings
 # PostgreSQL data must be backed up before upgrade because:
 # - Pulp 3.80 uses PostgreSQL 12/13
-# - Pulp 3.113 uses PostgreSQL 16
+# - Pulp 3.114.2 uses PostgreSQL 16
 # - PostgreSQL cannot downgrade data files between major versions
 pulp_backup_dir: "/opt/omnia/backups/upgrade/version_2.1.0.0/pulp"
 pulp_pgsql_backup_path: "{{ pulp_backup_dir }}/pgsql"

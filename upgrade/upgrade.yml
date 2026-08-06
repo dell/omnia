@@ -453,7 +453,7 @@
 
           ── Omnia Upgrade Execution Plan (in order) ──────────────────
             1. oim           → Upgrade OpenCHAMI control-plane containers
-                               and Pulp container (3.80 → 3.113) on the OIM
+                               and Pulp container (3.80 → 3.114.2) on the OIM
             2. build_stream  → SKIPPED (not enabled in build_stream_config.yml)
             3. local_repo    → Synchronize Omnia 2.2 packages into the
                                local Pulp repository for cluster nodes
