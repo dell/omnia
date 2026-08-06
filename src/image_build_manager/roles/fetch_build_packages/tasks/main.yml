@@ -59,17 +59,35 @@
           {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
             {% if fg_name.endswith('_' + build_arch) -%}
               {% set pkgs = fg_data.packages | default([]) -%}
-              {% set _ = result.update({
-                fg_name: {
-                  'functional_group': fg_name,
-                  'packages': pkgs,
-                  'os_version': _fg_pkg_mapping.os_version | default(rhel_tag | default('10.0'))
-                }
-              }) -%}
+              {% if pkgs | length > 0 -%}
+                {% set _ = result.update({
+                  fg_name: {
+                    'functional_group': fg_name,
+                    'packages': pkgs,
+                    'os_version': _fg_pkg_mapping.os_version | default(rhel_tag | default('10.0'))
+                  }
+                }) -%}
+              {% endif -%}
             {% endif -%}
           {% endfor -%}
           {{ result }}
+        _skipped_empty_groups: >-
+          {% set skipped = [] -%}
+          {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
+            {% if fg_name.endswith('_' + build_arch) and (fg_data.packages | default([]) | length) == 0 -%}
+              {% set _ = skipped.append(fg_name) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ skipped }}
         cacheable: true
+
+    - name: Warn about skipped groups with empty packages
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Skipping compute image build for groups with empty packages list:
+          {{ _skipped_empty_groups | join(', ') }}.
+          Add packages to these groups in package_groups.yml or remove them.
+      when: (_skipped_empty_groups | default([]) | length) > 0
 
 
 # ==========================================================================

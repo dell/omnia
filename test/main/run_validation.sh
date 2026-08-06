@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,703 +14,548 @@
 # limitations under the License.
 
 # =============================================================================
-# Omnia Automation Framework — Validation Runner
+# omnia main — Validation Runner
 # =============================================================================
-#
 # Usage:
-#   run_validation <scenario> <command> [--suite <suite>] [--marker <marker>]
-#   run_validation --config [--continue-on-failure] [--restart]
-#   run_validation list
+#   ./run_validation.sh <scenario> <command> [options]
+#   ./run_validation.sh all <command> [options]
+#   ./run_validation.sh --config
+#   ./run_validation.sh list
 #
-# Scenarios (subdirs of fvt/):
-#   omnia_sh_install      Build + install + verification
-#   omnia_sh_reinstall    Reinstall (overwrite) + verification
-#   omnia_sh_uninstall    Uninstall + cleanup verification
-#
-# Commands (MANDATORY):
-#   deploy   Run execution tests only  (test_deploy.py)
-#   verify   Run verification tests    (all except test_deploy.py)
-#   test     Run deploy THEN verify    (full lifecycle)
+# Commands:
+#   deploy    Run the script/playbook only (tests marked @deploy)
+#   verify    Run verification tests only (exclude @deploy)
+#   test      Deploy + Verify (full flow)
 #
 # Options:
-#   --suite <suite>    Filter by functional area directory
-#                      e.g. container, security, cleanup
-#   --marker <marker>  Validation quality marker filter
-#                      e.g. sanity, smoke, regression, functional, negative
+#   --suite <name>    Filter by subfolder (environment, venv, commands, etc.)
+#   --marker <expr>   Filter by pytest marker (sanity, functional, etc.)
+#   -v, --verbose     Increase verbosity
 #
-# Config mode:
-#   --config                 Run scenarios from test_run_config.yml
-#   --continue-on-failure    Continue batch even if a scenario fails
-#   --restart                Discard resume progress and start fresh
-#
-# Examples:
-#   run_validation omnia_sh_install deploy
-#   run_validation omnia_sh_install verify
-#   run_validation omnia_sh_install test
-#   run_validation omnia_sh_install verify --suite container --marker smoke
-#   run_validation omnia_sh_reinstall test
-#   run_validation omnia_sh_uninstall test
-#   run_validation --config
-#   run_validation --config --continue-on-failure
-#   run_validation list
+# Scenarios:
+#   setup    omnia.sh --setup-venv tests
+#   init     omnia.sh --init tests
+#   cli      CLI argument parsing tests
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_DIR="$SCRIPT_DIR"
-FVT_DIR="$MODULE_DIR/fvt"
-CONFIG_FILE="$MODULE_DIR/test_run_config.yml"
+FVT_DIR="${SCRIPT_DIR}/fvt"
+CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
 
-SUPPORTED_COMMANDS=("deploy" "verify" "test")
-
-# Colors
-GREEN='\033[0;32m'
 RED='\033[0;31m'
-BLUE='\033[0;34m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-BOLD='\033[1m'
 NC='\033[0m'
 
-# =============================================================================
-# ACTIVATE VIRTUAL ENVIRONMENT
-# =============================================================================
+SUPPORTED_COMMANDS="deploy verify test"
 
-if [ -f "$MODULE_DIR/.venv/bin/activate" ]; then
+# Change to script dir
+cd "$SCRIPT_DIR"
+
+# Activate venv if exists, otherwise use system python
+if [ -f ".venv/bin/activate" ]; then
     # shellcheck disable=SC1091
-    source "$MODULE_DIR/.venv/bin/activate"
+    source .venv/bin/activate
 fi
 
 # =============================================================================
-# LIST SCENARIOS
+# Parse arguments
 # =============================================================================
+SCENARIO="${1:-help}"
+COMMAND="${2:-test}"
+SUITE=""
+MARKER=""
+VERBOSE=""
+DEBUG=""
 
-list_scenarios() {
-    echo ""
-    echo -e "${BLUE}Available scenarios:${NC}"
-    echo ""
-    for s in "$FVT_DIR"/*/; do
-        [ -d "$s" ] || continue
-        local sname
-        sname=$(basename "$s")
-        [[ "$sname" == "__pycache__" ]] && continue
-
-        local suites=""
-        for suite_dir in "$s"/*/; do
-            [ -d "$suite_dir" ] || continue
-            local suite_name
-            suite_name=$(basename "$suite_dir")
-            [[ "$suite_name" == "__pycache__" ]] && continue
-            local test_count
-            test_count=$(find "$suite_dir" -maxdepth 1 -name 'test_*.py' | wc -l)
-            suites="$suites $suite_name($test_count)"
-        done
-        echo -e "  ${GREEN}$sname${NC}  suites:${suites:-" none"}"
+if [[ $# -gt 2 ]]; then
+    shift 2
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --suite)
+                SUITE="$2"
+                shift 2
+                ;;
+            --marker)
+                MARKER="$2"
+                shift 2
+                ;;
+            -v|--verbose)
+                VERBOSE="-v"
+                shift
+                ;;
+            --debug)
+                DEBUG="true"
+                VERBOSE="-vvs"
+                shift
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                exit 1
+                ;;
+        esac
     done
-    echo ""
-    echo -e "${BLUE}Usage:${NC}  run_validation <scenario> <command> [--suite <suite>] [--marker <marker>]"
-    echo ""
-}
+fi
 
 # =============================================================================
-# VALIDATE COMMAND
+# Helper functions
 # =============================================================================
-
-validate_command() {
-    local cmd="$1"
-    for c in "${SUPPORTED_COMMANDS[@]}"; do
-        [ "$c" = "$cmd" ] && return 0
+get_scenarios() {
+    for dir in "$FVT_DIR"/*/; do
+        name=$(basename "$dir")
+        [[ "$name" == __pycache__ ]] && continue
+        echo "$name"
     done
-    echo -e "${RED}ERROR: Invalid command '$cmd'${NC}"
-    echo -e "Supported: ${SUPPORTED_COMMANDS[*]}"
-    exit 1
 }
 
-# =============================================================================
-# FIND test_deploy.py RECURSIVELY IN A PATH
-# =============================================================================
-
-find_deploy_files() {
-    find "$1" -name 'test_deploy.py' -type f 2>/dev/null
+build_test_path() {
+    local tests_dir="$1"
+    if [[ -n "$SUITE" && -d "${tests_dir}/${SUITE}" ]]; then
+        echo "${tests_dir}/${SUITE}"
+    else
+        echo "${tests_dir}"
+    fi
 }
 
-# =============================================================================
-# RUN PYTEST FOR A GIVEN PATH + OPTIONS
-# =============================================================================
+build_pytest_args() {
+    local exclude_deploy="$1"
+    local args=""
+
+    if [[ -n "$MARKER" ]]; then
+        args="${args} --marker ${MARKER}"
+    fi
+
+    if [[ "$exclude_deploy" == "yes" ]]; then
+        args="${args} -m 'not deploy'"
+    fi
+
+    echo "$args"
+}
+
+print_combined_summary() {
+    local results_file="${1:-${OMNIA_RESULTS_FILE:-}}"
+    if [[ -z "$results_file" || ! -f "$results_file" ]]; then
+        return
+    fi
+    python3 - "$results_file" <<'PYEOF'
+import json, sys
+results_file = sys.argv[1]
+try:
+    with open(results_file) as f:
+        results = json.load(f)
+except (json.JSONDecodeError, OSError):
+    sys.exit(0)
+if not results:
+    sys.exit(0)
+
+passed = [r for r in results if r["status"] == "PASSED"]
+failed = [r for r in results if r["status"] == "FAILED"]
+skipped = [r for r in results if r["status"] == "SKIPPED"]
+total = len(results)
+sep = "=" * 85
+print(f"\n{sep}")
+print("  TEST EXECUTION SUMMARY")
+print(sep)
+hdr = f"  {'TC ID':<12} {'Test Name':<40} {'Status':<10} {'Duration':>8}"
+div = f"  {'-' * 12} {'-' * 40} {'-' * 10} {'-' * 8}"
+print(hdr)
+print(div)
+cyan = "\033[36m"
+rst = "\033[0m"
+for r in results:
+    tc = r.get("tc_id", "")
+    name = r["test_name"]
+    if len(name) > 39:
+        name = name[:36] + "..."
+    st = r["status"]
+    dur = f"{r['duration']:.2f}s"
+    if st == "PASSED":
+        tag = f"\033[32m{st}\033[0m"
+    elif st == "FAILED":
+        tag = f"\033[31m{st}\033[0m"
+    else:
+        tag = f"\033[33m{st}\033[0m"
+    pad = " " * max(1, 40 - len(name))
+    print(f"  {cyan}{tc:<12}{rst} {cyan}{name}{rst}{pad} {tag:<19} {dur:>8}")
+print(div)
+total_dur = sum(r["duration"] for r in results)
+print(
+    f"  \033[32m{len(passed)} passed\033[0m, "
+    f"\033[31m{len(failed)} failed\033[0m, "
+    f"\033[33m{len(skipped)} skipped\033[0m "
+    f"/ {total} total "
+    f"({total_dur:.2f}s)"
+)
+print(sep)
+print()
+PYEOF
+    rm -f "$results_file"
+}
 
 run_pytest() {
     local test_path="$1"
-    local label="$2"
-    shift 2
-    local extra_args=("$@")
+    local marker_args="$2"
+    local label="$3"
 
     echo -e "${YELLOW}-> ${label}...${NC}"
     echo ""
 
-    local pytest_cmd=("pytest" "-v" "-s" "--tb=short" "$test_path" "${extra_args[@]}")
-    echo -e "  ${CYAN}Command: ${pytest_cmd[*]}${NC}"
+    local pytest_cmd="python3 -m pytest ${test_path} -s --tb=short --no-header -q ${marker_args} ${VERBOSE}"
+    echo -e "  ${CYAN}Command: ${pytest_cmd}${NC}"
     echo ""
 
-    export OMNIA_MODULE_DIR="$MODULE_DIR"
-    "${pytest_cmd[@]}"
-    local rc=$?
+    local rc=0
+    if [[ -n "${OMNIA_LOG_FILE:-}" ]]; then
+        set +e
+        eval "$pytest_cmd" 2>&1 | tee -a "${OMNIA_LOG_FILE}"
+        rc="${PIPESTATUS[0]}"
+        set -e
+    else
+        set +e
+        eval "$pytest_cmd"
+        rc=$?
+        set -e
+    fi
     return $rc
 }
 
 # =============================================================================
-# RUN SINGLE SCENARIO
+# Config mode — run from test_run_config.yml
 # =============================================================================
-
-run_single() {
-    local scenario="$1"
-    local command="$2"
-    local suite="${3:-}"
-    local marker="${4:-}"
-
-    local scenario_dir="$FVT_DIR/$scenario"
-    if [ ! -d "$scenario_dir" ]; then
-        echo -e "${RED}ERROR: Scenario '$scenario' not found${NC}"
-        list_scenarios
-        exit 1
-    fi
-
-    # Resolve test path
-    local test_path="$scenario_dir"
-    if [ -n "$suite" ]; then
-        test_path="$scenario_dir/$suite"
-        if [ ! -d "$test_path" ]; then
-            echo -e "${RED}ERROR: Suite '$suite' not found in $scenario_dir${NC}"
-            echo -e "Available suites:"
-            for d in "$scenario_dir"/*/; do
-                [ -d "$d" ] || continue
-                local dname
-                dname=$(basename "$d")
-                [[ "$dname" == "__pycache__" ]] && continue
-                echo -e "  - $dname"
-            done
-            exit 1
-        fi
-    fi
-
-    # Banner
-    echo ""
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "  Scenario : ${GREEN}${scenario}${NC}"
-    echo -e "  Command  : ${GREEN}${command}${NC}"
-    [ -n "$suite" ]  && echo -e "  Suite    : ${GREEN}${suite}${NC}"
-    [ -n "$marker" ] && echo -e "  Marker   : ${GREEN}${marker}${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-
-    local deploy_files
-    deploy_files=$(find_deploy_files "$test_path")
-    local marker_args=()
-    [ -n "$marker" ] && marker_args+=("-m" "$marker")
-
-    case "$command" in
-        deploy)
-            if [ -z "$deploy_files" ]; then
-                echo -e "${RED}ERROR: No test_deploy.py found in $test_path${NC}"
-                exit 1
-            fi
-            # shellcheck disable=SC2086
-            run_pytest "$deploy_files" "Deploy: ${scenario}" "${marker_args[@]+"${marker_args[@]}"}"
-            ;;
-        verify)
-            local ignore_args=()
-            for f in $deploy_files; do
-                ignore_args+=("--ignore=$f")
-            done
-            run_pytest "$test_path" "Verify: ${scenario}" "${ignore_args[@]+"${ignore_args[@]}"}" "${marker_args[@]+"${marker_args[@]}"}"
-            ;;
-        test)
-            local FAILED=0
-
-            echo ""
-            echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
-            echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
-            echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
-            echo ""
-
-            if [ -z "$deploy_files" ]; then
-                echo -e "${YELLOW}WARN: No test_deploy.py found — skipping deploy phase${NC}"
-            else
-                if run_pytest "$deploy_files" "Deploy: ${scenario}" "${marker_args[@]+"${marker_args[@]}"}"; then
-                    echo -e "${GREEN}Deploy succeeded${NC}"
-                else
-                    echo -e "${RED}Deploy failed${NC}"
-                    FAILED=1
-                fi
-            fi
-
-            if [ $FAILED -eq 0 ]; then
-                echo ""
-                echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
-                echo -e "${YELLOW}  Step 2/2: Verify${NC}"
-                echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
-                echo ""
-
-                local ignore_args=()
-                for f in $deploy_files; do
-                    ignore_args+=("--ignore=$f")
-                done
-                if run_pytest "$test_path" "Verify: ${scenario}" "${ignore_args[@]+"${ignore_args[@]}"}" "${marker_args[@]+"${marker_args[@]}"}"; then
-                    echo -e "${GREEN}Verify succeeded${NC}"
-                else
-                    echo -e "${RED}Verify failed${NC}"
-                    FAILED=1
-                fi
-            else
-                echo -e "${YELLOW}Skipping verify — deploy failed${NC}"
-            fi
-
-            echo ""
-            echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-            if [ $FAILED -eq 0 ]; then
-                echo -e "${GREEN}  ${scenario}: DEPLOY + VERIFY PASSED${NC}"
-            else
-                echo -e "${RED}  ${scenario}: FAILED${NC}"
-            fi
-            echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-            [ $FAILED -eq 0 ] || return 1
-            ;;
-    esac
-}
-
-# =============================================================================
-# BATCH TRACK FILE HELPERS
-# =============================================================================
-
-track_update() {
-    local track_file="$1" key="$2" status="$3"
-    if grep -q "^${key}:" "$track_file" 2>/dev/null; then
-        sed -i "s|^${key}:.*|${key}:${status}|" "$track_file"
-    else
-        echo "${key}:${status}" >> "$track_file"
-    fi
-}
-
-track_has() {
-    local track_file="$1" key="$2" status="$3"
-    grep -q "^${key}:${status}$" "$track_file" 2>/dev/null
-}
-
-# =============================================================================
-# RUN BATCH CONFIG MODE
-# =============================================================================
-
 run_config_mode() {
-    local continue_on_failure="$1"
-    local restart="$2"
-
-    if [ ! -f "$CONFIG_FILE" ]; then
-        echo -e "${RED}ERROR: Config file not found: ${CONFIG_FILE}${NC}"
-        echo -e "Create test_run_config.yml in test/main/ with scenario definitions."
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo -e "${RED}Error: Config file not found: ${CONFIG_FILE}${NC}"
         exit 1
     fi
 
-    export CONFIG_FILE
-    local TRACK_FILE="$MODULE_DIR/.batch_track"
+    export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    export OMNIA_SUPPRESS_SUMMARY="true"
+    export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
 
-    # Handle --restart
-    if [ "$restart" = "true" ]; then
-        rm -f "$TRACK_FILE"
-        echo -e "  ${YELLOW}RESTART${NC} Cleared batch progress — starting fresh"
-        echo ""
-    fi
-
-    # Resume mode
-    local resume_mode=false
-    if [ -f "$TRACK_FILE" ]; then
-        resume_mode=true
-        echo -e "  ${CYAN}RESUME${NC} Found previous batch progress (.batch_track)"
-        echo -e "  ${CYAN}RESUME${NC} Completed steps will be skipped (use --restart to start fresh)"
-        echo ""
-    fi
-
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}=================================================================${NC}"
     echo -e "${BLUE}  Batch Execution from test_run_config.yml${NC}"
-    if [ "$continue_on_failure" = "true" ]; then
-        echo -e "${BLUE}  Mode: continue-on-failure${NC}"
-    fi
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  Report ID : ${REPORT_ID}${NC}"
+    echo -e "${BLUE}=================================================================${NC}"
     echo ""
 
-    # -------------------------------------------------------------------------
-    # Validate config and get ordered scenario names
-    # -------------------------------------------------------------------------
-    local scenario_names
-    if ! scenario_names=$(python3 - <<'PY'
-import os, sys, yaml
-
-VALID_COMMANDS = {"deploy", "verify", "test"}
-
-with open(os.environ["CONFIG_FILE"]) as fh:
-    cfg = yaml.safe_load(fh) or {}
-
-scenarios = cfg.get("scenarios", {}) or {}
-errors = []
-seen = {}
-dups = {}
-
-for name, sc in scenarios.items():
-    sc = sc or {}
-    order = sc.get("order")
-    if order is None:
-        errors.append("Scenario '%s' is missing the required 'order' field" % name)
-    else:
-        try:
-            order = int(order)
-        except (ValueError, TypeError):
-            errors.append("Scenario '%s' has non-integer order '%s'" % (name, order))
-            continue
-        if order in seen:
-            dups.setdefault(order, [seen[order]]).append(name)
-        else:
-            seen[order] = name
-
-    cmd = str(sc.get("command", "test")).strip()
-    if cmd not in VALID_COMMANDS:
-        errors.append(
-            "Scenario '%s' has invalid command '%s' (must be: %s)"
-            % (name, cmd, ", ".join(sorted(VALID_COMMANDS)))
-        )
-
-if dups:
-    for order in sorted(dups):
-        errors.append(
-            "Duplicate order %s shared by: %s" % (order, ", ".join(dups[order]))
-        )
-
-if errors:
-    for e in errors:
-        sys.stderr.write("ERROR: " + e + "\n")
-    sys.exit(1)
-
-for name, sc in sorted(
-    scenarios.items(), key=lambda kv: int((kv[1] or {}).get("order", 0))
-):
-    print(name)
-PY
-    ); then
-        echo -e "${RED}ERROR: Invalid configuration in ${CONFIG_FILE}${NC}"
-        echo -e "${YELLOW}Fix the errors above and re-run.${NC}"
-        exit 1
-    fi
-
-    # Initialize track file
-    if [ ! -f "$TRACK_FILE" ]; then
-        echo "BATCH_START=$(date '+%Y%m%d%H%M%S')" > "$TRACK_FILE"
-    fi
-
-    # -------------------------------------------------------------------------
-    # Scenario loop
-    # -------------------------------------------------------------------------
-    declare -a _r_name=() _r_cmd=() _r_suite=() _r_deploy=() _r_verify=() _r_overall=()
     local total=0 passed=0 failed=0 skipped=0
-    local batch_stopped=false batch_stopped_at=""
+    local scenario_names
+    scenario_names=$(python3 -c "
+import yaml
+with open('${CONFIG_FILE}') as f:
+    cfg = yaml.safe_load(f) or {}
+for name in cfg.get('scenarios', {}):
+    print(name)
+")
 
     for name in $scenario_names; do
-        local run_flag command suite marker_cfg
+        local run_flag marker_cfg suite_cfg
         eval "$(python3 -c "
 import yaml
 with open('${CONFIG_FILE}') as f:
     cfg = yaml.safe_load(f) or {}
-sc = cfg.get('scenarios', {}).get('${name}', {}) or {}
+sc = cfg.get('scenarios', {}).get('${name}', {})
 print(f'run_flag={str(sc.get(\"run\", False)).lower()}')
-print(f'command={sc.get(\"command\", \"test\")}')
-print(f'suite={sc.get(\"suite\", \"\")}')
 print(f'marker_cfg={sc.get(\"marker\", \"\")}')
+print(f'suite_cfg={sc.get(\"suite\", \"\")}')
 ")"
         total=$((total + 1))
-
-        # If batch was stopped, mark remaining as STOP
-        if [ "$batch_stopped" = "true" ]; then
-            _r_name+=("$name"); _r_cmd+=("$command")
-            _r_suite+=("${suite:--}"); _r_deploy+=("--"); _r_verify+=("--"); _r_overall+=("STOP")
-            skipped=$((skipped + 1))
-            continue
-        fi
-
-        if [ "$run_flag" != "true" ]; then
+        if [[ "$run_flag" != "true" ]]; then
             echo -e "  ${YELLOW}SKIP${NC}  ${name}"
-            _r_name+=("$name"); _r_cmd+=("$command")
-            _r_suite+=("${suite:--}"); _r_deploy+=("--"); _r_verify+=("--"); _r_overall+=("SKIP")
             skipped=$((skipped + 1))
             continue
         fi
+
+        echo -e "  ${CYAN}RUN${NC}   ${name} (marker=${marker_cfg:-none}, suite=${suite_cfg:-all})"
 
         local extra_args=""
-        [ -n "$suite" ] && extra_args="$extra_args --suite $suite"
-        [ -n "$marker_cfg" ] && extra_args="$extra_args --marker $marker_cfg"
+        [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
+        [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
 
-        local scenario_failed=false
-        local deploy_st="N/A" verify_st="N/A"
-
-        if [ "$command" = "test" ]; then
-            # DEPLOY PHASE
-            if [ "$resume_mode" = "true" ] && track_has "$TRACK_FILE" "${name}:deploy" "PASS"; then
-                echo -e "  ${GREEN}DONE${NC}  ${name}:deploy (previous run)"
-                deploy_st="DONE"
-            else
-                echo -e "  ${CYAN}RUN${NC}   ${name}:deploy"
-                if "$0" "$name" "deploy" $extra_args; then
-                    echo -e "  ${GREEN}PASS${NC}  ${name}:deploy"
-                    track_update "$TRACK_FILE" "${name}:deploy" "PASS"
-                    deploy_st="PASS"
-                else
-                    echo -e "  ${RED}FAIL${NC}  ${name}:deploy"
-                    track_update "$TRACK_FILE" "${name}:deploy" "FAIL"
-                    deploy_st="FAIL"
-                    scenario_failed=true
-                fi
-            fi
-
-            # VERIFY PHASE (only if deploy succeeded)
-            if [ "$scenario_failed" = "false" ]; then
-                if [ "$resume_mode" = "true" ] && track_has "$TRACK_FILE" "${name}:verify" "PASS"; then
-                    echo -e "  ${GREEN}DONE${NC}  ${name}:verify (previous run)"
-                    verify_st="DONE"
-                else
-                    echo -e "  ${CYAN}RUN${NC}   ${name}:verify (suite=${suite:-all}, marker=${marker_cfg:-none})"
-                    if "$0" "$name" "verify" $extra_args; then
-                        echo -e "  ${GREEN}PASS${NC}  ${name}:verify"
-                        track_update "$TRACK_FILE" "${name}:verify" "PASS"
-                        verify_st="PASS"
-                    else
-                        echo -e "  ${RED}FAIL${NC}  ${name}:verify"
-                        track_update "$TRACK_FILE" "${name}:verify" "FAIL"
-                        verify_st="FAIL"
-                        scenario_failed=true
-                    fi
-                fi
-            else
-                verify_st="SKIP"
-            fi
-        else
-            # SINGLE PHASE (deploy-only or verify-only)
-            if [ "$resume_mode" = "true" ] && track_has "$TRACK_FILE" "${name}" "PASS"; then
-                echo -e "  ${GREEN}DONE${NC}  ${name} (previous run)"
-                if [ "$command" = "deploy" ]; then deploy_st="DONE"; else verify_st="DONE"; fi
-                passed=$((passed + 1))
-                _r_name+=("$name"); _r_cmd+=("$command")
-                _r_suite+=("${suite:--}"); _r_deploy+=("$deploy_st"); _r_verify+=("$verify_st")
-                _r_overall+=("PASS")
-                continue
-            fi
-
-            echo -e "  ${CYAN}RUN${NC}   ${name} (${command}, suite=${suite:-all}, marker=${marker_cfg:-none})"
-            if "$0" "$name" "$command" $extra_args; then
-                echo -e "  ${GREEN}PASS${NC}  ${name}"
-                track_update "$TRACK_FILE" "${name}" "PASS"
-                if [ "$command" = "deploy" ]; then deploy_st="PASS"; else verify_st="PASS"; fi
-            else
-                echo -e "  ${RED}FAIL${NC}  ${name}"
-                track_update "$TRACK_FILE" "${name}" "FAIL"
-                if [ "$command" = "deploy" ]; then deploy_st="FAIL"; else verify_st="FAIL"; fi
-                scenario_failed=true
-            fi
-        fi
-
-        # Record result
-        local overall_st="PASS"
-        if [ "$scenario_failed" = "true" ]; then
-            overall_st="FAIL"
-            failed=$((failed + 1))
-        else
+        if "$0" "$name" test $extra_args; then
+            echo -e "  ${GREEN}PASS${NC}  ${name}"
             passed=$((passed + 1))
-        fi
-        _r_name+=("$name"); _r_cmd+=("$command")
-        _r_suite+=("${suite:--}"); _r_deploy+=("$deploy_st"); _r_verify+=("$verify_st")
-        _r_overall+=("$overall_st")
-
-        # Stop on failure unless --continue-on-failure
-        if [ "$scenario_failed" = "true" ] && [ "$continue_on_failure" != "true" ]; then
-            echo ""
-            echo -e "  ${RED}Batch stopped due to failure in '${name}'.${NC}"
-            echo -e "  ${YELLOW}Fix the issue and re-run 'run_validation --config' to resume.${NC}"
-            echo -e "  ${YELLOW}Use --restart to start from the beginning.${NC}"
-            batch_stopped=true
-            batch_stopped_at="$name"
+        else
+            echo -e "  ${RED}FAIL${NC}  ${name}"
+            failed=$((failed + 1))
         fi
     done
 
-    # Clean track file if all passed
-    if [ $failed -eq 0 ]; then
-        rm -f "$TRACK_FILE"
-    fi
-
-    # -------------------------------------------------------------------------
-    # Summary table
-    # -------------------------------------------------------------------------
-    echo ""
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  Batch Execution Summary${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo ""
-
-    printf "  %-25s %-8s %-10s %-8s %-8s %-8s\n" "SCENARIO" "CMD" "SUITE" "DEPLOY" "VERIFY" "STATUS"
-    printf "  %-25s %-8s %-10s %-8s %-8s %-8s\n" "-------------------------" "--------" "----------" "--------" "--------" "--------"
-
-    local i
-    for ((i=0; i<${#_r_name[@]}; i++)); do
-        local st_color="$NC"
-        case "${_r_overall[$i]}" in
-            PASS) st_color="$GREEN" ;;
-            FAIL) st_color="$RED" ;;
-            SKIP|STOP) st_color="$YELLOW" ;;
-        esac
-
-        local dep_color="$NC" ver_color="$NC"
-        case "${_r_deploy[$i]}" in
-            PASS|DONE) dep_color="$GREEN" ;;
-            FAIL) dep_color="$RED" ;;
-            *) dep_color="$YELLOW" ;;
-        esac
-        case "${_r_verify[$i]}" in
-            PASS|DONE) ver_color="$GREEN" ;;
-            FAIL) ver_color="$RED" ;;
-            *) ver_color="$YELLOW" ;;
-        esac
-
-        printf "  %-25s %-8s %-10s ${dep_color}%-8s${NC} ${ver_color}%-8s${NC} ${st_color}%-8s${NC}\n" \
-            "${_r_name[$i]}" "${_r_cmd[$i]}" "${_r_suite[$i]}" \
-            "${_r_deploy[$i]}" "${_r_verify[$i]}" "${_r_overall[$i]}"
-    done
+    print_combined_summary
 
     echo ""
-    echo -e "  Total: ${total}  ${GREEN}Passed: ${passed}${NC}  ${RED}Failed: ${failed}${NC}  ${YELLOW}Skipped: ${skipped}${NC}"
-
-    if [ "$batch_stopped" = "true" ]; then
-        echo -e "  ${RED}Stopped at: ${batch_stopped_at}${NC}"
-    fi
-
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    [ $failed -eq 0 ] || exit 1
+    echo -e "${BLUE}=================================================================${NC}"
+    echo -e "  Scenarios: ${total}  ${GREEN}Passed: ${passed}${NC}  ${RED}Failed: ${failed}${NC}  ${YELLOW}Skipped: ${skipped}${NC}"
+    echo -e "${BLUE}=================================================================${NC}"
+    [[ $failed -eq 0 ]] || exit 1
 }
 
 # =============================================================================
-# HELP
+# Handle special commands
 # =============================================================================
-
-show_help() {
-    echo -e "${BOLD}Omnia Validation Runner${NC}"
-    echo ""
-    echo "Usage: run_validation <scenario> <command> [options]"
-    echo "       run_validation --config [--continue-on-failure] [--restart]"
-    echo "       run_validation list"
-    echo ""
-    echo "Commands (MANDATORY):"
-    echo "  deploy    Run execution tests only (test_deploy.py)"
-    echo "  verify    Run verification tests (all except test_deploy.py)"
-    echo "  test      Run deploy + verify (full lifecycle)"
-    echo ""
-    echo "Options:"
-    echo "  --suite <name>    Filter by functional area directory (container, security, cleanup)"
-    echo "  --marker <expr>   Filter by pytest marker (sanity, smoke, regression, functional)"
-    echo ""
-    echo "Config mode:"
-    echo "  --config                  Run scenarios from test_run_config.yml"
-    echo "  --continue-on-failure     Continue batch even if a scenario fails"
-    echo "  --restart                 Discard resume progress, start fresh"
-    echo ""
-    echo "Suite + Marker Combinations:"
-    echo "  run_validation omnia_sh_install verify --suite container               # all container tests"
-    echo "  run_validation omnia_sh_install verify --marker smoke                  # smoke tests only"
-    echo "  run_validation omnia_sh_install verify --suite security --marker sanity # combined"
-    echo "  run_validation omnia_sh_reinstall test                                 # deploy + verify"
-    echo "  run_validation omnia_sh_uninstall verify --suite cleanup               # cleanup tests"
-    echo "  run_validation --config                                                # batch from config"
-    echo "  run_validation list                                                    # show scenarios"
-    echo ""
-}
-
-# =============================================================================
-# MAIN — ARGUMENT PARSING
-# =============================================================================
-
-if [ $# -eq 0 ]; then
-    echo -e "${RED}ERROR: Missing required arguments.${NC}"
-    echo ""
-    echo "Usage: run_validation <scenario> <command> [--suite <suite>] [--marker <marker>]"
-    echo "       run_validation --config [--continue-on-failure] [--restart]"
-    echo "       run_validation list"
-    echo ""
-    echo "Both <scenario> and <command> are mandatory."
-    echo "Run 'run_validation help' for full usage."
-    exit 1
-fi
-
-ACTION="$1"
-shift
-
-case "$ACTION" in
+case "$SCENARIO" in
     list|--list)
-        list_scenarios
-        exit 0
-        ;;
-    help|--help|-h)
-        show_help
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "${BLUE}  Available Scenarios${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        echo ""
+        for name in $(get_scenarios); do
+            scenario_dir="${FVT_DIR}/${name}"
+            if [ -d "$scenario_dir" ]; then
+                test_count=$(find "$scenario_dir" -name 'test_*.py' 2>/dev/null | wc -l)
+                suites=$(find "$scenario_dir" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f ' 2>/dev/null)
+                echo -e "  ${GREEN}${name}${NC}  (${test_count} test files)"
+                if [ -n "$suites" ]; then
+                    echo -e "    suites: ${YELLOW}${suites}${NC}"
+                fi
+            else
+                echo -e "  ${RED}${name}${NC}  (not found)"
+            fi
+        done
+        echo ""
         exit 0
         ;;
     --config)
-        # Parse config mode options
-        COF=false
-        RST=false
-        while [ $# -gt 0 ]; do
-            case "$1" in
-                --continue-on-failure) COF=true; shift ;;
-                --restart)            RST=true; shift ;;
-                *)
-                    echo -e "${RED}Unknown option for --config: $1${NC}"
-                    echo "Usage: run_validation --config [--continue-on-failure] [--restart]"
-                    exit 1 ;;
-            esac
-        done
-        run_config_mode "$COF" "$RST"
+        run_config_mode
         exit 0
         ;;
-    *)
-        SCENARIO="$ACTION"
+    --completion)
+        echo "Tab completion is automatically registered in .venv/bin/activate."
+        echo "Run: source .venv/bin/activate"
+        exit 0
+        ;;
+    all)
+        export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "${BLUE}  Running ALL Scenarios: ${COMMAND}${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        echo ""
+        total=0; pass_count=0; fail_count=0
+        for name in $(get_scenarios); do
+            total=$((total + 1))
+            echo -e "${YELLOW}[${total}] ${name}${NC}"
+            extra=""
+            [[ -n "$SUITE" ]] && extra="$extra --suite $SUITE"
+            [[ -n "$MARKER" ]] && extra="$extra --marker $MARKER"
+            if "$0" "$name" "$COMMAND" $extra; then
+                pass_count=$((pass_count + 1))
+            else
+                fail_count=$((fail_count + 1))
+            fi
+            echo ""
+        done
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "  Total: ${total}  ${GREEN}Passed: ${pass_count}${NC}  ${RED}Failed: ${fail_count}${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        [[ $fail_count -eq 0 ]] || exit 1
+        exit 0
+        ;;
+    help|--help|-h|"")
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "${BLUE}  Omnia Main — Validation Runner${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        echo ""
+        echo "Usage:"
+        echo "  $0 <scenario> <command> [options]"
+        echo "  $0 all <command> [options]"
+        echo "  $0 --config"
+        echo "  $0 list"
+        echo ""
+        echo -e "${YELLOW}Commands:${NC}"
+        echo "  deploy    Run the omnia.sh command only (tests marked @deploy)"
+        echo "  verify    Run verification tests only (no script execution)"
+        echo "  test      Full flow: deploy command, then run verification"
+        echo ""
+        echo -e "${YELLOW}Options:${NC}"
+        echo "  --suite <name>    Filter by subfolder (environment, venv, etc.)"
+        echo "  --marker <expr>   Filter by pytest marker expression"
+        echo "  -v, --verbose     Increase pytest verbosity"
+        echo "  --debug           Enable full debug output (pytest -vvs)"
+        echo ""
+        echo -e "${YELLOW}Scenarios:${NC}"
+        echo "  setup    omnia.sh --setup-venv (env install + venv + dirs)"
+        echo "  init     omnia.sh --init (domain init scripts)"
+        echo "  cli      CLI argument parsing (help, errors)"
+        echo ""
+        echo -e "${YELLOW}Markers:${NC}"
+        echo "  sanity             Baseline must-pass tests"
+        echo "  functional         Functional verification tests"
+        echo "  deploy             Script execution tests"
+        echo ""
+        echo -e "${YELLOW}Examples:${NC}"
+        echo ""
+        echo "  # Verify setup on an existing installation"
+        echo "  $0 setup verify --marker sanity"
+        echo ""
+        echo "  # Deploy setup + verify"
+        echo "  $0 setup test"
+        echo ""
+        echo "  # Verify CLI argument handling only"
+        echo "  $0 cli verify"
+        echo ""
+        echo "  # Run all scenarios"
+        echo "  $0 all test"
+        echo ""
+        echo "  # Batch run from test_run_config.yml"
+        echo "  $0 --config"
+        echo ""
+        echo -e "${YELLOW}Typical Workflow:${NC}"
+        echo "  $0 setup test                    # 1. Setup environment + verify"
+        echo "  $0 init test                     # 2. Init domains + verify"
+        echo "  $0 cli verify                    # 3. Verify CLI parsing"
+        echo ""
+        exit 0
+        ;;
+esac
 
-        # Command is MANDATORY — check if provided
-        if [ $# -eq 0 ]; then
-            echo -e "${RED}ERROR: Missing required argument: <command>${NC}"
+# =============================================================================
+# Validate scenario
+# =============================================================================
+SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+
+if [[ ! -d "$SCENARIO_DIR" ]]; then
+    echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
+    echo ""
+    echo -e "${YELLOW}Available scenarios:${NC}"
+    get_scenarios | while read -r s; do echo "  $s"; done
+    exit 1
+fi
+
+# Validate command
+if ! echo " ${SUPPORTED_COMMANDS} " | grep -q " ${COMMAND} "; then
+    echo -e "${RED}Error: Invalid command '${COMMAND}'${NC}"
+    echo -e "${YELLOW}Supported: ${SUPPORTED_COMMANDS}${NC}"
+    exit 1
+fi
+
+# Validate suite folder
+if [[ -n "$SUITE" && ! -d "${SCENARIO_DIR}/${SUITE}" ]]; then
+    echo -e "${YELLOW}Warning: Suite folder '${SUITE}' not found in ${SCENARIO_DIR}/${NC}"
+    echo -e "${YELLOW}Available:${NC}"
+    ls -d "${SCENARIO_DIR}"/*/ 2>/dev/null | xargs -I{} basename {} | while read -r d; do echo "  $d"; done
+    exit 1
+fi
+
+# =============================================================================
+# Generate report ID
+# =============================================================================
+if [[ -z "${REPORT_ID:-}" ]]; then
+    export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+fi
+
+export OMNIA_SUITE="${SUITE:-all}"
+export OMNIA_MARKER="${MARKER:-}"
+[[ -n "$DEBUG" ]] && export OMNIA_DEBUG="true"
+LOG_DIR="${SCRIPT_DIR}/reports/logs"
+mkdir -p "${LOG_DIR}"
+export OMNIA_LOG_FILE="${LOG_DIR}/${SCENARIO}_${COMMAND}_${REPORT_ID}.log"
+
+# =============================================================================
+# Display banner
+# =============================================================================
+echo -e "${BLUE}=================================================================${NC}"
+echo -e "${BLUE}  Omnia Main — Validation Runner${NC}"
+echo -e "${BLUE}=================================================================${NC}"
+echo -e "  Scenario  : ${GREEN}${SCENARIO}${NC}"
+echo -e "  Command   : ${GREEN}${COMMAND}${NC}"
+[[ -n "$SUITE" ]]  && echo -e "  Suite     : ${GREEN}${SUITE}${NC}"
+[[ -n "$MARKER" ]] && echo -e "  Marker    : ${GREEN}${MARKER}${NC}"
+[[ -n "$DEBUG" ]]  && echo -e "  Debug     : ${YELLOW}yes${NC}"
+echo -e "  Report ID : ${GREEN}${REPORT_ID}${NC}"
+echo -e "${BLUE}=================================================================${NC}"
+echo ""
+
+# =============================================================================
+# Execute based on command
+# =============================================================================
+case "$COMMAND" in
+
+    deploy)
+        export OMNIA_COMMAND_TYPE="deploy"
+        marker_cmd="-m deploy"
+        [[ -n "$MARKER" ]] && marker_cmd="${marker_cmd} --marker ${MARKER}"
+        run_pytest \
+            "${SCENARIO_DIR}" \
+            "${marker_cmd}" \
+            "Running deployment for ${SCENARIO}"
+
+        echo ""
+        echo -e "${GREEN}Deployment completed.${NC}"
+        ;;
+
+    verify)
+        export OMNIA_COMMAND_TYPE="verify"
+        test_path=$(build_test_path "${SCENARIO_DIR}")
+        extra_args=$(build_pytest_args "yes")
+
+        run_pytest \
+            "${test_path}" \
+            "${extra_args}" \
+            "Running verification tests for ${SCENARIO}"
+
+        echo ""
+        echo -e "${GREEN}Verification completed.${NC}"
+        ;;
+
+    test)
+        FAILED=0
+
+        export OMNIA_SUPPRESS_SUMMARY="true"
+        export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+
+        # Step 1: Deploy
+        export OMNIA_COMMAND_TYPE="deploy"
+        echo -e "${YELLOW}=================================================================${NC}"
+        echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
+        echo -e "${YELLOW}=================================================================${NC}"
+        echo ""
+
+        deploy_args="-m deploy"
+        [[ -n "$MARKER" ]] && deploy_args="${deploy_args} --marker ${MARKER}"
+        if run_pytest "${SCENARIO_DIR}" "${deploy_args}" "Running deployment"; then
+            echo -e "${GREEN}Deployment succeeded${NC}"
+        else
+            echo -e "${RED}Deployment failed${NC}"
+            FAILED=1
+        fi
+        echo ""
+
+        # Step 2: Verify (only if deploy succeeded)
+        if [[ $FAILED -eq 0 ]]; then
+            export OMNIA_COMMAND_TYPE="verify"
+            echo -e "${YELLOW}=================================================================${NC}"
+            echo -e "${YELLOW}  Step 2/2: Verify${NC}"
+            echo -e "${YELLOW}=================================================================${NC}"
             echo ""
-            echo "Usage: run_validation <scenario> <command> [--suite <suite>] [--marker <marker>]"
-            echo "Commands: deploy, verify, test"
-            echo ""
-            echo "Examples:"
-            echo "  run_validation $SCENARIO deploy"
-            echo "  run_validation $SCENARIO verify"
-            echo "  run_validation $SCENARIO test"
-            exit 1
+
+            test_path=$(build_test_path "${SCENARIO_DIR}")
+            verify_args=$(build_pytest_args "yes")
+
+            if run_pytest "${test_path}" "${verify_args}" "Running verification tests"; then
+                echo -e "${GREEN}Verification succeeded${NC}"
+            else
+                echo -e "${RED}Verification failed${NC}"
+                FAILED=1
+            fi
+        else
+            echo -e "${YELLOW}Skipping verification — deployment failed${NC}"
         fi
 
-        COMMAND="$1"
-        shift
+        print_combined_summary
 
-        # Validate command is one of deploy/verify/test
-        validate_command "$COMMAND"
+        echo ""
+        echo -e "${BLUE}=================================================================${NC}"
+        if [[ $FAILED -eq 0 ]]; then
+            echo -e "${GREEN}  ${SCENARIO}: DEPLOY + VERIFY PASSED${NC}"
+        else
+            echo -e "${RED}  ${SCENARIO}: FAILED${NC}"
+        fi
+        echo -e "${BLUE}=================================================================${NC}"
 
-        # Parse optional --suite / --marker
-        SUITE=""
-        MARKER=""
-        while [ $# -gt 0 ]; do
-            case "$1" in
-                --suite)
-                    [ $# -lt 2 ] && { echo -e "${RED}ERROR: --suite requires a value${NC}"; exit 1; }
-                    SUITE="$2"; shift 2 ;;
-                --marker)
-                    [ $# -lt 2 ] && { echo -e "${RED}ERROR: --marker requires a value${NC}"; exit 1; }
-                    MARKER="$2"; shift 2 ;;
-                *)
-                    echo -e "${RED}Unknown option: $1${NC}"
-                    echo "Usage: run_validation <scenario> <command> [--suite <suite>] [--marker <marker>]"
-                    exit 1 ;;
-            esac
-        done
-
-        run_single "$SCENARIO" "$COMMAND" "$SUITE" "$MARKER"
+        [[ $FAILED -eq 0 ]] || exit 1
         ;;
 esac

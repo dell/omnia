@@ -68,21 +68,21 @@ def _validate_aarch64_config(config_data, errors, logger=None):
 
 def _validate_build_image_settings(config_data, errors, logger=None):
     """
-    Validate build_image async job settings logic.
+    Validate build_image settings.
 
     Rules:
-    - job_async must be > job_retry * job_delay (otherwise async times out before retries finish).
+    - build_timeout must be >= 600 seconds (10 minutes minimum).
     """
     build_image = config_data.get("build_image", {})
     if not build_image:
         return
 
-    job_async = build_image.get("job_async", 7200)
-    job_retry = build_image.get("job_retry", 240)
-    job_delay = build_image.get("job_delay", 30)
+    build_timeout = build_image.get(
+        "build_timeout", build_image.get("job_async", 7200)
+    )
 
-    if job_async < job_retry * job_delay:
-        error = msg.job_async_too_low_msg(job_async, job_retry, job_delay)
+    if build_timeout < 600:
+        error = msg.build_timeout_too_low_msg(build_timeout)
         errors.append(error)
         if logger:
             logger.error(error)

@@ -13,19 +13,21 @@
 # limitations under the License.
 
 """
-Main Module — Messages
+Omnia Main — Messages
 
-User-facing messages and error strings for the main module.
+Test names, log messages, and assertion messages for all FVT tests.
 """
 
-# --- Runner messages ---
-from .runner_msgs import RUNNER_LOG_MSGS, RUNNER_ASSERT_MSGS
-
-# --- Omnia.sh messages ---
-from .omnia_sh_msgs import (
+from .omnia_main_msgs import (
     TEST_NAMES,
     TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
-    SKIP_MSGS,
-    OMNIA_SH_MSGS,
+    OMNIA_MAIN_MSGS,
 )
+
+__all__ = [
+    "TEST_NAMES",
+    "TEST_LOG_MSGS",
+    "TEST_ASSERT_MSGS",
+    "OMNIA_MAIN_MSGS",
+]
