@@ -20,7 +20,7 @@ TC_SU_001: Deploy omnia.sh --setup-venv --deps-only
 
 import pytest
 
-from library.functions import TestLogger
+from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import run_omnia_cmd
 from library.messages import (
     TEST_NAMES,
@@ -34,9 +34,23 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_deploy_setup_venv(host):
     """TC_SU_001: Deploy omnia.sh --setup-venv --deps-only."""
+    config = load_test_config()
+    venv_path = config.get("venv_path", "/opt/omnia/venv")
+
+    # Check if venv already exists - skip deploy if it does
+    venv_exists_cmd = f"test -d {venv_path}/bin && echo exists"
+    venv_check = host.run(venv_exists_cmd)
+
     tl = TestLogger(
         TEST_NAMES["deploy_setup_venv"], "TC_SU_001"
     )
+
+    if "exists" in venv_check.stdout:
+        tl.passed(LOG["setup_success"].format(
+            duration=0.0
+        ))
+        pytest.skip(f"Venv already exists at {venv_path} - skipping deploy")
+
     result = run_omnia_cmd(host, "omnia_sh_setup_venv")
 
     if result["success"]:

@@ -1,0 +1,141 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Test Run Configuration — Omnia Main
+# =============================================================================
+#
+# Configure which test suites to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable suites and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Suite definitions
+# -----------------------------------------------------------------------------
+# Each suite has:
+#   order:   <int>         - Execution order (ascending). Order values MUST
+#                            be unique across enabled suites; duplicate
+#                            order values are a configuration error.
+#   run:     true/false    - Whether to execute this suite
+#   suite:   <folder>      - FVT folder name under fvt/ to run
+#   marker:  <expression>  - Marker filter expression (empty = all tests)
+#
+# Marker expression syntax:
+#   Single:   "sanity"                  — tests with @pytest.mark.sanity
+#   OR:       "sanity,functional"       — tests with EITHER marker
+#   AND:      "sanity+deploy"           — tests with BOTH markers
+#
+# Available markers:
+#   Quality:       sanity, functional, regression
+#   Execution:     deploy, verify
+#
+# Available suites (under fvt/):
+#   cli          — Help output, error handling, argument parsing
+#                  Supported markers: sanity
+#
+#   init         — Domain log directories, input file staging
+#                  Supported markers: sanity
+#
+#   omnia_cli    — omnia-cli diagnostics: status, check, version
+#                  Supported markers: sanity, deploy
+#
+#   setup        — Environment install, venv creation, directory setup
+#                  Supported markers: sanity, deploy
+# =============================================================================
+
+---
+
+# =============================================================================
+# Execution Options
+# =============================================================================
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
+skip_on_failure: false
+
+scenarios:
+
+  # =========================================================================
+  # cli — Help output, error handling, argument parsing
+  # =========================================================================
+  # Verifies omnia.sh help output, command-line argument parsing,
+  # and error handling for invalid commands/options.
+  #
+  # Supported suites (subfolders inside fvt/cli/):
+  #   commands  — Command verification (help, errors, unknown options)
+  #
+  # Supported markers:
+  #   sanity    — Baseline must-pass tests
+  cli:
+    order: 1
+    run: true
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # init — Domain log directories, input file staging
+  # =========================================================================
+  # Verifies domain log directories created and input files staged
+  # for image_build_manager and repo_manager.
+  #
+  # Supported suites (subfolders inside fvt/init/):
+  #   domain_init  — Log directory and input file verification
+  #
+  # Supported markers:
+  #   sanity    — Baseline must-pass tests
+  init:
+    order: 10
+    run: true
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # omnia_cli — omnia-cli diagnostics
+  # =========================================================================
+  # Verifies omnia-cli help output and version info.
+  #
+  # Supported suites (subfolders inside fvt/omnia_cli/):
+  #   *(root)     — Help and version verification
+  #   diagnostics — status, check, domain commands
+  #   errors      — Unknown command error tests
+  #
+  # Supported markers:
+  #   sanity    — Baseline must-pass tests
+  #   deploy    — Playbook deployment test
+  omnia_cli:
+    order: 20
+    run: true
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
+  # setup — Environment install, venv creation, directory setup
+  # =========================================================================
+  # Verifies environment file installation, venv creation, directory
+  # structure, and dependency installation.
+  #
+  # Supported suites (subfolders inside fvt/setup/):
+  #   environment  — Environment file and variable verification
+  #   venv        — Python venv, pip packages, Galaxy collections
+  #   directories — Base directories, log directories, activate helper
+  #
+  # Supported markers:
+  #   sanity    — Baseline must-pass tests
+  #   deploy    — Playbook deployment test
+  setup:
+    order: 30
+    run: true
+    suite: ""
+    marker: "sanity"

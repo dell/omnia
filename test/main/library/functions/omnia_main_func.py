@@ -56,7 +56,10 @@ def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
         Dict with keys: success, rc, output, duration, error.
     """
     config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        import os
+        clone_path = os.getcwd()
     kwargs.setdefault("clone_path", clone_path)
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
@@ -88,7 +91,10 @@ def run_omnia_cmd_expect_error(
         Dict with keys: success (True if rc!=0), rc, output, error.
     """
     config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        import os
+        clone_path = os.getcwd()
     kwargs.setdefault("clone_path", clone_path)
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
@@ -581,7 +587,10 @@ def run_omnia_cli_cmd(
         Dict with keys: success, rc, output, error.
     """
     config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        import os
+        clone_path = os.getcwd()
     kwargs.setdefault("clone_path", clone_path)
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
@@ -610,7 +619,10 @@ def run_omnia_cli_expect_error(
         Dict with keys: success (True if rc!=0), rc, output, error.
     """
     config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        import os
+        clone_path = os.getcwd()
     kwargs.setdefault("clone_path", clone_path)
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
