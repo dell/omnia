@@ -15,6 +15,13 @@
 - name: Clean DNF cache
   ansible.builtin.command: dnf clean all
   changed_when: false
+  when: ansible_facts['pkg_mgr'] | default('') in ['dnf', 'dnf4', 'dnf5', 'yum']
+
+- name: Clean apk cache
+  ansible.builtin.command: apk cache clean
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['pkg_mgr'] | default('') == 'apk'
 
 - name: Remove pulp.repo if exists
   ansible.builtin.file:
@@ -25,6 +32,13 @@
   ansible.builtin.dnf:
     update_cache: true
   changed_when: false
+  when: ansible_facts['pkg_mgr'] | default('') in ['dnf', 'dnf4', 'dnf5', 'yum']
+
+- name: Regenerate apk package index
+  community.general.apk:
+    update_cache: true
+  changed_when: false
+  when: ansible_facts['pkg_mgr'] | default('') == 'apk'
 
 - name: Check for data folder existence
   ansible.builtin.stat:

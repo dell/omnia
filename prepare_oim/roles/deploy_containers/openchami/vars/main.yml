@@ -45,7 +45,7 @@ openchami_bss_tag: "v1.32.2"
 openchami_cloud_init_tag: "v1.3.0"
 openchami_coresmd_tag: "v0.4.3"
 # Third-party image tags for OpenCHAMI
-minio_release_tag: "RELEASE.2026-04-17T00-00-00Z"
+minio_release_tag: "RELEASE.2026-06-18T00-00-00Z"
 postgres_tag: "11.5-alpine"
 hydra_tag: "v2.3"
 haproxy_tag: "latest"

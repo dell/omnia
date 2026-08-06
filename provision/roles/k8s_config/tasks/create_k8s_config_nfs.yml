@@ -240,6 +240,19 @@
     nfs_subdir_external_provisioner_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nfs-subdir-external-provisioner') | map(attribute='package') | join }}" # noqa: yaml[line-length]
     whereabouts_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'whereabouts') | map(attribute='package') | join }}" # noqa: yaml[line-length]
 
+- name: Detect CA trust anchors directory
+  ansible.builtin.set_fact:
+    ca_trust_anchors_dir: >-
+      {{ '/etc/pki/ca-trust/source/anchors'
+         if ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+         else '/usr/local/share/ca-certificates' }}
+  when: ca_trust_anchors_dir is not defined
+
+- name: Set anchors path
+  ansible.builtin.set_fact:
+    anchors_path: "{{ ca_trust_anchors_dir }}/pulp_webserver.crt"
+  when: anchors_path is not defined
+
 - name: Copy pulp webserver certificate to target host
   ansible.builtin.copy:
     src: "{{ pulp_webserver_cert_path }}"
@@ -247,8 +260,16 @@
     mode: "{{ file_mode }}"
   become: true
 
+- name: Detect CA trust update command
+  ansible.builtin.set_fact:
+    ca_trust_cmd: >-
+      {{ 'update-ca-trust'
+         if ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+         else 'update-ca-certificates' }}
+  when: ca_trust_cmd is not defined
+
 - name: Update CA trust on target host
-  ansible.builtin.command: update-ca-trust
+  ansible.builtin.command: "{{ ca_trust_cmd }}"
   register: update_ca
   changed_when: false
 

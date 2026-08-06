@@ -108,16 +108,92 @@
         state: file
       loop: "{{ cert_items.values() }}"
 
+    - name: Detect CA trust anchors directory
+      ansible.builtin.set_fact:
+        ca_trust_anchors_dir: >-
+          {{ '/etc/pki/ca-trust/source/anchors'
+             if ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+             else '/usr/local/share/ca-certificates' }}
+      when: ca_trust_anchors_dir is not defined
+
+    - name: Set anchors path
+      ansible.builtin.set_fact:
+        ca_trust_path: "{{ ca_trust_anchors_dir }}/pulp_webserver.crt"
+      when: ca_trust_path is not defined
+
+    - name: Ensure CA trust directory exists
+      ansible.builtin.file:
+        path: "{{ ca_trust_anchors_dir }}"
+        state: directory
+        mode: '0755'
+
     - name: Copy Pulp crt to container trust
       ansible.builtin.copy:
         src: "{{ pulp_cert_src }}"
         dest: "{{ ca_trust_path }}"
         mode: "{{ logs_dir_permission }}"
 
-    - name: Add Pulp Certificate to TrustStore
+    - name: Change group ownership of SSL certificate and key
+      ansible.builtin.file:
+        path: "{{ item }}"
+        group: pulp
+        state: file
+      loop: "{{ cert_items.values() }}"
+
+    # ── CA Trust: OS-aware cert installation ────────────────────────────────
+    # Fedora/RHEL: use update-ca-trust (native command exists)
+    # Wolfi/Other: directly append cert to system CA bundle (no command exists)
+
+    - name: Detect CA trust anchors directory
+      ansible.builtin.set_fact:
+        ca_trust_anchors_dir: >-
+          {{ '/etc/pki/ca-trust/source/anchors'
+             if ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+             else '/usr/local/share/ca-certificates' }}
+      when: ca_trust_anchors_dir is not defined
+
+    - name: Set anchors path
+      ansible.builtin.set_fact:
+        ca_trust_path: "{{ ca_trust_anchors_dir }}/pulp_webserver.crt"
+      when: ca_trust_path is not defined
+
+    - name: Ensure CA trust directory exists
+      ansible.builtin.file:
+        path: "{{ ca_trust_anchors_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy Pulp crt to container trust
+      ansible.builtin.copy:
+        src: "{{ pulp_cert_src }}"
+        dest: "{{ ca_trust_path }}"
+        mode: "{{ logs_dir_permission }}"
+
+    - name: Add Pulp Certificate to TrustStore (RHEL/Fedora)
       ansible.builtin.command:
         cmd: update-ca-trust extract
       changed_when: false
+      when: ansible_facts['os_family'] | default('') in ['RedHat', 'Fedora']
+
+    - name: Add Pulp Certificate to TrustStore (Wolfi/Other)
+      ansible.builtin.shell: |
+        cat "{{ ca_trust_path }}" >> /etc/ssl/certs/ca-certificates.crt
+      changed_when: false
+      when: ansible_facts['os_family'] | default('') not in ['RedHat', 'Fedora']
+
+    # ── End CA Trust ────────────────────────────────────────────────────────
+
+    - name: Create a track file
+      ansible.builtin.file:
+        path: "{{ track_file_path }}"
+        state: touch
+        mode: "{{ logs_dir_permission }}"
+
+    - name: Record current timestamp in track file
+      ansible.builtin.copy:
+        dest: "{{ track_file_path }}"
+        content: "Timestamp: {{ ansible_date_time.iso8601 }}"
+        mode: "{{ logs_dir_permission }}"
 
     - name: Create a track file
       ansible.builtin.file:
