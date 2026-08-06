@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Omnia Main — FVT test scenarios."""
+"""Setup scenario — omnia.sh --setup-venv tests."""

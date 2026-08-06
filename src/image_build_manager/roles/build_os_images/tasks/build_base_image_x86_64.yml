@@ -15,9 +15,9 @@
 
 - name: Set base image suffix from image tag
   ansible.builtin.set_fact:
-    base_image_suffix: "{{ _image_tag_suffix | default('') }}"
-    rhel_base_image_name: "{{ rhel_arch_base_image_name }}{{ _image_tag_suffix | default('') }}"
-  when: (_image_tag_suffix | default('') | length) > 0
+    base_image_suffix: "{{ _image_tag_suffix | default('', true) }}"
+    rhel_base_image_name: "{{ rhel_arch_base_image_name }}{{ _image_tag_suffix | default('', true) }}"
+  when: (_image_tag_suffix | default('', true) | length) > 0
 
 # --- Pre-build setup ---
 - name: Create ochami images directory
@@ -58,7 +58,8 @@
 - name: Determine if base image rebuild is needed
   ansible.builtin.set_fact:
     _base_rebuild_needed: >-
-      {{ _prev_base_hash is failed
+      {{ (force_rebuild | default(false) | bool)
+         or _prev_base_hash is failed
          or (_prev_base_hash.content | default('') | b64decode | trim) != _base_pkg_hash }}
 
 - name: Skip base image build (packages unchanged)
@@ -80,7 +81,7 @@
           image={{ rhel_arch_base_image_name }},
           packages={{ base_image_packages | length }},
           log={{ image_build__base_image_log_path }},
-          timeout={{ job_async }}s
+          timeout={{ build_timeout }}s
 
     - name: Run x86_64 base image build via orchestrator
       image_build_orchestrator:
@@ -93,7 +94,7 @@
               {{ ochami_base_command | join(' ') }}
             log_path: "{{ image_build__base_image_log_path }}"
         max_parallel: 1
-        timeout: "{{ job_async | int }}"
+        timeout: "{{ build_timeout | int }}"
       register: base_orchestrator_result
 
     - name: Display x86_64 base image build summary

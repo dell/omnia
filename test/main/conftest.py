@@ -13,104 +13,76 @@
 # limitations under the License.
 
 """
-Main Module — Pytest Configuration (Self-Contained).
+Pytest configuration for omnia main FVT.
 
-Provides the ``host`` fixture, test ordering, report hooks, and marker
-registration for the FVT (Functional Verification Testing) tests.
-
-Directory layout:
-    fvt/                                (Functional Verification Tests)
-    ├── omnia_sh_install/               (scenario)
-    │   ├── container/                  (functional area: container lifecycle)
-    │   │   ├── test_deploy.py          deploy — build + install
-    │   │   └── test_verify.py          verify — container, service, metadata
-    │   └── security/                   (functional area: SSH/auth)
-    │       └── test_ssh.py             verify — SSH connectivity
-    ├── omnia_sh_reinstall/             (scenario)
-    │   └── container/                  (functional area: container lifecycle)
-    │       └── test_deploy.py          deploy — reinstall overwrite
-    ├── omnia_sh_uninstall/             (scenario)
-    │   └── cleanup/                    (functional area: cleanup)
-    │       ├── test_deploy.py          deploy — uninstall
-    │       └── test_verify.py          verify — cleanup checks
-    nft/                                (Non-Functional Tests — parallel to fvt/)
-
-Suites = functional area folders (container, security, cleanup).
-Markers = validation quality categories (IEEE 829 / SDD aligned):
-- sanity: Baseline verification after deployment (must-pass gate)
-- smoke: Minimal critical-path subset (CI gate)
-- regression: Full regression coverage
-- functional: Feature-level functional verification
-- negative: Invalid input, error handling, boundary conditions
-- security: Authentication, authorization, credential tests
-- performance: Timing, throughput, resource usage benchmarks
-
-Deploy/verify separation is file-based (handled by run_validation.sh),
-not marker-based.  test_deploy.py = execution, others = verification.
+Provides:
+- host fixture (testinfra connection to target)
+- Custom markers: sanity, functional, deploy
+- Marker expression: '+' for AND, ',' for OR
+- Test ordering via @pytest.mark.order(n)
+- Credential auto-encryption
 """
 
-import os
 import sys
-import io
+import os
+
 import pytest
 
-# Ensure main/ is importable as a package
-_MAIN_ROOT = os.path.dirname(os.path.abspath(__file__))
-_TEST_ROOT = os.path.dirname(_MAIN_ROOT)
-if _TEST_ROOT not in sys.path:
-    sys.path.insert(0, _TEST_ROOT)
-if _MAIN_ROOT not in sys.path:
-    sys.path.insert(0, _MAIN_ROOT)
+_TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TEST_DIR not in sys.path:
+    sys.path.insert(0, _TEST_DIR)
 
-from main.library import (
+# --- Initialize omnia_auto BEFORE any imports that use it ---
+import omnia_auto
+omnia_auto.configure(
+    module_root=_TEST_DIR,
+    config_file="test_config.yml",
+    credentials_file="test_creds.yml",
+    credentials_key=".test_creds.key",
+)
+
+# --- Common functions from omnia_auto ---
+from omnia_auto import (
     get_testinfra_host,
     is_local_execution,
     load_test_config,
-    encrypt_test_credentials,
     TestReport,
     set_current_report,
     get_current_report,
     get_test_output,
+    encrypt_test_credentials,
+    log,
+    add_session_result,
+    print_summary_table,
 )
-from main.library.validation import validate_all, ConfigValidationError
+
+# --- Module-specific functions ---
+from library.functions.validation_func import (
+    validate_all,
+    ConfigValidationError,
+)
 
 
 # =============================================================================
-# TEE STREAM (capture + print simultaneously)
+# CUSTOM CLI OPTIONS
 # =============================================================================
 
-class _TeeStream:
-    """Tee stream that writes to both a primary stream and a buffer."""
-
-    def __init__(self, primary, buffer):
-        self._primary = primary
-        self._buffer = buffer
-
-    def write(self, data):
-        """Write to both primary stream and buffer."""
-        self._buffer.write(data)
-        return self._primary.write(data)
-
-    def flush(self):
-        """Flush both streams."""
-        try:
-            self._buffer.flush()
-        except OSError:
-            pass
-        return self._primary.flush()
-
-    def isatty(self):
-        """Check if primary stream is a TTY."""
-        isatty_fn = getattr(self._primary, "isatty", None)
-        return bool(isatty_fn and isatty_fn())
-
-    @property
-    def encoding(self):
-        return getattr(self._primary, "encoding", "utf-8")
+def pytest_addoption(parser):
+    """Add --marker option for custom marker expression filtering."""
+    parser.addoption(
+        "--marker",
+        action="store",
+        default="",
+        help=(
+            "Marker filter expression. "
+            "Use '+' for AND (both required): sanity+deploy. "
+            "Use ',' for OR (either matches): sanity,functional."
+        ),
+    )
 
 
 # =============================================================================
-# PYTEST HOOKS
+# MARKER REGISTRATION
 # =============================================================================
 
 def pytest_configure(config):
@@ -118,235 +90,236 @@ def pytest_configure(config):
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
-    config.addinivalue_line(
-        "markers",
-        "order(n): specify test execution order (lower first)",
-    )
-    config.addinivalue_line(
-        "markers",
-        "sanity: Baseline verification after deployment (must-pass)",
-    )
-    config.addinivalue_line("markers", "smoke: Minimal critical-path subset (CI gate)")
-    config.addinivalue_line("markers", "regression: Full regression coverage")
-    config.addinivalue_line("markers", "functional: Feature-level functional verification")
-    config.addinivalue_line("markers", "negative: Invalid input, error handling, boundary conditions")
-    config.addinivalue_line("markers", "security: Authentication, authorization, credential tests")
-    config.addinivalue_line("markers", "performance: Timing, throughput, resource usage benchmarks")
-    config.addinivalue_line("markers", "stress: Sustained load, concurrency, resource exhaustion")
-    config.addinivalue_line("markers", "integration: Cross-component interaction verification")
-    config.addinivalue_line("markers", "acceptance: End-to-end user acceptance criteria")
+    markers = {
+        "order(n)": "Specify test execution order (lower first)",
+        "sanity": "Baseline verification (must-pass)",
+        "functional": "Functional verification",
+        "regression": "Regression tests",
+        "deploy": "Script execution tests",
+    }
+    for name, desc in markers.items():
+        config.addinivalue_line("markers", f"{name}: {desc}")
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_report_teststatus(report, _config):
-    """Suppress default single-char test status (. s F E)."""
-    if report.when == "call":
-        if report.passed:
-            return "passed", "", "PASSED"
-        if report.failed:
-            return "failed", "", "FAILED"
-    if report.when == "setup" and report.skipped:
-        return "skipped", "", "SKIPPED"
+# =============================================================================
+# MARKER EXPRESSION FILTERING
+# =============================================================================
+
+def _parse_marker_expression(expr):
+    """Parse marker expression into (mode, marker_list).
+
+    '+' => AND (all markers must be present)
+    ',' => OR  (any marker must be present)
+    Single marker => exact match
+
+    Returns:
+        Tuple of ('and'|'or'|'single', list_of_markers)
+    """
+    expr = expr.strip()
+    if not expr:
+        return ("none", [])
+    if "+" in expr:
+        return ("and", [m.strip() for m in expr.split("+")])
+    if "," in expr:
+        return ("or", [m.strip() for m in expr.split(",")])
+    return ("single", [expr])
 
 
-def pytest_collection_modifyitems(_session, _config, items):
-    """Order tests by @pytest.mark.order(n) then file then function name."""
-    def get_order_key(item):
-        order_marker = item.get_closest_marker("order")
-        if order_marker and order_marker.args:
-            return (0, order_marker.args[0], item.fspath.basename, item.name)
-        return (1, 0, item.fspath.basename, item.name)
-
-    items.sort(key=get_order_key)
+def _item_has_marker(item, marker_name):
+    """Check if a test item has a specific marker."""
+    return item.get_closest_marker(marker_name) is not None
 
 
-def pytest_sessionstart(_session):
-    """Validate config, encrypt credentials, initialize report at session start."""
-    # --- Config validation (runs once before any test) ---
+def pytest_collection_modifyitems(session, config, items):
+    """Filter by --marker expression and sort by order marker."""
+    marker_expr = config.getoption("--marker", default="")
+    mode, markers = _parse_marker_expression(marker_expr)
+
+    if mode != "none" and markers:
+        filtered = []
+        for item in items:
+            if mode == "and":
+                if all(_item_has_marker(item, m) for m in markers):
+                    filtered.append(item)
+                else:
+                    item.add_marker(pytest.mark.skip(
+                        reason=(
+                            f"Missing marker(s) for AND expression: "
+                            f"{'+'.join(markers)}"
+                        )
+                    ))
+                    filtered.append(item)
+            elif mode == "or":
+                if any(_item_has_marker(item, m) for m in markers):
+                    filtered.append(item)
+                else:
+                    item.add_marker(pytest.mark.skip(
+                        reason=(
+                            f"No matching marker for OR expression: "
+                            f"{','.join(markers)}"
+                        )
+                    ))
+                    filtered.append(item)
+            elif mode == "single":
+                if _item_has_marker(item, markers[0]):
+                    filtered.append(item)
+                else:
+                    item.add_marker(pytest.mark.skip(
+                        reason=f"Missing marker: {markers[0]}"
+                    ))
+                    filtered.append(item)
+        items[:] = filtered
+
+    def _get_order(item):
+        marker = item.get_closest_marker("order")
+        if marker and marker.args:
+            return marker.args[0]
+        return 999
+
+    items.sort(key=_get_order)
+
+
+# =============================================================================
+# SESSION STARTUP
+# =============================================================================
+
+def pytest_sessionstart(session):
+    """Session startup: validate config, encrypt credentials, init report."""
     try:
-        validate_all()
-    except ConfigValidationError as e:
-        pytest.exit(str(e), returncode=3)
+        result = validate_all()
+        for warn in result.get("warnings", []):
+            log(f"Config warning: {warn}", "WARN")
+    except ConfigValidationError as exc:
+        log(str(exc), "FAIL")
+        pytest.exit(str(exc), returncode=1)
 
     try:
         encrypt_test_credentials()
     except (ValueError, OSError):
         pass
 
-    # --- Report ID: env var > test_config.yml > timestamp ---
+    config = load_test_config()
+
+    # Initialize test report
+    valid_scenarios = {"main", "setup", "init", "cli"}
     module_name = "main"
-    report_id = os.environ.get("OMNIA_REPORT_ID")
-    if not report_id:
-        config = load_test_config()
-        report_id = str(config.get("report_id", "")).strip() or None
-    report = TestReport(module_name, report_id)
+    test_paths = (
+        session.config.args if hasattr(session.config, "args") else []
+    )
+    for path in test_paths:
+        for part in path.replace("\\", "/").split("/"):
+            if part in valid_scenarios:
+                module_name = part
+                break
+
+    report_id = os.environ.get("REPORT_ID")
+    report = TestReport(
+        module_name=module_name,
+        report_path=str(
+            config.get("report_path", "/opt/omnia/reports")
+        ),
+        report_name=str(
+            config.get("report_name", "test_report")
+        ),
+        server_ip=str(
+            config.get("oim_server_ip", "localhost")
+        ),
+        report_id=report_id,
+    )
     set_current_report(report)
 
 
-def pytest_sessionfinish(_session, _exitstatus):
-    """Save report at session end."""
+def pytest_sessionfinish(session, exitstatus):
+    """Save report and print summary table after all tests complete."""
     report = get_current_report()
     if report and report.results:
         report.save()
 
-
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_call(item):
-    """Tee stdout/stderr during test execution for report capture."""
-    buf = io.StringIO()
-    orig_out, orig_err = sys.stdout, sys.stderr
-    sys.stdout = _TeeStream(orig_out, buf)
-    sys.stderr = _TeeStream(orig_err, buf)
-    try:
-        yield
-    finally:
-        sys.stdout, sys.stderr = orig_out, orig_err
-        item._omnia_captured_output = buf.getvalue()
+    print_summary_table()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item, _call):
-    """Capture test results and output for the report."""
+def pytest_runtest_makereport(item, call):
+    """Capture test results and output for the HTML report + summary."""
     outcome = yield
     result = outcome.get_result()
 
-    report = get_current_report()
-    if not report:
-        return
-
     if result.when not in {"call", "setup"}:
         return
-    if result.when == "setup" and result.outcome != "skipped":
+
+    if result.when == "setup" and not result.skipped:
         return
 
-    duration = result.duration if hasattr(result, "duration") else 0
-    output = getattr(item, "_omnia_captured_output", None) or get_test_output(item.name)
+    status = "PASSED" if result.passed else (
+        "SKIPPED" if result.skipped else "FAILED"
+    )
 
-    skip_reason = None
-    if result.outcome == "skipped":
-        longrepr = getattr(result, "longrepr", None)
-        if isinstance(longrepr, tuple) and len(longrepr) >= 3:
-            skip_reason = longrepr[2]
-        else:
-            skip_reason = str(longrepr) if longrepr else "Skipped"
+    output = get_test_output(item.name)
+    details = output if output else ""
+    skip_reason = ""
 
-    if result.outcome == "passed":
-        status = "PASSED"
-    elif result.outcome == "failed":
-        status = "FAILED"
-    else:
-        status = "SKIPPED"
+    if result.skipped:
+        if hasattr(result, "wasxfail"):
+            status = "SKIPPED"
+        rep_text = str(result.longrepr) if result.longrepr else ""
+        if "Skipped:" in rep_text:
+            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
+        elif "SKIP" in rep_text:
+            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
 
-    error = None
-    if status == "FAILED":
-        error = str(result.longrepr) if result.longrepr else None
-
-    details = output if output else None
     if status == "SKIPPED" and skip_reason:
-        details = (details + "\n" if details else "") + f"SKIPPED: {skip_reason}"
+        details = (
+            (details + "\n" if details else "")
+            + f"SKIPPED: {skip_reason}"
+        )
 
-    # Categorize by source file for report grouping
-    fspath = str(item.fspath.basename) if hasattr(item, "fspath") else ""
-    if "test_deploy" in fspath or "test_reinstall" in fspath:
-        category = "deploy"
-    else:
-        category = "verify"
+    # Extract TC ID from docstring
+    tc_id = ""
+    doc = getattr(item.obj, "__doc__", "") or ""
+    if doc.strip().startswith("TC_"):
+        tc_id = doc.strip().split(":", 1)[0].strip()
 
-    # Extract marker names (exclude internal markers like order, parametrize)
-    _internal = {
-        "order", "parametrize", "usefixtures",
-        "filterwarnings", "skip", "skipif", "xfail",
-    }
-    markers = [
-        m.name for m in item.iter_markers()
-        if m.name not in _internal
-    ]
-
-    # Build full test path for folder breakdown
-    test_path = (
-        str(item.fspath.relto(item.session.config.rootdir))
-        if hasattr(item.fspath, "relto")
-        else str(item.fspath)
+    add_session_result(
+        test_name=item.name,
+        status=status,
+        duration=getattr(result, "duration", 0),
+        tc_id=tc_id,
     )
 
-    report.add_result(
-        {
-            "test_name": f"{test_path}::{item.name}",
+    report = get_current_report()
+    if report:
+        report.add_result({
+            "test_name": item.name,
             "status": status,
-            "duration": duration,
+            "duration": getattr(result, "duration", 0),
             "details": details,
-            "error": error,
-            "category": category,
-            "markers": markers,
-        },
-    )
+            "error": (
+                str(result.longrepr) if result.failed else ""
+            ),
+        })
+
+
+# =============================================================================
+# SUPPRESS PYTEST DOT OUTPUT
+# =============================================================================
+
+def pytest_report_teststatus(report, config):
+    """Replace pytest's default . s F characters with empty strings."""
+    if report.when == "call":
+        if report.passed:
+            return "passed", "", ""
+        if report.failed:
+            return "failed", "", ""
+    if report.skipped:
+        return "skipped", "", ""
+    return None
 
 
 # =============================================================================
 # HOST FIXTURE
 # =============================================================================
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def host():
-    """Testinfra host fixture — connects to OIM server.
-
-    When running on the OIM itself (oim_ip is empty or matches a local IP),
-    returns a local testinfra host — no SSH credentials required.
-    When running remotely, validates SSH connectivity before returning the host.
-    """
-    import shutil
-    import subprocess as _sp
-
-    config = load_test_config()
-    oim_ip = config.get("oim_server_ip", "")
-
-    # Local execution mode
-    if is_local_execution():
-        h = get_testinfra_host()
-        try:
-            result = h.run("echo ok")
-            if result.rc != 0 or "ok" not in result.stdout:
-                pytest.fail(
-                    "Local command execution failed. "
-                    "Verify that the test user has proper permissions."
-                )
-        except Exception as e:
-            pytest.fail(f"Local command execution failed: {e}")
-        return h
-
-    # Remote execution mode
-    if not shutil.which("sshpass"):
-        pytest.fail(
-            "sshpass is not installed. Required for SSH password authentication.\n"
-            "Install: dnf install -y sshpass (RHEL) or apt install -y sshpass (Ubuntu)"
-        )
-
-    ssh_port = config.get("oim_ssh_port", 22)
-    try:
-        _sp.run(
-            ["bash", "-c", f"echo > /dev/tcp/{oim_ip}/{ssh_port}"],
-            capture_output=True, timeout=5, check=True
-        )
-    except (_sp.CalledProcessError, _sp.TimeoutExpired, OSError):
-        pytest.fail(
-            f"OIM server {oim_ip}:{ssh_port} is not reachable.\n"
-            f"Check oim_ip and oim_ssh_port in test_config.yml"
-        )
-
-    h = get_testinfra_host()
-    try:
-        result = h.run("echo ok")
-        if result.rc != 0 or "ok" not in result.stdout:
-            stderr = result.stderr.strip() if result.stderr else ""
-            pytest.fail(
-                f"SSH to OIM server {oim_ip} failed (rc={result.rc}).\n"
-                f"Error: {stderr}\n"
-                f"Check oim_ssh_user and oim_password in test_config.yml / test_creds.yml"
-            )
-    except Exception as e:
-        pytest.fail(
-            f"SSH connection to OIM server {oim_ip} failed: {e}\n"
-            f"Check oim_ip, oim_ssh_user, oim_password in test_config.yml / test_creds.yml"
-        )
-
-    return h
+    """Testinfra host connected to the target server."""
+    return get_testinfra_host()

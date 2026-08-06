@@ -47,13 +47,11 @@ AARCH64_SSH_USER_REQUIRED_MSG = (
 # =============================================================================
 
 
-def job_async_too_low_msg(job_async, job_retry, job_delay):
-    """Returns message when job_async is lower than retry * delay."""
+def build_timeout_too_low_msg(build_timeout):
+    """Returns message when build_timeout is below minimum."""
     return (
-        f"image_build_config: build_image.job_async ({job_async}s) must be >= "
-        f"job_retry * job_delay ({job_retry} * {job_delay} = "
-        f"{job_retry * job_delay}s). "
-        "Otherwise the async timeout occurs before all retries complete."
+        f"image_build_config: build_image.build_timeout ({build_timeout}s) must be >= "
+        f"600s (10 minutes). Image builds typically take 5–30 minutes."
     )
 
 

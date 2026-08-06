@@ -33,8 +33,8 @@
 - name: Compute image tag suffix from source and job_id
   ansible.builtin.set_fact:
     _pkg_source: "{{ hostvars['localhost']['functional_groups_source'] | default('config') }}"
-    _catalog_id: "{{ hostvars['localhost']['catalog_identifier'] | default('') }}"
-    _job_id: "{{ hostvars['localhost']['job_id'] | default('') }}"
+    _catalog_id: "{{ hostvars['localhost']['catalog_identifier'] | default('', true) }}"
+    _job_id: "{{ hostvars['localhost']['job_id'] | default('', true) }}"
     base_image_suffix: ""
     compute_image_suffix: ""
     aarch64_build_host: "{{ groups['admin_aarch64'][0] }}"
@@ -43,13 +43,13 @@
   ansible.builtin.set_fact:
     _image_tag_suffix: >-
       {%- set parts = [] -%}
-      {%- if _pkg_source == 'catalog' and _catalog_id | length > 0 -%}
+      {%- if _pkg_source == 'catalog' and (_catalog_id | default('', true) | length) > 0 -%}
         {%- set _ = parts.append(_catalog_id) -%}
       {%- endif -%}
-      {%- if _job_id | length > 0 -%}
+      {%- if (_job_id | default('', true) | length) > 0 -%}
         {%- set _ = parts.append(_job_id) -%}
       {%- endif -%}
-      {%- if parts | length > 0 %}_{{ parts | join('_') }}{%- endif %}
+      {{ ('_' + parts | join('_')) if parts | length > 0 else '' }}
 
 - name: Set omnia image naming suffix
   ansible.builtin.set_fact:
