@@ -14,7 +14,7 @@
 ---
 
 # ===========================================================================
-# Upgrade Pulp Container (3.80 → 3.113)
+# Upgrade Pulp Container (3.80 → 3.114.2)
 #
 # Steps:
 #   1. Pull new Pulp image
