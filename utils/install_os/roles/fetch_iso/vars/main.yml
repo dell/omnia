@@ -35,7 +35,7 @@ iso_not_found_msg: >-
   Please place the RHEL 10.x AArch64 Server with GUI ISO at the specified path
   and re-run the playbook.
 iso_checksum_mismatch_msg: >-
-  Source ISO checksum mismatch. Expected: {{ iso_source_checksum }}.
+  Source ISO checksum mismatch. Expected: {{ iso_source_checksum | default('not provided') }}.
   The ISO file may be corrupted or incomplete. Please re-download the ISO and retry.
 tool_missing_msg: >-
   Required ISO tooling is missing: {{ missing_tools | join(', ') }}.
