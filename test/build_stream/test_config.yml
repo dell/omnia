@@ -47,7 +47,7 @@ oim_ssh_port: 22
 # =============================================================================
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # Playbook runs from <clone_path>/src/build_stream/playbooks/
-clone_path: "/root/omnia"
+clone_path: "/home/omnia2100rc2/omnia/ansible_collections/dell/4849_issue"
 
 # =============================================================================
 # DATASET CONFIGURATION
@@ -71,6 +71,15 @@ sync_build_stream_input: true
 # SHARED PATH (runtime output on target host)
 # =============================================================================
 shared_path: "/opt/omnia/build_stream"
+
+# =============================================================================
+# BSM API CONFIGURATION
+# =============================================================================
+# BSM host IP for API health checks (read from deployed config)
+bsm_host_ip: "100.10.0.129"
+
+# GitLab host IP (separate host for GitLab deployment)
+gitlab_host: "100.10.0.24"
 
 # =============================================================================
 # REPORT CONFIGURATION

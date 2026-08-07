@@ -28,6 +28,7 @@ Each function returns Dict[str, Any] with at minimum:
 """
 
 import json
+import sys
 from typing import Dict, Any, List
 
 from omnia_auto import run_on_host
@@ -41,6 +42,7 @@ from ..vars.common_vars import (
     BSM_API_PORT,
     BSM_HEALTH_ENDPOINT,
     GITLAB_HTTP_PORT,
+    GITLAB_HTTPS_PORT,
     POSTGRES_DB,
     EXPECTED_POSTGRES_TABLES,
     LISTENING_PORTS,
@@ -116,10 +118,13 @@ def check_build_stream_health(host) -> Dict[str, Any]:
     Returns:
         Dict with success, error, url, status, details.
     """
-    url = f"http://localhost:{BSM_API_PORT}{BSM_HEALTH_ENDPOINT}"
-    cmd = CMDS["curl_health"].format(
-        port=BSM_API_PORT, endpoint=BSM_HEALTH_ENDPOINT,
-    )
+    # Try to get BSM host IP from config, fallback to localhost
+    from omnia_auto import load_test_config
+    config = load_test_config()
+    bsm_host = config.get("bsm_host_ip", "localhost")
+    
+    url = f"https://{bsm_host}:{BSM_API_PORT}{BSM_HEALTH_ENDPOINT}"
+    cmd = f"curl -sk https://{bsm_host}:{BSM_API_PORT}{BSM_HEALTH_ENDPOINT} 2>/dev/null"
     result = run_on_host(host, cmd)
     stdout = result.stdout.strip() if result.stdout else ""
 
@@ -226,11 +231,24 @@ def verify_gitlab_server_running(host) -> Dict[str, Any]:
     Returns:
         Dict with success, error, url, http_code, details.
     """
-    cmd = CMDS["curl_gitlab"].format(port=GITLAB_HTTP_PORT)
+    # Get GitLab host from configuration
+    from omnia_auto import load_test_config
+    config = load_test_config()
+    gitlab_host = config.get("gitlab_host", "localhost")
+    
+    cmd = (
+        f"curl -sk -o /dev/null "
+        f"-w '%{{http_code}}' "
+        f"https://{gitlab_host}:{GITLAB_HTTPS_PORT}/ "
+        f"2>/dev/null"
+    )
+
     result = run_on_host(host, cmd)
     stdout = result.stdout.strip() if result.stdout else ""
 
-    url = f"http://localhost:{GITLAB_HTTP_PORT}/"
+    # import pdb; pdb.set_trace()
+
+    url = f"https://{gitlab_host}:{GITLAB_HTTPS_PORT}/"
 
     if result.rc != 0:
         return {
@@ -266,12 +284,40 @@ def verify_gitlab_server_running(host) -> Dict[str, Any]:
 
 
 def verify_gitlab_runner_running(host) -> Dict[str, Any]:
-    """Verify gitlab-runner container is running.
+    """Verify gitlab-runner container is running on GitLab host.
 
     Returns:
         Dict with success, error, container, status, details.
     """
-    result = check_container_running(host, GITLAB_RUNNER_CONTAINER)
+    # Get GitLab host from configuration
+    from omnia_auto import load_test_config
+    config = load_test_config()
+    gitlab_host = config.get("gitlab_host", "localhost")
+    
+    # Check if GitLab is on localhost or remote host
+    if gitlab_host in ("localhost", "127.0.0.1"):
+        result = check_container_running(host, GITLAB_RUNNER_CONTAINER)
+    else:
+        # Check on remote GitLab host via SSH
+        cmd = f"ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no {gitlab_host} \"podman inspect --format '{{{{.State.Status}}}}' {GITLAB_RUNNER_CONTAINER} 2>/dev/null\""
+        ssh_result = run_on_host(host, cmd)
+
+        if ssh_result.rc == 0 and ssh_result.stdout.strip() == "running":
+            result = {
+                "success": True,
+                "error": "",
+                "status": "running",
+                "details": f"Container running on {gitlab_host}",
+            }
+        else:
+            status = ssh_result.stdout.strip() if ssh_result.stdout else "not found"
+            result = {
+                "success": False,
+                "error": f"Container {GITLAB_RUNNER_CONTAINER} is not running (status: {status})",
+                "status": status,
+                "details": f"Checked on {gitlab_host}",
+            }
+    
     return {
         "success": result["success"],
         "error": result["error"],

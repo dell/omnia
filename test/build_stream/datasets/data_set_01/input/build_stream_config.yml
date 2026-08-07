@@ -23,3 +23,27 @@
 
 # Enable/disable build_stream domain
 enable_build_stream: true
+
+# BuildStream API server host IP (localhost for local testing)
+build_stream_host_ip: "100.10.0.129"
+
+# BuildStream API server port
+build_stream_port: 8010
+
+# GitLab host (localhost for local testing)
+gitlab_host: "100.10.0.24"
+
+# GitLab HTTPS port
+gitlab_https_port: 443
+
+project_name: "project_default"
+
+gitlab_min_memory_gb: 4
+gitlab_min_cpu_cores: 2
+
+gitlab_default_branch: "main"
+gitlab_min_storage_gb: 20
+gitlab_puma_workers: 2
+gitlab_sidekiq_concurrency: 10
+
+gitlab_project_name: "omnia-catalog"

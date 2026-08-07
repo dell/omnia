@@ -91,16 +91,18 @@ GITLAB_RUNNER_CONTAINER = "gitlab-runner"
 # =============================================================================
 
 # Build Stream API port
-BSM_API_PORT = 5001
+BSM_API_PORT = 8010
 
 # GitLab HTTP port
 GITLAB_HTTP_PORT = 80
+GITLAB_HTTPS_PORT = 443
 
 # PostgreSQL port
 POSTGRES_PORT = 5432
 
-# Listening ports to verify after prepare
-LISTENING_PORTS = [5001, 5432, 80]
+# Listening ports to verify after prepare (BSM API and PostgreSQL only)
+# GitLab (port 80) is deployed in build phase, not prepare
+LISTENING_PORTS = [8010, 5432]
 
 # Systemd services created by prepare (if any)
 SYSTEMD_SERVICES = []
@@ -113,13 +115,16 @@ BUILD_STATUS_PATH = (
 # PostgreSQL database name
 POSTGRES_DB = "build_stream_db"
 
-# Expected PostgreSQL tables (from molecule tests)
+# Expected PostgreSQL tables (actual schema from BSM database)
 EXPECTED_POSTGRES_TABLES = [
     "jobs",
-    "stages",
+    "job_stages",
     "image_groups",
     "images",
-    "catalogs",
+    "alembic_version",
+    "artifact_metadata",
+    "audit_events",
+    "idempotency_keys",
 ]
 
 # =============================================================================
@@ -154,11 +159,11 @@ CMDS = {
     ),
     # --- Build Stream API ---
     "curl_health": (
-        "curl -sk http://localhost:{port}{endpoint} 2>/dev/null"
+        "curl -sk https://localhost:{port}{endpoint} 2>/dev/null"
     ),
     # --- PostgreSQL ---
     "psql_list_tables": (
-        "podman exec {container} psql -U postgres -d {db}"
+        "podman exec -e PGPASSWORD=Dell1234 {container} psql -U poster1 -d {db}"
         " -t -c \"SELECT tablename FROM pg_tables"
         " WHERE schemaname='public';\" 2>/dev/null"
     ),
