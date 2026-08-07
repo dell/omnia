@@ -108,6 +108,13 @@
          | regex_replace('^helm-v', '')
          | regex_replace('-.*$', '') }}
 
+- name: Extract kube_vip_target_version from service_k8s.json
+  ansible.builtin.set_fact:
+    kube_vip_target_version: >-
+      {{ service_k8s_config.service_kube_control_plane_first.cluster
+         | selectattr('package', 'search', 'kube-vip')
+         | map(attribute='tag') | first | regex_replace('^v', '') }}
+
 # ── Extract addon package names (for manifest file names) ─────────────
 - name: Extract addon package names from service_k8s.json
   ansible.builtin.set_fact:

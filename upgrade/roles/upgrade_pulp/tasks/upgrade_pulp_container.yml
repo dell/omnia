@@ -95,14 +95,13 @@
     name: "{{ pulp_container_name }}"
     command: pulpcore-manager migrate --noinput
   register: pulp_migrate_result
-  retries: 3
-  delay: 10
+  retries: 40
+  delay: 15
   until: pulp_migrate_result.rc == 0
   delegate_to: oim
   delegate_facts: true
   connection: ssh
-  failed_when: false
 
 - name: Display migration result
   ansible.builtin.debug:
-    msg: "Database migration: {{ 'completed' if pulp_migrate_result.rc | default(1) == 0 else 'skipped or not required' }}"
+    msg: "Database migration: {{ 'completed successfully' if pulp_migrate_result.rc == 0 else 'FAILED (rc=' ~ pulp_migrate_result.rc | string ~ ')' }}"

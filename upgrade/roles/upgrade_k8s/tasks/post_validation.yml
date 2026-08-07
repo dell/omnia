@@ -105,7 +105,7 @@
   ansible.builtin.shell:
     cmd: >-
       set -o pipefail &&
-      kubectl get pods -n calico-system --no-headers
+      kubectl get pods -n kube-system -l k8s-app=calico-node --no-headers
       --field-selector status.phase!=Running,status.phase!=Succeeded
       2>/dev/null | head -20
   args:
