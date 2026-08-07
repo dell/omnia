@@ -28,7 +28,7 @@
             | selectattr('name', 'match', '^x86_64')
             | list }}
 
-    # ── Repo priority classification ──────────────────────────────────
+    # -- Repo priority classification ----------------------------------
     # Load local_repo_config.yml to identify user vs RHEL vs omnia repos.
     # Priority order: user (10) > RHEL (20) > omnia (99).
     # This ensures DNF prefers user-supplied package versions over
@@ -43,12 +43,12 @@
     - name: Build user repo name list
       ansible.builtin.set_fact:
         _user_repo_names: >-
-          {{ (_local_repo_cfg.user_repo_url_x86_64 | default([]) | map(attribute='name') | list)
-             + (_local_repo_cfg.user_repo_url_aarch64 | default([]) | map(attribute='name') | list) }}
+          {{ (_local_repo_cfg.user_repo_url_x86_64 | default([]) | map(attribute='name') | list) }}
         _rhel_repo_names: >-
           {{ (_local_repo_cfg.rhel_os_url_x86_64 | default([]) | map(attribute='name') | list)
-             + (_local_repo_cfg.rhel_os_url_aarch64 | default([]) | map(attribute='name') | list)
              + ['baseos', 'appstream', 'codeready-builder'] }}
+        _omnia_repo_names: >-
+          {{ (_local_repo_cfg.omnia_repo_url_rhel_x86_64 | default([]) | map(attribute='name') | list) }}
 
     - name: Build rhel_repos list with priority from pulp_x86_64_distributions
       ansible.builtin.set_fact:
