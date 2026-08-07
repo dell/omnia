@@ -13,48 +13,61 @@
 # limitations under the License.
 
 """
-Main Module — Variables
+Omnia Main — Variables
 
-All constants and configuration variables for the main module.
+Common constants, paths, domain lists, and command templates.
 """
 
-# --- Common constants ---
 from .common_vars import (
     MODULE_ROOT,
     REPO_ROOT,
+    DOMAIN_NAME,
+    OMNIA_RELEASE,
     OMNIA_SH_PATH,
-    OMNIA_CORE_CONTAINER,
-    CONTAINER_SSH_PORT,
-    PODMAN_EXEC_PREFIX,
-    SSH_OPTS,
-    SSH_KEY_PRIV,
-    SSH_KEY_PUB,
-    SSH_CONFIG_PATH,
-    AUTHORIZED_KEYS_PATH,
-    KNOWN_HOSTS_PATH,
-    KNOWN_HOSTS_PATTERN,
-    TEST_CONFIG_FILE,
-    TEST_CREDENTIALS_FILE,
-    TEST_CREDENTIALS_KEY,
+    OMNIA_ENV_PATH,
+    OMNIA_CLI_PATH,
+    SYSTEM_ENV_DIR,
+    SYSTEM_ENV_FILE,
+    PROFILE_DROP_IN,
+    DEFAULT_DATA_PATH,
+    DEFAULT_VENV_PATH,
+    DEFAULT_PROJECT_NAME,
+    BASE_DIRS,
+    KNOWN_DOMAINS,
+    DOMAINS_WITH_INIT,
+    REQUIRED_ENV_VARS,
+    OPTIONAL_ENV_VARS,
+    VALID_CLI_COMMANDS,
+    VALID_CLI_OPTIONS,
+    OMNIA_CLI_COMMANDS,
+    OMNIA_CLI_DOMAINS,
+    OMNIA_CLI_HELP_SECTIONS,
     CMDS,
 )
 
-# --- Container paths ---
-from .paths_vars import (
-    OIM_SHARED_PATH,
-    OMNIA_DATA_PATH,
-    INPUT_BASE_PATH,
-    OIM_METADATA_PATH,
-)
-
-# --- Runner constants ---
-from .runner_vars import (
-    DEFAULT_CONTAINER,
-    DEFAULT_VERBOSITY,
-    DEFAULT_TIMEOUT,
-    LINE_WIDTH,
-    SSH_OPTIONS,
-)
-
-# --- Omnia.sh test variables ---
-from .omnia_sh_vars import OMNIA_SH_VARS, TEST_VARS, validate_current_dataset
+__all__ = [
+    "MODULE_ROOT",
+    "REPO_ROOT",
+    "DOMAIN_NAME",
+    "OMNIA_RELEASE",
+    "OMNIA_SH_PATH",
+    "OMNIA_ENV_PATH",
+    "OMNIA_CLI_PATH",
+    "SYSTEM_ENV_DIR",
+    "SYSTEM_ENV_FILE",
+    "PROFILE_DROP_IN",
+    "DEFAULT_DATA_PATH",
+    "DEFAULT_VENV_PATH",
+    "DEFAULT_PROJECT_NAME",
+    "BASE_DIRS",
+    "KNOWN_DOMAINS",
+    "DOMAINS_WITH_INIT",
+    "REQUIRED_ENV_VARS",
+    "OPTIONAL_ENV_VARS",
+    "VALID_CLI_COMMANDS",
+    "VALID_CLI_OPTIONS",
+    "OMNIA_CLI_COMMANDS",
+    "OMNIA_CLI_DOMAINS",
+    "OMNIA_CLI_HELP_SECTIONS",
+    "CMDS",
+]
