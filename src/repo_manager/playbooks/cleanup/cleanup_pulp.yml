@@ -15,11 +15,29 @@
 # =============================================================================
 # CLEANUP PULP PLAYBOOK
 # =============================================================================
-# This playbook removes the Pulp container and all related data.
+# This playbook removes the Pulp container and all related data including:
+#   - Pulp container and image
+#   - Pulp data directories (settings, nginx, etc.)
+#   - Pulp CLI configuration files
+#   - Log files (optional)
+#   - Credential files (interactive prompt - user decides)
 # All tasks run on localhost (OIM).
 #
 # Usage:
-#   ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default'
+#   Interactive mode (will prompt for credential deletion):
+#     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default'
+#
+#   Force delete credentials (no prompt):
+#     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_credentials=true'
+#
+#   Preserve credentials (no prompt):
+#     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_credentials=false'
+#
+#   Preserve logs:
+#     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_logs=false'
+#
+#   Preserve both logs and credentials:
+#     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_logs=false' -e 'cleanup_credentials=false'
 # =============================================================================
 
 - name: Cleanup Pulp container and data
@@ -32,51 +50,6 @@
     - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
   tags: pulp
   tasks:
-    # -------------------------------------------------------------------------
-    # PHASE 0: SETUP PULP CLI
-    # -------------------------------------------------------------------------
-    - name: Check if pulp CLI exists at /usr/local/bin/pulp
-      ansible.builtin.stat:
-        path: /usr/local/bin/pulp
-      register: pulp_system_cli_check
-
-    - name: Find pulp CLI path from current environment
-      ansible.builtin.command: which pulp
-      register: pulp_which_result
-      changed_when: false
-      failed_when: false
-      when: not pulp_system_cli_check.stat.exists
-
-    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
-      ansible.builtin.file:
-        src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
-        state: link
-      when:
-        - not pulp_system_cli_check.stat.exists
-        - pulp_which_result.rc | default(1) == 0
-        - pulp_which_result.stdout | default('') | length > 0
-
-    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
-      ansible.builtin.command: /usr/local/bin/pulp --version
-      register: pulp_cli_version
-      changed_when: false
-      failed_when: false
-
-    - name: Fail if pulp CLI is not available
-      ansible.builtin.fail:
-        msg: |
-          Pulp CLI not found at /usr/local/bin/pulp.
-          Please ensure pulp-cli is installed and the virtual environment is activated:
-            source <venv_path>/bin/activate
-            pip install pulp-cli
-          Then run the playbook again to create the symlink automatically.
-      when: pulp_cli_version.rc != 0
-
-    - name: Display pulp CLI status
-      ansible.builtin.debug:
-        msg: "Pulp CLI: {{ pulp_cli_version.stdout }}"
-
     # -------------------------------------------------------------------------
     # PHASE 1: VALIDATION
     # -------------------------------------------------------------------------
@@ -105,19 +78,20 @@
           - "========================================="
 
     # -------------------------------------------------------------------------
-    # PHASE 2: FETCH CREDENTIALS
+    # PHASE 2: FETCH CREDENTIALS (OPTIONAL - NOT REQUIRED FOR CLEANUP)
     # -------------------------------------------------------------------------
-    - name: Load credentials for cleanup
-      ansible.builtin.include_role:
-        name: ../../roles/credential
-      vars:
-        credential_action: all
+    # Note: Credentials are not required for cleanup operations
+    # Cleanup only removes containers, files, and directories
+    - name: Set default credentials (not required for cleanup)
+      ansible.builtin.set_fact:
+        pulp_username: "{{ pulp_username | default('admin') }}"
+        pulp_password: "{{ pulp_password | default('') }}"
 
     - name: Display credential status
       ansible.builtin.debug:
         msg:
-          - "Pulp username: {{ pulp_username | default('admin') }}"
-          - "Pulp password: {{ '***' if (pulp_password | default('') | length > 0) else 'NOT SET' }}"
+          - "Note: Credentials not required for cleanup operations"
+          - "Cleanup will remove Pulp container and data directories"
 
     # -------------------------------------------------------------------------
     # PHASE 3: CLEANUP PULP
@@ -236,7 +210,139 @@
       when: cleanup_logs | default(true) | bool
 
     # -------------------------------------------------------------------------
-    # PHASE 5: POST-CLEANUP NOTES
+    # PHASE 5: CLEANUP PULP CLI CONFIG FILES
+    # -------------------------------------------------------------------------
+    - name: Display Pulp CLI config cleanup mode
+      ansible.builtin.debug:
+        msg: "Pulp CLI config cleanup: Removing all CLI configuration files"
+
+    - name: Remove Pulp CLI config files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ pulp_cli_config_files }}"
+      failed_when: false
+
+    - name: Verify Pulp CLI config directory is removed
+      ansible.builtin.stat:
+        path: /root/.config/pulp
+      register: pulp_cli_config_check
+
+    - name: Display Pulp CLI config cleanup status
+      ansible.builtin.debug:
+        msg: "Pulp CLI config removed: {{ not pulp_cli_config_check.stat.exists }}"
+
+    # -------------------------------------------------------------------------
+    # PHASE 6: CLEANUP PULP CLI SYMLINK AND YUM REPO FILE
+    # -------------------------------------------------------------------------
+    - name: Remove pulp CLI symlink from /usr/local/bin/pulp
+      ansible.builtin.file:
+        path: /usr/local/bin/pulp
+        state: absent
+      failed_when: false
+
+    - name: Verify pulp CLI symlink is removed
+      ansible.builtin.stat:
+        path: /usr/local/bin/pulp
+      register: pulp_symlink_check
+
+    - name: Display pulp CLI symlink cleanup status
+      ansible.builtin.debug:
+        msg: "Pulp CLI symlink removed: {{ not pulp_symlink_check.stat.exists }}"
+
+    - name: Remove Pulp yum repo file
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/pulp.repo
+        state: absent
+      failed_when: false
+
+    - name: Verify pulp.repo is removed
+      ansible.builtin.stat:
+        path: /etc/yum.repos.d/pulp.repo
+      register: pulp_repo_check
+
+    - name: Display pulp.repo cleanup status
+      ansible.builtin.debug:
+        msg: "Pulp yum repo file removed: {{ not pulp_repo_check.stat.exists }}"
+
+    # -------------------------------------------------------------------------
+    # PHASE 7: CLEANUP CREDENTIAL FILES
+    # -------------------------------------------------------------------------
+    - name: Check if credential files exist
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
+      register: credential_file_exists
+
+    - name: Prompt user to delete credentials
+      ansible.builtin.pause:
+        prompt: |
+
+          ========================================
+          CREDENTIAL CLEANUP CONFIRMATION
+          ========================================
+          Credential file found at:
+            {{ input_project_dir }}/repo_manager_config_credentials.yml
+
+          Do you want to delete the credential files? (yes/no)
+
+          - yes: Credentials will be deleted and you'll be prompted during next deployment
+          - no:  Credentials will be preserved and reused in next deployment
+
+          Enter your choice
+      register: delete_credentials_prompt
+      when:
+        - credential_file_exists.stat.exists
+        - cleanup_credentials is not defined or cleanup_credentials == ''
+
+    - name: Set credential cleanup decision based on user input
+      ansible.builtin.set_fact:
+        cleanup_credentials: "{{ delete_credentials_prompt.user_input | lower in ['yes', 'y'] }}"
+      when:
+        - delete_credentials_prompt is defined
+        - delete_credentials_prompt.user_input is defined
+        - not delete_credentials_prompt.skipped | default(false)
+
+    - name: Set default cleanup_credentials if not set
+      ansible.builtin.set_fact:
+        cleanup_credentials: "{{ cleanup_credentials | default(true) }}"
+
+    - name: Display credential cleanup mode
+      ansible.builtin.debug:
+        msg: "Credential cleanup: {{ 'Enabled - removing credential files' if (cleanup_credentials | bool) else 'Disabled - preserving credentials' }}"
+
+    - name: Remove credential files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ credential_files_to_cleanup }}"
+      when: cleanup_credentials | bool
+      failed_when: false
+
+    - name: Verify credential files are removed
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
+      register: credential_file_check
+      when: cleanup_credentials | bool
+
+    - name: Display credential cleanup status
+      ansible.builtin.debug:
+        msg: "Credential files removed: {{ not credential_file_check.stat.exists }}"
+      when: cleanup_credentials | bool
+
+    - name: Display credential preservation message
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Credentials preserved for next deployment"
+          - "Location: {{ input_project_dir }}/repo_manager_config_credentials.yml"
+          - "Next deployment will skip credential prompt"
+          - "=========================================="
+      when:
+        - not cleanup_credentials | bool
+        - credential_file_exists.stat.exists
+
+    # -------------------------------------------------------------------------
+    # PHASE 8: POST-CLEANUP NOTES
     # -------------------------------------------------------------------------
     - name: Display Pulp post-cleanup notes
       ansible.builtin.debug:

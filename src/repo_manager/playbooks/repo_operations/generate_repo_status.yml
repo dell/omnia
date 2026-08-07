@@ -103,16 +103,27 @@
         pulp_server_ip: "{{ pulp_status.content_settings.content_origin | urlsplit('hostname') }}"
         pulp_server_port: "{{ pulp_status.content_settings.content_origin | urlsplit('port') }}"
 
-    - name: Load software_config.json
+    - name: Load repo_manager_config.yml
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/software_config.json"
-        name: software_config
+        file: "{{ input_project_dir }}/repo_manager_config.yml"
+        name: repo_manager_config_data
 
-    - name: Set cluster OS facts
+    - name: Set catalog path
       ansible.builtin.set_fact:
-        cluster_os_type: "{{ software_config.cluster_os_type }}"
-        cluster_os_version: "{{ software_config.cluster_os_version }}"
-        repo_config: "{{ software_config.repo_config | default('partial') }}"
+        catalog_path: >-
+          {{ lookup('env', 'CATALOG_FILE_PATH') |
+             default((input_project_dir | default('/opt/omnia/repo_manager/input/project_default')) +
+                     '/catalog/catalog_rhel.json', true) }}
+
+    - name: Load catalog JSON
+      ansible.builtin.set_fact:
+        catalog_data: "{{ lookup('file', catalog_path) | from_json }}"
+
+    - name: Set cluster OS facts from catalog
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ (catalog_data.catalog.name | lower | regex_search('(rhel)')) | default('rhel') }}"
+        cluster_os_version: "{{ (catalog_data.catalog.name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
+        repo_config: "{{ repo_manager_config_data.repo_config_policy | default('partial') }}"
 
     - name: Display Pulp connection info
       ansible.builtin.debug:

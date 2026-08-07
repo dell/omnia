@@ -250,7 +250,8 @@ def _resolve_layer_packages(
             os_ver = group.get("os_version", "")
             if os_ver and os_ver not in os_versions:
                 os_versions.append(os_ver)
-            os_type = group.get("os", "")
+            if not os_type and group.get("os"):
+                os_type = group["os"]
             if not is_baseos_layer:
                 continue
 
@@ -274,6 +275,54 @@ def _resolve_layer_packages(
         "os_type": os_type,
     }
 
+
+
+def _extract_baseos_packages(
+    groups: dict,
+    packages: dict,
+    build_arch: str,
+    package_type: str,
+) -> tuple[list[str], list[str], str]:
+    """Extract base OS packages by scanning groups with type=base_os directly.
+
+    This handles catalogs that have no standalone baseos functional layer
+    but embed baseos groups as components within compute layers.
+
+    Args:
+        groups: Catalog groups dict.
+        packages: Catalog packages dict.
+        build_arch: Target architecture for source filtering.
+        package_type: Package type to include (e.g., 'rpm').
+
+    Returns:
+        Tuple of (base_packages, os_versions, os_type).
+    """
+    base_pkgs: list[str] = []
+    os_versions: list[str] = []
+    os_type: str = ""
+
+    for group_name, group_data in groups.items():
+        if group_data.get("type") != "base_os":
+            continue
+
+        os_ver = group_data.get("os_version", "")
+        if os_ver and os_ver not in os_versions:
+            os_versions.append(os_ver)
+        if not os_type and group_data.get("os"):
+            os_type = group_data["os"]
+
+        for pkg_key in group_data.get("components", []):
+            pkg = packages.get(pkg_key, {})
+            if pkg.get("packagetype", "") != package_type:
+                continue
+            arch_match = any(
+                src.get("architecture") == build_arch
+                for src in pkg.get("sources", [])
+            )
+            if arch_match and pkg.get("name"):
+                base_pkgs.append(pkg["name"])
+
+    return base_pkgs, os_versions, os_type
 
 
 def _deduplicate(items: list) -> list:
@@ -349,6 +398,21 @@ def resolve_catalog(
                 all_os_versions.append(ver)
         if not os_type and data.get("os_type"):
             os_type = data["os_type"]
+
+    # Fallback: if no baseos functional layer produced base packages,
+    # scan groups with type=base_os directly.  This handles catalogs
+    # where baseos groups are only referenced as components within
+    # compute layers (no standalone baseos_*_{arch} layer exists).
+    if not base_packages:
+        direct_pkgs, direct_vers, direct_os = _extract_baseos_packages(
+            groups, packages, build_arch, package_type,
+        )
+        base_packages = direct_pkgs
+        for ver in direct_vers:
+            if ver and ver not in all_os_versions:
+                all_os_versions.append(ver)
+        if not os_type and direct_os:
+            os_type = direct_os
 
     base_packages = _deduplicate(base_packages)
 

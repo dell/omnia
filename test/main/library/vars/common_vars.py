@@ -13,119 +13,273 @@
 # limitations under the License.
 
 """
-Common Variables for the main module.
+Omnia Main — Module-Specific Variables
 
-Shared constants used across all functions in this module.
-All paths and identifiers are defined here — no hardcodes elsewhere.
+Constants, paths, and centralized shell commands for the omnia.sh and
+omnia-cli FVT automation.
+
+Common vars (ssh_opts, config names, timeouts) live in the
+``omnia_auto`` package and are set via ``omnia_auto.configure()``
+in conftest.py.
+
+Only module-specific constants remain here.
 """
 
 import os
+from typing import Dict, List
 
 # =============================================================================
-# MODULE PATHS
+# DIRECTORY PATHS
 # =============================================================================
 
-# main/ directory (this module's root)
-# From vars/ -> library/ -> main/
+# Module root: test/main/ directory (where conftest.py lives)
 MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+    os.path.abspath(__file__)
+)))
 
-# Repository root
-# From main/ -> test/ -> repo root
-REPO_ROOT = os.path.dirname(os.path.dirname(MODULE_ROOT))
-
-# omnia.sh script path (resolved from repo root)
-OMNIA_SH_PATH = os.path.join(REPO_ROOT, "src", "main", "omnia.sh")
+# Repository root: omnia-bsm/
+REPO_ROOT = os.path.dirname(MODULE_ROOT)
 
 # =============================================================================
-# CONTAINER CONFIGURATION
+# DOMAIN IDENTITY
 # =============================================================================
 
-OMNIA_CORE_CONTAINER = "omnia_core"
-CONTAINER_SSH_PORT = 2222
-PODMAN_EXEC_PREFIX = f"podman exec {OMNIA_CORE_CONTAINER} bash -lc"
+DOMAIN_NAME = "main"
+OMNIA_RELEASE = "2.3.0.0"
+
+# Omnia script relative path (from clone_path)
+OMNIA_SH_PATH = "src/main/omnia.sh"
+OMNIA_ENV_PATH = "src/main/omnia.env"
+OMNIA_CLI_PATH = "src/main/omnia-cli"
 
 # =============================================================================
-# SSH OPTIONS & PATHS
+# SYSTEM PATHS (runtime on target host)
 # =============================================================================
 
-SSH_OPTS = "-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes"
-SSH_KEY_PRIV = "/root/.ssh/oim_rsa"
-SSH_KEY_PUB = "/root/.ssh/oim_rsa.pub"
-SSH_CONFIG_PATH = "/root/.ssh/config"
-AUTHORIZED_KEYS_PATH = "/root/.ssh/authorized_keys"
-KNOWN_HOSTS_PATH = "/root/.ssh/known_hosts"
+# System-wide environment file (installed by omnia.sh -s)
+SYSTEM_ENV_DIR = "/etc/omnia"
+SYSTEM_ENV_FILE = "/etc/omnia/omnia.env"
+PROFILE_DROP_IN = "/etc/profile.d/omnia-env.sh"
+
+# Default data path (may be overridden by env)
+DEFAULT_DATA_PATH = "/opt/omnia"
+DEFAULT_VENV_PATH = "/opt/omnia/venv"
+DEFAULT_PROJECT_NAME = "project_default"
+
+# Base directories created by omnia.sh --setup-venv
+BASE_DIRS: List[str] = [
+    "{data_path}",
+    "{data_path}/log",
+    "{data_path}/input",
+    "{data_path}/.data",
+]
 
 # =============================================================================
-# CONFIGURATION FILES
+# KNOWN DOMAINS
 # =============================================================================
 
-# Test config file (non-sensitive settings — always plain text)
-TEST_CONFIG_FILE = "test_config.yml"
+KNOWN_DOMAINS: List[str] = [
+    "build_stream",
+    "discovery",
+    "image_build_manager",
+    "orchestrator",
+    "repo_manager",
+    "telemetry",
+    "utils",
+]
 
-# Credentials file (sensitive passwords — vault encrypted)
-TEST_CREDENTIALS_FILE = "test_creds.yml"
-TEST_CREDENTIALS_KEY = ".test_creds.key"
+# Domains that have domain-init.sh scripts
+DOMAINS_WITH_INIT: List[str] = [
+    "image_build_manager",
+    "repo_manager",
+]
 
 # =============================================================================
-# REUSABLE SHELL COMMANDS
+# ENVIRONMENT VARIABLES
 # =============================================================================
 
-# Known hosts pattern for container SSH port
-KNOWN_HOSTS_PATTERN = f"[localhost]:{CONTAINER_SSH_PORT}"
+# Required env vars (must be set before running omnia.sh -s)
+REQUIRED_ENV_VARS: List[str] = [
+    "SYSTEM_ADMIN_NIC_IPV4",
+]
 
+# Optional env vars with defaults
+OPTIONAL_ENV_VARS: Dict[str, str] = {
+    "OMNIA_DATA_PATH": "/opt/omnia",
+    "OMNIA_PROJECT_NAME": "project_default",
+    "OMNIA_VENV_PATH": "/opt/omnia/venv",
+    "SYSTEM_HOSTNAME": "oim",
+    "SYSTEM_DOMAIN_NAME": "omnia.cluster",
+}
 
-CMDS = {
-    # Podman
-    "podman_ps": (
-        f"podman ps --filter name={OMNIA_CORE_CONTAINER}"
-        " --format '{{{{.Names}}}}\t{{{{.Status}}}}\t{{{{.Image}}}}\t{{{{.Ports}}}}'"
+# =============================================================================
+# CLI COMMANDS AND OPTIONS
+# =============================================================================
+
+VALID_CLI_COMMANDS: List[str] = [
+    "--setup-venv", "-s",
+    "--init", "-i",
+    "--run", "-r",
+    "--validate",
+    "--help", "-h",
+]
+
+VALID_CLI_OPTIONS: List[str] = [
+    "--skip-init",
+    "--tags", "-t",
+]
+
+# =============================================================================
+# OMNIA-CLI COMMANDS
+# =============================================================================
+
+OMNIA_CLI_COMMANDS: List[str] = [
+    "status",
+    "check",
+    "repo-manager",
+    "image-build",
+    "version",
+    "help",
+]
+
+# Domains addressable via omnia-cli <domain>
+OMNIA_CLI_DOMAINS: List[str] = [
+    "repo-manager",
+    "image-build",
+    "orchestrator",
+    "discovery",
+    "telemetry",
+    "build-stream",
+]
+
+# Expected sections in omnia-cli help output
+OMNIA_CLI_HELP_SECTIONS: List[str] = [
+    "USAGE:",
+    "COMMANDS:",
+    "OPTIONS:",
+    "ENVIRONMENT:",
+    "EXAMPLES:",
+]
+
+# =============================================================================
+# CENTRALIZED SHELL COMMANDS
+# =============================================================================
+# All shell commands used by verification functions.
+# Use .format() with named placeholders to fill in runtime values.
+
+CMDS: Dict[str, str] = {
+    # --- omnia.sh execution ---
+    "omnia_sh_help": (
+        "cd {clone_path} && bash {omnia_sh} --help 2>&1"
     ),
-    "podman_ps_all": (
-        f"podman ps -a --filter name={OMNIA_CORE_CONTAINER}"
-        " --format '{{{{.Names}}}}\t{{{{.Status}}}}'"
+    "omnia_sh_no_args": (
+        "cd {clone_path} && bash {omnia_sh} 2>&1"
     ),
-    "podman_ps_names": (
-        "podman ps --format '{{{{.Names}}}} {{{{.Status}}}}'"
-        f" | grep {OMNIA_CORE_CONTAINER}"
+    "omnia_sh_setup_venv": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --setup-venv --skip-init 2>&1"
     ),
-    "podman_ps_detail": (
-        "podman ps --format '{{{{.Names}}}}|{{{{.Status}}}}|{{{{.Image}}}}|{{{{.Ports}}}}'"
-        f" | grep {OMNIA_CORE_CONTAINER}"
+    "omnia_sh_setup_full": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --setup-venv 2>&1"
     ),
-    "podman_ps_all_names": (
-        "podman ps -a --format '{{{{.Names}}}} {{{{.Status}}}}'"
-        f" | grep {OMNIA_CORE_CONTAINER}"
+    "omnia_sh_init": (
+        "cd {clone_path} && bash {omnia_sh} --init 2>&1"
     ),
-    "podman_ps_check": (
-        f"podman ps --format '{{{{.Names}}}}' | grep -q {OMNIA_CORE_CONTAINER}"
+    "omnia_sh_run_invalid": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --run {domain} 2>&1"
     ),
-    "podman_images": (
-        "podman images --format '{{{{.Repository}}}}:{{{{.Tag}}}}'"
-        f" | grep '{OMNIA_CORE_CONTAINER}'"
+    "omnia_sh_run_no_domain": (
+        "cd {clone_path} && bash {omnia_sh} --run 2>&1"
     ),
-    # Systemd
-    "systemctl_is_active": "systemctl is-active {service} 2>/dev/null",
-    "systemctl_status": "systemctl status {service} 2>/dev/null | head -15",
-    # Network
-    "ping_host": "ping -c 2 -W 3 {host} 2>/dev/null",
-    # SSH
-    "ssh_to_container": f"ssh {SSH_OPTS} {OMNIA_CORE_CONTAINER} '{{cmd}}'",
-    "ssh_from_container": f"{PODMAN_EXEC_PREFIX} \"ssh {SSH_OPTS} {{target}} '{{cmd}}'\"",
-    "ssh_key_check": "test -f {path} && echo exists",
-    "ssh_config_grep": "grep -A5 'Host {alias}' /root/.ssh/config 2>/dev/null",
-    "authorized_keys_grep": "grep -F \"$(cat {pub_key})\" /root/.ssh/authorized_keys",
-    "known_hosts_grep": "grep '{pattern}' /root/.ssh/known_hosts 2>/dev/null",
-    # Files
-    "cat_metadata": f"{PODMAN_EXEC_PREFIX} 'cat {{path}}'",
-    "file_stat": "stat -c '%A %U:%G %s %n' {path} 2>/dev/null",
+    "omnia_sh_validate_no_domain": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --validate 2>&1"
+    ),
+    "omnia_sh_unknown_option": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --bogus 2>&1"
+    ),
+    # --- Files ---
     "file_exists": "test -f {path} && echo exists",
     "dir_exists": "test -d {path} && echo exists",
-    # fstab/mount
-    "grep_fstab": "grep -v '^#' /etc/fstab | grep '{pattern}'",
-    "mount_check": "mountpoint -q {path}",
-    # Firewall
-    "firewall_add_service": "firewall-cmd --permanent --add-service={service} 2>/dev/null",
-    "firewall_reload": "firewall-cmd --reload 2>/dev/null",
-    "firewall_is_active": "systemctl is-active firewalld 2>/dev/null",
+    "cat_file": "cat {path} 2>/dev/null",
+    "file_stat": (
+        "stat -c '%A %U:%G %s %n' {path} 2>/dev/null"
+    ),
+    # --- Environment ---
+    "env_var_check": "echo ${{{var_name}}}",
+    "source_and_check": (
+        "set -a && . {env_file} && set +a"
+        " && echo ${{{var_name}}}"
+    ),
+    "source_profile_and_check": (
+        ". {profile_file} && echo ${{{var_name}}}"
+    ),
+    # --- Venv ---
+    "venv_python_version": (
+        "{venv_path}/bin/python --version 2>&1"
+    ),
+    "venv_ansible_version": (
+        "{venv_path}/bin/ansible --version 2>&1"
+    ),
+    "venv_pip_list": (
+        "{venv_path}/bin/pip list --format=columns 2>&1"
+    ),
+    "venv_galaxy_list": (
+        "{venv_path}/bin/ansible-galaxy collection list 2>&1"
+    ),
+    # --- Domain init ---
+    "domain_log_dir_exists": (
+        "test -d /var/log/omnia/{domain} && echo exists"
+    ),
+    "domain_input_dir_exists": (
+        "test -d {data_path}/{domain}/input/{project}"
+        " && echo exists"
+    ),
+    "domain_input_file_count": (
+        "find {data_path}/{domain}/input/{project}"
+        " -type f 2>/dev/null | wc -l"
+    ),
+    # --- System ---
+    "hostname_cmd": "hostname 2>/dev/null",
+    "which_cmd": "which {binary} 2>/dev/null",
+    # --- omnia-cli execution ---
+    "omnia_cli_help": (
+        "cd {clone_path} && bash {omnia_cli} help 2>&1"
+    ),
+    "omnia_cli_version": (
+        "cd {clone_path} && bash {omnia_cli} version 2>&1"
+    ),
+    "omnia_cli_status": (
+        "cd {clone_path} && bash {omnia_cli} status 2>&1"
+    ),
+    "omnia_cli_status_project": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " status --project {project} 2>&1"
+    ),
+    "omnia_cli_check": (
+        "cd {clone_path} && bash {omnia_cli} check 2>&1"
+    ),
+    "omnia_cli_repo_manager": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " repo-manager 2>&1"
+    ),
+    "omnia_cli_image_build": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " image-build 2>&1"
+    ),
+    "omnia_cli_domain": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " {domain} 2>&1"
+    ),
+    "omnia_cli_help_domain": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " help {domain} 2>&1"
+    ),
+    "omnia_cli_unknown": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " nonexistent_cmd 2>&1"
+    ),
 }

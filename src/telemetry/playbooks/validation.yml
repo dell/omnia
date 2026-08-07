@@ -23,7 +23,7 @@
 #   - telemetry_packages.yml    : registry, package URLs, cluster_mount
 #
 # L1 schemas  : plugins/module_utils/input_validation/schema/
-# L2 logic    : plugins/module_utils/input_validation/validation_flows/
+# L2 logic    : plugins/module_utils/input_validation/validators/
 #               telemetry_validation.py (validate_telemetry_config,
 #               validate_telemetry_storage_config, validate_telemetry_packages)
 #

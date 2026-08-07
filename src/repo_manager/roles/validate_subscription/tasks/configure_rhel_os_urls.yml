@@ -55,20 +55,43 @@
     - subscription_status_flag
     - invalid_vars | length > 0
 
-- name: Load software_config.json
-  ansible.builtin.include_vars:
-    file: "{{ sw_config_json_path }}"
-    name: sw_config
-
-- name: Collect all architectures from softwares
+- name: Get catalog path from environment variable
   ansible.builtin.set_fact:
-    archs: "{{ (sw_config.softwares
-                  | map(attribute='arch')
-                  | select('defined')
-                  | flatten
-                  + ['x86_64'])
-                  | unique
-                  | list }}"
+    catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') }}"
+
+- name: Load catalog JSON to extract architectures from functionallayer names
+  ansible.builtin.set_fact:
+    catalog_json: "{{ lookup('file', catalog_file_path) | from_json }}"
+  when: catalog_file_path | length > 0
+
+- name: Extract architectures from functionallayer names (e.g., service_kube_control_plane_rhel_10_0_x86_64)
+  ansible.builtin.set_fact:
+    archs: >-
+      {%- set arch_list = [] -%}
+      {%- if catalog_json is defined and catalog_json.catalog is defined and catalog_json.catalog.functionallayer is defined -%}
+        {%- for fl in catalog_json.catalog.functionallayer -%}
+          {%- set fl_name = fl.name | default('') -%}
+          {%- if fl_name.endswith('_x86_64') and 'x86_64' not in arch_list -%}
+            {%- set _ = arch_list.append('x86_64') -%}
+          {%- elif fl_name.endswith('_aarch64') and 'aarch64' not in arch_list -%}
+            {%- set _ = arch_list.append('aarch64') -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endif -%}
+      {%- if arch_list | length == 0 -%}
+        {%- set _ = arch_list.append('x86_64') -%}
+      {%- endif -%}
+      {{ arch_list }}
+  when: catalog_json is defined
+
+- name: Set default architectures if catalog not loaded
+  ansible.builtin.set_fact:
+    archs: "{{ ['x86_64'] }}"
+  when: catalog_json is not defined
+
+- name: Debug extracted architectures
+  ansible.builtin.debug:
+    msg: "Extracted architectures from catalog FunctionalLayer: {{ archs }}"
 
 # 2️ Process repo configs for each architecture
 - name: Process repo configs for each arch
@@ -259,7 +282,8 @@
   ansible.builtin.set_fact:
     sub_final_repo_urls:
       x86_64: "{{ sub_rhel_x86_64_urls | default([]) }}"
-      aarch64: "{{ (sub_rhel_aarch64_urls | default([])) if 'aarch64' in archs else [] }}"
+      # Always include aarch64 URLs - they are auto-generated from x86_64 subscription URLs
+      aarch64: "{{ sub_rhel_aarch64_urls | default([]) }}"
 
 # 3 Debug final repo URLs
 - name: Debug final repo urls

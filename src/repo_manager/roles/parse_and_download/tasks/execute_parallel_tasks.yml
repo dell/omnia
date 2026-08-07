@@ -24,8 +24,10 @@
         software: "{{ item.key }}"
         csv_file_path: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}"
         repo_store_path: "{{ nfs_shared_path }}"
-        user_json_file: "{{ sw_config_json_path }}"
         local_repo_config_path: "{{ local_repo_config_path }}"
+        cluster_os_type: "{{ cluster_os_type }}"
+        cluster_os_version: "{{ cluster_os_version }}"
+        repo_config_policy: "{{ repo_config | default('partial') }}"
         arch: "{{ item.arch }}"
         overall_status_dict: {}
         # user_reg_cred_input: "{{ user_reg_cred_input }}"

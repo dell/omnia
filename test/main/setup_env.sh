@@ -14,151 +14,127 @@
 # limitations under the License.
 
 # =============================================================================
-# Main Module — Environment Setup
+# Omnia Main — Test Environment Setup
 # =============================================================================
-# Creates a Python virtual environment, installs dependencies, and configures
-# the test environment for omnia.sh validation tests.
+# One-time setup script. Creates a Python virtual environment and installs
+# all dependencies from requirements.txt.
 #
 # Usage:
-#   ./setup_env.sh           # Standard setup
-#   ./setup_env.sh --force   # Remove existing .venv and recreate
-#   ./setup_env.sh --debug   # Verbose output
+#   bash setup_env.sh            # Normal setup
+#   bash setup_env.sh --force    # Delete .venv and recreate from scratch
+#   bash setup_env.sh --debug    # Verbose pip output (show install details)
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_ROOT="$(dirname "$SCRIPT_DIR")"
-VENV_DIR="$SCRIPT_DIR/.venv"
+VENV_DIR="${SCRIPT_DIR}/.venv"
+REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
+
 FORCE=false
 DEBUG=false
+PIP_QUIET="--quiet"
 
-# Parse arguments
 for arg in "$@"; do
     case "$arg" in
-        --force)  FORCE=true ;;
-        --debug)  DEBUG=true ;;
-        --help|-h)
-            echo "Usage: $0 [--force] [--debug]"
-            echo "  --force   Remove existing .venv and recreate"
-            echo "  --debug   Verbose output"
-            exit 0
+        --force) FORCE=true ;;
+        --debug) DEBUG=true; PIP_QUIET="" ;;
+        *)
+            echo "Usage: bash setup_env.sh [--force] [--debug]"
+            echo "  --force   Delete existing .venv and recreate"
+            echo "  --debug   Show verbose pip install output"
+            exit 1
             ;;
     esac
 done
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+echo ""
+echo "================================================================="
+echo "  Omnia Main — Test Environment Setup"
+echo "================================================================="
+echo ""
 
-info()  { echo -e "${BLUE}[INFO]${NC} $1"; }
-ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
-fail()  { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
+# -----------------------------------------------
+# Step 1: Check Python 3.12+
+# -----------------------------------------------
+PYTHON_CMD=""
+for cmd in python3.12 python3 python; do
+    if command -v "$cmd" &>/dev/null; then
+        version=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+')
+        major=$(echo "$version" | cut -d. -f1)
+        minor=$(echo "$version" | cut -d. -f2)
+        if [ "$major" -ge 3 ] && [ "$minor" -ge 12 ]; then
+            PYTHON_CMD="$cmd"
+            break
+        fi
+    fi
+done
 
-# =============================================================================
-# PREREQUISITE CHECKS
-# =============================================================================
-
-info "Checking prerequisites..."
-
-# Python 3.9+
-if ! command -v python3 &>/dev/null; then
-    fail "python3 not found. Install Python 3.9+ first."
+if [ -z "$PYTHON_CMD" ]; then
+    echo "  [ERROR] Python 3.12+ is required but not found."
+    echo "          Install: dnf install python3.12 python3.12-pip"
+    exit 1
 fi
 
-PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
-PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+echo "  [OK] Python: $($PYTHON_CMD --version)"
 
-if [ "$PYTHON_MAJOR" -lt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 9 ]; }; then
-    fail "Python 3.9+ required. Found: $PYTHON_VERSION"
-fi
-ok "Python $PYTHON_VERSION"
-
-# sshpass (needed for remote mode)
-if command -v sshpass &>/dev/null; then
-    ok "sshpass found"
-else
-    warn "sshpass not found — remote mode will not work. Install: dnf install -y sshpass"
-fi
-
-# =============================================================================
-# VIRTUAL ENVIRONMENT
-# =============================================================================
-
+# -----------------------------------------------
+# Step 2: Create virtual environment
+# -----------------------------------------------
 if [ "$FORCE" = true ] && [ -d "$VENV_DIR" ]; then
-    info "Removing existing virtual environment..."
+    echo "  [...] Removing existing virtual environment (--force)"
     rm -rf "$VENV_DIR"
 fi
 
-if [ ! -d "$VENV_DIR" ]; then
-    info "Creating virtual environment at $VENV_DIR ..."
-    python3 -m venv "$VENV_DIR"
-    ok "Virtual environment created"
+if [ -d "$VENV_DIR" ]; then
+    echo "  [OK] Virtual environment already exists: .venv/"
 else
-    ok "Virtual environment already exists"
+    echo "  [...] Creating virtual environment: .venv/"
+    "$PYTHON_CMD" -m venv "$VENV_DIR"
+    echo "  [OK] Virtual environment created"
 fi
 
-# Activate
+# -----------------------------------------------
+# Step 3: Activate and install dependencies
+# -----------------------------------------------
 # shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
+source "${VENV_DIR}/bin/activate"
 
-# =============================================================================
-# INSTALL DEPENDENCIES
-# =============================================================================
+echo "  [...] Upgrading pip"
+pip install --upgrade pip $PIP_QUIET
 
-info "Installing Python dependencies..."
+echo "  [...] Installing dependencies from requirements.txt"
+pip install -r "$REQUIREMENTS" $PIP_QUIET
 
-# Use top-level requirements.txt if present, else module-level
-REQ_FILE="$TEST_ROOT/requirements.txt"
-if [ ! -f "$REQ_FILE" ]; then
-    REQ_FILE="$SCRIPT_DIR/requirements.txt"
+# pytest-order for test ordering
+if ! pip show pytest-order &>/dev/null; then
+    echo "  [...] Installing pytest-order"
+    pip install pytest-order $PIP_QUIET
 fi
 
-if [ ! -f "$REQ_FILE" ]; then
-    fail "requirements.txt not found at $TEST_ROOT or $SCRIPT_DIR"
+echo "  [OK] All dependencies installed"
+
+# =============================================================================
+# REGISTER run_validation FUNCTION AND TAB COMPLETION IN .venv/bin/activate
+# =============================================================================
+
+ACTIVATE_SCRIPT="${VENV_DIR}/bin/activate"
+MARKER="# >>> omnia-main-test >>>"
+MARKER_END="# <<< omnia-main-test <<<"
+
+# Remove any previous block (idempotent)
+if grep -q "${MARKER}" "${ACTIVATE_SCRIPT}" 2>/dev/null; then
+    sed -i "/${MARKER}/,/${MARKER_END}/d" "${ACTIVATE_SCRIPT}"
 fi
 
-if [ "$DEBUG" = true ]; then
-    pip install --upgrade pip setuptools wheel
-    # Run from TEST_ROOT so '-e .' in requirements.txt resolves to test/setup.py
-    (cd "$TEST_ROOT" && pip install -r "$REQ_FILE")
-else
-    pip install --upgrade pip setuptools wheel -q
-    (cd "$TEST_ROOT" && pip install -r "$REQ_FILE" -q)
-fi
+cat >> "${ACTIVATE_SCRIPT}" << 'MAIN_ACTIVATE_EOF'
 
-ok "Dependencies installed"
-
-# =============================================================================
-# MAKE SCRIPTS EXECUTABLE
-# =============================================================================
-
-chmod +x "$SCRIPT_DIR/run_validation.sh" 2>/dev/null || true
-chmod +x "$TEST_ROOT/run_validation.sh" 2>/dev/null || true
-
-ok "Scripts made executable"
-
-# =============================================================================
-# INJECT run_validation FUNCTION INTO .venv/bin/activate
-# =============================================================================
-
-ACTIVATE_FILE="$VENV_DIR/bin/activate"
-MARKER="# >>> omnia-automation >>>"
-
-if ! grep -q "$MARKER" "$ACTIVATE_FILE" 2>/dev/null; then
-    info "Adding run_validation shell function and tab-completion..."
-    cat >> "$ACTIVATE_FILE" << 'OMNIA_ACTIVATE_EOF'
-
-# >>> omnia-automation >>>
-# Added by setup_env.sh — shell functions and tab-completion for Omnia Automation
+# >>> omnia-main-test >>>
+# Added by setup_env.sh — shell function and tab-completion
 
 # Shell function so run_validation works without ./
 run_validation() {
-    "$(dirname "${VIRTUAL_ENV%/.venv}")/run_validation.sh" "$@"
+    "${VIRTUAL_ENV%/.venv}/run_validation.sh" "$@"
 }
 
 # Tab-completion for run_validation
@@ -168,72 +144,63 @@ _run_validation_completions() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     local fvt_dir="${VIRTUAL_ENV%/.venv}/fvt"
     local scenarios=""
-    for d in "$fvt_dir"/*/; do
-        [ -d "$d" ] || continue
-        local sname=$(basename "$d")
-        [[ "$sname" == "__pycache__" ]] && continue
-        scenarios="${scenarios} $sname"
-    done
+    if [ -d "${fvt_dir}" ]; then
+        for d in "${fvt_dir}"/*/; do
+            [ -d "$d" ] || continue
+            local name
+            name="$(basename "$d")"
+            [ "$name" = "__pycache__" ] && continue
+            scenarios="${scenarios} ${name}"
+        done
+    fi
     local commands="deploy verify test"
-    local special="list help --config"
-    local config_opts="--continue-on-failure --restart"
-    local options="--suite --marker"
-    local suites="container security cleanup"
-    local markers="sanity smoke regression functional negative security performance"
+    local special="all list help --config --help"
+    local options="--suite --marker -v --verbose --debug"
+    local markers="sanity functional regression deploy"
     case "$COMP_CWORD" in
         1) COMPREPLY=( $(compgen -W "${scenarios} ${special}" -- "$cur") ) ;;
         2)
             case "$prev" in
-                list|help|--help|-h) COMPREPLY=() ;;
-                --config) COMPREPLY=( $(compgen -W "${config_opts}" -- "$cur") ) ;;
-                *) COMPREPLY=( $(compgen -W "${commands} ${options}" -- "$cur") ) ;;
+                list|help|--help|-h|--config) COMPREPLY=() ;;
+                *) COMPREPLY=( $(compgen -W "${commands}" -- "$cur") ) ;;
             esac ;;
         *)
             case "$prev" in
-                --suite)  COMPREPLY=( $(compgen -W "${suites}" -- "$cur") ) ;;
+                --suite)
+                    local scenario="${COMP_WORDS[1]}"
+                    local suites=""
+                    if [ -d "${fvt_dir}/${scenario}" ]; then
+                        for d in "${fvt_dir}/${scenario}"/*/; do
+                            [ -d "$d" ] || continue
+                            local name
+                            name="$(basename "$d")"
+                            [ "$name" = "__pycache__" ] && continue
+                            suites="${suites} ${name}"
+                        done
+                    fi
+                    COMPREPLY=( $(compgen -W "${suites}" -- "$cur") ) ;;
                 --marker) COMPREPLY=( $(compgen -W "${markers}" -- "$cur") ) ;;
-                --config) COMPREPLY=( $(compgen -W "${config_opts}" -- "$cur") ) ;;
                 *) COMPREPLY=( $(compgen -W "${options}" -- "$cur") ) ;;
             esac ;;
     esac
 }
 complete -F _run_validation_completions run_validation
 
-# <<< omnia-automation <<<
-OMNIA_ACTIVATE_EOF
-    ok "Shell function and tab-completion added to activate script"
-else
-    ok "Shell function already present in activate script"
-fi
+# <<< omnia-main-test <<<
+MAIN_ACTIVATE_EOF
 
-# =============================================================================
-# VERIFY CONFIGURATION FILES
-# =============================================================================
-
-info "Checking configuration files..."
-
-if [ -f "$SCRIPT_DIR/test_config.yml" ]; then
-    ok "test_config.yml found"
-else
-    warn "test_config.yml not found — create it before running tests"
-fi
-
-if [ -f "$SCRIPT_DIR/test_creds.yml" ]; then
-    ok "test_creds.yml found"
-else
-    warn "test_creds.yml not found — create it before running tests"
-fi
-
-# =============================================================================
-# DONE
-# =============================================================================
+echo "  [OK] Registered run_validation and tab-completion in venv activate"
 
 echo ""
-echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  Main Module Environment — Ready${NC}"
-echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
+echo "================================================================="
+echo "  Environment Ready"
+echo "================================================================="
 echo ""
-echo -e "  ${BLUE}Activate:${NC}     source $VENV_DIR/bin/activate"
-echo -e "  ${BLUE}Run tests:${NC}    run_validation omnia_sh_install deploy"
-echo -e "  ${BLUE}List:${NC}         run_validation help"
+echo "  Next steps:"
+echo "    source .venv/bin/activate"
+echo "    vi test_config.yml                  # See configuration"
+echo "    run_validation --help               # Full usage (no ./ needed)"
+echo "    run_validation setup verify --marker sanity"
+echo ""
+echo "================================================================="
 echo ""
