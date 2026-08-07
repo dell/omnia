@@ -243,7 +243,7 @@
                   value: "{{ admin_netmask_bits }}"
                 - name: prometheus_server
                   value: :2112
-                image: ghcr.io/kube-vip/kube-vip:v1.2.2
+                image: {{ kube_vip_image }}
                 imagePullPolicy: IfNotPresent
                 name: kube-vip
                 resources: {}
@@ -308,7 +308,7 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.20.1"
+            HELM_VERSION="v{{ helm_version }}"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}-helm-$HELM_VERSION/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
