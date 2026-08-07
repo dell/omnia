@@ -24,4 +24,6 @@ from .build_stream_msgs import (
     TEST_ASSERT_MSGS,
     SKIP_MSGS,
     BUILD_STREAM_MSGS,
+    PIPELINE_MSGS,
+    STAGE_POLL_MSGS,
 )

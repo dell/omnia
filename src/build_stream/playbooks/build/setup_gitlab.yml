@@ -49,7 +49,7 @@
         tasks_from: prereq_checks.yml
 
 - name: Validate BuildStream prerequisites
-  hosts: oim
+  hosts: localhost
   gather_facts: false
   tasks:
     - name: Prerequisite checks
@@ -61,6 +61,10 @@
   hosts: gitlab_server
   become: true
   gather_facts: true
+  pre_tasks:
+    - name: Load BuildStream configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
   tasks:
     - name: Bootstrap passwordless SSH
       ansible.builtin.include_role:

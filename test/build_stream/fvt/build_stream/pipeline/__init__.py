@@ -13,15 +13,8 @@
 # limitations under the License.
 
 """
-Functional Verification Tests (FVT) for build_stream.
+Build Stream — Pipeline FVT Tests.
 
-Scenarios:
-    build_stream    — Full end-to-end verification
-    prepare         — Deploy infrastructure and verify readiness
-    cleanup         — Clean up all deployed resources
-
-Suites:
-    build_stream/infrastructure/  — Container, API, DB, GitLab checks
-    build_stream/pipeline/        — Auto-trigger build, manual deploy, cleanup pipelines
-    stress/                       — Repeated build, cleanup, and rebuild cycles
+Tests for auto-triggered, manual, and cleanup pipelines including
+stage monitoring, artifact verification, and generated input validation.
 """

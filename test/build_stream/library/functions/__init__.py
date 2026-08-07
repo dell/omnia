@@ -65,6 +65,80 @@ from .validation_func import (
     ConfigValidationError,
 )
 
+# --- Shared utilities ---
+from .shared_func import (
+    get_build_stream_host_ip,
+    get_gitlab_host,
+    get_gitlab_https_port,
+    get_gitlab_project_name,
+    get_gitlab_default_branch,
+    ssh_to_gitlab,
+    run_in_container,
+    exec_psql_query,
+    skip_if_build_stream_not_enabled,
+)
+
+# --- Database ---
+from .db_func import (
+    get_job_by_id,
+    get_latest_job,
+    get_job_stages,
+    get_stage_state,
+    verify_stage_completed,
+    get_images_for_job,
+    get_image_groups_for_job,
+    get_all_image_groups,
+)
+
+# --- GitLab ---
+from .gitlab_func import (
+    get_gitlab_root_token,
+    list_pipelines,
+    get_pipeline_status,
+    get_pipeline_jobs,
+    cancel_pipeline,
+    get_child_pipeline_id,
+    get_pipeline_jobs_by_stage,
+    play_manual_job,
+    trigger_pipeline_with_variables,
+    upload_catalog_file,
+    commit_pxe_mapping_file,
+    wait_for_pipeline_triggered,
+)
+
+# --- API ---
+from .api_func import (
+    get_catalog_roles,
+    verify_registry_images,
+    verify_s3_boot_images,
+)
+
+# --- Pipeline orchestration ---
+from .pipeline_func import (
+    get_catalog_content,
+    trigger_build_pipeline,
+    trigger_deploy_pipeline,
+    trigger_cleanup_pipeline,
+    select_image_for_deploy,
+    select_image_for_cleanup,
+    play_trigger_job,
+    play_deploy_stage_job,
+    play_cleanup_stage_job,
+    wait_for_cleanup_completion,
+    wait_for_stage_completion,
+    get_pipeline_stage_status,
+    monitor_pipeline_stages,
+)
+
+# --- Generated input verification ---
+from .generated_input_func import (
+    clone_omnia_repo,
+    cleanup_omnia_clone,
+    get_software_config,
+    compare_software_json,
+    verify_generated_inputs,
+)
+
 
 def run_playbook(tag=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""

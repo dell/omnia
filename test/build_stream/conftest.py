@@ -103,6 +103,10 @@ def pytest_configure(config):
         "deploy": "Playbook deployment tests",
         "infrastructure": "Infrastructure verification (containers, DB, API)",
         "pipeline": "Pipeline trigger and monitoring tests",
+        "cleanup": "Cleanup pipeline tests",
+        "stress": "Stress / non-functional tests (repeated pipelines)",
+        "generated_input": "Generated input config verification tests",
+        "build_stream": "Build stream domain tests",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

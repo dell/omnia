@@ -66,6 +66,24 @@ TEST_NAMES = {
         "Verify build_stream_config.yml exists on target"
     ),
 
+    # Pipeline
+    "catalog_upload": "Catalog Upload and Pipeline Trigger",
+    "pipeline_triggered": "Pipeline Auto-Triggered Check",
+    "stage_monitor": "Stage '{stage}' Monitor",
+    "stage_db_verify": "Stage '{stage}' Database Verification",
+    "images_created": "Images Created Check",
+    "image_groups_created": "Image Groups Created Check",
+    "catalog_roles": "Catalog Roles and Architectures Check",
+    "registry_images": "Registry Images Verification",
+    "s3_boot_images": "S3 Boot Images Verification",
+    "build_pipeline_result": "Build Pipeline Final Result",
+    "verify_generated_inputs": "Verify Generated Input Config Files",
+    "deploy_pipeline_trigger": "Deploy Pipeline Trigger",
+    "deploy_image_select": "Deploy Image Selection",
+    "cleanup_pipeline_trigger": "Cleanup Pipeline Trigger",
+    "cleanup_image_select": "Cleanup Image Selection",
+    "cleanup_verify": "Cleanup Verification",
+
     # Cleanup verification
     "containers_removed": (
         "Verify build_stream containers removed after cleanup"
@@ -145,6 +163,33 @@ TEST_LOG_MSGS = {
     "playbook_failed": (
         "Playbook failed (rc={rc}, duration={duration:.1f}s)"
     ),
+
+    # Pipeline
+    "catalog_upload_ok": "Catalog uploaded successfully",
+    "catalog_upload_fail": "Failed to upload catalog: {error}",
+    "pipeline_triggered_ok": "Pipeline {pipeline_id} triggered successfully",
+    "pipeline_triggered_fail": "Pipeline not triggered: {error}",
+    "stage_running": "Stage '{stage}' is running...",
+    "stage_completed": "Stage '{stage}' completed successfully ({elapsed}s)",
+    "stage_failed": "Stage '{stage}' failed: {error}",
+    "stage_db_ok": "Stage '{stage}' verified in database (state: {state})",
+    "stage_db_fail": "Stage '{stage}' database verification failed: {error}",
+    "images_ok": "Found {count} images for job {job_id}",
+    "images_fail": "No images found for job {job_id}",
+    "image_groups_ok": "Found {count} image groups for job {job_id}",
+    "image_groups_fail": "No image groups found for job {job_id}",
+    "catalog_roles_ok": "Catalog roles retrieved: {roles} (architectures: {archs})",
+    "catalog_roles_fail": "Failed to get catalog roles: {error}",
+    "registry_ok": "All {count} role images found in registry",
+    "registry_fail": "Missing {count} role image(s) in registry: {missing}",
+    "s3_ok": "All {count} role boot images found in S3",
+    "s3_fail": "Missing {count} role boot image(s) in S3: {missing}",
+    "pipeline_result_ok": "Build pipeline completed — all stages passed",
+    "pipeline_result_fail": "Build pipeline completed with failures",
+    "clone_ok": "Omnia repo cloned (branch: {branch})",
+    "clone_fail": "Failed to clone Omnia repo: {error}",
+    "generated_inputs_ok": "All generated input configs match source",
+    "generated_inputs_fail": "Generated input config verification failed",
 }
 
 # =============================================================================
@@ -155,6 +200,11 @@ SKIP_MSGS = {
     "build_stream_disabled": (
         "build_stream is not enabled — skipping test"
     ),
+    "no_job_id": "Test skipped - no job_id available",
+    "previous_stage_failed": "Test skipped - previous stage '{stage}' failed",
+    "build_failed": "Test skipped - build pipeline failed",
+    "pipeline_not_triggered": "Test skipped - pipeline not triggered",
+    "clone_failed": "Test skipped - Omnia repo clone failed",
 }
 
 # =============================================================================
@@ -275,4 +325,48 @@ BUILD_STREAM_MSGS = {
         "- Failed: {failed}\n"
         "- Skipped: {skipped}\n"
     ),
+}
+
+# =============================================================================
+# PIPELINE MESSAGES (for real-time logging)
+# =============================================================================
+
+PIPELINE_MSGS = {
+    "checking_pipelines": "Checking for existing pipelines...",
+    "pipeline_running": "⚠ WARNING: Pipeline #{id} is already {status}",
+    "pipeline_source": "  Source: {source}",
+    "pipeline_created": "  Created: {created_at}",
+    "cancel_instructions": (
+        "\nPlease cancel the running pipeline in GitLab before triggering a new one:\n"
+        "  1. Go to GitLab > CI/CD > Pipelines\n"
+        "  2. Cancel pipeline #{id}\n"
+        "  3. Re-run this test"
+    ),
+    "no_running_pipelines": "No running/pending pipelines. Latest pipeline ID: {id}",
+    "uploading_catalog": "Uploading catalog file to GitLab...",
+    "catalog_uploaded": "Catalog uploaded successfully",
+    "waiting_pipeline": "Waiting for pipeline to be triggered...",
+    "pipeline_triggered": "Pipeline #{id} triggered (status: {status})",
+    "waiting_job_db": "Waiting for job to be created in database...",
+    "job_created": "Job created: {job_id} (state: {state})",
+    "job_not_found": "Warning: Job not found in DB within timeout",
+    "pipeline_already_running": "Pipeline #{id} is already {status}. Please cancel it first.",
+}
+
+# =============================================================================
+# STAGE POLLING MESSAGES (for real-time logging)
+# =============================================================================
+
+STAGE_POLL_MSGS = {
+    "polling_start": "Polling stage '{stage}' (interval: {interval}s, timeout: {timeout} min)",
+    "stage_not_created": "[{time}] Stage '{stage}' not yet created, waiting...",
+    "stage_state_change": "[{time}] Stage '{stage}' → {state}",
+    "stage_completed": "[{time}] Stage '{stage}' COMPLETED ✓",
+    "stage_failed": "[{time}] Stage '{stage}' FAILED ✗",
+    "stage_error": "  Error: {error}",
+    "pipeline_status": "[{time}] Pipeline #{id} status: {status}",
+    "pipeline_failed": "  ⚠ Pipeline failed! Check GitLab CI/CD for error details.",
+    "pipeline_canceled": "  ⚠ Pipeline was canceled!",
+    "stage_still_running": "[{time}] Stage '{stage}' still {state}...",
+    "stage_timeout": "[{time}] TIMEOUT - Stage '{stage}' did not complete",
 }

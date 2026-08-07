@@ -13,15 +13,7 @@
 # limitations under the License.
 
 """
-Functional Verification Tests (FVT) for build_stream.
+Build Stream — Stress Tests.
 
-Scenarios:
-    build_stream    — Full end-to-end verification
-    prepare         — Deploy infrastructure and verify readiness
-    cleanup         — Clean up all deployed resources
-
-Suites:
-    build_stream/infrastructure/  — Container, API, DB, GitLab checks
-    build_stream/pipeline/        — Auto-trigger build, manual deploy, cleanup pipelines
-    stress/                       — Repeated build, cleanup, and rebuild cycles
+Repeated pipeline execution tests to validate stability under load.
 """

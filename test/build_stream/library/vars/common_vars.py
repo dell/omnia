@@ -134,6 +134,136 @@ EXPECTED_POSTGRES_TABLES = [
 BSM_HEALTH_ENDPOINT = "/health"
 
 # =============================================================================
+# PIPELINE STAGES (from GitLab CI/CD)
+# =============================================================================
+
+STAGE_PARSE_CATALOG = "parse-catalog"
+STAGE_GENERATE_INPUT = "generate-input"
+STAGE_CREATE_LOCAL_REPO = "create-local-repo"
+STAGE_BUILD_IMAGE_X86_64 = "build-image-x86_64"
+STAGE_BUILD_IMAGE_AARCH64 = "build-image-aarch64"
+STAGE_VALIDATE_IMAGE = "validate-image"
+
+BUILD_PIPELINE_CORE_STAGES = [
+    "upload",
+    STAGE_PARSE_CATALOG,
+    STAGE_GENERATE_INPUT,
+    STAGE_CREATE_LOCAL_REPO,
+]
+
+BUILD_IMAGE_STAGE_PREFIX = "build-image-"
+
+BUILD_PIPELINE_STAGES = [
+    "upload",
+    STAGE_PARSE_CATALOG,
+    STAGE_GENERATE_INPUT,
+    STAGE_CREATE_LOCAL_REPO,
+    STAGE_BUILD_IMAGE_X86_64,
+    STAGE_BUILD_IMAGE_AARCH64,
+]
+
+DEPLOY_PIPELINE_STAGES = [
+    "deploy",
+    "restart",
+    STAGE_VALIDATE_IMAGE,
+]
+
+CLEANUP_PIPELINE_STAGES = [
+    "cleanup",
+]
+
+# =============================================================================
+# IMAGE GROUP STATUSES
+# =============================================================================
+
+IMAGE_GROUP_STATUS_BUILT = "BUILT"
+IMAGE_GROUP_STATUS_CLEANED = "CLEANED"
+
+# =============================================================================
+# REGISTRY AND S3 CONFIGURATION
+# =============================================================================
+
+REGISTRY_PORT = 5000
+REGISTRY_CATALOG_PATH = "/v2/_catalog"
+REGISTRY_IMAGE_PREFIX = "rhel-"
+
+S3_BOOT_IMAGES_BUCKET = "s3://boot-images/"
+S3_EFI_IMAGES_PREFIX = "s3://boot-images/efi-images/"
+BOOT_IMAGE_ARTIFACTS_PER_ROLE = 3
+
+# =============================================================================
+# STRESS TEST CONFIGURATION
+# =============================================================================
+
+STRESS_BUILD_PIPELINE_COUNT = 50
+STRESS_STOP_ON_FIRST_FAILURE = True
+
+# =============================================================================
+# JOB STATES (from build_stream_db.jobs)
+# =============================================================================
+
+JOB_STATE_PENDING = "PENDING"
+JOB_STATE_IN_PROGRESS = "IN_PROGRESS"
+JOB_STATE_COMPLETED = "COMPLETED"
+JOB_STATE_FAILED = "FAILED"
+
+# =============================================================================
+# STAGE STATES (from build_stream_db.job_stages)
+# =============================================================================
+
+STAGE_STATE_PENDING = "PENDING"
+STAGE_STATE_RUNNING = "RUNNING"
+STAGE_STATE_COMPLETED = "COMPLETED"
+STAGE_STATE_FAILED = "FAILED"
+
+# =============================================================================
+# POLLING CONFIGURATION
+# =============================================================================
+
+STAGE_POLL_INTERVAL = 30
+STAGE_POLL_TIMEOUT = 10800  # 3 hours
+PIPELINE_POLL_INTERVAL = 5
+PIPELINE_POLL_TIMEOUT = 180  # 3 minutes
+JOB_WAIT_TIMEOUT = 120
+CLEANUP_WAIT_TIMEOUT = 300
+
+# =============================================================================
+# GITLAB API CONFIGURATION
+# =============================================================================
+
+GITLAB_API_VERSION = "v4"
+GITLAB_ROOT_TOKEN_FILE = "/root/.gitlab_root_token"
+CATALOG_FILE_PATH = "catalog_rhel.json"
+CATALOG_DEFAULT_FILENAME = "catalog_rhel_x86_64_with_slurm_only.json"
+PXE_MAPPING_FILE_PATH = "input/pxe_mapping_file.csv"
+OMNIA_CATALOG_PATH = "/omnia/examples/catalog"
+
+# =============================================================================
+# OMNIA REPOSITORY AND CONFIGURATION PATHS
+# =============================================================================
+
+OMNIA_REPO_URL = "https://github.com/dell/omnia.git"
+DEFAULT_CLONE_PATH = "/tmp/omnia_input_verify"
+SOURCE_CONFIG_BASE = "input/config"
+
+# =============================================================================
+# GITLAB CI/CD VARIABLE KEYS
+# =============================================================================
+
+PIPELINE_TYPE_KEY = "PIPELINE_TYPE"
+PIPELINE_TYPE_BUILD = "build"
+PIPELINE_TYPE_DEPLOY = "deploy"
+PIPELINE_TYPE_CLEANUP = "cleanup"
+
+# =============================================================================
+# CONTAINER PATHS
+# =============================================================================
+
+INPUT_BASE_PATH = "/opt/omnia/input/project_default"
+SOFTWARE_CONFIG_PATH = "/opt/omnia/input/project_default/software_config.json"
+OMNIA_CORE_CONTAINER = "omnia_core"
+
+# =============================================================================
 # CENTRALIZED SHELL COMMANDS
 # =============================================================================
 # All shell commands used by verification functions.
