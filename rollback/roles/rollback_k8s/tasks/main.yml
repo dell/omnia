@@ -37,6 +37,8 @@
 #   8b. Restart network pods (clear stale BIRD/speaker processes)
 #   8c. Restore Helm binary to rollback version
 #   8d. Clean up stale CSI VolumeAttachments (PowerScale/Isilon)
+#   8e. Verify telemetry rollback
+#   8f. Restore MySQL data if version downgrade detected
 #   9.  Restore BSS boot params and cloud-init from backup
 # ══════════════════════════════════════════════════════════════════════
 
@@ -215,9 +217,13 @@
     - name: "Stage 8d — Clean up stale CSI VolumeAttachments"
       ansible.builtin.include_tasks: cleanup_stale_volume_attachments.yml
 
-    # ── Stage 8d: Verify telemetry pods after etcd restore ───────
-    - name: "Stage 8d — Verify telemetry rollback"
+    # ── Stage 8e: Verify telemetry pods after etcd restore ───────
+    - name: "Stage 8e — Verify telemetry rollback"
       ansible.builtin.include_tasks: verify_telemetry_rollback.yml
+
+    # ── Stage 8f: Restore MySQL data if version downgrade detected ─
+    - name: "Stage 8f — Restore MySQL data (if version mismatch)"
+      ansible.builtin.include_tasks: restore_mysql_data.yml
 
     # ── Stage 9: Restore BSS boot params and cloud-init ──────────
     - name: "Stage 9 — Restore BSS boot params and cloud-init"

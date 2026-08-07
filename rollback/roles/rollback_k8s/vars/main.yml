@@ -28,6 +28,9 @@ repo_file_path: "/etc/yum.repos.d/omnia-upgrade.repo"
 
 nfs_storage_name: "nfs_k8s"
 
+# Telemetry namespace (used by restore_mysql_data.yml)
+telemetry_namespace: telemetry
+
 # nodes.yaml location (created by discovery)
 nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
 
