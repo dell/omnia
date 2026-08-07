@@ -46,6 +46,8 @@ pull_image_retries: 5
 pull_image_delay: 10
 
 # Pulp startup and health check settings
+# Note: First startup after upgrade runs pg_upgrade (PG 13→16) + Django migrations,
+# which can take 5-10 minutes. The total wait budget must cover this one-time operation.
 pulp_startup_retries: 10
 pulp_startup_delay: 10
 pulp_init_wait: 30

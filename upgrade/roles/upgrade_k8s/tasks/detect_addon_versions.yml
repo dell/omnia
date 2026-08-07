@@ -119,6 +119,104 @@
         else 'pending'
       }}
 
+# ── kube-vip version detection ────────────────────────────────────────
+# kube-vip runs as a static pod on EACH control plane node. The version
+# is read from the manifest file (source of truth) rather than crictl,
+# because CRI-O stores images by digest and crictl does not return tags.
+# We check all CP nodes: if any node is not at target, status = pending.
+#
+# IMPORTANT: this role runs under `hosts: localhost, connection: local`.
+# A delegate_to target only connects over SSH if that host has
+# `ansible_connection: ssh` set in the inventory. Raw IPs (and file-based
+# inventory hosts without that var) inherit connection: local and run on
+# the controller instead — which is why the manifest was "not found".
+# We therefore register each CP node in the in-memory inventory with an
+# explicit SSH connection, then delegate to those hostnames.
+- name: Build list of control plane nodes for kube-vip detection
+  ansible.builtin.set_fact:
+    _kube_vip_detect_cp_nodes: >-
+      {{ upgrade_status.nodes | dict2items
+         | selectattr('value.role', 'in', ['control_plane_first', 'control_plane'])
+         | list }}
+
+- name: Register control plane nodes for SSH delegation (kube-vip detection)
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    ansible_host: "{{ item.value.ip }}"
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups: _kube_vip_detect_targets
+  loop: "{{ _kube_vip_detect_cp_nodes }}"
+  loop_control:
+    label: "{{ item.key }} ({{ item.value.ip }})"
+  changed_when: false
+
+- name: Build list of control plane hostnames for kube-vip detection
+  ansible.builtin.set_fact:
+    _kube_vip_detect_cp_hosts: "{{ _kube_vip_detect_cp_nodes | map(attribute='key') | list }}"
+
+- name: Detect kube-vip version from manifest on each control plane
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      grep -oP 'image:\s+\S+:v\K\d+\.\d+\.\d+'
+      /etc/kubernetes/manifests/kube-vip.yaml 2>/dev/null ||
+      echo "unknown"
+    executable: /bin/bash
+  delegate_to: "{{ item }}"
+  loop: "{{ _kube_vip_detect_cp_hosts }}"
+  register: kube_vip_version_per_node
+  changed_when: false
+  failed_when: false
+
+- name: Build per-node kube-vip version map
+  ansible.builtin.set_fact:
+    _kube_vip_node_versions: >-
+      {{ _kube_vip_node_versions | default({}) | combine({
+           item.item: item.stdout | default('unknown') | trim
+         }) }}
+  loop: "{{ kube_vip_version_per_node.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Display kube-vip version per control plane node
+  ansible.builtin.debug:
+    msg: "kube-vip versions: {{ _kube_vip_node_versions }}"
+
+# Use the first non-target version as the "current" version for overall
+# reporting. If all nodes match the target, report the target.
+- name: Set kube_vip_current_version fact
+  ansible.builtin.set_fact:
+    kube_vip_current_version: >-
+      {{ (_kube_vip_node_versions.values() | list
+          | reject('equalto', kube_vip_target_version)
+          | reject('equalto', 'unknown') | first | default(''))
+         or
+         (kube_vip_target_version
+          if (_kube_vip_node_versions.values() | list
+              | select('equalto', kube_vip_target_version) | list | length
+              == _kube_vip_node_versions | length)
+          else (_kube_vip_node_versions.values() | list
+                | reject('equalto', 'unknown') | first | default('unknown'))) }}
+
+- name: Set kube_vip_from_version fact (preserve existing if set)
+  ansible.builtin.set_fact:
+    kube_vip_from_version: >-
+      {{ upgrade_status.addon_upgrade.kube_vip.from_version
+         if (upgrade_status.addon_upgrade.kube_vip.from_version | default('unknown')) not in ['unknown', '']
+         else kube_vip_current_version }}
+
+# completed only when ALL control plane nodes are at the target version
+- name: Determine kube-vip status
+  ansible.builtin.set_fact:
+    kube_vip_status: >-
+      {{ 'completed'
+         if (_kube_vip_node_versions.values() | list
+             | select('equalto', kube_vip_target_version) | list | length
+             == _kube_vip_node_versions | length)
+         else 'pending' }}
+
 - name: Load PowerScale target version from JSON
   ansible.builtin.set_fact:
     csi_powerscale_packages_json: "{{ lookup('file', input_project_dir + '/config/x86_64/rhel/' + cluster_os_version + '/csi_driver_powerscale.json') | from_json }}"  # noqa yaml[line-length]
@@ -189,6 +287,11 @@
   vars:
     status_update:
       addon_upgrade:
+        kube_vip:
+          status: "{{ kube_vip_status }}"
+          current_version: "{{ kube_vip_current_version }}"
+          from_version: "{{ kube_vip_from_version }}"
+          target_version: "{{ kube_vip_target_version }}"
         calico:
           status: "{{ calico_status }}"
           current_version: "{{ calico_current_version }}"
@@ -216,6 +319,7 @@
   vars:
     addon_versions_banner:
       - "Detected addon versions:"
+      - "  kube-vip: {{ kube_vip_current_version }} (target: {{ kube_vip_target_version }}) - {{ kube_vip_status }}"
       - "  Calico: {{ calico_current_version }} (target: {{ calico_target_version }}) - {{ calico_status }}"
       - "  MetalLB: {{ metallb_current_version }} (target: {{ metallb_target_version }}) - {{ metallb_status }}"
       - "  Helm: {{ helm_current_version }} (target: {{ helm_target_version }}) - {{ helm_status }}"

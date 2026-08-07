@@ -1,0 +1,278 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# step_kube_vip_upgrade.yml - Upgrade kube-vip static pod on a control plane
+# ============================================================================
+# kube-vip runs as a static pod managed by kubelet, not a DaemonSet.
+# Upgrade = replace /etc/kubernetes/manifests/kube-vip.yaml on each CP node.
+#
+# Chicken-and-egg problem:
+#   When the old kube-vip pod dies, the VIP goes away. The new pod reads
+#   admin.conf which points to the VIP for leader election, so it cannot
+#   start. Fix: temporarily point admin.conf to the node's real IP, let
+#   kube-vip start and advertise the VIP, then restore admin.conf.
+#
+# Variables required (set by load_version_vars.yml / detect_addon_versions.yml):
+#   - kube_vip_target_version  (e.g. "1.2.2")
+#   - kube_vip                 (VIP address, e.g. "10.40.5.176")
+#   - node_ip                  (real IP of the CP node being upgraded)
+#   - node_hostname            (inventory hostname, e.g. "k8scp2")
+#   - backup_dir               (path to store manifest backup)
+#
+# All tasks that touch the node run with delegate_to: "{{ node_hostname }}"
+# to ensure SSH connection from the inventory is used (not connection: local).
+# ============================================================================
+
+- name: Check if kube-vip manifest exists
+  delegate_to: "{{ node_hostname }}"
+  ansible.builtin.stat:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+  register: _kube_vip_manifest_stat
+
+- name: Skip if manifest not found (not a control plane node)
+  ansible.builtin.debug:
+    msg: "No kube-vip manifest found on {{ node_ip }} — skipping"
+  when: not _kube_vip_manifest_stat.stat.exists
+
+- name: Upgrade kube-vip on {{ node_ip }}
+  when: _kube_vip_manifest_stat.stat.exists
+  block:
+    - name: Read current kube-vip manifest
+      delegate_to: "{{ node_hostname }}"
+      ansible.builtin.slurp:
+        path: /etc/kubernetes/manifests/kube-vip.yaml
+      register: _kube_vip_current
+
+    - name: Check if already at target version
+      ansible.builtin.set_fact:
+        _kube_vip_needs_upgrade: >-
+          {{ 'ghcr.io/kube-vip/kube-vip:v' + kube_vip_target_version
+             not in (_kube_vip_current.content | b64decode) }}
+
+    - name: Skip if already at target version
+      ansible.builtin.debug:
+        msg: "kube-vip on {{ node_ip }} already at v{{ kube_vip_target_version }} — skipping"
+      when: not (_kube_vip_needs_upgrade | bool)
+
+    - name: Perform kube-vip upgrade on {{ node_ip }}
+      when: _kube_vip_needs_upgrade | bool
+      block:
+        - name: Backup current kube-vip manifest
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.copy:
+            src: /etc/kubernetes/manifests/kube-vip.yaml
+            dest: "{{ backup_dir }}/kube-vip-{{ node_ip }}-pre-upgrade.yaml"
+            remote_src: true
+            mode: "0644"
+
+        # ── Detect network facts (same approach as provision cloud-init) ──
+        - name: Detect VIP interface from node IP
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              ip -o addr show |
+              awk -v ip="{{ node_ip }}" '$4 ~ ip {print $2}'
+            executable: /bin/bash
+          register: _vip_interface
+          changed_when: false
+
+        # ── Set facts matching provision template variables ──────────────
+        # admin_netmask_bits comes from network_data.admin_network.netmask_bits
+        # (same source as provision/roles/k8s_config create_k8s_config_nfs.yml)
+        - name: Set kube-vip template facts
+          ansible.builtin.set_fact:
+            kube_vip_interface: "{{ _vip_interface.stdout | trim }}"
+            admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
+            kube_vip_version: "{{ kube_vip_target_version }}"
+
+        # ── Generate new manifest (same structure as provision template) ──
+        - name: Write upgraded kube-vip manifest
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.copy:
+            dest: /tmp/kube-vip-upgrade.yaml
+            mode: "0644"
+            content: |
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                creationTimestamp: null
+                name: kube-vip
+                namespace: kube-system
+                uid: kube-vip-pod
+              spec:
+                containers:
+                - args:
+                  - manager
+                  env:
+                  - name: vip_arp
+                    value: "true"
+                  - name: port
+                    value: "6443"
+                  - name: vip_nodename
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: spec.nodeName
+                  - name: vip_interface
+                    value: {{ kube_vip_interface }}
+                  - name: vip_cidr
+                    value: "{{ admin_netmask_bits }}"
+                  - name: dns_mode
+                    value: first
+                  - name: cp_enable
+                    value: "true"
+                  - name: cp_namespace
+                    value: kube-system
+                  - name: svc_enable
+                    value: "true"
+                  - name: svc_leasename
+                    value: plndr-svcs-lock
+                  - name: vip_leaderelection
+                    value: "true"
+                  - name: vip_leasename
+                    value: plndr-cp-lock
+                  - name: vip_leaseduration
+                    value: "5"
+                  - name: vip_renewdeadline
+                    value: "3"
+                  - name: vip_retryperiod
+                    value: "1"
+                  - name: address
+                    value: {{ kube_vip }}
+                  - name: vip_subnet
+                    value: "{{ admin_netmask_bits }}"
+                  - name: prometheus_server
+                    value: :2112
+                  image: ghcr.io/kube-vip/kube-vip:v{{ kube_vip_version }}
+                  imagePullPolicy: IfNotPresent
+                  name: kube-vip
+                  resources: {}
+                  securityContext:
+                    capabilities:
+                      add:
+                      - NET_ADMIN
+                      - NET_RAW
+                  volumeMounts:
+                  - mountPath: /etc/kubernetes/admin.conf
+                    name: kubeconfig
+                hostAliases:
+                - hostnames:
+                  - kubernetes
+                  ip: 127.0.0.1
+                hostNetwork: true
+                dnsPolicy: ClusterFirstWithHostNet
+                volumes:
+                - hostPath:
+                    path: /etc/kubernetes/admin.conf
+                  name: kubeconfig
+              status: {}
+
+        # ── Chicken-and-egg fix: temporarily use node IP ─────────────────
+        - name: Temporarily point admin.conf to node IP
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.replace:
+            path: /etc/kubernetes/admin.conf
+            regexp: 'server: https://[^:]+:6443'
+            replace: "server: https://{{ node_ip }}:6443"
+
+        # ── Replace manifest — kubelet auto-restarts the pod ─────────────
+        - name: Replace kube-vip manifest
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.copy:
+            src: /tmp/kube-vip-upgrade.yaml
+            dest: /etc/kubernetes/manifests/kube-vip.yaml
+            remote_src: true
+            mode: "0644"
+
+        - name: Wait for new kube-vip pod to start
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              crictl ps --name kube-vip -o json |
+              python3 -c "import sys,json;
+              c=json.load(sys.stdin).get('containers',[]);
+              print(c[0]['state'] if c else 'missing')"
+            executable: /bin/bash
+          register: _kube_vip_status
+          changed_when: false
+          retries: 30
+          delay: 5
+          until: _kube_vip_status.stdout | trim == 'CONTAINER_RUNNING'
+
+        - name: Verify VIP is reachable (API server responds via VIP) # noqa: command-instead-of-module command-instead-of-shell
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.shell:
+            cmd: >-
+              curl -sk --connect-timeout 3
+              https://{{ kube_vip }}:6443/healthz
+          register: _vip_check
+          changed_when: false
+          retries: 12
+          delay: 5
+          until: _vip_check.stdout | default('') == 'ok'
+
+        # ── Restore admin.conf to VIP ────────────────────────────────────
+        - name: Restore admin.conf to VIP address
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.replace:
+            path: /etc/kubernetes/admin.conf
+            regexp: 'server: https://[^:]+:6443'
+            replace: "server: https://{{ kube_vip }}:6443"
+
+        # Grep specifically for the version banner (not head -1) and retry
+        # until it reports the target version. This doubles as a stabilization
+        # gate: a pod that briefly starts then crash-loops logs a transient
+        # "level=fatal" line, which head -1 could mistake for the result.
+        - name: Verify kube-vip is running the target version
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              crictl ps --name kube-vip -q | head -1 |
+              xargs crictl logs 2>&1 |
+              grep -oE 'kube-vip.io version=v[0-9]+\.[0-9]+\.[0-9]+' |
+              head -1
+            executable: /bin/bash
+          register: _kube_vip_log
+          changed_when: false
+          retries: 12
+          delay: 5
+          until: >-
+            ('version=v' + kube_vip_target_version) in (_kube_vip_log.stdout | default(''))
+
+        # ── Verify API is reachable via VIP before moving to next node ───
+        - name: Verify API server reachable via VIP
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.command:
+            cmd: >-
+              kubectl --kubeconfig /etc/kubernetes/admin.conf get --raw /healthz
+          register: _api_health
+          changed_when: false
+          retries: 12
+          delay: 5
+          until: _api_health.rc == 0
+
+        - name: Display kube-vip upgrade result
+          ansible.builtin.debug:
+            msg: >-
+              kube-vip upgraded on {{ node_ip }}:
+              {{ _kube_vip_log.stdout | default('version not detected') | trim }}
+
+        - name: Clean up temp manifest
+          delegate_to: "{{ node_hostname }}"
+          ansible.builtin.file:
+            path: /tmp/kube-vip-upgrade.yaml
+            state: absent
