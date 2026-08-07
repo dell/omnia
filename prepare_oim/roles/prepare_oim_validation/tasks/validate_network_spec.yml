@@ -79,22 +79,14 @@
     success_msg: "{{ admin_nic_ip_success_msg }}"
   when: fetch_oim_hostname.stdout in oim_hostname
 
-# - name: Compute network address using ipcalc
-#   ansible.builtin.command: "/usr/bin/ipcalc -n {{ admin_nic_ip }}/{{ admin_netmask_bits }}"
-#   register: network_address_output
-#   changed_when: false
+- name: Compute network address using ipcalc
+  ansible.builtin.command: "/usr/bin/ipcalc -n {{ admin_nic_ip }}/{{ admin_netmask_bits }}"
+  register: network_address_output
+  changed_when: false
 
-# - name: Extract network address
-#   ansible.builtin.set_fact:
-#     admin_net_addr: "{{ network_address_output.stdout.split('=')[1] }}"
-
-- name: Compute network address
+- name: Extract network address
   ansible.builtin.set_fact:
-    network_address: "{{ (admin_nic_ip + '/' + (admin_netmask_bits | string)) | ansible.utils.ipaddr('network') }}"
-
-- name: Set admin_net_addr from computed network address
-  ansible.builtin.set_fact:
-    admin_net_addr: "{{ network_address }}"
+    admin_net_addr: "{{ network_address_output.stdout.split('=')[1] }}"
 
 - name: Initialize network_interface_type
   ansible.builtin.set_fact:

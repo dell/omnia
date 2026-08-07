@@ -33,7 +33,7 @@ admin_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('localhost') }}"
 # Build Stream Image (Docker Hub)
 build_stream_dockerhub_registry: "docker.io/dellhpcomniaaisolution"
 build_stream_image_name: "{{ build_stream_dockerhub_registry }}/omnia_build_stream"
-build_stream_image_tag: "1.2"
+build_stream_image_tag: "1.1"
 
 # Ports & Logs
 build_stream_port: "{{ hostvars['localhost']['build_stream_port'] }}"

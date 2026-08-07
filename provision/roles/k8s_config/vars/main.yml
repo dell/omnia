@@ -27,6 +27,7 @@ whereabouts_git_url: "{{ offline_git_path }}/{{ whereabouts_pkg }}/{{ whereabout
 file_mode: "0644"
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # Usage: create_node_dir.yml
 nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
