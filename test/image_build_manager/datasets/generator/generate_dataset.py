@@ -32,6 +32,7 @@ Examples:
 """
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -52,6 +53,10 @@ GENERATOR_DIR = Path(__file__).resolve().parent
 PROFILES_DIR = GENERATOR_DIR / "profiles"
 TEMPLATES_DIR = GENERATOR_DIR / "templates"
 DATASETS_DIR = GENERATOR_DIR.parent
+# src/ paths (4 levels up from generator/ → test/ibm/datasets/generator → repo root)
+REPO_ROOT = GENERATOR_DIR.parents[3]
+SRC_INPUT_DIR = REPO_ROOT / "src" / "image_build_manager" / "input"
+SRC_REPO_OUTPUT_DIR = REPO_ROOT / "src" / "image_build_manager" / "samples" / "repo_manager_output"
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +217,59 @@ def _render_templates(variables, output_dir):
     return rendered
 
 
+def _copy_from_src(output_dir, repo_status_variant):
+    """Copy dataset files directly from src/ input and samples directories."""
+    if not SRC_INPUT_DIR.exists():
+        _fail(f"src/ input directory not found: {SRC_INPUT_DIR}")
+
+    # Copy input files
+    input_dir = output_dir / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    for src_file in SRC_INPUT_DIR.glob("*.yml"):
+        dest = input_dir / src_file.name
+        shutil.copy2(src_file, dest)
+        _ok(f"Copied: input/{src_file.name}")
+
+    # Generate placeholder credentials (not shipped in src/)
+    creds_path = input_dir / "image_build_credentials.yml"
+    if not creds_path.exists():
+        creds_content = (
+            "---\n\n"
+            "# Image build credentials (S3 / MinIO)\n"
+            's3_access_id: ""\n'
+            's3_secret_key: ""\n\n'
+            "# SSH password for ARM build host "
+            "(only needed when aarch64_inventory_host_ip is set)\n"
+            'aarch64_ssh_password: ""\n'
+        )
+        creds_path.write_text(creds_content, encoding="utf-8")
+        _ok("Created: input/image_build_credentials.yml (placeholder)")
+
+    # Copy repo_manager_output
+    repo_out_dir = output_dir / "repo_manager_output"
+    repo_out_dir.mkdir(parents=True, exist_ok=True)
+
+    # repo_status.yml (choose variant)
+    if repo_status_variant == "internet":
+        src_repo = SRC_REPO_OUTPUT_DIR / "repo_status_internet.yml"
+    else:
+        src_repo = SRC_REPO_OUTPUT_DIR / "repo_status.yml"
+    if src_repo.exists():
+        shutil.copy2(src_repo, repo_out_dir / "repo_status.yml")
+        _ok(f"Copied: repo_manager_output/repo_status.yml (from {src_repo.name})")
+    else:
+        _info(f"Skipped: {src_repo.name} not found")
+
+    # functional_group_packages.yml
+    fg_src = SRC_REPO_OUTPUT_DIR / "functional_group_packages.yml"
+    if fg_src.exists():
+        shutil.copy2(fg_src, repo_out_dir / "functional_group_packages.yml")
+        _ok("Copied: repo_manager_output/functional_group_packages.yml")
+
+    copied = [str(p.relative_to(output_dir)) for p in sorted(output_dir.rglob("*.yml"))]
+    return copied
+
+
 def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir):
     """Write a README.md summarising the generated dataset."""
     lines = [
@@ -302,6 +360,17 @@ Examples:
         action="store_true",
         help="Overwrite existing dataset directory",
     )
+    parser.add_argument(
+        "--from-src",
+        action="store_true",
+        help="Copy files directly from src/ instead of rendering templates",
+    )
+    parser.add_argument(
+        "--repo-variant",
+        default="offline",
+        choices=["offline", "internet"],
+        help="Which repo_status variant to use with --from-src (default: offline)",
+    )
 
     args = parser.parse_args()
 
@@ -309,12 +378,15 @@ Examples:
         _list_profiles()
         return
 
-    if not args.dataset_name or not args.profile:
+    if not args.dataset_name:
         parser.print_help()
         sys.exit(1)
 
+    if not args.from_src and not args.profile:
+        parser.error("profile is required unless --from-src is used")
+
     dataset_name = args.dataset_name
-    profile_name = args.profile
+    profile_name = args.profile or "from-src"
     output_dir = DATASETS_DIR / dataset_name
 
     print()
@@ -329,10 +401,16 @@ Examples:
             "Use --force to overwrite."
         )
 
-    variables = _resolve_variables(profile_name, args.var)
-    _ok(f"Profile: {profile_name}")
+    if args.from_src:
+        _info(f"Copying from src/ (variant: {args.repo_variant})")
+        rendered = _copy_from_src(output_dir, args.repo_variant)
+        variables = {"repo_type": args.repo_variant}
+        profile_name = f"from-src ({args.repo_variant})"
+    else:
+        variables = _resolve_variables(profile_name, args.var)
+        _ok(f"Profile: {profile_name}")
+        rendered = _render_templates(variables, output_dir)
 
-    rendered = _render_templates(variables, output_dir)
     _generate_readme(dataset_name, profile_name, variables, rendered, output_dir)
 
     print()

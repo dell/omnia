@@ -23,6 +23,10 @@ python generate_dataset.py my_internet_ds internet
 # Override specific variables
 python generate_dataset.py my_custom defaults --var s3_provider=powerscale
 
+# Copy files directly from src/ (no templating, exact src/ content)
+python generate_dataset.py my_src_ds --from-src
+python generate_dataset.py my_src_ds --from-src --repo-variant internet
+
 # List available profiles
 python generate_dataset.py --list-profiles
 ```
@@ -158,6 +162,28 @@ Package lists are defined **once** in `defaults.yml` and reused across templates
 - **`openldap_packages`** — shared OpenLDAP/SSSD packages
 - **`group_extra_packages`** — per-role extra packages (keyed by role name)
 - **`base_packages`** — base OS packages for all images
+
+---
+
+## Direct Copy from src/ (`--from-src`)
+
+Instead of rendering templates, `--from-src` copies input files and sample
+repo_manager output directly from the repo's `src/` directory:
+
+```bash
+# Offline repo_status (default)
+python generate_dataset.py my_ds --from-src
+
+# Internet repo_status
+python generate_dataset.py my_ds --from-src --repo-variant internet
+```
+
+**What gets copied:**
+- `src/image_build_manager/input/*.yml` → `<dataset>/input/`
+- `src/image_build_manager/samples/repo_manager_output/repo_status[_internet].yml` → `<dataset>/repo_manager_output/repo_status.yml`
+
+**Note:** `image_build_credentials.yml` and `functional_group_packages.yml` are
+not present in `src/` (runtime-generated), so they won't be included.
 
 ---
 

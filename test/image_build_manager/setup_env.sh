@@ -277,14 +277,14 @@ _check_oim_server_ip() {
 }
 
 _create_and_encrypt_creds() {
-    local password="$1"
+    local _secret="$1"
 
     # Write plain-text creds file
     cat > "$CREDS_FILE" << CREDS_EOF
 ---
 # SSH credentials for remote OIM server.
 # This file is auto-encrypted with Ansible Vault.
-oim_password: "${password}"
+oim_password: "${_secret}"
 CREDS_EOF
     chmod 600 "$CREDS_FILE"
 
@@ -305,23 +305,23 @@ CREDS_EOF
     fi
 }
 
-# Prompt for password with 2× confirmation
-# Returns password via stdout; all prompts/errors go to stderr
-_prompt_password() {
+# Prompt for credential with 2× confirmation
+# Returns credential via stdout; all prompts/errors go to stderr
+_prompt_credential() {
     while true; do
-        read -s -r -p "  Password: " password1
+        read -s -r -p "  Password: " _input1
         echo "" >&2
-        read -s -r -p "  Confirm:  " password2
+        read -s -r -p "  Confirm:  " _input2
         echo "" >&2
 
-        if [ -z "$password1" ]; then
+        if [ -z "$_input1" ]; then
             echo -e "  ${RED}Password cannot be empty. Try again.${NC}" >&2
             echo "" >&2
             continue
         fi
 
-        if [ "$password1" = "$password2" ]; then
-            echo "$password1"
+        if [ "$_input1" = "$_input2" ]; then
+            echo "$_input1"
             return 0
         else
             echo -e "  ${RED}Passwords do not match. Try again.${NC}" >&2
@@ -359,8 +359,8 @@ elif [ "$UPDATE_PASSWORD" = true ]; then
     echo -e "  ${CYAN}Update SSH password for the target OIM server.${NC}"
     echo -e "  ${CYAN}This will overwrite test_creds.yml and re-encrypt it.${NC}"
     echo ""
-    new_password=$(_prompt_password)
-    _create_and_encrypt_creds "$new_password"
+    _cred_input=$(_prompt_credential)
+    _create_and_encrypt_creds "$_cred_input"
     ok "Password updated successfully"
 
 elif [ "$SET_PASSWORD" = true ]; then
@@ -373,8 +373,8 @@ elif [ "$SET_PASSWORD" = true ]; then
             echo ""
             echo -e "  ${CYAN}Enter new SSH password for the target OIM server.${NC}"
             echo ""
-            new_password=$(_prompt_password)
-            _create_and_encrypt_creds "$new_password"
+            _cred_input=$(_prompt_credential)
+            _create_and_encrypt_creds "$_cred_input"
             ok "Password updated successfully"
         else
             ok "Password update skipped. Existing credentials kept."
@@ -384,8 +384,8 @@ elif [ "$SET_PASSWORD" = true ]; then
         echo -e "  ${CYAN}Enter SSH password for the target OIM server.${NC}"
         echo -e "  ${CYAN}This will be saved to test_creds.yml (encrypted).${NC}"
         echo ""
-        new_password=$(_prompt_password)
-        _create_and_encrypt_creds "$new_password"
+        _cred_input=$(_prompt_credential)
+        _create_and_encrypt_creds "$_cred_input"
     fi
 
 else
