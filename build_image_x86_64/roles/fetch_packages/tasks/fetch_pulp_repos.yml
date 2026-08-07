@@ -55,7 +55,7 @@
         rhel_x86_64_repos: >-
           {% set repos = [] -%}
           {% for dist in pulp_x86_64_distributions -%}
-            {% set repo_name = dist.name.split('_') | last -%}
+            {% set repo_name = dist.name.split('_')[4:] | join('_') -%}
             {% if repo_name in _user_repo_names -%}
               {% set _priority = '10' -%}
             {% elif repo_name in _rhel_repo_names -%}
