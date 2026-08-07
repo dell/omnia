@@ -28,10 +28,44 @@
             | selectattr('name', 'match', '^x86_64')
             | list }}
 
-    - name: Build rhel_repos list from pulp_x86_64_distributions
+    # -- Repo priority classification ----------------------------------
+    # Load local_repo_config.yml to identify user vs RHEL vs omnia repos.
+    # Priority order: user (10) > RHEL (20) > omnia (99).
+    # This ensures DNF prefers user-supplied package versions over
+    # identically-named packages in omnia repos (e.g. slurm 25 from
+    # user repo beats slurm 26 from EPEL).
+    - name: Load local_repo_config for repo classification
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/local_repo_config.yml"
+        name: _local_repo_cfg
+      failed_when: false
+
+    - name: Build user repo name list
+      ansible.builtin.set_fact:
+        _user_repo_names: >-
+          {{ (_local_repo_cfg.user_repo_url_x86_64 | default([]) | map(attribute='name') | list) }}
+        _rhel_repo_names: >-
+          {{ (_local_repo_cfg.rhel_os_url_x86_64 | default([]) | map(attribute='name') | list)
+             + ['baseos', 'appstream', 'codeready-builder'] }}
+        _omnia_repo_names: >-
+          {{ (_local_repo_cfg.omnia_repo_url_rhel_x86_64 | default([]) | map(attribute='name') | list) }}
+
+    - name: Build rhel_repos list with priority from pulp_x86_64_distributions
       ansible.builtin.set_fact:
         rhel_x86_64_repos: >-
-          {{ pulp_x86_64_distributions | map('combine', {'gpg': ''}) | list }}
+          {% set repos = [] -%}
+          {% for dist in pulp_x86_64_distributions -%}
+            {% set repo_name = dist.name.split('_')[4:] | join('_') -%}
+            {% if repo_name in _user_repo_names -%}
+              {% set _priority = '10' -%}
+            {% elif repo_name in _rhel_repo_names -%}
+              {% set _priority = '20' -%}
+            {% else -%}
+              {% set _priority = '99' -%}
+            {% endif -%}
+            {% set _ = repos.append(dist | combine({'gpg': '', 'priority': _priority})) -%}
+          {% endfor -%}
+          {{ repos }}
 
     - name: Debug rhel_x86_64_repos
       ansible.builtin.debug:
