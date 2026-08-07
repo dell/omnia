@@ -52,23 +52,48 @@ The test framework reads these from the target at runtime (sourcing
 # Step 1 — Enter the test directory
 cd omnia/test/image_build_manager/
 
-# Step 2 — Run setup (creates .venv, installs Python deps + omnia-auto)
-bash setup_env.sh
+# Step 2 — Configure the target server
+vi test_config.yml       # Set oim_server_ip for remote mode
 
-# Step 3 — Activate the virtual environment
-source .venv/bin/activate
+# Step 3 — Run setup (choose one install mode)
+bash setup_env.sh                    # Baremetal (default) or active venv
+bash setup_env.sh --venv             # Create .venv/ and install there
+bash setup_env.sh --venv --force     # Recreate .venv/ from scratch
 
-# Step 4 — omnia-auto is installed automatically from test/plugins/dist/
-# (via requirements.txt → ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl)
+# Step 4 — Set SSH password (required for remote mode)
+bash setup_env.sh --set-password     # Interactive prompt (2× confirmation)
+bash setup_env.sh --password 'pass'  # Non-interactive
 
-# Step 5 — Configure the test
-vi test_config.yml       # Set oim_server_ip and clone_path
-vi test_creds.yml        # Set oim_password (auto-encrypted on first run)
+# Step 5 — Activate environment (if using --venv mode)
+source .venv/bin/activate            # For --venv mode
+source .run_validation_rc            # For baremetal mode (tab completion)
 
 # Step 6 — Edit dataset input files
 vi datasets/data_set_01/input/image_build_config.yml
 vi datasets/data_set_01/input/image_build_credentials.yml
 ```
+
+### Setup Modes
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| Baremetal | `bash setup_env.sh` | Installs via `pip --user` into system Python |
+| Active venv | `bash setup_env.sh` | Auto-detects active venv, installs there |
+| New venv | `bash setup_env.sh --venv` | Creates `.venv/` and installs inside |
+| Force recreate | `bash setup_env.sh --venv --force` | Deletes existing `.venv/` first |
+
+### Credential Management
+
+Credentials are required for remote mode (`oim_server_ip` set in `test_config.yml`).
+The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Vault.
+
+| Flag | Description |
+|------|-------------|
+| `--set-password` | Interactive prompt (asks twice). If password exists, asks yes/no to update. |
+| `--update-password` | Force-update existing password (no confirmation prompt). |
+| `--password PWD` | Non-interactive. Overwrites any existing credentials. |
+
+> **Note**: All credential flags require `oim_server_ip` to be set in `test_config.yml`.
 
 ---
 
@@ -122,11 +147,12 @@ vi datasets/data_set_01/input/image_build_credentials.yml
 
 ## Configuration
 
-| File | Purpose |
-|------|---------|
-| `test_config.yml` | Target server IP, sync settings, dataset, report options |
-| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) |
-| `test_run_config.yml` | Batch execution: scenario order, markers, suites |
+| File | Purpose | Git Status |
+|------|---------|------------|
+| `test_config.yml` | Target server IP, sync settings, dataset, report options | Tracked |
+| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) | **Gitignored** |
+| `.test_creds.key` | Vault encryption key (auto-generated) | **Gitignored** |
+| `test_run_config.yml` | Batch execution: scenario order, markers, suites | Tracked |
 
 ### Key Settings in `test_config.yml`
 
@@ -199,11 +225,11 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 
 ```
 test/image_build_manager/
-├── setup_env.sh                 # Environment setup (--force, --debug)
+├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
 ├── run_validation.sh            # CLI runner
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
-├── test_creds.yml               # SSH credentials (Ansible Vault)
+├── test_creds.yml               # SSH credentials (Ansible Vault, gitignored)
 ├── test_run_config.yml          # Batch execution config
 ├── requirements.txt             # Python dependencies
 │
