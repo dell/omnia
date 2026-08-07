@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Set default value for iso_source_checksum if not provided
+  ansible.builtin.set_fact:
+    iso_source_checksum: "{{ iso_source_checksum | default('') }}"
+
 - name: Verify source ISO exists
   ansible.builtin.stat:
     path: "{{ iso_source_path }}"

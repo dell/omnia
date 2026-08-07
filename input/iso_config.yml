@@ -24,8 +24,7 @@
 
 # Path to the pre-placed RHEL 10.x AArch64 Server with GUI full DVD ISO.
 # The ISO must be accessible on the OIM node.
-# Default: /opt/omnia/rhel_10.0_aarch64.iso
-iso_source_path: "/opt/omnia/RHEL-10.0-20250410.6-x86_64-dvd1.iso"
+iso_source_path: "/opt/omnia/RHEL-10.0-aarch64-dvd1.iso"
 
 # SHA-256 checksum for source ISO verification (optional but recommended).
 # iso_source_checksum: ""
@@ -46,7 +45,7 @@ iso_target_directory: "/opt/omnia/iso_output"
 # Target architecture for the OS installation.
 # Supported values: x86_64, aarch64
 # If not provided, it will be inferred from the ISO filename or prompted.
-# os_arch: "x86_64"
+os_arch: "aarch64"
 
 # NFS share path for iDRAC virtual media and kickstart hosting.
 # Format: "server:/path" (e.g., "192.168.1.100:/mnt/nfs/omnia")
@@ -61,7 +60,7 @@ iso_target_directory: "/opt/omnia/iso_output"
 
 # Force rebuild of the custom ISO when it already exists.
 # Default: false (reuses existing ISO)
-rebuild_iso: true
+rebuild_iso: false
 
 # Force reinstallation even if the target node is already reachable via SSH.
 # Default: false
