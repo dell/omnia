@@ -69,7 +69,6 @@
           "mariadb-server",
           "msr-safe",
           "munge",
-          "nano",
           "nvcr.io/nvidia/hpc-benchmarks",
           "osu-micro-benchmarks",
           "papi",
@@ -79,8 +78,7 @@
           "sg3_utils",
           "sionlib",
           "slurm-slurmctld",
-          "slurm-slurmdbd",
-          "tree"
+          "slurm-slurmdbd"
         ]
       },
       {
@@ -99,7 +97,6 @@
           "lsscsi",
           "msr-safe",
           "munge",
-          "nano",
           "nvcr.io/nvidia/hpc-benchmarks",
           "osu-micro-benchmarks",
           "papi",
@@ -108,8 +105,7 @@
           "sg3_utils",
           "sionlib",
           "slurm-pam_slurm",
-          "slurm-slurmd",
-          "tree"
+          "slurm-slurmd"
         ]
       }
     ],
@@ -482,25 +478,6 @@
           }
         ]
       },
-      "nano": {
-        "Name": "nano",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "baseos"
-          }
-        ]
-      },
       "nvcr.io/nvidia/hpc-benchmarks": {
         "Name": "nvcr.io/nvidia/hpc-benchmarks",
         "SupportedOS": [
@@ -741,25 +718,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "slurm_custom"
-          }
-        ]
-      },
-      "tree": {
-        "Name": "tree",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "baseos"
           }
         ]
       }
@@ -2491,10 +2449,7 @@
         ]
       }
     },
-    "Miscellaneous": [
-      "nano",
-      "tree"
-    ],
+    "Miscellaneous": [],
     "InfrastructurePackages": {}
   }
 }

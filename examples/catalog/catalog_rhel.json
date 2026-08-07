@@ -126,6 +126,7 @@
           "quay.io/jetstack/cert-manager-cainjector",
           "quay.io/jetstack/cert-manager-controller",
           "quay.io/jetstack/cert-manager-webhook",
+          "quay.io/metallb/controller",
           "quay.io/metallb/speaker",
           "quay.io/strimzi/kafka",
           "quay.io/strimzi/kafka-bridge",
@@ -433,7 +434,7 @@
         ]
       },
       "calico": {
-        "Name": "calico-v3.31.4",
+        "Name": "calico-v3.32.1",
         "SupportedOS": [
           {
             "Name": "RHEL",
@@ -447,7 +448,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "Uri": "https://raw.githubusercontent.com/projectcalico/calico/v3.31.4/manifests/calico.yaml"
+            "Uri": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml"
           }
         ]
       },
@@ -624,8 +625,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v3.31.4",
-        "Version": "v3.31.4"
+        "Tag": "v3.32.1",
+        "Version": "v3.32.1"
       },
       "docker.io/calico/kube-controllers": {
         "Name": "docker.io/calico/kube-controllers",
@@ -639,8 +640,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v3.31.4",
-        "Version": "v3.31.4"
+        "Tag": "v3.32.1",
+        "Version": "v3.32.1"
       },
       "docker.io/calico/node": {
         "Name": "docker.io/calico/node",
@@ -654,8 +655,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v3.31.4",
-        "Version": "v3.31.4"
+        "Tag": "v3.32.1",
+        "Version": "v3.32.1"
       },
       "docker.io/curlimages/curl": {
         "Name": "docker.io/curlimages/curl",
@@ -1021,8 +1022,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v0.8.9",
-        "Version": "v0.8.9"
+        "Tag": "v1.2.2",
+        "Version": "v1.2.2"
       },
       "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector": {
         "Name": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
@@ -1356,7 +1357,7 @@
         ]
       },
       "metallb-native": {
-        "Name": "metallb-native-v0.15.3",
+        "Name": "metallb-native-v0.16.1",
         "SupportedOS": [
           {
             "Name": "RHEL",
@@ -1370,7 +1371,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "Uri": "https://raw.githubusercontent.com/metallb/metallb/v0.15.3/config/manifests/metallb-native.yaml"
+            "Uri": "https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml"
           }
         ]
       },
@@ -1832,8 +1833,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v0.15.3",
-        "Version": "v0.15.3"
+        "Tag": "v0.16.1",
+        "Version": "v0.16.1"
       },
       "quay.io/metallb/speaker": {
         "Name": "quay.io/metallb/speaker",
@@ -1847,8 +1848,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "v0.15.3",
-        "Version": "v0.15.3"
+        "Tag": "v0.16.1",
+        "Version": "v0.16.1"
       },
       "quay.io/strimzi/kafka": {
         "Name": "quay.io/strimzi/kafka",
