@@ -166,17 +166,25 @@
         enabled: true
         state: started
 
+    - name: Wait for auth service container to stabilize
+      ansible.builtin.pause:
+        seconds: 5
+
     - name: Check if auth service container is running after deployment
       containers.podman.podman_container_info:
         name: "{{ auth_service_container_name }}"
       register: auth_service_container_status
 
+    - name: Fail if auth service container is not running
+      ansible.builtin.fail:
+        msg: "{{ auth_service_container_failure_msg }}"
+      when: >
+        auth_service_container_status.containers | length == 0 or
+        auth_service_container_status.containers[0].State.Status != 'running'
+
     - name: Notify user of auth service container deployment status
       ansible.builtin.debug:
         msg: "{{ auth_service_container_success_msg }}"
-      when:
-        - auth_service_container_status.containers | length > 0
-        - auth_service_container_status.containers[0].State.Status == 'running'
 
   rescue:
     - name: Auth service container deployment failed
