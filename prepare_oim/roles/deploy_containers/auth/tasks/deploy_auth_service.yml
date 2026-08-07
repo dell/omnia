@@ -46,6 +46,12 @@
       changed_when: false
       no_log: true
 
+    - name: Set TLS key file permissions for ldap user (Wolfi compatibility)
+      ansible.builtin.file:
+        path: "{{ openldap_tls_certs_directory }}/{{ rhel_cert_key }}"
+        mode: "0644"
+      no_log: true
+
 - name: Set ldap SELinux context for Local flow
   ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ openldap_tls_certs_directory }}"
   changed_when: true
