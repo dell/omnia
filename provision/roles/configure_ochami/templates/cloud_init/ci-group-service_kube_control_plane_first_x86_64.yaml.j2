@@ -237,11 +237,13 @@
                   value: "3"
                 - name: vip_retryperiod
                   value: "1"
-                - name: vip_address
+                - name: address
                   value: {{ kube_vip }}
+                - name: vip_subnet
+                  value: "{{ admin_netmask_bits }}"
                 - name: prometheus_server
                   value: :2112
-                image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                image: {{ kube_vip_image }}
                 imagePullPolicy: IfNotPresent
                 name: kube-vip
                 resources: {}
@@ -306,7 +308,7 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.20.1"
+            HELM_VERSION="v{{ helm_version }}"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}-helm-$HELM_VERSION/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
