@@ -91,6 +91,12 @@
       when: not hostvars['oim']['hostname_enabled']
       no_log: true
 
+    - name: Ensure certs directory exists
+      ansible.builtin.file:
+        path: "{{ certs_dir }}"
+        state: directory
+        mode: "0755"
+
     - name: Generating Pulp SSL Certificate
       ansible.builtin.command:
         cmd: "{{ generate_cert_cmd }}"
