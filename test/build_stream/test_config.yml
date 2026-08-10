@@ -80,6 +80,27 @@ bsm_host_ip: "100.10.0.129"
 
 # GitLab host IP (separate host for GitLab deployment)
 gitlab_host: "100.10.0.24"
+gitlab_project_name: "omnia-catalog"
+gitlab_https_port: 443
+gitlab_default_branch: "main"
+
+# =============================================================================
+# PIPELINE CONTROL
+# =============================================================================
+# When true, auto-cancel running/pending pipelines before triggering new ones.
+# When false, tests fail if existing pipelines are running.
+allow_pipeline_cancel: true
+
+# Catalog file name inside omnia_core at /omnia/examples/catalog/
+# Default: catalog_rhel_x86_64_with_slurm_only.json
+catalog_name: "catalog_rhel_x86_64_with_slurm_only.json"
+
+# Image identifier for deploy/cleanup selection (empty = auto-select latest)
+image_identifier: ""
+
+# Omnia branch to clone for generated-input verification.
+# Must match the branch used by build_stream on the target server.
+omnia_branch: "staging"
 
 # =============================================================================
 # REPORT CONFIGURATION

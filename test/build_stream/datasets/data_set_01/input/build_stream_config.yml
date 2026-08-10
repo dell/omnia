@@ -47,3 +47,4 @@ gitlab_puma_workers: 2
 gitlab_sidekiq_concurrency: 10
 
 gitlab_project_name: "omnia-catalog"
+gitlab_project_visibility: "private"
