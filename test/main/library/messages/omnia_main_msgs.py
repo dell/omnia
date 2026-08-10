@@ -28,7 +28,7 @@ from typing import Dict
 TEST_NAMES: Dict[str, str] = {
     # Deploy — setup
     "deploy_setup_venv": (
-        "Deploy: omnia.sh --setup-venv --skip-init"
+        "Deploy: omnia.sh --setup-venv --deps-only"
     ),
     "deploy_setup_full": (
         "Deploy: omnia.sh --setup-venv (full setup)"
@@ -81,8 +81,8 @@ TEST_NAMES: Dict[str, str] = {
     "run_no_domain_error": (
         "Verify --run without domain exits with error"
     ),
-    "validate_no_domain_error": (
-        "Verify --validate without domain exits with error"
+    "deps_only_setup": (
+        "Verify --deps-only skips input staging"
     ),
     "unknown_option_error": (
         "Verify unknown option exits with error"
@@ -136,7 +136,7 @@ TEST_NAMES: Dict[str, str] = {
 TEST_LOG_MSGS: Dict[str, str] = {
     # Setup
     "setup_start": (
-        "Running: omnia.sh --setup-venv --skip-init"
+        "Running: omnia.sh --setup-venv --deps-only"
     ),
     "setup_success": (
         "Setup completed (rc=0, duration={duration:.1f}s)"

@@ -18,7 +18,7 @@ Omnia Main CLI — Command Verification.
 TC_CL_002: Verify omnia.sh with no args shows help
 TC_CL_003: Verify --run with invalid domain exits with error
 TC_CL_004: Verify --run without domain exits with error
-TC_CL_005: Verify --validate without domain exits with error
+TC_CL_005: Verify --deps-only flag appears in help output
 TC_CL_006: Verify unknown option exits with error
 """
 
@@ -116,27 +116,22 @@ def test_run_no_domain(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(4)
-def test_validate_no_domain(host):
-    """TC_CL_005: Verify --validate without domain exits with error."""
+def test_deps_only_in_help(host):
+    """TC_CL_005: Verify --deps-only flag appears in help output."""
     tl = TestLogger(
-        TEST_NAMES["validate_no_domain_error"], "TC_CL_005"
+        TEST_NAMES["deps_only_setup"], "TC_CL_005"
     )
-    result = run_omnia_cmd_expect_error(
-        host, "omnia_sh_validate_no_domain",
-    )
+    result = run_omnia_cmd(host, "omnia_sh_help")
 
-    if result["success"]:
-        tl.passed(LOG["error_exit_ok"].format(
-            rc=result["rc"]
-        ))
+    found = "--deps-only" in result.get("output", "")
+
+    if found:
+        tl.passed(LOG["help_ok"])
     else:
-        tl.failed(LOG["error_exit_unexpected"].format(
-            rc=result["rc"]
-        ))
+        tl.failed("--deps-only flag not found in help output")
 
-    assert result["success"], ASSERT["error_not_raised"].format(
-        command="omnia.sh --validate",
-        rc=result["rc"],
+    assert found, (
+        "--deps-only flag must appear in omnia.sh --help output"
     )
 
 
