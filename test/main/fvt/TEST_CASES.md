@@ -8,7 +8,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
-| TC_SU_001 | `test_deploy_setup_venv` | *(root)* | deploy, sanity | Deploy omnia.sh --setup-venv --skip-init |
+| TC_SU_001 | `test_deploy_setup_venv` | *(root)* | deploy, sanity | Deploy omnia.sh --setup-venv --deps-only |
 | TC_SU_002 | `test_env_file_installed` | environment/ | sanity | Verify omnia.env installed at /etc/omnia/omnia.env |
 | TC_SU_003 | `test_profile_drop_in` | environment/ | sanity | Verify /etc/profile.d/omnia-env.sh exists |
 | TC_SU_004 | `test_env_vars_loaded` | environment/ | sanity | Verify environment variables are set after install |
@@ -40,7 +40,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_002 | `test_no_args_shows_help` | commands/ | sanity | Verify omnia.sh with no args shows help |
 | TC_CL_003 | `test_run_invalid_domain` | commands/ | sanity | Verify --run with invalid domain exits with error |
 | TC_CL_004 | `test_run_no_domain` | commands/ | sanity | Verify --run without domain exits with error |
-| TC_CL_005 | `test_validate_no_domain` | commands/ | sanity | Verify --validate without domain exits with error |
+| TC_CL_005 | `test_deps_only_in_help` | commands/ | sanity | Verify --deps-only flag appears in help output |
 | TC_CL_006 | `test_unknown_option` | commands/ | sanity | Verify unknown option exits with error |
 
 ---

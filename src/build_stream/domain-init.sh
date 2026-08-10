@@ -19,9 +19,11 @@
 # =============================================================================
 #
 # Performs first-time domain setup:
-#   1. Creates Ansible log directory:  /var/log/omnia/build_stream/
-#   2. Copies app/ source code to NFS runtime data path
-#   3. Copies input files from source tree to runtime data path
+#   1. Installs Python pip packages from requirements.txt
+#   2. Installs Ansible Galaxy collections from requirements.yml
+#   3. Creates Ansible log directory:  /var/log/omnia/build_stream/
+#   4. Copies app/ source code to NFS runtime data path
+#   5. Copies input files from source tree to runtime data path
 #
 # Source:      src/build_stream/app/   -> <OMNIA_DATA_PATH>/build_stream/
 #              src/build_stream/input/ -> <OMNIA_DATA_PATH>/build_stream/input/<project>/
@@ -55,6 +57,7 @@ readonly RED='\033[0;31m'
 readonly NC='\033[0m'
 
 FORCE_OVERWRITE=false
+DEPS_ONLY=false
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -63,14 +66,16 @@ _parse_args() {
     for arg in "$@"; do
         case "$arg" in
             --force|-f) FORCE_OVERWRITE=true ;;
+            --deps-only) DEPS_ONLY=true ;;
             --help|-h)
-                echo "Usage: $0 [--force|-f]"
-                echo "  --force, -f   Overwrite existing files without prompting"
+                echo "Usage: $0 [--force|-f] [--deps-only]"
+                echo "  --force, -f     Overwrite existing files without prompting"
+                echo "  --deps-only     Skip input file staging (only install deps)"
                 exit 0
                 ;;
             *)
                 echo -e "${RED}Unknown argument: $arg${NC}" >&2
-                echo "Usage: $0 [--force|-f]" >&2
+                echo "Usage: $0 [--force|-f] [--deps-only]" >&2
                 exit 1
                 ;;
         esac
@@ -249,6 +254,37 @@ copy_examples() {
 }
 
 # ---------------------------------------------------------------------------
+# Install domain-specific pip + Galaxy dependencies
+# Expects the shared Omnia venv to be activated before calling this script.
+# ---------------------------------------------------------------------------
+install_dependencies() {
+    local req_txt="$SCRIPT_DIR/requirements.txt"
+    local req_yml="$SCRIPT_DIR/requirements.yml"
+
+    if [ -f "$req_txt" ]; then
+        if command -v pip >/dev/null 2>&1; then
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
+            if ! pip install -r "$req_txt" --quiet; then
+                echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+            fi
+        else
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] pip not found (venv not activated?) — skipping pip install${NC}"
+        fi
+    fi
+
+    if [ -f "$req_yml" ]; then
+        if command -v ansible-galaxy >/dev/null 2>&1; then
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
+            if ! ansible-galaxy collection install -r "$req_yml" --force --quiet; then
+                echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+            fi
+        else
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] ansible-galaxy not found — skipping Galaxy install${NC}"
+        fi
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
@@ -257,17 +293,24 @@ main() {
 
     echo -e "${GREEN}[${DOMAIN_NAME}] Initializing domain...${NC}"
 
-    # 1. Create Ansible log directory (ansible.cfg log_path)
+    # 1. Install domain-specific dependencies
+    install_dependencies
+
+    # 2. Create Ansible log directory (ansible.cfg log_path)
     create_log_directory
 
-    # 2. Copy app source code to NFS
+    # 3. Copy app source code to NFS
     copy_app_source
 
-    # 3. Copy input files from flat input/ to input/<project>/
-    copy_input_files
+    # 4. Copy input files from flat input/ to input/<project>/ (skip if --deps-only)
+    if [ "$DEPS_ONLY" = false ]; then
+        copy_input_files
+        copy_examples
+    else
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipping input file staging (--deps-only)${NC}"
+    fi
 
-    # 4. Copy examples directory (used by GitLab hosted mode)
-    copy_examples
+    echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }
 
 main "$@"
