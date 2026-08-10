@@ -31,6 +31,11 @@ nfs_storage_name: "nfs_k8s"
 # Telemetry namespace (used by restore_mysql_data.yml)
 telemetry_namespace: telemetry
 
+# MySQL backup filename prefix (must match upgrade role's naming convention)
+# Per-pod backups are named: <prefix><pod_index>.sql.enc
+# e.g., idrac_telemetry_mysql_backup_pod0.sql.enc
+mysql_backup_filename_prefix: "idrac_telemetry_mysql_backup_pod"
+
 # nodes.yaml location (created by discovery)
 nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
 

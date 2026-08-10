@@ -13,23 +13,25 @@
 # limitations under the License.
 ---
 # ============================================================================
-# Restore MySQL Data (Post-Rollback)
+# Restore MySQL Data (Post-Rollback) — All Pods
 # ============================================================================
 # After etcd restore, the idrac-telemetry StatefulSet spec is reverted to the
-# pre-upgrade MySQL version (e.g., 9.3.0). However, the PVC still contains
-# data written by the upgraded version (e.g., 9.7.2). MySQL refuses to
-# downgrade between minor versions:
+# pre-upgrade MySQL version (e.g., 9.3.0). However, each pod's PVC still
+# contains data written by the upgraded version (e.g., 9.7.2). MySQL refuses
+# to downgrade between minor versions:
 #   [ERROR] [MY-014061] Cannot downgrade from 90702 to 90300.
+#
+# The StatefulSet can have multiple replicas (one per parent service node),
+# each with its own independent MySQL instance and PVC. This task handles
+# ALL pods, not just pod-0.
 #
 # This task detects the version mismatch and fixes it:
 #   1. Detects if mysqldb container is in CrashLoopBackOff
 #   2. Confirms it is a downgrade error via container logs
 #   3. Scales down the StatefulSet
-#   4. Clears the PVC data (removes incompatible format files)
-#   5. Scales up — MySQL initializes fresh at the old version
-#      (MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD env vars in the
-#       StatefulSet spec auto-create the database and user)
-#   6. If pre-upgrade mysqldump backup exists, restores schema+data from it
+#   4. Clears ALL PVC data (removes incompatible format files from every pod)
+#   5. Scales up — MySQL initializes fresh at the old version on every pod
+#   6. If per-pod mysqldump backups exist, restores schema+data to each pod
 # ============================================================================
 
 - name: Restore idrac-telemetry MySQL data (post-rollback)
@@ -91,6 +93,7 @@
         - name: Check MySQL logs for downgrade error
           ansible.builtin.shell:
             cmd: |
+              set -o pipefail
               POD=$(kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
                     --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
               if [ -z "$POD" ]; then echo "no_pod"; exit 0; fi
@@ -116,7 +119,7 @@
               - "mysqldb waiting reason: {{ mysqldb_waiting_reason.stdout | default('none') }}"
               - "MySQL downgrade detected: {{ mysql_downgrade_detected }}"
 
-    # ── Step 3: Fix MySQL downgrade — wipe PVC and reinitialize ──
+    # ── Step 3: Fix MySQL downgrade — wipe ALL PVCs and reinitialize ──
     - name: Fix MySQL version downgrade
       when:
         - idrac_sts_check.rc == 0
@@ -130,7 +133,7 @@
               - "============================================================"
               - "The PVC contains data from a newer MySQL version that cannot"
               - "be read by the older version restored during rollback."
-              - "Will wipe PVC data and reinitialize MySQL at the old version."
+              - "Will wipe PVC data for ALL pods and reinitialize MySQL."
               - "============================================================"
 
         # Capture original replica count before scaling down
@@ -148,6 +151,14 @@
           ansible.builtin.set_fact:
             idrac_telemetry_original_replicas: "{{ original_replica_count_raw.stdout | default('1') | int }}"
 
+        - name: Build list of all pod indices
+          ansible.builtin.set_fact:
+            idrac_telemetry_pod_indices: "{{ range(0, idrac_telemetry_original_replicas | int) | list }}"
+
+        - name: Display replica count
+          ansible.builtin.debug:
+            msg: "idrac-telemetry has {{ idrac_telemetry_original_replicas }} replica(s) — will wipe and restore ALL PVCs"
+
         # Scale down
         - name: Scale down idrac-telemetry StatefulSet
           ansible.builtin.command:
@@ -156,10 +167,14 @@
           connection: ssh
           changed_when: true
 
-        - name: Wait for idrac-telemetry pod to terminate
+        - name: Wait for all idrac-telemetry pods to terminate
           ansible.builtin.shell:
             cmd: |
-              kubectl wait --for=delete pod/idrac-telemetry-0 -n {{ telemetry_namespace }} --timeout=120s 2>/dev/null || true
+              set -o pipefail
+              # Wait for all pods to be deleted
+              for i in {{ idrac_telemetry_pod_indices | join(' ') }}; do
+                kubectl wait --for=delete pod/idrac-telemetry-${i} -n {{ telemetry_namespace }} --timeout=120s 2>/dev/null || true
+              done
               # Double-check no pods left
               COUNT=$(kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry --no-headers 2>/dev/null | wc -l)
               if [ "$COUNT" -gt 0 ]; then
@@ -183,16 +198,16 @@
           register: restored_mysql_image
           changed_when: false
 
-        # Wipe PVC using a temporary cleanup pod
-        - name: Create PVC cleanup pod
+        # Wipe ALL PVCs using temporary cleanup pods (one per PVC)
+        - name: Create PVC cleanup pod for each replica
           ansible.builtin.shell:
             cmd: |
-              kubectl run mysql-pvc-cleanup --image={{ restored_mysql_image.stdout }} \
+              kubectl run mysql-pvc-cleanup-{{ item }} --image={{ restored_mysql_image.stdout }} \
                 --restart=Never -n {{ telemetry_namespace }} \
                 --overrides='{
                   "spec": {
                     "containers": [{
-                      "name": "mysql-pvc-cleanup",
+                      "name": "mysql-pvc-cleanup-{{ item }}",
                       "image": "{{ restored_mysql_image.stdout }}",
                       "command": ["/bin/sh", "-c", "rm -rf /var/lib/mysql/* && echo PVC_DATA_CLEARED"],
                       "volumeMounts": [{
@@ -203,7 +218,7 @@
                     "volumes": [{
                       "name": "mysqldb-pvc",
                       "persistentVolumeClaim": {
-                        "claimName": "mysqldb-pvc-idrac-telemetry-0"
+                        "claimName": "mysqldb-pvc-idrac-telemetry-{{ item }}"
                       }
                     }],
                     "restartPolicy": "Never"
@@ -212,12 +227,13 @@
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           changed_when: true
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
-        - name: Wait for PVC cleanup pod to complete
+        - name: Wait for all PVC cleanup pods to complete
           ansible.builtin.shell:
             cmd: >
               kubectl wait --for=jsonpath='{.status.phase}'=Succeeded
-              pod/mysql-pvc-cleanup -n {{ telemetry_namespace }}
+              pod/mysql-pvc-cleanup-{{ item }} -n {{ telemetry_namespace }}
               --timeout=120s
           delegate_to: "{{ kube_vip }}"
           connection: ssh
@@ -226,29 +242,35 @@
           delay: 10
           register: cleanup_wait
           until: cleanup_wait.rc == 0
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
-        - name: Verify PVC cleanup succeeded
+        - name: Verify PVC cleanup succeeded for each replica
           ansible.builtin.command:
-            cmd: kubectl logs mysql-pvc-cleanup -n {{ telemetry_namespace }}
+            cmd: kubectl logs mysql-pvc-cleanup-{{ item }} -n {{ telemetry_namespace }}
           delegate_to: "{{ kube_vip }}"
           connection: ssh
-          register: cleanup_logs
+          register: cleanup_logs_all
           changed_when: false
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
-        - name: Fail if PVC cleanup did not succeed
+        - name: Fail if any PVC cleanup did not succeed
           ansible.builtin.fail:
-            msg: "MySQL PVC data cleanup failed. Cleanup pod output: {{ cleanup_logs.stdout }}"
-          when: "'PVC_DATA_CLEARED' not in cleanup_logs.stdout"
+            msg: "MySQL PVC data cleanup failed for pod index {{ item.item }}. Output: {{ item.stdout }}"
+          when: "'PVC_DATA_CLEARED' not in item.stdout"
+          loop: "{{ cleanup_logs_all.results }}"
+          loop_control:
+            label: "pod-{{ item.item }}"
 
-        - name: Delete PVC cleanup pod
+        - name: Delete all PVC cleanup pods
           ansible.builtin.command:
-            cmd: kubectl delete pod mysql-pvc-cleanup -n {{ telemetry_namespace }} --wait=false
+            cmd: kubectl delete pod mysql-pvc-cleanup-{{ item }} -n {{ telemetry_namespace }} --wait=false
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           changed_when: true
           failed_when: false
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
-        # Scale up — MySQL will initialize fresh at the old version
+        # Scale up — MySQL will initialize fresh at the old version on all pods
         - name: Scale up idrac-telemetry StatefulSet
           ansible.builtin.command:
             cmd: kubectl scale statefulset idrac-telemetry -n {{ telemetry_namespace }} --replicas={{ idrac_telemetry_original_replicas | default(1) }}
@@ -256,11 +278,11 @@
           connection: ssh
           changed_when: true
 
-        - name: Wait for idrac-telemetry pod to be ready
+        - name: Wait for all idrac-telemetry pods to be ready
           ansible.builtin.shell:
             cmd: |
               kubectl wait --for=condition=Ready \
-                pod/idrac-telemetry-0 -n {{ telemetry_namespace }} \
+                pod/idrac-telemetry-{{ item }} -n {{ telemetry_namespace }} \
                 --timeout=300s
           delegate_to: "{{ kube_vip }}"
           connection: ssh
@@ -269,24 +291,26 @@
           retries: 3
           delay: 30
           until: pod_ready_wait.rc == 0
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
         # Get MySQL root password for restore
         - name: Get MySQL root password from secret
           ansible.builtin.shell:
-            cmd: >
-              kubectl get secret mysqldb-credentials -n {{ telemetry_namespace }}
-              -o jsonpath='{.data.mysqldb_root_password}' | base64 -d
+            cmd: |
+              set -o pipefail
+              kubectl get secret mysqldb-credentials -n {{ telemetry_namespace }} \
+                -o jsonpath='{.data.mysqldb_root_password}' | base64 -d
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           register: mysql_root_pw
           changed_when: false
           no_log: true
 
-        # Wait for MySQL to accept connections
-        - name: Wait for MySQL to accept connections
+        # Wait for MySQL to accept connections on all pods
+        - name: Wait for MySQL to accept connections on each pod
           ansible.builtin.shell:
             cmd: >
-              kubectl exec idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb --
+              kubectl exec idrac-telemetry-{{ item }} -n {{ telemetry_namespace }} -c mysqldb --
               mysqladmin ping -u root -p'{{ mysql_root_pw.stdout }}' 2>/dev/null
           delegate_to: "{{ kube_vip }}"
           connection: ssh
@@ -296,158 +320,204 @@
           delay: 10
           changed_when: false
           no_log: true
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
-        # Search for pre-upgrade mysqldump backup (encrypted first, then plaintext fallback)
-        - name: Search for encrypted MySQL backup in backup directory
+        # Search for per-pod mysqldump backups (new format: *_pod<N>.sql.enc)
+        - name: Search for per-pod encrypted MySQL backups in backup directory
           ansible.builtin.find:
             paths: "{{ k8s_backup_dir }}"
-            patterns: "idrac_telemetry_mysql_backup.sql.enc"
+            patterns: "{{ mysql_backup_filename_prefix }}*.sql.enc"
             recurse: true
           delegate_to: "{{ kube_vip }}"
           connection: ssh
-          register: mysql_enc_backup_in_backup
+          register: mysql_perpod_enc_backups_in_backup
           failed_when: false
           when: k8s_backup_dir is defined
 
-        - name: Search for encrypted MySQL backup in archive directory
+        - name: Search for per-pod encrypted MySQL backups in archive directory
+          ansible.builtin.find:
+            paths: "{{ k8s_client_mount_path }}/upgrade/archive"
+            patterns: "{{ mysql_backup_filename_prefix }}*.sql.enc"
+            recurse: true
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_perpod_enc_backups_in_archive
+          failed_when: false
+          when: k8s_client_mount_path is defined
+
+        # Also search for legacy single-file backup (backward compatibility)
+        - name: Search for legacy encrypted MySQL backup in backup directory
+          ansible.builtin.find:
+            paths: "{{ k8s_backup_dir }}"
+            patterns: "idrac_telemetry_mysql_backup.sql.enc"
+            recurse: true
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_legacy_enc_backup
+          failed_when: false
+          when: k8s_backup_dir is defined
+
+        - name: Search for legacy encrypted MySQL backup in archive directory
           ansible.builtin.find:
             paths: "{{ k8s_client_mount_path }}/upgrade/archive"
             patterns: "idrac_telemetry_mysql_backup.sql.enc"
             recurse: true
           delegate_to: "{{ kube_vip }}"
           connection: ssh
-          register: mysql_enc_backup_in_archive
+          register: mysql_legacy_enc_archive
           failed_when: false
           when: k8s_client_mount_path is defined
 
-        - name: Search for plaintext MySQL backup in backup directory (fallback)
-          ansible.builtin.find:
-            paths: "{{ k8s_backup_dir }}"
-            patterns: "idrac_telemetry_mysql_backup.sql"
-            recurse: true
-          delegate_to: "{{ kube_vip }}"
-          connection: ssh
-          register: mysql_backup_in_backup
-          failed_when: false
-          when:
-            - k8s_backup_dir is defined
-            - (mysql_enc_backup_in_backup.matched | default(0)) == 0
-            - (mysql_enc_backup_in_archive.matched | default(0)) == 0
-
-        - name: Search for plaintext MySQL backup in archive directory (fallback)
-          ansible.builtin.find:
-            paths: "{{ k8s_client_mount_path }}/upgrade/archive"
-            patterns: "idrac_telemetry_mysql_backup.sql"
-            recurse: true
-          delegate_to: "{{ kube_vip }}"
-          connection: ssh
-          register: mysql_backup_in_archive
-          failed_when: false
-          when:
-            - k8s_client_mount_path is defined
-            - (mysql_enc_backup_in_backup.matched | default(0)) == 0
-            - (mysql_enc_backup_in_archive.matched | default(0)) == 0
-
-        - name: Set MySQL backup file path and encryption flag
+        # Determine which backup format is available and set the backup directory
+        - name: Determine backup format and directory
           ansible.builtin.set_fact:
-            mysql_backup_file: >-
-              {% if mysql_enc_backup_in_backup is defined and (mysql_enc_backup_in_backup.matched | default(0)) > 0 -%}
-                {{ (mysql_enc_backup_in_backup.files | sort(attribute='mtime', reverse=true) | first).path }}
-              {%- elif mysql_enc_backup_in_archive is defined and (mysql_enc_backup_in_archive.matched | default(0)) > 0 -%}
-                {{ (mysql_enc_backup_in_archive.files | sort(attribute='mtime', reverse=true) | first).path }}
-              {%- elif mysql_backup_in_backup is defined and (mysql_backup_in_backup.matched | default(0)) > 0 -%}
-                {{ (mysql_backup_in_backup.files | sort(attribute='mtime', reverse=true) | first).path }}
-              {%- elif mysql_backup_in_archive is defined and (mysql_backup_in_archive.matched | default(0)) > 0 -%}
-                {{ (mysql_backup_in_archive.files | sort(attribute='mtime', reverse=true) | first).path }}
+            mysql_perpod_backup_dir: >-
+              {% set perpod_backup = mysql_perpod_enc_backups_in_backup | default({'matched': 0}) -%}
+              {% set perpod_archive = mysql_perpod_enc_backups_in_archive | default({'matched': 0}) -%}
+              {% set legacy_backup = mysql_legacy_enc_backup | default({'matched': 0}) -%}
+              {% set legacy_archive = mysql_legacy_enc_archive | default({'matched': 0}) -%}
+              {% if (perpod_backup.matched | default(0)) > 0 -%}
+                {{ (perpod_backup.files | sort(attribute='mtime', reverse=true) | first).path | dirname }}
+              {%- elif (perpod_archive.matched | default(0)) > 0 -%}
+                {{ (perpod_archive.files | sort(attribute='mtime', reverse=true) | first).path | dirname }}
+              {%- elif (legacy_backup.matched | default(0)) > 0 -%}
+                {{ (legacy_backup.files | sort(attribute='mtime', reverse=true) | first).path | dirname }}
+              {%- elif (legacy_archive.matched | default(0)) > 0 -%}
+                {{ (legacy_archive.files | sort(attribute='mtime', reverse=true) | first).path | dirname }}
               {%- else -%}
                 none
               {%- endif %}
-            mysql_backup_encrypted: >-
-              {{ (mysql_enc_backup_in_backup is defined and (mysql_enc_backup_in_backup.matched | default(0)) > 0) or
-                 (mysql_enc_backup_in_archive is defined and (mysql_enc_backup_in_archive.matched | default(0)) > 0) }}
+            mysql_backup_is_perpod: >-
+              {{ ((mysql_perpod_enc_backups_in_backup | default({'matched': 0})).matched | default(0)) > 0 or
+                 ((mysql_perpod_enc_backups_in_archive | default({'matched': 0})).matched | default(0)) > 0 }}
+            mysql_backup_is_legacy: >-
+              {{ ((mysql_perpod_enc_backups_in_backup | default({'matched': 0})).matched | default(0)) == 0 and
+                 ((mysql_perpod_enc_backups_in_archive | default({'matched': 0})).matched | default(0)) == 0 and
+                 (((mysql_legacy_enc_backup | default({'matched': 0})).matched | default(0)) > 0 or
+                  ((mysql_legacy_enc_archive | default({'matched': 0})).matched | default(0)) > 0) }}
 
-        # Restore from backup if available
-        - name: Restore MySQL data from backup
-          when: mysql_backup_file | trim != 'none'
+        - name: Display backup search results
+          ansible.builtin.debug:
+            msg:
+              - "Backup directory: {{ mysql_perpod_backup_dir | trim }}"
+              - "Per-pod backup format: {{ mysql_backup_is_perpod | trim }}"
+              - "Legacy single-file format: {{ mysql_backup_is_legacy | trim }}"
+              - "Replica count: {{ idrac_telemetry_original_replicas }}"
+
+        # ── Restore per-pod backups (new format) ──
+        - name: Restore per-pod MySQL backups
+          when:
+            - mysql_perpod_backup_dir | trim != 'none'
+            - mysql_backup_is_perpod | trim | bool
           block:
-            - name: Display MySQL restore starting
+            - name: Display per-pod MySQL restore starting
               ansible.builtin.debug:
-                msg: "Restoring MySQL data from backup: {{ mysql_backup_file | trim }} (encrypted: {{ mysql_backup_encrypted | trim }})"
+                msg: "Restoring per-pod MySQL data from: {{ mysql_perpod_backup_dir | trim }}"
 
-            - name: Restore from encrypted mysqldump backup
+            - name: Restore encrypted mysqldump to each pod
               ansible.builtin.shell:
-                cmd: >
-                  openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000
-                  -in {{ mysql_backup_file | trim }}
-                  -pass pass:'{{ mysql_root_pw.stdout }}'
-                  | kubectl exec -i idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb --
-                  mysql -u root -p'{{ mysql_root_pw.stdout }}' idrac_telemetrydb
+                cmd: |
+                  set -o pipefail
+                  BACKUP_FILE="{{ mysql_perpod_backup_dir | trim }}/{{ mysql_backup_filename_prefix }}{{ item }}.sql.enc"
+                  if [ ! -f "$BACKUP_FILE" ]; then
+                    echo "NO_BACKUP_FOR_POD_{{ item }}"
+                    exit 0
+                  fi
+                  openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+                    -in "$BACKUP_FILE" \
+                    -pass pass:'{{ mysql_root_pw.stdout }}' \
+                    | kubectl exec -i idrac-telemetry-{{ item }} -n {{ telemetry_namespace }} -c mysqldb -- \
+                    mysql -u root -p'{{ mysql_root_pw.stdout }}' idrac_telemetrydb
               delegate_to: "{{ kube_vip }}"
               connection: ssh
-              register: mysql_restore_encrypted
+              register: mysql_perpod_restore_results
               changed_when: true
+              failed_when: false
               no_log: true
-              when: mysql_backup_encrypted | trim | bool
+              loop: "{{ idrac_telemetry_pod_indices }}"
 
-            - name: Restore from plaintext mysqldump backup (legacy)
+            - name: Report per-pod restore results
+              ansible.builtin.debug:
+                msg: >-
+                  Pod idrac-telemetry-{{ item.item }}:
+                  {{ 'RESTORED' if item.rc == 0 else 'FAILED (rc=' ~ item.rc ~ ')' }}
+                  {{ '— no backup file found, MySQL reinitialized fresh' if 'NO_BACKUP_FOR_POD' in (item.stdout | default('')) else '' }}
+              loop: "{{ mysql_perpod_restore_results.results }}"
+              loop_control:
+                label: "pod-{{ item.item }}"
+
+        # ── Restore legacy single-file backup (backward compatibility) ──
+        - name: Restore legacy MySQL backup (pod-0 only)
+          when:
+            - mysql_perpod_backup_dir | trim != 'none'
+            - mysql_backup_is_legacy | trim | bool
+          block:
+            - name: Display legacy MySQL restore starting
+              ansible.builtin.debug:
+                msg:
+                  - "Found legacy single-file backup (pre multi-pod support)."
+                  - "Restoring to pod-0 only. Other pods will reinitialize fresh."
+                  - "Backup dir: {{ mysql_perpod_backup_dir | trim }}"
+
+            - name: Restore legacy encrypted backup to pod-0
               ansible.builtin.shell:
-                cmd: >
-                  kubectl exec -i idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb --
-                  mysql -u root -p'{{ mysql_root_pw.stdout }}' idrac_telemetrydb
-                  < {{ mysql_backup_file | trim }}
+                cmd: |
+                  set -o pipefail
+                  openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+                    -in {{ mysql_perpod_backup_dir | trim }}/idrac_telemetry_mysql_backup.sql.enc \
+                    -pass pass:'{{ mysql_root_pw.stdout }}' \
+                    | kubectl exec -i idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb -- \
+                    mysql -u root -p'{{ mysql_root_pw.stdout }}' idrac_telemetrydb
               delegate_to: "{{ kube_vip }}"
               connection: ssh
-              register: mysql_restore_plaintext
+              register: mysql_legacy_restore
               changed_when: true
+              failed_when: false
               no_log: true
-              when: not (mysql_backup_encrypted | trim | bool)
 
-            - name: Set MySQL restore result
-              ansible.builtin.set_fact:
-                mysql_restore_rc: >-
-                  {% if mysql_backup_encrypted | trim | bool -%}
-                    {{ mysql_restore_encrypted.rc | default(-1) }}
-                  {%- else -%}
-                    {{ mysql_restore_plaintext.rc | default(-1) }}
-                  {%- endif %}
-
-            - name: Warn if MySQL restore failed
+            - name: Report legacy restore result
               ansible.builtin.debug:
-                msg: "WARNING: MySQL data restore failed (rc={{ mysql_restore_rc | trim }}). Database is fresh but data may be lost."
-              when: mysql_restore_rc | trim | int != 0
+                msg:
+                  - "Legacy backup restore to pod-0: {{ 'SUCCESS' if mysql_legacy_restore.rc == 0 else 'FAILED (rc=' ~ mysql_legacy_restore.rc ~ ')' }}"
+                  - "WARNING: Pods 1+ have no backup — MySQL reinitialized fresh with empty database."
 
+        # ── No backup found ──
         - name: Log that no backup was found
           ansible.builtin.debug:
             msg:
               - "No pre-upgrade mysqldump backup found."
-              - "MySQL has been reinitialized fresh at {{ restored_mysql_image.stdout }}."
+              - "ALL pods have been reinitialized fresh at {{ restored_mysql_image.stdout }}."
               - "The database 'idrac_telemetrydb' and user 'omnia' were auto-created"
               - "by the MYSQL_DATABASE and MYSQL_USER environment variables in the StatefulSet."
               - "Searched in: {{ k8s_backup_dir | default('N/A') }} and {{ k8s_client_mount_path | default('N/A') }}/upgrade/archive/"
-          when: mysql_backup_file | trim == 'none'
+          when: mysql_perpod_backup_dir | trim == 'none'
 
-        # Verify MySQL is healthy
-        - name: Verify MySQL tables after recovery
+        # Verify MySQL is healthy on all pods
+        - name: Verify MySQL tables after recovery on each pod
           ansible.builtin.shell:
             cmd: >
-              kubectl exec idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb --
+              kubectl exec idrac-telemetry-{{ item }} -n {{ telemetry_namespace }} -c mysqldb --
               mysql -u root -p'{{ mysql_root_pw.stdout }}' -e 'SHOW TABLES FROM idrac_telemetrydb;'
               2>/dev/null
           delegate_to: "{{ kube_vip }}"
           connection: ssh
-          register: tables_after_restore
+          register: tables_after_restore_all
           changed_when: false
           no_log: true
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
-        - name: Verify all containers are running
+        - name: Verify all containers are running on each pod
           ansible.builtin.shell:
             cmd: |
-              kubectl get pod idrac-telemetry-0 -n {{ telemetry_namespace }} --no-headers \
+              set -o pipefail
+              kubectl get pod idrac-telemetry-{{ item }} -n {{ telemetry_namespace }} --no-headers \
                 -o custom-columns=READY:.status.containerStatuses[*].ready | tr ',' '\n' | grep -c 'true'
           delegate_to: "{{ kube_vip }}"
           connection: ssh
-          register: ready_containers
+          register: ready_containers_all
           changed_when: false
+          failed_when: false
+          loop: "{{ idrac_telemetry_pod_indices }}"
 
         - name: Display MySQL recovery success
           ansible.builtin.debug:
@@ -457,9 +527,15 @@
               - "============================================================"
               - "MySQL image: {{ restored_mysql_image.stdout }}"
               - "Replicas: {{ idrac_telemetry_original_replicas | default(1) }}"
-              - "Ready containers: {{ ready_containers.stdout | trim }}/5"
-              - "Tables: {{ tables_after_restore.stdout_lines | default([]) }}"
-              - "Backup used: {{ mysql_backup_file | trim }}"
+              - "Per-pod backup used: {{ mysql_backup_is_perpod | trim }}"
+              - "Legacy backup used: {{ mysql_backup_is_legacy | trim }}"
+              - "Pod recovery details:"
+              - "{% for idx in idrac_telemetry_pod_indices %}\
+                  pod-{{ idx }}: \
+                  ready_containers={{ (ready_containers_all.results[idx].stdout | default('0')) | trim }}/5, \
+                  tables={{ (tables_after_restore_all.results[idx].stdout_lines | default([])) | length }}\
+                  {{ ', ' if not loop.last else '' }}\
+                {% endfor %}"
               - "============================================================"
 
     # ── No downgrade detected — MySQL is healthy ──
@@ -469,4 +545,3 @@
       when:
         - idrac_sts_check.rc == 0
         - not (mysql_downgrade_detected | default(false) | bool)
-
