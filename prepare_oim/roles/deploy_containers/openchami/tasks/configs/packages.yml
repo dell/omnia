@@ -14,9 +14,17 @@
 ---
 
 - name: Install ochami dependent packages
-  ansible.builtin.dnf:
-    name: "{{ ochami_package_dependencies }}"
-    state: present
+  block:
+    - name: Install ochami packages from default repos
+      ansible.builtin.dnf:
+        name: "{{ ochami_package_dependencies }}"
+        state: present
+  rescue:
+    - name: Fallback - install ochami packages from Red Hat CDN
+      ansible.builtin.dnf:
+        name: "{{ ochami_package_dependencies }}"
+        state: present
+        enablerepo: rhel-10-for-x86_64-appstream-rpms
 
 - name: Install pip packages
   ansible.builtin.pip:
