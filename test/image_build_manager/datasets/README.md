@@ -1,95 +1,74 @@
 # Datasets
 
-Each dataset is a directory under `datasets/` representing a test configuration
-for `image_build_manager`. The automation framework syncs these files to the
-target server before running tests.
+Test input configuration for the `image_build_manager` automation framework.
 
-In monorepo mode, host settings (hostname, IP, domain) come from **environment
-variables** on the target (set via `omnia.env` / `omnia.sh -s`), not from a
-config file in the dataset.
+## Default Mode (Recommended)
 
-## Dataset Structure
+By default (`dataset: ""` in `test_config.yml`), the framework reads input
+files **directly from `src/`** — no dataset folder is needed:
+
+| File | Source |
+|------|--------|
+| `image_build_config.yml` | `src/image_build_manager/input/` |
+| `package_groups.yml` | `src/image_build_manager/input/` |
+| `repo_status.yml` | `src/image_build_manager/samples/repo_manager_output/` |
+
+This keeps test inputs in sync with the source code automatically.
+
+## Custom Datasets
+
+Set `dataset: "my_ds"` in `test_config.yml` to use a custom dataset
+from `datasets/<name>/`. Generate one with the dataset generator:
+
+```bash
+cd datasets/generator/
+python generate_dataset.py my_ds defaults
+python generate_dataset.py my_ds --from-src
+```
+
+See [`generator/README.md`](generator/README.md) for full usage.
+
+### Custom Dataset Structure
 
 ```
-datasets/
-  <dataset_name>/
-    input/                              # Synced to: <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
-      image_build_config.yml            # Image build domain input file
-      image_build_credentials.yml       # Vault-encrypted S3 credentials
-      package_groups.yml                # Functional group → RPM package mapping (config mode)
-    repo_manager_output/                # Synced to repo_manager_output_dir (when sync_output: true)
-      repo_status.yml                   # RPM repo URLs, cert paths
+datasets/<name>/
+  input/
+    image_build_config.yml
+    image_build_credentials.yml
+    package_groups.yml
+  repo_manager_output/
+    repo_status.yml
 ```
-
-### Required Files
-
-| File | Description |
-|------|-------------|
-| `input/image_build_config.yml` | S3 backend, repo_manager output path, functional groups source, ARM host IP |
-| `input/image_build_credentials.yml` | S3 and ARM SSH credentials (Vault-encrypted on first run) |
-| `input/package_groups.yml` | OS metadata, base packages, and functional group RPM mappings (config mode) |
-
-### Sync Behavior
-
-| Setting in `test_config.yml` | What gets synced |
-|------------------------------|------------------|
-| `sync_image_build_input: true` | `input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/` |
-| `sync_output: true` | `repo_manager_output/` → `<repo_manager_output_dir>/` from `image_build_config.yml` |
-
-The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target
-server's `/etc/omnia/omnia.env` to resolve the sync destination. Directories
-are created automatically if they don't exist.
-
-## Available Datasets
-
-| Dataset | repo_status | Description |
-|---------|-------------|-------------|
-| `data_set_01` | `repo_status.yml` | Offline/partial repo config — Pulp-based repos on admin NIC IP |
-| `data_set_02` | `repo_status.yml` (internet) | Internet-connected repo config — direct RHEL CDN URLs |
-
-Both datasets share the same `image_build_config.yml`, `package_groups.yml`, and
-`image_build_credentials.yml` input files. The difference is the `repo_status.yml`
-in `repo_manager_output/` which determines where RPM packages are fetched from.
 
 ## Switching Datasets
 
-### Method 1: Edit `test_config.yml` (permanent)
+### Edit `test_config.yml`
 ```yaml
-dataset: "data_set_02"
+dataset: "my_custom_ds"    # Use custom dataset
+dataset: ""                # Use src/ (default)
 ```
 
-### Method 2: Per-scenario override in `test_run_config.yml`
+### Per-scenario override in `test_run_config.yml`
 ```yaml
 scenarios:
   prepare:
-    run: true
-    command: "test"
-    dataset: "data_set_02"      # Override for this scenario only
-    sync_input: true             # Sync input files before running
+    dataset: "my_custom_ds"
+    sync_input: true
 ```
 
-### Method 3: Global override in `test_run_config.yml`
-```yaml
-dataset_override: "data_set_02"   # Applies to ALL scenarios
-sync_input_override: true
-```
-
-### Method 4: Environment variable (one-off)
+### Environment variable (one-off)
 ```bash
-OMNIA_DATASET_OVERRIDE=data_set_02 ./run_validation.sh build verify
+OMNIA_DATASET_OVERRIDE=my_custom_ds ./run_validation.sh build verify
 ```
 
-**Priority order**: env var > global override > per-scenario > test_config.yml default.
+**Priority**: env var > per-scenario override > `test_config.yml` default.
 
-Invalid dataset names are caught at startup with an error listing available datasets.
+## Sync Behavior
 
-## Creating a New Dataset
+| Setting | What gets synced |
+|---------|------------------|
+| `sync_image_build_input: true` | `input/` → target server |
+| `sync_output: true` | `repo_manager_output/` → target server |
 
-```bash
-mkdir -p datasets/my_dataset/{input,repo_manager_output}
-# Copy and edit:
-cp datasets/data_set_01/input/* datasets/my_dataset/input/
-cp datasets/data_set_01/repo_manager_output/* datasets/my_dataset/repo_manager_output/
-# Update test_config.yml:
-#   dataset: "my_dataset"
-```
+The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
+target server to resolve sync destinations.

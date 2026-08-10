@@ -68,9 +68,8 @@ bash setup_env.sh --password 'pass'  # Non-interactive
 source .venv/bin/activate            # For --venv mode
 source .run_validation_rc            # For baremetal mode (tab completion)
 
-# Step 6 — Edit dataset input files
-vi datasets/data_set_01/input/image_build_config.yml
-vi datasets/data_set_01/input/image_build_credentials.yml
+# Step 6 — Run tests (uses src/ input files by default)
+./run_validation.sh prepare verify --marker sanity
 ```
 
 ### Setup Modes
@@ -161,7 +160,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
 | `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
-| `dataset` | Yes | `data_set_01` | Active dataset folder under `datasets/`. |
+| `dataset` | No | `""` | Empty = use `src/` files directly. Set to a dataset folder name for custom inputs. |
 | `project_name` | No | `project_default` | Project name for input/output paths on target. |
 
 ### Execution Modes
@@ -174,25 +173,20 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 On session startup the framework performs:
 
 1. **Project sync** — rsyncs the local omnia monorepo to `clone_path` on the target
-2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env`, creates the target directory if needed, then syncs `datasets/<dataset>/input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
-3. **Repo manager output sync** (optional) — syncs `datasets/<dataset>/repo_manager_output/` to the target's repo_manager output directory
+2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env`, creates the target directory if needed, then syncs input files to `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
+3. **Repo manager output sync** (optional) — syncs repo_manager_output to the target's repo_manager output directory
 
-### Datasets
+### Input Files
 
-Input files live in `datasets/data_set_01/`:
+By default (`dataset: ""`), the framework reads input files directly from `src/`:
 
-```
-datasets/data_set_01/
-├── input/
-│   ├── image_build_config.yml        # Image build domain configuration
-│   └── image_build_credentials.yml   # S3 credentials (Vault-encrypted)
-└── repo_manager_output/
-    ├── repo_status.yml               # RPM repo URLs, cert paths
-    ├── functional_group_packages.yml # Package lists per functional group
-    └── certs/                        # Pulp TLS certificates
-```
+| File | Source |
+|------|--------|
+| `image_build_config.yml` | `src/image_build_manager/input/` |
+| `package_groups.yml` | `src/image_build_manager/input/` |
+| `repo_status.yml` | `src/image_build_manager/samples/repo_manager_output/` |
 
-See [`datasets/data_set_01/README.md`](datasets/data_set_01/README.md) for field details.
+For custom datasets, use the [dataset generator](datasets/generator/README.md).
 
 ---
 
@@ -238,10 +232,11 @@ test/image_build_manager/
 │   ├── test_creds.md
 │   └── test_run_config.md
 │
-├── datasets/                    # Test input datasets
-│   └── data_set_01/
-│       ├── input/               # image_build_config, credentials
-│       └── repo_manager_output/ # repo_status, packages, certs
+├── datasets/                    # Custom test datasets (optional)
+│   └── generator/               # Dataset generator tool
+│       ├── generate_dataset.py
+│       ├── profiles/            # Variable profiles (YAML)
+│       └── templates/           # Jinja2 templates
 │
 ├── library/                     # Reusable automation library
 │   ├── functions/               # host_func, build_image_func, validation_func

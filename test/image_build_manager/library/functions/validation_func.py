@@ -28,7 +28,9 @@ from ..vars.common_vars import (
     IPV4_PATTERN,
     REQUIRED_CONFIG_FIELDS,
     REQUIRED_DATASET_FILES,
+    REQUIRED_SRC_FILES,
     MODULE_ROOT,
+    SRC_INPUT_DIR,
 )
 
 _MODULE_ROOT = MODULE_ROOT
@@ -43,6 +45,53 @@ def _validate_ip(value: str, field: str) -> List[str]:
     errors = []
     if value and not IPV4_PATTERN.match(value):
         errors.append(f"{field}: invalid IPv4 format '{value}'")
+    return errors
+
+
+def _validate_dataset(dataset: str) -> List[str]:
+    """Validate dataset directory or src/ files.
+
+    When *dataset* is empty, validates that src/ input files exist.
+    When *dataset* is set, validates the dataset directory and its
+    required files.
+    """
+    errors: List[str] = []
+    if not dataset:
+        # Default mode — validate src/ files exist
+        if not os.path.isdir(SRC_INPUT_DIR):
+            errors.append(
+                f"src/ input directory not found: {SRC_INPUT_DIR}"
+            )
+            return errors
+        for rel_file in REQUIRED_SRC_FILES:
+            if not os.path.isfile(os.path.join(SRC_INPUT_DIR, rel_file)):
+                errors.append(
+                    f"Required src file missing: {rel_file}"
+                )
+        return errors
+
+    dataset_path = os.path.join(_MODULE_ROOT, "datasets", dataset)
+    if not os.path.isdir(dataset_path):
+        available = [
+            d for d in os.listdir(
+                os.path.join(_MODULE_ROOT, "datasets")
+            )
+            if os.path.isdir(
+                os.path.join(_MODULE_ROOT, "datasets", d)
+            )
+        ]
+        errors.append(
+            f"Dataset directory not found: datasets/{dataset}/. "
+            f"Available: {', '.join(sorted(available))}"
+        )
+        return errors
+
+    for rel_file in REQUIRED_DATASET_FILES:
+        if not os.path.isfile(os.path.join(dataset_path, rel_file)):
+            errors.append(
+                f"Required file missing: "
+                f"datasets/{dataset}/{rel_file}"
+            )
     return errors
 
 
@@ -102,30 +151,11 @@ def validate_test_config() -> Dict[str, Any]:
         errors.extend(_validate_ip(str(oim_ip), "oim_server_ip"))
 
     # --- Dataset validation ---
-    # Check env override first, then config value
-    dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
-    dataset_path = os.path.join(_MODULE_ROOT, "datasets", dataset)
-    if not os.path.isdir(dataset_path):
-        available = [
-            d for d in os.listdir(
-                os.path.join(_MODULE_ROOT, "datasets")
-            )
-            if os.path.isdir(
-                os.path.join(_MODULE_ROOT, "datasets", d)
-            )
-        ]
-        errors.append(
-            f"Dataset directory not found: datasets/{dataset}/. "
-            f"Available: {', '.join(sorted(available))}"
-        )
-    else:
-        for rel_file in REQUIRED_DATASET_FILES:
-            full = os.path.join(dataset_path, rel_file)
-            if not os.path.isfile(full):
-                errors.append(
-                    f"Required file missing: datasets/{dataset}/"
-                    f"{rel_file}"
-                )
+    dataset = (
+        os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+        or config.get("dataset", "")
+    )
+    errors.extend(_validate_dataset(dataset))
 
     # --- Clone path ---
     clone_path = config["clone_path"]

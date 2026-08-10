@@ -85,9 +85,9 @@ skip_on_failure: false
 # dataset_override: Override the dataset from test_config.yml for ALL scenarios.
 #   When set, this takes precedence over both test_config.yml dataset and
 #   per-scenario dataset overrides below.
-#   Must be a valid folder name under datasets/ (e.g., data_set_01, data_set_02).
+#   Must be a valid folder name under datasets/.
 #   Leave commented out to use per-scenario or test_config.yml defaults.
-# dataset_override: "data_set_02"
+# dataset_override: "my_custom_ds"
 
 # sync_input_override: Override sync_image_build_input for ALL scenarios.
 #   When set, applies to every scenario regardless of per-scenario settings.
@@ -124,7 +124,7 @@ scenarios:
     suite: ""
     marker: "sanity"
     # --- Per-scenario dataset override (uncomment to use) ---
-    # dataset: "data_set_02"      # Override dataset for this scenario only
+    # dataset: "my_custom_ds"      # Override dataset for this scenario only
     # sync_input: true             # Sync input files before running
     # sync_output: false           # Sync repo_manager output before running
 
@@ -147,7 +147,7 @@ scenarios:
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "data_set_01"
+    # dataset: "my_custom_ds"
     # sync_input: true
     # sync_output: false
 
@@ -173,7 +173,7 @@ scenarios:
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "data_set_01"
+    # dataset: "my_custom_ds"
     # sync_input: false
     # sync_output: false
 
@@ -195,7 +195,7 @@ scenarios:
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "data_set_01"
+    # dataset: "my_custom_ds"
     # sync_input: false
     # sync_output: false
 
@@ -218,6 +218,6 @@ scenarios:
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "data_set_01"
+    # dataset: "my_custom_ds"
     # sync_input: false
     # sync_output: false

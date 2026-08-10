@@ -34,9 +34,20 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)
 )))
 
-# Repository root: image-build-manager/
-# From vars/ -> library/ -> test/ -> repo root
-REPO_ROOT = os.path.dirname(MODULE_ROOT)
+# Parent of module root: test/
+TEST_ROOT = os.path.dirname(MODULE_ROOT)
+
+# Omnia monorepo root: omnia/
+MONOREPO_ROOT = os.path.dirname(TEST_ROOT)
+
+# src/ paths — used when dataset is empty (default: use src/ directly)
+SRC_INPUT_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "image_build_manager", "input",
+)
+SRC_REPO_OUTPUT_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "image_build_manager", "samples",
+    "repo_manager_output",
+)
 
 # =============================================================================
 # DOMAIN IDENTITY
@@ -166,17 +177,21 @@ IPV4_PATTERN = re.compile(
 
 # Required fields in test_config.yml
 REQUIRED_CONFIG_FIELDS = [
-    "dataset",
     "project_name",
     "clone_path",
     "report_path",
     "report_name",
 ]
 
-# Required files inside a dataset directory
+# Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/image_build_config.yml",
     "input/image_build_credentials.yml",
+]
+
+# Required files in src/ (when dataset is empty — default mode)
+REQUIRED_SRC_FILES = [
+    "image_build_config.yml",
 ]
 
 # =============================================================================

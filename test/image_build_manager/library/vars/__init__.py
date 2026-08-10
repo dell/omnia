@@ -20,7 +20,9 @@ Common constants, paths, container names, and command templates.
 
 from .common_vars import (
     MODULE_ROOT,
-    REPO_ROOT,
+    MONOREPO_ROOT,
+    SRC_INPUT_DIR,
+    SRC_REPO_OUTPUT_DIR,
     SHARED_PATH,
     MINIO_CONTAINER,
     REGISTRY_CONTAINER,
@@ -53,6 +55,7 @@ from .common_vars import (
     IPV4_PATTERN,
     REQUIRED_CONFIG_FIELDS,
     REQUIRED_DATASET_FILES,
+    REQUIRED_SRC_FILES,
 )
 
 from .test_case_vars import TEST_CASES
