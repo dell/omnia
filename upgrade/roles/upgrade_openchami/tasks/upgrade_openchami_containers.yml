@@ -86,7 +86,7 @@
 
     - name: Copy the openchami RPM tarball to OIM
       ansible.builtin.copy:
-        src: "{{ openchami_rpm_tarball }}"
+        src: "{{ prepare_oim_files_path }}/{{ openchami_rpm_tarball }}"
         dest: "{{ openchami_work_dir }}/{{ openchami_rpm_tarball }}"
         mode: "{{ dir_permissions_755 }}"
       delegate_to: oim

@@ -195,8 +195,9 @@ openchami_containers:
   - container: "registry"
     expected_image: "docker.io/library/registry:{{ registry_tag }}"
 
-# Path to prepare_oim templates (reuse for deploying new configs without duplication)
+# Path to prepare_oim templates and files (reuse without duplication)
 prepare_oim_templates_path: "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/openchami/templates"
+prepare_oim_files_path: "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/openchami/files"
 
 # OpenCHAMI configuration paths
 openchami_config_dir: "/etc/openchami/configs"
