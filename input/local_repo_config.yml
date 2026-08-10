@@ -45,6 +45,12 @@
 # To achieve proxy mode (on_demand):         Set repo_config: partial
 #                                             OR set policy: always + caching: true per repo
 #----------------------------------------------------------------------------------
+# REPO PRECEDENCE ORDER (package download priority):
+#   1. user_repo_url_<arch> (highest precedence)
+#   2. rhel_os_url_<arch>
+#   3. omnia_repo_url_<arch> (lowest precedence)
+#   If a package exists in multiple repos, the higher precedence repo is used.
+#----------------------------------------------------------------------------------
 
 # 1. user_registry
 #--------------------------
