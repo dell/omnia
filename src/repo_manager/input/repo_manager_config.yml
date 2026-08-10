@@ -172,7 +172,7 @@ repositories:
       codeready-builder: {}
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
       slurm_custom:
-        url: "http://100.98.69.235/nvml/"
+        url: ""
         gpgkey: ""
         sslcacert: ""
         sslclientkey: ""
