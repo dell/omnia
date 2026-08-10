@@ -39,10 +39,10 @@ pull_image_delay: 10
 
 # OpenCHAMI image tags
 openchami_local_ca_tag: "v0.2.6"
-openchami_opaal_tag: "v0.3.13"
-openchami_smd_tag: "v2.20.5"
-openchami_bss_tag: "v1.32.3"
-openchami_cloud_init_tag: "v1.4.8"
+openchami_opaal_tag: "v0.3.14"
+openchami_smd_tag: "v2.20.6"
+openchami_bss_tag: "v1.32.4"
+openchami_cloud_init_tag: "v1.4.9"
 openchami_coresmd_tag: "v0.6.3"
 # Third-party image tags for OpenCHAMI
 minio_release_tag: "RELEASE.2026-06-18T00-00-00Z"
