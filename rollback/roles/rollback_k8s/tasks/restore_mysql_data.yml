@@ -133,6 +133,21 @@
               - "Will wipe PVC data and reinitialize MySQL at the old version."
               - "============================================================"
 
+        # Capture original replica count before scaling down
+        - name: Get original replica count from StatefulSet
+          ansible.builtin.shell:
+            cmd: >
+              kubectl get statefulset idrac-telemetry -n {{ telemetry_namespace }}
+              -o jsonpath='{.spec.replicas}'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: original_replica_count_raw
+          changed_when: false
+
+        - name: Set original replica count
+          ansible.builtin.set_fact:
+            idrac_telemetry_original_replicas: "{{ original_replica_count_raw.stdout | default('1') | int }}"
+
         # Scale down
         - name: Scale down idrac-telemetry StatefulSet
           ansible.builtin.command:
@@ -236,7 +251,7 @@
         # Scale up — MySQL will initialize fresh at the old version
         - name: Scale up idrac-telemetry StatefulSet
           ansible.builtin.command:
-            cmd: kubectl scale statefulset idrac-telemetry -n {{ telemetry_namespace }} --replicas=1
+            cmd: kubectl scale statefulset idrac-telemetry -n {{ telemetry_namespace }} --replicas={{ idrac_telemetry_original_replicas | default(1) }}
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           changed_when: true
@@ -282,8 +297,30 @@
           changed_when: false
           no_log: true
 
-        # Search for pre-upgrade mysqldump backup
-        - name: Search for MySQL backup in backup directory
+        # Search for pre-upgrade mysqldump backup (encrypted first, then plaintext fallback)
+        - name: Search for encrypted MySQL backup in backup directory
+          ansible.builtin.find:
+            paths: "{{ k8s_backup_dir }}"
+            patterns: "idrac_telemetry_mysql_backup.sql.enc"
+            recurse: true
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_enc_backup_in_backup
+          failed_when: false
+          when: k8s_backup_dir is defined
+
+        - name: Search for encrypted MySQL backup in archive directory
+          ansible.builtin.find:
+            paths: "{{ k8s_client_mount_path }}/upgrade/archive"
+            patterns: "idrac_telemetry_mysql_backup.sql.enc"
+            recurse: true
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_enc_backup_in_archive
+          failed_when: false
+          when: k8s_client_mount_path is defined
+
+        - name: Search for plaintext MySQL backup in backup directory (fallback)
           ansible.builtin.find:
             paths: "{{ k8s_backup_dir }}"
             patterns: "idrac_telemetry_mysql_backup.sql"
@@ -292,9 +329,12 @@
           connection: ssh
           register: mysql_backup_in_backup
           failed_when: false
-          when: k8s_backup_dir is defined
+          when:
+            - k8s_backup_dir is defined
+            - (mysql_enc_backup_in_backup.matched | default(0)) == 0
+            - (mysql_enc_backup_in_archive.matched | default(0)) == 0
 
-        - name: Search for MySQL backup in archive directory
+        - name: Search for plaintext MySQL backup in archive directory (fallback)
           ansible.builtin.find:
             paths: "{{ k8s_client_mount_path }}/upgrade/archive"
             patterns: "idrac_telemetry_mysql_backup.sql"
@@ -303,18 +343,28 @@
           connection: ssh
           register: mysql_backup_in_archive
           failed_when: false
-          when: k8s_client_mount_path is defined
+          when:
+            - k8s_client_mount_path is defined
+            - (mysql_enc_backup_in_backup.matched | default(0)) == 0
+            - (mysql_enc_backup_in_archive.matched | default(0)) == 0
 
-        - name: Set MySQL backup file path (if found)
+        - name: Set MySQL backup file path and encryption flag
           ansible.builtin.set_fact:
             mysql_backup_file: >-
-              {% if mysql_backup_in_backup is defined and (mysql_backup_in_backup.matched | default(0)) > 0 -%}
-                {{ mysql_backup_in_backup.files | sort(attribute='mtime', reverse=true) | first | attr('path') }}
+              {% if mysql_enc_backup_in_backup is defined and (mysql_enc_backup_in_backup.matched | default(0)) > 0 -%}
+                {{ (mysql_enc_backup_in_backup.files | sort(attribute='mtime', reverse=true) | first).path }}
+              {%- elif mysql_enc_backup_in_archive is defined and (mysql_enc_backup_in_archive.matched | default(0)) > 0 -%}
+                {{ (mysql_enc_backup_in_archive.files | sort(attribute='mtime', reverse=true) | first).path }}
+              {%- elif mysql_backup_in_backup is defined and (mysql_backup_in_backup.matched | default(0)) > 0 -%}
+                {{ (mysql_backup_in_backup.files | sort(attribute='mtime', reverse=true) | first).path }}
               {%- elif mysql_backup_in_archive is defined and (mysql_backup_in_archive.matched | default(0)) > 0 -%}
-                {{ mysql_backup_in_archive.files | sort(attribute='mtime', reverse=true) | first | attr('path') }}
+                {{ (mysql_backup_in_archive.files | sort(attribute='mtime', reverse=true) | first).path }}
               {%- else -%}
                 none
               {%- endif %}
+            mysql_backup_encrypted: >-
+              {{ (mysql_enc_backup_in_backup is defined and (mysql_enc_backup_in_backup.matched | default(0)) > 0) or
+                 (mysql_enc_backup_in_archive is defined and (mysql_enc_backup_in_archive.matched | default(0)) > 0) }}
 
         # Restore from backup if available
         - name: Restore MySQL data from backup
@@ -322,9 +372,24 @@
           block:
             - name: Display MySQL restore starting
               ansible.builtin.debug:
-                msg: "Restoring MySQL data from backup: {{ mysql_backup_file | trim }}"
+                msg: "Restoring MySQL data from backup: {{ mysql_backup_file | trim }} (encrypted: {{ mysql_backup_encrypted | trim }})"
 
-            - name: Restore mysqldump into fresh MySQL
+            - name: Restore from encrypted mysqldump backup
+              ansible.builtin.shell:
+                cmd: >
+                  openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000
+                  -in {{ mysql_backup_file | trim }}
+                  -pass pass:'{{ mysql_root_pw.stdout }}'
+                  | kubectl exec -i idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb --
+                  mysql -u root -p'{{ mysql_root_pw.stdout }}' idrac_telemetrydb
+              delegate_to: "{{ kube_vip }}"
+              connection: ssh
+              register: mysql_restore_encrypted
+              changed_when: true
+              no_log: true
+              when: mysql_backup_encrypted | trim | bool
+
+            - name: Restore from plaintext mysqldump backup (legacy)
               ansible.builtin.shell:
                 cmd: >
                   kubectl exec -i idrac-telemetry-0 -n {{ telemetry_namespace }} -c mysqldb --
@@ -332,14 +397,24 @@
                   < {{ mysql_backup_file | trim }}
               delegate_to: "{{ kube_vip }}"
               connection: ssh
-              register: mysql_restore_result
+              register: mysql_restore_plaintext
               changed_when: true
               no_log: true
+              when: not (mysql_backup_encrypted | trim | bool)
+
+            - name: Set MySQL restore result
+              ansible.builtin.set_fact:
+                mysql_restore_rc: >-
+                  {% if mysql_backup_encrypted | trim | bool -%}
+                    {{ mysql_restore_encrypted.rc | default(-1) }}
+                  {%- else -%}
+                    {{ mysql_restore_plaintext.rc | default(-1) }}
+                  {%- endif %}
 
             - name: Warn if MySQL restore failed
               ansible.builtin.debug:
-                msg: "WARNING: MySQL data restore failed (rc={{ mysql_restore_result.rc }}). Database is fresh but data may be lost."
-              when: mysql_restore_result.rc != 0
+                msg: "WARNING: MySQL data restore failed (rc={{ mysql_restore_rc | trim }}). Database is fresh but data may be lost."
+              when: mysql_restore_rc | trim | int != 0
 
         - name: Log that no backup was found
           ansible.builtin.debug:
@@ -381,6 +456,7 @@
               - "MySQL VERSION DOWNGRADE — RECOVERY COMPLETED"
               - "============================================================"
               - "MySQL image: {{ restored_mysql_image.stdout }}"
+              - "Replicas: {{ idrac_telemetry_original_replicas | default(1) }}"
               - "Ready containers: {{ ready_containers.stdout | trim }}/5"
               - "Tables: {{ tables_after_restore.stdout_lines | default([]) }}"
               - "Backup used: {{ mysql_backup_file | trim }}"
@@ -393,3 +469,4 @@
       when:
         - idrac_sts_check.rc == 0
         - not (mysql_downgrade_detected | default(false) | bool)
+

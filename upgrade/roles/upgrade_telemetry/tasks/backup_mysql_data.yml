@@ -107,7 +107,7 @@
           changed_when: false
           no_log: true
 
-        # Perform the mysqldump
+        # Perform the mysqldump (plaintext, temporary)
         - name: Execute mysqldump for idrac_telemetrydb
           ansible.builtin.shell:
             cmd: |
@@ -123,7 +123,7 @@
           changed_when: true
           no_log: true
 
-        - name: Verify mysqldump file was created and is non-empty
+        - name: Verify plaintext mysqldump was created and is non-empty
           ansible.builtin.stat:
             path: "{{ mysql_backup_dir }}/{{ mysql_backup_filename }}"
           delegate_to: "{{ kube_vip }}"
@@ -135,6 +135,35 @@
             msg: "WARNING: {{ mysql_backup_failed_msg }}"
           when: not (mysqldump_file.stat.exists | default(false)) or (mysqldump_file.stat.size | default(0)) < 100
 
+        # Encrypt the dump file to prevent plaintext credential exposure on NFS
+        - name: Encrypt mysqldump backup file
+          ansible.builtin.shell:
+            cmd: |
+              openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
+                -in {{ mysql_backup_dir }}/{{ mysql_backup_filename }} \
+                -out {{ mysql_backup_dir }}/{{ mysql_backup_encrypted_filename }} \
+                -pass pass:'{{ mysql_root_password.stdout }}'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          changed_when: true
+          no_log: true
+          when: (mysqldump_file.stat.exists | default(false)) and (mysqldump_file.stat.size | default(0)) >= 100
+
+        - name: Remove plaintext mysqldump file
+          ansible.builtin.file:
+            path: "{{ mysql_backup_dir }}/{{ mysql_backup_filename }}"
+            state: absent
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          when: (mysqldump_file.stat.exists | default(false)) and (mysqldump_file.stat.size | default(0)) >= 100
+
+        - name: Verify encrypted backup file exists
+          ansible.builtin.stat:
+            path: "{{ mysql_backup_dir }}/{{ mysql_backup_encrypted_filename }}"
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: encrypted_backup_file
+
         # Save metadata about the backup
         - name: Save MySQL backup metadata
           ansible.builtin.copy:
@@ -143,18 +172,19 @@
               backup_timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
               mysql_image: "{{ current_mysql_image.stdout }}"
               database: "idrac_telemetrydb"
-              dump_file: "{{ mysql_backup_filename }}"
-              dump_size_bytes: {{ mysqldump_file.stat.size | default(0) }}
+              dump_file: "{{ mysql_backup_encrypted_filename }}"
+              encrypted: true
+              dump_size_bytes: {{ encrypted_backup_file.stat.size | default(0) }}
             dest: "{{ mysql_backup_dir }}/{{ mysql_backup_metadata_filename }}"
             mode: '0644'
           delegate_to: "{{ kube_vip }}"
           connection: ssh
-          when: mysqldump_file.stat.exists | default(false)
+          when: encrypted_backup_file.stat.exists | default(false)
 
         - name: Display MySQL backup success
           ansible.builtin.debug:
             msg: "{{ mysql_backup_success_msg }}"
-          when: (mysqldump_file.stat.exists | default(false)) and (mysqldump_file.stat.size | default(0)) >= 100
+          when: (encrypted_backup_file.stat.exists | default(false)) and (encrypted_backup_file.stat.size | default(0)) > 0
 
   rescue:
     - name: Display MySQL backup warning (non-fatal)
@@ -165,3 +195,4 @@
           - "will be reinitialized fresh (empty database with auto-created"
           - "schema from MYSQL_DATABASE env var in the StatefulSet)."
           - "Error: {{ ansible_failed_result.msg | default('unknown') }}"
+
