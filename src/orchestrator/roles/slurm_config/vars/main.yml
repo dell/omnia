@@ -64,8 +64,7 @@ cmpt_dir:
 innodb_buffer_pool_size: 4G
 innodb_lock_wait_timeout: 900
 conf_server: "--conf-server {{ ctld_list | join(',') }}"
-# TODO tmp
-nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes_{{ target_category | default('slurm') }}.yaml"
 bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
 bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
 clear_slurm_files: false
@@ -136,7 +135,7 @@ pulp_webserver_cert_path: "/opt/omnia/repo_manager/pulp_config/settings/certs/pu
 controller_empty_msg: "Slurm controller functional group is missing from PXE mapping file. Please update the file and rerun orchestrator.yml."
 download_container_image_path: "{{ hpc_tools_path }}/scripts/download_container_image.sh"
 container_image_list_path: "{{ hpc_tools_path }}/scripts/container_image.list"
-pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
 packages_base_dir_x86_64: "{{ slurm_config_path }}/packages/x86_64"
 packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
 offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"

@@ -31,6 +31,19 @@ options:
     type: str
 '''
 
+EXAMPLES = r'''
+- name: Generate xnames in mapping file
+  omnia.orchestrator.generate_xname_in_mapping_file:
+    mapping_file_path: /opt/omnia/input/project_default/pxe_mapping_file.csv
+'''
+
+RETURN = r'''
+msg:
+  description: Status message indicating success or failure.
+  type: str
+  returned: always
+'''
+
 def generate_xname_in_mapping_file(mapping_file_path, module):
     """
     Generates xname in mapping file:

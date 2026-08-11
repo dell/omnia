@@ -30,6 +30,24 @@ options:
     type: str
 '''
 
+EXAMPLES = r'''
+- name: Fetch telemetry status
+  omnia.orchestrator.fetch_telemetry_status:
+    input_path: /opt/omnia/input/project_default
+  register: telemetry_result
+'''
+
+RETURN = r'''
+telemetry_status:
+  description: Whether telemetry is enabled or disabled.
+  type: bool
+  returned: success
+msg:
+  description: Status message.
+  type: str
+  returned: always
+'''
+
 TELEMETRY_CONFIG_FILE_NAME = "telemetry_config.yml"
 
 def load_yaml(path):
