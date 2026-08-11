@@ -27,19 +27,20 @@ configured. This is done via `omnia.sh` in `src/main/`:
 # On the target server:
 cd <omnia_repo>/src/main/
 vi omnia.env                  # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
-./omnia.sh -s                 # Installs env vars system-wide + creates venv
+./omnia.sh --setup-venv       # Installs env vars system-wide + creates venv
 ```
 
-After `omnia.sh -s`, the following environment variables are available on
-every login shell (via `/etc/profile.d/omnia-env.sh`):
+After `omnia.sh --setup-venv`, the following environment variables are available
+on every login shell (via `/etc/profile.d/omnia-env.sh`):
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SYSTEM_ADMIN_NIC_IPV4` | **Yes** | — | Admin NIC IP (Pulp, S3, registry endpoint) |
-| `OMNIA_DATA_PATH` | No | `/opt/omnia` | Root data directory for all Omnia data |
-| `OMNIA_PROJECT_NAME` | No | `project_default` | Project name for input/output paths |
-| `SYSTEM_HOSTNAME` | No | `oim` | Short hostname of the OIM host |
-| `SYSTEM_DOMAIN_NAME` | No | `omnia.cluster` | Domain name of the OIM host |
+| `SYSTEM_ADMIN_NIC_IPV4` | **Yes** | — | Admin NIC IP — must be assigned to a local interface (`hostname -I`) |
+| `SYSTEM_HOSTNAME` | **Yes** | `oim` | Short hostname — must match `hostname -s` output |
+| `SYSTEM_DOMAIN_NAME` | **Yes** | `omnia.cluster` | Domain name — validated against `hostname -d` |
+| `OMNIA_DATA_PATH` | **Yes** | `/opt/omnia` | Root data directory for all Omnia data |
+| `OMNIA_PROJECT_NAME` | **Yes** | `project_default` | Project name for input/output paths |
+| `OMNIA_VERSION` | **Yes** | — | Omnia release version |
 
 The test framework reads these from the target at runtime (sourcing
 `/etc/omnia/omnia.env`) to resolve input sync paths and playbook parameters.
@@ -68,7 +69,14 @@ bash setup_env.sh --password 'pass'  # Non-interactive
 source .venv/bin/activate            # For --venv mode
 source .run_validation_rc            # For baremetal mode (tab completion)
 
-# Step 6 — Run tests (uses src/ input files by default)
+# Step 6 — (Optional) Generate a dataset for custom input
+cd datasets/generator/
+python generate_dataset.py my_dataset defaults
+cd ../..
+# Set: dataset: "my_dataset" in test_config.yml
+# Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
+
+# Step 7 — Run tests
 ./run_validation.sh prepare verify --marker sanity
 ```
 
@@ -117,6 +125,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 
 | Scenario | Playbook Tag | What It Tests |
 |----------|-------------|---------------|
+| `precheck` | `--tags precheck` | Env vars, hostname, IP, connectivity, omnia.sh setup |
 | `image_build_manager` | *(default: prepare + build)* | Full end-to-end |
 | `validate` | `--tags validate` | Input config and credentials present |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
@@ -135,6 +144,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 ### Typical Workflow
 
 ```bash
+./run_validation.sh precheck verify --marker sanity             # 0. Precheck environment
 ./run_validation.sh cleanup test                                # 1. Clean previous state
 ./run_validation.sh validate test                               # 2. Validate inputs
 ./run_validation.sh prepare test                                # 3. Prepare infrastructure
@@ -160,7 +170,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
 | `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
-| `dataset` | No | `""` | Empty = use `src/` files directly. Set to a dataset folder name for custom inputs. |
+| `dataset` | No | `""` | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. |
 | `project_name` | No | `project_default` | Project name for input/output paths on target. |
 
 ### Execution Modes
@@ -178,15 +188,48 @@ On session startup the framework performs:
 
 ### Input Files
 
-By default (`dataset: ""`), the framework reads input files directly from `src/`:
+#### Option A: Empty dataset (`dataset: ""`) — Target server input
 
-| File | Source |
-|------|--------|
-| `image_build_config.yml` | `src/image_build_manager/input/` |
-| `package_groups.yml` | `src/image_build_manager/input/` |
-| `repo_status.yml` | `src/image_build_manager/samples/repo_manager_output/` |
+When `dataset` is empty, the playbook reads input files from the **target server** at:
 
-For custom datasets, use the [dataset generator](datasets/generator/README.md).
+```
+$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/
+```
+
+No input files are synced from the local machine. Files must already exist on the
+target (placed by `omnia.sh` setup or a prior deployment). This is the **production behavior**.
+
+When `sync_image_build_input: true` AND `dataset: ""`, the framework syncs from
+`src/image_build_manager/input/` to the target path as a development convenience.
+
+#### Option B: Generated dataset (`dataset: "<name>"`)
+
+Create a dataset using the [dataset generator](datasets/generator/README.md),
+then set `dataset: "<name>"` in `test_config.yml`:
+
+```bash
+cd datasets/generator/
+
+# Generate from a profile
+python generate_dataset.py my_dataset defaults
+
+# Generate with overrides
+python generate_dataset.py my_dataset defaults --var s3_provider=powerscale
+
+# Copy directly from src/ (quick bootstrap)
+python generate_dataset.py my_dataset --from-src
+
+# List available profiles
+python generate_dataset.py --list-profiles
+```
+
+The generated dataset contains all required input files:
+
+| File | Location |
+|------|----------|
+| `image_build_config.yml` | `datasets/<name>/input/` |
+| `image_build_credentials.yml` | `datasets/<name>/input/` |
+| `repo_status.yml` | `datasets/<name>/repo_manager_output/` |
 
 ---
 
@@ -207,7 +250,8 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 
 | Scenario | Prefix | Count |
 |----------|--------|-------|
-| image_build_manager | TC_IB_ | 12 |
+| image_build_manager | TC_IB_ | 13 |
+| precheck | TC_PC_ | 3 |
 | validate | TC_VL_ | 3 |
 | prepare | TC_PR_ | 8 |
 | build | TC_BD_ | 6 |
@@ -232,7 +276,7 @@ test/image_build_manager/
 │   ├── test_creds.md
 │   └── test_run_config.md
 │
-├── datasets/                    # Custom test datasets (optional)
+├── datasets/                    # Test datasets (generated via generator tool)
 │   └── generator/               # Dataset generator tool
 │       ├── generate_dataset.py
 │       ├── profiles/            # Variable profiles (YAML)
@@ -250,6 +294,8 @@ test/image_build_manager/
     │   ├── s3/
     │   ├── registry/
     │   └── image_verification/
+    ├── precheck/                # Precheck tag (env + connectivity)
+    │   └── connectivity/
     ├── validate/                # Validate tag
     │   └── status/
     ├── prepare/                 # Prepare tag

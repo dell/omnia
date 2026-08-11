@@ -66,6 +66,12 @@ from .build_image_func import (
     check_clone_status,
     check_registry_reachable,
     check_input_config_exists,
+    check_target_connectivity,
+    check_env_vars_present,
+    check_hostname_domain,
+    check_admin_ip,
+    check_omnia_setup,
+    collect_build_logs,
 )
 
 # --- Validation ---
