@@ -22,6 +22,7 @@ Adapted from automation_v22/automation_library/build_stream/functions/shared_fun
 to use omnia_auto instead of automation_library.core.
 """
 
+from json import JSONDecodeError
 from typing import Any, Dict
 
 import pytest
@@ -51,13 +52,13 @@ def clear_cache():
 # BUILD STREAM CONFIGURATION READING FUNCTIONS
 # =============================================================================
 
-def get_build_stream_host_ip(host=None) -> str:
+def get_build_stream_host_ip(_host=None) -> str:
     """Get build_stream host IP from test config."""
     config = load_test_config()
     return config.get("bsm_host_ip", "") or ""
 
 
-def get_build_stream_port(host=None) -> int:
+def get_build_stream_port(_host=None) -> int:
     """Get build_stream API port from test config."""
     config = load_test_config()
     return config.get("bsm_api_port", 8010)
@@ -67,26 +68,26 @@ def get_build_stream_port(host=None) -> int:
 # GITLAB CONFIGURATION READING FUNCTIONS
 # =============================================================================
 
-def get_gitlab_host(host=None) -> str:
+def get_gitlab_host(_host=None) -> str:
     """Get gitlab_host from test config."""
     config = load_test_config()
     return config.get("gitlab_host", "") or ""
 
 
-def get_gitlab_https_port(host=None) -> int:
+def get_gitlab_https_port(_host=None) -> int:
     """Get gitlab_https_port from test config."""
     config = load_test_config()
     return config.get("gitlab_https_port", 443)
 
 
-def get_gitlab_project_name(host=None) -> str:
+def get_gitlab_project_name(_host=None) -> str:
     """Get gitlab_project_name from test config."""
     config = load_test_config()
     # import pdb; pdb.set_trace()
     return config.get("gitlab_project_name", "") or ""
 
 
-def get_gitlab_default_branch(host=None) -> str:
+def get_gitlab_default_branch(_host=None) -> str:
     """Get gitlab_default_branch from test config."""
     config = load_test_config()
     return config.get("gitlab_default_branch", "main")
@@ -96,7 +97,7 @@ def get_gitlab_default_branch(host=None) -> str:
 # CREDENTIAL FUNCTIONS
 # =============================================================================
 
-def get_postgres_user(host=None) -> str:
+def get_postgres_user(_host=None) -> str:
     """Get postgres_user from test credentials, fallback to 'omnia'."""
     cache_key = "postgres_user"
     if cache_key in _credentials_cache:
@@ -105,10 +106,26 @@ def get_postgres_user(host=None) -> str:
     try:
         creds = load_test_credentials()
         user = creds.get("postgres_user", "omnia") if creds else "omnia"
-    except Exception:
+    except JSONDecodeError:
         user = "omnia"
 
     _credentials_cache[cache_key] = user or "omnia"
+    return _credentials_cache[cache_key]
+
+
+def get_postgres_password(_host=None) -> str:
+    """Get postgres_password from omnia_config_credentials."""
+    cache_key = "postgres_password"
+    if cache_key in _credentials_cache:
+        return _credentials_cache[cache_key]
+
+    try:
+        creds = load_test_credentials()
+        password = creds.get("postgres_password", "") if creds else ""
+    except JSONDecodeError:
+        password = ""
+
+    _credentials_cache[cache_key] = password or ""
     return _credentials_cache[cache_key]
 
 
@@ -116,26 +133,26 @@ def get_postgres_user(host=None) -> str:
 # OMNIA TEST CONFIG FUNCTIONS
 # =============================================================================
 
-def get_allow_pipeline_cancel(host=None) -> bool:
+def get_allow_pipeline_cancel(_host=None) -> bool:
     """Get allow_pipeline_cancel from test config. Default: False."""
     config = load_test_config()
     return config.get("allow_pipeline_cancel", False)
 
 
-def get_image_identifier(host=None) -> str:
+def get_image_identifier(_host=None) -> str:
     """Get image_identifier from test config for deploy/cleanup selection."""
     config = load_test_config()
     return config.get("image_identifier", "") or ""
 
 
-def get_catalog_name(host=None) -> str:
+def get_catalog_name(_host=None) -> str:
     """Get catalog_name from test config, fallback to default."""
     config = load_test_config()
     catalog = config.get("catalog_name", "") or ""
     return catalog if catalog else CATALOG_DEFAULT_FILENAME
 
 
-def get_omnia_branch(host=None) -> str:
+def get_omnia_branch(_host=None) -> str:
     """Get omnia_branch from test config for repo clone."""
     config = load_test_config()
     return config.get("omnia_branch", "") or ""
@@ -228,7 +245,7 @@ def exec_psql_query(
         "error": "",
     }
 
-    password = get_buildstream_password(host)
+    password = get_postgres_password(host)
 
     cmd_str = (
         f"podman exec -e PGPASSWORD={password} {container} "
