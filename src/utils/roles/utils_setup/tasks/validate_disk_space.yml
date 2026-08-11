@@ -1,0 +1,19 @@
+---
+- name: Get disk space information
+  ansible.builtin.command: df -BG /var/log/omnia
+  register: disk_space_output
+  changed_when: false
+  failed_when: false
+
+- name: Parse disk space
+  ansible.builtin.set_fact:
+    available_disk_gb: "{{ (disk_space_output.stdout_lines[1].split()[3] | regex_replace('G', '')) | int }}"
+  when: disk_space_output.rc == 0
+
+- name: Validate sufficient disk space
+  ansible.builtin.assert:
+    that:
+      - available_disk_gb | int >= min_disk_space_gb | int
+    fail_msg: "Insufficient disk space. Required: {{ min_disk_space_gb }}GB, Available: {{ available_disk_gb }}GB"
+    success_msg: "Disk space validation passed: {{ available_disk_gb }}GB available"
+  when: disk_space_output.rc == 0

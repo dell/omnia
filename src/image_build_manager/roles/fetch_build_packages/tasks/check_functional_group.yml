@@ -13,16 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Load functional_group_config.yml
+- name: Load package_groups.yml for functional group check
   ansible.builtin.include_vars:
-    file: "{{ functional_groups_config_path }}"
-    name: functional_group_cfg
+    file: "{{ input_project_dir }}/package_groups.yml"
+    name: _fg_check_mapping
 
 - name: Check for functional groups - {{ build_arch }}
   ansible.builtin.set_fact:
     fg_present: >-
-      {{ functional_group_cfg.functional_groups
-         | selectattr('name', 'search', '_' + build_arch + '$')
+      {{ (_fg_check_mapping.functional_groups | default({})).keys()
+         | select('search', '_' + build_arch + '$')
          | list
          | length > 0 }}
     cacheable: true

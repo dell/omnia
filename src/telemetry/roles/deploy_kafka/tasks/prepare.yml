@@ -18,6 +18,7 @@
 # =============================================================================
 
 - name: Create telemetry directories
+  when: cluster_mount | default('') != ''
   block:
     - name: Create telemetry subdirectory
       ansible.builtin.file:
@@ -30,12 +31,12 @@
         path: "{{ telemetry_deployments_dir }}"
         state: directory
         mode: "{{ kafka_dir_mode }}"
-  when: cluster_mount | default('') != ''
 
 - name: Download Strimzi Kafka operator package
   when:
     - cluster_mount | default('') != ''
     - telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | default('') != ''
+  run_once: true
   block:
     - name: Check if Strimzi Kafka operator tarball exists
       ansible.builtin.stat:
@@ -61,7 +62,6 @@
       ansible.builtin.fail:
         msg: "{{ kafka_strimzi_tarball_not_found_msg }}"
       when: not (strimzi_tarball_verify.stat.exists | default(false))
-  run_once: true
 
 - name: Set strimzi_kafka_pkg path
   ansible.builtin.set_fact:
@@ -75,7 +75,7 @@
     src: kafka.kafka.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.kafka.yaml"
     mode: "{{ kafka_file_mode }}"
-    force: yes
+    force: true
 
 # =============================================================================
 # Source-specific manifests — skipped when kafka_infra_only is true
@@ -89,7 +89,7 @@
     src: kafka.topic.yaml.j2
     dest: "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
     mode: "{{ kafka_file_mode }}"
-    force: yes
+    force: true
   vars:
     topic_name: "{{ item }}"
     topic_key: "{{ item }}"

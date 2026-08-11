@@ -24,7 +24,7 @@ pull_image_failure_msg: |
     1. Repo manager registry: {repo_path}
     2. Direct upstream:       {upstream_image}
   Ensure either the repo manager has synced the image or the host has internet access.
-omnia_version: "{{ hostvars['localhost']['omnia_version'] | default('2.2.0.0') }}"
+omnia_version: "{{ hostvars['localhost']['omnia_version'] }}"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
@@ -32,10 +32,12 @@ shared_path: "{{ hostvars['localhost']['shared_path'] }}"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 
 # Build timing and controls — single source of truth from image_build_config.yml
-job_retry: "{{ hostvars['localhost']['build_image_job_retry'] | default(240) }}"
-job_delay: "{{ hostvars['localhost']['build_image_job_delay'] | default(30) }}"
-job_async: "{{ hostvars['localhost']['build_image_job_async'] | default(7200) }}"
+# build_timeout: per-build timeout in seconds for the Python orchestrator.
+# Falls back to legacy job_async if build_timeout is not set (backward compat).
+build_timeout: "{{ hostvars['localhost']['build_image_build_timeout'] | default(hostvars['localhost']['build_image_job_async'] | default(7200)) }}"
 max_parallel: "{{ hostvars['localhost']['build_image_max_parallel'] | default(0) }}"
+force_rebuild: "{{ hostvars['localhost']['build_image_force_rebuild'] | default(false) | bool }}"
+backup_s3_images: "{{ hostvars['localhost']['build_image_backup_s3_images'] | default(false) | bool }}"
 
 # ---------------------------------------------------------------------------
 # Build type switching: image-builder vs image-thrillhouse
@@ -118,6 +120,11 @@ compute_image_failure_msg: |
   {{ build_arch }} compute image build job did not complete successfully.
   Check logs at {{ image_build_log_dir }} for respective functional group for more details.
 
+regctl_not_found_fail_msg: >-
+  regctl binary not found at /usr/local/bin/regctl.
+  Run the deploy_registry role (prepare_image_build_manager.yml) first
+  to install regctl and configure registry TLS.
+
 
 # preflight_selinux_check.yml
 selinux_module_name: "omnia-crun-bpf"
@@ -131,3 +138,14 @@ selinux_install_warn_msg: >-
   WARNING: Failed to install omnia-crun-bpf SELinux policy module.
   Build will continue but may fail if the eBPF device filter issue is present.
   Check SELinux policy tools and audit log on this node.
+
+# S3 image backup messages
+s3_backup_skip_msg: >-
+  S3 image backup disabled (backup_s3_images: false).
+  Set backup_s3_images: true in image_build_config.yml to enable rollback capability.
+s3_backup_rootfs_msg: "Backing up compute rootfs images: s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}/ → *_prev/"
+s3_backup_efi_msg: "Backing up compute EFI images: s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}/ → *_prev/"
+s3_backup_success_msg: "Backed up {{ _backup_count }} compute image groups (rootfs + EFI) to *_prev."
+s3_backup_failure_msg: >-
+  S3 backup failed for some groups. Check s3cmd configuration and S3 bucket accessibility.
+  Builds will continue but rollback may not be possible.

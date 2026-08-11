@@ -1,0 +1,26 @@
+---
+galaxy_info:
+  role_name: slurm_config_rollback
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Rollback Slurm configuration files from previous backups
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - slurm
+    - rollback
+    - configuration
+    - recovery
+
+dependencies:
+  - role: slurm_config_backup

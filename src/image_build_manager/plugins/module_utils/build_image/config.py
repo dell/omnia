@@ -18,7 +18,8 @@ Configuration constants for build image modules.
 
 # ----------------------------
 # Role-specific keys for additional_packages.json
-# Used by base_image_package_collector.py, image_package_collector.py and additional_images_collector.py
+# Used by base_image_package_collector.py, image_package_collector.py
+# and additional_images_collector.py
 # ----------------------------
 ROLE_SPECIFIC_KEYS = [
     "slurm_control_node",

@@ -1,0 +1,24 @@
+---
+galaxy_info:
+  role_name: iso_delivery
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Deliver custom ISO images via iDRAC virtual media for OS installation
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - dell
+    - idrac
+
+dependencies:
+  - role: iso_creation

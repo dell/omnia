@@ -39,7 +39,7 @@
         cacheable: true
 
 # NOTE: repo_status.yml and repo lists are already loaded by image_build_setup role.
-# This playbook only needs to reload image_build_config.yml for build_stream vars.
+# This playbook only needs to reload image_build_config.yml for job_id.
 
 - name: Load image_build_manager configuration for aarch64
   hosts: localhost
@@ -50,31 +50,10 @@
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/image_build_config.yml"
 
-    - name: Set build_stream variables from extra_vars
+    - name: Set job_id from extra vars
       ansible.builtin.set_fact:
-        build_stream_job_id: "{{ job_id | default('') }}"
-        build_stream_image_key: "{{ image_key | default('') }}"
-        build_stream_functional_groups: "{{ functional_groups | default([]) }}"
-        enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
-
-    - name: Debug - Show build_stream variables
-      ansible.builtin.debug:
-        msg:
-          - "build_stream_job_id: {{ build_stream_job_id }}"
-          - "build_stream_image_key: {{ build_stream_image_key }}"
-          - "build_stream_functional_groups: {{ build_stream_functional_groups }}"
-          - "enable_build_stream: {{ enable_build_stream }}"
-        verbosity: 2
-
-    - name: Fetch build_stream prerequisites
-      ansible.builtin.include_role:
-        name: fetch_build_packages
-        tasks_from: build_stream_prerequisite.yml
-      vars:
-        job_id: "{{ build_stream_job_id }}"
-        image_key: "{{ build_stream_image_key }}"
-        functional_groups: "{{ build_stream_functional_groups }}"
-      when: enable_build_stream | default(false) | bool
+        job_id: "{{ job_id | default('') }}"
+        cacheable: true
 
 - name: Validate image_build_manager inputs for aarch64
   hosts: localhost
@@ -119,29 +98,17 @@
   connection: local
   gather_facts: false
   tasks:
-    # --- Standalone mode: write functional groups from image_build_config.yml ---
-    - name: Write functional_groups_config.yml from image_build_config.yml (standalone)
-      when:
-        - standalone_mode | default(false) | bool
-        - not (enable_build_stream | default(false) | bool)
-      block:
-        - name: Ensure functional groups data directory exists
-          ansible.builtin.file:
-            path: "{{ functional_groups_config_path | dirname }}"
-            state: directory
-            mode: "0755"
-
-        - name: Write functional groups config from image_build_config
-          ansible.builtin.copy:
-            content: "{{ {'functional_groups': functional_groups} | to_nice_yaml }}"
-            dest: "{{ functional_groups_config_path }}"
-            mode: "0644"
-
-    - name: Fetch aarch64 functional_groups
+    # --- Config mode: verify functional groups exist in package_groups.yml ---
+    - name: Verify aarch64 functional groups (config mode)
       ansible.builtin.include_role:
         name: fetch_build_packages
         tasks_from: check_functional_group.yml
-      when: not (enable_build_stream | default(false) | bool)
+      when: hostvars['localhost']['functional_groups_source'] | default('config') == 'config'
+
+    - name: Skip functional group check (catalog mode — groups come from catalog)
+      ansible.builtin.debug:
+        msg: "Catalog mode: functional groups will be resolved from catalog JSON"
+      when: hostvars['localhost']['functional_groups_source'] | default('config') == 'catalog'
 
 - name: Prepare aarch64 nodes
   hosts: admin_aarch64

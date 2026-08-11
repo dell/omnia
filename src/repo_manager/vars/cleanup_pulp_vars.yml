@@ -23,15 +23,37 @@
 # =============================================================================
 
 # Directories/files to remove during Pulp cleanup (runs on OIM)
-# NOTE: We intentionally keep {{ omnia_base_dir }}/pulp/pulp_ha directory intact
-# because it may be mounted. We only delete the cli.toml file inside it.
+# NOTE: We clean both current paths (under repo_manager) and stale paths (old locations)
 pulp_cleanup_directory:
-  - "{{ omnia_base_dir }}/pulp/pulp_ha/cli.toml"
-  - "{{ omnia_base_dir }}/pulp/settings"
-  - "{{ omnia_base_dir }}/pulp/nginx"
+  # Clean up current Pulp data (entire pulp_config_dir - /opt/omnia/repo_manager/pulp_config/)
+  - "{{ pulp_config_dir }}"
+  - "{{ pulp_logs_dir }}"
+  - "{{ rhel_repo_certs_dir }}"
+  - "{{ repo_manager_offline_repo_dir }}"
+  - "{{ repo_manager_log_dir }}"
+  - "{{ repo_manager_data_dir }}"
+  # Clean up STALE Pulp data (old /opt/omnia/pulp_config/ structure)
+  - "{{ omnia_base_dir }}/pulp_config"
   - "{{ omnia_base_dir }}/log/pulp"
+  - "{{ omnia_base_dir }}/log/repo_manager"
   - "{{ omnia_base_dir }}/rhel_repo_certs"
   - "{{ omnia_base_dir }}/offline_repo"
+  # Clean up STALE Pulp data (old /opt/omnia/pulp/ structure)
+  - "{{ omnia_base_dir }}/pulp"
+  # Clean up STALE Pulp data (old oim_shared_path structure - /opt/omnia/omnia/pulp/)
+  - "{{ oim_shared_path }}/omnia/pulp"
+  - "{{ oim_shared_path }}/omnia/log/pulp"
+
+# Pulp CLI config files to remove
+pulp_cli_config_files:
+  - "{{ pulp_config_dir }}/pulp_ha/cli.toml"
+  - "/root/.config/pulp/cli.toml"
+  - "/root/.config/pulp"
+
+# Credential files to remove (optional - controlled by cleanup_credentials flag)
+credential_files_to_cleanup:
+  - "{{ input_project_dir }}/repo_manager_config_credentials.yml"
+  - "{{ input_project_dir }}/.repo_manager_config_credentials_key"
 
 # Track file created by Pulp HTTPS config
 track_file_path: "{{ pulp_crt_track_file }}"
@@ -40,21 +62,28 @@ track_file_path: "{{ pulp_crt_track_file }}"
 omnia_target: "/etc/systemd/system/omnia.target"
 
 # =============================================================================
-# LOG CLEANUP CONFIGURATION
+# CLEANUP CONFIGURATION
 # =============================================================================
-# Log cleanup for fresh deployment
+# Cleanup flags for different components
 # Usage:
-#   Default:        ansible-playbook cleanup_pulp.yml  (deletes entire log directory)
+#   Interactive:    ansible-playbook cleanup_pulp.yml  (prompts for credential deletion)
 #   Preserve logs:  ansible-playbook cleanup_pulp.yml -e "cleanup_logs=false"
+#   Force delete:   ansible-playbook cleanup_pulp.yml -e "cleanup_credentials=true"
+#   Force preserve: ansible-playbook cleanup_pulp.yml -e "cleanup_credentials=false"
 # =============================================================================
 
 cleanup_logs: true
+# cleanup_credentials is intentionally NOT set here to enable interactive prompting
+# Set it via CLI to override: -e "cleanup_credentials=true" or -e "cleanup_credentials=false"
 
 # Cleanup instructions message
 cleanup_pulp_note: |
   [Post-Cleanup Actions Required]
   1. Pulp container and related data have been removed.
-  2. To redeploy Pulp, run: ansible-playbook playbooks/deploy/deploy_pulp.yml
-  3. The offline_repo directory has been removed. You must re-sync repositories if needed.
-  4. The log directory has been cleaned for fresh deployment.
-  5. To preserve logs, run with: -e "cleanup_logs=false"
+  2. Pulp CLI configuration files have been removed.
+  3. Credential files have been removed (if cleanup_credentials=true).
+  4. To redeploy Pulp, run: ansible-playbook playbooks/deploy/deploy_pulp.yml
+  5. The offline_repo directory has been removed. You must re-sync repositories if needed.
+  6. The log directory has been cleaned for fresh deployment.
+  7. To preserve logs, run with: -e "cleanup_logs=false"
+  8. To preserve credentials, run with: -e "cleanup_credentials=false"

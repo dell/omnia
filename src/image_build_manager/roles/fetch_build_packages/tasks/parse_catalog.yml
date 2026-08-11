@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# ==========================================================================
+# Catalog mode: resolve packages from catalog JSON via Python module
+# ==========================================================================
+# Uses plugins/modules/parse_catalog.py for performant, testable resolution.
+# Resolution: functionallayer[] -> groups.{component}.components[] -> packages.{key}
+# Filter: packagetype == 'rpm' AND sources[].architecture == build_arch
+# Output: base_image_packages, compute_images_dict, cluster_os_versions
+
+- name: Resolve RPM packages from catalog JSON
+  parse_catalog:
+    catalog_file: "{{ hostvars['localhost']['catalog_file'] }}"
+    build_arch: "{{ build_arch }}"
+    package_type: "rpm"
+  register: _catalog_result
+
+- name: Set catalog facts from module output
+  ansible.builtin.set_fact:
+    catalog_identifier: "{{ _catalog_result.catalog_identifier }}"
+    base_image_packages: "{{ _catalog_result.base_image_packages }}"
+    compute_images_dict: "{{ _catalog_result.compute_images_dict }}"
+    cluster_os_versions: "{{ _catalog_result.cluster_os_versions }}"
+    cacheable: true
+
+- name: Override OS type and version from catalog base_os group
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ _catalog_result.cluster_os_type }}"
+    cluster_os_version: "{{ _catalog_result.cluster_os_version }}"
+    rhel_tag: "{{ _catalog_result.cluster_os_version }}"
+    cacheable: true
+  when: _catalog_result.cluster_os_version | default('') | length > 0
+
+- name: Debug catalog resolution
+  ansible.builtin.debug:
+    msg: >-
+      Catalog '{{ catalog_identifier }}':
+      {{ _catalog_result.layer_count }} layers for {{ build_arch }},
+      {{ base_image_packages | length }} base packages,
+      {{ compute_images_dict | length }} compute groups,
+      os_versions={{ cluster_os_versions | default([]) }}
+    verbosity: 1

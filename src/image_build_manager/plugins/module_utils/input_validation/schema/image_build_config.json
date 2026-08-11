@@ -1,0 +1,85 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "image_build_config",
+    "description": "Schema for image_build_config.yml - consolidated configuration for the image_build_manager domain.",
+    "type": "object",
+    "properties": {
+        "s3_configurations": {
+            "type": "object",
+            "description": "S3 storage backend configuration for OS image storage.",
+            "properties": {
+                "provider": {
+                    "type": "string",
+                    "enum": ["minio", "powerscale"],
+                    "description": "S3 provider: 'minio' (deployed by image_build_manager) or 'powerscale' (external)."
+                },
+                "endpoint_url": {
+                    "type": "string",
+                    "description": "S3 endpoint URL. Required for 'powerscale' provider; auto-set for 'minio'."
+                }
+            },
+            "required": ["provider"],
+            "additionalProperties": false
+        },
+        "aarch64_inventory_host_ip": {
+            "type": "string",
+            "description": "IP address of the ARM admin node for aarch64 image builds. Leave empty to skip aarch64 builds.",
+            "pattern": "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        },
+        "aarch64_ssh_user": {
+            "type": "string",
+            "description": "SSH user for connecting to the ARM build host.",
+            "default": "root",
+            "minLength": 1,
+            "maxLength": 64
+        },
+        "repo_manager_output_path": {
+            "type": "string",
+            "description": "Full path to repo_status.yml produced by repo_manager. Supports multiple projects."
+        },
+        "image_build_type": {
+            "type": "string",
+            "enum": ["image-builder", "image-thrillhouse"],
+            "description": "OpenCHAMI image builder type: 'image-builder' (standard) or 'image-thrillhouse' (next-gen with extended features).",
+            "default": "image-builder"
+        },
+        "functional_groups_source": {
+            "type": "string",
+            "enum": ["config", "catalog"],
+            "description": "Where to source functional groups: 'config' derives groups from package_groups.yml keys; 'catalog' resolves groups and packages from catalog JSON (CATALOG_FILE_PATH env var).",
+            "default": "config"
+        },
+        "build_image": {
+            "type": "object",
+            "description": "Build concurrency and timeout settings.",
+            "properties": {
+                "max_parallel": {
+                    "type": "integer",
+                    "description": "Max concurrent image builds. 0 = unlimited (all at once).",
+                    "minimum": 0,
+                    "maximum": 64,
+                    "default": 0
+                },
+                "build_timeout": {
+                    "type": "integer",
+                    "description": "Per-build timeout in seconds for the Python orchestrator.",
+                    "minimum": 600,
+                    "maximum": 86400,
+                    "default": 7200
+                },
+                "force_rebuild": {
+                    "type": "boolean",
+                    "description": "Bypass package hash cache and force rebuild of all images.",
+                    "default": false
+                },
+                "backup_s3_images": {
+                    "type": "boolean",
+                    "description": "Copy existing S3 compute image artifacts to *_prev before rebuilding.",
+                    "default": false
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["s3_configurations"]
+}

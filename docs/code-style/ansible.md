@@ -1,4 +1,4 @@
-# Ansible / YAML Style Guide — Image Build Manager
+# Ansible / YAML Style Guide -- Omnia
 
 Based on [Dell Omnia Ansible Style Guide](https://github.com/dell/omnia).
 
@@ -217,4 +217,117 @@ find roles -path "*/meta/main.yml"
 
 # Build and check
 ansible-galaxy collection build
+```
+
+---
+
+## 11. Security & Quality Gates
+
+All Ansible/YAML code MUST pass the following gates before merge:
+
+| Gate | Tool | Requirement | Enforcement |
+|------|------|-------------|-------------|
+| **Ansible Lint** | `ansible-lint` | Zero errors with `production` profile | CI PR gate |
+| **YAML Lint** | `yamllint` | Zero errors | CI PR gate |
+| **Secret Leak Detection** | `gitleaks` | Zero findings | CI pre-commit / PR gate |
+| **SAST** | Checkmarx | Zero High/Critical findings | CI or scheduled scan |
+| **Shell Script Lint** | `shellcheck` | Zero errors in `.sh` files | CI lint step |
+
+### 11.1 Ansible-Lint Compliance
+
+- All playbooks, roles, and task files MUST pass `ansible-lint` with zero errors
+- Use `production` profile: `ansible-lint -p production`
+- Suppressions allowed with `# noqa: <rule>` and a justification comment
+- Key enforced rules: named tasks, FQCN, no bare variables, no `command` when module exists
+
+### 11.2 Gitleaks (Secret Leak Prevention)
+
+- No hardcoded passwords, API keys, tokens, or credentials in any YAML file
+- Use Ansible Vault for sensitive data — reference via `{{ vault_secret_name }}`
+- CI runs `gitleaks detect` on every PR
+
+### 11.3 Checkmarx (SAST)
+
+- Zero High or Critical findings allowed in merged code
+- Medium findings SHOULD be addressed within the same sprint
+
+### 11.4 ShellCheck (Shell Script Lint)
+
+- All `.sh` files (e.g., `domain-init.sh`) MUST pass `shellcheck` with zero errors
+- Suppressions allowed with `# shellcheck disable=SCXXXX` and a justification comment
+
+---
+
+## 12. Module-First Data Processing
+
+Prefer **Python Ansible modules** (`plugins/modules/`) over complex Jinja2 templates embedded in `set_fact` tasks for data processing logic.
+
+### 12.1 When to Use a Python Module
+
+Use a module when the task involves **any** of:
+
+| Indicator | Example |
+|-----------|--------|
+| Nested loops with filtering | Iterating layers → groups → packages with type/arch filters |
+| JSON/YAML file parsing + transformation | Loading catalog JSON, extracting structured data |
+| `namespace()` pattern in Jinja2 | Using `{% set ns = namespace(...) %}` for mutable state |
+| String manipulation or regex | Splitting package names, extracting versions from tags |
+| >10 lines of Jinja2 in a single `set_fact` | Complex template logic that obscures intent |
+
+### 12.2 When Ansible Tasks Are Sufficient
+
+Keep as Ansible tasks when the logic is:
+
+- Simple variable assignment (`set_fact` with defaults)
+- File operations (`stat`, `copy`, `template`, `file`)
+- Service management (`systemd`, `service`)
+- Package management (`dnf`, `pip`)
+- Simple loops with `when` filters (e.g., building a list by appending items)
+- Flow control (`include_tasks`, `block/rescue`)
+- Assertions and validation (`assert`, `fail`)
+
+### 12.3 Benefits of Modules Over Jinja2
+
+| Aspect | Jinja2 in set_fact | Python Module |
+|--------|-------------------|---------------|
+| **Performance** | Template rendering per task | Native Python execution |
+| **Testability** | Requires full Ansible run | Unit-testable with pytest |
+| **Debugging** | Opaque template errors | Standard Python tracebacks |
+| **Readability** | YAML-embedded templates | Explicit Python functions |
+| **Type safety** | String-based, late binding | Python type hints |
+| **Reusability** | Copy-paste between roles | Import and call |
+
+### 12.4 Module Conventions
+
+- Place modules in `plugins/modules/<name>.py`
+- Place shared utilities in `plugins/module_utils/`
+- Follow Galaxy documentation requirements (see Python Style Guide §5)
+- Module functions SHOULD be independently callable for unit testing
+- Use `module.fail_json()` for errors — never `sys.exit()`
+- Set `supports_check_mode=True` for read-only modules
+
+### 12.5 Examples
+
+**Before (Jinja2 — avoid):**
+```yaml
+- name: Resolve packages from catalog
+  ansible.builtin.set_fact:
+    compute_images_dict: >-
+      {% set result = {} -%}
+      {% for layer in _catalog.functionallayer -%}
+        {% for comp in layer.components -%}
+          {% set group = _catalog.groups[comp] -%}
+          {# ... 30+ lines of nested filtering ... #}
+        {% endfor -%}
+      {% endfor -%}
+      {{ result }}
+```
+
+**After (Python module — preferred):**
+```yaml
+- name: Resolve packages from catalog
+  omnia.image_build.parse_catalog:
+    catalog_file: "{{ catalog_file }}"
+    build_arch: "{{ build_arch }}"
+  register: _catalog_result
 ```

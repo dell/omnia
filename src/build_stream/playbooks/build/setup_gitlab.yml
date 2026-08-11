@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# setup_gitlab.yml — Configure GitLab CI/CD for BuildStream
+# Originated from: src/playbooks/gitlab/gitlab.yml
+# Usage: ansible-playbook playbooks/setup_gitlab.yml  (from src/build_stream/)
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set dynamic run tags including 'gitlab'
+      when: omnia_run_tags is not defined
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ ['build_stream', 'gitlab'] }}"
+        cacheable: true
+
+- name: Build Stream setup (input dirs + OIM group)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: ../../roles/build_stream_setup
+      vars:
+        create_oim_group: true
+      when: not build_stream_setup_done | default(false) | bool
+
+- name: Prepare GitLab host credentials from provision secrets
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: prereq_checks.yml
+
+- name: Validate BuildStream prerequisites
+  hosts: oim
+  gather_facts: false
+  tasks:
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: check_oim_prerequisites.yml
+
+- name: Deploy GitLab CE on target host (hosted mode)
+  hosts: gitlab_server
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Bootstrap passwordless SSH
+      ansible.builtin.include_role:
+        name: gitlab_passwordless_ssh
+
+    - name: Run hosted GitLab deployment
+      ansible.builtin.include_role:
+        name: hosted_gitlab

@@ -17,12 +17,58 @@
 import os
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.common_functions import process_file, load_yaml_file, generate_vault_key
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.common_functions import process_file, load_yaml_file, generate_vault_key
+from ansible.module_utils.repo_manager.config import (
     USER_REPO_URL,
     CERT_KEYS
 )
+
+DOCUMENTATION = r"""
+---
+module: cert_vault_handler
+short_description: Handle certificate vault operations
+description:
+  - This module manages certificate-related vault operations.
+  - It handles encryption and decryption of certificate files.
+version_added: "1.0.0"
+options:
+    file_path:
+      description: Path to the certificate file
+      required: true
+      type: str
+    vault_key:
+      description: Path to the vault password file
+      required: true
+      type: str
+    mode:
+      description: Operation mode
+      required: true
+      type: str
+      choices: ['encrypt', 'decrypt']
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Encrypt certificate file
+  cert_vault_handler:
+    file_path: /opt/omnia/certs/server.crt
+    vault_key: /opt/omnia/.vault_key
+    mode: encrypt
+"""
+
+RETURN = r"""
+changed:
+  description: Whether the file was modified
+  type: bool
+  returned: always
+msg:
+  description: Status message
+  type: str
+  returned: always
+"""
 
 
 def extract_repos_with_certs(repo_entries, log):
@@ -69,7 +115,7 @@ def main():
     argument_spec={
         'mode': {'type': 'str', 'required': True, 'choices': ['encrypt', 'decrypt']},
         # nosec B108 - Default path, actual path is configurable via parameter
-        'log_dir': {'type': 'str', 'required': False, 'default': '/opt/omnia/log/repomanager/thread_logs'},
+        'log_dir': {'type': 'str', 'required': False, 'default': '/opt/omnia/log/repo_manager/thread_logs'},
         'key_path': {'type': 'str', 'required': True}
     },
     supports_check_mode=False

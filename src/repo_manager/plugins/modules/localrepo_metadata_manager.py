@@ -17,12 +17,57 @@
 
 from pathlib import Path
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.process_metadata import (
+from ansible.module_utils.repo_manager.process_metadata import (
     handle_generate_metadata,
     handle_compare_data,
     handle_update_data
 )
-from ansible.module_utils.local_repo.config import ( metadata_rerun_file_path )
+from ansible.module_utils.repo_manager.config import ( metadata_rerun_file_path )
+
+DOCUMENTATION = r"""
+---
+module: localrepo_metadata_manager
+short_description: Manage local repository metadata
+description:
+  - This module manages metadata for local repositories.
+  - It tracks repository sync status and configuration changes.
+version_added: "1.0.0"
+options:
+    action:
+      description: Action to perform (read/write/update)
+      required: true
+      type: str
+    metadata_path:
+      description: Path to metadata file
+      required: true
+      type: str
+    data:
+      description: Data to write/update
+      required: false
+      type: dict
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Read repository metadata
+  localrepo_metadata_manager:
+    action: read
+    metadata_path: /opt/omnia/.data/repo_metadata.yml
+  register: metadata
+"""
+
+RETURN = r"""
+metadata:
+  description: Repository metadata
+  type: dict
+  returned: success
+changed:
+  description: Whether metadata was modified
+  type: bool
+  returned: always
+"""
 
 
 """
@@ -40,7 +85,7 @@ It supports check mode and can conditionally update metadata only if changes are
 def main():
 
     argument_spec = {
-        "software_config_path": {"type": "str", "required": True},
+        "software_config_path": {"type": "str", "required": False, "default": ""},
         "localrepo_config_path": {"type": "str", "required": True},
         "output_file": {"type": "str", "required": True},
         "update_metadata": {"type": "bool", "default": False},

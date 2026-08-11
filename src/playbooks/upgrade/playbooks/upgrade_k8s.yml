@@ -1389,7 +1389,7 @@
       ansible.builtin.set_fact:
         pulp_content_base: "{{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content"
         pulp_repo_base: >-
-          {{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ _cluster_os_version }}/rpms
+          {{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content/opt/omnia/repo_manager/offline_repo/cluster/x86_64/rhel/{{ _cluster_os_version }}/rpms
 
     - name: Generate upgrade repo file content
       ansible.builtin.set_fact:

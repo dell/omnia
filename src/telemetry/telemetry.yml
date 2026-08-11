@@ -19,13 +19,28 @@
 # Usage:
 #   ansible-playbook telemetry.yml --tags <tag_name>
 #
-# Tags:
+# Tags (standard domain tags):
 #   precheck   - Precheck environment for telemetry
-#   validation - Input validation of telemetry configuration
+#   validate   - Input validation of telemetry configuration (alias: validation)
 #   cleanup    - Cleanup telemetry
-#   deploy     - Deploy all enabled telemetry (default)
+#   execute    - Deploy all enabled telemetry (alias: deploy)
 #   upgrade    - Upgrade telemetry
 #   rollback   - Rollback telemetry
+#
+#   Cleanup examples:
+#     ansible-playbook telemetry.yml --tags cleanup                    # all components
+#     ansible-playbook telemetry.yml --tags cleanup_kafka              # kafka only
+#     ansible-playbook telemetry.yml --tags cleanup_victoria_metrics   # VM only (includes vmagent-vector)
+#     ansible-playbook telemetry.yml --tags cleanup_victoria_logs      # VL only (includes vlagent-vector)
+#     ansible-playbook telemetry.yml --tags cleanup_ldms               # LDMS only (includes vector-ldms)
+#     ansible-playbook telemetry.yml --tags cleanup_ome                # OME only (includes vector-ome)
+#     ansible-playbook telemetry.yml --tags cleanup_dcgm               # DCGM only
+#     ansible-playbook telemetry.yml --tags cleanup_ufm                # UFM only
+#     ansible-playbook telemetry.yml --tags cleanup_vast               # VAST only
+#     ansible-playbook telemetry.yml --tags cleanup_sfm                # SFM only
+#     ansible-playbook telemetry.yml --tags cleanup_skyway             # Skyway only
+#     ansible-playbook telemetry.yml --tags cleanup_powervault         # PowerVault only
+#     ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_victoria_metrics  # kafka + VM
 #
 # Configuration is read from telemetry/input/telemetry_config.yml:
 #   - kube_vip: K8s control plane VIP (required)
@@ -36,29 +51,44 @@
 # All K8s tasks (kubectl, helm) execute on the kube_vip host via SSH.
 # =============================================================================
 
-# Precheck: Validate environment and connectivity
-- import_playbook: playbooks/precheck.yml
-  tags: precheck
+# ---------------------------------------------------------------------------
+# Precheck — import before deploy plays so --tags precheck works
+# ---------------------------------------------------------------------------
+- name: "Precheck | Validate telemetry prerequisites"
+  ansible.builtin.import_playbook: playbooks/precheck.yml
+  tags: [precheck]
 
-# Validation: Validate telemetry configuration
-- import_playbook: playbooks/validation.yml
-  tags: validation
+# ---------------------------------------------------------------------------
+# Validation — L1 + L2 input validation for all 3 telemetry input files
+# ---------------------------------------------------------------------------
+- name: "Validation | Validate telemetry input files"
+  ansible.builtin.import_playbook: playbooks/validation.yml
+  tags: [validate, validation]
 
-# Cleanup: Remove telemetry components
-- import_playbook: playbooks/cleanup.yml
-  tags: cleanup
-  when: "'cleanup' in ansible_run_tags"
+# ---------------------------------------------------------------------------
+# Cleanup — tag-based cleanup of telemetry components
+# ---------------------------------------------------------------------------
+# When imported with tags: [cleanup], all plays in cleanup.yml inherit the
+# 'cleanup' tag. Each component import also has its own tag (cleanup_kafka,
+# cleanup_victoria_metrics, etc.) so --tags cleanup runs all cleanups while
+# --tags cleanup_kafka runs only Kafka cleanup.
+- name: "Cleanup | Remove telemetry components"
+  ansible.builtin.import_playbook: playbooks/cleanup.yml
+  tags: [cleanup]
 
-# Deploy: Deploy all telemetry sources
-- import_playbook: playbooks/deploy.yml
-  tags: deploy
+# Deploy / Execute: Deploy all telemetry sources
+- name: "Execute | Deploy all telemetry sources"
+  ansible.builtin.import_playbook: playbooks/deploy.yml
+  tags: [execute, deploy]
 
 # Upgrade: Upgrade telemetry components
-- import_playbook: playbooks/upgrade.yml
+- name: "Upgrade | Upgrade telemetry components"
+  ansible.builtin.import_playbook: playbooks/upgrade.yml
   tags: upgrade
   when: "'upgrade' in ansible_run_tags"
 
 # Rollback: Rollback telemetry components
-- import_playbook: playbooks/rollback.yml
+- name: "Rollback | Rollback telemetry components"
+  ansible.builtin.import_playbook: playbooks/rollback.yml
   tags: rollback
   when: "'rollback' in ansible_run_tags"

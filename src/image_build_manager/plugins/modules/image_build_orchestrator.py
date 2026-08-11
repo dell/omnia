@@ -106,7 +106,10 @@ results:
       description: Process exit code (-1 if timeout or error).
       type: int
     error:
-      description: Error message if failed.
+      description: Error message if failed (includes last 20 lines of log).
+      type: str
+    log_tail:
+      description: Last 20 lines of the build log (populated on failure).
       type: str
 summary:
   description: Summary counts.
@@ -119,6 +122,20 @@ summary:
     failed:
       type: int
 """
+
+
+LOG_TAIL_LINES = 20
+
+
+def _read_log_tail(log_path: str, lines: int = LOG_TAIL_LINES) -> str:
+    """Read last N lines from a log file for error diagnostics."""
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+            tail = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            return "".join(tail).strip()
+    except OSError:
+        return "(log file not readable)"
 
 
 def _run_build(
@@ -134,6 +151,7 @@ def _run_build(
         "log_path": log_path,
         "return_code": -1,
         "error": "",
+        "log_tail": "",
     }
 
     try:
@@ -155,14 +173,26 @@ def _run_build(
                 result["status"] = "completed"
             else:
                 result["status"] = "failed"
-                result["error"] = f"Build exited with code {proc.returncode}. Check log: {log_path}"
+                log_tail = _read_log_tail(log_path)
+                result["log_tail"] = log_tail
+                result["error"] = (
+                    f"Build '{name}' exited with code {proc.returncode}. "
+                    f"Log: {log_path}\n"
+                    f"--- Last {LOG_TAIL_LINES} lines ---\n{log_tail}"
+                )
 
     except subprocess.TimeoutExpired:
         result["status"] = "timeout"
-        result["error"] = f"Build timed out after {timeout}s. Check log: {log_path}"
+        log_tail = _read_log_tail(log_path)
+        result["log_tail"] = log_tail
+        result["error"] = (
+            f"Build '{name}' timed out after {timeout}s. "
+            f"Log: {log_path}\n"
+            f"--- Last {LOG_TAIL_LINES} lines ---\n{log_tail}"
+        )
     except OSError as exc:
         result["status"] = "failed"
-        result["error"] = f"Failed to execute build: {exc}"
+        result["error"] = f"Failed to execute build '{name}': {exc}"
 
     result["duration_seconds"] = round(time.monotonic() - start_time, 2)
     return result
@@ -250,19 +280,41 @@ def main() -> None:
     }
 
     if failed_count > 0:
-        failed_names = [r["name"] for r in results if r["status"] != "completed"]
+        failed_details = []
+        for r in results:
+            if r["status"] != "completed":
+                detail = (
+                    f"  - {r['name']}: {r['status']} "
+                    f"(rc={r.get('return_code', -1)}, "
+                    f"{r.get('duration_seconds', 0):.1f}s) "
+                    f"→ {r.get('log_path', 'N/A')}"
+                )
+                failed_details.append(detail)
+        detail_str = "\n".join(failed_details)
         module.fail_json(
-            msg=f"{failed_count}/{len(results)} builds failed: {', '.join(failed_names)}",
+            msg=(
+                f"{failed_count}/{len(results)} builds failed:\n"
+                f"{detail_str}\n"
+                f"Check the log files above for full error details."
+            ),
             changed=True,
             results=results,
             summary=summary,
         )
     else:
+        completed_details = []
+        for r in results:
+            completed_details.append(
+                f"  - {r['name']}: {r.get('duration_seconds', 0):.1f}s"
+            )
         module.exit_json(
             changed=True,
             results=results,
             summary=summary,
-            msg=f"All {completed_count} builds completed successfully",
+            msg=(
+                f"All {completed_count} builds completed successfully:\n"
+                + "\n".join(completed_details)
+            ),
         )
 
 

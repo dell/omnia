@@ -34,6 +34,57 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+DOCUMENTATION = r"""
+---
+module: validate_input
+short_description: Validate input configuration files
+description:
+  - This module validates input configuration files against schemas.
+  - It performs comprehensive validation of repo_manager configuration.
+version_added: "1.0.0"
+options:
+    config_path:
+      description: Path to configuration file
+      required: true
+      type: str
+    schema_path:
+      description: Path to JSON schema file
+      required: false
+      type: str
+    strict:
+      description: Enable strict validation mode
+      required: false
+      type: bool
+      default: True
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Validate repo_manager configuration
+  validate_input:
+    config_path: /opt/omnia/input/repo_manager_config.yml
+    strict: true
+  register: validation_result
+"""
+
+RETURN = r"""
+valid:
+  description: Whether configuration is valid
+  type: bool
+  returned: always
+errors:
+  description: List of validation errors
+  type: list
+  returned: on_error
+warnings:
+  description: List of validation warnings
+  type: list
+  returned: always
+"""
+
+
 
 
 def validate_csv_structure(csv_file_path, logger=None):
@@ -96,12 +147,13 @@ def validate_csv_structure(csv_file_path, logger=None):
         raise ValueError(error_msg)
 
 
-def createlogger(project_name, tag_name=None):
+def createlogger(project_name, log_dir, tag_name=None):
     """
     Creates a logger object for the given project name and tag name.
 
     Args:
         project_name (str): The name of the project.
+        log_dir (str): Directory path where log file should be created.
         tag_name (str, optional): The name of the tag.
 
     Returns:
@@ -112,7 +164,7 @@ def createlogger(project_name, tag_name=None):
     else:
         log_filename = f"validation_omnia_{project_name}.log"
 
-    log_file_path = os.path.join(config.INPUT_VALIDATOR_LOG_PATH, log_filename)
+    log_file_path = os.path.join(log_dir, log_filename)
     logging.basicConfig(
         filename=log_file_path,
         format="%(asctime)s %(message)s",
@@ -182,7 +234,7 @@ def main():
     validation_status = {"tag": tag_names, "Passed": [], "Failed": []}
     vstatus = []
 
-    logger = createlogger(project_name)
+    logger = createlogger(project_name, config.INPUT_VALIDATOR_LOG_PATH)
 
     # Start validation execution
     logger.info(msg.get_header())
@@ -194,6 +246,13 @@ def main():
 
     input_files = file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
     input_files = input_files + file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
+    
+    # Also search for catalog files in the catalog directory (from OMNIA_DATA_PATH)
+    omnia_data_path = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
+    catalog_dir = os.path.join(omnia_data_path, 'catalog')
+    if os.path.exists(catalog_dir):
+        catalog_files = file_utils.files_recursively(catalog_dir, extensions['json'])
+        input_files = input_files + catalog_files
 
     input_file_dict = {file_utils.file_name_from_path(file_path): file_path for file_path in input_files}
 
@@ -242,7 +301,22 @@ def main():
                 logger.info("Skipping gitlab_config.yml validation (build_stream disabled)")
                 continue
 
-            if input_file_path is None:
+            # Special handling for catalog files - they're in a different directory
+            # Catalog path comes from OMNIA_DATA_PATH environment variable
+            if input_file_path is None and name == "catalog_rhel.json":
+                omnia_data_path = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
+                catalog_dir = os.path.join(omnia_data_path, 'catalog')
+                catalog_file_path = os.path.join(catalog_dir, name)
+                if os.path.exists(catalog_file_path):
+                    input_file_path = catalog_file_path
+                    logger.info(f"Found catalog file at: {catalog_file_path}")
+                else:
+                    error_message = (
+                        f"{fname} file not found in catalog directory: {catalog_dir}"
+                    )
+                    logger.error(error_message)
+                    module.fail_json(msg=error_message)
+            elif input_file_path is None:
                 error_message = (
                     f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
                 )

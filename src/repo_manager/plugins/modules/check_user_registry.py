@@ -16,16 +16,59 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.common_functions import (
+from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     get_repo_list,
 )
-from ansible.module_utils.local_repo.registry_utils import (
+from ansible.module_utils.repo_manager.registry_utils import (
     validate_user_registry,
     check_reachability,
     find_invalid_cert_paths
 )
-# from ansible.module_utils.local_repo.config import (
+
+DOCUMENTATION = r"""
+---
+module: check_user_registry
+short_description: Validate user container registry configuration
+description:
+  - This module validates user-provided container registry configurations.
+  - It checks connectivity and authentication to specified registries.
+version_added: "1.0.0"
+options:
+    registries:
+      description: List of registry configurations to validate
+      required: true
+      type: list
+    timeout:
+      description: Connection timeout in seconds
+      required: false
+      type: int
+      default: 30
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Check user registry connectivity
+  check_user_registry:
+    registries:
+      - host: registry.example.com
+        username: admin
+        password: secret
+"""
+
+RETURN = r"""
+valid_registries:
+  description: List of valid registries
+  type: list
+  returned: always
+invalid_registries:
+  description: List of invalid registries with errors
+  type: list
+  returned: always
+"""
+# from ansible.module_utils.repo_manager.config import (
 #     USER_REG_CRED_INPUT,
 #     USER_REG_KEY_PATH
 # )

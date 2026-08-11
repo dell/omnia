@@ -6,14 +6,16 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 | Command | Description |
 |---------|-------------|
-| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, copy domain input files |
+| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh |
+| `--init, -i` | Run all domain-init.sh scripts (stage input files to NFS share) |
+| `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
 | `--help, -h` | Show help message |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `--skip-input-copy` | Skip copying domain input files during `--setup-venv` (useful in CI or when input files are managed externally) |
+| `--deps-only` | Install deps only, skip input file staging. Useful in CI or when input files are managed externally. |
 
 ## What `--setup-venv` Does
 
@@ -23,16 +25,19 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 4. **Finds Python 3.11+** — Searches for python3.12, python3.11, or python3
 5. **Creates or updates venv** — Sets up virtual environment at `$OMNIA_VENV_PATH`
 6. **Upgrades pip** — Ensures latest pip, setuptools, wheel
-7. **Installs per-domain pip packages** — Discovers and installs `requirements.txt` from all domains
-8. **Installs Galaxy collections** — Discovers and installs `requirements.yml` from all domains
-9. **Copies domain input files** — Runs each domain's `copy-input.sh` to stage input files from `src/<domain>/input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
-10. **Displays summary** — Shows venv path, Python version, Ansible version, and installed collections
+7. **Initializes domains** — Runs each domain's `domain-init.sh` which:
+   - Installs pip packages from that domain's `requirements.txt`
+   - Installs Galaxy collections from that domain's `requirements.yml`
+   - Creates Ansible log directories
+   - Stages input files from flat `src/<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+8. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
-Use `--skip-input-copy` to skip step 9 (e.g., in CI pipelines or when input files are managed externally).
+Use `--deps-only` to skip input file staging in this step (e.g., in CI or if you manage input files externally). Dependencies are still installed.
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + input copy
-./omnia.sh -s --skip-input-copy    # Venv only, skip input file staging
+./omnia.sh -s                      # Full setup: venv + deps + input copy
+./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
+./omnia.sh --init                  # Stage input files only
 ```
 
 ## Example Output
@@ -48,45 +53,54 @@ Use `--skip-input-copy` to skip step 9 (e.g., in CI pipelines or when input file
 Using Python: python3.12 (3.12.1)
 Creating venv at /opt/omnia/venv ...
 Upgrading pip...
-Installing pip packages for image_build_manager ...
-Installing pip packages for telemetry ...
-Installing Galaxy collections for repo_manager ...
-Installing Galaxy collections for discovery ...
-
 ================================================================================
-                Omnia Venv Setup Complete
+                Omnia Venv Created
 ================================================================================
 
   Venv:    /opt/omnia/venv
   Python:  Python 3.12.1
-  Ansible:  ansible [core 2.17.0]
 
+Initializing domains (deps + log dirs + input files) ...
+  [build_stream] Installing pip packages ...
+  [build_stream] Installing Galaxy collections ...
+  [image_build_manager] Installing pip packages ...
+  [image_build_manager] Installing Galaxy collections ...
+  [repo_manager] Installing pip packages ...
+  [telemetry] Installing pip packages ...
+
+Domain init completed for 4 domain(s)
+
+Ansible: ansible [core 2.20.0]
 Installed collections:
-ansible.builtin
 ansible.posix
 community.general
-kubernetes.core
+containers.podman
 ...
 
 Activate in your shell:
-  source /opt/omnia/venv/bin/activate
+  source /opt/omnia/activate-omnia.sh
 ```
 
 ## Domain Discovery
 
-The script automatically discovers and installs dependencies from all known domains:
+Each domain is self-contained. Its `domain-init.sh` script handles:
+- Installing pip packages from `requirements.txt`
+- Installing Galaxy collections from `requirements.yml`
+- Creating log directories and staging input files
 
-- `build_stream`
-- `discovery`
-- `image_build_manager`
-- `orchestrator`
-- `repo_manager`
-- `telemetry`
-- `utils`
+Known domains: `build_stream`, `discovery`, `image_build_manager`, `orchestrator`, `repo_manager`, `telemetry`, `utils`.
 
-For each domain, it looks for:
-- `requirements.txt` — Python pip packages
-- `requirements.yml` — Ansible Galaxy collections
+**Direct domain-init.sh usage:**
+```bash
+# Run a single domain's init (full)
+bash src/image_build_manager/domain-init.sh
+
+# Run with --deps-only (deps only, no input staging)
+bash src/image_build_manager/domain-init.sh --deps-only
+
+# Run with --force (overwrite without prompting)
+bash src/image_build_manager/domain-init.sh --force
+```
 
 ## Troubleshooting
 
@@ -126,29 +140,26 @@ source /opt/omnia/venv/bin/activate
 ansible --version
 ```
 
-### No requirements.txt Found
+### Domain Init Failed
 
 ```
-WARNING: No requirements.txt found in any domain
+WARNING: domain-init.sh failed for image_build_manager — continuing
 ```
 
-**Solution**: This is a warning, not an error. It means no domains have Python dependencies. If you expect dependencies, check that domain directories exist under `src/`.
-
-### Input Copy Failed
-
-```
-WARNING: copy-input.sh failed for image_build_manager — continuing
-```
-
-**Solution**: Check that the domain's `copy-input.sh` exists and is executable. Run it manually to see the error:
+**Solution**: Check that the domain's `domain-init.sh` exists and is executable. Run it manually to see the error:
 ```bash
-bash src/image_build_manager/copy-input.sh
+bash src/image_build_manager/domain-init.sh
 ```
 
-### No copy-input.sh Scripts Found
+### No domain-init.sh Scripts Found
 
 ```
-No copy-input.sh scripts found in any domain
+No domain-init.sh scripts found in any domain
 ```
 
-**Solution**: This means no domain has a `copy-input.sh` script yet. Input files will not be staged to the runtime data path. The Ansible roles will fall back to copying from the source tree when the playbook runs.
+**Solution**: This means no domain has a `domain-init.sh` script yet. Ansible log directories will not be created automatically, and input files will not be staged to the runtime data path. Run manually:
+```bash
+sudo mkdir -p /var/log/omnia/<domain>
+mkdir -p <OMNIA_DATA_PATH>/<domain>/input/project_default
+cp -a src/<domain>/input/*.yml <OMNIA_DATA_PATH>/<domain>/input/project_default/
+```

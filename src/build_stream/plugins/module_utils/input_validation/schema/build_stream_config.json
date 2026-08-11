@@ -1,0 +1,72 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "build_stream_config",
+    "description": "Schema for build_stream_config.yml",
+    "type": "object",
+    "required": ["enable_build_stream"],
+    "properties": {
+        "enable_build_stream": {
+            "type": "boolean",
+            "description": "Enable or disable the BuildStream CI/CD pipeline"
+        },
+        "build_stream_host_ip": {
+            "type": "string",
+            "description": "BuildStream API server host IP"
+        },
+        "build_stream_port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "BuildStream API server port"
+        },
+        "gitlab_host": {
+            "type": "string",
+            "description": "Target host for GitLab deployment"
+        },
+        "gitlab_project_name": {
+            "type": "string",
+            "description": "GitLab project name"
+        },
+        "gitlab_project_visibility": {
+            "type": "string",
+            "enum": ["private", "internal", "public"],
+            "description": "GitLab project visibility"
+        },
+        "gitlab_default_branch": {
+            "type": "string",
+            "description": "Default branch for GitLab repository"
+        },
+        "gitlab_https_port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "HTTPS port for GitLab"
+        },
+        "gitlab_min_storage_gb": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Minimum free disk in GB for GitLab"
+        },
+        "gitlab_min_memory_gb": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Minimum memory in GB for GitLab"
+        },
+        "gitlab_min_cpu_cores": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Minimum CPU cores for GitLab"
+        },
+        "gitlab_puma_workers": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Puma web worker count"
+        },
+        "gitlab_sidekiq_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Sidekiq background job concurrency"
+        }
+    },
+    "additionalProperties": false
+}

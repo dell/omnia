@@ -13,66 +13,169 @@
 #  limitations under the License.
 ---
 
-- name: Set compute image suffix when build stream inputs present
-  ansible.builtin.set_fact:
-    compute_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
-  when:
-    - enable_build_stream | default(false) | bool
-    - (build_stream_job_id | default('') | length) > 0
-    - (image_key | default('') | length) > 0
+- name: Skip aarch64 compute image build (no groups defined)
+  ansible.builtin.debug:
+    msg: "No compute image groups resolved for aarch64 — skipping compute builds"
+  when: (compute_images_dict | default({}) | length) == 0
 
-- name: Ensure workdir images directory exists
-  ansible.builtin.file:
-    path: "{{ openchami_work_dir }}/images"
-    state: directory
-    mode: "{{ dir_permissions_755 }}"
-  delegate_to: "{{ aarch64_build_host }}"
-  connection: ssh
-
-- name: Ensure log directory exists
-  ansible.builtin.file:
-    path: "{{ image_build_log_dir }}"
-    state: directory
-    mode: "{{ dir_permissions_755 }}"
-
-- name: Create aarch64 compute image log files
-  ansible.builtin.file:
-    path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
-    state: touch
-    mode: "{{ dir_permissions_644 }}"
-  loop: "{{ compute_images_dict | dict2items }}"
-  loop_control:
-    loop_var: item
-  delegate_to: "{{ aarch64_build_host }}"
-  connection: ssh
-
-- name: Render compute image build configs
-  ansible.builtin.template:
-    src: "{{ openchami_compute_image_config_template }}"
-    dest: "{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml"
-    mode: "{{ dir_permissions_644 }}"
-  vars:
-    _fg_k8s_sfx: "{{ (item.key is match('service_kube_')) | ternary(k8s_suffix, '') }}"
-    rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ _fg_k8s_sfx }}{{ compute_image_suffix }}"
-    group_name: "{{ item.key }}"
-    compute_packages: "{{ item.value.packages }}"
-    functional_group: "{{ item.value.functional_group }}"
-  loop: "{{ compute_images_dict | dict2items }}"
-  loop_control:
-    loop_var: item
-  delegate_to: "{{ aarch64_build_host }}"
-  connection: ssh
-
-# --- Build path selection ---
-# When max_parallel > 0: use image_build_orchestrator module for controlled concurrency.
-# When max_parallel == 0 (unlimited): use native Ansible async/poll (all builds fire at once).
-
-- name: Build aarch64 compute images via orchestrator (concurrency-controlled)
-  when: (max_parallel | int) > 0
+- name: Build aarch64 compute images
+  when: (compute_images_dict | default({}) | length) > 0
   block:
-    - name: Build orchestrator command list
+    - name: Set compute image suffix from image tag
       ansible.builtin.set_fact:
-        _orchestrator_cmds: "{{ (_orchestrator_cmds | default([])) + [_current_cmd] }}"
+        compute_image_suffix: "{{ _image_tag_suffix | default('', true) }}"
+      when: (_image_tag_suffix | default('', true) | length) > 0
+
+    # --- Pre-build setup ---
+    # 1. Ensure workdir + log directories exist (on aarch64 build host)
+    # 2. Render per-group config YAMLs from Jinja2 templates
+    #    (each gets its own releasever from os_version for multi-version builds)
+    - name: Ensure workdir images directory exists
+      ansible.builtin.file:
+        path: "{{ openchami_work_dir }}/images"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+
+    - name: Ensure log directory exists
+      ansible.builtin.file:
+        path: "{{ image_build_log_dir }}"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+
+    - name: Render compute image build configs
+      ansible.builtin.template:
+        src: "{{ openchami_compute_image_config_template }}"
+        dest: "{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ _layer_rhel_tag }}.yaml"
+        mode: "{{ dir_permissions_644 }}"
+      vars:
+        _layer_rhel_tag: "{{ item.value.os_version | default(rhel_tag, true) }}"
+        rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix }}"
+        rhel_tag: "{{ _layer_rhel_tag }}"
+        group_name: "{{ item.key }}"
+        compute_packages: "{{ item.value.packages }}"
+        functional_group: "{{ item.value.functional_group }}"
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: item
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+
+    # --- Compute image cache check ---
+    - name: Compute per-group package hashes
+      ansible.builtin.set_fact:
+        _compute_pkg_hashes: >-
+          {% set result = {} -%}
+          {% for fg_name, fg_data in compute_images_dict.items() -%}
+            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') | hash('sha256'))}) -%}
+          {% endfor -%}
+          {{ result }}
+
+    - name: Check previous compute image package hashes
+      ansible.builtin.slurp:
+        src: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
+      register: _prev_compute_hashes
+      failed_when: false
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
+    - name: Determine which compute groups need rebuild
+      ansible.builtin.set_fact:
+        _compute_rebuild_dict: >-
+          {% set result = {} -%}
+          {% set prev_map = {} -%}
+          {% for r in _prev_compute_hashes.results -%}
+            {% if r is not failed and r.content is defined -%}
+              {% set _ = prev_map.update({r.item.key: (r.content | b64decode | trim)}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {% for fg_name, fg_data in compute_images_dict.items() -%}
+            {% set cur_hash = _compute_pkg_hashes[fg_name] -%}
+            {% set prev_hash = prev_map.get(fg_name, '') -%}
+            {% if (force_rebuild | default(false) | bool) or prev_hash != cur_hash -%}
+              {% set _ = result.update({fg_name: fg_data}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ result }}
+        _compute_skipped_groups: >-
+          {% set skipped = [] -%}
+          {% set prev_map = {} -%}
+          {% for r in _prev_compute_hashes.results -%}
+            {% if r is not failed and r.content is defined -%}
+              {% set _ = prev_map.update({r.item.key: (r.content | b64decode | trim)}) -%}
+            {% endif -%}
+          {% endfor -%}
+          {% for fg_name in compute_images_dict.keys() -%}
+            {% set cur_hash = _compute_pkg_hashes[fg_name] -%}
+            {% set prev_hash = prev_map.get(fg_name, '') -%}
+            {% if not (force_rebuild | default(false) | bool) and prev_hash == cur_hash -%}
+              {% set _ = skipped.append(fg_name) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ skipped }}
+
+    - name: Report skipped compute groups (packages unchanged)
+      ansible.builtin.debug:
+        msg: >-
+          Skipping aarch64 compute image builds for groups with unchanged packages:
+          {{ _compute_skipped_groups | join(', ') }}.
+          Set force_rebuild: true in image_build_config.yml to override.
+      when: (_compute_skipped_groups | default([]) | length) > 0
+
+    # --- Backup existing S3 compute images before rebuild ---
+    # Backup rootfs (boot-images/{group}/{image_name}/)
+    - name: Backup aarch64 compute rootfs images in S3
+      vars:
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
+        _s3_src: "s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}/"
+        _s3_dst: "s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}_prev/"
+      ansible.builtin.command:
+        cmd: >-
+          s3cmd cp --recursive
+          {{ _s3_src }}
+          {{ _s3_dst }}
+      changed_when: true
+      failed_when: false
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+      when: backup_s3_images | default(false) | bool
+
+    # Backup kernel+initrd (efi-images/{group}/{image_name}/)
+    - name: Backup aarch64 compute EFI images in S3
+      vars:
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
+        _s3_src: "s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}/"
+        _s3_dst: "s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}_prev/"
+      ansible.builtin.command:
+        cmd: >-
+          s3cmd cp --recursive
+          {{ _s3_src }}
+          {{ _s3_dst }}
+      changed_when: true
+      failed_when: false
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+      when: backup_s3_images | default(false) | bool
+
+    # --- Build via Python orchestrator ---
+    # NOTE: delegate_to sends the module to the aarch64 host for execution.
+
+    - name: Initialize orchestrator command list
+      ansible.builtin.set_fact:
+        _orchestrator_cmds: []
+
+    - name: Build orchestrator command list (only groups needing rebuild)
+      ansible.builtin.set_fact:
+        _orchestrator_cmds: "{{ _orchestrator_cmds + [_current_cmd] }}"
       vars:
         _current_cmd:
           name: "{{ item.key }}"
@@ -83,98 +186,59 @@
             {{ aws_checksum_env }}
             {{ _privilege_opts | join(' ') }}
             {{ _cert_opts | join(' ') }}
-            -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:{{ _config_mount_path }}:z
+            -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{
+            item.value.os_version | default(rhel_tag, true) }}.yaml:{{ _config_mount_path }}:z
             {{ ochami_image | join(' ') }}
             {{ ochami_base_command | join(' ') }}
           log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
-      loop: "{{ compute_images_dict | dict2items }}"
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
         loop_var: item
 
-    - name: Run orchestrated parallel builds
+    - name: Skip aarch64 compute builds (all groups cached)
+      ansible.builtin.debug:
+        msg: "All aarch64 compute images are up-to-date — skipping builds."
+      when: (_orchestrator_cmds | length) == 0
+
+    - name: "Starting aarch64 compute image builds — groups {{ _compute_rebuild_dict | default({}) | length }}"
+      ansible.builtin.debug:
+        msg: >-
+          Starting aarch64 compute image builds:
+          groups={{ _compute_rebuild_dict | default({}) | list }},
+          max_parallel={{ max_parallel }},
+          timeout={{ build_timeout }}s,
+          logs={{ image_build_log_dir }}/
+      when: (_orchestrator_cmds | length) > 0
+
+    - name: Run aarch64 compute image builds via orchestrator
       image_build_orchestrator:
         build_commands: "{{ _orchestrator_cmds }}"
         max_parallel: "{{ max_parallel | int }}"
-        timeout: "{{ job_async | int }}"
+        timeout: "{{ build_timeout | int }}"
       register: orchestrator_result
       delegate_to: "{{ aarch64_build_host }}"
       connection: ssh
+      when: (_orchestrator_cmds | length) > 0
 
-    - name: Display orchestrator build summary
+    - name: Display aarch64 compute build summary
       ansible.builtin.debug:
         msg: "Build summary: {{ orchestrator_result.summary }}"
+      when: orchestrator_result is defined and orchestrator_result.summary is defined
 
-    - name: Configure regctl to use HTTP for local registry (orchestrator path)
-      ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
-      changed_when: false
-      failed_when: false
-
-    - name: Verify aarch64 compute osimages in registry (orchestrator path)
-      ansible.builtin.command:
-        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
-      changed_when: false
-      register: verify_compute_osimages_orch
-
-    - name: Display verified images (orchestrator path)
-      ansible.builtin.debug:
-        msg: "{{ verify_compute_osimages_orch.stdout_lines }}"
-
-- name: Build aarch64 compute osimages in parallel (unlimited)
-  when: (max_parallel | int) == 0
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      podman run --rm --device /dev/fuse --network host \
-        -e S3_ACCESS={{ s3_access }} -e S3_SECRET={{ s3_secret }} \
-        {{ aws_checksum_env }} \
-        {{ _privilege_opts | join(' ') }} \
-        {{ _cert_opts | join(' ') }} \
-        -v '{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:{{ _config_mount_path }}:z' \
-        {{ ochami_image | join(' ') }} \
-        {{ ochami_base_command | join(' ') }} \
-        > '{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
-  async: "{{ job_async }}"
-  poll: 0
-  loop: "{{ compute_images_dict | dict2items }}"
-  loop_control:
-    loop_var: item
-  delegate_to: "{{ aarch64_build_host }}"
-  connection: ssh
-  register: compute_image_build_job
-  changed_when: true
-
-- name: Wait for all compute image builds to finish
-  when: (max_parallel | int) == 0
-  block:
-    - name: Display image build jobs status
-      ansible.builtin.debug:
-        msg: "Waiting for image build: {{ item.item.key }} (Job ID: {{ item.ansible_job_id }})"
-      loop: "{{ compute_image_build_job.results }}"
+    # --- Save compute image package hashes for cache ---
+    - name: Save compute image package hashes
+      ansible.builtin.copy:
+        content: "{{ _compute_pkg_hashes[item.key] }}"
+        dest: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
+        mode: "{{ dir_permissions_644 }}"
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
-        label: "{{ item.item.key }}"
+        loop_var: item
+        label: "{{ item.key }}"
+      when: orchestrator_result is defined and (orchestrator_result.summary.failed | default(0) | int) == 0
 
-    - name: Wait for all compute image builds to complete
-      ansible.builtin.async_status:
-        jid: "{{ item.ansible_job_id }}"
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
-      register: job_result
-      until: job_result.finished
-      no_log: true
-      retries: "{{ job_retry }}"
-      delay: "{{ job_delay }}"
-      loop: "{{ compute_image_build_job.results }}"
-      loop_control:
-        label: "Building: {{ item.item.key }}"
-
-    - name: Configure regctl to use HTTP for local registry
-      ansible.builtin.command: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
-      changed_when: false
-      failed_when: false
-
-    - name: Verify aarch64 compute osimages in registry
+    # --- Registry verification ---
+    - name: List aarch64 compute osimages in registry
       ansible.builtin.command:
         cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
       delegate_to: "{{ aarch64_build_host }}"
@@ -182,49 +246,20 @@
       changed_when: false
       register: verify_compute_osimages
 
-    - name: Verify aarch64 compute osimages output
+    - name: Display verified aarch64 compute images
       ansible.builtin.debug:
         msg: "{{ verify_compute_osimages.stdout_lines }}"
 
-  rescue:
-    - name: Identify failed image builds
-      ansible.builtin.set_fact:
-        failed_images: >
-          {{ job_result.results
-          | selectattr('failed', 'defined')
-          | selectattr('failed', 'equalto', true)
-          | map(attribute='item.item.key')
-          | list }}
-      when: job_result.results is defined
-
-    - name: Build failure message list
-      ansible.builtin.set_fact:
-        failure_msg_list:
-          - "aarch64 compute image build job did not complete successfully."
-          - "Check logs at {{ image_build_log_dir }} on localhost for respective functional group for more details."
-          - ""
-          - "Failed images:"
-
-    - name: Add failed image names to message
-      ansible.builtin.set_fact:
-        failure_msg_list: "{{ failure_msg_list + ['  - ' + item] }}"
-      loop: "{{ failed_images | default(['Unknown - check all logs']) }}"
-
-    - name: Add log paths section to message
-      ansible.builtin.set_fact:
-        failure_msg_list: "{{ failure_msg_list + ['', 'Check logs at ' + image_build_log_dir + ' on localhost for details:'] }}"
-
-    - name: Add log file paths to message
-      ansible.builtin.set_fact:
-        failure_msg_list: "{{ failure_msg_list + ['  - ' + image_build_log_dir + '/' + item + log_suffix + '_compute_image.log'] }}"
-      vars:
-        log_suffix: "{{ compute_image_suffix }}"
-      loop: "{{ failed_images | default([]) }}"
-
-    - name: Display aarch64 compute image build failure details
-      ansible.builtin.debug:
-        msg: "{{ failure_msg_list }}"
-
-    - name: Failed to build the aarch64 compute image
+    - name: Verify each aarch64 compute image exists in registry
       ansible.builtin.fail:
-        msg: "aarch64 compute image build failed. See details above."
+        msg: >-
+          Compute image not found in registry:
+          {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}.
+          Check log: {{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+      when: >-
+        (host_name + '/rhel-' + item.key + omnia_suffix + (compute_image_suffix | default('')))
+        not in verify_compute_osimages.stdout_lines
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"

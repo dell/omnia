@@ -1,0 +1,120 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ─────────────────────────────────────────────
+# Step 1: Validate user kickstart exists
+# ─────────────────────────────────────────────
+- name: Verify user-provided Kickstart file exists
+  ansible.builtin.stat:
+    path: "{{ kickstart_file }}"
+  register: user_ks_stat
+
+- name: Fail if user-provided Kickstart file not found
+  ansible.builtin.fail:
+    msg: "{{ kickstart_file_not_found_msg }}"
+  when: not user_ks_stat.stat.exists
+
+# ─────────────────────────────────────────────
+# Step 2: Copy to output path for modification
+# ─────────────────────────────────────────────
+- name: Copy kickstart to output path
+  ansible.builtin.copy:
+    src: "{{ kickstart_file }}"
+    dest: "{{ kickstart_output_path }}"
+    mode: '0600'
+    remote_src: true
+
+# ─────────────────────────────────────────────
+# Step 3: Check for existing directives
+# Grep for actual directives at start of line
+# (not inside comments or %post scripts)
+# ─────────────────────────────────────────────
+- name: Check if rootpw directive exists
+  ansible.builtin.shell:
+    cmd: grep -cP '^\s*rootpw\s' "{{ kickstart_output_path }}" || true
+  register: rootpw_count
+  changed_when: false
+
+- name: Check if sshkey directive exists
+  ansible.builtin.shell:
+    cmd: grep -cP '^\s*sshkey\s' "{{ kickstart_output_path }}" || true
+  register: sshkey_count
+  changed_when: false
+
+- name: Check for authentication marker comment
+  ansible.builtin.shell:
+    cmd: grep -cPi '^\s*#\s*Authentication' "{{ kickstart_output_path }}" || true
+  register: auth_marker_count
+  changed_when: false
+
+- name: Set injection flags
+  ansible.builtin.set_fact:
+    inject_rootpw: "{{ rootpw_count.stdout | trim | int == 0 and ks_root_password_hash | default('') | length > 0 }}"
+    inject_sshkey: "{{ sshkey_count.stdout | trim | int == 0 and ks_ssh_public_key | default('') | length > 0 }}"
+    has_auth_marker: "{{ auth_marker_count.stdout | trim | int > 0 }}"
+
+# ─────────────────────────────────────────────
+# Step 4: Inject rootpw
+# Method 1: After "# Authentication" marker
+# Method 2: Before bootloader directive
+# ─────────────────────────────────────────────
+- name: Inject rootpw after authentication marker
+  ansible.builtin.lineinfile:
+    path: "{{ kickstart_output_path }}"
+    line: "rootpw --iscrypted {{ ks_root_password_hash }}"
+    insertafter: '(?i)^\s*#\s*Authentication'
+    firstmatch: true
+    state: present
+  when:
+    - inject_rootpw | bool
+    - has_auth_marker | bool
+  no_log: true
+
+- name: Inject rootpw before bootloader (no marker found)
+  ansible.builtin.lineinfile:
+    path: "{{ kickstart_output_path }}"
+    line: "rootpw --iscrypted {{ ks_root_password_hash }}"
+    insertbefore: '^\s*bootloader\s'
+    firstmatch: true
+    state: present
+  when:
+    - inject_rootpw | bool
+    - not has_auth_marker | bool
+  no_log: true
+
+# ─────────────────────────────────────────────
+# Step 5: Inject sshkey (always after rootpw)
+# ─────────────────────────────────────────────
+- name: Inject sshkey after rootpw
+  ansible.builtin.lineinfile:
+    path: "{{ kickstart_output_path }}"
+    line: 'sshkey --username=root "{{ ks_ssh_public_key }}"'
+    insertafter: '^\s*rootpw\s'
+    firstmatch: true
+    state: present
+  when: inject_sshkey | bool
+  no_log: true
+
+# ─────────────────────────────────────────────
+# Step 6: Log result
+# ─────────────────────────────────────────────
+- name: Log kickstart credential injection result
+  ansible.builtin.debug:
+    msg: >-
+      Kickstart processed:
+      rootpw {{ 'injected' if inject_rootpw | bool else 'already present' }}
+      ({{ 'after marker' if has_auth_marker | bool else 'before bootloader' }}),
+      sshkey {{ 'injected' if inject_sshkey | bool else 'already present' }}.
+      Output: {{ kickstart_output_path }}

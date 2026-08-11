@@ -1,72 +1,112 @@
 # Test Automation — Coding Rules
 
-> Adapted from [Dell Omnia Automation Framework Rules](https://github.com/dell/omnia-containers).
 > All test automation code under `test/` MUST follow these rules.
+> These rules apply to every domain test module (image_build_manager, repo_manager, provision, discovery, telemetry, etc.).
 
 ---
 
-## 1. Module Architecture
+## 1. Pre-Development Analysis (MANDATORY)
 
-### 1.1 Directory Structure (MANDATORY)
+### 1.1 Analyze the Source Code First
 
-```
-test/
-├── fvt/                            # Functional Verification Tests
-│   ├── <scenario>/                 # One folder per test scenario
-│   │   ├── deploy/test_deploy.py   # Playbook execution (deploy command)
-│   │   ├── <component>/test_<component>.py
-│   │   └── ...
-│   └── <domain>/                   # Full verification (verify command)
-│       ├── <component>/
-│       ├── <component>/
-│       └── ...
-├── library/                        # Shared automation library
-│   ├── functions/                  # Verification logic
-│   │   ├── __init__.py
-│   │   ├── <domain>_func.py        # Domain-specific checks
-│   │   ├── host_func.py            # Connection, sync, config loading
-│   │   ├── formatting_func.py      # TestLogger, Colors, Symbols
-│   │   ├── runner_func.py          # PlaybookRunner
-│   │   └── report_func.py          # TestReport, HTML generation
-│   ├── vars/                       # Constants and configuration
-│   │   ├── __init__.py
-│   │   ├── common_vars.py          # CMDS dict, paths, ports, retries
-│   │   └── runner_vars.py          # PlaybookRunner constants
-│   ├── messages/                   # All user-facing strings
-│   │   ├── __init__.py
-│   │   └── <domain>_msgs.py        # TEST_NAMES, LOG, ASSERT, SKIP
-│   └── validation/                 # Config validation
-│       └── functions/
-│           └── validation_func.py
-├── datasets/                       # Input datasets
-│   └── <dataset>/
-│       ├── config.yml              # Top-level project config
-│       └── input/                  # Files synced to target
-│           ├── <domain>_config.yml
-│           ├── <domain>_credentials.yml
-│           └── upstream_output/
-├── conftest.py                     # pytest hooks and fixtures
-├── test_config.yml                 # Server connection and sync settings
-├── test_run_config.yml             # Suite enable/disable and markers
-├── test_creds.yml                  # SSH credentials (vault-encrypted)
-├── run_validation.sh               # Main entry point
-├── setup_env.sh                    # Environment setup script
-└── requirements.txt                # Python dependencies
+Before writing **any** automation code:
+
+1. **Read the playbook source** under `src/<domain_name>/playbooks/` or `src/<domain_name>/roles/`.
+2. **Identify all roles** the playbook calls, what hosts it targets, and what resources it creates (containers, services, files, pods, configs).
+3. **Map each resource to a verification test** — every container the playbook creates should have a test that checks it is running, every service should be checked as active, etc.
+
+```bash
+# Example: analyze a domain's playbook
+ls src/<domain_name>/playbooks/       # Main playbook entry points
+ls src/<domain_name>/roles/           # All roles
+cat src/<domain_name>/playbooks/<tag>.yml  # Read a specific phase
 ```
 
-### 1.2 Strict Separation Rules
+### 1.2 Manually Verify on a Working Cluster
+
+If a working cluster is available:
+
+1. **Log into the target server** and manually verify the feature works.
+2. **Check containers, services, ports, files** that the playbook creates.
+3. **Document what you verified manually** — these become your test cases.
+4. **Never automate blind** — if you have not verified it manually at least once, do not write automation for it.
+
+### 1.3 Check `omnia-auto` Core Functions FIRST
+
+Before writing ANY new function:
+
+1. **Install `omnia-auto` from the local wheel**:
+   ```bash
+   pip install ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl
+   python -c "import omnia_auto; print(omnia_auto.__all__)"
+   ```
+2. **Read the API reference**: `test/plugins/USAGE.md` and `test/plugins/docs/`
+3. **Search for existing functions** — SSH connection, file sync, config loading, host connection, playbook execution, formatting, reporting are all provided by `omnia_auto`.
+4. **Only write a new function if no existing `omnia_auto` function covers it.**
+5. If your new function is generic enough to be reused across domains, propose adding it to `test/plugins/omnia_auto/` and rebuild the wheel.
+
+**Core functions already provided by `omnia_auto`:**
+
+| Instead of | Use |
+|------------|-----|
+| `host.run("ssh ...")` | `run_on_host(host, cmd)` |
+| `host.run("rsync ...")` | `sync_files(mode="ssh", ...)` |
+| `host.run("git clone ...")` | `clone_repo(mode="ssh", ...)` |
+| `subprocess.run(["ansible-playbook", ...])` | `run_playbook(tag=..., timeout=...)` |
+| `open("test_config.yml")` | `load_test_config()` |
+| `open("test_creds.yml")` | `load_test_credentials()` |
+| Inline color codes | `Colors.GREEN`, `Symbols.CHECK` |
+| `print(...)` for test output | `log(msg, level)` or `TestLogger` |
+
+---
+
+## 2. Module Structure Rules
+
+### 2.1 Directory Structure (MANDATORY)
+
+Every domain test module must follow this structure:
+
+```
+test/<domain_name>/
+├── conftest.py                    # Session setup, omnia_auto.configure()
+├── test_config.yml                # Non-sensitive settings (IP, paths)
+├── test_creds.yml                 # Sensitive credentials (auto-encrypted)
+├── requirements.txt               # Dependencies including omnia-auto wheel
+├── run_validation.sh              # CLI runner
+├── setup_env.sh                   # One-time venv + tab-completion setup
+├── datasets/
+│   └── data_set_01/
+│       └── input/                 # Synced to target
+├── library/
+│   ├── functions/
+│   │   ├── __init__.py            # Public API — imports from omnia_auto + domain
+│   │   ├── <domain_name>_func.py  # Domain-specific verification functions
+│   │   ├── host_func.py           # Sync functions, re-exports from omnia_auto
+│   │   └── validation_func.py     # Config validation
+│   ├── vars/
+│   │   └── common_vars.py         # Constants (container names, paths, CMDS dict)
+│   └── messages/
+│       └── <domain_name>_msgs.py  # TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+└── fvt/
+    ├── TEST_CASES.md              # All test cases documented
+    ├── <scenario>/                # One dir per playbook tag
+    │   ├── test_playbook.py       # Deploy test
+    │   └── <suite>/test_<suite>.py
+    └── <domain_name>/             # Full end-to-end (no tag)
+```
+
+### 2.2 Strict Separation Rules
 
 | Content | Location | Never In |
 |---------|----------|----------|
 | Shell commands | `CMDS` dict in `common_vars.py` | Test files, function files |
-| Test names | `TEST_NAMES` in `build_image_msgs.py` | Test files |
-| Log messages | `TEST_LOG_MSGS` in `build_image_msgs.py` | Test files |
-| Assert messages | `TEST_ASSERT_MSGS` in `build_image_msgs.py` | Test files |
-| Skip messages | `TEST_LOG_MSGS` (skip keys) in `build_image_msgs.py` | Test files |
-| Constants | `common_vars.py` or `runner_vars.py` | Function or test files |
-| Verification logic | `functions/*.py` | Test files |
+| Test names | `TEST_NAMES` in `<domain_name>_msgs.py` | Test files |
+| Log messages | `LOG_MSGS` in `<domain_name>_msgs.py` | Test files |
+| Assert messages | `ASSERT_MSGS` in `<domain_name>_msgs.py` | Test files |
+| Constants | `common_vars.py` | Function or test files |
+| Verification logic | `functions/<domain_name>_func.py` | Test files |
 
-### 1.3 `__init__.py` Requirements
+### 2.3 `__init__.py` Requirements
 
 Every `__init__.py` MUST:
 1. Include Apache 2.0 license header (current year)
@@ -74,11 +114,34 @@ Every `__init__.py` MUST:
 3. Import and re-export specific items (no `import *`)
 4. Group imports: functions, then vars, then messages
 
+### 2.4 Re-exports with `__all__`
+
+When importing from `omnia_auto` for re-export:
+
+```python
+from omnia_auto import (
+    load_test_config,
+    load_test_credentials,
+    get_testinfra_host,
+    run_on_host,
+)
+
+__all__ = [
+    "load_test_config",
+    "load_test_credentials",
+    "get_testinfra_host",
+    "run_on_host",
+    "my_domain_function",
+]
+```
+
+This is the standard Python way to declare public API — pylint and other tools respect `__all__`.
+
 ---
 
-## 2. Test Writing Rules
+## 3. Test Writing Rules
 
-### 2.1 Test File Docstring (MANDATORY)
+### 3.1 Test File Docstring (MANDATORY)
 
 Every test file MUST start with a module docstring listing all test cases:
 
@@ -88,113 +151,164 @@ Every test file MUST start with a module docstring listing all test cases:
 
 TC_<AREA>_001: Verify <aspect 1>
 TC_<AREA>_002: Verify <aspect 2>
-TC_<AREA>_003: Verify <aspect 3>
 """
 ```
 
-### 2.2 Test Function Structure (MANDATORY)
+### 3.2 Test Function Structure (MANDATORY)
 
 ```python
-@pytest.mark.x86_64
 @pytest.mark.sanity
-@pytest.mark.order(6)
-def test_registry_images_x86_64(host):
-    """TC_IB_006: Verify x86_64 images in registry."""
-    # 1. Initialize logger with centralized test name
-    tl = TestLogger(TEST_NAMES["registry_images"].format(arch="x86_64"))
+@pytest.mark.order(1)
+def test_verify_resource(host):
+    """TC_XX_002: Verify resource is present after deployment."""
+    # 1. Get TC metadata from TEST_CASES dict
+    tc = TEST_CASES["verify_resource"]
 
-    # 2. Call verification function (returns dict)
-    result = check_registry_images(host, arch="x86_64")
+    # 2. Initialize logger with title and TC ID from dict
+    tl = TestLogger(tc["title"], tc["id"])
 
-    # 3. Handle skip (optional features)
+    # 3. Call verification function (returns dict)
+    result = check_something(host)
+
+    # 4. Handle skip (optional features)
     if result.get("skipped"):
         tl.skipped(result["details"])
         pytest.skip(result["details"])
 
-    # 4. Build details string
-    details = format_result(result)
-
     # 5. Log pass or fail
-    if result["success"]:
-        tl.passed(LOG["registry_images_ok"].format(arch="x86_64"), details)
-    else:
-        tl.failed(LOG["registry_images_missing"].format(...), details)
+    tl.passed(result["details"]) if result["success"] else tl.failed(result["error"])
 
     # 6. Assert with centralized message
-    assert result["success"], ASSERT["registry_images_missing"].format(...)
+    assert result["success"], ASSERT_MSGS["resource_missing"]
 ```
 
-### 2.3 Test Naming Convention
+**Key Rules:**
+- **Never hardcode TC IDs** — always use `TEST_CASES[key]["id"]`
+- **Never hardcode test titles** — always use `TEST_CASES[key]["title"]`
+- The key in `TEST_CASES` matches the function name without `test_` prefix
 
-| Type | Convention | Example |
-|------|-----------|---------|
-| Test function | `test_<feature>_<aspect>` | `test_registry_images_x86_64` |
-| Test file | `test_<component>.py` | `test_registry_images.py` |
-| Test case ID | `TC_<AREA>_<SEQ>` | `TC_IB_006` |
+### 3.3 Test Case ID Convention
 
-### 2.4 Test Case ID Areas
+| Format | Rule |
+|--------|------|
+| **Pattern** | `TC_<AREA>_<SEQ>` (3-digit zero-padded) |
+| **Area** | 2-letter abbreviation of the test phase or scenario |
+| **Sequence** | Sequential within that area, starting at `001` (or `000` for deploy) |
+
+Each domain defines its own area prefixes. Common examples:
 
 | Area | Prefix | Description |
 |------|--------|-------------|
-| Validate | `TC_VL_` | Validation tag tests |
-| Prepare | `TC_PR_` | Prepare tag tests |
-| Build | `TC_BD_` | Build tag tests |
-| Cleanup | `TC_CL_` | Cleanup tag tests |
+| Validate | `TC_VL_` | Input validation tests |
+| Prepare | `TC_PR_` | Infrastructure setup tests |
+| Build | `TC_BD_` | Build/execute phase tests |
+| Cleanup | `TC_CL_` | Cleanup verification tests |
 | End-to-End | `TC_E2E_` | Full suite verification |
 
-### 2.5 Test Output Format
+### 3.4 Test Naming Convention
 
-Use `✓`/`✗` format with grouping:
+| Type | Convention | Example |
+|------|-----------|---------|
+| Test function | `test_<feature>_<aspect>` | `test_container_running` |
+| Test file | `test_<component>.py` | `test_container.py` |
+| Test case ID | `TC_<AREA>_<SEQ>` | `TC_PR_003` |
 
+### 3.5 Deploy Test Pattern
+
+Deploy tests run the playbook and always execute first (`order(0)`):
+
+```python
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.order(0)
+def test_deploy_scenario(host):
+    """TC_XX_000: Deploy <domain_name> --tags <tag>."""
+    tc = TEST_CASES["deploy_scenario"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = run_playbook(
+        playbook=PLAYBOOK_ENTRY_POINT,
+        tag="<tag>",
+        timeout=3600,
+    )
+    tl.passed("Playbook completed") if result["success"] else tl.failed(result["error"])
+    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+        playbook=PLAYBOOK_ENTRY_POINT, tag="<tag>", rc=result["rc"],
+    )
 ```
-  ▶ Verify x86_64 images in registry
-  ✔ PASS: All x86_64 images found in registry
-    │ Registry: abhoim.vm.cluster:5000
-    │ ✓ rhel-x86_64-base
-    │ ✓ rhel-slurm_node_x86_64
-```
 
-### 2.6 Import Structure for Test Files
+**run_playbook Rules:**
+- **Always pass `playbook=` explicitly** — never rely on defaults
+- **Use `PLAYBOOK_ENTRY_POINT`** constant from `common_vars.py`
+- **TC ID and title** come from `TEST_CASES` dict — never hardcode
+- **Timeout** should be appropriate for the tag (3600s for full, 1800s for single tag)
+
+### 3.6 Import Structure for Test Files
 
 ```python
 # Third-party
 import pytest
 
-# Local — Functions
-from library.functions import TestLogger, check_registry_images
+# Local — Functions (ONLY from library, NEVER from omnia_auto directly)
+from library.functions import (
+    TestLogger,
+    run_playbook,
+    check_something,
+)
+
+# Local — Variables (TEST_CASES, constants)
+from library.vars import (
+    TEST_CASES,
+    PLAYBOOK_ENTRY_POINT,
+)
 
 # Local — Messages
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
-)
+from library.messages import ASSERT_MSGS
 ```
+
+**Import Rules:**
+- **Never import from `omnia_auto` directly in test files** — use `library.functions`
+- **TEST_CASES** comes from `library.vars`, not messages
+- **PLAYBOOK_ENTRY_POINT** must be imported for deploy tests
+
+### 3.7 Test Output Format
+
+Tests produce structured output via `TestLogger`:
+
+```
+  ▶ Verify container is running
+  ✔ PASS: Container my-service is running
+    │ Status: Up 3 hours
+```
+
+**Never use `print()` directly.** Always use `TestLogger` or `log()`.
 
 ---
 
-## 3. Functions Module Rules
+## 4. Verification Function Rules
 
-### 3.1 Return Dictionary Pattern (MANDATORY)
+### 4.1 Return Dictionary Pattern (MANDATORY)
 
 All verification functions MUST return a dict:
 
 ```python
-def check_something(host) -> Dict[str, Any]:
-    """Verify something.
+def check_something(host, name: str) -> Dict[str, Any]:
+    """Verify something exists on the target.
+
+    Args:
+        host: Testinfra host connection.
+        name: Name of the resource to check.
 
     Returns:
-        Dict with 'success', 'error', and component-specific keys.
+        Dict with keys: success (bool), details (str), error (str).
     """
-    return {
-        "success": True,       # REQUIRED — bool
-        "error": None,         # REQUIRED — None or error string
-        "details": "...",      # Human-readable details
-        "skipped": False,      # True if feature not configured
-    }
+    cmd = CMDS["check_resource"].format(name=name)
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {"success": False, "details": "", "error": f"{name} not found"}
+    return {"success": True, "details": f"{name} is present", "error": ""}
 ```
 
-### 3.2 Dynamic Input Rules (CRITICAL)
+### 4.2 Dynamic Input Rules (CRITICAL)
 
 **NEVER hardcode:**
 - IP addresses or hostnames
@@ -207,7 +321,7 @@ def check_something(host) -> Dict[str, Any]:
 - Use `CMDS` dict for shell commands
 - Use constants from `common_vars.py` for paths and ports
 
-### 3.3 Skip Pattern for Optional Features
+### 4.3 Skip Pattern for Optional Features
 
 ```python
 if not groups:
@@ -220,67 +334,157 @@ if not groups:
 
 ---
 
-## 4. Variables Module Rules
+## 5. Variables Module Rules
 
-### 4.1 Command Dictionary (MANDATORY)
+### 5.1 Command Dictionary (MANDATORY)
 
-All shell commands MUST be in `CMDS`:
+All shell commands MUST be in the `CMDS` dict in `common_vars.py`:
 
 ```python
 CMDS: Dict[str, str] = {
-    "check_container": "podman ps --format '{{{{.Names}}}}' --filter name={}",
-    "list_s3_objects": "s3cmd ls s3://{bucket}/ --host={host}",
+    "podman_ps_check": (
+        "podman ps --format '{{.Names}}'"
+        " --filter name=^{container}$ 2>/dev/null"
+    ),
+    "systemctl_is_active": "systemctl is-active {service} 2>/dev/null",
+    "file_exists": "test -f {path} && echo exists",
+    # ... domain-specific commands
 }
 ```
 
-### 4.2 Constants
+### 5.2 Domain Constants
 
 ```python
-# Ports
-MINIO_API_PORT = 9000
-REGISTRY_PORT = 5000
+# Domain identity
+DOMAIN_NAME = "<domain_name>"
 
-# Retries
-CONTAINER_WAIT_RETRIES = 5
-CONTAINER_WAIT_DELAY = 3
+# Playbook config
+PLAYBOOK_ENTRY_POINT = "<domain_name>.yml"
+PLAYBOOK_WORKDIR = "src/<domain_name>/playbooks"
+
+# Domain-specific resources
+CONTAINER_NAMES = ["my-service"]
+SYSTEMD_SERVICES = ["my-service.service"]
+FIREWALL_PORTS = ["8080/tcp"]
 ```
+
+### 5.3 TEST_CASES Dictionary (MANDATORY)
+
+All test case metadata MUST be centralized in `test_case_vars.py`:
+
+```python
+TEST_CASES: Dict[str, Dict[str, str]] = {
+    "deploy_prepare": {
+        "id": "TC_PR_001",
+        "title": "Deploy image_build_manager --tags prepare",
+    },
+    "verify_s3_backend": {
+        "id": "TC_PR_002",
+        "title": "Verify S3 storage backend after prepare",
+    },
+    # ... all test cases
+}
+```
+
+**Rules:**
+- Keys match test function names (without `test_` prefix)
+- Each entry has `id` and `title` only
+- Tests look up TC ID and title from this dict — never hardcode
+- Order and markers are defined via pytest decorators, not in TEST_CASES
+
+### 5.4 Rules
+
+- **No magic numbers** in function or test files — define all numbers as named constants.
+- **No inline shell strings** — every command goes in `CMDS`.
+- Use `CMDS[key].format(...)` with named placeholders.
 
 ---
 
-## 5. Messages Module Rules (MANDATORY)
+## 6. Messages Module Rules (MANDATORY)
 
-### 5.1 Required Dictionaries
+### 6.1 Required Dictionaries
+
+Every domain module defines three message dictionaries in `<domain_name>_msgs.py`:
 
 ```python
 TEST_NAMES: Dict[str, str] = {
-    "registry_images": "Verify {arch} images in registry",
+    "deploy_scenario": "Deploy <domain_name> --tags <tag>",
+    "verify_resource": "Verify resource is present",
 }
 
-TEST_LOG_MSGS: Dict[str, str] = {
-    "registry_images_ok": "All {arch} images found in registry",
-    "build_status_not_found": "build_status.yml not found ...",
+LOG_MSGS: Dict[str, str] = {
+    "resource_found": "Resource '{name}' is present: {status}",
+    "resource_missing": "Resource '{name}' not found",
 }
 
-TEST_ASSERT_MSGS: Dict[str, str] = {
-    "registry_images_missing": (
-        "REGISTRY IMAGES MISSING\n"
-        "...\n"
+ASSERT_MSGS: Dict[str, str] = {
+    "deploy_failed": "Playbook execution failed for --tags <tag>",
+    "resource_missing": (
+        "Expected resource '{name}' to be present\n"
         "HOW TO FIX:\n"
-        "  1. Check registry: regctl repo ls ...\n"
+        "  1. Check the playbook ran successfully\n"
+        "  2. Verify resource manually on the target\n"
     ),
 }
 ```
 
-### 5.2 Rules
-- Use `{placeholder}` for dynamic values
-- Include **HOW TO FIX** in assertion messages
-- Never hardcode IPs in messages — use `<placeholder>` format
+### 6.2 Rules
+
+- **ALL test names** go in `TEST_NAMES` — never inline in test files.
+- **ALL log messages** go in `LOG_MSGS` — never inline in function files.
+- **ALL assertion messages** go in `ASSERT_MSGS` — never inline in test files.
+- Use `.format()` with named `{placeholder}` syntax for dynamic content.
+- Keys use `snake_case` matching the test or function name.
+- Include **HOW TO FIX** in assertion messages where helpful.
+- Never hardcode IPs in messages — use `<placeholder>` format.
 
 ---
 
-## 6. Code Standards
+## 7. Docstring Rules
 
-### 6.1 License Header (MANDATORY)
+### 7.1 Module Docstrings
+
+Every `.py` file must start with a module docstring:
+
+```python
+"""
+<Domain Name> — <Purpose>
+
+<Brief description of what this module provides.>
+"""
+```
+
+### 7.2 Function Docstrings (Google Style)
+
+Every function must have a Google-style docstring:
+
+```python
+def check_container_running(host, container_name: str) -> Dict[str, Any]:
+    """Check if a container is running on the target host.
+
+    Args:
+        host: Testinfra host connection.
+        container_name: Name of the container to check.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+```
+
+### 7.3 Test Function Docstrings
+
+Test function docstrings MUST start with the TC ID:
+
+```python
+def test_container_running(host):
+    """TC_PR_002: Verify container is running after prepare."""
+```
+
+---
+
+## 8. Code Standards
+
+### 8.1 License Header (MANDATORY)
 
 Every Python file MUST start with:
 
@@ -288,19 +492,34 @@ Every Python file MUST start with:
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# ...
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ```
 
-### 6.2 Python Standards
+For YAML files, use `#` comment style with the same content.
 
-- Python 3.12+ compatibility
-- pylint score ≥ 8.7
-- Max line length: 100 characters
-- 4-space indentation, no tabs
-- Type hints on all public functions
-- Google-style docstrings on all functions
+### 8.2 Python Standards
 
-### 6.3 Import Organization
+| Rule | Requirement |
+|------|-------------|
+| **Compatibility** | Python 3.12+ — no deprecated APIs or Python 2 patterns |
+| **Pylint score** | ≥ 8.8 per file (team standard), ≥ 8.0 (CI gate) |
+| **Line length** | Max 100 characters (break long strings with parentheses) |
+| **Indentation** | 4 spaces, no tabs |
+| **Type hints** | On all public function parameters and return types |
+| **Docstrings** | Google-style on every module, class, and public function |
+| **Naming** | `snake_case` for functions/variables, `PascalCase` for classes, `ALL_CAPS` for constants |
+| **Private members** | Prefix with `_` (e.g., `_build_ssh_cmd()`) |
+
+### 8.3 Import Organization
 
 ```python
 # 1. Standard library
@@ -313,10 +532,10 @@ import pytest
 # 3. Local
 from library.functions import TestLogger
 from library.vars.common_vars import CMDS
-from library.messages import TEST_NAMES
+from library.messages import TEST_NAMES, ASSERT_MSGS
 ```
 
-### 6.4 Shell Scripts
+### 8.4 Shell Scripts
 
 - Start with `set -euo pipefail`
 - Use functions for reusable logic
@@ -324,93 +543,349 @@ from library.messages import TEST_NAMES
 
 ---
 
-## 7. Git Commit Rules (MANDATORY)
+## 9. Pylint Rules
 
-### 7.1 Commit Format
+### 9.1 Score Requirements
 
-All commits **MUST** use `--signoff` and `--author`:
+- **CI threshold**: 8.0/10 (automated gate — PR fails below this)
+- **Team standard**: 8.8/10 minimum per file (code review rejects below this)
+- **Current omnia-auto score**: 9.62/10
+
+### 9.2 Running Pylint
+
+```bash
+# Activate the venv first (omnia-auto must be installed)
+source .venv/bin/activate
+
+# Check a single file
+pylint library/functions/<domain_name>_func.py
+
+# Check all module files
+pylint library/functions/*.py library/vars/*.py library/messages/*.py
+
+# Check the omnia-auto plugin (from test/plugins/)
+cd ../plugins && pylint omnia_auto/
+```
+
+### 9.3 Do NOT Suppress Warnings
+
+**Do NOT use `# noqa` or `# pylint: disable=...` to suppress warnings.** Fix the actual issue:
+
+| Issue | Fix |
+|-------|-----|
+| `C0301` line-too-long | Break long strings, use variables |
+| `R0913` too-many-arguments | Group related params into a dict or dataclass |
+| `R0914` too-many-locals | Extract helper functions |
+| `R0912` too-many-branches | Use lookup dicts, early returns |
+| `W0611` unused-import (re-exports) | Add `__all__` to declare public API |
+| `W0613` unused-argument | Prefix with `_` (e.g., `_host`) |
+| `C0114/C0115/C0116` missing-docstring | Add docstrings to every module/class/function |
+
+Only `# pylint: disable` is acceptable for `global-statement` where truly needed.
+
+---
+
+## 10. Bandit Security Rules
+
+### 10.1 Running Bandit
+
+```bash
+# Scan all module code
+bandit -r library/ -ll -ii
+
+# Scan omnia-auto plugin
+cd ../plugins && bandit -r omnia_auto/ -ll -ii
+```
+
+### 10.2 Rules
+
+- **No High severity issues** — these block the PR.
+- **Medium severity** — must be reviewed and justified.
+- `shell=True` subprocess calls: Add `# nosec B602` with a comment explaining why.
+- Never hardcode passwords (`B105`) — use `load_test_credentials()`.
+- No hardcoded `/tmp/` paths (`B108`) — if it is a remote SSH path, add `# nosec B108` with justification.
+
+---
+
+## 11. Security Rules
+
+### 11.1 No Hardcoded Secrets
+
+- **Never commit real IPs, passwords, hostnames, or tokens.**
+- `test_config.yml` must ship with `oim_server_ip: ""` — user fills in locally.
+- `test_creds.yml` must ship with `oim_password: ""` — user fills in locally.
+- Credentials file is auto-encrypted with Ansible Vault on first run.
+
+### 11.2 Pre-Push Security Scan
+
+Before every push, run:
+
+```bash
+# Check for hardcoded IPs
+grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
+    --include="*.py" --include="*.yml" | \
+    grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
+
+# Check for hardcoded passwords/secrets
+grep -rn -iE '(password|secret|token|api.?key)\s*=\s*["'"'"'][^"'"'"']+["'"'"']' \
+    --include="*.py" --include="*.yml" | \
+    grep -v 'CHANGE_ME' | grep -v 'placeholder'
+```
+
+Both must return empty results.
+
+### 11.3 Configuration Settings (`test_config.yml`)
+
+Key settings that must be documented and properly configured:
+
+| Setting | Required | Default | Description |
+|---------|----------|---------|-------------|
+| `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
+| `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
+| `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
+| `dataset` | Yes | `data_set_01` | Active dataset folder under `datasets/`. |
+| `project_name` | No | `project_default` | Project name for input/output paths on target. |
+
+**Execution Modes:**
+- **Local mode** (`oim_server_ip: ""`): Tests run on the current machine. Playbook path resolved from source tree.
+- **Remote mode** (`oim_server_ip: "<IP>"`): Tests run against a remote server via SSH. Code synced to `clone_path`.
+
+**Playbook Path Resolution:**
+- **Local mode**: `<repo_root>/<playbook_workdir>` (e.g., `/path/to/omnia/src/image_build_manager/playbooks`)
+- **Remote mode**: `<clone_path>/<playbook_workdir>` (e.g., `/omnia/src/image_build_manager/playbooks`)
+
+---
+
+## 12. CI Checks (All Must Pass)
+
+The following CI workflows run on every PR. **All must pass before merge.**
+
+| Check | Tool | Rule |
+|-------|------|------|
+| **DCO** | `dco` | Every commit signed off (`git commit -s`) |
+| **Pylint** | `pylint` | Score ≥ 8.0 per file (CI may report `import-error` for `omnia_auto` — expected) |
+| **Bandit** | `bandit` | No High severity issues |
+| **Gitleaks** | `gitleaks` | No secrets in committed code |
+| **Ansible Lint** | `ansible-lint` | YAML best practices (`true`/`false` not `yes`/`no`, newline at EOF) |
+| **pip-audit** | `pip-audit` | No vulnerable Python dependencies |
+| **Checkmarx** | SAST | No hardcoded credentials, no insecure file operations |
+
+---
+
+## 13. Environment Setup and Testing
+
+### 13.1 Setup (One-Time)
+
+```bash
+cd test/<domain_name>/
+
+# Step 1: Run setup script to create venv and install dependencies
+bash setup_env.sh
+
+# Step 2: Activate the virtual environment
+source .venv/bin/activate
+
+# Step 3: Configure test settings
+vi test_config.yml        # Set oim_server_ip, paths, options
+vi test_creds.yml         # Set oim_password (auto-encrypted on first run)
+```
+
+`setup_env.sh` installs all dependencies from `requirements.txt` (including `omnia-auto`
+from `../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl`).
+
+### 13.2 Running Tests — Use `run_validation`, NOT `pytest`
+
+**Always use `run_validation` (or `./run_validation.sh`) to run tests.** Never invoke `pytest` directly.
+
+```bash
+# Verify a specific scenario
+run_validation <scenario> verify --marker sanity
+
+# Deploy + verify
+run_validation <domain_name> test
+
+# Run a specific suite within a scenario
+run_validation <scenario> verify --suite <suite_name>
+
+# Full batch from config
+run_validation --config
+
+# List available scenarios
+run_validation list
+```
+
+### 13.3 Test Iteration Loop
+
+```
+Write code → Run tests → Fix failures → Re-run tests → All pass → Push
+                ↑                              |
+                └──────────────────────────────┘
+```
+
+**Never push with known failures. Never skip a failing test to "fix later".**
+
+---
+
+## 14. Feature Testing Workflow
+
+### 14.1 Writing Tests for a New Feature
+
+```
+1. Read the playbook source code (src/<domain_name>/)
+2. Identify what resources the playbook creates
+3. Manually verify on a working cluster
+4. Check omnia_auto for existing verification functions
+5. Write domain-specific verification function in <domain_name>_func.py
+6. Write the test in fvt/<scenario>/<suite>/
+7. Add messages to <domain_name>_msgs.py
+8. Add TC ID to fvt/TEST_CASES.md
+9. Run pylint + bandit + tests
+10. Push
+```
+
+### 14.2 Rebuilding the `omnia-auto` Wheel
+
+If you modify the shared plugin code in `test/plugins/omnia_auto/`:
+
+```bash
+cd test/plugins/
+
+# 1. Run pylint on the plugin
+pylint omnia_auto/
+
+# 2. Run bandit
+bandit -r omnia_auto/ -ll -ii
+
+# 3. Rebuild the wheel
+rm -rf dist/ build/ *.egg-info
+python -m build --wheel
+
+# 4. Reinstall in the domain venv
+cd ../image_build_manager/      # or your domain module
+source .venv/bin/activate
+pip install --force-reinstall ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl
+
+# 5. Verify the install
+python -c "import omnia_auto; print(omnia_auto.__version__)"
+```
+
+---
+
+## 15. Git Commit Rules (MANDATORY)
+
+### 15.1 Commit Format
 
 ```bash
 git commit --signoff \
   --author="Your Name <your.email@dell.com>" \
-  -m "Issue #<number>: Short description of change"
+  -m "<type>(<scope>): <description>"
 ```
 
-**Example:**
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
-```bash
-git commit --signoff \
-  --author="Your Name <your.email@dell.com>" \
-  -m "Issue #42: Add x86_64 S3 image verification tests"
-```
+### 15.2 Commit Message Rules
 
-### 7.2 Commit Message Rules
-
-- **First line**: `Issue #<number>: <imperative verb> <what changed>` (max 72 chars)
+- **First line**: `<type>(<scope>): <description>` (max 72 chars)
 - **Body** (optional): Blank line, then details in bullet points
 - **Signed-off-by**: Auto-added by `--signoff` flag
 
 ```
-Issue #42: Add x86_64 S3 image verification tests
+feat(repo_manager): add prepare phase verification tests
 
-- Add TC_IB_004 and TC_IB_005 for S3 image checks
-- Add check_s3_bucket_images function
-- Update TEST_NAMES and TEST_LOG_MSGS
+- Add TC_PR_001 through TC_PR_005 for prepare tag tests
+- Add check_repo_container_running function
+- Update TEST_NAMES and ASSERT_MSGS
 
 Signed-off-by: Your Name <your.email@dell.com>
 ```
 
-### 7.3 Branch Naming
+### 15.3 Branch Naming
 
 ```
 feature/<issue>-<short-description>
 bugfix/<issue>-<short-description>
 ```
 
-### 7.4 Before Push Checklist
+### 15.4 PR Description
 
-- [ ] `pylint score ≥ 8.7` — run `pylint` on all changed files
-- [ ] No hardcoded credentials or secrets in code
-- [ ] `test_creds.yml` is encrypted (not plain text)
-- [ ] Dataset files contain only keys, no actual secret values
-- [ ] `.test_creds.key` and `.<domain>_credentials_key` are in `.gitignore`
-- [ ] All tests pass: `./run_validation.sh <domain> verify --marker sanity`
+1. **Title**: Clear, concise summary
+2. **Issues Resolved**: Link with `Fixes #<number>`
+3. **Description**: What was done, what was tested, results
+4. **Do NOT reference file paths** in PR descriptions — describe functionality
 
 ---
 
-## 8. Quality Checklist
+## 16. Full Pre-Push Verification Checklist
 
-Before submitting code:
+Run this sequence before every push:
+
+```bash
+source .venv/bin/activate
+
+# 1. Pylint — all changed files must score ≥ 8.8
+pylint library/functions/*.py library/vars/*.py library/messages/*.py
+
+# 2. Bandit — no High severity
+bandit -r library/ -ll -ii
+
+# 3. Gitleaks — no secrets
+grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
+    --include="*.py" --include="*.yml" | \
+    grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
+
+# 4. Run tests — all must pass
+run_validation <scenario> verify --marker sanity
+
+# 5. Only push when everything is green
+git commit -s -m "<type>(<scope>): description"
+git push
+```
+
+---
+
+## 17. Quality Checklist
+
+Before submitting a PR, verify:
 
 ### Module Structure
 - [ ] Follows `functions/`, `vars/`, `messages/` structure
-- [ ] All `__init__.py` files properly export items
+- [ ] All `__init__.py` files properly export items with `__all__`
+- [ ] `conftest.py` calls `omnia_auto.configure()` before any other `omnia_auto` imports
+- [ ] `library/functions/__init__.py` re-exports `omnia_auto` functions + domain wrappers
 - [ ] License headers in all files (current year)
 
 ### Functions
-- [ ] Return dicts with `success`, `error` keys
-- [ ] Use dynamic inputs (no hardcoded IPs, paths)
-- [ ] Docstrings with Args/Returns
-
-### Variables
-- [ ] All shell commands in `CMDS` dict
-- [ ] All constants in `vars/` directory
-- [ ] No magic numbers in functions or tests
+- [ ] Used `omnia_auto` core functions first (check before writing new)
+- [ ] Return dicts with `success`, `details`, `error` keys
+- [ ] Use dynamic inputs (no hardcoded IPs, paths, ports)
+- [ ] Google-style docstrings with Args/Returns
+- [ ] Shell commands in `CMDS` dict — none inline
 
 ### Messages
-- [ ] `TEST_NAMES`, `TEST_LOG_MSGS`, `TEST_ASSERT_MSGS` defined
-- [ ] Assert messages include HOW TO FIX
+- [ ] `TEST_NAMES`, `LOG_MSGS`, `ASSERT_MSGS` defined in `messages/`
+- [ ] No inline strings in test files
 - [ ] All messages use `{placeholder}` syntax
 
 ### Tests
-- [ ] Module docstring lists all test cases with IDs
-- [ ] Use `TestLogger` with `tc_id` parameter
-- [ ] Skip logic for optional features
-- [ ] All messages imported from `messages/`
-- [ ] All constants imported from `vars/`
-- [ ] pylint score ≥ 8.7
+- [ ] Module docstring lists all test cases with TC IDs
+- [ ] Every test function docstring starts with `TC_XX_NNN:`
+- [ ] Every test uses `TestLogger` and calls `tl.passed()` / `tl.failed()`
+- [ ] Deploy tests have `@pytest.mark.order(0)`
+- [ ] All imports from `library.functions` — never from `omnia_auto` directly
+- [ ] TC IDs match entries in `fvt/TEST_CASES.md`
+
+### Code Quality
+- [ ] `pylint` score ≥ 8.8 for all changed files
+- [ ] `bandit -r library/ -ll -ii` shows no High severity issues
+- [ ] No `# noqa` or `# pylint: disable` (fix the actual issue)
+
+### Security
+- [ ] `test_config.yml` has no real IPs or passwords
+- [ ] `test_creds.yml` ships with empty values
+- [ ] `.gitignore` excludes `.test_creds.key`, `.venv/`, `__pycache__/`, `reports/`
+- [ ] No secrets in committed files
 
 ### Git
-- [ ] Commit with `--signoff --author`
-- [ ] No secrets in committed files
-- [ ] Dataset values sanitized (keys only)
+- [ ] Commit signed off (`git commit -s`)
+- [ ] `requirements.txt` references `../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl`
+- [ ] Copyright header on all new source files

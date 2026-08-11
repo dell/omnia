@@ -50,7 +50,7 @@ kafka:
 kafka_storage: "{{ hostvars['localhost']['telemetry_storage_config'].kafka_storage }}"
 
 # Timeouts
-kafka_deploy_timeout: "600s"
+kafka_deploy_timeout: "300s"
 kafka_operator_wait_timeout: "300s"
 kafka_crd_wait_retries: 60
 kafka_crd_wait_delay: 2
@@ -67,3 +67,15 @@ kafka_strimzi_tarball_not_found_msg: >-
   Strimzi Kafka operator tarball not found at
   {{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}.
   Download from {{ telemetry_packages_config.telemetry_packages.strimzi_kafka_operator }} may have failed.
+
+kafka_operator_install_failed_msg: >-
+  Failed to install/upgrade Strimzi operator. Verify Helm chart tarball exists at {{ strimzi_kafka_pkg }}
+
+kafka_operator_not_ready_msg: >-
+  Strimzi operator did not become ready within {{ kafka_operator_wait_timeout }}.
+  Check operator pod logs: kubectl -n {{ telemetry_namespace }} logs deploy/strimzi-cluster-operator
+
+kafka_cluster_not_ready_msg: >-
+  Kafka cluster not ready within {{ kafka_deploy_timeout }}.
+  Pod status: {{ kafka_pod_status.stdout_lines | default(['unable to fetch']) | join(', ') }}
+  Check for ImagePullBackOff: kubectl -n {{ telemetry_namespace }} describe pod -l strimzi.io/cluster=kafka

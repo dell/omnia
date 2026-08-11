@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: log_collector
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Collect system logs from cluster nodes for troubleshooting
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - logging
+    - troubleshooting
+    - slurm
+    - kubernetes
+
+dependencies: []

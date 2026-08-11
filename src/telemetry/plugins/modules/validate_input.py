@@ -1,0 +1,420 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#!/usr/bin/python
+
+"""
+This module is used to validate input data.
+
+It provides functions for verifying and validating input data, and also includes
+functions for fetching and validating data.
+
+Functions:
+    validate_input
+    get_data
+    verify
+    validate_csv_structure
+"""
+
+DOCUMENTATION = r'''
+---
+module: validate_input
+short_description: Validates telemetry input configuration files
+version_added: "3.0.0"
+description:
+  - Performs two-level validation (L1 schema + L2 logic) on telemetry input
+    configuration files (telemetry_config.yml, telemetry_storage_config.yml,
+    telemetry_packages.yml).
+  - L1 validates each file against its JSON Schema under
+    C(plugins/module_utils/input_validation/schema/).
+  - L2 runs cross-field logical validation via
+    C(plugins/module_utils/input_validation/validators/).
+  - Optionally validates CSV structure for PXE mapping files.
+options:
+  omnia_base_dir:
+    description: Absolute path to the Omnia input base directory.
+    type: str
+    required: true
+  project_name:
+    description: Name of the project (subdirectory under omnia_base_dir).
+    type: str
+    required: true
+  tag_names:
+    description: List of validation tags to run (e.g., C(["telemetry"])).
+    type: list
+    elements: str
+    required: true
+  module_utils_path:
+    description: Absolute path to the module_utils directory containing schemas and validators.
+    type: str
+    required: false
+  csv_file_path:
+    description: Optional path to a CSV file for structure validation.
+    type: str
+    required: false
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Validate telemetry input files
+  omnia.telemetry.validate_input:
+    omnia_base_dir: "/opt/omnia/telemetry/input/project_default"
+    project_name: "telemetry"
+    tag_names:
+      - telemetry
+    module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
+
+- name: Validate with CSV structure check
+  omnia.telemetry.validate_input:
+    omnia_base_dir: "/opt/omnia/telemetry/input/project_default"
+    project_name: "telemetry"
+    tag_names:
+      - telemetry
+    module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
+    csv_file_path: "/opt/omnia/telemetry/input/pxe_mapping.csv"
+'''
+
+RETURN = r'''
+validation_failed:
+  description: Whether any validation check failed.
+  type: bool
+  returned: always
+  sample: false
+error_msg:
+  description: Summary messages describing validation outcome.
+  type: list
+  elements: str
+  returned: always
+  sample:
+    - "Input validation completed for: telemetry input configuration(s)."
+    - "Tag(s) run: ['telemetry']. "
+    - "Look at the logs for more details: filename=/var/log/omnia/telemetry/validate_telemetry_input.log"
+log_file:
+  description: Path to the validation log file.
+  type: str
+  returned: always
+  sample: "/var/log/omnia/telemetry/validate_telemetry_input.log"
+errors:
+  description: List of error messages from failed validations.
+  type: list
+  elements: str
+  returned: always
+  sample: []
+valid_files:
+  description: List of input file paths that passed validation.
+  type: list
+  elements: str
+  returned: always
+  sample:
+    - "/opt/omnia/telemetry/input/project_default/telemetry/telemetry_config.yml"
+invalid_files:
+  description: List of input file paths that failed validation.
+  type: list
+  elements: str
+  returned: always
+  sample: []
+tags:
+  description: The validation tags that were executed.
+  type: list
+  elements: str
+  returned: always
+  sample:
+    - telemetry
+'''
+
+import logging
+import os
+import csv
+
+# pylint: disable=no-name-in-module,E0401
+import ansible.module_utils.input_validation.core.data_fetch as fetch
+import ansible.module_utils.input_validation.core.data_validation as validate
+import ansible.module_utils.input_validation.core.data_verification as verify
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.input_validation.core import config
+from ansible.module_utils.input_validation.messages import en_us_validation_msg
+
+def validate_csv_structure(csv_file_path, logger=None):
+    """
+    Validate CSV structure for PXE mapping files.
+    
+    Args:
+        csv_file_path (str): Path to the CSV file to validate
+        logger (logging.Logger): Logger instance for logging
+        
+    Returns:
+        bool: True if validation passes, False otherwise
+        
+    Raises:
+        ValueError: If CSV structure validation fails
+    """
+    try:
+        if not os.path.exists(csv_file_path):
+            error_msg = f"CSV ERROR: File not found - {csv_file_path}"
+            if logger:
+                logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        with open(csv_file_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration:
+                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+                if logger:
+                    logger.error(error_msg)
+                raise ValueError(error_msg)
+                
+            expected_columns = len(header)
+            
+            line_num = 2
+            for row in reader:
+                if len(row) != expected_columns:
+                    error_msg = (
+                        f"CSV ERROR: {csv_file_path}: Line {line_num} has {len(row)} columns, expected {expected_columns}. "
+                        f"Missing values in CSV row. Ensure each row has the correct number of values separated by commas."
+                    )
+                    if logger:
+                        logger.error(error_msg)
+                        logger.error(f"Problem row: {','.join(row)}")
+                    raise ValueError(error_msg)
+                line_num += 1
+                
+        success_msg = f"CSV validation passed - {line_num - 2} rows validated"
+        if logger:
+            logger.info(success_msg)
+        print(success_msg)
+        return True
+        
+    except Exception as e:
+        error_msg = f"CSV validation error: {str(e)}"
+        if logger:
+            logger.error(error_msg)
+        raise ValueError(error_msg)
+
+
+def createlogger(project_name, tag_name=None):
+    """
+    Creates a logger object for the given project name and tag name.
+
+    Args:
+        project_name (str): The name of the project.
+        tag_name (str, optional): The name of the tag. Defaults to None.
+
+    Returns:
+        logging.Logger: The logger object.
+    """
+    log_filename = "validate_telemetry_input.log"
+
+    log_file_path = os.path.join(config.INPUT_VALIDATOR_LOG_PATH, log_filename)
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    logging.basicConfig(
+        filename=log_file_path,
+        format="%(asctime)s %(message)s",
+        filemode="w"
+    )
+    logger = logging.getLogger(tag_name if tag_name else project_name)
+    logger.setLevel(logging.DEBUG)
+    return logger
+
+def main():
+    """
+    The main function that runs the input validation.
+
+    This function initializes the logger, verifies the existence of the specified directory,
+    retrieves the list of JSON and YAML files, and sets up the schema and input data dictionaries.
+
+    It then runs the validation for each file based on the specified tag names.
+    The validation includes schema validation (L1) and logic validation (L2).
+    """
+    module_args = {
+        "omnia_base_dir": {"type": "str", "required": True},
+        "project_name": {"type": "str", "required": True},
+        "tag_names": {"type": "list", "required": True},
+        "module_utils_path": {"type": "str"},
+        "csv_file_path": {"type": "str", "required": False},
+    }
+
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
+    
+    module_utils_base = module.params["module_utils_path"]
+    omnia_base_dir = module.params["omnia_base_dir"]
+    project_name = module.params["project_name"]
+    tag_names = module.params["tag_names"]
+    csv_file_path = module.params.get("csv_file_path", "")
+
+    schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
+    input_dir_path = os.path.join(omnia_base_dir, project_name)
+    input_files = []
+
+    input_file_inventory = config.input_file_inventory
+    passwords_set = config.passwords_set
+    extensions = config.extensions
+
+    validation_status = {"tag": tag_names, "Passed": [], "Failed": []}
+    vstatus = []
+
+    logger = createlogger(project_name)
+
+    # Start validation execution
+    logger.info(en_us_validation_msg.get_header())
+
+    # Check if the specified directory exists
+    if not verify.directory_exists(input_dir_path, module, logger):
+        error_message = f"The input directory {input_dir_path} does not exist."
+        module.fail_json(msg=error_message)
+
+    input_files = fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
+    input_files = input_files + fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
+
+    input_file_dict = { fetch.file_name_from_path(file_path): file_path for file_path in input_files }
+
+    if not input_files:
+        error_message = f"yml and json files not found in directory: {input_dir_path}"
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
+    # Run L1 and L2 validation if user included a tag and extra var files.
+    # Or user only had tags and no extra var files.
+    error_bucket = []
+    
+    # Check if build_stream is enabled to determine if GitLab validation should run
+    skip_gitlab_validation = False
+    build_stream_config_path = os.path.join(omnia_base_dir, project_name, "build_stream_config.yml")
+    if os.path.exists(build_stream_config_path):
+        try:
+            build_stream_data, _ = fetch.input_data(
+                build_stream_config_path, omnia_base_dir, project_name, logger, module
+            )
+            if build_stream_data:
+                enable_build_stream = build_stream_data.get("enable_build_stream", False)
+                if not enable_build_stream:
+                    skip_gitlab_validation = True
+                    logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
+        except Exception:
+            logger.warning("Failed to check build_stream status from build_stream_config.yml")
+    
+    for tag_name in tag_names:
+        for name in input_file_inventory.get(tag_name, []):
+            fname, _ = os.path.splitext(name)
+
+            schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
+
+            if not verify.file_exists(schema_file_path, module, logger):
+                error_message = (
+                    f"The file schema: {fname}.json does not exist "
+                    f"in directory: {schema_base_file_path}."
+                )
+                logger.info(error_message)
+                module.fail_json(msg=error_message)
+
+            input_file_path = input_file_dict.get(name)
+
+            # Skip gitlab_config.yml validation if build_stream is disabled
+            # This check happens after file lookup to handle both missing and existing files
+            if skip_gitlab_validation and name == "gitlab_config.yml":
+                logger.info("Skipping gitlab_config.yml validation (build_stream disabled)")
+                continue
+
+            if input_file_path is None:
+                error_message = (
+                    f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
+                )
+                logger.error(error_message)
+                module.fail_json(msg=error_message)
+
+            # Validate the schema of the input file (L1)
+            l1_errors = validate.schema({
+                                "input_file_path": input_file_path,
+                                "schema_file_path": schema_file_path,
+                                "passwords_set": passwords_set,
+                                "omnia_base_dir": omnia_base_dir,
+                                "project_name": project_name,
+                                "logger": logger,
+                                "module": module,
+                            })
+            if l1_errors:
+                error_bucket = error_bucket + l1_errors
+                schema_status = False
+            else:
+                schema_status = True
+
+            # Validate the logic of the input file (L2) if L1 is success
+            logic_status = True
+            if schema_status:
+                l2_errors = validate.logic({
+                            "input_file_path": input_file_path,
+                            "module_utils_base": module_utils_base,
+                            "omnia_base_dir": omnia_base_dir,
+                            "project_name": project_name,
+                            "logger": logger,
+                            "module": module,
+                        })
+                if l2_errors:
+                    error_bucket = error_bucket + l2_errors
+                    logic_status = False
+                else:
+                    logic_status = True
+            # Append the validation status for the input file
+            if (schema_status and logic_status):
+                validation_status["Passed"].append(input_file_path)
+            else:
+                validation_status["Failed"].append(input_file_path)
+
+            vstatus.append(schema_status)
+            vstatus.append(logic_status)
+
+    # Optional CSV validation
+    if csv_file_path:
+        try:
+            validate_csv_structure(csv_file_path, logger)
+            validation_status["tag"].append("csv_structure")
+            vstatus.append(True)
+        except ValueError as csv_error:
+            error_bucket = error_bucket + [str(csv_error)]
+            validation_status["Failed"].append(csv_file_path)
+            vstatus.append(False)
+
+    if not validation_status:
+        message = "No validation has been performed. \
+            Please provide tags or include individual file names."
+        module.fail_json(msg=message)
+
+    logger.error(en_us_validation_msg.get_footer())
+
+    log_file_name = os.path.join(config.INPUT_VALIDATOR_LOG_PATH,
+                                 "validate_telemetry_input.log")
+
+    status_bool = all(vstatus)
+    status_str = "completed" if status_bool else "failed"
+
+    message = [f"Input validation {status_str} for: {project_name} input configuration(s).",
+               f"Tag(s) run: {tag_names}. ",
+               f"Look at the logs for more details: filename={log_file_name}"]
+
+    module.exit_json(
+        changed=False,
+        validation_failed=not status_bool,
+        error_msg=message,
+        log_file=log_file_name,
+        errors=error_bucket,
+        valid_files=list(set(validation_status['Passed'])),
+        invalid_files=list(set(validation_status['Failed'])),
+        tags=tag_names
+    )
+
+
+if __name__ == "__main__":
+    main()

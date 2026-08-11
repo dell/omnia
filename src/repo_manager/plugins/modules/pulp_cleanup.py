@@ -1,4 +1,57 @@
-from ansible.module_utils.local_repo import config
+from ansible.module_utils.repo_manager import config
+DOCUMENTATION = r"""
+---
+module: pulp_cleanup
+short_description: Clean up Pulp repositories and distributions
+description:
+  - This module cleans up Pulp repositories, distributions, and remotes.
+  - It can selectively remove specific repositories or perform full cleanup.
+version_added: "1.0.0"
+options:
+    cleanup_type:
+      description: Type of cleanup (repos/distributions/all)
+      required: true
+      type: str
+    repo_names:
+      description: List of repository names to clean
+      required: false
+      type: list
+    force:
+      description: Force cleanup without confirmation
+      required: false
+      type: bool
+      default: False
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Clean up all Pulp repositories
+  pulp_cleanup:
+    cleanup_type: all
+    force: true
+
+- name: Clean up specific repositories
+  pulp_cleanup:
+    cleanup_type: repos
+    repo_names:
+      - baseos
+      - appstream
+"""
+
+RETURN = r"""
+cleaned_repos:
+  description: List of cleaned repositories
+  type: list
+  returned: success
+cleaned_count:
+  description: Number of items cleaned
+  type: int
+  returned: success
+"""
+
+
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,15 +89,21 @@ import yaml
 from typing import Dict, List, Any, Tuple, Optional
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.config import (
     CLEANUP_BASE_PATH_DEFAULT,
     CLEANUP_FILE_TYPES,
     pulp_rpm_commands,
     pulp_container_commands,
     pulp_file_commands,
     pulp_python_commands,
-    ARCH_SUFFIXES
+    ARCH_SUFFIXES,
+    MIRROR_STATUS_DIR,
+    MIRROR_INDEX_FILENAME
+)
+from ansible.module_utils.repo_manager.mirror_status import (
+    load_mirror_index,
+    save_mirror_index
 )
 
 
@@ -855,6 +914,155 @@ def cleanup_all_file_content_directories(repo_store_path: str, logger) -> Dict[s
 
 
 # =============================================================================
+# MIRROR INDEX UPDATES
+# =============================================================================
+
+def _get_mirror_index_path(base_path: str, cluster_os_type: str, cluster_os_version: str) -> str:
+    """Construct the path to pulp_mirror_index.json.
+
+    Path: {base_path}/{os_type}/{os_version}/mirror_status/pulp_mirror_index.json
+    """
+    return os.path.join(base_path, cluster_os_type, cluster_os_version,
+                        MIRROR_STATUS_DIR, MIRROR_INDEX_FILENAME)
+
+
+def remove_from_mirror_index(base_path: str, cluster_os_type: str, cluster_os_version: str,
+                             logger, match_fn=None, remove_all: bool = False) -> int:
+    """Remove entries from pulp_mirror_index.json that match the given criteria.
+
+    Args:
+        base_path: Base log path (e.g., /opt/omnia/log/repo_manager)
+        cluster_os_type: OS type (e.g., 'rhel')
+        cluster_os_version: OS version (e.g., '10.0')
+        logger: Logger instance
+        match_fn: Callable(package_name, entry) -> bool.
+                  Returns True for entries that should be removed.
+        remove_all: If True, remove ALL entries (used by cleanup_repos=all etc.)
+
+    Returns:
+        int: Number of entries removed
+    """
+    mirror_index_path = _get_mirror_index_path(base_path, cluster_os_type, cluster_os_version)
+
+    if not os.path.isfile(mirror_index_path):
+        logger.info("Mirror index not found at %s, nothing to update", mirror_index_path)
+        return 0
+
+    mirror_data = load_mirror_index(mirror_index_path, logger)
+    packages = mirror_data.get("MirrorIndex", {}).get("packages", {})
+
+    if not packages:
+        logger.info("Mirror index has no packages, nothing to remove")
+        return 0
+
+    if remove_all:
+        removed_count = len(packages)
+        mirror_data["MirrorIndex"]["packages"] = {}
+        logger.info("Removed all %d entries from mirror index", removed_count)
+    else:
+        keys_to_remove = [
+            pkg_name for pkg_name, entry in packages.items()
+            if match_fn and match_fn(pkg_name, entry)
+        ]
+        removed_count = len(keys_to_remove)
+        for key in keys_to_remove:
+            del packages[key]
+            logger.info("Removed '%s' from mirror index", key)
+
+    if removed_count > 0:
+        save_mirror_index(mirror_index_path, mirror_data, logger)
+        logger.info("Saved mirror index after removing %d entries", removed_count)
+
+    return removed_count
+
+
+def remove_repo_from_mirror_index(repo_name: str, base_path: str,
+                                  cluster_os_type: str, cluster_os_version: str,
+                                  logger) -> int:
+    """Remove all mirror index entries whose repo_name matches the deleted repository.
+
+    Args:
+        repo_name: Repository name (e.g., 'x86_64_rhel_10.0_appstream')
+        base_path: Base log path
+        cluster_os_type: OS type
+        cluster_os_version: OS version
+        logger: Logger instance
+
+    Returns:
+        int: Number of entries removed
+    """
+    def match_by_repo(pkg_name, entry):
+        return entry.get("repo_name", "") == repo_name
+
+    removed = remove_from_mirror_index(
+        base_path, cluster_os_type, cluster_os_version, logger,
+        match_fn=match_by_repo
+    )
+    logger.info("Removed %d packages from mirror index for repo '%s'", removed, repo_name)
+    return removed
+
+
+def remove_artifact_from_mirror_index(artifact_name: str, artifact_type: str,
+                                      base_path: str, cluster_os_type: str,
+                                      cluster_os_version: str, logger) -> int:
+    """Remove a specific artifact entry from pulp_mirror_index.json.
+
+    For containers, matches with or without tag.
+    For other types, uses exact name match.
+
+    Args:
+        artifact_name: Name of the artifact
+        artifact_type: Type (image, tarball, git, pip_module, etc.)
+        base_path: Base log path
+        cluster_os_type: OS type
+        cluster_os_version: OS version
+        logger: Logger instance
+
+    Returns:
+        int: Number of entries removed
+    """
+    def match_artifact(pkg_name, entry):
+        if artifact_type == 'image':
+            return (pkg_name == artifact_name or
+                    pkg_name.startswith(f"{artifact_name}:"))
+        return pkg_name == artifact_name
+
+    removed = remove_from_mirror_index(
+        base_path, cluster_os_type, cluster_os_version, logger,
+        match_fn=match_artifact
+    )
+    logger.info("Removed %d entries from mirror index for %s '%s'",
+                removed, artifact_type, artifact_name)
+    return removed
+
+
+def remove_all_type_from_mirror_index(artifact_type: str, base_path: str,
+                                      cluster_os_type: str, cluster_os_version: str,
+                                      logger) -> int:
+    """Remove all mirror index entries of a given type.
+
+    Args:
+        artifact_type: Type to remove (e.g., 'rpm', 'image', 'tarball')
+        base_path: Base log path
+        cluster_os_type: OS type
+        cluster_os_version: OS version
+        logger: Logger instance
+
+    Returns:
+        int: Number of entries removed
+    """
+    def match_by_type(pkg_name, entry):
+        return entry.get("type", "") == artifact_type
+
+    removed = remove_from_mirror_index(
+        base_path, cluster_os_type, cluster_os_version, logger,
+        match_fn=match_by_type
+    )
+    logger.info("Removed %d '%s' entries from mirror index", removed, artifact_type)
+    return removed
+
+
+# =============================================================================
 # STATUS FILE UPDATES
 # =============================================================================
 
@@ -995,12 +1203,12 @@ def remove_from_status_files(artifact_name: str, artifact_type: str, base_path: 
 
 
 def mark_software_partial(affected_software, base_path: str, logger, artifact_type: str = None):
-    """Mark software entries as partial in software.csv.
+    """Mark software entries as partial in groups_status.csv.
 
     Args:
         affected_software: Either a List[str] of software names (legacy support)
                           or a Dict[str, List[str]] mapping arch to software names
-        base_path: Base path for software.csv
+        base_path: Base path for groups_status.csv
         logger: Logger instance
         artifact_type: Type of artifact being removed (for logging purposes)
     """
@@ -1021,7 +1229,7 @@ def mark_software_partial(affected_software, base_path: str, logger, artifact_ty
             if not software_names:
                 continue
 
-            for software_file in glob.glob(f"{base_path}/*/*/{arch}/software.csv"):
+            for software_file in glob.glob(f"{base_path}/*/*/{arch}/groups_status.csv"):
                 logger.info(f"Looking for software file: {software_file}")
 
                 rows = []
@@ -1043,7 +1251,7 @@ def mark_software_partial(affected_software, base_path: str, logger, artifact_ty
                         writer.writerows(rows)
                     logger.info(f"Successfully wrote updated {software_file}")
     except OSError as e:
-        logger.error(f"Failed to update software.csv: {e}")
+        logger.error(f"Failed to update groups_status.csv: {e}")
 
 
 def software_has_type(software_name: str, arch: str, base_path: str, logger, type_values: tuple) -> bool:
@@ -1072,12 +1280,12 @@ def software_has_type(software_name: str, arch: str, base_path: str, logger, typ
 
 
 def mark_all_software_partial_by_type(base_path: str, logger, type_values: tuple, type_label: str):
-    """Mark software entries as partial in software.csv for all architectures.
+    """Mark software entries as partial in groups_status.csv for all architectures.
 
     Only marks software that actually has dependencies of the given types.
 
     Args:
-        base_path: Base path for software.csv files
+        base_path: Base path for groups_status.csv files
         logger: Logger instance
         type_values: Tuple of type strings to check (e.g., ('rpm', 'rpm_repo'))
         type_label: Human-readable label for logging (e.g., 'RPM', 'container')
@@ -1085,7 +1293,7 @@ def mark_all_software_partial_by_type(base_path: str, logger, type_values: tuple
     logger.info(f"Marking software with {type_label} dependencies as partial")
     try:
         for arch in ARCH_SUFFIXES:
-            for software_file in glob.glob(f"{base_path}/*/*/{arch}/software.csv"):
+            for software_file in glob.glob(f"{base_path}/*/*/{arch}/groups_status.csv"):
                 logger.info(f"Processing software file: {software_file}")
 
                 rows = []
@@ -1460,11 +1668,17 @@ def run_module():
     for repo in cleanup_repos:
         result = cleanup_repository(repo, base_path, logger)
         all_results.append(result)
+        if result['status'] == 'Success':
+            removed = remove_repo_from_mirror_index(
+                repo, base_path, cluster_os_type, cluster_os_version, logger)
+            logger.info(f"Removed {removed} entries from pulp_mirror_index.json for repo '{repo}'")
         logger.info(f"Repository {repo}: {result['status']} - {result['message']}")
 
     # If cleanup_repos=all, mark software with RPM dependencies as partial
     if cleanup_all_repos and any(r['status'] == 'Success' for r in all_results if r['type'] == 'repository'):
         mark_all_software_partial_by_type(base_path, logger, ('rpm', 'rpm_repo'), 'RPM')
+        remove_all_type_from_mirror_index(
+            'rpm', base_path, cluster_os_type, cluster_os_version, logger)
 
     # Process containers
     container_cleanup_success = False
@@ -1473,12 +1687,16 @@ def run_module():
         all_results.append(result)
         if result['status'] == 'Success':
             container_cleanup_success = True
+            remove_artifact_from_mirror_index(
+                container, 'image', base_path, cluster_os_type, cluster_os_version, logger)
         logger.info(f"Container {container}: {result['status']} - {result['message']}")
 
     # If cleanup_containers=all, bulk-remove all image entries from status files and mark software partial
     if cleanup_all_containers and container_cleanup_success:
         remove_all_from_status_files('image', base_path, logger)
         mark_all_software_partial_by_type(base_path, logger, ('image',), 'container')
+        remove_all_type_from_mirror_index(
+            'image', base_path, cluster_os_type, cluster_os_version, logger)
 
     # Process files
     file_cleanup_success = False
@@ -1487,6 +1705,9 @@ def run_module():
         all_results.append(result)
         if result['status'] == 'Success':
             file_cleanup_success = True
+            file_type = result.get('type', 'file')
+            remove_artifact_from_mirror_index(
+                result['name'], file_type, base_path, cluster_os_type, cluster_os_version, logger)
         logger.info(f"File {file}: {result['status']} - {result['message']}")
 
     # If cleanup_files=all, bulk-remove all file-type entries from status files,
@@ -1494,6 +1715,8 @@ def run_module():
     if cleanup_all_files and file_cleanup_success:
         for ftype in CLEANUP_FILE_TYPES:
             remove_all_from_status_files(ftype, base_path, logger)
+            remove_all_type_from_mirror_index(
+                ftype, base_path, cluster_os_type, cluster_os_version, logger)
         cleanup_all_file_content_directories(repo_store_path, logger)
         mark_all_software_partial_by_type(base_path, logger, tuple(CLEANUP_FILE_TYPES), 'file')
 

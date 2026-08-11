@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# TELEMETRY SETUP ROLE VARIABLES
+# =============================================================================
+# This file contains variables for the telemetry_setup role.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# PATHS
+# -----------------------------------------------------------------------------
+telemetry_log_dir: "/var/log/omnia/telemetry"
+telemetry_output_dir: "{{ omnia_data_path | default('/opt/omnia') }}/telemetry/output"
+telemetry_config_file: "{{ input_project_dir | default('/opt/omnia') }}/telemetry_config.yml"
+
+# -----------------------------------------------------------------------------
+# USAGE INFORMATION
+# -----------------------------------------------------------------------------
+telemetry_usage_info_msg:
+  - "========== TELEMETRY =========="
+  - "Available tags:"
+  - "  precheck   - Validate telemetry prerequisites"
+  - "  validation - Validate telemetry input configuration"
+  - "  deploy     - Deploy all enabled telemetry sources"
+  - "  cleanup    - Remove all telemetry components"
+  - "  upgrade    - Upgrade telemetry components"
+  - "  rollback   - Rollback telemetry components"
+  - ""
+  - "Component cleanup tags:"
+  - "  cleanup_kafka              - Kafka only"
+  - "  cleanup_victoria_metrics   - VictoriaMetrics only"
+  - "  cleanup_victoria_logs      - VictoriaLogs only"
+  - "  cleanup_ldms               - LDMS only"
+  - "  cleanup_ome                - OME only"
+  - "  cleanup_dcgm               - DCGM only"
+  - "  cleanup_ufm                - UFM only"
+  - "  cleanup_vast               - VAST only"
+  - "  cleanup_sfm                - SFM only"
+  - "  cleanup_skyway             - Skyway only"
+  - "  cleanup_powervault         - PowerVault only"
+  - ""
+  - "Examples:"
+  - "  ansible-playbook telemetry.yml --tags deploy"
+  - "  ansible-playbook telemetry.yml --tags precheck"
+  - "  ansible-playbook telemetry.yml --tags cleanup_kafka"
+  - "================================"
+
+# -----------------------------------------------------------------------------
+# ERROR MESSAGES
+# -----------------------------------------------------------------------------
+telemetry_config_missing_msg: >-
+  telemetry_config.yml not found at {{ telemetry_config_file }}.
+  Run domain-init.sh or copy input files to the data path before executing.
+log_dir_creation_fail_msg: "Failed to create log directory: {{ telemetry_log_dir }}"

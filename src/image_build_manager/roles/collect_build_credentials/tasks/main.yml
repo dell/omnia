@@ -84,9 +84,24 @@
         - image_build_cred_file_stat.stat.exists
         - not image_build_vault_key_stat.stat.exists
 
-    # Step 4: Decrypt and load existing credentials
-    - name: Load existing credentials
-      when: image_build_cred_file_stat.stat.exists
+    # Step 4: Detect if credential file is vault-encrypted or plaintext
+    - name: Check if credential file is vault-encrypted
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -n1 "{{ image_build_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+      register: _is_vault_encrypted
+      changed_when: false
+      failed_when: false
+      when:
+        - image_build_cred_file_stat.stat.exists
+        - image_build_vault_key_stat.stat.exists
+
+    # Step 4a: File is vault-encrypted — decrypt, load, re-encrypt
+    - name: Load vault-encrypted credentials
+      when:
+        - image_build_cred_file_stat.stat.exists
+        - image_build_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) == 0
       block:
         - name: Decrypt credential file
           ansible.builtin.command: >-
@@ -94,12 +109,14 @@
             --vault-password-file "{{ image_build_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          register: _cred_decrypt_result
 
         - name: Load credentials into namespaced variable
           ansible.builtin.include_vars:
             file: "{{ image_build_credential_file.file_path }}"
             name: image_build_loaded_creds
           no_log: true
+          when: _cred_decrypt_result.rc | default(1) == 0
 
         - name: Re-encrypt credential file
           ansible.builtin.command: >-
@@ -107,6 +124,31 @@
             --vault-password-file "{{ image_build_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+    # Step 4b: File is plaintext (left unencrypted from a prior failed run) — load and encrypt
+    - name: Load plaintext credentials (recovery)
+      when:
+        - image_build_cred_file_stat.stat.exists
+        - image_build_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) != 0
+      block:
+        - name: Load plaintext credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ image_build_credential_file.file_path }}"
+            name: image_build_loaded_creds
+          no_log: true
+
+        - name: Encrypt plaintext credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ image_build_credential_file.file_path }}"
+            --vault-password-file "{{ image_build_credential_file.vault_path }}"
+          changed_when: false
+
+        - name: Fix credential file permissions
+          ansible.builtin.file:
+            path: "{{ image_build_credential_file.file_path }}"
+            mode: "{{ image_build_credential_file.file_mode }}"
 
     - name: Default image_build_loaded_creds if not loaded
       ansible.builtin.set_fact:
@@ -132,17 +174,28 @@
     - name: Reload final credentials
       when: image_build_credential_file.file_path is file
       block:
+        - name: Check if final credential file is vault-encrypted
+          ansible.builtin.shell: |
+            set -o pipefail
+            head -n1 "{{ image_build_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+          register: _final_is_vault
+          changed_when: false
+          failed_when: false
+
         - name: Decrypt for final load
           ansible.builtin.command: >-
             ansible-vault decrypt "{{ image_build_credential_file.file_path }}"
             --vault-password-file "{{ image_build_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          register: _final_decrypt_result
+          when: _final_is_vault.rc | default(1) == 0
 
         - name: Load final credentials
           ansible.builtin.include_vars:
             file: "{{ image_build_credential_file.file_path }}"
           no_log: true
+          when: _final_decrypt_result.rc | default(0) == 0
 
         - name: Re-encrypt after final load
           ansible.builtin.command: >-

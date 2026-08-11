@@ -1,0 +1,84 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# UPGRADE REPO MANAGER
+# =============================================================================
+# Placeholder for future upgrade functionality.
+# This playbook will handle migrating repo_manager to a new version.
+#
+# Upgrade Flow (to be implemented):
+#   1. Pre-upgrade validation
+#      - Check current version from .domain_version.yml
+#      - Verify target version compatibility
+#      - Check disk space for snapshot
+#      - Validate all services are healthy
+#
+#   2. Snapshot current state
+#      - Copy <state_path>/ to <state_path>/.upgrade_snapshot/
+#      - Export service configs (Pulp)
+#      - Record current .domain_version.yml
+#
+#   3. Stop domain services
+#      - Stop Pulp container
+#      - Verify services stopped
+#
+#   4. Apply data migrations
+#      - Schema changes (config file format updates)
+#      - Path migrations (directory renames/moves)
+#      - Data transformations (format changes)
+#
+#   5. Start services with new config
+#      - Deploy updated container
+#      - Reload systemd
+#      - Start services
+#
+#   6. Post-upgrade verification
+#      - Verify services are healthy
+#      - Validate data integrity
+#      - Run smoke tests
+#
+#   7. Update version file
+#      - Write new .domain_version.yml
+#
+# Usage:
+#   ansible-playbook repo_manager.yml --tags upgrade
+# =============================================================================
+
+- name: Upgrade Repo Manager
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  tasks:
+    - name: Display upgrade placeholder message
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "REPO MANAGER UPGRADE - NOT YET IMPLEMENTED"
+          - "=========================================="
+          - ""
+          - "This playbook is a placeholder for future upgrade functionality."
+          - ""
+          - "When implemented, this will:"
+          - "  1. Validate current version and target compatibility"
+          - "  2. Create a snapshot of current state"
+          - "  3. Stop Pulp services"
+          - "  4. Apply data migrations"
+          - "  5. Start services with new configuration"
+          - "  6. Verify upgrade success"
+          - "  7. Update version tracking file"
+          - ""
+          - "=========================================="

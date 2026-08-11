@@ -1,0 +1,72 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# NFS-hosted kickstart configuration
+# iso_nfs_share format: "server:/nfs_path" mapping to /opt/omnia
+nfs_server_ip: "{{ iso_nfs_share.split(':')[0] }}"
+nfs_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
+nfs_kickstart_filename: "kickstart.cfg"
+# Compute the sub-path of iso_target_directory relative to /opt/omnia
+nfs_iso_output_dir: "{{ nfs_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
+nfs_kickstart_path: "{{ nfs_iso_output_dir }}/{{ nfs_kickstart_filename }}"
+
+# Temporary files for ISO modification
+temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
+
+# Kickstart configuration
+kickstart_file: ""
+kickstart_template: "rhel10"
+
+# Repacked ISO output (one-time build with grub.cfg modification)
+repacked_iso_name: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
+repacked_iso_path: "{{ iso_target_directory }}/{{ repacked_iso_name }}"
+iso_volume_id: ""
+
+# Interactive behavior
+# Set silent_install=true to suppress all prompts in the generic install_os playbook
+silent_install: false
+# Set rebuild_iso=true to force rebuilding the custom ISO (used by prompt or extra-var)
+rebuild_iso: false
+
+# Manifest file
+manifest_path: "{{ iso_target_directory }}/install_manifest.yml"
+
+# Kickstart template variables (passed by the calling orchestrator)
+ks_root_password_hash: ""
+ks_ssh_public_key: ""
+ks_hostname: "os-aarch64"
+ks_static_ip: ""
+ks_netmask: "255.255.255.0"
+ks_gateway: ""
+ks_dns: ""
+ks_network_device: ""
+ks_timezone: "UTC"
+ks_install_disk: ""
+
+# Error messages
+kickstart_file_not_found_msg: >-
+  User-provided Kickstart file not found at '{{ kickstart_file }}'.
+  Please verify the file path and re-run the playbook.
+kickstart_render_fail_msg: >-
+  Failed to render Kickstart template '{{ kickstart_template }}'.
+  Please verify that all required template variables are set.
+iso_repack_fail_msg: >-
+  Failed to repack the ISO. Check the log for details.
+user_ks_missing_rootpw_msg: >-
+  WARNING: User-provided Kickstart file does not contain a 'rootpw' directive.
+  The installed system may not have a root password set.
+user_ks_missing_sshkey_msg: >-
+  WARNING: User-provided Kickstart file does not contain an 'sshkey' directive.
+  OIM SSH key will not be injected into the installed system.

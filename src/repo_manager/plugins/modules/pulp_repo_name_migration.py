@@ -1,4 +1,51 @@
-from ansible.module_utils.local_repo import config
+from ansible.module_utils.repo_manager import config
+DOCUMENTATION = r"""
+---
+module: pulp_repo_name_migration
+short_description: Migrate Pulp repository names to new format
+description:
+  - This module migrates Pulp repository names from old to new naming convention.
+  - It handles renaming of repositories, remotes, and distributions.
+version_added: "1.0.0"
+options:
+    old_prefix:
+      description: Old repository name prefix
+      required: false
+      type: str
+    new_prefix:
+      description: New repository name prefix
+      required: false
+      type: str
+    dry_run:
+      description: Perform dry run without changes
+      required: false
+      type: bool
+      default: False
+
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Migrate repository names
+  pulp_repo_name_migration:
+    old_prefix: "local_"
+    new_prefix: "omnia_"
+    dry_run: false
+"""
+
+RETURN = r"""
+migrated_repos:
+  description: List of migrated repositories
+  type: list
+  returned: success
+migration_count:
+  description: Number of migrations performed
+  type: int
+  returned: success
+"""
+
+
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,14 +112,14 @@ from typing import Dict, List, Any, Optional
 from urllib.parse import urlparse
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.config import (
     pulp_rpm_commands,
     pulp_file_commands,
     pulp_python_commands,
     ARCH_SUFFIXES,
 )
-from ansible.module_utils.local_repo.software_utils import build_repo_name_prefix
+from ansible.module_utils.repo_manager.software_utils import build_repo_name_prefix
 
 # ============================================================================
 # Constants
@@ -1560,18 +1607,44 @@ def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
             result["status"] = "Skipped"
             return result
 
+        # Get system architecture to filter repos
+        import platform
+        system_arch = platform.machine()
+        logger.info(f"System architecture: {system_arch}")
+
         repo_file_path = "/etc/yum.repos.d/pulp.repo"
         repo_content = ""
+        enabled_count = 0
+        disabled_count = 0
+
         for dist in dists:
             name = dist.get("name", "")
             base_url = dist.get("base_url", "")
             if not name or not base_url:
                 continue
+
+            # Determine if repo should be enabled based on architecture
+            # Repo names follow pattern: {arch}_{os_type}_{version}_{repo_name}
+            repo_arch = name.split('_')[0] if '_' in name else None
+            
+            # Enable repo only if it matches system architecture
+            if repo_arch == system_arch:
+                enabled = 1
+                enabled_count += 1
+            elif repo_arch in ['x86_64', 'aarch64'] and repo_arch != system_arch:
+                enabled = 0
+                disabled_count += 1
+                logger.info(f"Disabling repo '{name}' (arch mismatch: repo={repo_arch}, system={system_arch})")
+            else:
+                # No architecture prefix or unknown pattern - enable by default
+                enabled = 1
+                enabled_count += 1
+
             repo_content += (
                 f"[{name}]\n"
                 f"name={name} repo\n"
                 f"baseurl={base_url}\n"
-                f"enabled=1\n"
+                f"enabled={enabled}\n"
                 f"gpgcheck=0\n"
                 f"sslverify=0\n\n"
             )
@@ -1580,7 +1653,7 @@ def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
             with open(repo_file_path, "w", encoding="utf-8") as fh:
                 fh.write(repo_content.strip() + "\n")
             result["status"] = "Success"
-            result["message"] = f"Regenerated with {len(dists)} distributions"
+            result["message"] = f"Regenerated with {len(dists)} distributions ({enabled_count} enabled, {disabled_count} disabled)"
         else:
             result["status"] = "Skipped"
             result["message"] = "No valid distributions to write"
