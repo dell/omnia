@@ -13,41 +13,44 @@
 # limitations under the License.
 
 """
-Repo Operations — Status playbook execution test.
+Repo Operations — Status Deploy.
 
-  TC_ST_000: Run repo_manager.yml --tags status
+TC_ST_000: Deploy repo_manager.yml --tags status
 """
 
 import pytest
 
 from library.functions import TestLogger, run_playbook
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.vars import TEST_CASES as TC
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_run_status(host):
-    """TC_ST_000: Run repo_manager.yml --tags status."""
-    tag = "status"
-    tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag=tag), "TC_ST_000",
-    )
-
-    result = run_playbook(tag=tag)
+def test_deploy_status(host):
+    """TC_ST_000: Deploy repo_manager.yml --tags status."""
+    tc = TC["deploy_status"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = run_playbook(tag="status")
 
     if result["success"]:
-        tl.passed(
-            LOG_MSGS["playbook_success"].format(duration=result["duration"]),
-        )
+        tl.passed(LOG["playbook_success"].format(
+            duration=result["duration"]
+        ))
     else:
         tl.failed(
-            LOG_MSGS["playbook_failed"].format(
+            LOG["playbook_failed"].format(
                 rc=result["rc"], duration=result["duration"],
             ),
+            result.get("error", "See playbook output above"),
         )
 
-    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
-        playbook="repo_manager.yml", tag=tag,
+    assert result["success"], ASSERT["playbook_failed"].format(
+        playbook="repo_manager.yml", tag="status",
         rc=result["rc"], duration=result["duration"],
+        log_path="Check playbook output above",
     )

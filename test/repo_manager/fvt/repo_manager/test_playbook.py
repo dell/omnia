@@ -15,13 +15,17 @@
 """
 Repo Manager — Deploy (full playbook, no tags).
 
-TC_RM_000: Deploy repo_manager.yml without tags (validate + deploy + download + status)
+Deploy repo_manager.yml without tags (validate + deploy + download + status)
 """
 
 import pytest
 
 from library.functions import TestLogger, run_playbook
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.vars import TEST_CASES as TC
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.deploy
@@ -29,22 +33,23 @@ from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
 @pytest.mark.order(0)
 def test_deploy_repo_manager(host):
     """TC_RM_000: Deploy repo_manager.yml (default: validate + deploy + download + status)."""
-    tl = TestLogger(TEST_NAMES["deploy_playbook_full"], "TC_RM_000")
+    tc = TC["deploy_full"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_playbook()
 
     if result["success"]:
-        tl.passed(LOG_MSGS["playbook_success"].format(
+        tl.passed(LOG["playbook_success"].format(
             duration=result["duration"]
         ))
     else:
         tl.failed(
-            LOG_MSGS["playbook_failed"].format(
+            LOG["playbook_failed"].format(
                 rc=result["rc"], duration=result["duration"],
             ),
             result.get("error", "See playbook output above"),
         )
 
-    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+    assert result["success"], ASSERT["playbook_failed"].format(
         playbook="repo_manager.yml", tag="(none)",
         rc=result["rc"], duration=result["duration"],
         log_path="Check playbook output above",

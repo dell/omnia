@@ -30,29 +30,34 @@ from library.functions import (
     check_pulp_container_running,
     check_repo_status_file,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import PULP_CONTAINER
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_pulp_running_for_status(host):
     """TC_ST_002: Verify Pulp running (prerequisite for status)."""
-    tl = TestLogger(TEST_NAMES["pulp_container_running"], "TC_ST_002")
+    tc = TC["st_pulp_running"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_container_running(host)
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["container_running"].format(container=PULP_CONTAINER),
+            LOG["container_running"].format(container=PULP_CONTAINER),
             result["details"],
         )
     else:
         tl.failed(
-            LOG_MSGS["container_not_running"].format(container=PULP_CONTAINER),
+            LOG["container_not_running"].format(container=PULP_CONTAINER),
             result.get("error", ""),
         )
 
-    assert result["success"], ASSERT_MSGS["container_not_running"].format(
+    assert result["success"], ASSERT["container_not_running"].format(
         container=PULP_CONTAINER, status=result.get("status", "unknown"),
     )
 
@@ -61,17 +66,18 @@ def test_pulp_running_for_status(host):
 @pytest.mark.order(2)
 def test_repo_status_exists(host):
     """TC_ST_003: Verify repo_status.yml exists."""
-    tl = TestLogger(TEST_NAMES["repo_status_generated"], "TC_ST_003")
+    tc = TC["st_repo_status_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_status_file(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["repo_status_ok"], result["details"])
+        tl.passed(LOG["repo_status_ok"], result["details"])
     elif result.get("not_found"):
-        tl.failed(LOG_MSGS["repo_status_not_found"], result.get("error", ""))
+        tl.failed(LOG["repo_status_not_found"], result.get("error", ""))
     else:
-        tl.failed(LOG_MSGS["repo_status_failed"], result.get("error", ""))
+        tl.failed(LOG["repo_status_failed"], result.get("error", ""))
 
-    assert result["success"], ASSERT_MSGS["repo_status_failed"].format(
+    assert result["success"], ASSERT["repo_status_failed"].format(
         error=result.get("error", ""),
         status_path=result.get("status_path", ""),
     )
@@ -81,12 +87,13 @@ def test_repo_status_exists(host):
 @pytest.mark.order(3)
 def test_repo_status_content(host):
     """TC_ST_004: Verify repo_status.yml has expected content."""
-    tl = TestLogger(TEST_NAMES["repo_status_success"], "TC_ST_004")
+    tc = TC["st_repo_status_content"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_status_file(host)
 
     if not result["success"]:
-        tl.failed(LOG_MSGS["repo_status_failed"], result.get("error", ""))
-        assert False, ASSERT_MSGS["repo_status_check_failed"].format(
+        tl.failed(LOG["repo_status_failed"], result.get("error", ""))
+        assert False, ASSERT["repo_status_check_failed"].format(
             error=result.get("error", ""),
         )
 
@@ -102,9 +109,9 @@ def test_repo_status_content(host):
     details = result["details"]
     if missing:
         details += f"\n  Missing keys: {', '.join(missing)}"
-        tl.failed(LOG_MSGS["repo_status_failed"], details)
-        assert False, ASSERT_MSGS["repo_status_missing_keys"].format(
+        tl.failed(LOG["repo_status_failed"], details)
+        assert False, ASSERT["repo_status_missing_keys"].format(
             missing_keys=", ".join(missing),
         )
 
-    tl.passed(LOG_MSGS["repo_status_ok"], details)
+    tl.passed(LOG["repo_status_ok"], details)

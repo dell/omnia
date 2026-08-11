@@ -20,12 +20,19 @@ Test names, log messages, and assertion messages for all FVT tests.
 
 __all__ = [
     "TEST_NAMES",
+    "TEST_LOG_MSGS",
+    "TEST_ASSERT_MSGS",
+    # Backward-compatible aliases
     "LOG_MSGS",
     "ASSERT_MSGS",
 ]
 
 from .repo_manager_msgs import (
     TEST_NAMES,
-    LOG_MSGS,
-    ASSERT_MSGS,
+    TEST_LOG_MSGS,
+    TEST_ASSERT_MSGS,
 )
+
+# Backward-compatible aliases for existing code
+LOG_MSGS = TEST_LOG_MSGS
+ASSERT_MSGS = TEST_ASSERT_MSGS

@@ -32,20 +32,25 @@ from library.functions import (
     check_repos_synced,
     check_repo_status_file,
 )
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.vars import TEST_CASES as TC
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_software_config_valid(host):
     """TC_DL_002: Verify software_config.json is valid."""
-    tl = TestLogger(TEST_NAMES["software_config_valid"], "TC_DL_002")
+    tc = TC["software_config_valid"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_software_config_valid(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["software_config_valid_ok"], result["details"])
+        tl.passed(LOG["software_config_valid_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["software_config_invalid"], result.get("error", ""))
+        tl.failed(LOG["software_config_invalid"], result.get("error", ""))
 
     assert result["success"], result.get("error", result["details"])
 
@@ -54,17 +59,18 @@ def test_software_config_valid(host):
 @pytest.mark.order(2)
 def test_repos_synced(host):
     """TC_DL_003: Verify repos are synced in Pulp after download."""
-    tl = TestLogger(TEST_NAMES["repos_synced"], "TC_DL_003")
+    tc = TC["dl_repos_synced"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repos_synced(host)
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["repos_synced_ok"].format(count=result["count"]),
+            LOG["repos_synced_ok"].format(count=result["count"]),
             result["details"],
         )
     else:
         tl.failed(
-            LOG_MSGS["repos_missing"].format(count=result["count"]),
+            LOG["repos_missing"].format(count=result["count"]),
             result.get("error", ""),
         )
 
@@ -75,18 +81,19 @@ def test_repos_synced(host):
 @pytest.mark.order(3)
 def test_repo_status_generated(host):
     """TC_DL_004: Verify repo_status.yml generated after download."""
-    tl = TestLogger(TEST_NAMES["repo_status_generated"], "TC_DL_004")
+    tc = TC["dl_repo_status_generated"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_status_file(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["repo_status_ok"], result["details"])
+        tl.passed(LOG["repo_status_ok"], result["details"])
     else:
         if result.get("not_found"):
-            tl.failed(LOG_MSGS["repo_status_not_found"], result.get("error", ""))
+            tl.failed(LOG["repo_status_not_found"], result.get("error", ""))
         else:
-            tl.failed(LOG_MSGS["repo_status_failed"], result.get("error", ""))
+            tl.failed(LOG["repo_status_failed"], result.get("error", ""))
 
-    assert result["success"], ASSERT_MSGS["repo_status_failed"].format(
+    assert result["success"], ASSERT["repo_status_failed"].format(
         error=result.get("error", ""),
         status_path=result.get("status_path", ""),
     )

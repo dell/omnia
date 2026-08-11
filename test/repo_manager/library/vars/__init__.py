@@ -40,6 +40,7 @@ __all__ = [
     "PULP_CONFIG_DIR",
     "REPO_STATUS_PATH",
     "CMDS",
+    "TEST_CASES",
 ]
 
 from .common_vars import (
@@ -65,3 +66,5 @@ from .common_vars import (
     REPO_STATUS_PATH,
     CMDS,
 )
+
+from .test_case_vars import TEST_CASES

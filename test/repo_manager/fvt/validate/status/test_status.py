@@ -31,20 +31,22 @@ from library.functions import (
     check_endpoint_config_exists,
     check_software_config_exists,
 )
-from library.messages import TEST_NAMES, LOG_MSGS
+from library.vars import TEST_CASES as TC
+from library.messages import TEST_LOG_MSGS as LOG
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_input_config_exists(host):
     """TC_VL_002: Verify repo_manager_config.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["input_config_exists"], "TC_VL_002")
+    tc = TC["input_config_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_input_config_exists(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["input_config_ok"], result["details"])
+        tl.passed(LOG["input_config_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["input_config_missing"], result["details"])
+        tl.failed(LOG["input_config_missing"], result["details"])
 
     assert result["success"], result["details"]
 
@@ -53,13 +55,14 @@ def test_input_config_exists(host):
 @pytest.mark.order(2)
 def test_credentials_present(host):
     """TC_VL_003: Verify credentials file present."""
-    tl = TestLogger(TEST_NAMES["credentials_present"], "TC_VL_003")
+    tc = TC["credentials_present"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_credentials_present(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["credentials_present_ok"], result["details"])
+        tl.passed(LOG["credentials_present_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["credentials_missing"], result["details"])
+        tl.failed(LOG["credentials_missing"], result["details"])
 
     assert result["success"], result["details"]
 
@@ -68,13 +71,14 @@ def test_credentials_present(host):
 @pytest.mark.order(3)
 def test_endpoint_config_exists(host):
     """TC_VL_004: Verify endpoint config exists."""
-    tl = TestLogger(TEST_NAMES["endpoint_config_exists"], "TC_VL_004")
+    tc = TC["endpoint_config_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_endpoint_config_exists(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["endpoint_config_ok"], result["details"])
+        tl.passed(LOG["endpoint_config_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["endpoint_config_missing"], result["details"])
+        tl.failed(LOG["endpoint_config_missing"], result["details"])
 
     assert result["success"], result["details"]
 
@@ -83,12 +87,13 @@ def test_endpoint_config_exists(host):
 @pytest.mark.order(4)
 def test_software_config_exists(host):
     """TC_VL_005: Verify software_config.json exists."""
-    tl = TestLogger(TEST_NAMES["software_config_exists"], "TC_VL_005")
+    tc = TC["software_config_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_software_config_exists(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["software_config_ok"], result["details"])
+        tl.passed(LOG["software_config_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["software_config_missing"], result["details"])
+        tl.failed(LOG["software_config_missing"], result["details"])
 
     assert result["success"], result["details"]

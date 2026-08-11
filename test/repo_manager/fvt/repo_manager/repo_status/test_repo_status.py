@@ -27,26 +27,31 @@ from library.functions import (
     check_repo_status_file,
     check_repos_synced,
 )
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.vars import TEST_CASES as TC
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.sanity
 @pytest.mark.order(8)
 def test_repo_status_file(host):
     """TC_RM_009: Verify repo_status.yml exists and reports success."""
-    tl = TestLogger(TEST_NAMES["repo_status_generated"], "TC_RM_009")
+    tc = TC["rm_repo_status_file"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_status_file(host)
 
     if result.get("not_found"):
-        tl.skipped(LOG_MSGS["repo_status_not_found"])
-        pytest.skip(LOG_MSGS["repo_status_not_found"])
+        tl.skipped(LOG["repo_status_not_found"])
+        pytest.skip(LOG["repo_status_not_found"])
 
     if result["success"]:
-        tl.passed(LOG_MSGS["repo_status_ok"], result["details"])
+        tl.passed(LOG["repo_status_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["repo_status_failed"], result.get("error", ""))
+        tl.failed(LOG["repo_status_failed"], result.get("error", ""))
 
-    assert result["success"], ASSERT_MSGS["repo_status_failed"].format(
+    assert result["success"], ASSERT["repo_status_failed"].format(
         error=result.get("error", ""),
         status_path=result.get("status_path", ""),
     )
@@ -56,17 +61,18 @@ def test_repo_status_file(host):
 @pytest.mark.order(9)
 def test_repos_synced(host):
     """TC_RM_010: Verify repositories are synced in Pulp."""
-    tl = TestLogger(TEST_NAMES["repos_synced"], "TC_RM_010")
+    tc = TC["rm_repos_synced"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repos_synced(host)
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["repos_synced_ok"].format(count=result.get("count", 0)),
+            LOG["repos_synced_ok"].format(count=result.get("count", 0)),
             result["details"],
         )
     else:
         tl.failed(
-            LOG_MSGS["repos_missing"].format(count=0),
+            LOG["repos_missing"].format(count=0),
             result.get("error", ""),
         )
 

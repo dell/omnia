@@ -51,6 +51,7 @@ from omnia_auto import (
     set_current_report,
     get_current_report,
     get_test_output,
+    get_last_tc_id,
     encrypt_test_credentials,
     log,
     add_session_result,
@@ -66,6 +67,13 @@ from library.functions.validation_func import (
     validate_all,
     ConfigValidationError,
 )
+from library.vars import TEST_CASES
+
+# Build test-function-name → TC ID map for summary table fallback.
+# Auto-generates from TEST_CASES keys (e.g. "deploy_full" → "test_deploy_full")
+# plus explicit overrides where function name differs from key.
+_TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
+_TC_ID_MAP["test_deploy_repo_manager"] = TEST_CASES["deploy_full"]["id"]
 
 
 # =============================================================================
@@ -190,6 +198,31 @@ def pytest_collection_modifyitems(session, config, items):
 # SESSION STARTUP — ENCRYPT, CLONE, SYNC
 # =============================================================================
 
+def _apply_dataset_overrides(config):
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_repo_manager_input"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
+    ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    if ds_override:
+        log(f"Dataset override: {config.get('dataset')} → {ds_override}", "INFO")
+        config["dataset"] = ds_override
+
+    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+    if si_override:
+        config["sync_repo_manager_input"] = si_override.lower() == "true"
+
+    return config
+
+
 def pytest_sessionstart(session):
     """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
     # Validate config first — fail fast with clear errors
@@ -207,6 +240,10 @@ def pytest_sessionstart(session):
         pass
 
     config = load_test_config()
+
+    # Apply dataset/sync overrides from env vars (set by --config mode)
+    config = _apply_dataset_overrides(config)
+
     host = get_testinfra_host()
 
     if not is_local_execution():
@@ -251,11 +288,15 @@ def pytest_sessionstart(session):
     set_current_report(report)
 
 
-def pytest_sessionfinish(session, exitstatus):
-    """Save report and print summary table after all tests complete."""
+@pytest.hookimpl(trylast=True)
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print report saved box and summary table AFTER pytest failure output."""
     report = get_current_report()
     if report and report.results:
-        report.save()
+        try:
+            report.save()
+        except (OSError, IOError) as exc:
+            log(f"Report save failed: {exc}", "WARN")
 
     # Print summary table (from omnia_auto)
     print_summary_table()
@@ -296,11 +337,12 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    # Extract TC ID from docstring (format: "TC_XX_NNN: ...")
-    tc_id = ""
-    doc = getattr(item.obj, "__doc__", "") or ""
-    if doc.strip().startswith("TC_"):
-        tc_id = doc.strip().split(":", 1)[0].strip()
+    # Get TC ID from TestLogger (set during test execution)
+    tc_id = get_last_tc_id()
+
+    # Fallback: look up TC ID from TEST_CASES if TestLogger didn't set it
+    if not tc_id:
+        tc_id = _TC_ID_MAP.get(item.name, "")
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(

@@ -42,29 +42,34 @@ from library.functions import (
     check_pulp_certs,
     check_pulp_directories,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import PULP_CONTAINER
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_pulp_container_running(host):
     """TC_DP_002: Verify Pulp container running after deploy."""
-    tl = TestLogger(TEST_NAMES["pulp_container_running"], "TC_DP_002")
+    tc = TC["dp_pulp_container_running"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_container_running(host)
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["container_running"].format(container=PULP_CONTAINER),
+            LOG["container_running"].format(container=PULP_CONTAINER),
             result["details"],
         )
     else:
         tl.failed(
-            LOG_MSGS["container_not_running"].format(container=PULP_CONTAINER),
+            LOG["container_not_running"].format(container=PULP_CONTAINER),
             result.get("error", ""),
         )
 
-    assert result["success"], ASSERT_MSGS["container_not_running"].format(
+    assert result["success"], ASSERT["container_not_running"].format(
         container=PULP_CONTAINER, status=result.get("status", "unknown"),
     )
 
@@ -73,13 +78,14 @@ def test_pulp_container_running(host):
 @pytest.mark.order(2)
 def test_pulp_healthy(host):
     """TC_DP_003: Verify Pulp healthy after deploy."""
-    tl = TestLogger(TEST_NAMES["pulp_healthy"], "TC_DP_003")
+    tc = TC["dp_pulp_healthy"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_healthy(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["pulp_healthy_ok"], result["details"])
+        tl.passed(LOG["pulp_healthy_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["pulp_not_healthy"], result.get("error", ""))
+        tl.failed(LOG["pulp_not_healthy"], result.get("error", ""))
 
     assert result["success"], result.get("error", result["details"])
 
@@ -88,13 +94,14 @@ def test_pulp_healthy(host):
 @pytest.mark.order(3)
 def test_pulp_port_listening(host):
     """TC_DP_004: Verify Pulp port listening after deploy."""
-    tl = TestLogger(TEST_NAMES["pulp_port_listening"], "TC_DP_004")
+    tc = TC["dp_pulp_port_listening"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_port_listening(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["pulp_port_ok"].format(port=2225), result["details"])
+        tl.passed(LOG["pulp_port_ok"].format(port=2225), result["details"])
     else:
-        tl.failed(LOG_MSGS["pulp_port_not_listening"].format(port=2225), result.get("error", ""))
+        tl.failed(LOG["pulp_port_not_listening"].format(port=2225), result.get("error", ""))
 
     assert result["success"], result.get("error", result["details"])
 
@@ -103,13 +110,14 @@ def test_pulp_port_listening(host):
 @pytest.mark.order(4)
 def test_pulp_cli_configured(host):
     """TC_DP_005: Verify Pulp CLI configured after deploy."""
-    tl = TestLogger(TEST_NAMES["pulp_cli_configured"], "TC_DP_005")
+    tc = TC["dp_pulp_cli_configured"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_cli_configured(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["pulp_cli_ok"], result["details"])
+        tl.passed(LOG["pulp_cli_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["pulp_cli_missing"], result.get("error", ""))
+        tl.failed(LOG["pulp_cli_missing"], result.get("error", ""))
 
     assert result["success"], result.get("error", result["details"])
 
@@ -118,18 +126,19 @@ def test_pulp_cli_configured(host):
 @pytest.mark.order(5)
 def test_pulp_api_endpoint(host):
     """TC_DP_006: Verify Pulp API endpoint reachable after deploy."""
-    tl = TestLogger(TEST_NAMES["pulp_api_endpoint"], "TC_DP_006")
+    tc = TC["dp_pulp_api_endpoint"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_api_endpoint(host)
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["pulp_api_ok"].format(protocol=result.get("protocol", "unknown")),
+            LOG["pulp_api_ok"].format(protocol=result.get("protocol", "unknown")),
             result["details"],
         )
     else:
-        tl.failed(LOG_MSGS["pulp_api_not_reachable"], result.get("error", ""))
+        tl.failed(LOG["pulp_api_not_reachable"], result.get("error", ""))
 
-    assert result["success"], ASSERT_MSGS["pulp_api_failed"].format(
+    assert result["success"], ASSERT["pulp_api_failed"].format(
         error=result.get("error", ""),
     )
 
@@ -138,13 +147,14 @@ def test_pulp_api_endpoint(host):
 @pytest.mark.order(6)
 def test_pulp_quadlet_exists(host):
     """TC_DP_007: Verify Pulp quadlet/systemd unit file exists."""
-    tl = TestLogger(TEST_NAMES["pulp_quadlet_exists"], "TC_DP_007")
+    tc = TC["dp_pulp_quadlet_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_quadlet_exists(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["pulp_quadlet_ok"], result["details"])
+        tl.passed(LOG["pulp_quadlet_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["pulp_quadlet_missing"], result["details"])
+        tl.failed(LOG["pulp_quadlet_missing"], result["details"])
 
     assert result["success"], result["details"]
 
@@ -153,13 +163,14 @@ def test_pulp_quadlet_exists(host):
 @pytest.mark.order(7)
 def test_pulp_certs(host):
     """TC_DP_008: Verify Pulp SSL certificates present (HTTPS mode)."""
-    tl = TestLogger(TEST_NAMES["pulp_certs"], "TC_DP_008")
+    tc = TC["dp_pulp_certs"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_certs(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["pulp_certs_ok"], result["details"])
+        tl.passed(LOG["pulp_certs_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["pulp_certs_missing"], result["details"])
+        tl.failed(LOG["pulp_certs_missing"], result["details"])
 
     assert result["success"], result["details"]
 
@@ -168,12 +179,13 @@ def test_pulp_certs(host):
 @pytest.mark.order(8)
 def test_pulp_directories(host):
     """TC_DP_009: Verify Pulp data directories exist."""
-    tl = TestLogger(TEST_NAMES["pulp_directories"], "TC_DP_009")
+    tc = TC["dp_pulp_directories"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_pulp_directories(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["pulp_dirs_ok"], result["details"])
+        tl.passed(LOG["pulp_dirs_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["pulp_dirs_missing"], result["details"])
+        tl.failed(LOG["pulp_dirs_missing"], result["details"])
 
     assert result["success"], result["details"]

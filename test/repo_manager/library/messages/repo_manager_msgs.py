@@ -123,7 +123,7 @@ TEST_NAMES = {
 # TEST LOG MESSAGES
 # =============================================================================
 
-LOG_MSGS = {
+TEST_LOG_MSGS = {
     # Container messages
     "container_running": "Container {container} is running",
     "container_not_running": (
@@ -281,7 +281,7 @@ LOG_MSGS = {
 
 _BORDER = "\u2550" * 74
 
-ASSERT_MSGS = {
+TEST_ASSERT_MSGS = {
     "container_not_running": (
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 CONTAINER CHECK FAILED: {container}\n"

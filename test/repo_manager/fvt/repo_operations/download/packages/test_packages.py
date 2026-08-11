@@ -25,22 +25,27 @@ from library.functions import (
     TestLogger,
     check_repo_status_file,
 )
-from library.messages import TEST_NAMES, LOG_MSGS, ASSERT_MSGS
+from library.vars import TEST_CASES as TC
+from library.messages import (
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
+)
 
 
 @pytest.mark.sanity
 @pytest.mark.order(4)
 def test_repo_status_success(host):
     """TC_DL_005: Verify repo_status.yml reports success."""
-    tl = TestLogger(TEST_NAMES["repo_status_success"], "TC_DL_005")
+    tc = TC["dl_repo_status_success"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_status_file(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["repo_status_ok"], result["details"])
+        tl.passed(LOG["repo_status_ok"], result["details"])
     else:
-        tl.failed(LOG_MSGS["repo_status_failed"], result.get("error", ""))
+        tl.failed(LOG["repo_status_failed"], result.get("error", ""))
 
-    assert result["success"], ASSERT_MSGS["repo_status_failed"].format(
+    assert result["success"], ASSERT["repo_status_failed"].format(
         error=result.get("error", ""),
         status_path=result.get("status_path", ""),
     )
