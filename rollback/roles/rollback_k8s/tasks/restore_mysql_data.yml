@@ -230,7 +230,10 @@
             cmd: >
               kubectl wait --for=jsonpath='{.status.phase}'=Succeeded
               pod/mysql-pvc-cleanup-{{ item }} -n {{ telemetry_namespace }}
-              --timeout=120s
+              --timeout=120s 2>/dev/null ||
+              kubectl wait --for=jsonpath='{.status.phase}'=Failed
+              pod/mysql-pvc-cleanup-{{ item }} -n {{ telemetry_namespace }}
+              --timeout=120s 2>/dev/null
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           changed_when: false
@@ -238,6 +241,7 @@
           delay: 10
           register: cleanup_wait
           until: cleanup_wait.rc == 0
+          failed_when: false
           loop: "{{ idrac_telemetry_pod_indices }}"
 
         - name: Verify PVC cleanup succeeded for each replica
