@@ -1,8 +1,13 @@
 # Test Automation — Coding Rules
 
 > All test automation code under `test/` MUST follow these rules.
-> These rules apply to every domain test module (image_build_manager, repo_manager, provision, discovery, telemetry, etc.).
+> These rules apply to every domain test module.
 > The reference implementation is `test/image_build_manager/`.
+
+**Cross-references:**
+- **Co-change rule** (code changes require test updates): see `general.md` §6
+- **AI agent policy** (no AI sign-off): see `general.md` §7
+- **Architecture and patterns**: see `docs/design/test-automation-design.md`
 
 ---
 
@@ -17,10 +22,10 @@ Before writing **any** automation code:
 3. **Map each resource to a verification test** — every container the playbook creates should have a test that checks it is running, every service should be checked as active, etc.
 
 ```bash
-# Example: analyze image_build_manager
-ls src/image_build_manager/playbooks/       # Main playbook entry points
-ls src/image_build_manager/roles/           # All 10 roles
-cat src/image_build_manager/playbooks/prepare/prepare_image_build_manager.yml
+# Example: analyze a domain
+ls src/<domain_name>/playbooks/       # Main playbook entry points
+ls src/<domain_name>/roles/           # All roles
+cat src/<domain_name>/playbooks/<tag>/<tag>_<domain_name>.yml
 ```
 
 ### 1.2 Manually Verify on a Working Cluster
@@ -76,8 +81,12 @@ test/<domain_name>/
 ├── run_validation.sh              # CLI runner
 ├── setup_env.sh                   # One-time venv + tab-completion setup
 ├── datasets/
-│   └── data_set_01/
-│       └── input/                 # Synced to target
+│   ├── data_set_01/               # Generated via generator tool
+│   │   └── input/                 # Synced to target
+│   └── generator/                 # Dataset generator (MANDATORY)
+│       ├── generate_dataset.py
+│       ├── profiles/              # Variable profiles (YAML)
+│       └── templates/             # Jinja2 templates
 ├── library/
 │   ├── functions/
 │   │   ├── __init__.py            # Public API — imports from omnia_auto + domain
@@ -97,7 +106,56 @@ test/<domain_name>/
     └── <domain_name>/             # Full end-to-end (no tag)
 ```
 
-### 2.2 Strict Separation Rules
+### 2.2 Dataset and Input File Behavior
+
+#### Dataset Generation (Recommended)
+
+Datasets SHOULD be created using the dataset generator tool. The generator
+ensures consistent structure, required files, and correct field values.
+
+```bash
+cd datasets/generator/
+
+# Generate from a profile
+python generate_dataset.py <dataset_name> <profile>
+
+# Generate with variable overrides
+python generate_dataset.py <dataset_name> <profile> --var key=value
+
+# Copy from src/ (for quick bootstrap)
+python generate_dataset.py <dataset_name> --from-src
+
+# List available profiles
+python generate_dataset.py --list-profiles
+```
+
+**Rules:**
+- Every domain module MUST include a `datasets/generator/` directory
+- Generator MUST have `defaults.yml` base profile and domain-specific profiles
+- Generator MUST use Jinja2 templates under `templates/` for all config files
+- Generated datasets MUST contain all required input files for the domain
+- The `--from-src` mode copies from `src/<domain_name>/input/` and creates
+  placeholder credentials — use this to bootstrap a new dataset quickly
+
+#### Empty Dataset — Target Server Input (`dataset: ""`)
+
+When `dataset` is empty (or not set), the playbook reads input files directly
+from the **target server** at:
+
+```
+$OMNIA_DATA_PATH/<domain_name>/input/<project_name>/
+```
+
+In this mode, **no input files are synced** from the local machine. The files
+must already exist on the target (e.g., placed there by a previous deployment
+or manually). This is the **production behavior** — `omnia.sh` places config
+files at this path during setup.
+
+When `sync_<domain_name>_input: true` is set AND `dataset` is empty, the
+framework syncs from `src/<domain_name>/input/` to the target path as a
+convenience for development.
+
+### 2.3 Strict Separation Rules
 
 | Content | Location | Never In |
 |---------|----------|----------|
@@ -108,7 +166,7 @@ test/<domain_name>/
 | Constants | `common_vars.py` | Function or test files |
 | Verification logic | `functions/<domain_name>_func.py` | Test files |
 
-### 2.3 `__init__.py` Requirements
+### 2.4 `__init__.py` Requirements
 
 Every `__init__.py` MUST:
 1. Include Apache 2.0 license header (current year)
@@ -116,7 +174,7 @@ Every `__init__.py` MUST:
 3. Import and re-export specific items (no `import *`)
 4. Group imports: functions, then vars, then messages
 
-### 2.4 Re-exports with `__all__`
+### 2.5 Re-exports with `__all__`
 
 When importing from `omnia_auto` for re-export:
 
@@ -149,15 +207,12 @@ Every test file MUST start with a module docstring listing what it verifies:
 
 ```python
 """
-Image Build Prepare — Infrastructure Verification.
+<Domain> <Phase> — <Category> Verification.
 
-Validates that --tags prepare created all required infrastructure:
-  S3 storage backend (MinIO container)
-  Registry container running
-  Systemd services active (minio, registry)
-  Firewall ports open (9000, 9001, 5000)
-  s3cmd installed and configured
-  Registry reachable (HTTP catalog)
+Validates that --tags <tag> created all required <resources>:
+  <resource 1>
+  <resource 2>
+  <resource 3>
 """
 ```
 
@@ -171,11 +226,11 @@ and referenced via `TEST_CASES["key"]` in test files. **Never hardcode TC IDs or
 TEST_CASES = {
     "deploy_prepare": {
         "id": "TC_PR_001",
-        "title": "Deploy image_build_manager (prepare)",
+        "title": "Deploy <domain_name> (prepare)",
     },
-    "storage_backend": {
+    "verify_resource": {
         "id": "TC_PR_002",
-        "title": "Verify S3 storage backend after prepare",
+        "title": "Verify <resource> after prepare",
     },
 }
 ```
@@ -200,24 +255,24 @@ grep -rn '"TC_[A-Z]*_[0-9]' fvt/ --include="*.py" | grep -v __pycache__ | grep -
 ```python
 @pytest.mark.sanity
 @pytest.mark.order(1)
-def test_storage_backend_after_prepare(host):
-    """Verify S3 backend after prepare."""
-    tc = TC["storage_backend"]
+def test_verify_resource(host):
+    """Verify resource exists after deploy."""
+    tc = TC["verify_resource"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    result = check_s3_containers(host)
+    result = check_resource(host)
 
     if result.get("skipped"):
-        tl.skipped(LOG["storage_backend_skip_minio_check"])
-        pytest.skip(LOG["storage_backend_skip_minio_check"])
+        tl.skipped(LOG["resource_skip_reason"])
+        pytest.skip(LOG["resource_skip_reason"])
 
     if result["success"]:
-        tl.passed(LOG["storage_backend_minio"], result["details"])
+        tl.passed(LOG["resource_ok"], result["details"])
     else:
-        tl.failed(LOG["container_not_running"].format(container="minio-server"))
+        tl.failed(LOG["resource_not_found"].format(name="..."))
 
-    assert result["success"], ASSERT["container_not_running"].format(
-        container="minio-server", status=result.get("status", ""),
+    assert result["success"], ASSERT["resource_not_found"].format(
+        name="...", status=result.get("status", ""),
     )
 ```
 
@@ -233,17 +288,18 @@ def test_storage_backend_after_prepare(host):
 |--------|------|
 | **Pattern** | `TC_<AREA>_<SEQ>` (3-digit zero-padded) |
 | **Area** | 2-letter abbreviation of the test phase or scenario |
-| **Sequence** | Sequential within that area, starting at `001` (or `001` for deploy) |
+| **Sequence** | Sequential within that area, starting at `001` (deploy) |
 
-Each domain defines its own area prefixes. Common examples:
+Each domain defines its own area prefixes. Example patterns:
 
 | Area | Prefix | Description |
 |------|--------|-------------|
+| Precheck | `TC_PC_` | Environment precheck tests (env vars, hostname, IP, connectivity) |
 | Validate | `TC_VL_` | Input validation tests |
 | Prepare | `TC_PR_` | Infrastructure setup tests |
-| Build | `TC_BD_` | Build/execute phase tests |
+| Build/Execute | `TC_BD_` | Build or execution phase tests |
 | Cleanup | `TC_CL_` | Cleanup verification tests |
-| End-to-End | `TC_IB_` | Full suite verification (image_build_manager) |
+| End-to-End | `TC_<XX>_` | Full suite verification (domain-specific prefix) |
 
 ### 3.5 Deploy Test Pattern
 
@@ -254,7 +310,7 @@ Deploy tests run the playbook and always execute first (`order(0)`):
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_prepare(host):
-    """Deploy image_build_manager --tags prepare."""
+    """Deploy <domain_name> --tags prepare."""
     tc = TC["deploy_prepare"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag="prepare")
@@ -268,7 +324,7 @@ def test_deploy_prepare(host):
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="image_build_manager.yml", tag="prepare",
+        playbook=PLAYBOOK_ENTRY_POINT, tag="prepare",
         rc=result["rc"], duration=result["duration"],
         log_path=BUILD_LOG_PATH.format(shared_path=SHARED_PATH, project=project),
     )
@@ -278,6 +334,42 @@ def test_deploy_prepare(host):
 - **Always pass `playbook=` explicitly** — use `PLAYBOOK_ENTRY_POINT` constant from `common_vars.py`
 - **TC ID and title** come from `TEST_CASES` dict — never hardcode
 - **Timeout** should be appropriate for the tag (3600s for full, 1800s for single tag)
+
+### 3.6a Precheck Test Pattern
+
+Precheck tests validate the environment before any playbook runs. They verify
+env vars from `omnia.env`, hostname, domain, admin IP, and `omnia.sh` setup:
+
+```python
+@pytest.mark.sanity
+@pytest.mark.order(2)
+def test_env_vars_present(host):
+    """Verify all required omnia.env variables present on target."""
+    tc = TC["env_vars_present"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_env_vars_present(host)
+
+    if result["success"]:
+        tl.passed(LOG["env_vars_ok"], result["details"])
+    else:
+        missing = [r for r in result["results"] if not r["found"]]
+        tl.failed(LOG["env_vars_missing"].format(count=len(missing)), result["details"])
+
+    assert result["success"], ASSERT["env_vars_missing"].format(
+        error=result.get("error", "Env vars missing"),
+    )
+```
+
+**Precheck tests verify:**
+- SSH connectivity (`check_target_connectivity`)
+- All omnia.env vars: `OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`,
+  `SYSTEM_ADMIN_NIC_IPV4`, `SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`
+- Hostname matches configured `SYSTEM_HOSTNAME`
+- Admin IP assigned to a local interface
+- `omnia.sh --setup-venv` completed (`/etc/omnia/omnia.env` exists)
+
+**Source playbook**: Each domain should have a `precheck/` playbook directory
+with a `precheck_environment` role that validates the same checks via Ansible.
 
 ### 3.6 Import Structure for Test Files
 
@@ -289,14 +381,14 @@ import pytest
 from library.functions import (
     TestLogger,
     run_playbook,
-    check_s3_containers,
+    check_resource,
 )
 
 # Local — Variables (TEST_CASES, constants)
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     PLAYBOOK_ENTRY_POINT,
-    REGISTRY_CONTAINER,
+    RESOURCE_CONSTANT,
 )
 
 # Local — Messages
@@ -317,8 +409,8 @@ from library.messages import (
 Tests produce structured output via `TestLogger`:
 
 ```
-  ▶ Verify container is running
-  ✔ PASS: Container registry is running
+  ▶ Verify resource is running
+  ✔ PASS: Resource is active
     │ Status: Up 3 hours
 ```
 
@@ -333,21 +425,21 @@ Tests produce structured output via `TestLogger`:
 All verification functions MUST return a dict:
 
 ```python
-def check_container_running(host, container_name: str) -> Dict[str, Any]:
-    """Check if a container is running on the target host.
+def check_resource(host, name: str) -> Dict[str, Any]:
+    """Check if a resource exists on the target host.
 
     Args:
         host: Testinfra host connection.
-        container_name: Name of the container to check.
+        name: Name of the resource to check.
 
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    cmd = CMDS["podman_ps_check"].format(container=container_name)
+    cmd = CMDS["check_resource"].format(name=name)
     result = run_on_host(host, cmd)
     if result.rc != 0:
-        return {"success": False, "details": "", "error": f"{container_name} not found"}
-    return {"success": True, "details": f"{container_name} is present", "error": ""}
+        return {"success": False, "details": "", "error": f"{name} not found"}
+    return {"success": True, "details": f"{name} is present", "error": ""}
 ```
 
 ### 4.2 Dynamic Input Rules (CRITICAL)
@@ -366,11 +458,11 @@ def check_container_running(host, container_name: str) -> Dict[str, Any]:
 ### 4.3 Skip Pattern for Optional Features
 
 ```python
-if not groups:
+if not items:
     return {
         "success": True,
         "skipped": True,
-        "details": f"No {arch} functional groups configured",
+        "details": f"No {category} configured — skipping",
     }
 ```
 
@@ -395,10 +487,9 @@ Violating these rules will block code review.
 
 | Violation | Correct |
 |-----------|---------|
-| `"/tmp/ibm_test_image"` inline | `IMAGE_VERIFY_TEMP_IMAGE` in `common_vars.py` |
-| `"/opt/omnia/repo_manager/output"` inline | `REPO_MANAGER_OUTPUT_PATH` in `common_vars.py` |
-| `"functional_group_packages.yml"` inline | `FG_PACKAGES_FILENAME` in `common_vars.py` |
-| `"squashfs-tools"` inline | `SQUASHFS_PACKAGE` in `common_vars.py` |
+| `"/tmp/test_image"` inline | `TEMP_IMAGE_PATH` in `common_vars.py` |
+| `"/opt/omnia/<domain>/output"` inline | `OUTPUT_PATH` in `common_vars.py` |
+| `"config_file.yml"` inline | `CONFIG_FILE_NAME` in `common_vars.py` |
 
 **Rule:** If a string literal represents a filesystem path, package name, container
 name, port number, bucket name, or service name — it MUST be a named constant in
@@ -413,7 +504,6 @@ All shell commands executed via `host.run()` MUST use the `CMDS` dictionary in
 |-----------|---------|
 | `host.run(f"cat {path} 2>/dev/null")` | `host.run(CMDS["cat_file"].format(path=path))` |
 | `host.run(f"podman ps --format ... --filter ...")` | `host.run(CMDS["podman_ps_check"].format(container=name))` |
-| `host.run(f"mount -t squashfs -o ro {img} {mnt}")` | `host.run(CMDS["mount_squashfs"].format(image=img, mount=mnt))` |
 | `host.run(f"systemctl is-active {svc}")` | `host.run(CMDS["systemctl_is_active"].format(service=svc))` |
 
 **Rule:** Never write a raw shell command string inside `host.run()`. Always
@@ -429,7 +519,7 @@ Regex patterns, required field lists, and required file lists used in
 # In common_vars.py:
 IPV4_PATTERN = re.compile(r'...')
 REQUIRED_CONFIG_FIELDS = ["project_name", "clone_path", ...]
-REQUIRED_DATASET_FILES = ["input/image_build_config.yml", ...]
+REQUIRED_DATASET_FILES = ["input/<domain_name>_config.yml", ...]
 ```
 
 ### 5.2 Command Dictionary (MANDATORY)
@@ -444,10 +534,7 @@ CMDS: Dict[str, str] = {
     ),
     "systemctl_is_active": "systemctl is-active {service} 2>/dev/null",
     "file_exists": "test -f {path} && echo exists",
-    "s3cmd_ls": "s3cmd ls 2>/dev/null",
-    "curl_registry_catalog": (
-        "curl -sk https://{registry}:{port}/v2/_catalog 2>/dev/null"
-    ),
+    "cat_file": "cat {path} 2>/dev/null",
 }
 ```
 
@@ -461,8 +548,6 @@ CMDS: Dict[str, str] = {
 | File operations | descriptive | `cat_file`, `file_exists`, `dir_exists`, `file_stat` |
 | System | descriptive | `hostname_cmd`, `rpm_check`, `which_cmd` |
 | Systemd | `systemctl_` | `systemctl_is_active` |
-| Squashfs | `squashfs_` | `squashfs_tools_check`, `squashfs_tools_install` |
-| Mount | `mount_`, `umount` | `mount_squashfs`, `umount` |
 
 ### 5.4 Adding a New Command or Constant — Checklist
 
@@ -478,17 +563,16 @@ When you need a new shell command or constant:
 
 ```python
 # Domain identity
-DOMAIN_NAME = "image_build_manager"
+DOMAIN_NAME = "<domain_name>"
 
 # Playbook config
-PLAYBOOK_ENTRY_POINT = "image_build_manager.yml"
-PLAYBOOK_WORKDIR = "src/image_build_manager/playbooks"
+PLAYBOOK_ENTRY_POINT = "<domain_name>.yml"
+PLAYBOOK_WORKDIR = "src/<domain_name>/playbooks"
 
-# Domain-specific resources
-MINIO_CONTAINER = "minio-server"
-REGISTRY_CONTAINER = "registry"
-SYSTEMD_SERVICES = ["minio.service", "registry.service"]
-FIREWALL_PORTS = ["9000/tcp", "9001/tcp", "5000/tcp"]
+# Domain-specific resources (examples)
+CONTAINER_NAMES = ["container_a", "container_b"]
+SYSTEMD_SERVICES = ["service_a.service", "service_b.service"]
+FIREWALL_PORTS = ["8080/tcp", "443/tcp"]
 ```
 
 ### 5.6 TEST_CASES Dictionary (MANDATORY)
@@ -499,11 +583,11 @@ All test case metadata MUST be centralized in `test_case_vars.py`:
 TEST_CASES: Dict[str, Dict[str, str]] = {
     "deploy_prepare": {
         "id": "TC_PR_001",
-        "title": "Deploy image_build_manager (prepare)",
+        "title": "Deploy <domain_name> (prepare)",
     },
-    "storage_backend": {
+    "verify_resource": {
         "id": "TC_PR_002",
-        "title": "Verify S3 storage backend after prepare",
+        "title": "Verify <resource> after prepare",
     },
 }
 ```
@@ -520,7 +604,7 @@ Before committing, run this check to detect inline command violations:
 
 ```bash
 python3 -c "
-with open('library/functions/build_image_func.py') as f:
+with open('library/functions/<domain_name>_func.py') as f:
     lines = f.readlines()
 for i, line in enumerate(lines, 1):
     s = line.strip()
@@ -546,8 +630,8 @@ Every domain module defines message dictionaries in `<domain_name>_msgs.py`:
 # --- Log Messages ---
 TEST_LOG_MSGS: Dict[str, str] = {
     "playbook_success": "Playbook completed in {duration}",
-    "container_running": "Container '{container}' is running",
-    "container_not_running": "Container '{container}' not running",
+    "resource_ok": "Resource '{name}' is present",
+    "resource_not_found": "Resource '{name}' not found",
 }
 
 # --- Assertion Messages ---
@@ -556,14 +640,13 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "Playbook {playbook} --tags {tag} failed (rc={rc})\n"
         "HOW TO FIX:\n"
         "  1. Check logs at: {log_path}\n"
-        "  2. Run manually: cd <clone>/src/image_build_manager/playbooks && "
-        "ansible-playbook image_build_manager.yml --tags {tag}\n"
+        "  2. Run manually on the target server\n"
     ),
-    "container_not_running": (
-        "Expected container '{container}' to be running, got '{status}'\n"
+    "resource_not_found": (
+        "Expected '{name}' to be present, got '{status}'\n"
         "HOW TO FIX:\n"
-        "  1. Run --tags prepare first\n"
-        "  2. Check: podman ps -a --filter name={container}\n"
+        "  1. Run --tags <tag> first\n"
+        "  2. Check: <diagnostic command>\n"
     ),
 }
 ```
@@ -585,7 +668,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
 - **Minimum score: 8.8/10** per file (team standard), **8.0** in CI.
 - Run pylint from the module's virtual environment (where `omnia-auto` is installed):
   ```bash
-  .venv/bin/pylint library/functions/build_image_func.py
+  .venv/bin/pylint library/functions/<domain_name>_func.py
   ```
 - **Do NOT use `# noqa` or `# pylint: disable=...` to suppress warnings.**
   Fix the actual issue instead:
@@ -599,7 +682,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
 
 | Type | Convention | Example |
 |------|-----------|---------|
-| Test function | `test_<feature>_<aspect>` | `test_storage_backend_after_prepare` |
+| Test function | `test_<feature>_<aspect>` | `test_resource_after_prepare` |
 | Test file | `test_<component>.py` | `test_containers.py` |
 | Test case ID | `TC_<AREA>_<SEQ>` | `TC_PR_002` |
 
@@ -612,7 +695,7 @@ The following CI workflows run on every PR. **All must pass before merge.**
 | Check | Tool | Rule |
 |-------|------|------|
 | **DCO** | `dco` | Every commit signed off (`git commit -s`) |
-| **Pylint** | `pylint` | Score >= 8.0 per file (CI may report `import-error` for `omnia_auto` — expected) |
+| **Pylint** | `pylint` | Score >= 8.0 per file |
 | **Bandit** | `bandit` | No High severity issues (`-ll -ii`) |
 | **Gitleaks** | `gitleaks` | No secrets in committed code |
 | **Ansible Lint** | `ansible-lint` | YAML best practices (`true`/`false` not `yes`/`no`, newline at EOF) |
@@ -663,10 +746,15 @@ bash setup_env.sh --venv
 # Step 2: Activate the virtual environment
 source .venv/bin/activate
 
-# Step 3: Configure test settings
-vi test_config.yml        # Set oim_server_ip, paths, options
+# Step 3: Generate a dataset
+cd datasets/generator/
+python generate_dataset.py my_dataset defaults
+cd ../..
 
-# Step 4: Set SSH password (remote mode only)
+# Step 4: Configure test settings
+vi test_config.yml        # Set oim_server_ip, dataset, paths, options
+
+# Step 5: Set SSH password (remote mode only)
 bash setup_env.sh --set-password
 ```
 
@@ -743,7 +831,7 @@ rm -rf dist/ build/ *.egg-info
 python -m build --wheel
 
 # 4. Reinstall in the domain venv
-cd ../image_build_manager/
+cd ../<domain_name>/
 source .venv/bin/activate
 pip install --force-reinstall ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl
 
@@ -770,16 +858,6 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - **First line**: `<type>(<scope>): <description>` (max 72 chars)
 - **Body** (optional): Blank line, then details in bullet points
 - **Signed-off-by**: Auto-added by `--signoff` flag
-
-```
-feat(image_build_manager): add prepare phase verification tests
-
-- Add TC_PR_001 through TC_PR_008 for prepare tag tests
-- Add check_s3_containers, check_services_active functions
-- Update TEST_LOG_MSGS and TEST_ASSERT_MSGS
-
-Signed-off-by: Your Name <your.email@dell.com>
-```
 
 ### 12.3 Branch Naming
 
@@ -809,9 +887,7 @@ grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
     grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
 
 # 4. Run tests — all must pass
-./run_validation.sh prepare verify --marker sanity
-./run_validation.sh validate verify --marker sanity
-./run_validation.sh image_build_manager verify --marker sanity
+./run_validation.sh <scenario> verify --marker sanity
 
 # 5. Only push when everything is green
 git commit -s -m "<type>(<scope>): description"
@@ -830,6 +906,11 @@ Before submitting a PR, verify:
 - [ ] `conftest.py` calls `omnia_auto.configure()` before any other `omnia_auto` imports
 - [ ] `library/functions/__init__.py` re-exports `omnia_auto` functions + domain wrappers
 - [ ] License headers in all files (current year)
+
+### Dataset
+- [ ] Dataset created using `datasets/generator/generate_dataset.py`
+- [ ] Generator has `defaults.yml` profile and Jinja2 templates
+- [ ] Generated dataset contains all required input files
 
 ### Functions
 - [ ] Used `omnia_auto` core functions first (check before writing new)
@@ -861,3 +942,9 @@ Before submitting a PR, verify:
 - [ ] No hardcoded IPs, passwords, tokens
 - [ ] All commits signed off (`git commit -s`)
 - [ ] TEST_CASES.md updated with new test cases
+
+### Co-Change
+- [ ] PR that changes `src/` includes corresponding `test/` updates (or justification in PR description)
+- [ ] New playbook tags have a corresponding FVT scenario
+- [ ] Deleted features have their tests removed
+- [ ] AI agents (Devin, Copilot, etc.) NOT used for sign-off — see `general.md` §7

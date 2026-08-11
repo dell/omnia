@@ -51,12 +51,20 @@ oim_ssh_port: 22                # SSH port (default: 22)
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Empty = use `src/` files directly. Set to a dataset folder name for custom inputs. | `""` |
+| `dataset` | No | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. | `""` |
 | `project_name` | No | Omnia project name on the target. Must match `OMNIA_PROJECT_NAME` env var. Used for input/output path resolution. | `"project_default"` |
 
-When `dataset` is empty (default), input files are read from `src/image_build_manager/input/`
-and `src/image_build_manager/samples/repo_manager_output/`. For custom datasets,
-generate one with `datasets/generator/generate_dataset.py`.
+**Empty dataset (`dataset: ""`)**: The playbook reads input from the target
+server at `$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/`.
+Files must already exist on the target. This is the production behavior.
+
+**Generated dataset (`dataset: "<name>"`)**: Create using the
+[dataset generator](../datasets/generator/README.md), then set the name here:
+
+```bash
+cd datasets/generator/
+python generate_dataset.py <name> <profile>
+```
 
 ### Sync Options
 
@@ -83,13 +91,25 @@ in `image_build_config.yml`.
 
 ---
 
-## Example — Minimal Remote Setup
+## Example — Remote Setup (empty dataset, target has input files)
 
 ```yaml
 oim_server_ip: "<target_ip>"
 oim_ssh_user: root
 clone_path: "/omnia"
 dataset: ""
+project_name: "project_default"
+sync_image_build_input: false
+sync_output: false
+```
+
+## Example — Remote Setup (generated dataset)
+
+```yaml
+oim_server_ip: "<target_ip>"
+oim_ssh_user: root
+clone_path: "/omnia"
+dataset: "my_dataset"
 project_name: "project_default"
 sync_image_build_input: true
 sync_output: false
@@ -104,14 +124,39 @@ sync_image_build_input: false
 sync_output: false
 ```
 
-## Example — Custom Dataset
+---
 
-```yaml
-oim_server_ip: "<target_ip>"
-oim_ssh_user: root
-clone_path: "/omnia"
-dataset: "my_custom_ds"
-project_name: "project_default"
-sync_image_build_input: true
-sync_output: true
+## Environment Prerequisites
+
+Before running tests, the target server must have the following environment
+variables set (installed by `omnia.sh --setup-venv`):
+
+| Variable | Required | Validation | Description |
+|----------|----------|------------|-------------|
+| `SYSTEM_ADMIN_NIC_IPV4` | Yes | `hostname -I` | Admin NIC IPv4 — must be assigned to a local interface |
+| `SYSTEM_HOSTNAME` | Yes | `hostname -s` | Short hostname — must match system short hostname |
+| `SYSTEM_DOMAIN_NAME` | Yes | `hostname -d` | Domain name — validated against system domain |
+| `OMNIA_DATA_PATH` | Yes | `stat` | Root data directory (default: `/opt/omnia`) |
+| `OMNIA_PROJECT_NAME` | Yes | — | Project name (default: `project_default`) |
+| `OMNIA_VERSION` | Yes | — | Omnia release version |
+
+### Verifying Environment
+
+Use the precheck scenario to validate the full environment:
+
+```bash
+# Via test automation
+./run_validation.sh precheck verify --marker sanity
+
+# Via playbook
+cd src/image_build_manager/playbooks
+ansible-playbook image_build_manager.yml --tags precheck
 ```
+
+The precheck validates (same checks as `omnia.sh validate_env()`):
+1. SSH connectivity to the target
+2. All required env vars are set
+3. Short hostname (`hostname -s`) matches `SYSTEM_HOSTNAME`
+4. Domain (`hostname -d`) matches `SYSTEM_DOMAIN_NAME`
+5. Admin IP is one of the IPs on the server (`hostname -I`)
+6. `omnia.sh --setup-venv` has been run (`/etc/omnia/omnia.env` exists)

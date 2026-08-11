@@ -59,6 +59,7 @@ Each scenario has the following fields:
 | Scenario | Playbook Tag | Description |
 |----------|-------------|-------------|
 | `image_build_manager` | *(none — default: prepare + build)* | Full end-to-end deploy + verify |
+| `precheck` | `--tags precheck` | Environment precheck (env vars, connectivity) |
 | `validate` | `--tags validate` | Validate input configuration |
 | `prepare` | `--tags prepare` | Deploy MinIO + registry infrastructure |
 | `build` | `--tags build` | Build OS images (x86_64 + aarch64) |
@@ -82,41 +83,52 @@ Each scenario has the following fields:
 skip_on_failure: false
 
 scenarios:
-  cleanup:
+  precheck:
     order: 1
     run: true
-    command: "test"
+    command: "verify"
     suite: ""
     marker: "sanity"
 
-  validate:
+  cleanup:
     order: 2
     run: true
     command: "test"
     suite: ""
     marker: "sanity"
 
-  prepare:
+  validate:
     order: 3
     run: true
     command: "test"
     suite: ""
     marker: "sanity"
 
-  build:
+  prepare:
     order: 4
+    run: true
+    command: "test"
+    suite: ""
+    marker: "sanity"
+
+  build:
+    order: 5
     run: true
     command: "test"
     suite: ""
     marker: "x86_64"
 
   image_build_manager:
-    order: 5
+    order: 6
     run: true
     command: "verify"
     suite: ""
     marker: "sanity"
 ```
+
+**Note**: The `precheck` scenario should always run first (lowest `order`)
+and uses `command: "verify"` because it does not deploy any playbook — it
+only validates the environment (SSH, env vars, hostname, admin IP, omnia.sh setup).
 
 ## Example — Verify Only (No Deploy)
 

@@ -64,6 +64,9 @@ from library.functions.host_func import (
     sync_image_build_input,
     sync_repo_manager_output,
 )
+from library.functions.build_image_func import (
+    check_target_connectivity,
+)
 from library.functions.validation_func import (
     validate_all,
     ConfigValidationError,
@@ -252,6 +255,21 @@ def pytest_sessionstart(session):
 
     host = get_testinfra_host()
 
+    # Pre-flight connectivity check (remote mode only)
+    if not is_local_execution():
+        conn_result = check_target_connectivity(host)
+        if conn_result["success"]:
+            log("Pre-flight: target is reachable", "OK")
+        else:
+            log(
+                f"Pre-flight: {conn_result['error']}",
+                "FAIL",
+            )
+            pytest.exit(
+                f"Target unreachable: {conn_result['error']}",
+                returncode=1,
+            )
+
     if not is_local_execution():
         sync_result = sync_project_to_remote(host)
         if sync_result["success"]:
@@ -283,7 +301,7 @@ def pytest_sessionstart(session):
     # Detect scenario name from test paths (fvt/<scenario>/...)
     valid_scenarios = {
         "image_build_manager", "validate", "prepare",
-        "build", "cleanup",
+        "build", "cleanup", "precheck",
     }
     module_name = "image_build_manager"
     test_paths = session.config.args if hasattr(session.config, 'args') else []

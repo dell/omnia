@@ -5,10 +5,11 @@ Based on [Dell Omnia Code Style Guides](https://github.com/dell/omnia).
 
 | Guide | What It Covers |
 |-------|---------------|
+| [general.md](general.md) | Copyright headers, readability, test co-change rule, AI agent policy |
 | [ansible.md](ansible.md) | Playbook structure, FQCN modules, role layout, linting |
 | [python.md](python.md) | Naming, docstrings, pylint rules, Ansible module patterns |
 | [jinja2.md](jinja2.md) | Template syntax, filters, whitespace, error prevention |
-| [general.md](general.md) | Copyright headers, readability, consistency, documentation |
+| [test_automation.md](test_automation.md) | Test module structure, patterns, conventions, CI gates |
 
 ## Validated Environment
 

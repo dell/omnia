@@ -25,7 +25,7 @@
     _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
     cacheable: true
 
-# --- Resolve and validate configuration from environment variables ---
+# --- Resolve configuration from environment variables ---
 - name: Resolve configuration from environment
   ansible.builtin.set_fact:
     omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
@@ -36,27 +36,19 @@
     domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
     cacheable: true
 
-# --- Validate required variables ---
-- name: Fail if SYSTEM_ADMIN_NIC_IPV4 is not set
-  ansible.builtin.fail:
-    msg: >-
-      SYSTEM_ADMIN_NIC_IPV4 is not set. Export it before running:
-        export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>
-  when: admin_nic_ip | length == 0
-
-- name: Fail if SYSTEM_HOSTNAME is not set
-  ansible.builtin.fail:
-    msg: >-
-      SYSTEM_HOSTNAME is not set. Export it before running:
-        export SYSTEM_HOSTNAME=oim
-  when: host_name | length == 0
-
-- name: Fail if SYSTEM_DOMAIN_NAME is not set
-  ansible.builtin.fail:
-    msg: >-
-      SYSTEM_DOMAIN_NAME is not set. Export it before running:
-        export SYSTEM_DOMAIN_NAME=omnia.cluster
-  when: domain_name | length == 0
+# --- Validate required variables via module (single source of truth) ---
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - SYSTEM_HOSTNAME
+      - SYSTEM_DOMAIN_NAME
+      - OMNIA_DATA_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: false
+  register: _env_validation
 
 - name: Fail if OMNIA_VERSION is not set
   ansible.builtin.fail:
