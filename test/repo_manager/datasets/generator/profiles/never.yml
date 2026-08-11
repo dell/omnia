@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+---
+# =============================================================================
+# never.yml — Never sync mode profile
+# =============================================================================
+# Do not sync any repositories.
+# Use this profile to test that repo_manager correctly skips repo sync.
+# =============================================================================
 
-"""
-Repo Manager — Messages
-
-Test names, log messages, and assertion messages for all FVT tests.
-"""
-
-from .repo_manager_msgs import (
-    TEST_NAMES,
-    TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS,
-)
+repo_config: "never"

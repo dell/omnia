@@ -8,6 +8,33 @@ In monorepo mode, host settings (hostname, IP, domain) come from **environment
 variables** on the target (set via `omnia.env` / `omnia.sh -s`), not from a
 config file in the dataset.
 
+## Dataset Generation
+
+Datasets are generated using the generator tool in `generator/`. This avoids
+duplicated configuration files and allows creating datasets for different
+`repo_config` sync policy modes.
+
+```bash
+cd generator
+
+# List available profiles (partial, always, never)
+python generate_dataset.py --list-profiles
+
+# Generate a dataset for partial sync mode (most common)
+python generate_dataset.py repo_manager_partial partial
+
+# Generate a dataset for always sync mode (full mirror)
+python generate_dataset.py repo_manager_always always
+
+# Generate a dataset for never sync mode (no repo sync)
+python generate_dataset.py repo_manager_never never
+
+# Override specific variables
+python generate_dataset.py my_custom partial --var pulp_server_port=2226
+```
+
+See [`generator/README.md`](generator/README.md) for complete documentation.
+
 ## Dataset Structure
 
 ```
@@ -39,19 +66,18 @@ The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target
 server's `/etc/omnia/omnia.env` to resolve the sync destination. Directories
 are created automatically if they don't exist.
 
-## Default Dataset: `data_set_01`
+## Default Mode (No Dataset)
 
-See [`data_set_01/README.md`](data_set_01/README.md) for field details.
+If `dataset: ""` is set in `test_config.yml`, the framework uses files directly from
+`src/repo_manager/input/` instead of a dataset. This is the recommended mode for
+development as it always stays in sync with the source code.
 
-## Creating a New Dataset
+## Profile Modes
 
-```bash
-mkdir -p datasets/my_dataset/input
-# Copy and edit:
-cp datasets/data_set_01/input/repo_manager_config.yml datasets/my_dataset/input/
-cp datasets/data_set_01/input/repo_manager_config_credentials.yml datasets/my_dataset/input/
-cp datasets/data_set_01/input/repo_manager_endpoint_config.yml datasets/my_dataset/input/
-cp datasets/data_set_01/input/software_config.json datasets/my_dataset/input/
-# Update test_config.yml:
-#   dataset: "my_dataset"
-```
+The generator supports profiles based on `repo_config` sync policy:
+
+| Profile | repo_config | Description |
+|---------|-------------|-------------|
+| `partial` | `partial` | Sync only catalog packages (most common) |
+| `always` | `always` | Sync all packages from all repos (full mirror) |
+| `never` | `never` | Do not sync any repositories |

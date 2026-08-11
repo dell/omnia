@@ -1,8 +1,9 @@
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# You may not use this file except in compliance with the License.
+# you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -48,6 +49,7 @@
 #    Allowed values:
 #      always  : Sync all packages from all repositories (full mirror)
 #      partial : Sync only packages declared in the catalog (selective sync)
+#      never   : Do not sync any repositories
 #    This can be overridden per-repository using the 'policy' field.
 #
 # 2. registries
@@ -86,14 +88,14 @@
 #      is not found, RPM syncing will fail.
 #
 #    Optional per-entry fields:
-#      policy      : Sync policy – allowed values: always, partial (default: from software_config)
+#      policy      : Sync policy – allowed values: always, partial, never (default: from repo_config)
 #      caching     : Local caching – allowed values: true, false (default: true)
 #      sslcacert   : Path to SSL CA certificate
 #      sslclientkey: Path to SSL client key
 #      sslclientcert: Path to SSL client certificate
 #    Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
 #          auto-populated from the subscription; do not set them here.
-
+#
 # ================================
 # VARIABLES
 # ================================
@@ -101,7 +103,7 @@
 # ------------------------------------------------------------
 # 1. REPO CONFIG (global sync policy)
 # ------------------------------------------------------------
-repo_config: "partial"  # Options: always | partial
+repo_config: "{{ repo_config }}"  # Options: always | partial | never
 
 # ------------------------------------------------------------
 # 2. REGISTRIES
@@ -134,7 +136,7 @@ repo_config: "partial"  # Options: always | partial
 #         PulpURL: "https://pulp.omnia.local/pulp/content/my-reg.example.com/"
 #         PullThrough: true
 #         Prefix: "my-reg.example.com/"
-registries:
+registries: {{ registries | default({}) }}
 
 # ------------------------------------------------------------
 # 3. REPOSITORIES
@@ -162,126 +164,4 @@ registries:
 #       For extra repositories not covered above (e.g. grafana, custom tools).
 #       Packages from these repos must be declared in additional_packages.json.
 # ------------------------------------------------------------
-repositories:
-  "10.0":
-    x86_64:
-      # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
-      # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
-      slurm_custom:
-        url: ""
-        gpgkey: ""
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      ldms: {}
-      # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
-      epel:
-        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
-        gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      kubernetes-v1-35:
-        url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/"
-        gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      cri-o-v1-35:
-        url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
-        gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      doca:
-        url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/"
-        gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      docker-ce:
-        url: "https://download.docker.com/linux/centos/10/x86_64/stable/"
-        gpgkey: "https://download.docker.com/linux/centos/gpg"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      cuda:
-        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/"
-        gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      nvidia-hpc-sdk:
-        url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64"
-        gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
-      # Example format:
-      #   additional_repos:
-      #     grafana:
-      #       url: "https://rpm.grafana.com/"
-      #       gpgkey: "https://rpm.grafana.com/gpg.key"
-      #       policy: "partial"
-      #       caching: true
-      #       sslcacert: ""
-      #       sslclientkey: ""
-      #       sslclientcert: ""
-      additional_repos: {}
-    aarch64:
-      # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
-      # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
-      slurm_custom: {}
-      ldms: {}
-      # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
-      epel:
-        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
-        gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      doca:
-        url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/"
-        gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      docker-ce:
-        url: "https://download.docker.com/linux/centos/10/aarch64/stable/"
-        gpgkey: "https://download.docker.com/linux/centos/gpg"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      cuda:
-        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/"
-        gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      nvidia-hpc-sdk:
-        url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64"
-        gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
-      # Example format:
-      #   additional_repos:
-      #     grafana:
-      #       url: "https://rpm.grafana.com/"
-      #       gpgkey: "https://rpm.grafana.com/gpg.key"
-      #       policy: "partial"
-      #       caching: true
-      #       sslcacert: ""
-      #       sslclientkey: ""
-      #       sslclientcert: ""
-      additional_repos: {}
+repositories: {{ repositories | default({}) }}

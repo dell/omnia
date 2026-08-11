@@ -48,30 +48,11 @@ from omnia_auto import (
     run_on_host,
 )
 
-# Declare public API — re-exports for consumer convenience
-__all__ = [
-    "load_test_config",
-    "load_test_credentials",
-    "is_local_execution",
-    "get_module_root",
-    "get_setting",
-    "sync_files",
-    "log",
-    "connection_params",
-    "read_remote_env",
-    "ensure_remote_dir",
-    "resolve_domain_input_path",
-    "get_testinfra_host",
-    "encrypt_test_credentials",
-    "run_on_host",
-    "sync_project_to_remote",
-    "sync_repo_manager_input",
-]
-
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
+    SRC_INPUT_DIR,
 )
 
 
@@ -102,22 +83,31 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
     )
 
 
+def _resolve_input_dir(config):
+    """Resolve local input directory from dataset or src/."""
+    dataset = config.get("dataset", "")
+    if dataset:
+        return os.path.join(
+            get_module_root(), "datasets", dataset, "input",
+        )
+    return SRC_INPUT_DIR
+
+
 def sync_repo_manager_input(host) -> Dict[str, Any]:
-    """Push repo_manager input files from local dataset to target.
+    """Push repo_manager input files from local source to target.
 
     Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
     server's environment to resolve the correct destination::
 
         <OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/
 
-    Source: datasets/<dataset>/input/
+    Source: src/repo_manager/input/ (default) or
+            datasets/<dataset>/input/ (when dataset is set).
     """
     config = load_test_config()
     conn = connection_params()
 
-    local_input = os.path.join(
-        get_module_root(), "datasets", config["dataset"], "input",
-    )
+    local_input = _resolve_input_dir(config)
     remote_input = resolve_domain_input_path(
         host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
     )

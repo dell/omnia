@@ -1,7 +1,7 @@
 {
-    "cluster_os_type": "rhel",
-    "cluster_os_version": "10.0",
-    "repo_config": "partial",
+    "cluster_os_type": "{{ cluster_os_type | default('rhel') }}",
+    "cluster_os_version": "{{ cluster_os_version | default('10.0') }}",
+    "repo_config": "{{ repo_config }}",
     "softwares": [
         {"name": "default_packages", "arch": ["x86_64"]},
         {"name": "openldap", "arch": ["x86_64"]},

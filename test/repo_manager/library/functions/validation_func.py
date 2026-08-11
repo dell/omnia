@@ -24,14 +24,16 @@ from typing import Dict, Any, List
 
 import yaml
 
-IPV4_PATTERN = re.compile(
-    r'^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}'
-    r'(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$'
+from ..vars.common_vars import (
+    IPV4_PATTERN,
+    REQUIRED_CONFIG_FIELDS,
+    REQUIRED_DATASET_FILES,
+    REQUIRED_SRC_FILES,
+    MODULE_ROOT,
+    SRC_INPUT_DIR,
 )
 
-# Module root: functions/ -> library/ -> test/
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_MODULE_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
+_MODULE_ROOT = MODULE_ROOT
 
 
 class ConfigValidationError(Exception):
@@ -46,20 +48,51 @@ def _validate_ip(value: str, field: str) -> List[str]:
     return errors
 
 
-REQUIRED_FIELDS = [
-    "dataset",
-    "project_name",
-    "clone_path",
-    "shared_path",
-    "report_path",
-    "report_name",
-]
+def _validate_dataset(dataset: str) -> List[str]:
+    """Validate dataset directory or src/ files.
 
-REQUIRED_DATASET_FILES = [
-    "input/repo_manager_config.yml",
-    "input/software_config.json",
-    "input/repo_manager_endpoint_config.yml",
-]
+    When *dataset* is empty, validates that src/ input files exist.
+    When *dataset* is set, validates the dataset directory and its
+    required files.
+    """
+    errors: List[str] = []
+    if not dataset:
+        # Default mode — validate src/ files exist
+        if not os.path.isdir(SRC_INPUT_DIR):
+            errors.append(
+                f"src/ input directory not found: {SRC_INPUT_DIR}"
+            )
+            return errors
+        for rel_file in REQUIRED_SRC_FILES:
+            if not os.path.isfile(os.path.join(SRC_INPUT_DIR, rel_file)):
+                errors.append(
+                    f"Required src file missing: {rel_file}"
+                )
+        return errors
+
+    dataset_path = os.path.join(_MODULE_ROOT, "datasets", dataset)
+    if not os.path.isdir(dataset_path):
+        available = [
+            d for d in os.listdir(
+                os.path.join(_MODULE_ROOT, "datasets")
+            )
+            if os.path.isdir(
+                os.path.join(_MODULE_ROOT, "datasets", d)
+            )
+        ]
+        errors.append(
+            f"Dataset directory not found: datasets/{dataset}/. "
+            f"Available: {', '.join(sorted(available))}"
+        )
+        return errors
+
+    for rel_file in REQUIRED_DATASET_FILES:
+        if not os.path.isfile(os.path.join(dataset_path, rel_file)):
+            errors.append(
+                f"Required file missing: "
+                f"datasets/{dataset}/{rel_file}"
+            )
+    return errors
 
 
 def validate_test_config() -> Dict[str, Any]:
@@ -91,7 +124,7 @@ def validate_test_config() -> Dict[str, Any]:
         config = yaml.safe_load(f) or {}
 
     # --- Required fields ---
-    for field in REQUIRED_FIELDS:
+    for field in REQUIRED_CONFIG_FIELDS:
         if field not in config or config[field] is None:
             errors.append(
                 f"Required field missing in test_config.yml: {field}"
@@ -116,33 +149,17 @@ def validate_test_config() -> Dict[str, Any]:
         errors.extend(_validate_ip(str(oim_ip), "oim_server_ip"))
 
     # --- Dataset validation ---
-    dataset = config["dataset"]
-    dataset_path = os.path.join(_MODULE_ROOT, "datasets", dataset)
-    if not os.path.isdir(dataset_path):
-        errors.append(
-            f"Dataset directory not found: datasets/{dataset}/"
-        )
-    else:
-        for rel_file in REQUIRED_DATASET_FILES:
-            full = os.path.join(dataset_path, rel_file)
-            if not os.path.isfile(full):
-                errors.append(
-                    f"Required file missing: datasets/{dataset}/"
-                    f"{rel_file}"
-                )
+    dataset = (
+        os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+        or config.get("dataset", "")
+    )
+    errors.extend(_validate_dataset(dataset))
 
     # --- Clone path ---
     clone_path = config["clone_path"]
     if not os.path.isabs(clone_path):
         errors.append(
             f"clone_path must be absolute: {clone_path}"
-        )
-
-    # --- Shared path ---
-    shared_path = config["shared_path"]
-    if not os.path.isabs(shared_path):
-        errors.append(
-            f"shared_path must be absolute: {shared_path}"
         )
 
     # --- Report path ---

@@ -26,12 +26,20 @@
 # Suite definitions
 # -----------------------------------------------------------------------------
 # Each suite has:
-#   order:   <int>         - Execution order (ascending). Order values MUST
-#                            be unique across enabled suites; duplicate
-#                            order values are a configuration error.
-#   run:     true/false    - Whether to execute this suite
-#   suite:   <folder>      - FVT folder name under fvt/ to run
-#   marker:  <expression>  - Marker filter expression (empty = all tests)
+#   order:       <int>         - Execution order (ascending). Order values MUST
+#                                be unique across enabled suites; duplicate
+#                                order values are a configuration error.
+#   run:         true/false    - Whether to execute this suite
+#   command:     <string>      - Execution mode: deploy, verify, or test (default: test)
+#                                deploy  = Run the playbook only
+#                                verify  = Run verification tests only (skip playbook)
+#                                test    = Deploy + Verify (full flow)
+#   suite:       <folder>      - FVT folder name under fvt/ to run
+#   marker:      <expression>  - Marker filter expression (empty = all tests)
+#   dataset:     <name>        - (optional) Override dataset from test_config.yml
+#                                Must be a valid folder under datasets/
+#   sync_input:  true/false    - (optional) Override sync_repo_manager_input
+#   sync_output: true/false    - (optional) Override sync_output
 #
 # Marker expression syntax:
 #   Single:   "sanity"                  - tests with @pytest.mark.sanity
@@ -92,8 +100,13 @@ scenarios:
   repo_manager:
     order: 1
     run: true
+    command: "test"
     suite: ""
     marker: "sanity"
+    # --- Per-scenario dataset override (uncomment to use) ---
+    # dataset: "data_set_01"         # Override dataset for this scenario only
+    # sync_input: true               # Sync input files before running
+    # sync_output: false             # Sync repo_manager output before running
 
   # =========================================================================
   # validate - Deploy validate + verify input configuration
@@ -109,8 +122,12 @@ scenarios:
   validate:
     order: 10
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "data_set_01"
+    # sync_input: true
+    # sync_output: false
 
   # =========================================================================
   # deploy - Deploy Pulp server + verify containers
@@ -126,8 +143,12 @@ scenarios:
   deploy:
     order: 20
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "data_set_01"
+    # sync_input: true
+    # sync_output: false
 
   # =========================================================================
   # repo_operations - Download packages + generate repo status
@@ -148,8 +169,12 @@ scenarios:
   repo_operations:
     order: 30
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "data_set_01"
+    # sync_input: false
+    # sync_output: false
 
   # =========================================================================
   # cleanup - Cleanup Pulp server + verify removal
@@ -165,5 +190,9 @@ scenarios:
   cleanup:
     order: 50
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "data_set_01"
+    # sync_input: false
+    # sync_output: false

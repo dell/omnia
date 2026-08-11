@@ -28,6 +28,7 @@ Reference: src/repo_manager/vars/default.yml
 """
 
 import os
+import re
 
 # =============================================================================
 # DIRECTORY PATHS
@@ -38,8 +39,19 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)
 )))
 
-# Repository root
+# Parent of module root: test/
+TEST_ROOT = os.path.dirname(MODULE_ROOT)
+
+# Omnia monorepo root: omnia/
+MONOREPO_ROOT = os.path.dirname(TEST_ROOT)
+
+# Repository root (alias for backward compatibility)
 REPO_ROOT = os.path.dirname(MODULE_ROOT)
+
+# src/ paths — used when dataset is empty (default: use src/ directly)
+SRC_INPUT_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "repo_manager", "input",
+)
 
 # =============================================================================
 # DOMAIN IDENTITY
@@ -244,3 +256,33 @@ CMDS = {
         " --tags {tag} -v 2>&1"
     ),
 }
+
+# =============================================================================
+# CONFIG VALIDATION CONSTANTS
+# =============================================================================
+
+# IPv4 address regex pattern
+IPV4_PATTERN = re.compile(
+    r'^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}'
+    r'(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$'
+)
+
+# Required fields in test_config.yml
+REQUIRED_CONFIG_FIELDS = [
+    "project_name",
+    "clone_path",
+    "report_path",
+    "report_name",
+]
+
+# Required files inside a dataset directory (when dataset is set)
+REQUIRED_DATASET_FILES = [
+    "input/repo_manager_config.yml",
+    "input/repo_manager_endpoint_config.yml",
+]
+
+# Required files in src/ (when dataset is empty — default mode)
+REQUIRED_SRC_FILES = [
+    "repo_manager_config.yml",
+    "repo_manager_endpoint_config.yml",
+]

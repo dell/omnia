@@ -18,34 +18,11 @@ Repo Manager — Variables
 Common constants, paths, container names, and command templates.
 """
 
-__all__ = [
-    "MODULE_ROOT",
-    "REPO_ROOT",
-    "DOMAIN_NAME",
-    "ENV_OMNIA_DATA_PATH",
-    "ENV_OMNIA_PROJECT_NAME",
-    "SHARED_PATH",
-    "PULP_CONTAINER",
-    "PULP_PORT",
-    "PLAYBOOK_TAGS",
-    "PLAYBOOK_ENTRY_POINT",
-    "PLAYBOOK_WORKDIR",
-    "CONFIG_FILE",
-    "CREDENTIALS_FILE_NAME",
-    "CREDENTIALS_KEY_NAME",
-    "ENDPOINT_CONFIG_FILE",
-    "SOFTWARE_CONFIG_FILE",
-    "LISTENING_PORTS",
-    "SYSTEMD_SERVICES",
-    "PULP_CONFIG_DIR",
-    "REPO_STATUS_PATH",
-    "CMDS",
-    "TEST_CASES",
-]
-
 from .common_vars import (
     MODULE_ROOT,
+    MONOREPO_ROOT,
     REPO_ROOT,
+    SRC_INPUT_DIR,
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
@@ -65,6 +42,10 @@ from .common_vars import (
     PULP_CONFIG_DIR,
     REPO_STATUS_PATH,
     CMDS,
+    IPV4_PATTERN,
+    REQUIRED_CONFIG_FIELDS,
+    REQUIRED_DATASET_FILES,
+    REQUIRED_SRC_FILES,
 )
 
 from .test_case_vars import TEST_CASES

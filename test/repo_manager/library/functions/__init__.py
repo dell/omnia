@@ -19,51 +19,6 @@ Common utilities come from the omnia_auto package.
 Module-specific functions remain here.
 """
 
-__all__ = [
-    "Colors",
-    "Symbols",
-    "log",
-    "set_debug_mode",
-    "TestLogger",
-    "get_test_output",
-    "get_testinfra_host",
-    "load_test_config",
-    "load_test_credentials",
-    "get_module_root",
-    "run_on_host",
-    "is_local_execution",
-    "TestReport",
-    "get_current_report",
-    "set_current_report",
-    "check_pulp_container_running",
-    "check_pulp_healthy",
-    "check_pulp_port_listening",
-    "check_pulp_cli_configured",
-    "check_pulp_api_endpoint",
-    "check_pulp_quadlet_exists",
-    "check_pulp_certs",
-    "check_pulp_directories",
-    "check_input_config_exists",
-    "check_credentials_present",
-    "check_endpoint_config_exists",
-    "check_software_config_exists",
-    "check_software_config_valid",
-    "check_repo_status_file",
-    "check_repos_synced",
-    "check_pulp_removed",
-    "check_pulp_data_removed",
-    "check_pulp_image_removed",
-    "check_pulp_quadlet_removed",
-    "check_services_removed",
-    "check_containers_removed",
-    "check_pulp_logs_cleaned",
-    "check_credentials_removed",
-    "validate_test_config",
-    "validate_all",
-    "ConfigValidationError",
-    "run_playbook",
-]
-
 # --- Common (from omnia_auto package) ---
 from omnia_auto import (
     Colors,
@@ -83,8 +38,6 @@ from omnia_auto import (
     set_current_report,
     run_playbook as _run_playbook,
 )
-from typing import Any, Dict
-
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
 # --- Repo Manager verification ---
@@ -127,7 +80,7 @@ from .validation_func import (
 )
 
 
-def run_playbook(tag: str = None, **kwargs: Any) -> Dict[str, Any]:
+def run_playbook(tag=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
