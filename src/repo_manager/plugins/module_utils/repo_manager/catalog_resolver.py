@@ -32,7 +32,7 @@ import hashlib
 import logging
 from collections import OrderedDict
 
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.config import (
     PACKAGE_TYPES,
     ARCH_SUFFIXES,
 )

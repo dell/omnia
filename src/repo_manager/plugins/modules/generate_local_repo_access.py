@@ -60,7 +60,7 @@ options:
         required: true
         type: str
     cluster_os_type:
-        description: Cluster OS type (rhel, rocky, etc.)
+        description: Cluster OS type (rhel)
         required: true
         type: str
     cluster_os_version:
@@ -104,7 +104,7 @@ EXAMPLES = r'''
     cluster_os_version: "9.4"
     repo_config: partial
     output_path: /opt/omnia/output/repo_status.yml
-    certs_dir: /opt/omnia/pulp/settings/certs
+    certs_dir: /opt/omnia/pulp_config/settings/certs
     local_repo_config_path: /opt/omnia/input/repo_manager_config.yml
 '''
 

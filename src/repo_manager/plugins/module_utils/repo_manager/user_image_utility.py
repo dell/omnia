@@ -16,11 +16,11 @@
 import json
 import requests
 from jinja2 import Template
-from ansible.module_utils.local_repo.parse_and_download import execute_command
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.parse_and_download import execute_command
+from ansible.module_utils.repo_manager.config import (
     pulp_container_commands
 )
-from ansible.module_utils.local_repo.container_repo_utils import (
+from ansible.module_utils.repo_manager.container_repo_utils import (
     create_container_repository,
     sync_container_repository,
     extract_existing_tags,

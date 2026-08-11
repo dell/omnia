@@ -20,11 +20,7 @@
 
 - name: Set input project directory
   ansible.builtin.set_fact:
-    input_project_dir: >-
-      {{ lookup('env', 'REPO_MANAGER_INPUT_PROJECT_DIR') |
-         default(omnia_base_dir + '/input/' +
-                (project_name | default('project_default')) +
-                '/repo_manager', true) }}
+    input_project_dir: "{{ lookup('env', 'REPO_MANAGER_INPUT_PROJECT_DIR') | default(omnia_base_dir + '/input/' + (project_name | default('project_default')) + '/repo_manager', true) }}"
     project_dir_status: true
 
 - name: Validate input project directory exists

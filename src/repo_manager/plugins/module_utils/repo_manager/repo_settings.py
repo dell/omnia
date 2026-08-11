@@ -14,12 +14,12 @@
 # pylint: disable=line-too-long
 
 """
-General settings and constants for Ansible local_repo module utilities.
+General settings and constants for Ansible repo_manager module utilities.
 """
 
 import os
 
-from ansible.module_utils.local_repo.repo_paths import (
+from ansible.module_utils.repo_manager.repo_paths import (
     OMNIA_BASE_DIR,
     PROJECT_DEFAULT_DIR,
     REPO_MANAGER_LOG_DIR,
@@ -46,8 +46,8 @@ SOFTWARE_CSV_HEADER = "name,status"
 # ----------------------------
 # Software tasklist Defaults
 # ----------------------------
-LOCAL_REPO_CONFIG_PATH_DEFAULT = os.path.join(PROJECT_DEFAULT_DIR, "repo_manager_config.yml")
-SOFTWARE_CSV_FILENAME = "software.csv"
+REPO_MANAGER_CONFIG_PATH_DEFAULT = os.path.join(PROJECT_DEFAULT_DIR, "repo_manager_config.yml")
+SOFTWARE_CSV_FILENAME = "groups_status.csv"
 FRESH_INSTALLATION_STATUS = True
 
 # ----------------------------
@@ -156,7 +156,7 @@ CERT_KEYS = ["sslcacert", "sslclientkey", "sslclientcert"]
 # Multi-Catalog Settings
 # ----------------------------
 MIRROR_STATUS_DIR = "mirror_status"
-MIRROR_INDEX_FILENAME = "mirror_index.json"
+MIRROR_INDEX_FILENAME = "pulp_mirror_index.json"
 CATALOG_STATUS_SUFFIX = "_catalog_status.json"
 PACKAGE_STATUS_CSV_HEADER = 'name,type,repo_name,status,catalog_name\n'
 GROUP_STATUS_CSV_HEADER = 'name,status\n'
@@ -172,7 +172,7 @@ __all__ = [
     "DEFAULT_STATUS_FILENAME",
     "STATUS_CSV_HEADER",
     "SOFTWARE_CSV_HEADER",
-    "LOCAL_REPO_CONFIG_PATH_DEFAULT",
+    "REPO_MANAGER_CONFIG_PATH_DEFAULT",
     "SOFTWARE_CSV_FILENAME",
     "FRESH_INSTALLATION_STATUS",
     "PACKAGE_TYPES",

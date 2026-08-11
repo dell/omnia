@@ -54,7 +54,8 @@ pulp_health_delay: 10
 
 # Pulp shared storage paths (OIM container paths)
 # These paths are inside the OIM container and mounted as volumes in the Pulp container
-pulp_data_base_path: "/opt/omnia/pulp/settings"
+# Using pulp_config_dir structure: /opt/omnia/repo_manager/pulp_config/settings
+pulp_data_base_path: "/opt/omnia/repo_manager/pulp_config/settings"
 pulp_pgsql_path: "{{ pulp_data_base_path }}/pgsql"
 
 # Backup settings

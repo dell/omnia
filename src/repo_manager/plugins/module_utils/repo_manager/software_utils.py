@@ -29,10 +29,10 @@ from jinja2 import Template
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
-from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
-from ansible.module_utils.local_repo.parse_and_download import execute_command
+from ansible.module_utils.repo_manager.common_functions import is_encrypted, process_file, get_arch_from_sw_config
+from ansible.module_utils.repo_manager.parse_and_download import execute_command
 # Import default variables from config.py
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.config import (
     PACKAGE_TYPES,
     CSV_COLUMNS,
     SOFTWARE_CONFIG_SUBDIR,

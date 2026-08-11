@@ -47,9 +47,9 @@ git_base_url: "https://{{ admin_nic_ip }}:2225/pulp/content/opt/omnia/offline_re
 repo_manager:
   port: 2225
   certificates:
-    server_crt: /opt/omnia/pulp/settings/certs/pulp_webserver.crt
-    server_key: /opt/omnia/pulp/settings/certs/pulp_webserver.key
-    certs_dir: /opt/omnia/pulp/settings/certs
+    server_crt: /opt/omnia/pulp_config/settings/certs/pulp_webserver.crt
+    server_key: /opt/omnia/pulp_config/settings/certs/pulp_webserver.key
+    certs_dir: /opt/omnia/pulp_config/settings/certs
 
 # RPM Repository Base URLs
 rpm_repos:

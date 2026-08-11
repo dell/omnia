@@ -19,11 +19,11 @@ import re
 import json
 from multiprocessing import Lock
 from jinja2 import Template
-from ansible.module_utils.local_repo.process_parallel import docker_password_cipher
-from ansible.module_utils.local_repo.parse_and_download import execute_command, write_status_to_file
-from ansible.module_utils.local_repo.user_image_utility import handle_user_image_registry
-from ansible.module_utils.local_repo.config import pulp_container_commands
-from ansible.module_utils.local_repo.container_repo_utils import (
+from ansible.module_utils.repo_manager.process_parallel import docker_password_cipher
+from ansible.module_utils.repo_manager.parse_and_download import execute_command, write_status_to_file
+from ansible.module_utils.repo_manager.user_image_utility import handle_user_image_registry
+from ansible.module_utils.repo_manager.config import pulp_container_commands
+from ansible.module_utils.repo_manager.container_repo_utils import (
     create_container_repository,
     extract_existing_tags,
     sync_container_repository,

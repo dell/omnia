@@ -13,7 +13,7 @@
 # limitations under the License.
 # pylint: disable=import-error,no-name-in-module
 import os
-from ansible.module_utils.local_repo.common_functions import (
+from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     get_repo_list,
 )

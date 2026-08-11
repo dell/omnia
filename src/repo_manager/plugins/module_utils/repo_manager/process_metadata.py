@@ -21,7 +21,7 @@ import os
 import json
 import yaml
 # Import default variables from config.py
-from ansible.module_utils.local_repo.config import ARCH_SUFFIXES
+from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES
 
 
 def load_yaml(path):
@@ -162,7 +162,7 @@ def get_os_type(config):
 
     - Reads the value of 'cluster_os_type' from the config dictionary.
     - Converts it to lowercase for consistency.
-    - Validates that the OS type is one of the supported values: 'rhel', 'rockey', or 'ubuntu'.
+    - Validates that the OS type is 'rhel'.
     - If the OS type is not supported, the module fails with an error.
     - Returns the validated OS type string.
 
@@ -174,7 +174,7 @@ def get_os_type(config):
     """
     cluster_os_type = config.get('cluster_os_type', '').lower()
 
-    if cluster_os_type not in ['rhel', 'rockey', 'ubuntu']:
+    if cluster_os_type not in ['rhel']:
         raise ValueError(f"Unsupported cluster_os_type: {cluster_os_type}")
 
     return cluster_os_type
@@ -213,7 +213,7 @@ def handle_generate_metadata(sw_config, repo_data, output_file, sub_urls=None):
     # Fetch the default repository policy, fallback to "always" if not set
     default_policy = config.get("repo_config", "always")
 
-    # Determine the OS type from the config (e.g., rhel, ubuntu, etc.)
+    # Determine the OS type from the config (e.g., rhel)
     os_type = get_os_type(config)
 
     # Define the keys in the repo_data to process, based on OS type

@@ -23,8 +23,8 @@ container repositories and distributions in Pulp.
 """
 
 import multiprocessing
-from ansible.module_utils.local_repo.parse_and_download import execute_command
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.parse_and_download import execute_command
+from ansible.module_utils.repo_manager.config import (
     pulp_container_commands
 )
 remote_creation_lock = multiprocessing.Lock()

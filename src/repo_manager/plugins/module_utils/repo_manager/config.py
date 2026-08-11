@@ -22,7 +22,7 @@ Concrete definitions have been split into:
   - pulp_commands.py: Pulp/CLI command templates
 """
 
-from ansible.module_utils.local_repo.repo_paths import (
+from ansible.module_utils.repo_manager.repo_paths import (
     REPO_MANAGER_BASE_DIR,
     OMNIA_BASE_DIR,
     PROJECT_DEFAULT_DIR,
@@ -35,7 +35,7 @@ from ansible.module_utils.local_repo.repo_paths import (
     OMNIA_CREDENTIALS_VAULT_PATH,
     metadata_rerun_file_path,
 )
-from ansible.module_utils.local_repo.repo_settings import (
+from ansible.module_utils.repo_manager.repo_settings import (
     DEFAULT_NTHREADS,
     DEFAULT_TIMEOUT,
     LOG_DIR_DEFAULT,
@@ -46,7 +46,7 @@ from ansible.module_utils.local_repo.repo_settings import (
     DEFAULT_STATUS_FILENAME,
     STATUS_CSV_HEADER,
     SOFTWARE_CSV_HEADER,
-    LOCAL_REPO_CONFIG_PATH_DEFAULT,
+    REPO_MANAGER_CONFIG_PATH_DEFAULT,
     SOFTWARE_CSV_FILENAME,
     FRESH_INSTALLATION_STATUS,
     PACKAGE_TYPES,
@@ -96,7 +96,7 @@ from ansible.module_utils.local_repo.repo_settings import (
     PACKAGE_STATUS_CSV_HEADER,
     GROUP_STATUS_CSV_HEADER,
 )
-from ansible.module_utils.local_repo.pulp_commands import (
+from ansible.module_utils.repo_manager.pulp_commands import (
     pulp_file_commands,
     pulp_python_commands,
     pulp_container_commands,
@@ -130,7 +130,7 @@ __all__ = (
         "DEFAULT_STATUS_FILENAME",
         "STATUS_CSV_HEADER",
         "SOFTWARE_CSV_HEADER",
-        "LOCAL_REPO_CONFIG_PATH_DEFAULT",
+        "REPO_MANAGER_CONFIG_PATH_DEFAULT",
         "SOFTWARE_CSV_FILENAME",
         "FRESH_INSTALLATION_STATUS",
         "PACKAGE_TYPES",

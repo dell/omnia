@@ -14,7 +14,7 @@
 # pylint: disable=import-error,no-name-in-module
 import socket
 import ssl
-from ansible.module_utils.local_repo.common_functions import is_file_exists
+from ansible.module_utils.repo_manager.common_functions import is_file_exists
 
 
 def is_https(host, timeout=1):

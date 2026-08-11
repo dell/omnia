@@ -26,7 +26,7 @@ nfs_client_provisioner_tarball_url: "{{ offline_tarball_path }}/{{ nfs_subdir_ex
 whereabouts_git_url: "{{ offline_git_path }}/{{ whereabouts_pkg }}/{{ whereabouts_pkg }}.tar.gz"
 file_mode: "0644"
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
-pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+pulp_webserver_cert_path: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # Usage: create_node_dir.yml
