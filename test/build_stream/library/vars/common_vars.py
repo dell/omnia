@@ -23,7 +23,7 @@ Only module-specific constants remain here.
 """
 
 import os
-
+import tempfile
 # =============================================================================
 # DIRECTORY PATHS
 # =============================================================================
@@ -243,7 +243,7 @@ OMNIA_CATALOG_PATH = "/omnia/examples/catalog"
 # =============================================================================
 
 OMNIA_REPO_URL = "https://github.com/dell/omnia.git"
-DEFAULT_CLONE_PATH = "/tmp/omnia_input_verify"
+DEFAULT_CLONE_PATH = tempfile.NamedTemporaryFile(delete=False).name
 SOURCE_CONFIG_BASE = "input/config"
 
 # =============================================================================
@@ -293,7 +293,7 @@ CMDS = {
     ),
     # --- PostgreSQL ---
     "psql_list_tables": (
-        "podman exec -e PGPASSWORD=Dell1234 {container} psql -U poster1 -d {db}"
+        "podman exec -e PGPASSWORD={password} {container} psql -U poster1 -d {db}"
         " -t -c \"SELECT tablename FROM pg_tables"
         " WHERE schemaname='public';\" 2>/dev/null"
     ),

@@ -24,6 +24,7 @@ to use omnia_auto instead of automation_library.core.
 import json
 import time
 import base64
+import tempfile
 from typing import Dict, Any
 
 from omnia_auto import run_on_host
@@ -765,7 +766,8 @@ def commit_gitlab_file(host, file_path: str, content: str, commit_message: str) 
         "encoding": "base64"
     }
 
-    payload_file = "/tmp/gitlab_commit_payload.json"
+    # payload_file = "/tmp/gitlab_commit_payload.json"
+    payload_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json").name
     cmd = run_on_host(
         host,
         f"cat > {payload_file} << 'EOF'\n{json.dumps(payload)}\nEOF"

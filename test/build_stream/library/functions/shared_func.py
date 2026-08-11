@@ -228,8 +228,10 @@ def exec_psql_query(
         "error": "",
     }
 
+    password = get_buildstream_password(host)
+
     cmd_str = (
-        f"podman exec -e PGPASSWORD=Dell1234 {container} "
+        f"podman exec -e PGPASSWORD={password} {container} "
         f"psql -U {db_user} -d {db_name} -t -A -F'|' "
         f"-c \"{sql}\" 2>/dev/null"
     )
