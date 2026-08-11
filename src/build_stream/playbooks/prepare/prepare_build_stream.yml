@@ -59,18 +59,11 @@
               Run the credential utility first: ansible-playbook build_stream.yml
           when: not bs_cred_stat.stat.exists
 
-        - name: Check if credentials file is encrypted
-          ansible.builtin.shell: >-
-            set -o pipefail && head -n1 "{{ bs_cred_file }}" | grep -q '\$ANSIBLE_VAULT;'
-          register: bs_cred_encrypted
-          changed_when: false
-          failed_when: false
-
         - name: Decrypt build_stream credentials
           ansible.builtin.command: >-
             ansible-vault decrypt "{{ bs_cred_file }}"
             --vault-password-file "{{ bs_vault_file }}"
-          when: bs_cred_encrypted.rc == 0
+          when: bs_cred_file is vaulted_file
           changed_when: false
 
         - name: Load build_stream credentials
@@ -78,23 +71,18 @@
             file: "{{ bs_cred_file }}"
           no_log: true
 
+      rescue:
+        - name: Fail with credential loading error
+          ansible.builtin.fail:
+            msg: "Failed to load build_stream credentials. Check file and vault key at {{ bs_cred_file }}."
+
+      always:
         - name: Re-encrypt build_stream credentials
           ansible.builtin.command: >-
             ansible-vault encrypt "{{ bs_cred_file }}"
             --vault-password-file "{{ bs_vault_file }}"
-          when: bs_cred_encrypted.rc == 0
+          when: not bs_cred_file is vaulted_file
           changed_when: false
-      rescue:
-        - name: Re-encrypt on failure
-          ansible.builtin.command: >-
-            ansible-vault encrypt "{{ bs_cred_file }}"
-            --vault-password-file "{{ bs_vault_file }}"
-          changed_when: false
-          failed_when: false
-
-        - name: Fail with credential loading error
-          ansible.builtin.fail:
-            msg: "Failed to load build_stream credentials. Check file and vault key at {{ bs_cred_file }}."
 
     - name: Set build_stream auth vars from auth_registration dict
       ansible.builtin.set_fact:
@@ -150,7 +138,7 @@
 # The container mounts {{ omnia_path }} at /opt/omnia at runtime.
 
 - name: Deploy Postgres container for BuildStream
-  hosts: oim
+  hosts: localhost
   gather_facts: false
   tasks:
     - name: Deploy Postgres
@@ -159,7 +147,7 @@
       when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
 
 - name: Deploy BuildStream Manager (BSM) container and watcher service
-  hosts: oim
+  hosts: localhost
   gather_facts: true
   tasks:
     - name: Deploy BSM
