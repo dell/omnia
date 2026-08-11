@@ -64,6 +64,11 @@ title = "Gitleaks config for Omnia"
     '''_password.*validated''',
     '''msg.*password.*valid''',
     
+    # User-facing instruction messages (HOW TO FIX sections)
+    '''user/password:\s*setup_env\.sh''',
+    '''user/password:\s*--set-password''',
+    '''Verify.*user/password:''',
+    
     # Database connection strings (localhost/templates)
     '''postgresql://.*@localhost''',
     '''postgresql://.*@127\.0\.0\.1''',
