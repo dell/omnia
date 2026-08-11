@@ -74,11 +74,11 @@ kafka_skip_verify: true
 idrac_telemetry_resources:
   mysqldb:
     requests:
-      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.cpu | default('100m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.memory | default('256Mi') }}"
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.cpu | default('250m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.requests.memory | default('512Mi') }}"
     limits:
-      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.cpu | default('500m') }}"
-      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.memory | default('512Mi') }}"
+      cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.cpu | default('1000m') }}"
+      memory: "{{ telemetry_storage_config.idrac_telemetry_storage.mysqldb.resources.limits.memory | default('1Gi') }}"
   activemq:
     requests:
       cpu: "{{ telemetry_storage_config.idrac_telemetry_storage.activemq.resources.requests.cpu | default('100m') }}"
