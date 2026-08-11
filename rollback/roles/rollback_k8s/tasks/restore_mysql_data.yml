@@ -54,50 +54,49 @@
         msg: "idrac-telemetry StatefulSet not found — skipping MySQL data restore."
       when: idrac_sts_check.rc != 0
 
-    # ── Step 2: Detect MySQL CrashLoopBackOff ──
+    # ── Step 2: Detect MySQL CrashLoopBackOff on ANY pod ──
     - name: Detect and fix MySQL version downgrade issue
       when: idrac_sts_check.rc == 0
       block:
-        - name: Wait for pod to attempt startup
+        - name: Wait for pods to attempt startup (need multiple restart cycles for CrashLoopBackOff)
           ansible.builtin.pause:
-            seconds: 45
+            seconds: 90
 
-        - name: Check idrac-telemetry pod status
+        - name: Check all idrac-telemetry pods status
           ansible.builtin.shell:
             cmd: |
               set -o pipefail
               kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
-                --no-headers 2>/dev/null | head -1
+                --no-headers 2>/dev/null
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           register: idrac_pod_raw_status
           changed_when: false
           failed_when: false
 
-        - name: Check if mysqldb container is crashing
+        - name: Check if any mysqldb container is crashing across all pods
           ansible.builtin.shell:
             cmd: |
               set -o pipefail
-              POD=$(kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
-                    --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
-              if [ -z "$POD" ]; then echo "no_pod"; exit 0; fi
-              kubectl get pod "$POD" -n {{ telemetry_namespace }} \
-                -o jsonpath='{.status.containerStatuses[?(@.name=="mysqldb")].state.waiting.reason}' \
-                2>/dev/null || echo "unknown"
+              kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
+                --no-headers \
+                -o custom-columns=NAME:.metadata.name,WAITING:.status.containerStatuses[?(@.name=="mysqldb")].state.waiting.reason,LAST_EXIT:.status.containerStatuses[?(@.name=="mysqldb")].lastState.terminated.reason,RESTARTS:.status.containerStatuses[?(@.name=="mysqldb")].restartCount \
+                2>/dev/null
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           register: mysqldb_waiting_reason
           changed_when: false
           failed_when: false
 
-        - name: Check MySQL logs for downgrade error
+        - name: Check MySQL logs for downgrade error across all pods
           ansible.builtin.shell:
             cmd: |
               set -o pipefail
-              POD=$(kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
-                    --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
-              if [ -z "$POD" ]; then echo "no_pod"; exit 0; fi
-              kubectl logs "$POD" -n {{ telemetry_namespace }} -c mysqldb --tail=50 2>/dev/null || echo "no_logs"
+              for POD in $(kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
+                           --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null); do
+                kubectl logs "$POD" -n {{ telemetry_namespace }} -c mysqldb --previous --tail=50 2>/dev/null
+                kubectl logs "$POD" -n {{ telemetry_namespace }} -c mysqldb --tail=50 2>/dev/null
+              done
           delegate_to: "{{ kube_vip }}"
           connection: ssh
           register: mysql_container_logs
@@ -108,15 +107,17 @@
           ansible.builtin.set_fact:
             mysql_downgrade_detected: >-
               {{ ('CrashLoopBackOff' in (mysqldb_waiting_reason.stdout | default('')) or
-                  'Error' in (mysqldb_waiting_reason.stdout | default(''))) and
+                  'Error' in (mysqldb_waiting_reason.stdout | default('')) or
+                  'OOMKilled' in (mysqldb_waiting_reason.stdout | default(''))) and
                  ('Cannot downgrade' in (mysql_container_logs.stdout | default('')) or
                   'Invalid MySQL server downgrade' in (mysql_container_logs.stdout | default(''))) }}
 
         - name: Display MySQL status
           ansible.builtin.debug:
             msg:
-              - "idrac-telemetry pod status: {{ idrac_pod_raw_status.stdout | default('unknown') }}"
-              - "mysqldb waiting reason: {{ mysqldb_waiting_reason.stdout | default('none') }}"
+              - "idrac-telemetry pods status:"
+              - "{{ idrac_pod_raw_status.stdout_lines | default(['unknown']) }}"
+              - "mysqldb waiting reasons: {{ mysqldb_waiting_reason.stdout | default('none') }}"
               - "MySQL downgrade detected: {{ mysql_downgrade_detected }}"
 
     # ── Step 3: Fix MySQL downgrade — wipe ALL PVCs and reinitialize ──
@@ -253,13 +254,16 @@
           changed_when: false
           loop: "{{ idrac_telemetry_pod_indices }}"
 
-        - name: Fail if any PVC cleanup did not succeed
-          ansible.builtin.fail:
-            msg: "MySQL PVC data cleanup failed for pod index {{ item.item }}. Output: {{ item.stdout }}"
+        - name: Delete PVC if cleanup failed due to NFS lock files
+          ansible.builtin.command:
+            cmd: kubectl delete pvc mysqldb-pvc-idrac-telemetry-{{ item.item }} -n {{ telemetry_namespace }} --wait=true --timeout=60s
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
           when: "'PVC_DATA_CLEARED' not in item.stdout"
           loop: "{{ cleanup_logs_all.results }}"
           loop_control:
             label: "pod-{{ item.item }}"
+          changed_when: true
 
         - name: Delete all PVC cleanup pods
           ansible.builtin.command:
