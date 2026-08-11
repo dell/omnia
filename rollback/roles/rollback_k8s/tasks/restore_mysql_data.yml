@@ -51,7 +51,7 @@
 
     - name: Skip MySQL restore if idrac-telemetry not deployed
       ansible.builtin.debug:
-        msg: "idrac-telemetry StatefulSet not found — skipping MySQL data restore."
+        msg: "{{ msg_mysql_sts_not_found }}"
       when: idrac_sts_check.rc != 0
 
     # ── Step 2: Detect MySQL CrashLoopBackOff on ANY pod ──
@@ -78,9 +78,12 @@
           ansible.builtin.shell:
             cmd: |
               set -o pipefail
+              COLUMNS="NAME:.metadata.name,WAITING:.status.containerStatuses[?(@.name==\"mysqldb\")].state.waiting.reason,"
+              COLUMNS="${COLUMNS}LAST_EXIT:.status.containerStatuses[?(@.name==\"mysqldb\")].lastState.terminated.reason,"
+              COLUMNS="${COLUMNS}RESTARTS:.status.containerStatuses[?(@.name==\"mysqldb\")].restartCount"
               kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry \
                 --no-headers \
-                -o custom-columns=NAME:.metadata.name,WAITING:.status.containerStatuses[?(@.name=="mysqldb")].state.waiting.reason,LAST_EXIT:.status.containerStatuses[?(@.name=="mysqldb")].lastState.terminated.reason,RESTARTS:.status.containerStatuses[?(@.name=="mysqldb")].restartCount \
+                -o custom-columns="${COLUMNS}" \
                 2>/dev/null
           delegate_to: "{{ kube_vip }}"
           connection: ssh
@@ -115,8 +118,7 @@
         - name: Display MySQL status
           ansible.builtin.debug:
             msg:
-              - "idrac-telemetry pods status:"
-              - "{{ idrac_pod_raw_status.stdout_lines | default(['unknown']) }}"
+              - "{{ msg_mysql_pod_status }}"
               - "mysqldb waiting reasons: {{ mysqldb_waiting_reason.stdout | default('none') }}"
               - "MySQL downgrade detected: {{ mysql_downgrade_detected }}"
 
@@ -128,14 +130,7 @@
       block:
         - name: Display MySQL downgrade fix starting
           ansible.builtin.debug:
-            msg:
-              - "============================================================"
-              - "MySQL VERSION DOWNGRADE DETECTED — STARTING PVC RECOVERY"
-              - "============================================================"
-              - "The PVC contains data from a newer MySQL version that cannot"
-              - "be read by the older version restored during rollback."
-              - "Will wipe PVC data for ALL pods and reinitialize MySQL."
-              - "============================================================"
+            msg: "{{ msg_mysql_downgrade_fix_start }}"
 
         # Capture original replica count before scaling down
         - name: Get original replica count from StatefulSet
@@ -158,7 +153,7 @@
 
         - name: Display replica count
           ansible.builtin.debug:
-            msg: "idrac-telemetry has {{ idrac_telemetry_original_replicas }} replica(s) — will wipe and restore ALL PVCs"
+            msg: "{{ msg_mysql_replica_count }}"
 
         # Scale down
         - name: Scale down idrac-telemetry StatefulSet
@@ -403,9 +398,7 @@
         - name: Display backup search results
           ansible.builtin.debug:
             msg:
-              - "Backup directory: {{ mysql_perpod_backup_dir | trim }}"
-              - "Per-pod backup format: {{ mysql_backup_is_perpod | trim }}"
-              - "Legacy single-file format: {{ mysql_backup_is_legacy | trim }}"
+              - "{{ msg_mysql_backup_search_results }}"
               - "Replica count: {{ idrac_telemetry_original_replicas }}"
 
         # ── Restore per-pod backups (new format) ──
@@ -416,7 +409,7 @@
           block:
             - name: Display per-pod MySQL restore starting
               ansible.builtin.debug:
-                msg: "Restoring per-pod MySQL data from: {{ mysql_perpod_backup_dir | trim }}"
+                msg: "{{ msg_mysql_perpod_restore_start }}"
 
             - name: Restore encrypted mysqldump to each pod
               ansible.builtin.shell:
@@ -443,8 +436,7 @@
             - name: Report per-pod restore results
               ansible.builtin.debug:
                 msg: >-
-                  Pod idrac-telemetry-{{ item.item }}:
-                  {{ 'RESTORED' if item.rc == 0 else 'FAILED (rc=' ~ item.rc ~ ')' }}
+                  {{ msg_mysql_perpod_restore_result }}
                   {{ '— no backup file found, MySQL reinitialized fresh' if 'NO_BACKUP_FOR_POD' in (item.stdout | default('')) else '' }}
               loop: "{{ mysql_perpod_restore_results.results }}"
               loop_control:
@@ -458,10 +450,7 @@
           block:
             - name: Display legacy MySQL restore starting
               ansible.builtin.debug:
-                msg:
-                  - "Found legacy single-file backup (pre multi-pod support)."
-                  - "Restoring to pod-0 only. Other pods will reinitialize fresh."
-                  - "Backup dir: {{ mysql_perpod_backup_dir | trim }}"
+                msg: "{{ msg_mysql_legacy_restore_start }}"
 
             - name: Restore legacy encrypted backup to pod-0
               ansible.builtin.shell:
@@ -481,19 +470,12 @@
 
             - name: Report legacy restore result
               ansible.builtin.debug:
-                msg:
-                  - "Legacy backup restore to pod-0: {{ 'SUCCESS' if mysql_legacy_restore.rc == 0 else 'FAILED (rc=' ~ mysql_legacy_restore.rc ~ ')' }}"
-                  - "WARNING: Pods 1+ have no backup — MySQL reinitialized fresh with empty database."
+                msg: "{{ msg_mysql_legacy_restore_result }}"
 
         # ── No backup found ──
         - name: Log that no backup was found
           ansible.builtin.debug:
-            msg:
-              - "No pre-upgrade mysqldump backup found."
-              - "ALL pods have been reinitialized fresh at {{ restored_mysql_image.stdout }}."
-              - "The database 'idrac_telemetrydb' and user 'omnia' were auto-created"
-              - "by the MYSQL_DATABASE and MYSQL_USER environment variables in the StatefulSet."
-              - "Searched in: {{ k8s_backup_dir | default('N/A') }} and {{ k8s_client_mount_path | default('N/A') }}/upgrade/archive/"
+            msg: "{{ msg_mysql_no_backup_found }}"
           when: mysql_perpod_backup_dir | trim == 'none'
 
         # Verify MySQL is healthy on all pods
@@ -545,7 +527,7 @@
     # ── No downgrade detected — MySQL is healthy ──
     - name: MySQL version compatible — no restore needed
       ansible.builtin.debug:
-        msg: "idrac-telemetry MySQL container is running normally — no version downgrade fix needed."
+        msg: "{{ msg_mysql_no_restore_needed }}"
       when:
         - idrac_sts_check.rc == 0
         - not (mysql_downgrade_detected | default(false) | bool)
