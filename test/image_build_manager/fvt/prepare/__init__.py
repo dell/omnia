@@ -19,6 +19,6 @@ Deploys MinIO and registry containers, configures systemd services,
 opens firewall ports, sets up s3cmd, and creates S3 buckets.
 
 Suites:
-    container/  — TC_PR_002-007: Containers, services, firewall, s3cmd, registry
-    s3/         — TC_PR_008: S3 bucket verification
+    container/  — Containers, services, firewall, s3cmd, registry
+    s3/         — S3 bucket verification
 """

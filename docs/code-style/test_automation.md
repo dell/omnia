@@ -161,23 +161,31 @@ TC_<AREA>_002: Verify <aspect 2>
 @pytest.mark.order(1)
 def test_verify_resource(host):
     """TC_XX_002: Verify resource is present after deployment."""
-    # 1. Initialize logger with centralized test name and TC ID
-    tl = TestLogger(TEST_NAMES["verify_resource"], "TC_XX_002")
+    # 1. Get TC metadata from TEST_CASES dict
+    tc = TEST_CASES["verify_resource"]
 
-    # 2. Call verification function (returns dict)
+    # 2. Initialize logger with title and TC ID from dict
+    tl = TestLogger(tc["title"], tc["id"])
+
+    # 3. Call verification function (returns dict)
     result = check_something(host)
 
-    # 3. Handle skip (optional features)
+    # 4. Handle skip (optional features)
     if result.get("skipped"):
         tl.skipped(result["details"])
         pytest.skip(result["details"])
 
-    # 4. Log pass or fail
+    # 5. Log pass or fail
     tl.passed(result["details"]) if result["success"] else tl.failed(result["error"])
 
-    # 5. Assert with centralized message
+    # 6. Assert with centralized message
     assert result["success"], ASSERT_MSGS["resource_missing"]
 ```
+
+**Key Rules:**
+- **Never hardcode TC IDs** — always use `TEST_CASES[key]["id"]`
+- **Never hardcode test titles** — always use `TEST_CASES[key]["title"]`
+- The key in `TEST_CASES` matches the function name without `test_` prefix
 
 ### 3.3 Test Case ID Convention
 
@@ -215,11 +223,24 @@ Deploy tests run the playbook and always execute first (`order(0)`):
 @pytest.mark.order(0)
 def test_deploy_scenario(host):
     """TC_XX_000: Deploy <domain_name> --tags <tag>."""
-    tl = TestLogger(TEST_NAMES["deploy_scenario"], "TC_XX_000")
-    result = run_playbook(tag="<tag>", timeout=3600)
+    tc = TEST_CASES["deploy_scenario"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = run_playbook(
+        playbook=PLAYBOOK_ENTRY_POINT,
+        tag="<tag>",
+        timeout=3600,
+    )
     tl.passed("Playbook completed") if result["success"] else tl.failed(result["error"])
-    assert result["success"], ASSERT_MSGS["deploy_failed"]
+    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+        playbook=PLAYBOOK_ENTRY_POINT, tag="<tag>", rc=result["rc"],
+    )
 ```
+
+**run_playbook Rules:**
+- **Always pass `playbook=` explicitly** — never rely on defaults
+- **Use `PLAYBOOK_ENTRY_POINT`** constant from `common_vars.py`
+- **TC ID and title** come from `TEST_CASES` dict — never hardcode
+- **Timeout** should be appropriate for the tag (3600s for full, 1800s for single tag)
 
 ### 3.6 Import Structure for Test Files
 
@@ -228,14 +249,26 @@ def test_deploy_scenario(host):
 import pytest
 
 # Local — Functions (ONLY from library, NEVER from omnia_auto directly)
-from library.functions import TestLogger, check_something
+from library.functions import (
+    TestLogger,
+    run_playbook,
+    check_something,
+)
+
+# Local — Variables (TEST_CASES, constants)
+from library.vars import (
+    TEST_CASES,
+    PLAYBOOK_ENTRY_POINT,
+)
 
 # Local — Messages
-from library.messages import TEST_NAMES, ASSERT_MSGS
-
-# Local — Constants (if needed)
-from library.vars import SOME_CONSTANT
+from library.messages import ASSERT_MSGS
 ```
+
+**Import Rules:**
+- **Never import from `omnia_auto` directly in test files** — use `library.functions`
+- **TEST_CASES** comes from `library.vars`, not messages
+- **PLAYBOOK_ENTRY_POINT** must be imported for deploy tests
 
 ### 3.7 Test Output Format
 
@@ -335,7 +368,31 @@ SYSTEMD_SERVICES = ["my-service.service"]
 FIREWALL_PORTS = ["8080/tcp"]
 ```
 
-### 5.3 Rules
+### 5.3 TEST_CASES Dictionary (MANDATORY)
+
+All test case metadata MUST be centralized in `test_case_vars.py`:
+
+```python
+TEST_CASES: Dict[str, Dict[str, str]] = {
+    "deploy_prepare": {
+        "id": "TC_PR_001",
+        "title": "Deploy image_build_manager --tags prepare",
+    },
+    "verify_s3_backend": {
+        "id": "TC_PR_002",
+        "title": "Verify S3 storage backend after prepare",
+    },
+    # ... all test cases
+}
+```
+
+**Rules:**
+- Keys match test function names (without `test_` prefix)
+- Each entry has `id` and `title` only
+- Tests look up TC ID and title from this dict — never hardcode
+- Order and markers are defined via pytest decorators, not in TEST_CASES
+
+### 5.4 Rules
 
 - **No magic numbers** in function or test files — define all numbers as named constants.
 - **No inline shell strings** — every command goes in `CMDS`.
@@ -576,6 +633,26 @@ grep -rn -iE '(password|secret|token|api.?key)\s*=\s*["'"'"'][^"'"'"']+["'"'"']'
 ```
 
 Both must return empty results.
+
+### 11.3 Configuration Settings (`test_config.yml`)
+
+Key settings that must be documented and properly configured:
+
+| Setting | Required | Default | Description |
+|---------|----------|---------|-------------|
+| `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
+| `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
+| `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
+| `dataset` | Yes | `data_set_01` | Active dataset folder under `datasets/`. |
+| `project_name` | No | `project_default` | Project name for input/output paths on target. |
+
+**Execution Modes:**
+- **Local mode** (`oim_server_ip: ""`): Tests run on the current machine. Playbook path resolved from source tree.
+- **Remote mode** (`oim_server_ip: "<IP>"`): Tests run against a remote server via SSH. Code synced to `clone_path`.
+
+**Playbook Path Resolution:**
+- **Local mode**: `<repo_root>/<playbook_workdir>` (e.g., `/path/to/omnia/src/image_build_manager/playbooks`)
+- **Remote mode**: `<clone_path>/<playbook_workdir>` (e.g., `/omnia/src/image_build_manager/playbooks`)
 
 ---
 

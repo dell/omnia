@@ -8,7 +8,6 @@ version = "1.0.0"
 description = "Reusable test automation utilities for Dell Omnia — formatting, host connectivity, playbook execution, file sync, and reporting."
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
-license-files = ["LICENSE"]
 authors = [
     {name = "Balaji Kumaran", email = "balajikumaran.cs@dell.com"}
 ]
@@ -57,7 +56,6 @@ dev = [
 Homepage = "https://github.com/balajikumaran-c-s/omnia-auto"
 Repository = "https://github.com/balajikumaran-c-s/omnia-auto.git"
 Documentation = "https://github.com/balajikumaran-c-s/omnia-auto/blob/main/USAGE.md"
-Changelog = "https://github.com/balajikumaran-c-s/omnia-auto/blob/main/CHANGELOG.md"
 Issues = "https://github.com/balajikumaran-c-s/omnia-auto/issues"
 
 [tool.setuptools.packages.find]

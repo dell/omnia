@@ -15,5 +15,5 @@
 """
 Prepare — S3 suite.
 
-TC_PR_008: Verify S3 buckets created after prepare
+Verify S3 buckets created after prepare
 """

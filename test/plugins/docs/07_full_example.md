@@ -34,7 +34,7 @@ your-module/
 ## `test_config.yml`
 
 ```yaml
-oim_server_ip: "100.10.0.84"
+oim_server_ip: "10.20.0.100"
 oim_ssh_user: "root"
 clone_url: "https://github.com/dell/omnia.git"
 clone_path: "/root/omnia"
@@ -293,10 +293,10 @@ python3 -m pytest fvt/ -s -m sanity
 ```
 [14:30:00] [OK] Cloned https://... -> /root/omnia
 [14:30:01] [INFO] Resolved remote input path: /opt/omnia/image_build_manager/input/project_default
-[14:30:02] [OK] Synced .../input -> root@100.10.0.84:/opt/omnia/.../project_default
+[14:30:02] [OK] Synced .../input -> root@10.20.0.100:/opt/omnia/.../project_default
 
 ┌────────────────────────────────────────────────────────────────────┐
-│  SERVER:      100.10.0.84                                          │
+│  SERVER:      10.20.0.100                                          │
 │  MODULE:      build                                                │
 │  REPORT ID:   20260730143000                                       │
 └────────────────────────────────────────────────────────────────────┘

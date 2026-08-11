@@ -15,11 +15,11 @@
 """
 Cleanup — Cleanup verification suite.
 
-TC_CL_002: Verify containers removed
-TC_CL_003: Verify systemd services stopped
-TC_CL_004: Verify firewall ports closed
-TC_CL_005: Verify S3 buckets removed
-TC_CL_006: Verify s3cmd config removed
-TC_CL_007: Verify build_status.yml removed
-TC_CL_008: Verify registry cleaned
+Verify containers removed
+Verify systemd services stopped
+Verify firewall ports closed
+Verify S3 buckets removed
+Verify s3cmd config removed
+Verify build_status.yml removed
+Verify registry cleaned
 """

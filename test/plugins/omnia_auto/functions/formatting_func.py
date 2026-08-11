@@ -117,6 +117,7 @@ def log(message: str, level: str = "INFO") -> None:
 # =============================================================================
 
 _last_output = ""
+_last_tc_id = ""
 
 MAX_LINE_WIDTH = 100
 
@@ -124,6 +125,18 @@ MAX_LINE_WIDTH = 100
 def get_test_output(test_name: str = None) -> str:  # pylint: disable=unused-argument
     """Get captured output for the last test."""
     return _last_output
+
+
+def get_last_tc_id() -> str:
+    """Get TC ID set by the most recent TestLogger instance.
+    
+    Used by pytest hooks to retrieve the test case ID for summary
+    table display. The TC ID is set when TestLogger.__init__ is called.
+    
+    Returns:
+        str: Test case ID (e.g., "TC_IB_001") or empty string if none set.
+    """
+    return _last_tc_id
 
 
 class TestLogger:
@@ -137,9 +150,10 @@ class TestLogger:
     """
 
     def __init__(self, test_name: str, tc_id: str = ""):
-        global _last_output  # pylint: disable=global-variable-not-assigned
+        global _last_output, _last_tc_id  # pylint: disable=global-variable-not-assigned
         self.test_name = test_name
         self.tc_id = tc_id
+        _last_tc_id = tc_id
         self._output_lines = []
         self._add_line("")
         id_part = f" [{tc_id}]" if tc_id else ""

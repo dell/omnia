@@ -15,6 +15,6 @@
 """
 Validate — Status suite.
 
-TC_VL_002: Verify image_build_config.yml exists on target
-TC_VL_003: Verify credentials file is synced to target
+Verify image_build_config.yml exists on target
+Verify credentials file is synced to target
 """

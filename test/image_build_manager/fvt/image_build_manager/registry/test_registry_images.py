@@ -15,11 +15,11 @@
 """
 Image Builder — Registry and Build Status Verification Tests.
 
-TC_IB_006: Verify x86_64 images in registry
-TC_IB_007: Verify aarch64 images in registry
-TC_IB_008: Verify build_status.yml reports success
-TC_IB_009: Verify x86_64 functional groups built
-TC_IB_010: Verify aarch64 functional groups built
+Verify x86_64 images in registry
+Verify aarch64 images in registry
+Verify build_status.yml reports success
+Verify x86_64 functional groups built
+Verify aarch64 functional groups built
 """
 
 import pytest
@@ -30,9 +30,9 @@ from library.functions import (
     check_build_status_file,
     check_functional_groups_built,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import SHARED_PATH
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -42,9 +42,10 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(6)
 def test_registry_images_x86_64(host):
-    """TC_IB_006: Verify x86_64 images in registry."""
+    """Verify x86_64 images in registry."""
+    tc = TC["ib_registry_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(TEST_NAMES["registry_images"].format(arch=arch), "TC_IB_006")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_images(host, arch=arch)
 
     if result.get("skipped"):
@@ -81,9 +82,10 @@ def test_registry_images_x86_64(host):
 @pytest.mark.sanity
 @pytest.mark.order(7)
 def test_registry_images_aarch64(host):
-    """TC_IB_007: Verify aarch64 images in registry."""
+    """Verify aarch64 images in registry."""
+    tc = TC["ib_registry_aarch64"]
     arch = "aarch64"
-    tl = TestLogger(TEST_NAMES["registry_images"].format(arch=arch), "TC_IB_007")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_images(host, arch=arch)
 
     if result.get("skipped"):
@@ -121,8 +123,9 @@ def test_registry_images_aarch64(host):
 @pytest.mark.sanity
 @pytest.mark.order(8)
 def test_build_status(host):
-    """TC_IB_008: Verify build_status.yml reports success."""
-    tl = TestLogger(TEST_NAMES["build_status_file"], "TC_IB_008")
+    """Verify build_status.yml reports success."""
+    tc = TC["ib_build_status"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_build_status_file(host)
     path = result.get("status_path", "")
 
@@ -146,11 +149,10 @@ def test_build_status(host):
 @pytest.mark.sanity
 @pytest.mark.order(9)
 def test_functional_groups_built_x86_64(host):
-    """TC_IB_009: Verify x86_64 functional groups built."""
+    """Verify x86_64 functional groups built."""
+    tc = TC["ib_groups_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(
-        TEST_NAMES["functional_groups_built"].format(arch=arch), "TC_IB_009"
-    )
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_functional_groups_built(host, arch=arch)
 
     if result.get("skipped"):
@@ -186,11 +188,10 @@ def test_functional_groups_built_x86_64(host):
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_functional_groups_built_aarch64(host):
-    """TC_IB_010: Verify aarch64 functional groups built."""
+    """Verify aarch64 functional groups built."""
+    tc = TC["ib_groups_aarch64"]
     arch = "aarch64"
-    tl = TestLogger(
-        TEST_NAMES["functional_groups_built"].format(arch=arch), "TC_IB_010"
-    )
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_functional_groups_built(host, arch=arch)
 
     if result.get("skipped"):

@@ -26,10 +26,10 @@ for the build_image FVT automation.
 TEST_NAMES = {
     # Deploy
     "deploy_playbook": (
-        "Deploy: image_build_manager.yml --tags {tag}"
+        "Deploy: image_build_manager ({tag})"
     ),
     "deploy_playbook_full": (
-        "Deploy: image_build_manager.yml (default: prepare + build)"
+        "Deploy: image_build_manager (default: prepare + build)"
     ),
 
     # Storage backend
@@ -264,7 +264,7 @@ TEST_LOG_MSGS = {
 
     # Deploy
     "playbook_start": (
-        "Running: ansible-playbook {playbook} --tags {tag}"
+        "Running: {playbook} ({tag})"
     ),
     "playbook_success": (
         "Playbook completed (rc=0, duration={duration:.1f}s)"
@@ -291,8 +291,9 @@ TEST_ASSERT_MSGS = {
         "\u2551   1. Check container: podman ps -a | grep {container}\n"
         "\u2551   2. Check logs: podman logs {container}\n"
         "\u2551   3. Restart: podman restart {container}\n"
-        "\u2551   4. Re-run: ansible-playbook image_build_manager.yml"
-        " --tags prepare\n"
+        "\u2551   4. Re-run playbook:\n"
+        "\u2551      ansible-playbook image_build_manager.yml\n"
+        "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -306,8 +307,9 @@ TEST_ASSERT_MSGS = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check s3cmd: s3cmd ls\n"
         "\u2551   2. Check MinIO: podman logs minio-server\n"
-        "\u2551   3. Re-run: ansible-playbook image_build_manager.yml"
-        " --tags prepare\n"
+        "\u2551   3. Re-run playbook:\n"
+        "\u2551      ansible-playbook image_build_manager.yml\n"
+        "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -320,9 +322,10 @@ TEST_ASSERT_MSGS = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check S3: s3cmd ls -Hr s3://boot-images\n"
-        "\u2551   2. Check build logs: {log_path}\n"
-        "\u2551   3. Re-run: ansible-playbook image_build_manager.yml"
-        " --tags build\n"
+        "\u2551   2. Check build logs: ls {log_path}\n"
+        "\u2551   3. Re-run playbook:\n"
+        "\u2551      ansible-playbook image_build_manager.yml\n"
+        "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -336,9 +339,10 @@ TEST_ASSERT_MSGS = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check registry: regctl repo ls {registry_url}\n"
-        "\u2551   2. Check build logs\n"
-        "\u2551   3. Re-run: ansible-playbook image_build_manager.yml"
-        " --tags build\n"
+        "\u2551   2. Check build logs: ls {log_path}\n"
+        "\u2551   3. Re-run playbook:\n"
+        "\u2551      ansible-playbook image_build_manager.yml\n"
+        "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -351,8 +355,9 @@ TEST_ASSERT_MSGS = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check output: cat {status_path}\n"
         "\u2551   2. Check build logs: ls {log_path}\n"
-        "\u2551   3. Re-run: ansible-playbook image_build_manager.yml"
-        " --tags build\n"
+        "\u2551   3. Re-run playbook:\n"
+        "\u2551      ansible-playbook image_build_manager.yml\n"
+        "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -367,8 +372,10 @@ TEST_ASSERT_MSGS = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check the playbook output above\n"
-        "\u2551   2. Check logs: {log_path}\n"
-        "\u2551   3. Run with increased verbosity: -vvv\n"
+        "\u2551   2. Check logs: ls {log_path}\n"
+        "\u2551   3. Re-run playbook:\n"
+        "\u2551      ansible-playbook image_build_manager.yml\n"
+        "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

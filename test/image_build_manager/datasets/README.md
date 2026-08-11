@@ -1,57 +1,74 @@
 # Datasets
 
-Each dataset is a directory under `datasets/` representing a test configuration
-for `image_build_manager`. The automation framework syncs these files to the
-target server before running tests.
+Test input configuration for the `image_build_manager` automation framework.
 
-In monorepo mode, host settings (hostname, IP, domain) come from **environment
-variables** on the target (set via `omnia.env` / `omnia.sh -s`), not from a
-config file in the dataset.
+## Default Mode (Recommended)
 
-## Dataset Structure
+By default (`dataset: ""` in `test_config.yml`), the framework reads input
+files **directly from `src/`** — no dataset folder is needed:
 
-```
-datasets/
-  <dataset_name>/
-    input/                              # Synced to: <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
-      image_build_config.yml            # Image build domain input file
-      image_build_credentials.yml       # Vault-encrypted S3 credentials
-    repo_manager_output/                # Synced to repo_manager_output_dir (when sync_output: true)
-      repo_status.yml
-      functional_group_packages.yml
-      certs/
-```
+| File | Source |
+|------|--------|
+| `image_build_config.yml` | `src/image_build_manager/input/` |
+| `package_groups.yml` | `src/image_build_manager/input/` |
+| `repo_status.yml` | `src/image_build_manager/samples/repo_manager_output/` |
 
-### Required Files
+This keeps test inputs in sync with the source code automatically.
 
-| File | Description |
-|------|-------------|
-| `input/image_build_config.yml` | S3 backend, repo_manager output path, functional groups, ARM host IP |
-| `input/image_build_credentials.yml` | S3 and provision credentials (Vault-encrypted) |
+## Custom Datasets
 
-### Sync Behavior
-
-| Setting in `test_config.yml` | What gets synced |
-|------------------------------|------------------|
-| `sync_image_build_input: true` | `input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/` |
-| `sync_output: true` | `repo_manager_output/` → `<repo_manager_output_dir>/` from `image_build_config.yml` |
-
-The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target
-server's `/etc/omnia/omnia.env` to resolve the sync destination. Directories
-are created automatically if they don't exist.
-
-## Default Dataset: `data_set_01`
-
-See [`data_set_01/README.md`](data_set_01/README.md) for field details.
-
-## Creating a New Dataset
+Set `dataset: "my_ds"` in `test_config.yml` to use a custom dataset
+from `datasets/<name>/`. Generate one with the dataset generator:
 
 ```bash
-mkdir -p datasets/my_dataset/{input,repo_manager_output/certs}
-# Copy and edit:
-cp datasets/data_set_01/input/image_build_config.yml datasets/my_dataset/input/
-cp datasets/data_set_01/input/image_build_credentials.yml datasets/my_dataset/input/
-cp -r datasets/data_set_01/repo_manager_output/* datasets/my_dataset/repo_manager_output/
-# Update test_config.yml:
-#   dataset: "my_dataset"
+cd datasets/generator/
+python generate_dataset.py my_ds defaults
+python generate_dataset.py my_ds --from-src
 ```
+
+See [`generator/README.md`](generator/README.md) for full usage.
+
+### Custom Dataset Structure
+
+```
+datasets/<name>/
+  input/
+    image_build_config.yml
+    image_build_credentials.yml
+    package_groups.yml
+  repo_manager_output/
+    repo_status.yml
+```
+
+## Switching Datasets
+
+### Edit `test_config.yml`
+```yaml
+dataset: "my_custom_ds"    # Use custom dataset
+dataset: ""                # Use src/ (default)
+```
+
+### Per-scenario override in `test_run_config.yml`
+```yaml
+scenarios:
+  prepare:
+    dataset: "my_custom_ds"
+    sync_input: true
+```
+
+### Environment variable (one-off)
+```bash
+OMNIA_DATASET_OVERRIDE=my_custom_ds ./run_validation.sh build verify
+```
+
+**Priority**: env var > per-scenario override > `test_config.yml` default.
+
+## Sync Behavior
+
+| Setting | What gets synced |
+|---------|------------------|
+| `sync_image_build_input: true` | `input/` → target server |
+| `sync_output: true` | `repo_manager_output/` → target server |
+
+The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
+target server to resolve sync destinations.
