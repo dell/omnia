@@ -29,7 +29,7 @@ multiple servers and all results accumulate in the same report file.
 | `module_name` | `str` | **Yes** | A name for the scenario or module being tested. This appears as a label in the report. | `"build"` or `"validate"` |
 | `report_path` | `str` | **Yes** | Absolute path to the directory where JSON and HTML files will be saved. The directory is created automatically if it doesn't exist. | `"/opt/omnia/reports"` |
 | `report_name` | `str` | **Yes** | Base filename for the report (without extension). Two files are created: `<report_name>.json` and `<report_name>.html`. | `"image_test_report"` |
-| `server_ip` | `str` | **Yes** | The IP address of the target server. Results in the report are grouped by this IP. | `"100.10.0.84"` |
+| `server_ip` | `str` | **Yes** | The IP address of the target server. Results in the report are grouped by this IP. | `"10.20.0.100"` |
 | `report_id` | `str` | No | A unique identifier for this test run. If not given, an auto-generated timestamp is used (e.g., `"20260730120000"`). Pass a shared `report_id` across multiple modules to group them in the same run. | `"20260730120000"` |
 | `server_hostname` | `str` | No | The hostname of the target server. If not given, it is resolved from `server_ip` automatically. | `"image-builder"` |
 | `suite` | `str` | No | Suite label shown in the report (informational). Defaults to the `OMNIA_SUITE` environment variable or `"all"`. | `"build"` |
@@ -105,7 +105,7 @@ server IP and report ID.
 ┌────────────────────────────────────────────────────────────────────┐
 │  REPORT SAVED                                                     │
 ├────────────────────────────────────────────────────────────────────┤
-│  Server:        100.10.0.84                                        │
+│  Server:        10.20.0.100                                        │
 │  Report ID:     20260730120000                                     │
 │  Duration:      5.48s                                               │
 │  Results:       4 passed, 0 failed, 1 skipped                      │

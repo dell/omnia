@@ -23,7 +23,7 @@ deployed on this machine.
 Run tests against a remote OIM server over SSH.
 
 ```yaml
-oim_server_ip: "10.20.0.100"   # MANDATORY — target server IP
+oim_server_ip: "<target_ip>"   # MANDATORY — target server IP
 oim_ssh_user: root              # SSH user (default: root)
 oim_ssh_port: 22                # SSH port (default: 22)
 ```
@@ -55,30 +55,25 @@ If the repo exists, just set `clone_path` to the existing location.
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Dataset folder name under `datasets/` | `data_set_01` |
+| `dataset` | No | Empty = use `src/` files directly. Set to a dataset folder name for custom inputs. | `""` |
 
-The dataset folder contains `input/` (config, build config, credentials) and
-`repo_manager_output/` (upstream dependency files) that the playbook needs.
+When empty (default), input files are read from `src/image_build_manager/input/`
+and `src/image_build_manager/samples/repo_manager_output/`. For custom datasets,
+generate one with `datasets/generator/generate_dataset.py`.
 
 ### Sync Options
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `sync_image_build_input` | No | Push dataset input/ files to target before tests | `true` |
-| `sync_output` | No | Push dataset repo_manager_output/ to target | `false` |
+| `sync_image_build_input` | No | Push input files to target before tests | `true` |
+| `sync_output` | No | Push repo_manager_output to target | `false` |
 
-When `sync_image_build_input: true`, the framework syncs:
-```
-datasets/<dataset>/input/  →  <clone_path>/src/input/<project_name>/
-datasets/<dataset>/input/config.yml  →  <clone_path>/config.yml
-```
+When `sync_image_build_input: true`, the framework syncs input files
+(from `src/` or the configured dataset) to the target server.
 
-When `sync_output: true`, the framework syncs:
-```
-datasets/<dataset>/repo_manager_output/  →  <repo_manager_output_dir>/
-```
-The target path is read from `repo_manager_output_dir` in `image_build_config.yml`.
-Default: `/opt/omnia/repo_manager/output/<project_name>/`.
+When `sync_output: true`, the framework syncs `repo_manager_output/`
+to the target. The remote path is derived from `repo_manager_output_path`
+in `image_build_config.yml`.
 
 ### Runtime Paths
 
@@ -99,10 +94,10 @@ Default: `/opt/omnia/repo_manager/output/<project_name>/`.
 ## Example — Minimal Remote Setup
 
 ```yaml
-oim_server_ip: "10.20.0.100"
+oim_server_ip: "<target_ip>"
 oim_ssh_user: root
-clone_path: "/root/image-build-manager"
-dataset: "data_set_01"
+clone_path: "/omnia"
+dataset: ""
 sync_image_build_input: true
 sync_output: false
 ```
@@ -111,7 +106,7 @@ sync_output: false
 
 ```yaml
 oim_server_ip: ""
-dataset: "data_set_01"
+dataset: ""
 sync_image_build_input: false
 sync_output: false
 ```

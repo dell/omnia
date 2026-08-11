@@ -19,5 +19,5 @@ Removes all deployed resources: containers, systemd services,
 S3 buckets, s3cmd config, build output, and registry images.
 
 Suites:
-    cleanup/  — TC_CL_002-008: Verify all artifacts removed
+    cleanup/  — Verify all artifacts removed
 """

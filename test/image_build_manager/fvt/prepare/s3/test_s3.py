@@ -15,14 +15,14 @@
 """
 Image Build Prepare — S3 Bucket Verification.
 
-TC_PR_004: Verify S3 buckets created after prepare
+Verify S3 buckets created after prepare
 """
 
 import pytest
 
 from library.functions import TestLogger, check_s3_buckets
+from library.vars import TEST_CASES as TC
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -31,8 +31,9 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(7)
 def test_s3_buckets_after_prepare(host):
-    """TC_PR_008: Verify S3 buckets created after prepare."""
-    tl = TestLogger(TEST_NAMES["s3_buckets_created"], "TC_PR_008")
+    """Verify S3 buckets created after prepare."""
+    tc = TC["s3_buckets_created"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_buckets(host)
 
     if result["success"]:

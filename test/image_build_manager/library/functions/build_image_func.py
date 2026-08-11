@@ -33,8 +33,9 @@ from typing import Dict, Any, List
 
 import yaml
 
-from .host_func import load_test_config
 from omnia_auto import read_remote_env, resolve_domain_input_path
+
+from .host_func import load_test_config
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
@@ -47,12 +48,18 @@ from ..vars.common_vars import (
     S3CMD_CONFIG_PATH,
     SHARED_PATH,
     IMAGE_TYPES,
+    IMAGE_TYPE_DISPLAY,
     CMDS,
     LISTENING_PORTS,
     SYSTEMD_SERVICES,
     CREDENTIALS_FILE_NAME,
     CREDENTIALS_KEY_NAME,
     BUILD_STATUS_PATH,
+    FG_PACKAGES_FILENAME,
+    IMAGE_VERIFY_TEMP_IMAGE,
+    IMAGE_VERIFY_TEMP_MOUNT,
+    SQUASHFS_PACKAGE,
+    S3_BOOT_IMAGES_BUCKET,
 )
 
 
@@ -61,9 +68,14 @@ from ..vars.common_vars import (
 # =============================================================================
 
 def _get_shared_path() -> str:
-    """Get shared_path from test_config or default."""
+    """Get shared_path from test_config or fall back to constant.
+
+    The shared_path is derived from OMNIA_DATA_PATH env var on the target:
+        <OMNIA_DATA_PATH>/image_build_manager
+    Falls back to the SHARED_PATH constant (/opt/omnia/image_build_manager).
+    """
     config = load_test_config()
-    return config["shared_path"]
+    return config.get("shared_path", SHARED_PATH)
 
 
 def _get_project_name() -> str:
@@ -91,7 +103,7 @@ def _load_remote_ibm_config(host) -> dict:
     Returns parsed YAML as dict, or empty dict on failure.
     """
     cfg_path = _get_remote_ibm_config_path(host)
-    cmd = host.run(f"cat {cfg_path} 2>/dev/null")
+    cmd = host.run(CMDS["cat_file"].format(path=cfg_path))
     if cmd.rc != 0 or not cmd.stdout.strip():
         return {}
     try:
@@ -100,13 +112,51 @@ def _load_remote_ibm_config(host) -> dict:
         return {}
 
 
+def _get_built_groups_from_status(host, arch: str = None) -> List[str]:
+    """Extract actually built group names from build_status.yml.
+
+    In catalog mode, the playbook resolves group names to the full
+    ``{role}_{os}_{ver}_{arch}`` format (e.g. slurm_node_rhel_10_0_x86_64).
+    This helper reads build_status.yml to discover those actual names.
+
+    Returns:
+        List of built functional group name strings (may be empty).
+    """
+    status = check_build_status_file(host)
+    if not status.get("success") or "data" not in status:
+        return []
+
+    groups = []
+    fg_images = status["data"].get("functional_group_images", [])
+    for arch_block in fg_images:
+        if isinstance(arch_block, dict):
+            for _key, entries in arch_block.items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if isinstance(entry, dict):
+                        fg_name = entry.get("functional_group", "")
+                        if fg_name:
+                            groups.append(fg_name)
+
+    if arch:
+        groups = [g for g in groups if arch in g]
+
+    return groups
+
+
 def get_configured_functional_groups(
     host, arch: str = None
 ) -> List[str]:
     """Get functional groups from image_build_config.yml on target.
 
-    Reads the deployed image_build_config.yml (not the local dataset)
-    to discover which functional groups were configured for building.
+    In **config** mode, reads the ``functional_groups`` list from the
+    deployed image_build_config.yml.
+
+    In **catalog** mode, the config list contains short (legacy) names
+    but the playbook resolves them to ``{role}_{os}_{ver}_{arch}`` format.
+    This function returns the *actually built* names from build_status.yml
+    so that S3, registry, and package checks match correctly.
 
     Args:
         host: testinfra host object
@@ -118,6 +168,15 @@ def get_configured_functional_groups(
     cfg = _load_remote_ibm_config(host)
     if not cfg:
         return []
+
+    # Prefer actual built names from build_status.yml when available.
+    # In catalog mode the playbook expands short names (slurm_node_x86_64)
+    # to full names (slurm_node_rhel_10_0_x86_64). Even in config mode the
+    # build output may use expanded names. Using the built names ensures
+    # S3, registry, and package checks match the real artifacts.
+    built = _get_built_groups_from_status(host, arch=arch)
+    if built:
+        return built
 
     fg_list = cfg.get("functional_groups", [])
     groups = []
@@ -163,8 +222,7 @@ def check_container_running(
         Dict with 'success', 'status', 'error'.
     """
     cmd = host.run(
-        f"podman ps --format '{{{{.Names}}}} {{{{.Status}}}}' "
-        f"--filter name=^{container_name}$ 2>/dev/null"
+        CMDS["podman_ps_running"].format(container=container_name)
     )
 
     if cmd.rc == 0 and container_name in cmd.stdout:
@@ -177,8 +235,9 @@ def check_container_running(
 
     # Check if container exists but not running
     check_all = host.run(
-        f"podman ps -a --format '{{{{.Names}}}} {{{{.Status}}}}' "
-        f"--filter name=^{container_name}$ 2>/dev/null"
+        CMDS["podman_ps_all_status"].format(
+            container=container_name,
+        )
     )
     if check_all.rc == 0 and container_name in check_all.stdout:
         status = check_all.stdout.strip()
@@ -334,12 +393,16 @@ def check_s3_bucket_images(
 ) -> Dict[str, Any]:
     """Verify images are pushed to S3 for all configured groups.
 
+    Performs fast pre-check of S3 bucket existence before attempting
+    expensive recursive listing. Bails out early if bucket missing.
+
     Args:
         host: testinfra host object
         arch: Architecture filter (x86_64 or aarch64)
 
     Returns:
         Dict with 'success', 'results', 'details', 'error'.
+        Returns success=False immediately if S3 bucket doesn't exist.
     """
     groups = get_configured_functional_groups(host, arch=arch)
     if not groups:
@@ -354,16 +417,30 @@ def check_s3_bucket_images(
             "error": None,
         }
 
-    s3_cmd = host.run("s3cmd ls -Hr s3://boot-images 2>/dev/null")
+    # Fast pre-check: verify the boot-images bucket exists before
+    # running the expensive recursive listing (s3cmd ls -Hr can take
+    # 45+ seconds against a non-existent bucket).
+    bucket_result = check_s3_buckets(host)
+    if S3_BOOT_IMAGES_BUCKET not in bucket_result.get("found", []):
+        return {
+            "success": False,
+            "skipped": False,
+            "results": [],
+            "details": (
+                f"S3 bucket {S3_BOOT_IMAGES_BUCKET} does not exist "
+                "— skipping per-image check"
+            ),
+            "error": (
+                f"S3 bucket {S3_BOOT_IMAGES_BUCKET} not found. "
+                "Run the playbook or: run_validation image_build_manager deploy"
+            ),
+        }
+
+    s3_cmd = host.run(
+        CMDS["s3cmd_ls_bucket"].format(bucket=S3_BOOT_IMAGES_BUCKET)
+    )
     s3_output = s3_cmd.stdout if s3_cmd.rc == 0 else ""
     s3_files = _parse_s3_listing(s3_output)
-
-    # Display names for image types
-    _TYPE_DISPLAY = {
-        "initramfs": "initramfs",
-        "vmlinuz": "vmlinuz",
-        "rhel": "rootfs",
-    }
 
     results = []
     all_passed = True
@@ -392,7 +469,7 @@ def check_s3_bucket_images(
                 elif img_type not in info["filename"]:
                     continue
                 found = True
-                display_name = _TYPE_DISPLAY.get(
+                display_name = IMAGE_TYPE_DISPLAY.get(
                     img_type, img_type
                 )
                 group_result["found_images"].append(img_type)
@@ -498,8 +575,9 @@ def check_registry_images(
     catalog_repos = []
     for scheme in ("http", "https"):
         curl_cmd = host.run(
-            f"curl -sk {scheme}://localhost:{REGISTRY_PORT}"
-            f"/v2/_catalog 2>/dev/null"
+            CMDS["curl_registry_catalog_scheme"].format(
+                scheme=scheme, port=REGISTRY_PORT,
+            )
         )
         if curl_cmd.rc == 0 and "repositories" in curl_cmd.stdout:
             try:
@@ -513,8 +591,7 @@ def check_registry_images(
     if not catalog_repos:
         # Fallback to regctl
         regctl_cmd = host.run(
-            f"regctl repo ls --limit 500 {registry_url}"
-            f" 2>/dev/null"
+            CMDS["regctl_repo_ls"].format(registry=registry_url)
         )
         if regctl_cmd.rc == 0:
             catalog_repos = [
@@ -579,7 +656,7 @@ def check_build_status_file(host) -> Dict[str, Any]:
         f"{shared}/output/{project}/build_status.yml"
     )
 
-    cmd = host.run(f"cat {status_path} 2>/dev/null")
+    cmd = host.run(CMDS["cat_file"].format(path=status_path))
     if cmd.rc != 0:
         return {
             "success": False,
@@ -744,17 +821,23 @@ def check_functional_groups_built(
 def _check_squashfs_tools(host) -> Dict[str, Any]:
     """Ensure squashfs-tools is installed."""
     check = host.run(
-        "which unsquashfs 2>/dev/null || "
-        "rpm -q squashfs-tools 2>/dev/null"
+        CMDS["squashfs_tools_check"].format(
+            package=SQUASHFS_PACKAGE,
+        )
     )
     if check.rc == 0:
         return {"installed": True, "error": None}
 
-    install = host.run("dnf install -y squashfs-tools 2>&1")
+    install = host.run(
+        CMDS["squashfs_tools_install"].format(
+            package=SQUASHFS_PACKAGE,
+        )
+    )
     if install.rc == 0:
         verify = host.run(
-            "which unsquashfs 2>/dev/null || "
-            "rpm -q squashfs-tools 2>/dev/null"
+            CMDS["squashfs_tools_check"].format(
+                package=SQUASHFS_PACKAGE,
+            )
         )
         if verify.rc == 0:
             return {"installed": True, "error": None}
@@ -762,8 +845,8 @@ def _check_squashfs_tools(host) -> Dict[str, Any]:
     return {
         "installed": False,
         "error": (
-            "squashfs-tools not installed and auto-install failed. "
-            "Install manually: dnf install squashfs-tools"
+            f"{SQUASHFS_PACKAGE} not installed and auto-install "
+            f"failed. Install manually: dnf install {SQUASHFS_PACKAGE}"
         ),
     }
 
@@ -790,11 +873,11 @@ def _get_image_packages_from_config(
         repo_output_dir = f"{data_path}/repo_manager/output/{project}"
 
     paths_to_try = [
-        f"{repo_output_dir}/functional_group_packages.yml",
+        f"{repo_output_dir}/{FG_PACKAGES_FILENAME}",
     ]
 
     for pkg_path in paths_to_try:
-        cmd = host.run(f"cat {pkg_path} 2>/dev/null")
+        cmd = host.run(CMDS["cat_file"].format(path=pkg_path))
         if cmd.rc != 0 or not cmd.stdout.strip():
             continue
         try:
@@ -821,12 +904,16 @@ def verify_image_packages(
 ) -> Dict[str, Any]:
     """Download S3 images, mount, and verify RPM packages.
 
+    Performs fast pre-check of S3 bucket existence before attempting
+    image download. Bails out early if bucket missing.
+
     Args:
         host: testinfra host object
         arch: Architecture filter
 
     Returns:
         Dict with 'success', 'results', per-group package details.
+        Returns prerequisite_failed=True if S3 bucket doesn't exist.
     """
     squashfs = _check_squashfs_tools(host)
     if not squashfs["installed"]:
@@ -846,16 +933,31 @@ def verify_image_packages(
             "details": f"No {arch} functional groups configured",
         }
 
-    temp_image = "/tmp/ibm_test_image"  # nosec B108 — remote host temp path via SSH
-    temp_mount = "/tmp/ibm_test_mount"  # nosec B108 — remote host temp path via SSH
+    temp_image = IMAGE_VERIFY_TEMP_IMAGE
+    temp_mount = IMAGE_VERIFY_TEMP_MOUNT
+
+    # Fast pre-check: verify the boot-images bucket exists before
+    # running the expensive recursive listing.
+    bucket_result = check_s3_buckets(host)
+    if S3_BOOT_IMAGES_BUCKET not in bucket_result.get("found", []):
+        return {
+            "success": False,
+            "prerequisite_failed": True,
+            "results": [],
+            "error": (
+                f"S3 bucket {S3_BOOT_IMAGES_BUCKET} not found. "
+                "Run the playbook or: run_validation image_build_manager deploy"
+            ),
+        }
 
     # Cleanup before start
-    host.run(f"umount {temp_mount} 2>/dev/null")
-    host.run(f"rm -f {temp_image}")
-    host.run(f"mkdir -p {temp_mount}")
+    host.run(CMDS["umount"].format(flags="", path=temp_mount))
+    host.run(CMDS["rm_file"].format(path=temp_image))
+    host.run(CMDS["mkdir_p"].format(path=temp_mount))
 
-    s3_cmd = "s3cmd ls -Hr s3://boot-images 2>/dev/null"
-    s3_list = host.run(s3_cmd)
+    s3_list = host.run(
+        CMDS["s3cmd_ls_bucket"].format(bucket=S3_BOOT_IMAGES_BUCKET)
+    )
     s3_output = s3_list.stdout if s3_list.rc == 0 else ""
 
     results = []
@@ -912,7 +1014,9 @@ def verify_image_packages(
 
         # Download, mount, verify
         dl = host.run(
-            f"s3cmd get {s3_path} {temp_image} --force 2>/dev/null"
+            CMDS["s3cmd_get"].format(
+                s3_path=s3_path, dest=temp_image,
+            )
         )
         if dl.rc != 0:
             results.append({
@@ -927,13 +1031,14 @@ def verify_image_packages(
             all_passed = False
             continue
 
-        host.run(f"mkdir -p {temp_mount}")
+        host.run(CMDS["mkdir_p"].format(path=temp_mount))
         mt = host.run(
-            f"mount -t squashfs -o ro {temp_image} "
-            f"{temp_mount} 2>/dev/null"
+            CMDS["mount_squashfs"].format(
+                image=temp_image, mount=temp_mount,
+            )
         )
         if mt.rc != 0:
-            host.run(f"rm -f {temp_image}")
+            host.run(CMDS["rm_file"].format(path=temp_image))
             results.append({
                 "functional_group": fg,
                 "success": False,
@@ -947,7 +1052,7 @@ def verify_image_packages(
             continue
 
         rpm_cmd = host.run(
-            f"rpm --root={temp_mount} -qa 2>/dev/null"
+            CMDS["rpm_list_installed"].format(root=temp_mount)
         )
         installed = (
             rpm_cmd.stdout.strip().split('\n')
@@ -987,9 +1092,9 @@ def verify_image_packages(
                 })
 
         # Cleanup
-        host.run(f"umount -l {temp_mount} 2>/dev/null")
-        host.run(f"rm -rf {temp_mount} 2>/dev/null")
-        host.run(f"rm -f {temp_image} 2>/dev/null")
+        host.run(CMDS["umount"].format(flags="-l", path=temp_mount))
+        host.run(CMDS["rm_dir"].format(path=temp_mount))
+        host.run(CMDS["rm_file"].format(path=temp_image))
 
         fg_result = {
             "functional_group": fg,
@@ -1009,9 +1114,9 @@ def verify_image_packages(
             all_passed = False
 
     # Final cleanup
-    host.run(f"umount -l {temp_mount} 2>/dev/null")
-    host.run(f"rm -rf {temp_mount} 2>/dev/null")
-    host.run(f"rm -f {temp_image} 2>/dev/null")
+    host.run(CMDS["umount"].format(flags="-l", path=temp_mount))
+    host.run(CMDS["rm_dir"].format(path=temp_mount))
+    host.run(CMDS["rm_file"].format(path=temp_image))
 
     passed_count = sum(1 for r in results if r["success"])
 

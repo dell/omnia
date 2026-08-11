@@ -69,7 +69,7 @@ test/main/
 
 | Scenario | What It Tests | Deploy Command |
 |----------|--------------|----------------|
-| `setup` | Environment install, venv creation, directory setup | `omnia.sh --setup-venv --skip-init` |
+| `setup` | Environment install, venv creation, directory setup | `omnia.sh --setup-venv --deps-only` |
 | `init` | Domain log directories, input file staging | `omnia.sh --init` |
 | `cli` | Help output, error handling, argument parsing | `omnia.sh --help` |
 | `omnia_cli` | Diagnostics CLI: status, check, version, domain queries | `omnia-cli help` |

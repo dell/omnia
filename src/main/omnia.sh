@@ -53,7 +53,7 @@ readonly NC='\033[0m'
 # Omnia release metadata
 readonly OMNIA_RELEASE="2.3.0.0"
 
-# Known domain directories (each may contain requirements.txt / requirements.yml)
+# Known domain directories (each must provide domain-init.sh)
 readonly DOMAINS=(
     "build_stream"
     "discovery"
@@ -246,42 +246,6 @@ setup_venv() {
     echo -e "${BLUE}Upgrading pip...${NC}"
     pip install --upgrade pip setuptools wheel --quiet
 
-    # ── Discover and install per-domain pip requirements ──
-    local pip_installed=0
-    for domain in "${DOMAINS[@]}"; do
-        local domain_pip="$SRC_DIR/$domain/requirements.txt"
-        if [ -f "$domain_pip" ]; then
-            echo -e "${BLUE}Installing pip packages for ${domain} ...${NC}"
-            if ! pip install -r "$domain_pip"; then
-                echo -e "${YELLOW}WARNING: pip install failed for $domain_pip — continuing${NC}"
-            else
-                pip_installed=$((pip_installed + 1))
-            fi
-        fi
-    done
-
-    if [ "$pip_installed" -eq 0 ]; then
-        echo -e "${YELLOW}WARNING: No requirements.txt found in any domain${NC}"
-    fi
-
-    # ── Verify ansible is available ──
-    if ! "$OMNIA_VENV_PATH/bin/ansible" --version >/dev/null 2>&1; then
-        echo -e "${RED}ERROR: ansible not found after pip install${NC}"
-        deactivate 2>/dev/null || true
-        exit 1
-    fi
-
-    # ── Discover and install per-domain Galaxy collections ──
-    for domain in "${DOMAINS[@]}"; do
-        local domain_galaxy="$SRC_DIR/$domain/requirements.yml"
-        if [ -f "$domain_galaxy" ]; then
-            echo -e "${BLUE}Installing Galaxy collections for ${domain} ...${NC}"
-            if ! ansible-galaxy collection install -r "$domain_galaxy" --force; then
-                echo -e "${YELLOW}WARNING: Galaxy install failed for $domain_galaxy — continuing${NC}"
-            fi
-        fi
-    done
-
     #
     # Reload latest environment
     #
@@ -320,15 +284,13 @@ ACTIVATE_EOF
     # ── Summary ──
     echo ""
     echo -e "${GREEN}================================================================================${NC}"
-    echo -e "${GREEN}                Omnia Venv Setup Complete${NC}"
+    echo -e "${GREEN}                Omnia Venv Created${NC}"
     echo -e "${GREEN}================================================================================${NC}"
     echo ""
     echo -e "  Venv:    ${GREEN}$OMNIA_VENV_PATH${NC}"
     echo -e "  Python:  ${GREEN}$(python --version)${NC}"
-    echo -e "  Ansible: ${GREEN}$(ansible --version | head -1)${NC}"
     echo ""
-    echo -e "${BLUE}Installed collections:${NC}"
-    ansible-galaxy collection list 2>/dev/null | grep -E "^(ansible\.|containers\.|community\.|kubernetes\.|omnia\.)" || true
+    echo -e "${BLUE}Dependencies will be installed by each domain's domain-init.sh.${NC}"
     echo ""
     echo -e "${GREEN}Environment helper created:${NC}"
     echo -e "  ${GREEN}${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
@@ -346,24 +308,47 @@ ACTIVATE_EOF
 init_domains() {
     load_env
 
-    echo -e "${BLUE}Initializing domains (log dirs + input files) to ${OMNIA_DATA_PATH}/ ...${NC}"
-    local copied=0
+    # Activate venv so domain-init.sh can install pip/galaxy deps
+    if [ -f "$OMNIA_VENV_PATH/bin/activate" ]; then
+        # shellcheck disable=SC1091
+        source "$OMNIA_VENV_PATH/bin/activate"
+    fi
+
+    local domain_init_args=()
+    if [ "$DEPS_ONLY" = true ]; then
+        domain_init_args+=(--deps-only)
+        echo -e "${BLUE}Initializing domains (deps only, skipping input staging) ...${NC}"
+    else
+        echo -e "${BLUE}Initializing domains (deps + log dirs + input files) ...${NC}"
+    fi
+
+    local initialized=0
     for domain in "${DOMAINS[@]}"; do
         local init_script="$SRC_DIR/$domain/domain-init.sh"
         if [ -f "$init_script" ]; then
             chmod +x "$init_script"
-            if bash "$init_script" "$@"; then
-                copied=$((copied + 1))
+            if bash "$init_script" "${domain_init_args[@]}"; then
+                initialized=$((initialized + 1))
             else
                 echo -e "${YELLOW}WARNING: domain-init.sh failed for $domain — continuing${NC}"
             fi
         fi
     done
-    if [ "$copied" -eq 0 ]; then
+    if [ "$initialized" -eq 0 ]; then
         echo -e "${YELLOW}No domain-init.sh scripts found in any domain${NC}"
     else
-        echo -e "${GREEN}Domain init scripts completed for ${copied} domain(s)${NC}"
+        echo -e "${GREEN}Domain init completed for ${initialized} domain(s)${NC}"
     fi
+
+    # Show installed summary
+    if command -v ansible >/dev/null 2>&1; then
+        echo ""
+        echo -e "${GREEN}Ansible: $(ansible --version | head -1)${NC}"
+        echo -e "${BLUE}Installed collections:${NC}"
+        ansible-galaxy collection list 2>/dev/null | grep -E "^(ansible\.|containers\.|community\.|kubernetes\.|omnia\.)" || true
+    fi
+
+    deactivate 2>/dev/null || true
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -456,14 +441,6 @@ run_domain() {
     return $rc
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Validate Domain Configuration
-# ─────────────────────────────────────────────────────────────────────────────
-validate_domain() {
-    local domain="$1"
-    echo -e "${BLUE}Validating domain: $domain${NC}"
-    run_domain "$domain" --tags validate
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Help
@@ -480,19 +457,18 @@ USAGE:
   $0 <command> [options]
 
 SETUP COMMANDS:
-  --setup-venv, -s      Create/update the shared Python venv (pip + Galaxy collections).
+  --setup-venv, -s      Create/update the shared Python venv and install domain dependencies.
                         Also copies domain input files to the runtime data path.
   --init, -i            Run all domain-init.sh scripts (stage input files to NFS share).
-                        Called automatically by --setup-venv unless --skip-init.
+                        Called automatically by --setup-venv unless --deps-only.
 
 EXECUTION COMMANDS:
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
                         Passes --tags and any extra args to ansible-playbook.
-  --validate <domain>   Validate a domain's configuration (shortcut for --run <domain> --tags validate).
 
 OPTIONS:
-  --skip-init           Skip running domain-init.sh scripts during --setup-venv.
+  --deps-only            Install deps only, skip input file staging.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -526,8 +502,8 @@ SYSTEM ENVIRONMENT:
 EXAMPLES:
   # First-time setup:
   vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
-  ./omnia.sh -s                                # Installs env + venv + input files
-  ./omnia.sh -s --skip-init                   # Installs env + venv only
+  ./omnia.sh -s                                # Installs env + venv + deps + input files
+  ./omnia.sh -s --deps-only                # Installs env + venv + deps (skips input staging)
 
   # Stage domain input files (without full setup):
   ./omnia.sh --init                            # Run all domain-init.sh scripts
@@ -537,9 +513,9 @@ EXAMPLES:
   ./omnia.sh -r repo_manager --tags build
   ./omnia.sh -r telemetry                      # Run all tags
 
-  # Validate a domain:
-  ./omnia.sh --validate image_build_manager
-  ./omnia.sh --validate repo_manager
+  # Validate a domain (uses --tags validate):
+  ./omnia.sh --run image_build_manager --tags validate
+  ./omnia.sh -r repo_manager --tags validate
 
   # Diagnostics:
   omnia-cli status               # All domains
@@ -551,7 +527,7 @@ EOF
 # Main Dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
-    local skip_input_copy=false
+    local DEPS_ONLY=false
     local command=""
     local run_domain_name=""
     local run_extra_args=()
@@ -568,10 +544,7 @@ main() {
                 command="setup-venv"
                 shift
                 ;;
-            --skip-init)
-                skip_input_copy=true
-                shift
-                ;;
+            --deps-only) DEPS_ONLY=true ;;
             --init|-i)
                 command="init"
                 shift
@@ -592,17 +565,6 @@ main() {
                     shift
                 done
                 ;;
-            --validate)
-                command="validate"
-                if [ $# -lt 2 ]; then
-                    echo -e "${RED}ERROR: --validate requires a domain name${NC}"
-                    echo -e "${YELLOW}Usage: $0 --validate <domain>${NC}"
-                    echo -e "${YELLOW}Domains: ${DOMAINS[*]}${NC}"
-                    exit 1
-                fi
-                run_domain_name="$2"
-                shift 2
-                ;;
             --help|-h)
                 command="help"
                 shift
@@ -620,10 +582,10 @@ main() {
     case "$command" in
         setup-venv)
             setup_venv
-            if [ "$skip_input_copy" = false ]; then
+            if [ "$DEPS_ONLY" = false ]; then
                 init_domains
             else
-                echo -e "${YELLOW}Skipping domain init (--skip-init)${NC}"
+                echo -e "${YELLOW}Skipping domain init (--deps-only)${NC}"
             fi
             ;;
         init)
@@ -631,9 +593,6 @@ main() {
             ;;
         run)
             run_domain "$run_domain_name" "${run_extra_args[@]}"
-            ;;
-        validate)
-            validate_domain "$run_domain_name"
             ;;
         help)
             show_help

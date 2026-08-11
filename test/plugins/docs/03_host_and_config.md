@@ -42,7 +42,7 @@ from omnia_auto import load_test_config
 config = load_test_config()
 
 # Now you can access your config values:
-server_ip  = config["oim_server_ip"]      # "100.10.0.84"
+server_ip  = config["oim_server_ip"]      # "10.20.0.100"
 dataset    = config["dataset"]            # "data_set_01"
 clone_path = config.get("clone_path", "/root/omnia")
 ```
@@ -52,7 +52,7 @@ clone_path = config.get("clone_path", "/root/omnia")
 That depends on your module, but typical keys include:
 
 ```yaml
-oim_server_ip: "100.10.0.84"
+oim_server_ip: "10.20.0.100"
 oim_ssh_user: "root"
 clone_path: "/root/omnia"
 dataset: "data_set_01"
@@ -278,7 +278,7 @@ from omnia_auto import connection_params, sync_files
 conn = connection_params()
 # conn = {
 #     "mode": "ssh",
-#     "ip": "100.10.0.84",
+#     "ip": "10.20.0.100",
 #     "user": "root",
 #     "password": None,
 #     "ssh_opts": "-o StrictHostKeyChecking=no ...",

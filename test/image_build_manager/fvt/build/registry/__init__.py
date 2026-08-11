@@ -15,7 +15,7 @@
 """
 Build — Registry suite.
 
-TC_BD_004: Verify x86_64 images in registry
-TC_BD_005: Verify build_status.yml exists and reports success
-TC_BD_006: Verify all configured functional groups were built
+Verify x86_64 images in registry
+Verify build_status.yml exists and reports success
+Verify all configured functional groups were built
 """

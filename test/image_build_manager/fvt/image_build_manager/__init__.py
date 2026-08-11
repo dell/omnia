@@ -22,10 +22,10 @@ Verifies the complete state: containers, S3 images, registry images,
 build status, and image package contents.
 
 Tests:
-    TC_IB_000:          Deploy playbook (no tags)
+    Deploy playbook (no tags)
 Suites:
-    container/          — TC_IB_001-002: MinIO and registry containers
-    s3/                 — TC_IB_003-005: S3 buckets and images per arch
-    registry/           — TC_IB_006-010: Registry images, build status, groups
-    image_verification/ — TC_IB_011-012: Package verification inside images
+    container/          — MinIO and registry containers
+    s3/                 — S3 buckets and images per arch
+    registry/           — Registry images, build status, groups
+    image_verification/ — Package verification inside images
 """

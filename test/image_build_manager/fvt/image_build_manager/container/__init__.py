@@ -15,6 +15,6 @@
 """
 Image Build Manager — Container suite.
 
-TC_IB_001: Verify S3 storage backend (MinIO or PowerScale)
-TC_IB_002: Verify registry container is running
+Verify S3 storage backend (MinIO or PowerScale)
+Verify registry container is running
 """

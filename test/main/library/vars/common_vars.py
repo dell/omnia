@@ -90,8 +90,10 @@ KNOWN_DOMAINS: List[str] = [
 
 # Domains that have domain-init.sh scripts
 DOMAINS_WITH_INIT: List[str] = [
+    "build_stream",
     "image_build_manager",
     "repo_manager",
+    "telemetry",
 ]
 
 # =============================================================================
@@ -120,12 +122,11 @@ VALID_CLI_COMMANDS: List[str] = [
     "--setup-venv", "-s",
     "--init", "-i",
     "--run", "-r",
-    "--validate",
     "--help", "-h",
 ]
 
 VALID_CLI_OPTIONS: List[str] = [
-    "--skip-init",
+    "--deps-only",
     "--tags", "-t",
 ]
 
@@ -177,7 +178,7 @@ CMDS: Dict[str, str] = {
     ),
     "omnia_sh_setup_venv": (
         "cd {clone_path} && bash {omnia_sh}"
-        " --setup-venv --skip-init 2>&1"
+        " --setup-venv --deps-only 2>&1"
     ),
     "omnia_sh_setup_full": (
         "cd {clone_path} && bash {omnia_sh}"
@@ -193,9 +194,9 @@ CMDS: Dict[str, str] = {
     "omnia_sh_run_no_domain": (
         "cd {clone_path} && bash {omnia_sh} --run 2>&1"
     ),
-    "omnia_sh_validate_no_domain": (
+    "omnia_sh_deps_only": (
         "cd {clone_path} && bash {omnia_sh}"
-        " --validate 2>&1"
+        " --setup-venv --deps-only 2>&1"
     ),
     "omnia_sh_unknown_option": (
         "cd {clone_path} && bash {omnia_sh}"
