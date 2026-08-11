@@ -76,8 +76,8 @@
 
     - name: Set cluster OS version from repo_manager_config
       ansible.builtin.set_fact:
-        cluster_os_version: "{{ repo_manager_config_data.cluster_os_version }}"
-        cluster_os_type: "{{ repo_manager_config_data.cluster_os_type }}"
+        cluster_os_version: "{{ (repo_manager_config_data.repositories | dict2items | first).key | default('10.0') }}"
+        cluster_os_type: "rhel"
 
     # -------------------------------------------------------------------------
     # PHASE 3: RHEL SUBSCRIPTION CHECK

@@ -1,4 +1,4 @@
-from ansible.module_utils.local_repo import config
+from ansible.module_utils.repo_manager import config
 DOCUMENTATION = r"""
 ---
 module: pulp_repo_name_migration
@@ -112,14 +112,14 @@ from typing import Dict, List, Any, Optional
 from urllib.parse import urlparse
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.config import (
     pulp_rpm_commands,
     pulp_file_commands,
     pulp_python_commands,
     ARCH_SUFFIXES,
 )
-from ansible.module_utils.local_repo.software_utils import build_repo_name_prefix
+from ansible.module_utils.repo_manager.software_utils import build_repo_name_prefix
 
 # ============================================================================
 # Constants

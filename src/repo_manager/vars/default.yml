@@ -45,11 +45,11 @@ omnia_base_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', tru
 omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default(project_default, true) }}"
 
 # -----------------------------------------------------------------------------
-# DATA DIRECTORIES
+# DATA DIRECTORIES (organized under repo_manager domain)
 # -----------------------------------------------------------------------------
-repo_manager_data_dir: "{{ omnia_base_dir }}/.data"
-repo_manager_log_dir: "{{ omnia_base_dir }}/log/repo_manager"
-repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
+repo_manager_data_dir: "{{ omnia_base_dir }}/repo_manager/.data"
+repo_manager_log_dir: "{{ omnia_base_dir }}/repo_manager/log"
+repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/repo_manager/offline_repo"
 
 # -----------------------------------------------------------------------------
 # CONSTRUCTED PATHS
@@ -61,8 +61,8 @@ input_project_dir: "{{ omnia_base_dir }}/repo_manager/input/{{ project_name | de
 output_project_dir: "{{ omnia_base_dir }}/repo_manager/output/{{ project_name | default(omnia_project_name) }}"
 output_dir: "{{ output_project_dir }}"
 log_dir: "{{ repo_manager_log_dir }}"
-repo_store_path: "{{ omnia_base_dir }}"
-omnia_metadata_file: "{{ omnia_base_dir }}/.data/oim_metadata.yml"
+repo_store_path: "{{ omnia_base_dir }}/repo_manager"
+omnia_metadata_file: "{{ omnia_base_dir }}/repo_manager/.data/oim_metadata.yml"
 
 # -----------------------------------------------------------------------------
 # ENDPOINT CONFIGURATION
@@ -74,15 +74,14 @@ endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_
 # -----------------------------------------------------------------------------
 # PULP SERVER CONFIGURATION
 # -----------------------------------------------------------------------------
-# Pulp data is stored under pulp_config/ subdirectory to keep it organized
-pulp_config_base_dir: "{{ omnia_base_dir }}/pulp_config"
-pulp_config_dir: "{{ pulp_config_base_dir }}/pulp"
+# Pulp directories organized under repo_manager domain
+pulp_config_dir: "{{ omnia_base_dir }}/repo_manager/pulp_config"
 pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
 pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
 pulp_crt_track_file: "{{ pulp_config_dir }}/pulp_crt_track.txt"
-pulp_logs_dir: "{{ pulp_config_base_dir }}/log/pulp"
+pulp_logs_dir: "{{ omnia_base_dir }}/repo_manager/log/pulp"
 pulp_container_name: "pulp"
-pulp_image: "docker.io/pulp/pulp:3.113"
+pulp_image: "docker.io/pulp/pulp:3.114.2"
 pulp_protocol_https: true
 
 # Pulp server IP fallback: Use SYSTEM_ADMIN_NIC_IPV4 from environment if not set in config
@@ -92,7 +91,7 @@ pulp_server_ip_default: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('12
 # -----------------------------------------------------------------------------
 # RHEL SUBSCRIPTION CERTIFICATES
 # -----------------------------------------------------------------------------
-rhel_repo_certs_dir: "{{ omnia_base_dir }}/rhel_repo_certs"
+rhel_repo_certs_dir: "{{ omnia_base_dir }}/repo_manager/rhel_repo_certs"
 rhel_redhat_repo_file: "{{ rhel_repo_certs_dir }}/redhat.repo"
 rhel_uep_cert_file: "{{ rhel_repo_certs_dir }}/redhat-uep.pem"
 

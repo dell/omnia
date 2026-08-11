@@ -19,13 +19,14 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# PATH CONFIGURATION (using omnia_base_dir for simpler structure)
+# PATH CONFIGURATION (using repo_manager domain structure)
 # -----------------------------------------------------------------------------
-# Use omnia_base_dir directly instead of oim_shared_path/omnia for cleaner paths
-pulp_shared_path: "{{ omnia_base_dir }}/pulp"
-pulp_logs_dir: "{{ omnia_base_dir }}/log/pulp"
+# Use pulp_config_dir (defined in vars/default.yml) to consolidate all Pulp data
+# pulp_config_dir = {{ omnia_base_dir }}/repo_manager/pulp_config
+# pulp_logs_dir is already defined in vars/default.yml
+pulp_shared_path: "{{ pulp_config_dir }}"
 pulp_ha_dir: "{{ pulp_config_dir }}/pulp_ha"
-settings_py_path: "{{ pulp_shared_path }}/settings/settings.py"
+settings_py_path: "{{ pulp_config_dir }}/settings/settings.py"
 
 # -----------------------------------------------------------------------------
 # DIRECTORY PERMISSIONS
@@ -60,7 +61,7 @@ arg_list:
 pulp_directories_http:
   - { path: "{{ pulp_shared_path }}", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_logs_dir }}", mode: "{{ logs_dir_permission }}" }
-  - { path: "{{ pulp_shared_path }}/settings/certs", mode: "{{ pulp_dir_permissions }}" }
+  - { path: "{{ pulp_certs_dir }}", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/pulp_storage", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/pgsql", mode: "{{ pulp_pgsql_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_dir_permissions }}" }
@@ -85,7 +86,7 @@ certs_dir: "{{ pulp_certs_dir }}"
 pulp_directories_https:
   - { path: "{{ pulp_shared_path }}", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_logs_dir }}", mode: "{{ logs_dir_permission }}" }
-  - { path: "{{ pulp_shared_path }}/settings/certs", mode: "{{ pulp_dir_permissions }}" }
+  - { path: "{{ pulp_certs_dir }}", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/pulp_storage", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/pgsql", mode: "{{ pulp_pgsql_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_dir_permissions }}" }
@@ -93,7 +94,7 @@ pulp_directories_https:
   - { path: "{{ pulp_shared_path }}/nginx", mode: "{{ pulp_dir_permissions }}" }
 
 nginx_conf_path: "{{ role_path }}/templates/nginx_conf.j2"
-nginx_conf_dest: "{{ pulp_shared_path }}/nginx/nginx.conf"
+nginx_conf_dest: "{{ pulp_config_dir }}/nginx/nginx.conf"
 settings_tmp_path: "{{ role_path }}/templates/settings_template.j2"
 
 volumes_https:

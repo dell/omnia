@@ -1,0 +1,94 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Orchestrator Cleanup — Verification Tests.
+
+TC_CL_001: Verify containers removed after cleanup
+TC_CL_002: Verify services stopped after cleanup
+TC_CL_003: Verify firewall ports closed after cleanup
+"""
+
+import pytest
+
+from library.functions import (
+    TestLogger,
+    check_containers_removed,
+    check_services_removed,
+    check_firewall_ports_closed,
+)
+from library.messages import (
+    TEST_NAMES,
+    TEST_LOG_MSGS as LOG,
+)
+
+
+@pytest.mark.sanity
+@pytest.mark.order(1)
+def test_containers_removed(host):
+    """TC_CL_001: Verify containers removed after cleanup."""
+    tl = TestLogger(TEST_NAMES["containers_removed"], "TC_CL_001")
+    result = check_containers_removed(host)
+
+    if result["success"]:
+        tl.passed(LOG["container_running"].format(
+            container="none (all removed)"
+        ), result["details"])
+    else:
+        tl.failed(
+            LOG["container_not_running"].format(container="cleanup"),
+            result["details"],
+        )
+
+    assert result["success"], result["error"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(2)
+def test_services_removed(host):
+    """TC_CL_002: Verify services stopped after cleanup."""
+    tl = TestLogger(TEST_NAMES["services_removed"], "TC_CL_002")
+    result = check_services_removed(host)
+
+    if result["success"]:
+        tl.passed(LOG["services_removed_ok"], result["details"])
+    else:
+        tl.failed(
+            LOG["services_still_active"].format(count=result["error"]),
+            result["details"],
+        )
+
+    assert result["success"], result["error"]
+
+
+@pytest.mark.functional
+@pytest.mark.order(3)
+def test_firewall_ports_closed(host):
+    """TC_CL_003: Verify firewall ports closed after cleanup."""
+    tl = TestLogger(TEST_NAMES["firewall_ports_closed"], "TC_CL_003")
+    result = check_firewall_ports_closed(host)
+
+    if result.get("skipped"):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+
+    if result["success"]:
+        tl.passed(LOG["firewall_ports_closed_ok"], result["details"])
+    else:
+        tl.failed(
+            LOG["firewall_ports_still_open"].format(count=result["error"]),
+            result["details"],
+        )
+
+    assert result["success"], result["error"]

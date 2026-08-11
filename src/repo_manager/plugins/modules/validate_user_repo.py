@@ -16,7 +16,7 @@
 # pylint: disable=import-error,no-name-in-module,line-too-long
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.validate_utils import validate_certificates
+from ansible.module_utils.repo_manager.validate_utils import validate_certificates
 DOCUMENTATION = r"""
 ---
 module: validate_user_repo

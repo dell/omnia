@@ -27,17 +27,22 @@ omnia_target: "/etc/systemd/system/omnia.target"
 # Usage: cleanup_pulp.yml
 pulp_protocol_https: true
 pulp_container_name: "pulp"
+# Pulp config directory (consolidated location for all Pulp data)
+pulp_config_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/pulp_config"
 pulp_cleanup_directory:
-  - "{{ omnia_nfs_share }}/pulp/pulp_ha/cli.toml"
+  # Clean up current Pulp data (entire pulp_config_dir)
+  - "{{ pulp_config_dir }}"
   - "{{ omnia_nfs_share }}/log/pulp"
-  - "{{ omnia_nfs_share }}/pulp/settings"
-  - "{{ omnia_nfs_share }}/pulp/nginx"
+  # Clean up STALE Pulp data (old /opt/omnia/pulp/ or /opt/omnia/omnia/pulp/ structure)
+  - "{{ omnia_nfs_share }}/pulp"
+  - "{{ hostvars['localhost']['oim_shared_path'] }}/pulp"
+  # Clean up other Pulp-related directories
   - "{{ project_input_path }}/.local_repo_credentials_key"
   - "{{ omnia_nfs_share }}/offline_repo"
   - "{{ omnia_nfs_share }}/log/local_repo"
   - "{{ omnia_nfs_share }}/k8s_dynamic_json"
   - "{{ omnia_nfs_share }}/rhel_repo_certs"
-track_file_path: "{{ omnia_nfs_share }}/pulp/pulp_crt_track.txt"
+track_file_path: "{{ pulp_config_dir }}/pulp_crt_track.txt"
 
 # Usage: cleanup_openchami.yml
 openchami_packages:

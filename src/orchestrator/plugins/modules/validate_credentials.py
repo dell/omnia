@@ -46,6 +46,23 @@ options:
     type: str
 '''
 
+EXAMPLES = r'''
+- name: Validate a credential field
+  omnia.orchestrator.validate_credentials:
+    credential_field: admin_password
+    credential_input: "{{ admin_password }}"
+    module_utils_path: "{{ role_path }}/../../plugins/module_utils"
+  register: validation_result
+  no_log: true
+'''
+
+RETURN = r'''
+msg:
+  description: Validation result message.
+  type: str
+  returned: always
+'''
+
 
 def load_rules(file_path):
     """Loads validation rules from a JSON file."""
