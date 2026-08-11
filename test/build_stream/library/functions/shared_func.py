@@ -82,6 +82,7 @@ def get_gitlab_https_port(host=None) -> int:
 def get_gitlab_project_name(host=None) -> str:
     """Get gitlab_project_name from test config."""
     config = load_test_config()
+    # import pdb; pdb.set_trace()
     return config.get("gitlab_project_name", "") or ""
 
 

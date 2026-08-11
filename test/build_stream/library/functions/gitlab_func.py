@@ -492,7 +492,11 @@ def upload_catalog_file(host, catalog_content: str) -> Dict[str, Any]:
 
 
 def commit_pxe_mapping_file(host) -> Dict[str, Any]:
-    """Commit the PXE mapping file to trigger deploy pipeline."""
+    """Commit the PXE mapping file to trigger deploy pipeline.
+    
+    If the file doesn't exist in GitLab, reads it from the target filesystem
+    and uploads it. If it exists, modifies and re-commits it.
+    """
     result = {
         "success": False,
         "commit_id": "",
@@ -519,36 +523,43 @@ def commit_pxe_mapping_file(host) -> Dict[str, Any]:
         f"/projects/root%2F{project_name}/repository/files/input%2Fpxe_mapping_file.csv"
         f"?ref={branch}"
     )
-
+    
     cmd = run_on_host(
         host,
         f"curl -sk '{get_url}' --header 'PRIVATE-TOKEN: {token_result['token']}'"
     )
-
-    if cmd.rc != 0:
-        result["error"] = f"Failed to get PXE mapping file: {cmd.stderr}"
-        return result
-
+    
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Try to get existing content from GitLab
+    current_content = None
+    file_exists_in_gitlab = False
     try:
         response = json.loads(cmd.stdout.strip())
-        if "content" not in response:
-            result["error"] = f"PXE mapping file not found: {response.get('message', '')}"
-            return result
-        current_content_b64 = response["content"]
+        if "content" in response:
+            current_content_b64 = response["content"]
+            try:
+                current_content = base64.b64decode(current_content_b64).decode('utf-8')
+                file_exists_in_gitlab = True
+            except Exception:
+                pass
     except json.JSONDecodeError:
-        result["error"] = f"Invalid JSON response: {cmd.stdout[:200]}"
-        return result
+        pass
+    
+    # If file doesn't exist in GitLab, try to read from target filesystem
+    if current_content is None:
+        input_path = "/opt/omnia/build_stream/input/project_default"
+        pxe_file = f"{input_path}/pxe_mapping_file.csv"
+        
+        read_cmd = run_on_host(host, f"cat {pxe_file} 2>/dev/null")
+        if read_cmd.rc == 0 and read_cmd.stdout.strip():
+            current_content = read_cmd.stdout
+        else:
+            result["error"] = "PXE mapping file not found in GitLab or on target filesystem"
+            return result
 
-    import datetime
-
-    try:
-        current_content = base64.b64decode(current_content_b64).decode('utf-8')
-    except Exception as e:
-        result["error"] = f"Failed to decode PXE mapping file: {e}"
-        return result
-
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+    # Modify content by swapping last two columns to trigger a change
     lines = current_content.strip().split('\n')
     modified_lines = []
     for line in lines:
@@ -565,7 +576,7 @@ def commit_pxe_mapping_file(host) -> Dict[str, Any]:
 
     modified_content_b64 = base64.b64encode(modified_content.encode('utf-8')).decode('utf-8')
 
-    put_url = (
+    file_url = (
         f"https://{gitlab_host}:{gitlab_port}/api/{GITLAB_API_VERSION}"
         f"/projects/root%2F{project_name}/repository/files/input%2Fpxe_mapping_file.csv"
     )
@@ -579,9 +590,11 @@ def commit_pxe_mapping_file(host) -> Dict[str, Any]:
 
     json_data = json.dumps(data)
 
+    # Use PUT if file exists, POST if it doesn't
+    http_method = "PUT" if file_exists_in_gitlab else "POST"
     cmd = run_on_host(
         host,
-        f"curl -sk -X PUT '{put_url}' "
+        f"curl -sk -X {http_method} '{file_url}' "
         f"--header 'PRIVATE-TOKEN: {token_result['token']}' "
         f"--header 'Content-Type: application/json' "
         f"-d '{json_data}'"

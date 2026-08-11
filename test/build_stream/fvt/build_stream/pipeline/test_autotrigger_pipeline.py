@@ -87,7 +87,7 @@ class TestAutotriggerBuildPipeline:
     def test_trigger_build_pipeline(self, host, pipeline_state):
         """Upload catalog to trigger build pipeline and wait for job creation."""
         log = TestLogger(TEST_NAMES.get("catalog_upload", "Catalog Upload and Pipeline Trigger"))
-
+        
         if not is_build_stream_enabled(host):
             log.skipped(SKIP_MSGS["build_stream_disabled"])
             pytest.skip(SKIP_MSGS["build_stream_disabled"])
