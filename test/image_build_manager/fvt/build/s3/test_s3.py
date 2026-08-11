@@ -15,16 +15,16 @@
 """
 Image Build Build — S3 Image Verification.
 
-TC_BD_002: Verify x86_64 images pushed to S3 after build
-TC_BD_003: Verify aarch64 images pushed to S3 after build
+Verify x86_64 images pushed to S3 after build
+Verify aarch64 images pushed to S3 after build
 """
 
 import pytest
 
 from library.functions import TestLogger, check_s3_bucket_images
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import SHARED_PATH
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -34,9 +34,10 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_s3_images_x86_64(host):
-    """TC_BD_002: Verify x86_64 images pushed to S3 after build."""
+    """Verify x86_64 images pushed to S3 after build."""
+    tc = TC["s3_images_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(TEST_NAMES["s3_bucket_images"].format(arch=arch), "TC_BD_002")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_bucket_images(host, arch=arch)
 
     if result.get("skipped"):
@@ -63,9 +64,10 @@ def test_s3_images_x86_64(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_s3_images_aarch64(host):
-    """TC_BD_003: Verify aarch64 images pushed to S3 after build."""
+    """Verify aarch64 images pushed to S3 after build."""
+    tc = TC["s3_images_aarch64"]
     arch = "aarch64"
-    tl = TestLogger(TEST_NAMES["s3_bucket_images"].format(arch=arch), "TC_BD_003")
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_bucket_images(host, arch=arch)
 
     if result.get("skipped"):

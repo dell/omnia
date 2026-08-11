@@ -15,17 +15,15 @@
 """
 Image Builder — Image Package Verification Tests.
 
-TC_IB_011: Verify packages in x86_64 S3 images
-TC_IB_012: Verify packages in aarch64 S3 images
+Verify packages in x86_64 S3 images
+Verify packages in aarch64 S3 images
 """
 
 import pytest
 
 from library.functions import TestLogger, verify_image_packages
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-)
+from library.vars import TEST_CASES as TC
+from library.messages import TEST_LOG_MSGS as LOG
 
 
 def _format_pkg_details(result):
@@ -61,9 +59,10 @@ def _format_pkg_details(result):
 @pytest.mark.sanity
 @pytest.mark.order(11)
 def test_image_packages_x86_64(host):
-    """TC_IB_011: Verify packages in x86_64 S3 images."""
+    """Verify packages in x86_64 S3 images."""
+    tc = TC["ib_packages_x86_64"]
     arch = "x86_64"
-    tl = TestLogger(TEST_NAMES["image_packages"].format(arch=arch), "TC_IB_011")
+    tl = TestLogger(tc["title"], tc["id"])
     result = verify_image_packages(host, arch=arch)
 
     if result.get("prerequisite_failed"):
@@ -95,9 +94,10 @@ def test_image_packages_x86_64(host):
 @pytest.mark.sanity
 @pytest.mark.order(12)
 def test_image_packages_aarch64(host):
-    """TC_IB_012: Verify packages in aarch64 S3 images."""
+    """Verify packages in aarch64 S3 images."""
+    tc = TC["ib_packages_aarch64"]
     arch = "aarch64"
-    tl = TestLogger(TEST_NAMES["image_packages"].format(arch=arch), "TC_IB_012")
+    tl = TestLogger(tc["title"], tc["id"])
     result = verify_image_packages(host, arch=arch)
 
     if result.get("prerequisite_failed"):

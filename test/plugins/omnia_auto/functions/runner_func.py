@@ -43,7 +43,7 @@ from .host_func import (
     is_local_execution,
 )
 from .formatting_func import TestLogger, Colors, Symbols
-from ..vars.common_vars import get_setting
+from ..vars.common_vars import get_setting, get_module_root
 from ..messages.runner_msgs import (
     RUNNER_LOG_MSGS,
     RUNNER_ASSERT_MSGS,
@@ -98,7 +98,6 @@ def run_playbook(
     v = verbosity if verbosity is not None else get_setting("default_verbosity", 1)
     t = timeout if timeout is not None else get_setting("default_timeout", 7200)
 
-    clone_path = config.get("clone_path", "/root/omnia")
     if playbook is None:
         return _fail(
             "unknown", 0.0,
@@ -109,7 +108,21 @@ def run_playbook(
             playbook, 0.0,
             "'playbook_workdir' argument is required",
         )
-    workdir = os.path.join(clone_path, playbook_workdir)
+
+    if local_mode:
+        # Local: resolve playbook path from source tree (repo root)
+        # module_root = test/<module>/ → repo root is two levels up
+        repo_root = os.path.dirname(os.path.dirname(get_module_root()))
+        workdir = os.path.join(repo_root, playbook_workdir)
+    else:
+        # Remote: use clone_path on the target server
+        clone_path = config.get("clone_path", "")
+        if not clone_path:
+            return _fail(
+                playbook, 0.0,
+                "'clone_path' must be set in test_config.yml for remote execution",
+            )
+        workdir = os.path.join(clone_path, playbook_workdir)
 
     logger_name = get_setting("runner_logger_name", "playbook_runner")  # safe default
     log = TestLogger(logger_name)
@@ -121,8 +134,11 @@ def run_playbook(
             RUNNER_ASSERT_MSGS["sshpass_missing"],
         )
 
+    venv_path = config.get("venv_path", "")
+    # venv_path is optional - if provided, venv is activated before ansible-playbook
+
     ansible_cmd = _build_ansible_cmd(
-        playbook, workdir, v, extra_vars, tag, limit,
+        playbook, workdir, v, extra_vars, tag, limit, venv_path,
     )
 
     if local_mode:
@@ -156,14 +172,19 @@ def _build_ansible_cmd(
     extra_vars: Optional[Dict[str, str]],
     tag,
     limit: Optional[str],
+    venv_path: str = "",
 ) -> str:
     """Build the ``ansible-playbook`` command string."""
     v_flag = f" -{'v' * verbosity}" if verbosity > 0 else ""
 
-    parts = [
+    parts = []
+    # Activate venv if specified
+    if venv_path:
+        parts.append(f"source {venv_path}/bin/activate &&")
+    parts.extend([
         f"cd {workdir} &&",
         f"COLUMNS={get_setting('line_width', 160)} ansible-playbook {playbook}{v_flag}",  # 160 safe default
-    ]
+    ])
 
     if extra_vars:
         for key, val in extra_vars.items():
@@ -285,7 +306,7 @@ def _stream_cmd(
                 playbook=playbook,
                 tag=(",".join(tag) if isinstance(tag, list) else tag) or "all",
                 rc=rc, duration=duration,
-                log_path=config.get("shared_path", "/opt/omnia") + "/log/",
+                log_path=config.get("shared_path", "") + "/log/",
                 workdir=os.path.join(clone_path, pb_workdir),
             ),
             rc=rc, output="\n".join(output_lines),

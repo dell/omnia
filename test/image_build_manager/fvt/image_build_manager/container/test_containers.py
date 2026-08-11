@@ -15,8 +15,8 @@
 """
 Image Builder — Container Verification Tests.
 
-TC_IB_001: Verify S3 storage backend (MinIO or PowerScale)
-TC_IB_002: Verify registry container is running
+Verify S3 storage backend (MinIO or PowerScale)
+Verify registry container is running
 """
 
 import pytest
@@ -26,9 +26,9 @@ from library.functions import (
     check_container_running,
     check_s3_containers,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import REGISTRY_CONTAINER
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -39,8 +39,9 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_s3_storage_backend(host):
-    """TC_IB_001: Verify S3 storage backend is operational."""
-    tl = TestLogger(TEST_NAMES["storage_backend"], "TC_IB_001")
+    """Verify S3 storage backend is operational."""
+    tc = TC["ib_storage_backend"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_containers(host)
 
     if result.get("skipped"):
@@ -64,8 +65,9 @@ def test_s3_storage_backend(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_registry_container(host):
-    """TC_IB_002: Verify registry container is running."""
-    tl = TestLogger(TEST_NAMES["registry_container_running"], "TC_IB_002")
+    """Verify registry container is running."""
+    tc = TC["ib_registry_container"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_container_running(host, REGISTRY_CONTAINER)
 
     if result["success"]:

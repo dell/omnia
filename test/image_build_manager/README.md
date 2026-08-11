@@ -52,23 +52,47 @@ The test framework reads these from the target at runtime (sourcing
 # Step 1 — Enter the test directory
 cd omnia/test/image_build_manager/
 
-# Step 2 — Run setup (creates .venv, installs Python deps + omnia-auto)
-bash setup_env.sh
+# Step 2 — Configure the target server
+vi test_config.yml       # Set oim_server_ip for remote mode
 
-# Step 3 — Activate the virtual environment
-source .venv/bin/activate
+# Step 3 — Run setup (choose one install mode)
+bash setup_env.sh                    # Baremetal (default) or active venv
+bash setup_env.sh --venv             # Create .venv/ and install there
+bash setup_env.sh --venv --force     # Recreate .venv/ from scratch
 
-# Step 4 — omnia-auto is installed automatically from test/plugins/dist/
-# (via requirements.txt → ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl)
+# Step 4 — Set SSH password (required for remote mode)
+bash setup_env.sh --set-password     # Interactive prompt (2× confirmation)
+bash setup_env.sh --password 'pass'  # Non-interactive
 
-# Step 5 — Configure the test
-vi test_config.yml       # Set oim_server_ip and clone_path
-vi test_creds.yml        # Set oim_password (auto-encrypted on first run)
+# Step 5 — Activate environment (if using --venv mode)
+source .venv/bin/activate            # For --venv mode
+source .run_validation_rc            # For baremetal mode (tab completion)
 
-# Step 6 — Edit dataset input files
-vi datasets/data_set_01/input/image_build_config.yml
-vi datasets/data_set_01/input/image_build_credentials.yml
+# Step 6 — Run tests (uses src/ input files by default)
+./run_validation.sh prepare verify --marker sanity
 ```
+
+### Setup Modes
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| Baremetal | `bash setup_env.sh` | Installs via `pip --user` into system Python |
+| Active venv | `bash setup_env.sh` | Auto-detects active venv, installs there |
+| New venv | `bash setup_env.sh --venv` | Creates `.venv/` and installs inside |
+| Force recreate | `bash setup_env.sh --venv --force` | Deletes existing `.venv/` first |
+
+### Credential Management
+
+Credentials are required for remote mode (`oim_server_ip` set in `test_config.yml`).
+The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Vault.
+
+| Flag | Description |
+|------|-------------|
+| `--set-password` | Interactive prompt (asks twice). If password exists, asks yes/no to update. |
+| `--update-password` | Force-update existing password (no confirmation prompt). |
+| `--password PWD` | Non-interactive. Overwrites any existing credentials. |
+
+> **Note**: All credential flags require `oim_server_ip` to be set in `test_config.yml`.
 
 ---
 
@@ -122,11 +146,22 @@ vi datasets/data_set_01/input/image_build_credentials.yml
 
 ## Configuration
 
-| File | Purpose |
-|------|---------|
-| `test_config.yml` | Target server IP, sync settings, dataset, report options |
-| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) |
-| `test_run_config.yml` | Batch execution: scenario order, markers, suites |
+| File | Purpose | Git Status |
+|------|---------|------------|
+| `test_config.yml` | Target server IP, sync settings, dataset, report options | Tracked |
+| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) | **Gitignored** |
+| `.test_creds.key` | Vault encryption key (auto-generated) | **Gitignored** |
+| `test_run_config.yml` | Batch execution: scenario order, markers, suites | Tracked |
+
+### Key Settings in `test_config.yml`
+
+| Setting | Required | Default | Description |
+|---------|----------|---------|-------------|
+| `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
+| `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
+| `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
+| `dataset` | No | `""` | Empty = use `src/` files directly. Set to a dataset folder name for custom inputs. |
+| `project_name` | No | `project_default` | Project name for input/output paths on target. |
 
 ### Execution Modes
 
@@ -138,25 +173,20 @@ vi datasets/data_set_01/input/image_build_credentials.yml
 On session startup the framework performs:
 
 1. **Project sync** — rsyncs the local omnia monorepo to `clone_path` on the target
-2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env`, creates the target directory if needed, then syncs `datasets/<dataset>/input/` → `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
-3. **Repo manager output sync** (optional) — syncs `datasets/<dataset>/repo_manager_output/` to the target's repo_manager output directory
+2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env`, creates the target directory if needed, then syncs input files to `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
+3. **Repo manager output sync** (optional) — syncs repo_manager_output to the target's repo_manager output directory
 
-### Datasets
+### Input Files
 
-Input files live in `datasets/data_set_01/`:
+By default (`dataset: ""`), the framework reads input files directly from `src/`:
 
-```
-datasets/data_set_01/
-├── input/
-│   ├── image_build_config.yml        # Image build domain configuration
-│   └── image_build_credentials.yml   # S3 credentials (Vault-encrypted)
-└── repo_manager_output/
-    ├── repo_status.yml               # RPM repo URLs, cert paths
-    ├── functional_group_packages.yml # Package lists per functional group
-    └── certs/                        # Pulp TLS certificates
-```
+| File | Source |
+|------|--------|
+| `image_build_config.yml` | `src/image_build_manager/input/` |
+| `package_groups.yml` | `src/image_build_manager/input/` |
+| `repo_status.yml` | `src/image_build_manager/samples/repo_manager_output/` |
 
-See [`datasets/data_set_01/README.md`](datasets/data_set_01/README.md) for field details.
+For custom datasets, use the [dataset generator](datasets/generator/README.md).
 
 ---
 
@@ -189,11 +219,11 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 
 ```
 test/image_build_manager/
-├── setup_env.sh                 # Environment setup (--force, --debug)
+├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
 ├── run_validation.sh            # CLI runner
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
-├── test_creds.yml               # SSH credentials (Ansible Vault)
+├── test_creds.yml               # SSH credentials (Ansible Vault, gitignored)
 ├── test_run_config.yml          # Batch execution config
 ├── requirements.txt             # Python dependencies
 │
@@ -202,10 +232,11 @@ test/image_build_manager/
 │   ├── test_creds.md
 │   └── test_run_config.md
 │
-├── datasets/                    # Test input datasets
-│   └── data_set_01/
-│       ├── input/               # image_build_config, credentials
-│       └── repo_manager_output/ # repo_status, packages, certs
+├── datasets/                    # Custom test datasets (optional)
+│   └── generator/               # Dataset generator tool
+│       ├── generate_dataset.py
+│       ├── profiles/            # Variable profiles (YAML)
+│       └── templates/           # Jinja2 templates
 │
 ├── library/                     # Reusable automation library
 │   ├── functions/               # host_func, build_image_func, validation_func
