@@ -52,8 +52,12 @@ def load_config(config_path: str) -> dict:
     """
     Load and parse JSON configuration from the specified file path.
 
+    Returns empty dict if config_path is empty (catalog mode).
     Raises FileNotFoundError if the file does not exist.
     """
+    if not config_path or config_path == "":
+        # Catalog mode - return empty config, will use defaults from repo_manager_config.yml
+        return {}
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
     with open(config_path, encoding='utf-8') as f:
@@ -195,7 +199,16 @@ def handle_generate_metadata(sw_config, repo_data, output_file, sub_urls=None):
 
     # Load the software configuration and repo data from files
     config = load_config(sw_config)
-    repo_data = load_yaml(repo_data)
+    repo_data_dict = load_yaml(repo_data)
+
+    # In catalog mode, get cluster_os_type and repo_config from repo_manager_config.yml
+    if not config:
+        # Catalog mode - extract from repo_manager_config.yml
+        # Default to 'rhel' if not specified (catalog-based approach)
+        config = {
+            "cluster_os_type": repo_data_dict.get("cluster_os_type", "rhel"),
+            "repo_config": repo_data_dict.get("repo_config_policy", "always")
+        }
 
     # Fetch the default repository policy, fallback to "always" if not set
     default_policy = config.get("repo_config", "always")
@@ -215,7 +228,7 @@ def handle_generate_metadata(sw_config, repo_data, output_file, sub_urls=None):
     last_policy = {}
     # Iterate over each key and generate/update policy metadata
     for key in keys_to_process:
-        repo_list = repo_data.get(key, [])
+        repo_list = repo_data_dict.get(key, [])
         if not repo_list:
             continue  # Skip processing if key is missing or value is None/empty
         repo_src_name = key

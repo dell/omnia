@@ -23,7 +23,6 @@
   block:
     - name: Process the metadata if the file exists
       localrepo_metadata_manager:
-        software_config_path: "{{ sw_config_json_path }}"
         localrepo_config_path: "{{ local_repo_config_path }}"
         output_file: "{{ metadata_file_path }}"
       environment:

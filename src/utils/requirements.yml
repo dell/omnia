@@ -1,0 +1,11 @@
+---
+# Ansible Galaxy collections required by omnia.utils
+collections:
+  - name: ansible.utils
+    version: ">=4.1.0"
+  - name: containers.podman
+    version: ">=1.12.0"
+  - name: community.crypto
+    version: ">=2.21.0"
+  - name: community.general
+    version: ">=9.4.0"

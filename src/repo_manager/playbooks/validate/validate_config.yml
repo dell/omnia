@@ -54,31 +54,30 @@
       failed_when: false
 
     # -------------------------------------------------------------------------
-    # PHASE 2: LOAD AND VALIDATE SOFTWARE CONFIG
+    # PHASE 2: LOAD AND VALIDATE REPO MANAGER CONFIG (CATALOG-BASED)
     # -------------------------------------------------------------------------
-    - name: Validate JSON before loading
-      ansible.builtin.command: "jq . {{ input_project_dir }}/software_config.json"
-      register: json_check
-      changed_when: false
-      failed_when: false
+    - name: Validate repo_manager_config.yml exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/repo_manager_config.yml"
+      register: repo_config_file
 
-    - name: Fail if JSON is invalid
+    - name: Fail if repo_manager_config.yml is missing
       ansible.builtin.fail:
         msg: |
-          JSON validation failed for software_config.json.
-          File: {{ input_project_dir }}/software_config.json
-          {{ json_check.stderr | default('Unknown jq error') }}
-          Please fix the JSON syntax
-      when: json_check.rc != 0
+          repo_manager_config.yml not found.
+          File: {{ input_project_dir }}/repo_manager_config.yml
+          Please create the configuration file.
+      when: not repo_config_file.stat.exists
 
-    - name: Load software_config JSON
-      ansible.builtin.set_fact:
-        software_config: "{{ lookup('file', input_project_dir + '/software_config.json') | from_json }}"
+    - name: Load repo_manager_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/repo_manager_config.yml"
+        name: repo_manager_config_data
 
-    - name: Set cluster OS version
+    - name: Set cluster OS version from repo_manager_config
       ansible.builtin.set_fact:
-        cluster_os_version: "{{ software_config.cluster_os_version }}"
-        cluster_os_type: "{{ software_config.cluster_os_type }}"
+        cluster_os_version: "{{ repo_manager_config_data.cluster_os_version }}"
+        cluster_os_type: "{{ repo_manager_config_data.cluster_os_type }}"
 
     # -------------------------------------------------------------------------
     # PHASE 3: RHEL SUBSCRIPTION CHECK

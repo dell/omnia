@@ -1,0 +1,58 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify PXE mapping file exists
+  ansible.builtin.stat:
+    path: "{{ pxe_mapping_file_path }}"
+  register: pxe_mapping_stat
+
+- name: Fail if PXE mapping file not found
+  ansible.builtin.fail:
+    msg: "{{ pxe_mapping_not_found_msg }}"
+  when: not pxe_mapping_stat.stat.exists
+
+- name: Verify network_spec.yml exists
+  ansible.builtin.stat:
+    path: "{{ network_spec_file }}"
+  register: network_spec_stat
+
+- name: Fail if network_spec.yml not found
+  ansible.builtin.fail:
+    msg: "{{ network_spec_not_found_msg }}"
+  when: not network_spec_stat.stat.exists
+
+- name: Load network_spec.yml
+  ansible.builtin.include_vars:
+    file: "{{ network_spec_file }}"
+    name: network_spec
+
+- name: Verify OIM SSH public key exists
+  ansible.builtin.stat:
+    path: "{{ oim_ssh_key_path }}"
+  register: oim_ssh_key_stat
+
+- name: Fail if OIM SSH key not found
+  ansible.builtin.fail:
+    msg: "{{ oim_ssh_key_not_found_msg }}"
+  when: not oim_ssh_key_stat.stat.exists
+
+- name: Verify provision_password is available
+  ansible.builtin.fail:
+    msg: "{{ provision_password_missing_msg }}"
+  when: provision_password is not defined or provision_password | length == 0
+
+- name: Log ARM config validation success
+  ansible.builtin.debug:
+    msg: "{{ arm_config_success_msg }}"

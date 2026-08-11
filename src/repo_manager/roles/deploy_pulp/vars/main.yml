@@ -19,12 +19,11 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# PATH CONFIGURATION (computed from oim_shared_path)
+# PATH CONFIGURATION (using omnia_base_dir for simpler structure)
 # -----------------------------------------------------------------------------
-# All Pulp data is stored under pulp_config/ subdirectory
-shared_storage_path: "{{ oim_shared_path }}/pulp_config"
-pulp_shared_path: "{{ shared_storage_path }}/pulp"
-pulp_logs_dir: "{{ shared_storage_path }}/log/pulp"
+# Use omnia_base_dir directly instead of oim_shared_path/omnia for cleaner paths
+pulp_shared_path: "{{ omnia_base_dir }}/pulp"
+pulp_logs_dir: "{{ omnia_base_dir }}/log/pulp"
 pulp_ha_dir: "{{ pulp_config_dir }}/pulp_ha"
 settings_py_path: "{{ pulp_shared_path }}/settings/settings.py"
 
@@ -75,7 +74,7 @@ volumes_http:
   - "{{ pulp_shared_path }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}"
   - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}"
   - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
-  - "{{ shared_storage_path }}/log/pulp:/var/log/pulp{{ selinux_option }}"
+  - "{{ pulp_logs_dir }}:/var/log/pulp{{ selinux_option }}"
   - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp{{ selinux_option }}"
 
 # -----------------------------------------------------------------------------
@@ -102,7 +101,7 @@ volumes_https:
   - "{{ pulp_shared_path }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}"
   - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}"
   - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
-  - "{{ shared_storage_path }}/log/pulp:/var/log/pulp{{ selinux_option }}"
+  - "{{ pulp_logs_dir }}:/var/log/pulp{{ selinux_option }}"
   - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp{{ selinux_option }}"
   - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro{{ selinux_option | replace(':', ',') }}"
 

@@ -1,0 +1,24 @@
+---
+galaxy_info:
+  role_name: utils_setup
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Initialize and validate utils domain environment
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.19"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - setup
+    - validation
+    - initialization
+
+dependencies: []
