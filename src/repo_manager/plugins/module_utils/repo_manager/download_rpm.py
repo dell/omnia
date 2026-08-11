@@ -19,12 +19,12 @@ import subprocess
 import os
 import glob
 from pathlib import Path
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.config import (
     DNF_COMMANDS,
     DNF_INFO_COMMANDS
 )
 from multiprocessing import Lock
-from ansible.module_utils.local_repo.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
+from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
 
 file_lock = Lock()
 

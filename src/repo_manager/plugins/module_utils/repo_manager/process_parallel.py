@@ -20,11 +20,12 @@ import multiprocessing
 import subprocess
 import time
 import json
+import traceback
 import yaml
 import requests
 from cryptography.fernet import Fernet
 from jinja2 import Template
-from ansible.module_utils.local_repo.common_functions import (
+from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     load_vault_yaml
 )
@@ -344,8 +345,14 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         # Log the start of the worker process execution
         with log_lock:
             logger.info(f"Worker process {os.getpid()} started  execution.")
-        docker_username, docker_secret_token = load_docker_credentials(omnia_credentials_yaml_path,
-                                                                      omnia_credentials_vault_path)
+        # Only load Docker credentials for image tasks to avoid unnecessary
+        # Docker Hub API calls (and potential timeouts) for RPM/file tasks.
+        task_type = task.get("type", "")
+        if task_type == "image":
+            docker_username, docker_secret_token = load_docker_credentials(
+                omnia_credentials_yaml_path, omnia_credentials_vault_path)
+        else:
+            docker_username, docker_secret_token = None, None
         # Execute the task by calling the `execute_task` function and passing necessary arguments
         result = execute_task(task, determine_function, user_data, version_variables, arc,
                              repo_store_path, csv_file_path, logger, user_registries,
@@ -360,6 +367,7 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         # Log any errors encountered during task execution
         with log_lock:
             logger.error("Worker process %s encountered an internal error.", os.getpid())
+            logger.error("Traceback:\n%s", traceback.format_exc())
         # If an error occurs, put a failure result in the queue indicating task failure
         # Return a safe, generic error message to caller
         safe_error_message = "Task execution failed due to an internal error."

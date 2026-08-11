@@ -29,12 +29,12 @@ OMNIA_BASE_DIR = os.environ.get('OMNIA_BASE_DIR') or os.path.abspath(
     os.path.join(REPO_MANAGER_BASE_DIR, '..', '..'))
 
 PROJECT_DEFAULT_DIR = os.path.join(REPO_MANAGER_BASE_DIR, 'input', 'project_default')
-REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'log', 'repo_manager')
-REPO_MANAGER_OFFLINE_REPO_DIR = os.path.join(OMNIA_BASE_DIR, 'offline_repo')
+REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'repo_manager', 'log')
+REPO_MANAGER_OFFLINE_REPO_DIR = os.path.join(OMNIA_BASE_DIR, 'repo_manager', 'offline_repo')
 REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_BASE_DIR, '.data')
 
 CLI_FILE_PATH = "/etc/pulp/cli.toml"
-PULP_SSL_CA_CERT = os.path.join(OMNIA_BASE_DIR, "pulp", "settings", "certs", "pulp_webserver.crt")
+PULP_SSL_CA_CERT = os.path.join(OMNIA_BASE_DIR, "repo_manager", "pulp_config", "settings", "certs", "pulp_webserver.crt")
 
 # Input project directory override (set by Ansible tasks when input is outside the source tree)
 PROJECT_DEFAULT_DIR = os.environ.get('REPO_MANAGER_INPUT_PROJECT_DIR') or PROJECT_DEFAULT_DIR

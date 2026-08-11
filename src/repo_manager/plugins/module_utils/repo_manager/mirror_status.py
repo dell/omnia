@@ -17,7 +17,7 @@
 Mirror status management for multi-catalog repo_manager.
 
 Handles:
-- mirror_index.json: Global mirror index with composite key hashes
+- pulp_mirror_index.json: Global mirror index with composite key hashes
 - Per-catalog status JSON files
 - CSV status files with catalog_name column (group_status.csv, package_status.csv)
 - Incremental mirroring with hash-based change detection
@@ -31,18 +31,18 @@ import json
 import csv
 from datetime import datetime, timezone
 
-from ansible.module_utils.local_repo.config import ARCH_SUFFIXES
+from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES
 
 
 # ---------------------------------------------------------------------------
-# Mirror Index (mirror_index.json)
+# Mirror Index (pulp_mirror_index.json)
 # ---------------------------------------------------------------------------
 
 def load_mirror_index(mirror_index_path, logger):
     """Load the global mirror index from disk.
 
     Args:
-        mirror_index_path (str): Path to mirror_index.json.
+        mirror_index_path (str): Path to pulp_mirror_index.json.
         logger: Logger instance.
 
     Returns:
@@ -76,7 +76,7 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     """Save the global mirror index to disk.
 
     Args:
-        mirror_index_path (str): Path to mirror_index.json.
+        mirror_index_path (str): Path to pulp_mirror_index.json.
         mirror_data (dict): Mirror index data to save.
         logger: Logger instance.
     """
@@ -209,7 +209,7 @@ def update_mirror_index_entry(mirror_data, package_name, pkg_type, version, arch
 def detect_package_changes(global_index, mirror_data, arch, logger):
     """Detect which packages need to be mirrored, re-mirrored, or skipped.
 
-    Compares the global package index against the existing mirror_index.json.
+    Compares the global package index against the existing pulp_mirror_index.json.
 
     Args:
         global_index (dict): Output from build_global_package_index, for one arch.
@@ -244,6 +244,11 @@ def detect_package_changes(global_index, mirror_data, arch, logger):
             result["retry"].append(pkg_info)
             logger.info("RETRY (failed): %s (%s) for arch %s",
                          pkg_name, pkg_info["type"], arch)
+        elif existing.get("status") == "pending":
+            # Still pending (never completed) - retry
+            result["retry"].append(pkg_info)
+            logger.info("RETRY (pending): %s (%s) for arch %s",
+                         pkg_name, pkg_info["type"], arch)
         elif existing.get("hash") != composite_hash:
             # Composite key changed - re-mirror
             result["re_mirror"].append(pkg_info)
@@ -252,7 +257,7 @@ def detect_package_changes(global_index, mirror_data, arch, logger):
                          pkg_name, pkg_info["type"], arch,
                          existing.get("hash", ""), composite_hash)
         else:
-            # Unchanged - skip
+            # Unchanged and mirrored - skip
             result["skip"].append(pkg_info)
             logger.info("SKIP (unchanged): %s (%s) for arch %s",
                          pkg_name, pkg_info["type"], arch)
@@ -424,7 +429,7 @@ def generate_multi_catalog_status(global_index, mirror_data, catalogs,
     """Generate all status files after multi-catalog processing.
 
     Creates:
-    - Updated mirror_index.json (already updated during processing)
+    - Updated pulp_mirror_index.json (already updated during processing)
     - Per-catalog status JSON files
     - Per-catalog CSV status files (group_status.csv, package_status.csv)
 
@@ -470,7 +475,7 @@ def generate_multi_catalog_status(global_index, mirror_data, catalogs,
         # Derive OS type from catalog identifier (e.g., "omnia-services-rhel-10-0" -> "rhel")
         os_type = "rhel"  # default
         for part in catalog_id.split("-"):
-            if part in ("rhel", "ubuntu", "rocky"):
+            if part in ("rhel"):
                 os_type = part
                 break
 

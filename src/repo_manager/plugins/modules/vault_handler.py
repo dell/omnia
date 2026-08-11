@@ -20,7 +20,7 @@
 import os
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.common_functions import (
+from ansible.module_utils.repo_manager.common_functions import (
     is_encrypted,
     process_file,
     load_vault_yaml,

@@ -25,15 +25,15 @@ import time
 import json
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.config import (
     OMNIA_BASE_DIR,
     pulp_rpm_commands,
     AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
     PULP_CONCURRENCY
 )
-from ansible.module_utils.local_repo.software_utils import build_repo_name
+from ansible.module_utils.repo_manager.software_utils import build_repo_name
 
 DOCUMENTATION = r"""
 ---

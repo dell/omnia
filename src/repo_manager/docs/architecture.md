@@ -104,12 +104,62 @@ cleanup_pulp ──────────────────────�
 
 | Path | Purpose |
 |------|---------|
-| `/opt/omnia/repo_manager/` | Base directory for repo manager operations |
+| `/opt/omnia/repo_manager/` | Base directory for all repo manager data |
+| `/opt/omnia/repo_manager/input/<project_name>/` | Input configuration files |
 | `/opt/omnia/repo_manager/output/<project_name>/` | Output directory for repo_status.yml and status files |
-| `/var/log/omnia/repo_manager/` | Log files for repo manager operations |
+| `/opt/omnia/repo_manager/log/` | Log files for repo manager operations |
+| `/opt/omnia/repo_manager/log/pulp/` | Pulp server logs |
+| `/opt/omnia/repo_manager/pulp_config/` | Pulp configuration and data |
+| `/opt/omnia/repo_manager/pulp_config/settings/certs/` | Pulp SSL/TLS certificates |
+| `/opt/omnia/repo_manager/rhel_repo_certs/` | RHEL subscription certificates |
+| `/opt/omnia/repo_manager/offline_repo/` | Offline repository storage |
+| `/opt/omnia/catalog/` | Catalog JSON files (shared across modules) |
 | `/usr/local/bin/pulp` | System-wide Pulp CLI symlink |
-| `/opt/omnia/pulp_config/pulp/settings/certs/` | Pulp SSL/TLS certificates |
-| `/opt/omnia/pulp_config/log/pulp/` | Pulp server logs |
+
+## Complete Directory Structure
+
+```
+/opt/omnia/
+├── repo_manager/                          # All repo_manager data (domain-based organization)
+│   ├── input/                             # Input configurations
+│   │   └── project_default/
+│   │       ├── repo_manager_config.yml
+│   │       └── repo_manager_endpoint_config.yml
+│   ├── output/                            # Generated outputs
+│   │   └── project_default/
+│   │       └── repo_status.yml
+│   ├── log/                               # All logs
+│   │   ├── pulp/                          # Pulp server logs
+│   │   ├── rhel/10.0/x86_64/              # Download logs by OS/arch
+│   │   │   ├── slurm_control_node_group/
+│   │   │   └── mirror_status/
+│   │   │       ├── pulp_mirror_index.json
+│   │   │       └── global_package_index.json
+│   │   └── validation_omnia_project_default.log
+│   ├── pulp_config/                       # Pulp configuration and data
+│   │   ├── settings/
+│   │   │   ├── certs/                     # SSL/TLS certificates
+│   │   │   │   ├── pulp_webserver.crt
+│   │   │   │   └── pulp_webserver.key
+│   │   │   ├── pulp_storage/              # Pulp content storage
+│   │   │   ├── pgsql/                     # PostgreSQL database
+│   │   │   ├── containers/                # Container storage
+│   │   │   └── settings.py                # Pulp configuration
+│   │   ├── pulp_ha/                       # Pulp CLI config
+│   │   │   └── cli.toml
+│   │   └── nginx/                         # Nginx configuration (HTTPS)
+│   │       └── nginx.conf
+│   ├── rhel_repo_certs/                   # RHEL subscription certificates
+│   │   ├── redhat.repo
+│   │   └── redhat-uep.pem
+│   ├── offline_repo/                      # Offline repository storage
+│   │   └── cluster/
+│   │       └── x86_64/rhel/10.0/rpms/
+│   └── .data/                             # Metadata files
+│       └── oim_metadata.yml
+└── catalog/                               # Catalog files (shared across modules)
+    └── catalog_rhel.json
+```
 
 ## Content Types
 
@@ -170,5 +220,5 @@ plugins/
 ├── modules/           # Custom Ansible modules
 └── module_utils/      # Module utilities
     ├── input_validation/  # Input validation framework
-    └── local_repo/        # Local repository utilities
+    └── repo_manager/       # Repo manager utilities
 ```

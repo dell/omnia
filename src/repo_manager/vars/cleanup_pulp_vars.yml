@@ -23,25 +23,30 @@
 # =============================================================================
 
 # Directories/files to remove during Pulp cleanup (runs on OIM)
-# NOTE: We clean both current paths (omnia_base_dir) and stale paths (oim_shared_path/omnia)
+# NOTE: We clean both current paths (under repo_manager) and stale paths (old locations)
 pulp_cleanup_directory:
-  # Clean up current Pulp data (omnia_base_dir structure - /opt/omnia/pulp/)
-  - "{{ omnia_base_dir }}/pulp/pulp_ha/cli.toml"
-  - "{{ omnia_base_dir }}/pulp/settings"
-  - "{{ omnia_base_dir }}/pulp/nginx"
+  # Clean up current Pulp data (entire pulp_config_dir - /opt/omnia/repo_manager/pulp_config/)
+  - "{{ pulp_config_dir }}"
+  - "{{ pulp_logs_dir }}"
+  - "{{ rhel_repo_certs_dir }}"
+  - "{{ repo_manager_offline_repo_dir }}"
+  - "{{ repo_manager_log_dir }}"
+  - "{{ repo_manager_data_dir }}"
+  # Clean up STALE Pulp data (old /opt/omnia/pulp_config/ structure)
+  - "{{ omnia_base_dir }}/pulp_config"
   - "{{ omnia_base_dir }}/log/pulp"
-  # Clean up STALE Pulp data (old oim_shared_path structure - /opt/omnia/omnia/pulp/)
-  - "{{ oim_shared_path }}/omnia/pulp/pulp_ha/cli.toml"
-  - "{{ oim_shared_path }}/omnia/pulp/settings"
-  - "{{ oim_shared_path }}/omnia/pulp/nginx"
-  - "{{ oim_shared_path }}/omnia/log/pulp"
-  # Clean up other Pulp-related directories
+  - "{{ omnia_base_dir }}/log/repo_manager"
   - "{{ omnia_base_dir }}/rhel_repo_certs"
   - "{{ omnia_base_dir }}/offline_repo"
+  # Clean up STALE Pulp data (old /opt/omnia/pulp/ structure)
+  - "{{ omnia_base_dir }}/pulp"
+  # Clean up STALE Pulp data (old oim_shared_path structure - /opt/omnia/omnia/pulp/)
+  - "{{ oim_shared_path }}/omnia/pulp"
+  - "{{ oim_shared_path }}/omnia/log/pulp"
 
 # Pulp CLI config files to remove
 pulp_cli_config_files:
-  - "{{ omnia_base_dir }}/pulp/pulp_ha/cli.toml"
+  - "{{ pulp_config_dir }}/pulp_ha/cli.toml"
   - "/root/.config/pulp/cli.toml"
   - "/root/.config/pulp"
 

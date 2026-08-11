@@ -17,7 +17,7 @@
 Utility functions for parsing and downloading artifacts.
 
 This module provides common functions for command execution, status file management,
-and repository operations used across the local repo management system.
+and repository operations used across the repo manager system.
 """
 
 import os
@@ -26,8 +26,8 @@ import json
 import re
 import shlex
 from multiprocessing import Lock
-from ansible.module_utils.local_repo.config import ARCH_SUFFIXES, STATUS_CSV_HEADER
-from ansible.module_utils.local_repo.mirror_status import (
+from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES, STATUS_CSV_HEADER
+from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
     update_mirror_index_entry
@@ -183,7 +183,7 @@ def _prefix_repo_name_with_arch(repo_name: str, status_file_path: str, logger) -
         if os_type and os_version:
             # Lazy import to avoid circular dependency (software_utils imports from this module)
             # pylint: disable=import-outside-toplevel
-            from ansible.module_utils.local_repo.software_utils import build_repo_name_prefix
+            from ansible.module_utils.repo_manager.software_utils import build_repo_name_prefix
             prefixed_name = build_repo_name_prefix(arch, os_type, os_version) + repo_name
         else:
             prefixed_name = f"{arch}_{repo_name}"
@@ -232,7 +232,7 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
                           catalog_name=""):
     """
     Writes or updates the status of a package in the status file.
-    Also updates mirror_index.json with the package status.
+    Also updates pulp_mirror_index.json with the package status.
 
     Args:
         status_file_path: Path to the status file
@@ -260,7 +260,7 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
 
             logger.info(f"Status written to {status_file_path} for {package_name}.")
 
-            # Update mirror_index.json
+            # Update pulp_mirror_index.json
             _update_mirror_index_for_package(
                 status_file_path, package_name, package_type, status,
                 repo_name, catalog_name, logger
@@ -321,7 +321,7 @@ def _create_new_file(status_file_path, package_name, package_type, status,
 def _update_mirror_index_for_package(status_file_path, package_name, package_type,
                                       status, repo_name, catalog_name, logger):
     """
-    Update mirror_index.json when a package status is written to status.csv.
+    Update pulp_mirror_index.json when a package status is written to status.csv.
 
     Args:
         status_file_path: Path to the status file (used to derive mirror_index path)
@@ -333,16 +333,16 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
         logger: Logger instance
     """
     try:
-        # Derive mirror_index.json path from status_file_path
+        # Derive pulp_mirror_index.json path from status_file_path
         # Expected path: .../rhel/10.0/x86_64/software_name/status.csv
-        # Mirror index: .../rhel/10.0/mirror_status/mirror_index.json
+        # Mirror index: .../rhel/10.0/mirror_status/pulp_mirror_index.json
 
         path_parts = status_file_path.split(os.sep)
 
         # Find the OS type and version in the path
         os_type_idx = -1
         for i, part in enumerate(path_parts):
-            if part in ['rhel', 'ubuntu', 'rocky']:
+            if part in ['rhel']:
                 os_type_idx = i
                 break
 
@@ -352,7 +352,7 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
 
         # Construct mirror_index path
         base_path = os.sep.join(path_parts[:os_type_idx + 2])
-        mirror_index_path = os.path.join(base_path, "mirror_status", "mirror_index.json")
+        mirror_index_path = os.path.join(base_path, "mirror_status", "pulp_mirror_index.json")
 
         if not os.path.exists(mirror_index_path):
             logger.debug(

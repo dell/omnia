@@ -29,10 +29,10 @@ from urllib.parse import urlparse
 import requests
 from jinja2 import Template
 from requests.adapters import HTTPAdapter
-from ansible.module_utils.local_repo.parse_and_download import write_status_to_file, execute_command
-from ansible.module_utils.local_repo.rest_client import RestClient
-from ansible.module_utils.local_repo.common_functions import load_pulp_config
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, execute_command
+from ansible.module_utils.repo_manager.rest_client import RestClient
+from ansible.module_utils.repo_manager.common_functions import load_pulp_config
+from ansible.module_utils.repo_manager.config import (
     OMNIA_BASE_DIR,
     pulp_file_commands,
     pulp_rpm_commands,
@@ -45,7 +45,7 @@ from ansible.module_utils.local_repo.config import (
     OS_TARGET_PYTHON,
     ARCH_PIP_PLATFORMS,
 )
-from ansible.module_utils.local_repo.software_utils import build_repo_name
+from ansible.module_utils.repo_manager.software_utils import build_repo_name
 
 file_lock = Lock()
 
