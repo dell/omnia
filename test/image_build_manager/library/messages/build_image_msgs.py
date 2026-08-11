@@ -391,6 +391,7 @@ TEST_ASSERT_MSGS = {
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
+    # gitleaks:allow — "password" is in user-facing instruction message, not a leaked secret
     "connectivity_failed": (
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 TARGET CONNECTIVITY FAILED\n"
