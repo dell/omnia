@@ -76,9 +76,9 @@ Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 ├── vars/                             # Shared cross-role variables
 ├── containers/                       # Container build files (if applicable)
 ├── samples/                          # Sample files for upstream contracts
-└── input/                            # Project input files
-    └── <project_name>/               # Per-project input directory
-        └── <domain>_config.yml       # Domain config
+└── input/                            # Input file TEMPLATES (flat — no project subdirectory)
+    ├── <domain>_config.yml           # Domain config template
+    └── <domain>_credentials.yml      # Credentials template (if applicable)
 ```
 
 ### Key Rules
@@ -87,11 +87,53 @@ Every domain MUST follow this Ansible Galaxy collection-compatible layout:
 - **`plugins/`** follows the Ansible Galaxy standard — modules, module_utils, and callback plugins.
 - **No output or log directories in the domain tree** — all runtime output goes to `<shared_path>/`.
 - Every source file MUST start with the Dell Apache 2.0 copyright header.
-- **`domain-init.sh`** stages input files from `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
+- **`input/` is FLAT** — no project subdirectory in the source tree. Files here are templates. The project subdirectory is created only at the runtime destination.
+- **`domain-init.sh`** stages input files from `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` — called by `omnia.sh --setup-venv`.
 
 ---
 
-## 3. Configuration Design
+## 3. Requirements Handling
+
+Every domain MUST declare its dependencies in two files at the domain root:
+
+### `requirements.txt` — Python Dependencies
+
+Lists Python packages needed by the domain's Ansible modules and plugins:
+
+```text
+ansible-core>=2.20
+jmespath>=1.0
+jsonschema>=4.0
+```
+
+**Rules:**
+- Installed by `omnia.sh --setup-venv` via `pip install -r requirements.txt`
+- MUST pin minimum versions (`>=`), not exact versions (`==`) unless required for compatibility
+- MUST NOT include packages already provided by `ansible-core` (e.g., `jinja2`, `pyyaml`)
+- MUST NOT include test-only dependencies — those go in `test/<domain>/requirements.txt`
+
+### `requirements.yml` — Ansible Galaxy Collections
+
+Lists Ansible Galaxy collections needed by the domain's playbooks:
+
+```yaml
+---
+collections:
+  - name: ansible.utils
+    version: ">=4.0.0"
+  - name: containers.podman
+    version: ">=1.16.0"
+```
+
+**Rules:**
+- Installed by `omnia.sh --setup-venv` via `ansible-galaxy collection install -r requirements.yml`
+- MUST use version ranges, not exact pins
+- MUST list every non-builtin collection used in playbooks (e.g., `containers.podman`, `ansible.utils`)
+- `ansible.builtin` does NOT need to be listed (always available)
+
+---
+
+## 4. Configuration Design
 
 ### System-Wide Configuration (`/etc/omnia/omnia.env`)
 
@@ -105,16 +147,29 @@ SYSTEM_ADMIN_NIC_IPV4="172.16.107.254"
 OMNIA_DATA_PATH="/opt/omnia"
 ```
 
-### Domain-Specific Configuration (`input/<project>/<domain>_config.yml`)
+### Input File Lifecycle
 
-Each domain has its own configuration file under the project input directory:
+Input files have two locations — the **source template** in the repo and the **runtime copy** on the target server:
 
 ```
-input/
-└── project_default/
-    └── <domain>_config.yml           # Domain-specific configuration
+SOURCE (in repo — templates)              RUNTIME (on target server — editable)
+─────────────────────────────             ────────────────────────────────────────
+src/<domain>/input/                       <OMNIA_DATA_PATH>/<domain>/input/<project>/
+  ├── <domain>_config.yml                   ├── <domain>_config.yml      ← user edits HERE
+  └── <domain>_credentials.yml              └── <domain>_credentials.yml ← user edits HERE
+         │                                             ▲
+         │  domain-init.sh (one-time copy)             │
+         └─────────────────────────────────────────────┘
 ```
 
+**Key rules:**
+
+1. **Source `input/` is FLAT** — no project subdirectory. These are template files with default values.
+2. **`domain-init.sh`** copies template files from `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/` during `omnia.sh --setup-venv`.
+3. **Users edit files ONLY at the runtime path** (`<OMNIA_DATA_PATH>/<domain>/input/<project>/`), never in the source repo.
+4. **Playbooks read from the runtime path** via `include_vars` using the `input_project_dir` variable.
+5. **`domain-init.sh` is idempotent** — it MUST NOT overwrite files that already exist at the destination (use `cp -n` or equivalent).
+6. **Credentials files** MUST ship with empty placeholder values in the source template — never real secrets.
 
 ### Reading Configuration in Playbooks
 
@@ -140,31 +195,48 @@ Playbooks read configuration via:
 
 ### Environment Validation Module
 
-All domains MUST use the `validate_omnia_env` module to validate system environment variables before proceeding. This module:
+All domains MUST use the `validate_system_environment` module to validate system environment variables before proceeding. This module is the **single source of truth** for environment validation — the same logic is used by `omnia.sh` (bash), the domain setup role, the precheck role, and FVT tests.
 
-- Checks that all required env vars are set (`SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`, `SYSTEM_ADMIN_NIC_IPV4`, `OMNIA_DATA_PATH`)
-- Validates `SYSTEM_HOSTNAME` format (alphanumeric + hyphens, no dots)
-- Validates `SYSTEM_ADMIN_NIC_IPV4` as a valid IPv4 address
-- Validates `OMNIA_DATA_PATH` as an absolute path
-- Returns detailed error messages if validation fails
+**Capabilities:**
 
-**Usage in setup role**:
+- Checks that required env vars are set and non-empty (`SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`, `SYSTEM_ADMIN_NIC_IPV4`, `OMNIA_DATA_PATH`)
+- Cross-validates `SYSTEM_HOSTNAME` against `hostname -s` (actual short hostname)
+- Cross-validates `SYSTEM_DOMAIN_NAME` against `hostname -d` (actual domain)
+- Verifies `SYSTEM_ADMIN_NIC_IPV4` is assigned to a local network interface (via `hostname -I`)
+- Verifies `OMNIA_DATA_PATH` exists or its parent directory is writable
+- Returns structured per-check results with pass/fail status
+
+**Usage in setup role** (env vars only — no cross-validation):
 
 ```yaml
 - name: Validate system environment
-  validate_omnia_env:
+  validate_system_environment:
     required_vars:
-      - SYSTEM_HOSTNAME
       - SYSTEM_ADMIN_NIC_IPV4
-      - OMNIA_DATA_PATH
+      - SYSTEM_HOSTNAME
       - SYSTEM_DOMAIN_NAME
-  register: env_validation
-
-- name: Fail if environment validation fails
-  ansible.builtin.fail:
-    msg: "{{ env_validation.errors | join('\n') }}"
-  when: env_validation.failed | default(false)
+      - OMNIA_DATA_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: false
+  register: _env_validation
 ```
+
+**Usage in precheck role** (full cross-validation):
+
+```yaml
+- name: Cross-validate system environment
+  validate_system_environment:
+    required_vars: []
+    validate_hostname: true
+    validate_domain: true
+    validate_ip: true
+    validate_paths: true
+  register: _sys_validation
+```
+
+See `domain-integration.md` §5 for the full architecture diagram and parameter reference.
 
 ### Validation Rules
 
@@ -190,7 +262,7 @@ From system env vars and domain config, the setup role derives:
 
 ---
 
-## 4. Entry Point Playbook Rules
+## 5. Entry Point Playbook Rules
 
 The main playbook (`playbooks/<domain>.yml`) orchestrates the domain workflow.
 
@@ -259,7 +331,7 @@ The main playbook (`playbooks/<domain>.yml`) orchestrates the domain workflow.
 
 ---
 
-## 5. Sub-Playbook Rules
+## 6. Sub-Playbook Rules
 
 Sub-playbooks live in `playbooks/` and handle specific flows.
 
@@ -267,11 +339,11 @@ Sub-playbooks live in `playbooks/` and handle specific flows.
 
 | Pattern | Example | Purpose |
 |---------|---------|---------|
-| `prepare_*.yml` | `prepare_image_build_manager.yml` | Deploy infrastructure |
-| `build_*.yml` | `build_image_x86_64.yml` | Build/execute main task |
-| `cleanup_*.yml` | `cleanup_image_build_manager.yml` | Cleanup and teardown |
-| `validate_*.yml` | `validate_image_build_config.yml` | Validation only |
-| `get_*.yml` | `get_build_credentials.yml` | Credential/input collection |
+| `prepare_*.yml` | `prepare_<domain>.yml` | Deploy infrastructure |
+| `build_*.yml` / `execute_*.yml` | `build_<component>.yml` | Build/execute main task |
+| `cleanup_*.yml` | `cleanup_<domain>.yml` | Cleanup and teardown |
+| `validate_*.yml` | `validate_<domain>_config.yml` | Validation only |
+| `get_*.yml` | `get_<domain>_credentials.yml` | Credential/input collection |
 
 ### Rules
 
@@ -282,7 +354,7 @@ Sub-playbooks live in `playbooks/` and handle specific flows.
 
 ---
 
-## 6. Role Rules
+## 7. Role Rules
 
 ### Setup Role (`<domain>_setup`)
 
@@ -295,6 +367,28 @@ Every domain MUST have a setup role that runs first (tag: `always`). It handles:
 5. **Prerequisite checks** — fail-fast for all required files
 6. **Data loading** — load domain-specific config files, upstream contracts
 7. **Guard facts** — set `<domain>_setup_done: true`
+
+### Precheck Role (`precheck_environment`)
+
+Every domain MUST have a precheck role that validates the environment before any destructive operations. It runs under the `precheck` tag.
+
+**Mandatory checks:**
+
+1. **System environment cross-validation** — calls `validate_system_environment` module with `validate_hostname: true`, `validate_domain: true`, `validate_ip: true`
+2. **`omnia.env` installed** — verifies `/etc/omnia/omnia.env` exists (confirms `omnia.sh --setup-venv` was run)
+3. **Upstream contract availability** — if the domain depends on upstream output (e.g., `repo_status.yml`), the precheck MUST verify the file exists and is valid
+
+**Optional checks (domain-specific):**
+
+4. **Service prerequisites** — check if required services are running (e.g., Podman, systemd units)
+5. **Disk space** — verify sufficient space at `<shared_path>`
+6. **Network connectivity** — check reachability of external resources (registries, S3, etc.)
+
+**Rules:**
+
+- The precheck role MUST NOT require credentials — it runs before credential collection.
+- The precheck role MUST produce a structured summary of all checks (pass/fail per check).
+- If a domain has upstream dependencies, precheck MUST verify those contracts exist before proceeding. Without a successful precheck, no further tags should execute.
 
 ### General Role Rules
 
@@ -310,7 +404,7 @@ Every domain MUST have a setup role that runs first (tag: `always`). It handles:
 
 ---
 
-## 7. Task Rules
+## 8. Task Rules
 
 ### Every task MUST:
 
@@ -402,9 +496,58 @@ loop_control:
         msg: "Installation failed: {{ ansible_failed_result.msg }}"
 ```
 
+### Input File Loading Pattern
+
+```yaml
+# Load domain config from runtime path (NOT from src/input/)
+- name: Load domain configuration
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/<domain>_config.yml"
+    name: domain_config
+
+# Verify required input file exists before loading
+- name: Check domain config exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/<domain>_config.yml"
+  register: _domain_config_file
+
+- name: Fail if domain config missing
+  ansible.builtin.fail:
+    msg: "{{ domain_config_missing_fail_msg }}"
+  when: not _domain_config_file.stat.exists
+```
+
+### Output Writing Pattern
+
+```yaml
+# Write domain status file (EVERY domain MUST do this)
+- name: Write domain status
+  ansible.builtin.copy:
+    content: "{{ _domain_status | to_nice_yaml }}"
+    dest: "{{ output_project_dir }}/<domain>_status.yml"
+    mode: "0644"
+```
+
+### Precheck Pattern (Upstream Contract Verification)
+
+```yaml
+# Verify upstream contract exists before proceeding
+- name: Check upstream contract
+  ansible.builtin.stat:
+    path: "{{ omnia_data_path }}/<upstream>/output/{{ project_name }}/<upstream>_status.yml"
+  register: _upstream_contract
+
+- name: Fail if upstream contract missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ upstream_missing_fail_msg }}
+      Run '<upstream>' domain first: omnia.sh --run <upstream> --tags <tag>
+  when: not _upstream_contract.stat.exists
+```
+
 ---
 
-## 8. Variable and Message Rules
+## 9. Variable and Message Rules
 
 ### Variable naming
 
@@ -434,14 +577,14 @@ loop_control:
 
 ---
 
-## 9. Path Conventions
+## 10. Path Conventions
 
 ### Two Distinct Path Concepts
 
 | Concept | Description | Example | Configurable? |
 |---------|-------------|---------|---------------|
 | **Code location** | Where `dell/omnia` (or a domain) is cloned | `/root/omnia/`, `~/omnia/`, anywhere | User chooses at `git clone` time |
-| **State location** (`<shared_path>`) | Where persistent runtime data lives (MinIO data, registry, logs, output) | `/opt/omnia/image_build_manager/` | Yes — via `config.yml → host.shared_path` |
+| **State location** (`<shared_path>`) | Where persistent runtime data lives (services, logs, output) | `/opt/omnia/<domain_name>/` | Yes — via `config.yml → host.shared_path` |
 
 **`/opt/omnia`** is NOT the code checkout location. It is the **default state location**. Users clone code anywhere and configure `shared_path` in `config.yml` to point at the persistent storage directory.
 
@@ -455,55 +598,76 @@ loop_control:
 | **Who creates it?** | The playbook creates it automatically on first run. |
 | **Permissions?** | `0755` root-owned. MinIO/Registry containers access via bind-mount. |
 
-### Runtime paths
+### Runtime Directory Structure
+
+The setup role creates this directory tree under `<shared_path>`:
+
+```
+<OMNIA_DATA_PATH>/<domain_name>/          # = <shared_path>
+├── input/<project_name>/                 # User-editable config files (staged by domain-init.sh)
+│   ├── <domain>_config.yml               # Domain configuration
+│   └── <domain>_credentials.yml          # Credentials (if applicable)
+├── output/<project_name>/                # Domain output artifacts
+│   ├── <domain>_status.yml               # Status file (read by omnia-cli)
+│   └── <domain-specific outputs>         # Build artifacts, reports, etc.
+├── log/<project_name>/                   # Domain logs
+│   └── <domain>.log                      # Ansible playbook log
+├── s3/                                   # MinIO S3 data (if applicable)
+├── registry/                             # Container registry storage (if applicable)
+└── workdir/                              # Build workdir (if applicable)
+```
+
+### Upstream Contract Paths
+
+Domains read upstream contracts from well-known paths:
 
 | Path | Purpose |
 |------|---------|
-| `<shared_path>/` | Root persistent storage (domain state) |
-| `<shared_path>/output/<project_name>/` | Domain output artifacts |
-| `<shared_path>/log/<project_name>/` | Domain logs |
-| `<shared_path>/log/<domain>.log` | Ansible playbook log |
-| `<shared_path>/s3/` | MinIO S3 data (if applicable) |
-| `<shared_path>/registry/` | Local container registry storage (if applicable) |
-| `<shared_path>/workdir/` | Build workdir (if applicable) |
-| `src/input/<project_name>/` | Input config files (in repo) |
-
-### Upstream contract paths
-
-| Path | Purpose |
-|------|---------|
-| `/opt/omnia/repo_manager/output/<project_name>/` | repo_manager contract output |
-| `/opt/omnia/repo_manager/output/<project>/certs/` | Repo manager TLS certificates |
+| `<OMNIA_DATA_PATH>/<upstream>/output/<project_name>/` | Upstream domain contract output |
+| `<OMNIA_DATA_PATH>/<upstream>/output/<project_name>/certs/` | TLS certificates (if applicable) |
 
 ### Rules
 
-- **Never hardcode `/opt/omnia` in task files** — use variables from config.yml.
-- Output and log directories go under `<shared_path>/output/<project_name>/` and `<shared_path>/log/<project_name>/`, NOT under `src/`.
+- **Never hardcode `/opt/omnia` in task files** — use variables derived from `OMNIA_DATA_PATH`.
+- **Input files live at `<shared_path>/input/<project_name>/`** — playbooks read from here, never from `src/input/`.
+- **Output files live at `<shared_path>/output/<project_name>/`** — this is the only place for runtime artifacts.
+- **Log files live at `<shared_path>/log/<project_name>/`** — never write logs under `src/`.
 - Certificate paths are read as absolute paths from upstream contracts.
 - `*_output_dir` variables are always **directories**, never file paths.
 
 ---
 
-## 10. Input/Output Contracts
+## 11. Input/Output Contracts
 
-Every domain communicates via YAML contracts.
+Every domain communicates via YAML contracts. Each domain MUST document what it reads and writes.
 
 ### Input Contract
 
 Document in `docs/contracts/input-contract.md`:
 
 ```yaml
-# What this domain reads
+# What this domain reads at runtime
 inputs:
-  - file: config.yml
-    source: user
-    required: true
+  # Domain config — user-editable, staged by domain-init.sh
   - file: <domain>_config.yml
-    source: src/input/<project_name>/
+    runtime_path: <OMNIA_DATA_PATH>/<domain>/input/<project_name>/
+    source_template: input/<domain>_config.yml
     required: true
-  - file: repo_status.yml
-    source: /opt/omnia/repo_manager/output/<project_name>/
+    editable_by: user
+
+  # Credentials — user-editable, staged by domain-init.sh
+  - file: <domain>_credentials.yml
+    runtime_path: <OMNIA_DATA_PATH>/<domain>/input/<project_name>/
+    source_template: input/<domain>_credentials.yml
+    required: false
+    editable_by: user
+
+  # Upstream contract — produced by another domain
+  - file: <upstream>_status.yml
+    runtime_path: <OMNIA_DATA_PATH>/<upstream>/output/<project_name>/
+    source_template: null
     required: true
+    editable_by: upstream_domain
 ```
 
 ### Output Contract
@@ -511,22 +675,32 @@ inputs:
 Document in `docs/contracts/output-contract.md`:
 
 ```yaml
-# What this domain produces
+# What this domain produces at runtime
 outputs:
+  # Domain status — read by omnia-cli and downstream domains
   - file: <domain>_status.yml
-    location: <shared_path>/output/<project_name>/
+    location: <OMNIA_DATA_PATH>/<domain>/output/<project_name>/
     format: YAML
+    consumer: omnia-cli, downstream domains
+
+  # Domain-specific artifacts
+  - file: <domain-specific outputs>
+    location: <OMNIA_DATA_PATH>/<domain>/output/<project_name>/
+    format: varies
+    consumer: downstream domains or user
 ```
 
 ### Rules
 
-1. Every input file has a stat check in the setup role.
-2. Fail-fast with actionable error messages for each missing file.
-3. Output files use a `*_status.yml` naming pattern.
+1. **Every input file has a `stat` check in the setup role** — fail-fast with actionable error messages for each missing file.
+2. **Output files use a `*_status.yml` naming pattern** — the status file is the minimum output every domain MUST produce.
+3. **Upstream contracts are read-only** — a domain MUST NOT write to another domain's output directory.
+4. **Input files at the runtime path are the source of truth** — playbooks MUST NOT read from `src/input/` directly.
+5. **`samples/` directory** MUST contain example upstream contract files for standalone testing.
 
 ---
 
-## 11. Ansible Style Guide
+## 12. Ansible Style Guide
 
 ### YAML Conventions
 
@@ -563,7 +737,7 @@ outputs:
 
 ---
 
-## 12. Python Style Guide (Custom Modules)
+## 13. Python Style Guide (Custom Modules)
 
 ### Requirements
 
@@ -603,7 +777,7 @@ author:
 
 EXAMPLES = r'''
 - name: Example usage
-  omnia.image_build.my_module:
+  omnia.<collection>.my_module:
     param1: value
   register: result
 '''
@@ -670,7 +844,7 @@ plugins/module_utils/input_validation/
 
 ---
 
-## 13. Jinja2 Template Rules
+## 14. Jinja2 Template Rules
 
 - Templates use `.j2` extension, named to match target file.
 - Start with `# {{ ansible_managed }}` comment.
@@ -680,7 +854,7 @@ plugins/module_utils/input_validation/
 
 ---
 
-## 14. Git Conventions
+## 15. Git Conventions
 
 - **Branch naming**: `feature/<short-name>` or `fix/<short-name>`
 - **Commit messages**: `<type>(<scope>): <description>`
@@ -691,7 +865,7 @@ plugins/module_utils/input_validation/
 
 ---
 
-## 15. Upgrade & Rollback Standard
+## 16. Upgrade & Rollback Standard
 
 Every domain MUST support `upgrade` and `rollback` tags with dedicated playbooks.
 
@@ -731,7 +905,7 @@ Each domain writes a version file after successful deployment:
 ```yaml
 # <state_path>/.domain_version.yml
 ---
-domain: "image_build_manager"
+domain: "<domain_name>"
 version: "1.2.0"
 installed_at: "2026-07-27T10:30:00Z"
 ansible_version: "2.20.0"
@@ -882,7 +1056,7 @@ previous_version: "1.1.0"
 
 ---
 
-## 16. Validation Checklist
+## 17. Validation Checklist
 
 Before submitting a PR, verify:
 
@@ -907,7 +1081,7 @@ Before submitting a PR, verify:
 
 ---
 
-## 17. Common Tags
+## 18. Common Tags
 
 All domain playbooks MUST support these common tags for consistent UX across domains:
 
@@ -925,26 +1099,30 @@ All domain playbooks MUST support these common tags for consistent UX across dom
 ### Rules
 
 1. **`precheck` and `validate` MUST skip credential collection.** These are safe to run before creds exist.
-2. **`execute` MUST be an alias for the domain’s primary action tag.** For `image_build_manager`, `execute` = `build`.
+2. **`execute` MUST be an alias for the domain’s primary action tag** (e.g., `build`, `discover`, `provision`).
 3. **Tag validation** in the setup role MUST reject unknown tags and invalid combinations.
 4. **Domain-specific sub-tags** are allowed (e.g., `x86_64`, `aarch64`, `deploy`, `download`) but the common set above is mandatory.
 5. **Invalid combinations** MUST be defined in `vars/main.yml` under `invalid_tag_combinations` and enforced by `validate_tags.yml`.
 
 ---
 
-## 18. Common Modules
+## 19. Common Modules
 
 These Python modules are designed to be **reusable across all domains**. Each domain SHOULD copy or symlink them into its `plugins/modules/` directory.
 
 ### `validate_system_environment.py`
 
-**Purpose**: Validate that required Omnia environment variables are set and consistent with the actual system.
+**Purpose**: Validate that required Omnia environment variables are set and cross-validate them against the actual system. This module is the **single source of truth** for environment validation — see `domain-integration.md` §5 for the full architecture.
 
 **Checks performed**:
-- All required env vars are non-empty (`SYSTEM_ADMIN_NIC_IPV4`, `SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`, `OMNIA_DATA_PATH`)
-- `SYSTEM_HOSTNAME` matches the OS hostname
-- `SYSTEM_ADMIN_NIC_IPV4` exists on a local network interface
-- `OMNIA_DATA_PATH` directory exists or its parent is available
+
+| Check | Parameter | Method |
+|-------|-----------|--------|
+| Env vars set (non-empty) | `required_vars` | Read from OS environment |
+| Hostname matches | `validate_hostname` | `hostname -s` vs `SYSTEM_HOSTNAME` |
+| Domain matches | `validate_domain` | `hostname -d` vs `SYSTEM_DOMAIN_NAME` |
+| Admin IP on NIC | `validate_ip` | `hostname -I` output contains `SYSTEM_ADMIN_NIC_IPV4` |
+| Data path available | `validate_paths` | `OMNIA_DATA_PATH` exists or parent writable |
 
 **Usage in a playbook**:
 
@@ -954,8 +1132,10 @@ These Python modules are designed to be **reusable across all domains**. Each do
     required_vars:
       - SYSTEM_ADMIN_NIC_IPV4
       - SYSTEM_HOSTNAME
+      - SYSTEM_DOMAIN_NAME
       - OMNIA_DATA_PATH
     validate_hostname: true
+    validate_domain: true
     validate_ip: true
     validate_paths: true
   register: env_check
@@ -963,26 +1143,11 @@ These Python modules are designed to be **reusable across all domains**. Each do
 
 **When to use**: In the setup role’s `precheck` flow, or at the start of any domain’s setup role.
 
-### `image_build_orchestrator.py`
+### Domain-Specific Modules
 
-**Purpose**: Run parallel image builds with configurable concurrency control.
+Domains may define additional modules in `plugins/modules/` for domain-specific logic (e.g., build orchestration, package resolution, inventory generation). These modules follow the same patterns as common modules but are NOT shared across domains.
 
-**Key features**:
-- Configurable `max_parallel` (0 = unlimited, all at once)
-- Per-build status tracking (queued → running → completed/failed)
-- Structured results with duration and log paths
-- Per-build timeout support
-
-**Usage in a playbook**:
-
-```yaml
-- name: Build images in parallel
-  image_build_orchestrator:
-    build_commands: "{{ build_cmd_list }}"
-    max_parallel: "{{ build_image_max_parallel | default(0) }}"
-    timeout: "{{ build_image_job_async | default(7200) }}"
-  register: build_results
-```
+See the reference implementation in `src/image_build_manager/plugins/modules/` for examples.
 
 ### Adoption Checklist
 
@@ -995,7 +1160,7 @@ When adding a common module to a new domain:
 
 ---
 
-## 19. Ansible Galaxy Collections Migration
+## 20. Ansible Galaxy Collections Migration
 
 Each domain is structured as an **Ansible Galaxy collection** for packaging, distribution, and versioning.
 
@@ -1034,12 +1199,12 @@ All custom modules MUST be referenced by FQCN:
 ```yaml
 # Correct — uses FQCN
 - name: Validate config
-  omnia.image_build.validate_image_build_config:
+  omnia.<collection>.validate_<domain>_config:
     input_project_dir: "{{ input_project_dir }}"
 
 # Wrong — short name (breaks when installed as Galaxy collection)
 - name: Validate config
-  validate_image_build_config:
+  validate_<domain>_config:
     input_project_dir: "{{ input_project_dir }}"
 ```
 
@@ -1056,7 +1221,7 @@ Dependencies are declared in `requirements.yml` for Galaxy resolution but are no
 
 ---
 
-## 20. Ansible Galaxy Import Compliance
+## 21. Ansible Galaxy Import Compliance
 
 Every domain collection MUST pass Galaxy import validation before publishing. The following rules are **mandatory**.
 
@@ -1083,7 +1248,7 @@ author:
 
 EXAMPLES = r'''
 - name: Example usage
-  omnia.image_build.<module_name>:
+  omnia.<collection>.<module_name>:
     param_name: value
   register: result
 '''
@@ -1172,3 +1337,16 @@ Before running `ansible-galaxy collection build && ansible-galaxy collection pub
 [ ] build_ignore excludes test files, __pycache__, .git
 [ ] ansible-galaxy collection build succeeds without errors
 ```
+
+---
+
+## 22. Cross-References
+
+| Document | What It Covers |
+|----------|---------------|
+| `domain-integration.md` | `omnia.sh` and `omnia-cli` integration, env validation architecture |
+| `test-automation-design.md` | FVT test module architecture, patterns, reporting |
+| `docs/code-style/general.md` | Test co-change rule (§6), AI agent policy (§7) |
+| `docs/code-style/ansible.md` | Ansible task rules, linting, Galaxy compliance |
+| `docs/code-style/python.md` | Python module patterns, pylint, docstrings |
+| `docs/code-style/test_automation.md` | Test automation coding rules and checklists |
