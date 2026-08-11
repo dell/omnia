@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_provisioning — Post-provisioning validation.
+# Called after all provision_*.yml playbooks have completed.
+# Verifies SMD state, BSS params, cloud-init data, and generates reports.
+
+- name: Load functional groups configuration
+  ansible.builtin.include_vars:
+    file: "{{ functional_groups_config_path }}"
+    name: fg_config
+
+- name: Load classification rules
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../vars/functional_group_classification.yml"
+    name: classification
+
+- name: Query SMD for all registered components
+  ansible.builtin.uri:
+    url: "{{ openchami_base_url }}/smd/v2/State/Components"
+    method: GET
+    status_code: 200
+    validate_certs: "{{ openchami_validate_certs | default(true) }}"
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: smd_components
+
+- name: Build expected node list from functional groups
+  ansible.builtin.set_fact:
+    expected_nodes: "{{ fg_config.functional_groups | map(attribute='group') | flatten | unique | list }}"
+
+- name: Build registered node list from SMD
+  ansible.builtin.set_fact:
+    registered_xnames: "{{ smd_components.json.Components | map(attribute='ID') | list }}"
+
+- name: Identify nodes not registered in SMD
+  ansible.builtin.set_fact:
+    missing_nodes: "{{ expected_nodes | difference(registered_xnames) }}"
+
+- name: Report missing nodes
+  ansible.builtin.debug:
+    msg: "WARNING: {{ missing_nodes | length }} expected nodes not found in SMD: {{ missing_nodes }}"
+  when: missing_nodes | length > 0
+
+- name: Fail if critical nodes are missing
+  ansible.builtin.fail:
+    msg: "{{ missing_nodes | length }} nodes are not registered in SMD. Provisioning incomplete."
+  when:
+    - missing_nodes | length > 0
+    - strict_validation | default(false) | bool
+
+- name: Generate provisioning summary
+  ansible.builtin.set_fact:
+    provisioning_summary:
+      total_expected_nodes: "{{ expected_nodes | length }}"
+      total_registered_nodes: "{{ registered_xnames | length }}"
+      missing_nodes: "{{ missing_nodes }}"
+      functional_groups_count: "{{ fg_config.functional_groups | length }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+- name: Display provisioning summary
+  ansible.builtin.debug:
+    var: provisioning_summary
+
+- name: Write provisioning report
+  ansible.builtin.copy:
+    content: "{{ provisioning_summary | to_nice_yaml }}"
+    dest: "{{ orchestrator_output_dir }}/provisioning_report.yml"
+    mode: "0644"

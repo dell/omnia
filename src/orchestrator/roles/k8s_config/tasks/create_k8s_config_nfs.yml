@@ -112,7 +112,7 @@
 
 - name: Set fact for pulp mirror
   ansible.builtin.set_fact:
-    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
 
 - name: Set fact for dns, csi driver support and service_k8s_version
   ansible.builtin.set_fact:
@@ -218,8 +218,16 @@
     - item.item.source_path | length > 0
     - item.item.dest_path | length > 0
 
-- name: Include local repo access variable file
-  ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
+- name: Verify repo_status variables are available
+  ansible.builtin.assert:
+    that:
+      - offline_tarball_path is defined
+      - offline_manifest_path is defined
+    fail_msg: >-
+      Required repo_manager variables (offline_tarball_path, offline_manifest_path)
+      are not defined. Ensure repo_manager_output_path is set in orchestrator_config.yml
+      and the file exists, or run repo_manager.yml first.
+    quiet: true
 
 - name: Load service_k8s_v<version>.json
   ansible.builtin.set_fact:

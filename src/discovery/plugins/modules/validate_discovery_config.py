@@ -56,6 +56,25 @@ options:
     type: str
 '''
 
+EXAMPLES = r'''
+- name: Validate discovery configuration files
+  omnia.discovery.validate_discovery_config:
+    input_project_dir: /opt/omnia/input/project_default
+    schema_dir: "{{ role_path }}/../../plugins/module_utils/discovery_validation/schema"
+  register: validation_result
+'''
+
+RETURN = r'''
+msg:
+  description: Validation summary message.
+  type: str
+  returned: always
+validation_errors:
+  description: List of validation errors found, if any.
+  type: list
+  returned: failure
+'''
+
 VALIDATION_LOG_PATH = "/opt/omnia/log/core/playbooks/"
 
 # Files to validate and their corresponding schema names
