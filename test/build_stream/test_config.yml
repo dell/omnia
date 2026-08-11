@@ -1,0 +1,114 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Build Stream — Test Configuration
+# =============================================================================
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where build_stream runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files to the target server
+#     before running tests.
+#   - Sensitive credentials (SSH password) go in test_creds.yml
+#     (auto-encrypted with Ansible Vault on first run).
+# =============================================================================
+
+---
+
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# IP address of the server where build_stream playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+oim_server_ip: ""
+
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote server (only needed for remote mode).
+oim_ssh_port: 22
+
+# =============================================================================
+# PROJECT SYNC SETTINGS (remote execution)
+# =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/src/build_stream/playbooks/
+clone_path: "/home/omnia2100rc2/omnia/ansible_collections/dell/4849_issue"
+
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# The active dataset under test/build_stream/datasets/<dataset>/.
+# Each dataset folder contains:
+#   input/
+#     build_stream_config.yml   — Build stream domain configuration
+dataset: "data_set_01"
+
+# Project name on the target server. Typically same as dataset.
+project_name: "project_default"
+
+# =============================================================================
+# SYNC — BUILD STREAM INPUT
+# =============================================================================
+# When true, pushes the local dataset input/ files to the target server.
+sync_build_stream_input: true
+
+# =============================================================================
+# SHARED PATH (runtime output on target host)
+# =============================================================================
+shared_path: "/opt/omnia/build_stream"
+
+# =============================================================================
+# BSM API CONFIGURATION
+# =============================================================================
+# BSM host IP for API health checks (read from deployed config)
+bsm_host_ip: "100.10.0.129"
+
+# GitLab host IP (separate host for GitLab deployment)
+gitlab_host: "100.10.0.24"
+gitlab_project_name: "omnia-catalog"
+gitlab_https_port: 443
+gitlab_default_branch: "main"
+
+# =============================================================================
+# PIPELINE CONTROL
+# =============================================================================
+# When true, auto-cancel running/pending pipelines before triggering new ones.
+# When false, tests fail if existing pipelines are running.
+allow_pipeline_cancel: true
+
+# Catalog file name inside omnia_core at /omnia/examples/catalog/
+# Default: catalog_rhel_x86_64_with_slurm_only.json
+catalog_name: "catalog_rhel_x86_64_with_slurm_only.json"
+
+# Image identifier for deploy/cleanup selection (empty = auto-select latest)
+image_identifier: ""
+
+# Omnia branch to clone for generated-input verification.
+# Must match the branch used by build_stream on the target server.
+omnia_branch: "staging"
+
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+report_path: /opt/omnia/reports
+
+# Base name for report files (without extension).
+report_name: build_stream_test_report
+
+# Custom report ID (optional).
+report_id: ""
