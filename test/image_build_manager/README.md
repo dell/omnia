@@ -207,7 +207,7 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 
 | Scenario | Prefix | Count |
 |----------|--------|-------|
-| image_build_manager | TC_IB_ | 12 |
+| image_build_manager | TC_IB_ | 13 |
 | validate | TC_VL_ | 3 |
 | prepare | TC_PR_ | 8 |
 | build | TC_BD_ | 6 |
