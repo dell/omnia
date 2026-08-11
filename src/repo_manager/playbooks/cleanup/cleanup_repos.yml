@@ -84,16 +84,21 @@
           Then run the playbook again to create the symlink automatically.
       when: pulp_cli_version.rc != 0
 
-    # Step 1: Load software_config to determine OS type and version
-    - name: Load software_config.json
-      ansible.builtin.include_vars:
-        file: '{{ input_project_dir | default("/opt/omnia/input/project_default/repo_manager") }}/software_config.json'
-        name: software_config
-
-    - name: Set OS type and version facts
+    # Step 1: Load catalog to determine OS type and version
+    - name: Set catalog path
       ansible.builtin.set_fact:
-        cluster_os_type: "{{ software_config.cluster_os_type }}"
-        cluster_os_version: "{{ software_config.cluster_os_version }}"
+        catalog_path: >-
+          {{ lookup('env', 'CATALOG_FILE_PATH') |
+             default('/opt/omnia/catalog/catalog_rhel.json', true) }}
+
+    - name: Load catalog JSON
+      ansible.builtin.set_fact:
+        catalog_data: "{{ lookup('file', catalog_path) | from_json }}"
+
+    - name: Set OS type and version from catalog
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ (catalog_data.catalog.name | lower | regex_search('rhel')) | default('rhel') }}"
+        cluster_os_version: "{{ (catalog_data.catalog.name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
 
     # Step 1: Input Validation
     - name: Set cleanup input presence flag
@@ -241,12 +246,12 @@
 
         - name: Check if pulp_config directory exists
           ansible.builtin.stat:
-            path: "{{ pulp_config_base_dir }}"
+            path: "{{ pulp_config_dir }}"
           register: pulp_config_dir_stat
 
         - name: Remove pulp_config directory
           ansible.builtin.file:
-            path: "{{ pulp_config_base_dir }}"
+            path: "{{ pulp_config_dir }}"
             state: absent
           when: pulp_config_dir_stat.stat.exists
           register: pulp_config_cleanup_result
@@ -267,7 +272,7 @@
               - "Service file removed: {{ pulp_service_file_result.changed | default(false) }}"
               - "Config directory removed: {{ pulp_config_cleanup_result.changed | default(false) }}"
               - "CLI config removed: {{ pulp_cli_config_cleanup.changed | default(false) }}"
-              - "Config path: {{ pulp_config_base_dir }}"
+              - "Config path: {{ pulp_config_dir }}"
               - "==========================================="
 
     # Set default cleanup_result if only pulp_config cleanup was requested

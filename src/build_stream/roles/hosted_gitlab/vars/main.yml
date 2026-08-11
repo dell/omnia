@@ -137,7 +137,7 @@ gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: >-
-  {{ (playbook_dir ~ '/../examples/catalog/catalog_rhel.json')
+  {{ (playbook_dir ~ '/../../examples/catalog/catalog_rhel.json')
      if (hostvars['localhost']['standalone_mode'] | default(false) | bool)
      else '/omnia/examples/catalog/catalog_rhel.json' }}
 gitlab_input_repo_dir: "input"

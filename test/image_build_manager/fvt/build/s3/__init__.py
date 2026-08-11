@@ -15,6 +15,6 @@
 """
 Build — S3 suite.
 
-TC_BD_002: Verify x86_64 images pushed to S3
-TC_BD_003: Verify aarch64 images pushed to S3
+Verify x86_64 images pushed to S3
+Verify aarch64 images pushed to S3
 """

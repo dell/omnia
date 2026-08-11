@@ -25,15 +25,15 @@ import time
 import json
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.config import (
     OMNIA_BASE_DIR,
     pulp_rpm_commands,
     AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
     PULP_CONCURRENCY
 )
-from ansible.module_utils.local_repo.software_utils import build_repo_name
+from ansible.module_utils.repo_manager.software_utils import build_repo_name
 
 DOCUMENTATION = r"""
 ---
@@ -849,6 +849,11 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
 
         log.info(f"Received {len(distributions)} distributions to process")
 
+        # Get system architecture to filter repos
+        import platform
+        system_arch = platform.machine()
+        log.info(f"System architecture: {system_arch}")
+
         # Delete existing file first (only once)
         if os.path.exists(repo_file_path):
             os.remove(repo_file_path)
@@ -872,17 +877,39 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
                     break
 
         repo_content = ""
+        enabled_count = 0
+        disabled_count = 0
 
         for distribution in distributions:
             repo_name = distribution["name"]
             base_url = distribution["base_url"]
+
+            # Determine if repo should be enabled based on architecture
+            # Only enable repos that match the system architecture
+            # Repo names follow pattern: {arch}_{os_type}_{version}_{repo_name}
+            repo_arch = repo_name.split('_')[0] if '_' in repo_name else None
+            
+            # Enable repo only if it matches system architecture
+            # x86_64 system: enable x86_64 repos, disable aarch64 repos
+            # aarch64 system: enable aarch64 repos, disable x86_64 repos
+            if repo_arch == system_arch:
+                enabled = 1
+                enabled_count += 1
+            elif repo_arch in ['x86_64', 'aarch64'] and repo_arch != system_arch:
+                enabled = 0
+                disabled_count += 1
+                log.info(f"Disabling repo '{repo_name}' (arch mismatch: repo={repo_arch}, system={system_arch})")
+            else:
+                # No architecture prefix or unknown pattern - enable by default
+                enabled = 1
+                enabled_count += 1
 
             # Build repo entry
             repo_entry = f"""
 [{repo_name}]
 name={repo_name} repo
 baseurl={base_url}
-enabled=1
+enabled={enabled}
 gpgcheck=0"""
 
             # Add SSL configuration for HTTPS URLs
@@ -898,7 +925,8 @@ sslverify=0"""
         with open(repo_file_path, 'w', encoding='utf-8') as repo_file:
             repo_file.write(repo_content.strip() + "\n")
 
-        log.info(f"Created {repo_file_path} with {len(distributions)} repositories")
+        log.info(f"Created {repo_file_path} with {len(distributions)} repositories "
+                 f"({enabled_count} enabled, {disabled_count} disabled)")
         if sslcacert:
             log.info(f"SSL CA certificate configured: {sslcacert}")
 
@@ -1419,7 +1447,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     Args:
         rpm_config (list): A list of dictionaries containing the configuration for each RPM repository.
         log (logging.Logger): Logger instance for logging the process and errors.
-        sw_archs (list, optional): List of architectures to process based on software_config.json.
+        sw_archs (list, optional): List of architectures to process from catalog configuration.
                                    If provided, only repos matching these archs are processed.
         resync_repos (str/list, optional): Controls sync behavior:
             - None/empty: Skip already synced repos (default)

@@ -24,9 +24,9 @@ repo_config: "partial"
 repo_manager:
   port: 24817
   certificates:
-    server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
-    server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
-    certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"
+    server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+    server_key: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
+    certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"
 
 rpm_repos:
   x86_64:
@@ -107,15 +107,17 @@ geopm,tarball,x86_64,success,geopm_x86_64,https://...,2026-07-30T12:05:00Z
 
 ### 4. Pulp Configuration Files
 
-**Location**: `/opt/omnia/pulp_config/pulp/settings/`
+**Location**: `/opt/omnia/repo_manager/pulp_config/settings/`
 
 **Purpose**: Pulp server configuration files
 
 **Files**:
-- `pulp_settings.yaml`: Main Pulp configuration
+- `settings.py`: Main Pulp configuration
 - `certs/`: SSL/TLS certificates
   - `pulp_webserver.crt`: Server certificate
   - `pulp_webserver.key`: Server private key
+- `pulp_storage/`: Pulp content storage
+- `pgsql/`: PostgreSQL database files
 
 ## Output Directory Structure
 

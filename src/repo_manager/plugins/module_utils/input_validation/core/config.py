@@ -32,9 +32,10 @@ REPO_MANAGER_BASE_DIR = os.environ.get('REPO_MANAGER_BASE_DIR') or os.path.abspa
 OMNIA_BASE_DIR = os.environ.get('OMNIA_BASE_DIR') or os.path.abspath(
     os.path.join(REPO_MANAGER_BASE_DIR, '..', '..'))
 
-REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'log', 'repo_manager')
+REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'repo_manager', 'log')
 REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_BASE_DIR, '.data')
 REPO_MANAGER_INPUT_DIR = os.path.join(REPO_MANAGER_BASE_DIR, 'input')
+CATALOG_DIR = os.path.join(OMNIA_BASE_DIR, 'catalog')
 
 # Log paths
 INPUT_VALIDATOR_LOG = os.path.join(REPO_MANAGER_LOG_DIR, "repo_manager_input_validator")
@@ -67,7 +68,7 @@ OMNIA_REDHAT_REPO = os.path.join(OMNIA_BASE_DIR, "rhel_repo_certs", "redhat.repo
 files = {
     "repo_manager_config": "repo_manager_config.yml",
     "repo_manager_endpoint_config": "repo_manager_endpoint_config.yml",
-    "software_config": "software_config.json",
+    "catalog_config": "catalog_rhel.json",
     "omnia_config": "omnia_config.yml",
     "provision_config": "provision_config.yml",
     "storage_config": "storage_config.yml"
@@ -83,12 +84,12 @@ extensions = {
 # =============================================================================
 
 input_file_inventory = {
-    "local_repo": [files["repo_manager_config"], files["software_config"]],
-    "repo_manager": [files["repo_manager_config"], files["software_config"]],
+    "local_repo": [files["repo_manager_config"], files["catalog_config"]],
+    "repo_manager": [files["repo_manager_config"], files["catalog_config"]],
     "all": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
-        files["software_config"]
+        files["catalog_config"]
     ],
 }
 

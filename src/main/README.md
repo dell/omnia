@@ -39,10 +39,10 @@ sudo chmod +x /usr/local/bin/omnia-cli
 # 4. Check domain status
 omnia-cli status
 
-# 5. Run domain playbooks
-source /opt/omnia/venv/bin/activate
-cd ../src/<domain>/playbooks
-ansible-playbook <domain>.yml --tags validate
+# 5. Run domain playbooks via omnia.sh
+./omnia.sh --run image_build_manager --tags validate
+./omnia.sh --run repo_manager --tags build
+./omnia.sh -r telemetry --tags validate
 ```
 
 ---
@@ -50,8 +50,9 @@ ansible-playbook <domain>.yml --tags validate
 ## Setup (`omnia.sh`)
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + input copy
-./omnia.sh -s --skip-input-copy    # Venv only, skip input file staging
+./omnia.sh -s                      # Full setup: venv + deps + input copy
+./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
+./omnia.sh --init                  # Stage input files only (run all domain-init.sh)
 ./omnia.sh -h                      # Help
 ```
 
@@ -61,18 +62,44 @@ ansible-playbook <domain>.yml --tags validate
 2. Validates environment (required variables like `SYSTEM_ADMIN_NIC_IPV4`)
 3. Creates `/opt/omnia/{log,.data}` base directories
 4. Finds Python 3.11+, creates/updates venv at `$OMNIA_VENV_PATH`
-5. Installs pip packages from each domain's `requirements.txt`
-6. Installs Ansible Galaxy collections from each domain's `requirements.yml`
-7. **Copies input files** from each domain's `input/<project>/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+5. Runs each domain's `domain-init.sh` which:
+   - Installs pip packages from the domain's `requirements.txt`
+   - Installs Ansible Galaxy collections from the domain's `requirements.yml`
+   - Creates Ansible log directories
+   - Copies input files from flat `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 
 After setup, all new login shells automatically have the environment variables.
-Step 7 ensures Ansible roles read input from a stable runtime location
-(`/opt/omnia/<domain>/input/<project>/`) rather than the git checkout. Use
-`--skip-input-copy` to skip this step (e.g., in CI or if you manage input files
-externally).
+Step 5 ensures each domain's dependencies are installed and Ansible roles read
+input from a stable runtime location (`/opt/omnia/<domain>/input/<project>/`)
+rather than the git checkout. Use `--deps-only` to skip input file staging in this step (e.g., in CI
+or if you manage input files externally). Dependencies are still installed.
 
-Each domain provides a `domain-init.sh` script that handles the copy. The script
-is idempotent and only overwrites files that differ.
+Each domain provides a `domain-init.sh` script that handles the copy. Input files
+live flat in the source `input/` directory (no project subdirectory); the project
+subdirectory is created only at the runtime destination.
+
+**Direct domain-init.sh usage:**
+```bash
+# Run a single domain's init (full)
+bash src/image_build_manager/domain-init.sh
+
+# Run with --deps-only (deps only, no input staging)
+bash src/image_build_manager/domain-init.sh --deps-only
+
+# Run with --force (overwrite without prompting)
+bash src/image_build_manager/domain-init.sh --force
+```
+
+## Execution (`omnia.sh`)
+
+```bash
+./omnia.sh --run <domain> [--tags <tags>]   # Run a domain playbook
+./omnia.sh -r image_build_manager --tags build
+./omnia.sh -r repo_manager --tags validate  # Validate a domain's config
+```
+
+`--run` activates the venv and executes `ansible-playbook` for the given domain.
+Use `--tags validate` to run validation only (safe dry-run, no credentials needed).
 
 ---
 
@@ -122,16 +149,17 @@ Domains: `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `te
 ## Input File Flow
 
 ```
-Source (git repo)                        Runtime (data path)
-─────────────────                        ───────────────────
-src/<domain>/input/<project>/   ──copy──>  /opt/omnia/<domain>/input/<project>/
-                                              │
+Source (git repo)                        Runtime (NFS share / data path)
+─────────────────                        ─────────────────────────────
+src/<domain>/input/*.yml        ──copy──>  /opt/omnia/<domain>/input/<project>/
+  (flat — no project subdir)                     │
                                               ▼
                                      Ansible playbooks read from here
 ```
 
-- **Edit** input files in the source tree (`src/<domain>/input/<project>/`)
-- **Run** `./omnia.sh -s` or manually invoke `src/<domain>/domain-init.sh` to stage them
+- **Source** input files are flat in `src/<domain>/input/` (no project subdirectory)
+- **domain-init.sh** copies them into a project-specific directory at the runtime path
+- **Run** `./omnia.sh --init` or `./omnia.sh -s` to stage them
 - **Playbooks** read from the runtime location only
 
 ---

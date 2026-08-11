@@ -18,5 +18,5 @@ Validate scenario — ansible-playbook image_build_manager.yml --tags validate.
 Verifies input configuration files exist and are valid on the target.
 
 Suites:
-    status/   — TC_VL_002-003: Config and credential file presence
+    status/   — Config and credential file presence
 """

@@ -15,6 +15,6 @@
 """
 Image Build Manager — Image verification suite.
 
-TC_IB_011: Verify packages in x86_64 S3 images
-TC_IB_012: Verify packages in aarch64 S3 images
+Verify packages in x86_64 S3 images
+Verify packages in aarch64 S3 images
 """

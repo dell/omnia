@@ -17,9 +17,9 @@
 import os
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.common_functions import process_file, load_yaml_file, generate_vault_key
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.common_functions import process_file, load_yaml_file, generate_vault_key
+from ansible.module_utils.repo_manager.config import (
     USER_REPO_URL,
     CERT_KEYS
 )

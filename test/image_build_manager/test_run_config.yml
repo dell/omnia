@@ -26,12 +26,20 @@
 # Suite definitions
 # -----------------------------------------------------------------------------
 # Each suite has:
-#   order:   <int>         - Execution order (ascending). Order values MUST
-#                            be unique across enabled suites; duplicate
-#                            order values are a configuration error.
-#   run:     true/false    - Whether to execute this suite
-#   suite:   <folder>      - FVT folder name under fvt/ to run
-#   marker:  <expression>  - Marker filter expression (empty = all tests)
+#   order:       <int>         - Execution order (ascending). Order values MUST
+#                                be unique across enabled suites; duplicate
+#                                order values are a configuration error.
+#   run:         true/false    - Whether to execute this suite
+#   command:     <string>      - Execution mode: deploy, verify, or test (default: test)
+#                                deploy  = Run the playbook only
+#                                verify  = Run verification tests only (skip playbook)
+#                                test    = Deploy + Verify (full flow)
+#   suite:       <folder>      - FVT folder name under fvt/ to run
+#   marker:      <expression>  - Marker filter expression (empty = all tests)
+#   dataset:     <name>        - (optional) Override dataset from test_config.yml
+#                                Must be a valid folder under datasets/
+#   sync_input:  true/false    - (optional) Override sync_image_build_input
+#   sync_output: true/false    - (optional) Override sync_output
 #
 # Marker expression syntax:
 #   Single:   "x86_64"                  — tests with @pytest.mark.x86_64
@@ -74,6 +82,20 @@
 #                  When false (default), all tests run regardless of failures.
 skip_on_failure: false
 
+# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
+#   When set, this takes precedence over both test_config.yml dataset and
+#   per-scenario dataset overrides below.
+#   Must be a valid folder name under datasets/.
+#   Leave commented out to use per-scenario or test_config.yml defaults.
+# dataset_override: "my_custom_ds"
+
+# sync_input_override: Override sync_image_build_input for ALL scenarios.
+#   When set, applies to every scenario regardless of per-scenario settings.
+# sync_input_override: true
+
+# sync_output_override: Override sync_output for ALL scenarios.
+# sync_output_override: false
+
 scenarios:
 
   # =========================================================================
@@ -98,8 +120,13 @@ scenarios:
   image_build_manager:
     order: 1
     run: true
+    command: "test"
     suite: ""
     marker: "sanity"
+    # --- Per-scenario dataset override (uncomment to use) ---
+    # dataset: "my_custom_ds"      # Override dataset for this scenario only
+    # sync_input: true             # Sync input files before running
+    # sync_output: false           # Sync repo_manager output before running
 
   # =========================================================================
   # prepare — Deploy prepare + verify containers/S3
@@ -117,8 +144,12 @@ scenarios:
   prepare:
     order: 10
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: true
+    # sync_output: false
 
   # =========================================================================
   # build — Deploy build + verify images
@@ -139,8 +170,12 @@ scenarios:
   build:
     order: 20
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: false
+    # sync_output: false
 
   # =========================================================================
   # validate — Deploy validate + verify status
@@ -157,8 +192,12 @@ scenarios:
   validate:
     order: 30
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: false
+    # sync_output: false
 
   # =========================================================================
   # cleanup — Deploy cleanup + verify removal
@@ -176,5 +215,9 @@ scenarios:
   cleanup:
     order: 40
     run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: false
+    # sync_output: false

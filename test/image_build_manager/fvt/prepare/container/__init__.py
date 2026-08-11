@@ -15,10 +15,10 @@
 """
 Prepare — Container suite.
 
-TC_PR_002: Verify S3 storage backend (MinIO container)
-TC_PR_003: Verify registry container running
-TC_PR_004: Verify systemd services active
-TC_PR_005: Verify firewall ports open
-TC_PR_006: Verify s3cmd configured
-TC_PR_007: Verify registry reachable
+Verify S3 storage backend (MinIO container)
+Verify registry container running
+Verify systemd services active
+Verify firewall ports open
+Verify s3cmd configured
+Verify registry reachable
 """

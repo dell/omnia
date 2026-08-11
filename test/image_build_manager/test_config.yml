@@ -54,29 +54,41 @@ oim_ssh_port: 22
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # Playbook runs from <clone_path>/src/image_build_manager/playbooks/
 #
-# clone_path:   Absolute path on the target where the project code is synced.
-clone_path: "/root/omnia"
+# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
+clone_path: "/omnia"
+
+# venv_path:    Path to Python virtual environment on the target server.
+#               If set, the venv is activated before running ansible-playbook.
+#               Leave empty to use system-wide ansible.
+venv_path: ""
 
 # =============================================================================
 # DATASET CONFIGURATION
 # =============================================================================
-# The active dataset under test/image_build_manager/datasets/<dataset>/.
-# Each dataset folder contains:
-#   input/                            — Synced to <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
-#     image_build_config.yml          — Image build domain input file
-#     image_build_credentials.yml     — Vault-encrypted credentials
-#   repo_manager_output/              — Synced to repo_manager_output_dir (from image_build_config.yml)
-#     repo_status.yml                 — RPM repo URLs, cert paths
-#     functional_group_packages.yml   — Package lists per functional group
-#     certs/                          — Pulp TLS certificates
+# Controls where input files are loaded from for test execution.
 #
-# The dataset name selects the local folder under test/image_build_manager/datasets/.
-dataset: "data_set_01"
+# Default (empty):
+#   Uses files directly from the source tree:
+#     src/image_build_manager/input/                   — image_build_config.yml, package_groups.yml
+#     src/image_build_manager/samples/repo_manager_output/ — repo_status.yml
+#   This is the recommended mode — always stays in sync with source code.
+#
+# Custom dataset:
+#   Set to a folder name under test/image_build_manager/datasets/<name>/.
+#   Generate one with: cd datasets/generator && python generate_dataset.py <name> <profile>
+#   Each dataset folder must contain:
+#     input/image_build_config.yml
+#     input/image_build_credentials.yml
+#     input/package_groups.yml          (optional)
+#     repo_manager_output/repo_status.yml (optional, for sync_output)
+dataset: ""
 
-# Project name on the target server. Typically same as dataset.
-# Maps to: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
-# Maps to: <OMNIA_DATA_PATH>/image_build_manager/output/<project_name>/
-# Only change if the target uses a different project name than the dataset.
+# Project name on the target server.
+# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
+# Input syncs to: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
+# Output read from: <OMNIA_DATA_PATH>/image_build_manager/output/<project_name>/
 project_name: "project_default"
 
 # =============================================================================
@@ -97,15 +109,7 @@ sync_output: false
 #
 # This ensures the target server has the correct image_build_config.yml
 # and credentials before running the playbook.
-sync_image_build_input: true
-
-# =============================================================================
-# SHARED PATH (runtime output on target host)
-# =============================================================================
-# The shared path where image_build_manager stores runtime output.
-# The playbook writes build_status.yml and logs under this directory.
-# Convention: /opt/omnia/image_build_manager
-shared_path: "/opt/omnia/image_build_manager"
+sync_image_build_input: false
 
 # =============================================================================
 # REPORT CONFIGURATION

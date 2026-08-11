@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+namespace: omnia
+name: build_stream
+version: 3.0.0
+readme: README.md
+authors:
+  - Dell Technologies <omnia-support@dell.com>
+description: >-
+  Dell Omnia Build Stream — deploys a RESTful API service (FastAPI + Podman)
+  that orchestrates software catalog parsing, local repository creation,
+  image building, and CI/CD pipelines via GitLab CE. Includes PostgreSQL
+  database, BuildStream Manager container, and playbook watcher service.
+license:
+  - Apache-2.0
+tags:
+  - infrastructure
+  - hpc
+  - buildstream
+  - gitlab
+  - dell
+  - omnia
+dependencies:
+  community.general: ">=5.0.0"
+  containers.podman: ">=1.10.0"
+repository: https://github.com/dell/omnia
+documentation: https://github.com/dell/omnia/tree/main/docs
+homepage: https://github.com/dell/omnia
+issues: https://github.com/dell/omnia/issues
+build_ignore:
+  - "*.tar.gz"
+  - "*.cfg"
+  - .gitignore
+  - __pycache__
+  - "**/__pycache__"
+  - ansible_collections
+  - ansible_collections/*
+  - containers
+  - containers/*
+  - input
+  - input/*
+  - app
+  - app/*
+  - tests
+  - tests/*

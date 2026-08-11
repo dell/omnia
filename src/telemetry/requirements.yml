@@ -1,0 +1,20 @@
+# =============================================================================
+# Telemetry — Ansible Galaxy Collections
+# =============================================================================
+# Install into the shared Omnia venv:
+#   ./src/main/omnia.sh --setup-venv
+# Or manually:
+#   ansible-galaxy collection install -r requirements.yml
+# =============================================================================
+---
+collections:
+  - name: ansible.posix
+    version: "2.0.0"
+  - name: containers.podman
+    version: "1.16.2"
+  - name: ansible.utils
+    version: "5.1.1"
+  - name: community.crypto
+    version: "2.23.0"
+  - name: community.general
+    version: "10.3.0"

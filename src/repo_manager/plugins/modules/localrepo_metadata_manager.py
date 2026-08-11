@@ -17,12 +17,12 @@
 
 from pathlib import Path
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.process_metadata import (
+from ansible.module_utils.repo_manager.process_metadata import (
     handle_generate_metadata,
     handle_compare_data,
     handle_update_data
 )
-from ansible.module_utils.local_repo.config import ( metadata_rerun_file_path )
+from ansible.module_utils.repo_manager.config import ( metadata_rerun_file_path )
 
 DOCUMENTATION = r"""
 ---
@@ -85,7 +85,7 @@ It supports check mode and can conditionally update metadata only if changes are
 def main():
 
     argument_spec = {
-        "software_config_path": {"type": "str", "required": True},
+        "software_config_path": {"type": "str", "required": False, "default": ""},
         "localrepo_config_path": {"type": "str", "required": True},
         "output_file": {"type": "str", "required": True},
         "update_metadata": {"type": "bool", "default": False},

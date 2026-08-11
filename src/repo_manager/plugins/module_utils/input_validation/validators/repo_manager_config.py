@@ -35,7 +35,7 @@ from ansible.module_utils.input_validation.core.config import (
 from ansible.module_utils.input_validation.core.utils import create_error_msg, create_file_path
 from ansible.module_utils.input_validation.core.file_utils import load_json
 
-from ansible.module_utils.local_repo.software_utils import get_json_file_path
+from ansible.module_utils.repo_manager.software_utils import get_json_file_path
 
 
 def validate(
@@ -96,10 +96,9 @@ def validate(
     all_archs = ['x86_64', 'aarch64']
     url_list = ["omnia_repo_url_rhel", "rhel_os_url", "user_repo_url"]
 
-    software_config_file_path = create_file_path(input_file_path, files["software_config"])
-    software_config_json = load_json(software_config_file_path)
-    cluster_os_type = software_config_json.get("cluster_os_type", "rhel")
-    cluster_os_version = software_config_json.get("cluster_os_version", "10.0")
+    # Get cluster_os_type and cluster_os_version from repo_manager_config.yml (catalog-based approach)
+    cluster_os_type = data.get("cluster_os_type", "rhel")
+    cluster_os_version = data.get("cluster_os_version", "10.0")
 
     for arch in all_archs:
         arch_repo_names = []
@@ -158,129 +157,8 @@ def validate(
                         repo_manager_config_yml, k,
                         f"Repo with name {c} found more than once."))
 
-    # Validate slurm_custom has slurm_custom in user_repo_url_<arch>
-    for sw in software_config_json["softwares"]:
-        if sw["name"] == "slurm_custom":
-            for arch in sw.get("arch", []):
-                expected_repo = "slurm_custom"
-                user_repo_key = f"user_repo_url_{arch}"
-                user_repos = data.get(user_repo_key, []) or []
-                user_repo_names = [r.get("name") for r in user_repos]
-
-                if expected_repo not in user_repo_names:
-                    errors.append(
-                        create_error_msg(
-                            repo_manager_config_yml,
-                            arch,
-                            f"Missing required repo '{expected_repo}' in {user_repo_key} for slurm_custom.",
-                        )
-                    )
-
-    # Validate JSON files for softwares
-    supported_subgroups = ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS
-    additional_packages_warnings = False
-
-    for software in software_config_json["softwares"]:
-        sw = software["name"]
-        arch_list = software.get("arch")
-        software_version = software.get("version")
-
-        for arch in arch_list:
-            json_path = get_json_file_path(
-                sw, cluster_os_type, cluster_os_version,
-                software_config_file_path, arch,
-                software_version=software_version
-            )
-
-            if not json_path or not os.path.exists(json_path):
-                if sw == "service_k8s" and software_version:
-                    expected_file = f"{sw}_v{software_version}.json"
-                else:
-                    expected_file = f"{sw}.json"
-                errors.append(
-                    create_error_msg(
-                        sw + '/' + arch,
-                        f"{sw} JSON file not found for architecture {arch}.",
-                        expected_file
-                    )
-                )
-            else:
-                curr_json = load_json(json_path)
-                pkg_list = curr_json[sw]['cluster']
-
-                # Validate additional_packages subgroup keys
-                if sw == "additional_packages":
-                    if "additional_packages" not in curr_json:
-                        logger.warning(
-                            f"{sw}/{arch}: {json_path} - "
-                            f"Required key 'additional_packages' is missing from the JSON file."
-                        )
-                        additional_packages_warnings = True
-
-                    arch_supported = supported_subgroups.get(arch, [])
-                    user_subgroups = [p.get('name') for p in software_config_json.get(sw, [])]
-
-                    for json_key in curr_json:
-                        if json_key == "additional_packages":
-                            continue
-                        if json_key not in arch_supported:
-                            logger.warning(
-                                f"{sw}/{arch}: {json_path} - "
-                                f"Subgroup '{json_key}' is not supported for architecture {arch}."
-                            )
-                            additional_packages_warnings = True
-                        elif json_key not in user_subgroups:
-                            logger.warning(
-                                f"{sw}/{arch}: {json_path} - "
-                                f"Subgroup '{json_key}' is present in JSON but not listed "
-                                f"under additional_packages in software_config.json."
-                            )
-                            additional_packages_warnings = True
-
-                if sw in software_config_json:
-                    for sub_pkg in software_config_json[sw]:
-                        sub_sw = sub_pkg.get('name')
-                        if sub_sw not in curr_json:
-                            if sw == "additional_packages":
-                                if sub_sw not in supported_subgroups.get(arch, []):
-                                    continue
-                                logger.warning(
-                                    f"{sw}/{arch}: {json_path} - "
-                                    f"Software {sub_sw} not found in {sw}."
-                                )
-                                additional_packages_warnings = True
-                                continue
-                            errors.append(
-                                create_error_msg(
-                                    sw + '/' + arch,
-                                    json_path,
-                                    f"Software {sub_sw} not found in {sw}."
-                                )
-                            )
-                        else:
-                            pkg_list = pkg_list + curr_json[sub_sw]['cluster']
-
-                for pkg in pkg_list:
-                    if pkg.get("type") in ['rpm', 'rpm_list']:
-                        repo_name = pkg.get("repo_name")
-                        if sw == "slurm_custom" and repo_name == "slurm_custom":
-                            continue
-                        if sub_result and repo_name in ["baseos", "appstream", "codeready-builder"]:
-                            continue
-                        if repo_name not in repo_names.get(arch, []):
-                            errors.append(
-                                create_error_msg(
-                                    sw + '/' + arch,
-                                    f"Repo name {repo_name} not found.",
-                                    json_path
-                                )
-                            )
-
-    if additional_packages_warnings:
-        logger.info(
-            "[INFO] Additional packages validation completed with warnings. "
-            "Please review the log file for additional_packages configuration details."
-        )
+    # Note: Software-specific validations are now handled by catalog-based approach
+    # The catalog JSON files define packages and their dependencies directly
 
     return errors
 
