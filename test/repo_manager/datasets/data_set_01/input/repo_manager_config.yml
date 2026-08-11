@@ -14,203 +14,274 @@
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
-
+# NOTE: This config uses the catalog-based approach (Omnia 2.2+).
+#       Package resolution is driven by the catalog.
+#       Registry and repository configurations are defined below and
+#       linked to catalog package Sources via Registry and RepoName fields.
+#
+# ================================
+# REPOSITORY FIELD REFERENCE TABLE
+# ================================
+# The following table shows all possible fields for repository entries:
+#
+# +----------------+-----------+----------------------------------------------------------+
+# | Field          | Required  | Description / Allowed Values                            |
+# +----------------+-----------+----------------------------------------------------------+
+# | url            | No        | Repository URL (leave empty for RHEL subscription repos)  |
+# | gpgkey         | No        | GPG key URL for package verification                     |
+# | policy         | No        | Sync policy: always | partial (default: from repo_config) |
+# | caching        | No        | Local caching: true | false (default: true)               |
+# | sslcacert      | No        | Path to SSL CA certificate                               |
+# | sslclientkey   | No        | Path to SSL client key (mTLS)                            |
+# | sslclientcert  | No        | Path to SSL client certificate (mTLS)                    |
+# +----------------+-----------+----------------------------------------------------------+
+# Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
+#       auto-populated from the subscription; do not set them here.
+#
 # ================================
 # VARIABLE DETAILS
 # ================================
-# 1. user_registry
+#
+# 1. repo_config
 # --------------------------
-# Configuration for user registry to configure additional images in Pulp
-# Fields:
-#   host       : Registry IP and port in format "IP:port"
-#   cert_path  : Path to SSL certificate file (.crt) - Required only if host is using HTTPS
-#   key_path   : Path to SSL private key file (.key) - Required only if host is using HTTPS
-# Notes:
-#   - If host is HTTPS, cert_path and key_path are required
-#   - If host is HTTP, cert_path and key_path can be left empty
-#   - cert_path should point to .crt files only
-#   - key_path should point to .key files only
-#   - cert and key paths are accessed from within the omnia_core container
-# 2. user_repo_url_x86_64
+#    Global repository sync policy.
+#    Allowed values:
+#      always  : Sync all packages from all repositories (full mirror)
+#      partial : Sync only packages declared in the catalog (selective sync)
+#    This can be overridden per-repository using the 'policy' field.
+#
+# 2. registries
 # --------------------------
-#    Optional list of user-defined repository URLs for x86_64 architecture.
-#    Each entry can include: url, gpgkey, sslcacert, sslclientkey, sslclientcert, name, policy.
-#    Used for custom cluster packages like slurm_custom.
-# Fields:
-#   url         : Base URL of the repository
-#   gpgkey      : GPG key URL (leave empty to disable gpgcheck; Omnia will trust this repo and user is responsible for its security)
-#   name        : Name of the repository (e.g., 'my_repo', 'slurm_custom')
-#   sslcacert   : Path to SSL CA certificate (if using SSL)
-#   sslclientkey: Path to SSL client key (if using SSL)
-#   sslclientcert: Path to SSL client certificate (if using SSL)
-#   policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
-#                   If not provided, uses repo_config from software_config.json
-#   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
-#                   If not provided, defaults to true
-# Notes:
-#   - Do not use Jinja variables in this configuration.
-#   - Omit SSL fields entirely if SSL is not in use.
-#   - Its a mandatory field in case of slurm_custom with name as 'slurm_custom'
-#   - Version-specific naming (e.g., 'kubernetes-v1-35', 'cri-o-v1-35') is used only for service_k8s
+#    Container registry configurations.
+#    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
 #
-# 3. user_repo_url_aarch64
-# ---------------------------
-#    Same as above but for aarch64 architecture.
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "Registry" field is resolved by looking
+#      up that name here. If the registry is not found, image syncing will fail.
 #
-# 4. rhel_os_url_x86_64
-# -----------------------------
-#    Mandatory when RHEL subscription is not registered.
-#    Contains repository URLs for codeready-builder, baseos, and appstream for x86_64.
-# Fields:
-#   url         : Base URL of the repository
-#   gpgkey      : GPG key URL (leave empty to disable gpgcheck; Omnia will trust this repo and user is responsible for its security)
-#   sslcacert   : Path to SSL CA certificate (if using SSL)
-#   sslclientkey: Path to SSL client key (if using SSL)
-#   sslclientcert: Path to SSL client certificate (if using SSL)
-#   policy      : Repository policy if mentioned allowed values (always, partial).
-#                   If not provided, uses repo_config from software_config.json
-#   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
-#                   If not provided, defaults to true
-#   name        : Name of the repository [ Allowed repo names: codeready-builder, appstream, baseos ]
-# Notes:
-#   - Do not use Jinja variables in this configuration.
-#   - Omit SSL fields entirely if SSL is not in use.
-#   - RHEL subscription is not registered, All 3 repositories [ codeready-builder, appstream, baseos ] entries
-#      are mandatory.
+#    Fields per registry entry:
+#      BaseURL : Full base URL of the registry (required)
+#      Port    : HTTPS/HTTP port (required)
+#      Auth    : Authentication block
+#        Type        : none | basic | token
+#        Credentials : VaultPath pointing to credentials secret
+#      TLS     : TLS settings
+#        CAPath         : Path to CA certificate (leave empty for public CAs)
+#        ClientCertPath : Path to client cert (mTLS)
+#        ClientKeyPath  : Path to client key (mTLS)
+#        Insecure       : true to skip TLS verification (not recommended)
+#      Mirror  : Pulp mirror configuration
+#        PulpURL     : Pulp content URL for this registry
+#        PullThrough : true to enable pull-through caching
+#        Prefix      : Registry prefix used inside Pulp
 #
-# 5. rhel_os_url_aarch64
-# ----------------------------
-#    Same as above but for aarch64 architecture.
+# 3. repositories
+# --------------------------
+#    RPM repository configurations.
+#    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
 #
-# 6. rhel_subscription_repo_config_x86_64
-# -------------------------------------------
-#    Optional configuration for overriding RHEL subscription-based repositories
-#    on x86_64 architecture.
-#    When subscription is enabled, user-provided repos with names matching base repos
-#    (baseos, appstream, codeready-builder) will have their URL overridden.
-#    Non-matching repositories are added as additional repos.
-# Fields:
-#   url         : Base URL of the repository (REQUIRED)
-#   name        : Repository name for matching (REQUIRED)
-#                   Use 'baseos', 'appstream', or 'codeready-builder' to override base repo URLs
-#   gpgkey      : GPG key URL (OPTIONAL, defaults to empty to disable gpgcheck)
-#   policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
-#                   If not provided, uses repo_config from software_config.json
-#   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
-#                   If not provided, defaults to true
-# Notes:
-#   - Only 'url' and 'name' are required fields
-#   - SSL certificates are ALWAYS auto-populated from RHEL subscription defaults
-#   - User cannot override SSL certificates (sslcacert, sslclientkey, sslclientcert)
-#   - Matching is done by repository name (e.g., baseos, appstream, codeready-builder)
-#   - Non-matching repositories are added as additional repos with subscription certs
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "RepoName" field is resolved by looking
+#      up that name here (for the matching version and architecture). If the repo
+#      is not found, RPM syncing will fail.
 #
-# 7. rhel_subscription_repo_config_aarch64
-# --------------------------------------------
-#    Same as above but for aarch64 architecture.
-#
-#### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###
-# 8. omnia_repo_url_rhel_x86_64
-# -------------------------------
-#    Mandatory repository URLs for downloading RPMS for Omnia features on RHEL x86_64.
-#    Each entry includes url, gpgkey, and name.
-#
-# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel and arch x86_64
-# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
-# Fields:
-#  url        : Base URL of the repository.
-#  gpgkey     : URL of the GPG key for the repository.
-#                   If left empty, gpgcheck=0 for that repository.
-#  name       : A unique identifier for the repository or registry.
-#  policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
-#                   If not provided, uses repo_config from software_config.json
-#  caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
-#                   If not provided, defaults to true
-# 9. omnia_repo_url_rhel_aarch64
-# --------------------------------
-#    Same as above but for RHEL aarch64.
-#
-# 10. additional_repos_x86_64
-# ----------------------------
-#    Optional list of additional repository URLs for x86_64 architecture.
-#    These repos are aggregated into a single Pulp repository, allowing dynamic
-#    addition/removal without changing compute node configurations.
-# Fields:
-#   url           : Base URL of the repository (required)
-#   gpgkey        : GPG key URL (required, can be empty - disables gpgcheck)
-#   name          : Unique name for the repository (required)
-#   sslcacert     : Path to SSL CA certificate (optional)
-#   sslclientkey  : Path to SSL client key (optional)
-#   sslclientcert : Path to SSL client certificate (optional)
-#   policy      : Repository sync policy. Allowed values: always, partial (OPTIONAL)
-#                   If not provided, uses repo_config from software_config.json
-#   caching     : Enable or disable local caching. Allowed values: true, false (OPTIONAL)
-#                   If not provided, defaults to true
-# Notes:
-#   - All repos are synced into a single aggregated Pulp repository
-#   - Compute nodes are configured once with a fixed URL that never changes
-#   - Policy is controlled globally via repo_config in software_config.json (per-entry policy not supported)
-#   - Name must be unique within this list and must not conflict with names in other repo keys
-#   - Packages from these repos can only be used via additional_packages.json
-#
-# 11. additional_repos_aarch64
-# -----------------------------
-#    Same as above but for aarch64 architecture.
+#    Optional per-entry fields:
+#      policy      : Sync policy – allowed values: always, partial (default: from software_config)
+#      caching     : Local caching – allowed values: true, false (default: true)
+#      sslcacert   : Path to SSL CA certificate
+#      sslclientkey: Path to SSL client key
+#      sslclientcert: Path to SSL client certificate
+#    Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
+#          auto-populated from the subscription; do not set them here.
 
 # ================================
 # VARIABLES
 # ================================
-# user_registry:
-#    - { host: "172.16.107.254:4000", cert_path: "<repo_manager_base_dir>/domain.crt", key_path: "<repo_manager_base_dir>/domain.key" }
-user_registry:
-# user_repo_url_x86_64:
-#  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
-user_repo_url_x86_64:
-user_repo_url_aarch64:
+
+# ------------------------------------------------------------
+# 1. REPO CONFIG (global sync policy)
+# ------------------------------------------------------------
+repo_config: "partial"  # Options: always | partial
+
+# ------------------------------------------------------------
+# 2. REGISTRIES
+#    Container registry configurations.
+#    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
+#
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "Registry" field (e.g. "Registry": "docker.io")
+#      is resolved by looking up that name here. If the registry is not found,
+#      image syncing will fail.
+#
+#    Add custom/on-prem registries here. Known public registries (docker.io, ghcr.io,
+#    quay.io, registry.k8s.io) should be pre-configured by the system.
+# ------------------------------------------------------------
 # Example:
-# rhel_os_url_x86_64:
-#  - { url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "codeready-builder"} # noqa: yaml[line-length]
-#  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "baseos"} # noqa: yaml[line-length]
-#  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }  # noqa: yaml[line-length]
-rhel_os_url_x86_64:
-rhel_os_url_aarch64:
-# Example:
-# rhel_subscription_repo_config_x86_64:
-#  # Override baseos with standard URL (only url and name required, certs auto-populated)
-#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/baseos/os/", name: "baseos" }
-#  # Override appstream with custom URL and policy
-#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/appstream/os/", name: "appstream", policy: "always" }
-#  # Add supplementary repo (non-base repo, certs auto-populated)
-#  - { url: "https://cdn.redhat.com/content/dist/rhel10/10.0/x86_64/supplementary/os/", name: "supplementary", policy: "always", caching: false }
-rhel_subscription_repo_config_x86_64:
-rhel_subscription_repo_config_aarch64:
-# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
-# ============================================================================
-# VERSIONED REPOSITORY NAMING CONVENTION (Omnia 2.2+)
-# ============================================================================
-# Starting from Omnia 2.2, repositories use versioned naming:
-#   - kubernetes-v<major>-<minor>  (e.g., kubernetes-v1-35)
-#   - cri-o-v<major>-<minor>       (e.g., cri-o-v1-35)
-# Version-specific naming is used only for service_k8s components (kubernetes, cri-o)
-# Other components (doca, cuda, slurm_custom) use non-versioned naming
-# ============================================================================
-omnia_repo_url_rhel_x86_64:
-  - { url: "https://download.docker.com/linux/centos/10/x86_64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
-  - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
-  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-35"} # noqa: yaml[line-length]
-  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "cri-o-v1-35"} # noqa: yaml[line-length]
-  - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key", name: "doca"} # noqa: yaml[line-length]
-  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key", name: "cuda"} # noqa: yaml[line-length]
-  - { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"} # noqa: yaml[line-length]
-omnia_repo_url_rhel_aarch64:
-  - { url: "https://download.docker.com/linux/centos/10/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
-  - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
-  - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key", name: "doca"} # noqa: yaml[line-length]
-  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key", name: "cuda"} # noqa: yaml[line-length]
-  - { url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64", gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK", name: "nvidia-hpc-sdk"} # noqa: yaml[line-length]
-# Example:
-# additional_repos_x86_64:
-#  - { url: "https://rpm.grafana.com/", gpgkey: "", name: "grafana" }
-#  - { url: "https://repo.example.com/x86_64/", gpgkey: "", name: "custom-repo", sslcacert: "/path/ca.crt", sslclientkey: "/path/client.key", sslclientcert: "/path/client.crt" } # noqa: yaml[line-length]
-additional_repos_x86_64:
-additional_repos_aarch64:
+#   registries:
+#     my-reg.example.com:
+#       BaseURL: "https://my-reg.example.com"
+#       Port: 443
+#       Auth:
+#         Type: basic
+#         Credentials:
+#           VaultPath: "secret/omnia/registries/my-reg.example.com"
+#       TLS:
+#         CAPath: ""
+#         ClientCertPath: ""
+#         ClientKeyPath: ""
+#         Insecure: false
+#       Mirror:
+#         PulpURL: "https://pulp.omnia.local/pulp/content/my-reg.example.com/"
+#         PullThrough: true
+#         Prefix: "my-reg.example.com/"
+registries:
+
+# ------------------------------------------------------------
+# 3. REPOSITORIES
+#    RPM repository configurations.
+#    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
+#
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "RepoName" field is resolved by looking
+#      up that name here (for the matching version and architecture). If the repo
+#      is not found, RPM syncing will fail.
+# ------------------------------------------------------------
+# REPO CATEGORIES:
+#   - RHEL SUBSCRIPTION REPOS (baseos, appstream, codeready-builder):
+#       These are provided by RHEL subscription. If subscription is enabled on nodes,
+#       leave these empty – they will be auto-configured from the subscription.
+#       If subscription is NOT registered, you MUST fill in the URLs for these repos.
+#   - USER-REQUIRED REPOS (slurm_custom):
+#       You MUST fill in the URLs here for your custom Slurm repository.
+#       Failure to do so will cause sync errors.
+#   - OMNIA-REQUIRED REPOS (docker-ce, doca, cuda, nvidia-hpc-sdk):
+#       These are required for Omnia features (container runtime, DOCA drivers,
+#       CUDA, NVIDIA HPC SDK). The URLs below are defaults; update them if you
+#       use custom mirrors. Incorrect changes may cause Omnia failure.
+#   - ADDITIONAL REPOS (optional):
+#       For extra repositories not covered above (e.g. grafana, custom tools).
+#       Packages from these repos must be declared in additional_packages.json.
+# ------------------------------------------------------------
+repositories:
+  "10.0":
+    x86_64:
+      # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
+      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      baseos: {}
+      appstream: {}
+      codeready-builder: {}
+      # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
+      slurm_custom:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      ldms: {}
+      # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
+      epel:
+        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
+        gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      kubernetes-v1-35:
+        url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/"
+        gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      cri-o-v1-35:
+        url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
+        gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      doca:
+        url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/"
+        gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      docker-ce:
+        url: "https://download.docker.com/linux/centos/10/x86_64/stable/"
+        gpgkey: "https://download.docker.com/linux/centos/gpg"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      cuda:
+        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/"
+        gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      nvidia-hpc-sdk:
+        url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64"
+        gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
+      # Example format:
+      #   additional_repos:
+      #     grafana:
+      #       url: "https://rpm.grafana.com/"
+      #       gpgkey: "https://rpm.grafana.com/gpg.key"
+      #       policy: "partial"
+      #       caching: true
+      #       sslcacert: ""
+      #       sslclientkey: ""
+      #       sslclientcert: ""
+      additional_repos: {}
+    aarch64:
+      # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
+      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      baseos: {}
+      appstream: {}
+      codeready-builder: {}
+      # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
+      slurm_custom: {}
+      ldms: {}
+      # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
+      epel:
+        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
+        gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      doca:
+        url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/"
+        gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/arm64-sbsa/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      docker-ce:
+        url: "https://download.docker.com/linux/centos/10/aarch64/stable/"
+        gpgkey: "https://download.docker.com/linux/centos/gpg"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      cuda:
+        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/"
+        gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/repodata/repomd.xml.key"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      nvidia-hpc-sdk:
+        url: "https://developer.download.nvidia.com/hpc-sdk/rhel/aarch64"
+        gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
+      # Example format:
+      #   additional_repos:
+      #     grafana:
+      #       url: "https://rpm.grafana.com/"
+      #       gpgkey: "https://rpm.grafana.com/gpg.key"
+      #       policy: "partial"
+      #       caching: true
+      #       sslcacert: ""
+      #       sslclientkey: ""
+      #       sslclientcert: ""
+      additional_repos: {}

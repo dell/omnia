@@ -14,7 +14,7 @@ config file in the dataset.
 datasets/
   <dataset_name>/
     input/                                      # Synced to: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
-      repo_manager_config.yml                   # Repo manager domain input file
+      repo_manager_config.yml                   # Catalog-based repository and registry configuration
       repo_manager_config_credentials.yml       # Pulp and Docker credentials
       repo_manager_endpoint_config.yml          # Pulp server endpoint configuration
       software_config.json                      # Software and OS configuration
@@ -24,9 +24,9 @@ datasets/
 
 | File | Description |
 |------|-------------|
-| `input/repo_manager_config.yml` | Repository URLs, user registries, RHEL OS repos, omnia repo URLs |
+| `input/repo_manager_config.yml` | Catalog-based repository and registry configuration (repo_config, registries, repositories) |
 | `input/repo_manager_config_credentials.yml` | Pulp and Docker registry credentials |
-| `input/repo_manager_endpoint_config.yml` | Pulp server IP, port, protocol, SSL certificates |
+| `input/repo_manager_endpoint_config.yml` | Pulp server port, protocol, SSL certificates |
 | `input/software_config.json` | Cluster OS type/version, repo sync policy, software list |
 
 ### Sync Behavior

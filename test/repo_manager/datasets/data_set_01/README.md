@@ -14,7 +14,7 @@ not from a `config.yml`.
 ```
 data_set_01/
 └── input/                                      # Synced to: <OMNIA_DATA_PATH>/repo_manager/input/<project>/
-    ├── repo_manager_config.yml                 # Repository URL configuration
+    ├── repo_manager_config.yml                 # Catalog-based repository and registry configuration
     ├── repo_manager_config_credentials.yml     # Pulp and Docker credentials
     ├── repo_manager_endpoint_config.yml        # Pulp server endpoint settings
     └── software_config.json                    # Software and OS configuration
@@ -24,21 +24,37 @@ data_set_01/
 
 ## input/repo_manager_config.yml
 
-Repository URL configuration. Controls which RPM repos are synced to Pulp.
+Catalog-based repository and registry configuration (Omnia 2.2+).
+Package resolution is driven by the catalog; registry and repository
+configurations here are linked to catalog package Sources via Registry
+and RepoName fields.
 
 | Section | Key Fields | Description |
 |---------|------------|-------------|
-| `user_registry` | `host`, `cert_path`, `key_path` | User container registry configuration |
-| `user_repo_url_x86_64` | `url`, `gpgkey`, `name`, `policy`, `caching` | Custom x86_64 repos (e.g., slurm_custom) |
-| `user_repo_url_aarch64` | `url`, `gpgkey`, `name`, `policy`, `caching` | Custom aarch64 repos |
-| `rhel_os_url_x86_64` | `url`, `gpgkey`, `name`, `policy`, `caching` | RHEL OS repos for x86_64 (baseos, appstream, codeready-builder) |
-| `rhel_os_url_aarch64` | `url`, `gpgkey`, `name`, `policy`, `caching` | RHEL OS repos for aarch64 |
-| `rhel_subscription_repo_config_x86_64` | `url`, `name`, `policy`, `caching` | RHEL subscription repo overrides for x86_64 |
-| `rhel_subscription_repo_config_aarch64` | `url`, `name`, `policy`, `caching` | RHEL subscription repo overrides for aarch64 |
-| `omnia_repo_url_rhel_x86_64` | `url`, `gpgkey`, `name` | Omnia feature repos for x86_64 (docker-ce, epel, kubernetes, cri-o, doca, cuda, nvidia-hpc-sdk) |
-| `omnia_repo_url_rhel_aarch64` | `url`, `gpgkey`, `name` | Omnia feature repos for aarch64 (docker-ce, epel, doca, cuda, nvidia-hpc-sdk) |
-| `additional_repos_x86_64` | `url`, `gpgkey`, `name` | Additional aggregated repos for x86_64 |
-| `additional_repos_aarch64` | `url`, `gpgkey`, `name` | Additional aggregated repos for aarch64 |
+| `repo_config` | `"partial"` or `"always"` | Global sync policy (can be overridden per-repo) |
+| `registries` | `BaseURL`, `Port`, `Auth`, `TLS`, `Mirror` | Container registry configurations keyed by registry name |
+| `repositories` | `version` -> `arch` -> `repo_name` -> `{url, gpgkey, ...}` | RPM repository configurations |
+
+### Repository field reference
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `url` | No | Repository URL (leave empty for RHEL subscription repos) |
+| `gpgkey` | No | GPG key URL for package verification |
+| `policy` | No | Sync policy: `always` or `partial` (default: from `repo_config`) |
+| `caching` | No | Local caching: `true` or `false` (default: `true`) |
+| `sslcacert` | No | Path to SSL CA certificate |
+| `sslclientkey` | No | Path to SSL client key (mTLS) |
+| `sslclientcert` | No | Path to SSL client certificate (mTLS) |
+
+### Repository categories (under `repositories`)
+
+| Category | Examples | Notes |
+|----------|----------|-------|
+| RHEL subscription repos | `baseos`, `appstream`, `codeready-builder` | Leave empty if subscription enabled; mandatory otherwise |
+| User-required repos | `slurm_custom` | Must fill in URLs for custom repositories |
+| Omnia-required repos | `epel`, `docker-ce`, `kubernetes-v1-35`, `cri-o-v1-35`, `doca`, `cuda`, `nvidia-hpc-sdk` | Required for Omnia features; edit with caution |
+| Additional repos | `additional_repos` | Optional third-party packages (must be declared in `additional_packages.json`) |
 
 ---
 
@@ -62,7 +78,6 @@ Pulp server endpoint configuration.
 
 | Field | Description |
 |-------|-------------|
-| `pulp_server_ip` | Pulp server IP address |
 | `pulp_server_port` | Pulp server port (default: 2225) |
 | `pulp_protocol` | Protocol (`https`) |
 | `pulp_https_enabled` | Enable HTTPS (`true`) |
@@ -87,7 +102,7 @@ Software and OS configuration for repo sync.
 
 | Config | Target Path |
 |--------|-------------|
-| `sync_repo_manager_input: true` | `input/` → `<OMNIA_DATA_PATH>/repo_manager/input/<project>/` |
+| `sync_repo_manager_input: true` | `input/` -> `<OMNIA_DATA_PATH>/repo_manager/input/<project>/` |
 
 > **Note:** If the target server already has repo_manager input configured,
 > set `sync_repo_manager_input: false` in `test_config.yml`.

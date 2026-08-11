@@ -21,12 +21,6 @@
 # PULP SERVER ENDPOINT
 # =============================================================================
 
-# Pulp server IP address
-# IMPORTANT: Replace "xx.xx.xx.xx" with your actual OIM server IP address.
-# This should match the SYSTEM_ADMIN_NIC_IPV4 environment variable from omnia.env.
-# Example: pulp_server_ip: "172.16.107.254"
-pulp_server_ip: "xx.xx.xx.xx"
-
 # Pulp server port
 pulp_server_port: 2225
 
