@@ -33,19 +33,11 @@ from typing import Dict, Any
 
 from omnia_auto import (
     load_test_config,
-    load_test_credentials,
-    is_local_execution,
     get_module_root,
-    get_setting,
     sync_files,
-    log,
     connection_params,
-    read_remote_env,
     ensure_remote_dir,
     resolve_domain_input_path,
-    get_testinfra_host,
-    encrypt_test_credentials,
-    run_on_host,
 )
 
 from ..vars.common_vars import (

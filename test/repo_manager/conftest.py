@@ -58,7 +58,8 @@ from omnia_auto import (
     print_summary_table,
 )
 
-# --- Module-specific functions ---
+# --- Module-specific imports ---
+from library.vars import TEST_CASES
 from library.functions.host_func import (
     sync_project_to_remote,
     sync_repo_manager_input,
@@ -67,7 +68,6 @@ from library.functions.validation_func import (
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES
 
 # Build test-function-name → TC ID map for summary table fallback.
 # Auto-generates from TEST_CASES keys (e.g. "deploy_full" → "test_deploy_full")
@@ -145,7 +145,7 @@ def _item_has_marker(item, marker_name):
     return item.get_closest_marker(marker_name) is not None
 
 
-def pytest_collection_modifyitems(session, config, items):
+def pytest_collection_modifyitems(session, config, items):  # pylint: disable=unused-argument
     """Filter by --marker expression and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
@@ -289,7 +289,7 @@ def pytest_sessionstart(session):
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_terminal_summary(terminalreporter, exitstatus, config):
+def pytest_terminal_summary(terminalreporter, exitstatus, config):  # pylint: disable=unused-argument
     """Print report saved box and summary table AFTER pytest failure output."""
     report = get_current_report()
     if report and report.results:
@@ -303,7 +303,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item, call):
+def pytest_runtest_makereport(item, call):  # pylint: disable=unused-argument
     """Capture test results and output for the HTML report + summary."""
     outcome = yield
     result = outcome.get_result()
@@ -369,15 +369,16 @@ def pytest_runtest_makereport(item, call):
 # SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
 # =============================================================================
 
-def pytest_report_teststatus(report, config):
+def pytest_report_teststatus(report, config):  # pylint: disable=unused-argument
     """Replace pytest's default . s F characters with empty strings."""
     if report.when == "call":
         if report.passed:
             return "passed", "", ""
-        elif report.failed:
+        if report.failed:
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
+    return None, "", ""
 
 
 # =============================================================================

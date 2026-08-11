@@ -31,7 +31,7 @@ from library.messages import (
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_repo_manager(host):
+def test_deploy_repo_manager(host):  # pylint: disable=unused-argument
     """TC_RM_000: Deploy repo_manager.yml (default: validate + deploy + download + status)."""
     tc = TC["deploy_full"]
     tl = TestLogger(tc["title"], tc["id"])

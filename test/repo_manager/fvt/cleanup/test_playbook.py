@@ -31,7 +31,7 @@ from library.messages import (
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_cleanup(host):
+def test_deploy_cleanup(host):  # pylint: disable=unused-argument
     """TC_CL_000: Deploy repo_manager.yml --tags cleanup."""
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])

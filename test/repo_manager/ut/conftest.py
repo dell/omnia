@@ -13,6 +13,8 @@
 # limitations under the License.
 """Pytest fixtures for repo_manager unit tests."""
 
+# pylint: disable=redefined-outer-name
+
 import json
 import pathlib
 

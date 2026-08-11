@@ -1,0 +1,13 @@
+[MESSAGES CONTROL]
+
+# Disable the message, report, category or checker with the given id(s).
+disable=
+    import-error,  # External dependencies (omnia_auto, pytest) may not be installed
+    duplicate-code,  # Test files intentionally have similar patterns
+    missing-module-docstring,  # Test files and __init__.py don't need module docstrings
+    relative-beyond-top-level,  # False positive due to module structure
+
+[FORMAT]
+
+# Maximum number of characters on a single line.
+max-line-length=100

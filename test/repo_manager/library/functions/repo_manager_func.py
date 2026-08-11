@@ -42,8 +42,9 @@ from typing import Dict, Any
 
 import yaml
 
+from omnia_auto import resolve_domain_input_path
+
 from .host_func import load_test_config
-from omnia_auto import read_remote_env, resolve_domain_input_path
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
@@ -51,7 +52,6 @@ from ..vars.common_vars import (
     PULP_CONTAINER,
     PULP_IMAGE,
     PULP_PORT,
-    PULP_CONFIG_BASE_DIR,
     PULP_CONFIG_DIR,
     PULP_CERTS_DIR,
     PULP_SERVER_CRT,
@@ -61,10 +61,7 @@ from ..vars.common_vars import (
     PULP_CLI_CONFIG,
     PULP_LOGS_DIR,
     PULP_CLEANUP_DIRECTORIES,
-    RHEL_REPO_CERTS_DIR,
     REPO_MANAGER_LOG_DIR,
-    REPO_MANAGER_OFFLINE_REPO_DIR,
-    OMNIA_TARGET_FILE,
     CONFIG_FILE,
     CREDENTIALS_FILE_NAME,
     CREDENTIALS_KEY_NAME,

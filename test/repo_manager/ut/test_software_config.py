@@ -81,7 +81,9 @@ class TestSoftwareConfigSchemaFile:
 
     def test_schema_softwares_arch_enum(self, software_config_schema):
         """arch items must be enum of ['x86_64', 'aarch64']."""
-        arch_schema = software_config_schema["properties"]["softwares"]["items"]["properties"]["arch"]
+        arch_schema = software_config_schema["properties"]["softwares"][
+            "items"
+        ]["properties"]["arch"]
         assert arch_schema["type"] == "array"
         assert set(arch_schema["items"]["enum"]) == {"x86_64", "aarch64"}
         assert arch_schema["minItems"] == 1
