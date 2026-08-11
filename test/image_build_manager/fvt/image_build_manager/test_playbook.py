@@ -15,14 +15,19 @@
 """
 Image Build Manager — Deploy (full playbook, no tags).
 
-TC_IB_000: Deploy image_build_manager.yml without tags (prepare + build)
+Deploy image_build_manager.yml without tags (prepare + build)
 """
 
 import pytest
 
-from library.functions import TestLogger, run_playbook
+from library.functions import TestLogger, run_playbook, load_test_config
+from library.vars import TEST_CASES as TC
+from library.vars.common_vars import (
+    PLAYBOOK_ENTRY_POINT,
+    BUILD_LOG_PATH,
+    SHARED_PATH,
+)
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -32,9 +37,10 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_image_build_manager(host):
-    """TC_IB_000: Deploy image_build_manager.yml (default: prepare + build)."""
-    tl = TestLogger(TEST_NAMES["deploy_playbook_full"], "TC_IB_000")
-    result = run_playbook()
+    """Deploy image_build_manager.yml (default: prepare + build)."""
+    tc = TC["deploy_full"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT)
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -48,8 +54,12 @@ def test_deploy_image_build_manager(host):
             result.get("error", "See playbook output above"),
         )
 
+    config = load_test_config()
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook="image_build_manager.yml", tag="(none)",
         rc=result["rc"], duration=result["duration"],
-        log_path="Check playbook output above",
+        log_path=BUILD_LOG_PATH.format(
+            shared_path=SHARED_PATH,
+            project=config.get("project_name", "project_default"),
+        ),
     )

@@ -16,13 +16,13 @@
 Image Build Cleanup — Comprehensive Verification.
 
 Validates that --tags cleanup removed all artifacts:
-  TC_CL_002: Containers removed (minio-server, registry)
-  TC_CL_003: Systemd services stopped (minio.service, registry.service)
-  TC_CL_004: Firewall ports closed (9000, 9001, 5000)
-  TC_CL_005: S3 buckets and artifacts removed
-  TC_CL_006: s3cmd configuration removed
-  TC_CL_007: build_status.yml removed
-  TC_CL_008: Registry cleaned (no images)
+  Containers removed (minio-server, registry)
+  Systemd services stopped (minio.service, registry.service)
+  Firewall ports closed (9000, 9001, 5000)
+  S3 buckets and artifacts removed
+  s3cmd configuration removed
+  build_status.yml removed
+  Registry cleaned (no images)
 """
 
 import pytest
@@ -37,14 +37,16 @@ from library.functions import (
     check_build_output_removed,
     check_registry_cleaned,
 )
-from library.messages import TEST_NAMES, TEST_LOG_MSGS as LOG
+from library.vars import TEST_CASES as TC
+from library.messages import TEST_LOG_MSGS as LOG
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_containers_removed(host):
-    """TC_CL_002: Verify containers removed after cleanup."""
-    tl = TestLogger(TEST_NAMES["containers_removed"], "TC_CL_002")
+    """Verify containers removed after cleanup."""
+    tc = TC["containers_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_containers_removed(host)
 
     lines = []
@@ -66,8 +68,9 @@ def test_containers_removed(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_services_removed(host):
-    """TC_CL_003: Verify systemd services stopped after cleanup."""
-    tl = TestLogger(TEST_NAMES["services_removed"], "TC_CL_003")
+    """Verify systemd services stopped after cleanup."""
+    tc = TC["services_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_services_removed(host)
 
     if result["success"]:
@@ -87,8 +90,9 @@ def test_services_removed(host):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_firewall_ports_closed(host):
-    """TC_CL_004: Verify firewall ports closed after cleanup."""
-    tl = TestLogger(TEST_NAMES["firewall_ports_closed"], "TC_CL_004")
+    """Verify firewall ports closed after cleanup."""
+    tc = TC["firewall_ports_closed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_firewall_ports_removed(host)
 
     if result["success"]:
@@ -109,8 +113,9 @@ def test_firewall_ports_closed(host):
 @pytest.mark.sanity
 @pytest.mark.order(4)
 def test_s3_artifacts_removed(host):
-    """TC_CL_005: Verify S3 buckets removed after cleanup."""
-    tl = TestLogger(TEST_NAMES["s3_artifacts_removed"], "TC_CL_005")
+    """Verify S3 buckets removed after cleanup."""
+    tc = TC["s3_artifacts_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_artifacts_removed(host)
 
     if result["success"]:
@@ -126,8 +131,9 @@ def test_s3_artifacts_removed(host):
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_s3cfg_removed(host):
-    """TC_CL_006: Verify s3cmd configuration removed."""
-    tl = TestLogger(TEST_NAMES["s3cfg_removed"], "TC_CL_006")
+    """Verify s3cmd configuration removed."""
+    tc = TC["s3cfg_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3cfg_removed(host)
 
     if result["success"]:
@@ -141,8 +147,9 @@ def test_s3cfg_removed(host):
 @pytest.mark.sanity
 @pytest.mark.order(6)
 def test_build_output_removed(host):
-    """TC_CL_007: Verify build_status.yml removed."""
-    tl = TestLogger(TEST_NAMES["build_output_removed"], "TC_CL_007")
+    """Verify build_status.yml removed."""
+    tc = TC["build_output_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_build_output_removed(host)
 
     if result["success"]:
@@ -156,8 +163,9 @@ def test_build_output_removed(host):
 @pytest.mark.sanity
 @pytest.mark.order(7)
 def test_registry_cleaned(host):
-    """TC_CL_008: Verify registry has no images."""
-    tl = TestLogger(TEST_NAMES["registry_cleaned"], "TC_CL_008")
+    """Verify registry has no images."""
+    tc = TC["registry_cleaned"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_cleaned(host)
 
     if result["success"]:

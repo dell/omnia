@@ -16,12 +16,12 @@
 Image Build Prepare — Infrastructure Verification.
 
 Validates that --tags prepare created all required infrastructure:
-  TC_PR_002: S3 storage backend (MinIO container)
-  TC_PR_003: Registry container running
-  TC_PR_004: Systemd services active (minio, registry)
-  TC_PR_005: Firewall ports open (9000, 9001, 5000)
-  TC_PR_006: s3cmd installed and configured
-  TC_PR_007: Registry reachable (HTTP catalog)
+  S3 storage backend (MinIO container)
+  Registry container running
+  Systemd services active (minio, registry)
+  Firewall ports open (9000, 9001, 5000)
+  s3cmd installed and configured
+  Registry reachable (HTTP catalog)
 """
 
 import pytest
@@ -35,9 +35,9 @@ from library.functions import (
     check_s3cmd_configured,
     check_registry_reachable,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import REGISTRY_CONTAINER
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -46,8 +46,9 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_storage_backend_after_prepare(host):
-    """TC_PR_002: Verify S3 backend after prepare."""
-    tl = TestLogger(TEST_NAMES["storage_backend"], "TC_PR_002")
+    """Verify S3 backend after prepare."""
+    tc = TC["storage_backend"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_containers(host)
 
     if result.get("skipped"):
@@ -69,8 +70,9 @@ def test_storage_backend_after_prepare(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_registry_after_prepare(host):
-    """TC_PR_003: Verify registry container after prepare."""
-    tl = TestLogger(TEST_NAMES["registry_container_running"], "TC_PR_003")
+    """Verify registry container after prepare."""
+    tc = TC["registry_container_running"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_container_running(host, REGISTRY_CONTAINER)
 
     if result["success"]:
@@ -96,8 +98,9 @@ def test_registry_after_prepare(host):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_services_active(host):
-    """TC_PR_004: Verify systemd services are active."""
-    tl = TestLogger(TEST_NAMES["services_active"], "TC_PR_004")
+    """Verify systemd services are active."""
+    tc = TC["services_active"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_services_active(host)
 
     if result["success"]:
@@ -117,8 +120,9 @@ def test_services_active(host):
 @pytest.mark.sanity
 @pytest.mark.order(4)
 def test_firewall_ports_open(host):
-    """TC_PR_005: Verify firewall ports are open."""
-    tl = TestLogger(TEST_NAMES["firewall_ports_open"], "TC_PR_005")
+    """Verify firewall ports are open."""
+    tc = TC["firewall_ports_open"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_firewall_ports_open(host)
 
     if result["success"]:
@@ -139,8 +143,9 @@ def test_firewall_ports_open(host):
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_s3cmd_configured(host):
-    """TC_PR_006: Verify s3cmd installed and configured."""
-    tl = TestLogger(TEST_NAMES["s3cmd_configured"], "TC_PR_006")
+    """Verify s3cmd installed and configured."""
+    tc = TC["s3cmd_configured"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_s3cmd_configured(host)
 
     if result["success"]:
@@ -156,8 +161,9 @@ def test_s3cmd_configured(host):
 @pytest.mark.sanity
 @pytest.mark.order(6)
 def test_registry_reachable(host):
-    """TC_PR_007: Verify registry is reachable."""
-    tl = TestLogger(TEST_NAMES["registry_reachable"], "TC_PR_007")
+    """Verify registry is reachable."""
+    tc = TC["registry_reachable"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_reachable(host)
 
     if result["success"]:

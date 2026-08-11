@@ -8,19 +8,19 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
-| TC_IB_000 | `test_deploy_image_build_manager` | *(root)* | deploy, sanity | Deploy image_build_manager.yml (no tags — prepare + build) |
-| TC_IB_001 | `test_s3_storage_backend` | container/ | x86_64, aarch64, sanity | Verify S3 storage backend (MinIO or PowerScale) |
-| TC_IB_002 | `test_registry_container` | container/ | x86_64, aarch64, sanity | Verify registry container is running |
-| TC_IB_003 | `test_s3_buckets_created` | s3/ | x86_64, aarch64, sanity | Verify required S3 buckets exist |
-| TC_IB_004 | `test_s3_bucket_images_x86_64` | s3/ | x86_64, sanity | Verify x86_64 images pushed to S3 |
-| TC_IB_005 | `test_s3_bucket_images_aarch64` | s3/ | aarch64, sanity | Verify aarch64 images pushed to S3 |
-| TC_IB_006 | `test_registry_images_x86_64` | registry/ | x86_64, sanity | Verify x86_64 images in registry |
-| TC_IB_007 | `test_registry_images_aarch64` | registry/ | aarch64, sanity | Verify aarch64 images in registry |
-| TC_IB_008 | `test_build_status` | registry/ | x86_64, aarch64, sanity | Verify build_status.yml exists and reports success |
-| TC_IB_009 | `test_functional_groups_x86_64` | registry/ | x86_64, sanity | Verify all x86_64 functional groups were built |
-| TC_IB_010 | `test_functional_groups_aarch64` | registry/ | aarch64, sanity | Verify all aarch64 functional groups were built |
-| TC_IB_011 | `test_image_packages_x86_64` | image_verification/ | x86_64, functional | Verify packages in x86_64 S3 images |
-| TC_IB_012 | `test_image_packages_aarch64` | image_verification/ | aarch64, functional | Verify packages in aarch64 S3 images |
+| TC_IB_001 | `test_deploy_image_build_manager` | *(root)* | deploy, sanity | Deploy image_build_manager.yml (no tags — prepare + build) |
+| TC_IB_002 | `test_s3_storage_backend` | container/ | x86_64, aarch64, sanity | Verify S3 storage backend (MinIO or PowerScale) |
+| TC_IB_003 | `test_registry_container` | container/ | x86_64, aarch64, sanity | Verify registry container is running |
+| TC_IB_004 | `test_s3_buckets_created` | s3/ | x86_64, aarch64, sanity | Verify required S3 buckets exist |
+| TC_IB_005 | `test_s3_bucket_images_x86_64` | s3/ | x86_64, sanity | Verify x86_64 images pushed to S3 |
+| TC_IB_006 | `test_s3_bucket_images_aarch64` | s3/ | aarch64, sanity | Verify aarch64 images pushed to S3 |
+| TC_IB_007 | `test_registry_images_x86_64` | registry/ | x86_64, sanity | Verify x86_64 images in registry |
+| TC_IB_008 | `test_registry_images_aarch64` | registry/ | aarch64, sanity | Verify aarch64 images in registry |
+| TC_IB_009 | `test_build_status` | registry/ | x86_64, aarch64, sanity | Verify build_status.yml exists and reports success |
+| TC_IB_010 | `test_functional_groups_x86_64` | registry/ | x86_64, sanity | Verify all x86_64 functional groups were built |
+| TC_IB_011 | `test_functional_groups_aarch64` | registry/ | aarch64, sanity | Verify all aarch64 functional groups were built |
+| TC_IB_012 | `test_image_packages_x86_64` | image_verification/ | x86_64, functional | Verify packages in x86_64 S3 images |
+| TC_IB_013 | `test_image_packages_aarch64` | image_verification/ | aarch64, functional | Verify packages in aarch64 S3 images |
 
 ---
 
@@ -81,7 +81,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 | Scenario | Prefix | Test Count |
 |----------|--------|------------|
-| image_build_manager | TC_IB_ | 13 |
+| image_build_manager | TC_IB_ | 13 (001–013) |
 | validate | TC_VL_ | 3 |
 | prepare | TC_PR_ | 8 |
 | build | TC_BD_ | 6 |

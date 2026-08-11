@@ -12,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Build — S3 suite.
+"""Backwards-compatible setup.py for omnia-auto.
 
-Verify x86_64 images pushed to S3
-Verify aarch64 images pushed to S3
+All configuration is in pyproject.toml. This file exists for environments
+that still require ``python setup.py bdist_wheel``.
 """
+
+from setuptools import setup
+
+setup()
