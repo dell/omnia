@@ -98,12 +98,16 @@ test/<domain_name>/
 │   │   └── test_case_vars.py      # TEST_CASES dict (TC IDs + titles)
 │   └── messages/
 │       └── <domain_name>_msgs.py  # TEST_LOG_MSGS, TEST_ASSERT_MSGS
-└── fvt/
-    ├── TEST_CASES.md              # All test cases documented
-    ├── <scenario>/                # One dir per playbook tag
-    │   ├── test_playbook.py       # Deploy test
-    │   └── <suite>/test_<suite>.py
-    └── <domain_name>/             # Full end-to-end (no tag)
+├── fvt/                           # Functional Verification Tests
+│   ├── TEST_CASES.md              # All FVT test cases documented
+│   ├── <scenario>/                # One dir per playbook tag
+│   │   ├── test_playbook.py       # Deploy test
+│   │   └── <suite>/test_<suite>.py
+│   └── <domain_name>/             # Full end-to-end (no tag)
+└── nft/                           # Non-Functional Tests (optional)
+    ├── README.md                  # NFT test cases and thresholds
+    ├── test_performance.py        # Performance threshold tests
+    └── test_idempotency.py        # Idempotency tests
 ```
 
 ### 2.2 Dataset and Input File Behavior
@@ -415,6 +419,36 @@ Tests produce structured output via `TestLogger`:
 ```
 
 **Never use `print()` directly.** Always use `TestLogger` or `log()`.
+
+### 3.11 Non-Functional Tests (NFT)
+
+NFT tests live in `nft/` alongside `fvt/` and validate **performance** and **idempotency**.
+
+**NFT Rules:**
+
+1. **Directory**: Place NFT tests in `test/<domain>/nft/`, not in `fvt/`.
+2. **Marker**: All NFT tests MUST use `@pytest.mark.nft`.
+3. **README**: Each `nft/` directory MUST contain a `README.md` documenting test cases, thresholds, and execution instructions.
+4. **TC ID Prefix**: NFT test case IDs use `NFT_` prefix (e.g., `NFT_001`).
+5. **Thresholds**: Performance thresholds MUST be defined as module-level constants, not inline.
+6. **Prerequisites**: NFT tests require a fully deployed environment. Document prerequisites in the `README.md`.
+7. **Execution**: NFT tests are run via `./run_validation.sh nft test`.
+
+```python
+import pytest
+
+PREPARE_THRESHOLD = 300  # 5 minutes
+
+@pytest.mark.nft
+@pytest.mark.order(1)
+def test_prepare_performance(run_playbook):
+    """NFT_001: Prepare completes within threshold."""
+    start = time.time()
+    result = run_playbook(tag="prepare", timeout=PREPARE_THRESHOLD + 60)
+    elapsed = time.time() - start
+    assert result.rc == 0, f"Prepare failed: rc={result.rc}"
+    assert elapsed <= PREPARE_THRESHOLD, f"Exceeded {PREPARE_THRESHOLD}s: {elapsed:.1f}s"
+```
 
 ---
 

@@ -56,29 +56,37 @@ repositories:
     x86_64:
       baseos:
         url: "https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/"
+        priority: 100
       appstream:
         url: "https://mirror.stream.centos.org/10-stream/AppStream/x86_64/os/"
+        priority: 100
       codeready-builder:
         url: "https://mirror.stream.centos.org/10-stream/CRB/x86_64/os/"
+        priority: 100
       # slurm_custom requires a user-provided repo — no public RHEL 10 / CentOS Stream 10
       # repository ships slurm packages. Configure via user_repo_url_x86_64 in repo_manager_config.yml.
       slurm_custom: {}
       ldms: {}
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
+        priority: 100
       additional_repos: {}
 
     aarch64:
       baseos:
         url: "https://mirror.stream.centos.org/10-stream/BaseOS/aarch64/os/"
+        priority: 100
       appstream:
         url: "https://mirror.stream.centos.org/10-stream/AppStream/aarch64/os/"
+        priority: 100
       codeready-builder:
         url: "https://mirror.stream.centos.org/10-stream/CRB/aarch64/os/"
+        priority: 100
       slurm_custom: {}
       ldms: {}
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
+        priority: 100
       additional_repos: {}
 
 registries: {}

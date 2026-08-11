@@ -115,6 +115,7 @@ def pytest_configure(config):
         "functional": "Functional verification",
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
+        "nft": "Non-functional tests (performance, idempotency)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

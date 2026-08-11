@@ -121,7 +121,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | `verify` | Run verification tests only (no playbook) |
 | `test` | Full flow: deploy + verify |
 
-### Scenarios
+### FVT Scenarios
 
 | Scenario | Playbook Tag | What It Tests |
 |----------|-------------|---------------|
@@ -131,6 +131,12 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
 | `build` | `--tags build` | S3 images, registry images, build_status |
 | `cleanup` | `--tags cleanup` | All artifacts removed |
+
+### NFT Scenario
+
+| Scenario | Marker | What It Tests |
+|----------|--------|---------------|
+| `nft` | `@pytest.mark.nft` | Performance thresholds and idempotency |
 
 ### Options
 
@@ -150,6 +156,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 ./run_validation.sh prepare test                                # 3. Prepare infrastructure
 ./run_validation.sh build test --marker x86_64                  # 4. Build images
 ./run_validation.sh image_build_manager verify --marker sanity  # 5. Full verification
+./run_validation.sh nft test                                    # 6. Performance + idempotency
 ```
 
 ---
@@ -256,6 +263,7 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 | prepare | TC_PR_ | 8 |
 | build | TC_BD_ | 6 |
 | cleanup | TC_CL_ | 8 |
+| nft | NFT_ | 4 |
 
 ---
 
@@ -264,7 +272,7 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 ```
 test/image_build_manager/
 ├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
-├── run_validation.sh            # CLI runner
+├── run_validation.sh            # CLI runner (FVT + NFT)
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
 ├── test_creds.yml               # SSH credentials (Ansible Vault, gitignored)
@@ -287,25 +295,33 @@ test/image_build_manager/
 │   ├── vars/                    # Constants, paths, commands (common_vars)
 │   └── messages/                # Test names, log/assert messages
 │
-└── fvt/                         # Functional Verification Tests
-    ├── TEST_CASES.md
-    ├── image_build_manager/     # Full end-to-end
-    │   ├── container/
-    │   ├── s3/
-    │   ├── registry/
-    │   └── image_verification/
-    ├── precheck/                # Precheck tag (env + connectivity)
-    │   └── connectivity/
-    ├── validate/                # Validate tag
-    │   └── status/
-    ├── prepare/                 # Prepare tag
-    │   ├── container/
-    │   └── s3/
-    ├── build/                   # Build tag
-    │   ├── s3/
-    │   └── registry/
-    └── cleanup/                 # Cleanup tag
-        └── cleanup/
+├── fvt/                         # Functional Verification Tests
+│   ├── TEST_CASES.md
+│   ├── image_build_manager/     # Full end-to-end
+│   │   ├── container/
+│   │   ├── s3/
+│   │   ├── registry/
+│   │   └── image_verification/
+│   ├── precheck/                # Precheck tag (env + connectivity)
+│   │   └── connectivity/
+│   ├── validate/                # Validate tag
+│   │   └── status/
+│   ├── prepare/                 # Prepare tag
+│   │   ├── container/
+│   │   └── s3/
+│   ├── build/                   # Build tag
+│   │   ├── s3/
+│   │   └── registry/
+│   └── cleanup/                 # Cleanup tag
+│       └── cleanup/
+│
+├── nft/                         # Non-Functional Tests
+│   ├── README.md                # NFT documentation (thresholds, execution)
+│   ├── test_performance.py      # Performance threshold tests (NFT_001–NFT_003)
+│   └── test_idempotency.py      # Idempotency tests (NFT_004)
+│
+└── ut/                          # Unit Tests
+    └── conftest.py
 ```
 
 ---

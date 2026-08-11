@@ -19,6 +19,7 @@ layer:
         baseurl={{ repo.base_url }}
         gpgcheck=0
         sslverify=0
+        priority={{ repo.priority | default("99") }}
 {% endif %}
 {% endfor %}
   actions:

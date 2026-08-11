@@ -32,18 +32,23 @@
 #   --marker <expr>   Filter by pytest marker (x86_64, sanity, etc.)
 #   -v, --verbose     Increase verbosity
 #
-# Scenarios:
+# FVT Scenarios:
 #   image_build_manager     Full end-to-end (deploy without tags + verify)
 #   validate                Validate tag tests
 #   prepare                 Prepare tag tests
 #   build                   Build tag tests
 #   cleanup                 Cleanup tag tests
+#
+# NFT Scenarios:
+#   nft                     Non-functional tests (performance + idempotency)
+#                           Tests live in nft/ directory with @pytest.mark.nft
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FVT_DIR="${SCRIPT_DIR}/fvt"
+NFT_DIR="${SCRIPT_DIR}/nft"
 CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
 
 RED='\033[0;31m'
@@ -341,6 +346,7 @@ case "$SCENARIO" in
         echo -e "${BLUE}  Available Scenarios${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
+        echo -e "${YELLOW}FVT (Functional Verification):${NC}"
         for name in $(get_scenarios); do
             scenario_dir="${FVT_DIR}/${name}"
             if [ -d "$scenario_dir" ]; then
@@ -354,6 +360,14 @@ case "$SCENARIO" in
                 echo -e "  ${RED}${name}${NC}  (not found)"
             fi
         done
+        echo ""
+        echo -e "${YELLOW}NFT (Non-Functional Tests):${NC}"
+        if [ -d "$NFT_DIR" ]; then
+            nft_count=$(find "$NFT_DIR" -name 'test_*.py' 2>/dev/null | wc -l)
+            echo -e "  ${GREEN}nft${NC}  (${nft_count} test files — performance, idempotency)"
+        else
+            echo -e "  ${RED}nft${NC}  (directory not found)"
+        fi
         echo ""
         exit 0
         ;;
@@ -370,7 +384,7 @@ _run_validation_completions() {
     local cur prev; cur="\${COMP_WORDS[\$COMP_CWORD]}"; prev="\${COMP_WORDS[\$COMP_CWORD-1]}"
     local fvt_dir="${SCRIPT_DIR}/fvt"
     local scenarios=""; if [ -d "\${fvt_dir}" ]; then for d in "\${fvt_dir}"/*/; do [ -d "\$d" ] || continue; local n; n="\$(basename "\$d")"; [ "\$n" = "__pycache__" ] && continue; scenarios="\${scenarios} \${n}"; done; fi
-    local commands="deploy verify test"; local special="all list help --config --help"; local options="--suite --marker -v --verbose --debug"; local markers="sanity x86_64 aarch64 functional regression deploy"
+    local commands="deploy verify test"; local special="all nft list help --config --help"; local options="--suite --marker -v --verbose --debug"; local markers="sanity x86_64 aarch64 functional regression deploy nft"
     case "\$COMP_CWORD" in
         1) COMPREPLY=( \$(compgen -W "\${scenarios} \${special}" -- "\$cur") ) ;;
         2) case "\$prev" in list|help|--help|-h|--config) COMPREPLY=() ;; *) COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") ) ;; esac ;;
@@ -481,12 +495,17 @@ COMPLETION_EOF
         echo "  # Batch run from test_run_config.yml"
         echo "  $0 --config"
         echo ""
+        echo -e "${YELLOW}NFT (Non-Functional Tests):${NC}"
+        echo "  $0 nft test                              # Run all NFT tests (performance + idempotency)"
+        echo "  $0 nft verify                            # NFT verify only (no deploy)"
+        echo ""
         echo -e "${YELLOW}Typical Workflow:${NC}"
         echo "  $0 cleanup test                          # 1. Clean previous state"
         echo "  $0 validate test                          # 2. Validate inputs"
         echo "  $0 prepare test                          # 3. Prepare infrastructure"
         echo "  $0 build test --marker x86_64             # 4. Build images"
         echo "  $0 image_build_manager verify --marker sanity  # 5. Full verification"
+        echo "  $0 nft test                              # 6. Performance + idempotency tests"
         echo ""
         echo -e "${YELLOW}Configuration:${NC}"
         echo "  test_config.yml      Target server, sync, report settings"
@@ -507,14 +526,26 @@ esac
 # =============================================================================
 # Validate scenario
 # =============================================================================
-SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
-
-if [[ ! -d "$SCENARIO_DIR" ]]; then
-    echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
-    echo ""
-    echo -e "${YELLOW}Available scenarios:${NC}"
-    get_scenarios | while read -r s; do echo "  $s"; done
-    exit 1
+IS_NFT=false
+if [[ "$SCENARIO" == "nft" ]]; then
+    IS_NFT=true
+    SCENARIO_DIR="${NFT_DIR}"
+    if [[ ! -d "$SCENARIO_DIR" ]]; then
+        echo -e "${RED}Error: NFT directory not found at ${NFT_DIR}${NC}"
+        exit 1
+    fi
+else
+    SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+    if [[ ! -d "$SCENARIO_DIR" ]]; then
+        echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
+        echo ""
+        echo -e "${YELLOW}Available FVT scenarios:${NC}"
+        get_scenarios | while read -r s; do echo "  $s"; done
+        echo ""
+        echo -e "${YELLOW}NFT:${NC}"
+        echo "  nft"
+        exit 1
+    fi
 fi
 
 # Validate command
@@ -551,9 +582,14 @@ export OMNIA_LOG_FILE="${LOG_DIR}/${SCENARIO}_${COMMAND}_${REPORT_ID}.log"
 # Display banner
 # =============================================================================
 echo -e "${BLUE}=================================================================${NC}"
-echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
+if [[ "$IS_NFT" == true ]]; then
+    echo -e "${BLUE}  Image Build Manager — NFT Runner${NC}"
+else
+    echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
+fi
 echo -e "${BLUE}=================================================================${NC}"
 echo -e "  Scenario  : ${GREEN}${SCENARIO}${NC}"
+[[ "$IS_NFT" == true ]] && echo -e "  Type      : ${CYAN}Non-Functional Tests${NC}"
 echo -e "  Command   : ${GREEN}${COMMAND}${NC}"
 [[ -n "$SUITE" ]]       && echo -e "  Suite     : ${GREEN}${SUITE}${NC}"
 [[ -n "$MARKER" ]]      && echo -e "  Marker    : ${GREEN}${MARKER}${NC}"
@@ -565,6 +601,28 @@ echo ""
 # =============================================================================
 # Execute based on command
 # =============================================================================
+
+# NFT special handling — all NFT tests use -m nft marker
+if [[ "$IS_NFT" == true ]]; then
+    export OMNIA_COMMAND_TYPE="nft"
+    nft_args="-m nft"
+    [[ -n "$MARKER" ]] && nft_args="${nft_args} --marker ${MARKER}"
+
+    echo -e "${YELLOW}=================================================================${NC}"
+    echo -e "${YELLOW}  Running Non-Functional Tests${NC}"
+    echo -e "${YELLOW}=================================================================${NC}"
+    echo ""
+
+    run_pytest \
+        "${NFT_DIR}" \
+        "${nft_args}" \
+        "Running NFT (performance + idempotency)"
+
+    echo ""
+    echo -e "${GREEN}NFT execution completed.${NC}"
+    exit $?
+fi
+
 case "$COMMAND" in
 
     # -------------------------------------------------------------------------

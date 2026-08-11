@@ -47,7 +47,7 @@ _is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
 
 # Container images per build type
 _builder_container_image: "dellhpcomniaaisolution/image-build-el10:1.2"
-_thrillhouse_container_image: "ghcr.io/openchami/image-thrillhouse:latest"
+_thrillhouse_container_image: "ghcr.io/openchami/image-thrillhouse:v0.0.20"
 repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_container_image, _builder_container_image) }}"
 
 # Local tag per build type
