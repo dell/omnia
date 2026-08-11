@@ -20,7 +20,9 @@ Deploy image_build_manager.yml without tags (prepare + build)
 
 import pytest
 
-from library.functions import TestLogger, run_playbook, load_test_config
+from library.functions import (
+    TestLogger, run_playbook, load_test_config, collect_build_logs,
+)
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     PLAYBOOK_ENTRY_POINT,
@@ -47,11 +49,17 @@ def test_deploy_image_build_manager(host):
             duration=result["duration"]
         ))
     else:
+        # Collect build logs for diagnostics
+        logs = collect_build_logs(host, max_lines=50)
+        log_snippet = logs.get("log_output", "") if logs["success"] else ""
+        error_detail = result.get("error", "See playbook output above")
+        if log_snippet:
+            error_detail += f"\n\n--- Build Log ({logs['log_path']}) ---\n{log_snippet}"
         tl.failed(
             LOG["playbook_failed"].format(
                 rc=result["rc"], duration=result["duration"],
             ),
-            result.get("error", "See playbook output above"),
+            error_detail,
         )
 
     config = load_test_config()
