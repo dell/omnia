@@ -162,6 +162,32 @@ TEST_CASES = {
         "title": "Verify packages installed in aarch64 S3 images",
     },
 
+    # ── Precheck ──────────────────────────────────────────────────────────
+    "deploy_precheck": {
+        "id": "TC_PC_001",
+        "title": "Deploy image_build_manager (precheck)",
+    },
+    "env_vars_present": {
+        "id": "TC_PC_002",
+        "title": "Verify OMNIA env vars present on target",
+    },
+    "target_connectivity": {
+        "id": "TC_PC_003",
+        "title": "Verify target host connectivity and SSH",
+    },
+    "hostname_domain": {
+        "id": "TC_PC_004",
+        "title": "Verify hostname and domain match omnia.env",
+    },
+    "admin_ip_assigned": {
+        "id": "TC_PC_005",
+        "title": "Verify admin IP assigned to local interface",
+    },
+    "omnia_setup": {
+        "id": "TC_PC_006",
+        "title": "Verify omnia.sh setup completed on target",
+    },
+
     # ── Cleanup ───────────────────────────────────────────────────────────
     "containers_removed": {
         "id": "TC_CL_002",

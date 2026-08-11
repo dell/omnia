@@ -61,10 +61,11 @@
     - image_build_setup
 
 # =========================================================================
-# Step 1: Input validation (schema + logic)
+# Step 1: Input validation (schema + logic) — skipped for precheck
 # =========================================================================
 - name: Validate image build configuration
   ansible.builtin.import_playbook: validate/validate_image_build_config.yml
+  when: "'precheck' not in (hostvars['localhost']['provided_tags'] | default([]))"
   tags:
     - always
     - validate
@@ -76,6 +77,15 @@
   ansible.builtin.import_playbook: credentials/get_build_credentials.yml
   when: not (skip_build_credentials | default(false) | bool)
   tags: always
+
+# =========================================================================
+# FLOW: precheck — Environment validation (opt-in only)
+# =========================================================================
+- name: Precheck environment
+  ansible.builtin.import_playbook: precheck/precheck_environment.yml
+  tags:
+    - never
+    - precheck
 
 # =========================================================================
 # FLOW: prepare — Deploy MinIO + Registry (idempotent)

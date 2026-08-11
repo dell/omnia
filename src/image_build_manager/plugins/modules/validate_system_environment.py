@@ -48,7 +48,11 @@ options:
       - SYSTEM_DOMAIN_NAME
       - OMNIA_DATA_PATH
   validate_hostname:
-    description: Cross-check SYSTEM_HOSTNAME against the system hostname.
+    description: Cross-check SYSTEM_HOSTNAME against hostname -s.
+    type: bool
+    default: true
+  validate_domain:
+    description: Cross-check SYSTEM_DOMAIN_NAME against hostname -d.
     type: bool
     default: true
   validate_ip:
@@ -114,8 +118,32 @@ _IPV4_RE = re.compile(
 
 
 def _get_system_hostname() -> str:
-    """Return the short hostname from the OS."""
+    """Return the short hostname via ``hostname -s``."""
+    try:
+        result = subprocess.run(
+            ["hostname", "-s"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    # Fallback to socket
     return socket.gethostname().split(".")[0]
+
+
+def _get_system_domain() -> str:
+    """Return the domain name via ``hostname -d``."""
+    try:
+        result = subprocess.run(
+            ["hostname", "-d"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return ""
 
 
 def _get_local_ips() -> list[str]:
@@ -151,7 +179,7 @@ def _check_env_var(name: str) -> dict[str, Any]:
 
 
 def _check_hostname(env_hostname: str) -> dict[str, Any]:
-    """Cross-validate SYSTEM_HOSTNAME against OS hostname."""
+    """Cross-validate SYSTEM_HOSTNAME against ``hostname -s``."""
     system_hostname = _get_system_hostname()
     passed = env_hostname == system_hostname
     return {
@@ -160,9 +188,43 @@ def _check_hostname(env_hostname: str) -> dict[str, Any]:
         "actual": system_hostname,
         "passed": passed,
         "message": (
-            f"Hostname matches: {env_hostname}"
+            f"Hostname matches (hostname -s): {env_hostname}"
             if passed
-            else f"SYSTEM_HOSTNAME '{env_hostname}' does not match system hostname '{system_hostname}'"
+            else (
+                f"SYSTEM_HOSTNAME '{env_hostname}' does not match "
+                f"hostname -s '{system_hostname}'. "
+                f"Fix: hostnamectl set-hostname {env_hostname} or update omnia.env"
+            )
+        ),
+    }
+
+
+def _check_domain(env_domain: str) -> dict[str, Any]:
+    """Cross-validate SYSTEM_DOMAIN_NAME against ``hostname -d``."""
+    system_domain = _get_system_domain()
+    if not system_domain:
+        return {
+            "name": "validate_domain",
+            "expected": env_domain,
+            "actual": "(hostname -d unavailable)",
+            "passed": True,
+            "message": f"hostname -d unavailable — skipping domain check (configured: {env_domain})",
+        }
+    passed = env_domain == system_domain
+    return {
+        "name": "validate_domain",
+        "expected": env_domain,
+        "actual": system_domain,
+        "passed": passed,
+        "message": (
+            f"Domain matches (hostname -d): {env_domain}"
+            if passed
+            else (
+                f"SYSTEM_DOMAIN_NAME '{env_domain}' does not match "
+                f"hostname -d '{system_domain}'. "
+                f"Fix: update omnia.env or "
+                f"hostnamectl set-hostname {{hostname}}.{env_domain}"
+            )
         ),
     }
 
@@ -229,6 +291,7 @@ def main() -> None:
                          "SYSTEM_DOMAIN_NAME", "OMNIA_DATA_PATH"],
             ),
             validate_hostname=dict(type="bool", default=True),
+            validate_domain=dict(type="bool", default=True),
             validate_ip=dict(type="bool", default=True),
             validate_paths=dict(type="bool", default=True),
         ),
@@ -237,6 +300,7 @@ def main() -> None:
 
     required_vars: list[str] = module.params["required_vars"]
     validate_hostname: bool = module.params["validate_hostname"]
+    validate_domain: bool = module.params["validate_domain"]
     validate_ip: bool = module.params["validate_ip"]
     validate_paths: bool = module.params["validate_paths"]
 
@@ -246,17 +310,22 @@ def main() -> None:
     for var_name in required_vars:
         checks.append(_check_env_var(var_name))
 
-    # 2. Cross-validate hostname
+    # 2. Cross-validate hostname (hostname -s)
     env_hostname = os.environ.get("SYSTEM_HOSTNAME", "")
     if validate_hostname and env_hostname:
         checks.append(_check_hostname(env_hostname))
 
-    # 3. Cross-validate admin IP is on a local NIC
+    # 3. Cross-validate domain (hostname -d)
+    env_domain = os.environ.get("SYSTEM_DOMAIN_NAME", "")
+    if validate_domain and env_domain:
+        checks.append(_check_domain(env_domain))
+
+    # 4. Cross-validate admin IP is on a local NIC
     env_ip = os.environ.get("SYSTEM_ADMIN_NIC_IPV4", "")
     if validate_ip and env_ip:
         checks.append(_check_ip_on_nic(env_ip))
 
-    # 4. Validate data path
+    # 5. Validate data path
     env_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
     if validate_paths and env_path:
         checks.append(_check_data_path(env_path))

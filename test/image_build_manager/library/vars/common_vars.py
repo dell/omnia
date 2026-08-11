@@ -77,6 +77,7 @@ PLAYBOOK_WORKDIR = "src/image_build_manager/playbooks"
 
 # Valid playbook tags
 PLAYBOOK_TAGS = [
+    "precheck",
     "validate",
     "prepare",
     "build",
@@ -243,7 +244,8 @@ CMDS = {
         " --tags {tag} -v 2>&1"
     ),
     # --- System ---
-    "hostname_cmd": "hostname 2>/dev/null",
+    "hostname_short": "hostname -s 2>/dev/null",
+    "hostname_domain": "hostname -d 2>/dev/null",
     "hostname_fqdn": "hostname -f 2>/dev/null",
     "hostname_ip": "hostname -I 2>/dev/null",
     "rpm_check": "rpm -q {package} 2>/dev/null",
@@ -307,6 +309,17 @@ CMDS = {
     "curl_registry_catalog_scheme": (
         "curl -sk {scheme}://localhost:{port}/v2/_catalog"
         " 2>/dev/null"
+    ),
+    # --- Connectivity / Precheck ---
+    "echo_test": "echo connectivity_ok 2>/dev/null",
+    "env_check": "echo ${env_var} 2>/dev/null",
+    "source_env_file": (
+        "test -f /etc/profile.d/omnia-env.sh && "
+        "source /etc/profile.d/omnia-env.sh && "
+        "echo ${env_var} 2>/dev/null"
+    ),
+    "cat_build_log": (
+        "tail -n {lines} {log_path} 2>/dev/null"
     ),
     # --- Podman (container running check) ---
     "podman_ps_running": (

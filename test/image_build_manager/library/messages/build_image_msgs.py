@@ -272,6 +272,18 @@ TEST_LOG_MSGS = {
     "playbook_failed": (
         "Playbook failed (rc={rc}, duration={duration:.1f}s)"
     ),
+
+    # Precheck
+    "connectivity_ok": "Target host is reachable",
+    "connectivity_failed": "Target host connectivity check failed",
+    "env_vars_ok": "All required OMNIA env vars present",
+    "env_vars_missing": "{count} required env var(s) missing",
+    "hostname_domain_ok": "Hostname and domain match omnia.env",
+    "hostname_domain_mismatch": "Hostname or domain mismatch",
+    "admin_ip_ok": "Admin IP assigned to local interface",
+    "admin_ip_not_assigned": "Admin IP not assigned to any interface",
+    "omnia_setup_ok": "omnia.sh setup completed",
+    "omnia_setup_incomplete": "omnia.sh setup incomplete",
 }
 
 # =============================================================================
@@ -376,6 +388,73 @@ TEST_ASSERT_MSGS = {
         "\u2551   3. Re-run playbook:\n"
         "\u2551      ansible-playbook image_build_manager.yml\n"
         "\u2551      or: run_validation image_build_manager deploy\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    # gitleaks:allow — "password" is in user-facing instruction message, not a leaked secret
+    "connectivity_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 TARGET CONNECTIVITY FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify oim_server_ip in test_config.yml\n"
+        "\u2551   2. Verify SSH user/password: setup_env.sh --set-password\n"
+        "\u2551   3. Test manually: ssh root@<oim_server_ip>\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "env_vars_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OMNIA ENV VARS MISSING ON TARGET\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: omnia.sh --setup-venv on the target server\n"
+        "\u2551   2. Verify: cat /etc/profile.d/omnia-env.sh\n"
+        "\u2551   3. Check all required env vars in omnia.env\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "hostname_domain_mismatch": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 HOSTNAME / DOMAIN MISMATCH\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check actual: hostname -s (short), hostname -d (domain)\n"
+        "\u2551   2. Update SYSTEM_HOSTNAME / SYSTEM_DOMAIN_NAME in omnia.env\n"
+        "\u2551   3. Or: hostnamectl set-hostname <hostname>.<domain>\n"
+        "\u2551   4. Re-run: omnia.sh --setup-venv\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "admin_ip_not_assigned": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 ADMIN IP NOT ASSIGNED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check assigned IPs: hostname -I\n"
+        "\u2551   2. Verify SYSTEM_ADMIN_NIC_IPV4 in omnia.env matches one of them\n"
+        "\u2551   3. Re-run: omnia.sh --setup-venv\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "omnia_setup_incomplete": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OMNIA SETUP INCOMPLETE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: ./omnia.sh --setup-venv\n"
+        "\u2551   2. Verify: /etc/omnia/omnia.env exists\n"
+        "\u2551   3. Verify: /etc/profile.d/omnia-env.sh exists\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }
