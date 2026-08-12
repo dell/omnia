@@ -296,7 +296,9 @@ def pytest_sessionstart(session):
         cred_result = sync_build_credentials(host)
         if cred_result["success"]:
             if cred_result["details"]:
-                log(cred_result["details"], "OK")
+                # Distinguish between "synced" and "skipped (empty)" messages
+                level = "WARN" if "skipping sync" in cred_result["details"] else "OK"
+                log(cred_result["details"], level)
         else:
             log(
                 f"Build credential sync failed: {cred_result['error']}",

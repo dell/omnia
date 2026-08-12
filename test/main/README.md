@@ -48,7 +48,7 @@ test/main/
 │       ├── __init__.py
 │       └── omnia_main_msgs.py
 ├── fvt/                     # Functional Verification Tests
-│   ├── TEST_CASES.md        # Test case registry (FVT + NFT)
+│   ├── README.md            # Test case registry (FVT + NFT)
 │   ├── setup/               # omnia.sh --setup-venv tests
 │   │   ├── test_deploy_setup.py
 │   │   ├── environment/     # Env file and variable tests

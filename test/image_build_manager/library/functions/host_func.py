@@ -258,12 +258,18 @@ def sync_build_credentials(host) -> Dict[str, Any]:
     # Extract build-specific fields
     build_creds = {k: creds.get(k, "") for k in _BUILD_CRED_FIELDS}
 
-    # Skip if all build credential fields are empty
+    # Check if build credential fields have values
     has_values = any(v for v in build_creds.values())
     if not has_values:
         return {
             "success": True,
-            "details": "No build credentials in test_creds.yml — skipping sync",
+            "details": (
+                "No build credentials in test_creds.yml — skipping sync. "
+                "The collect_build_credentials role will prompt interactively "
+                "for mandatory fields (s3_secret_key). To set credentials "
+                "non-interactively, run: "
+                "bash setup_env.sh --set-domain-creds"
+            ),
             "error": "",
         }
 

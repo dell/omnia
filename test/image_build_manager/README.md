@@ -65,8 +65,8 @@ bash setup_env.sh --venv --force     # Recreate .venv/ from scratch
 bash setup_env.sh --set-password     # Interactive prompt (2× confirmation)
 bash setup_env.sh --password 'pass'  # Non-interactive
 
-# Step 4b — Set image build credentials (S3 + aarch64)
-bash setup_env.sh --set-build-creds  # Interactive prompt for S3 access/secret + aarch64 pw
+# Step 4b — Set domain credentials (S3 + aarch64)
+bash setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret + aarch64 pw
 
 # Step 5 — Activate environment (if using --venv mode)
 source .venv/bin/activate            # For --venv mode
@@ -95,7 +95,9 @@ cd ../..
 ### Credential Management
 
 All credentials are stored in `test_creds.yml` and auto-encrypted with Ansible Vault.
-`oim_server_ip` must be set in `test_config.yml` for any credential flag to work.
+SSH credential flags require `oim_server_ip` to be set in `test_config.yml`.
+Domain credential flags (`--set-domain-creds` / `--domain-creds`) do **not** require
+`oim_server_ip` — they only write to the local `test_creds.yml` file.
 
 #### SSH Credentials (OIM server access)
 
@@ -105,12 +107,13 @@ All credentials are stored in `test_creds.yml` and auto-encrypted with Ansible V
 | `--update-password` | Force-update existing SSH password (no confirmation prompt). |
 | `--password PWD` | Non-interactive. Overwrites any existing SSH credentials. |
 
-#### Image Build Credentials (S3 / aarch64)
+#### Domain Credentials (S3 / aarch64)
 
 The image build playbook (`image_build_manager.yml`) requires access to S3/MinIO
 for image storage and optionally to a remote aarch64 host.  These credentials are
 stored alongside the SSH password in `test_creds.yml` (vault-encrypted) and are
 read by `collect_build_credentials` during the test deployment step.
+These flags do **not** require `oim_server_ip` — they only write to the local file.
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -120,13 +123,13 @@ read by `collect_build_credentials` during the test deployment step.
 
 | Flag | Description |
 |------|-------------|
-| `--set-build-creds` | Interactive prompt for S3 access ID, secret, and aarch64 password. |
-| `--build-creds JSON` | Non-interactive. Pass a JSON string with `s3_access_id`, `s3_secret_key`, `aarch64_ssh_password`. |
+| `--set-domain-creds` | Interactive prompt for S3 access ID, secret, and aarch64 password. |
+| `--domain-creds JSON` | Non-interactive. Pass a JSON string with `s3_access_id`, `s3_secret_key`, `aarch64_ssh_password`. |
 
-> **Note**: `--set-password` and `--set-build-creds` are independent — run each separately, or combine in one invocation:
+> **Note**: `--set-password` and `--set-domain-creds` are independent — run each separately, or combine in one invocation:
 > ```bash
-> bash setup_env.sh --set-password     # sets oim_password
-> bash setup_env.sh --set-build-creds  # sets S3 + aarch64 creds
+> bash setup_env.sh --set-password      # sets oim_password (requires oim_server_ip)
+> bash setup_env.sh --set-domain-creds  # sets S3 + aarch64 creds (no oim_server_ip needed)
 > ```
 > Existing fields not updated by a given flag are **preserved**.
 

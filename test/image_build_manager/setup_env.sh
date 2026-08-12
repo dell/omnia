@@ -30,15 +30,17 @@
 #     --update-password    — Force-update existing SSH password (prompt twice).
 #     --password <pass>    — Set SSH password directly via flag (non-interactive).
 #
-#   Image build credentials (S3 / aarch64):
-#     --set-build-creds    — Interactive prompt for S3 access ID, S3 secret key,
+#   Domain credentials (S3 / aarch64):
+#     --set-domain-creds   — Interactive prompt for S3 access ID, S3 secret key,
 #                            and (optional) aarch64 SSH password.
 #                            If creds already exist, asks yes/no to update.
-#     --build-creds <json> — Set all build credentials non-interactively.
+#     --domain-creds <json> — Set all domain credentials non-interactively.
 #                            Pass as JSON: '{"s3_access_id":"x","s3_secret_key":"y"}'
 #
 #   All credentials are written to test_creds.yml and encrypted with ansible-vault.
-#   All credential flags require oim_server_ip to be set in test_config.yml.
+#   SSH credential flags require oim_server_ip to be set in test_config.yml.
+#   Domain credential flags (--set-domain-creds / --domain-creds) do NOT require
+#   oim_server_ip — they only write to the local test_creds.yml file.
 #
 # Usage:
 #   bash setup_env.sh                        # Baremetal or active venv
@@ -47,7 +49,7 @@
 #   bash setup_env.sh --set-password         # Prompt for SSH password
 #   bash setup_env.sh --update-password      # Update existing SSH password
 #   bash setup_env.sh --password "secret"    # Set SSH password via flag
-#   bash setup_env.sh --set-build-creds      # Prompt for S3 + aarch64 creds
+#   bash setup_env.sh --set-domain-creds     # Prompt for S3 + aarch64 creds
 #   bash setup_env.sh --debug                # Verbose pip output
 #   bash setup_env.sh --help                 # Show this help
 # =============================================================================
@@ -85,8 +87,8 @@ PIP_QUIET="--quiet"
 SET_PASSWORD=false
 UPDATE_PASSWORD=false
 PASSWORD_VALUE=""
-SET_BUILD_CREDS=false
-BUILD_CREDS_JSON=""
+SET_DOMAIN_CREDS=false
+DOMAIN_CREDS_JSON=""
 TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 while [[ $# -gt 0 ]]; do
@@ -103,12 +105,12 @@ while [[ $# -gt 0 ]]; do
             PASSWORD_VALUE="$2"
             shift 2
             ;;
-        --set-build-creds) SET_BUILD_CREDS=true; shift ;;
-        --build-creds)
+        --set-domain-creds) SET_DOMAIN_CREDS=true; shift ;;
+        --domain-creds)
             if [[ $# -lt 2 ]]; then
-                fail "--build-creds requires a JSON value. Usage: --build-creds '{\"s3_access_id\":\"x\",\"s3_secret_key\":\"y\"}'"
+                fail "--domain-creds requires a JSON value. Usage: --domain-creds '{\"s3_access_id\":\"x\",\"s3_secret_key\":\"y\"}'"
             fi
-            BUILD_CREDS_JSON="$2"
+            DOMAIN_CREDS_JSON="$2"
             shift 2
             ;;
         --help|-h)
@@ -135,9 +137,9 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "CREDENTIAL MANAGEMENT — SSH (OIM server access)"
             echo "─────────────────────────────────────────────────────────────────"
-            echo "  All credentials are stored in test_creds.yml and encrypted with"
+            echo "  SSH credentials are stored in test_creds.yml and encrypted with"
             echo "  Ansible Vault automatically.  oim_server_ip must be set in"
-            echo "  test_config.yml for any credential flag to work."
+            echo "  test_config.yml for SSH credential flags to work."
             echo ""
             echo "  --set-password  Interactive SSH password setup. Prompts twice for"
             echo "                  confirmation. If already set, asks yes/no to update."
@@ -148,13 +150,15 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "  --password PWD  Non-interactive SSH password set (overwrites existing)."
             echo ""
-            echo "CREDENTIAL MANAGEMENT — Image Build (S3 / aarch64)"
+            echo "CREDENTIAL MANAGEMENT — Domain (S3 / aarch64)"
             echo "─────────────────────────────────────────────────────────────────"
-            echo "  These credentials are passed to the image build playbook via the"
-            echo "  image_build_credentials.yml input file.  They are stored alongside"
-            echo "  the SSH password in test_creds.yml (vault-encrypted)."
+            echo "  These credentials are passed to the playbook via the domain"
+            echo "  credentials input file.  They are stored alongside the SSH"
+            echo "  password in test_creds.yml (vault-encrypted)."
+            echo "  NOTE: These flags do NOT require oim_server_ip — they only"
+            echo "  write to the local test_creds.yml file."
             echo ""
-            echo "  --set-build-creds"
+            echo "  --set-domain-creds"
             echo "                  Interactive prompt for:"
             echo "                    s3_access_id       — MinIO / S3 access key"
             echo "                    s3_secret_key      — MinIO / S3 secret key"
@@ -162,10 +166,10 @@ while [[ $# -gt 0 ]]; do
             echo "                                           (leave blank if not used)"
             echo "                  If already set, asks yes/no to update each field."
             echo ""
-            echo "  --build-creds JSON"
-            echo "                  Non-interactive build cred set via JSON string."
+            echo "  --domain-creds JSON"
+            echo "                  Non-interactive domain cred set via JSON string."
             echo "                  Example:"
-            echo "                    --build-creds '{\"s3_access_id\":\"key\",\"s3_secret_key\":\"sec\"}'"
+            echo "                    --domain-creds '{\"s3_access_id\":\"key\",\"s3_secret_key\":\"sec\"}'"
             echo ""
             echo "OTHER OPTIONS"
             echo "─────────────────────────────────────────────────────────────────"
@@ -181,7 +185,7 @@ while [[ $# -gt 0 ]]; do
             echo "  bash setup_env.sh --set-password           # Set SSH password (prompt)"
             echo "  bash setup_env.sh --update-password        # Update existing SSH password"
             echo "  bash setup_env.sh --password 'mypass'      # Set SSH password (inline)"
-            echo "  bash setup_env.sh --set-build-creds        # Set S3 + aarch64 creds (prompt)"
+            echo "  bash setup_env.sh --set-domain-creds       # Set S3 + aarch64 creds (prompt)"
             echo "  bash setup_env.sh --venv --set-password    # Venv + SSH password prompt"
             echo "  bash setup_env.sh --debug                  # Verbose pip output"
             echo ""
@@ -425,7 +429,7 @@ _prompt_build_creds() {
     if [ -n "$_new_key1" ]; then
         read -s -r -p "  Confirm:       " _new_key2; echo ""
         if [ "$_new_key1" != "$_new_key2" ]; then
-            fail "S3 secret keys do not match. Re-run --set-build-creds."
+            fail "S3 secret keys do not match. Re-run --set-domain-creds."
         fi
     else
         _s3_key="$_existing_key"
@@ -532,38 +536,37 @@ elif [ "$SET_PASSWORD" = true ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Image build credential dispatch  (--set-build-creds / --build-creds)
+# Domain credential dispatch  (--set-domain-creds / --domain-creds)
+# NOTE: These do NOT require oim_server_ip — they only write to local test_creds.yml.
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -n "$BUILD_CREDS_JSON" ]; then
-    # --build-creds JSON: non-interactive (parse s3_access_id, s3_secret_key, aarch64_ssh_password)
-    _check_oim_server_ip
-    info "Setting image build credentials from --build-creds flag"
-    _s3_id=$(echo "$BUILD_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('s3_access_id',''))" 2>/dev/null || true)
-    _s3_key=$(echo "$BUILD_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('s3_secret_key',''))" 2>/dev/null || true)
-    _aarch64=$(echo "$BUILD_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('aarch64_ssh_password',''))" 2>/dev/null || true)
+if [ -n "$DOMAIN_CREDS_JSON" ]; then
+    # --domain-creds JSON: non-interactive (parse s3_access_id, s3_secret_key, aarch64_ssh_password)
+    info "Setting domain credentials from --domain-creds flag"
+    _s3_id=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('s3_access_id',''))" 2>/dev/null || true)
+    _s3_key=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('s3_secret_key',''))" 2>/dev/null || true)
+    _aarch64=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('aarch64_ssh_password',''))" 2>/dev/null || true)
     _create_and_encrypt_creds "" "$_s3_id" "$_s3_key" "$_aarch64"
-    ok "Image build credentials set"
+    ok "Domain credentials set"
 
-elif [ "$SET_BUILD_CREDS" = true ]; then
-    # --set-build-creds: interactive prompt
-    _check_oim_server_ip
+elif [ "$SET_DOMAIN_CREDS" = true ]; then
+    # --set-domain-creds: interactive prompt
     _prompt_build_creds
-    ok "Image build credentials saved to test_creds.yml"
+    ok "Domain credentials saved to test_creds.yml"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -z "$PASSWORD_VALUE" ] && [ "$UPDATE_PASSWORD" = false ] && [ "$SET_PASSWORD" = false ] \
-   && [ -z "$BUILD_CREDS_JSON" ] && [ "$SET_BUILD_CREDS" = false ]; then
+   && [ -z "$DOMAIN_CREDS_JSON" ] && [ "$SET_DOMAIN_CREDS" = false ]; then
     if [ -f "$CREDS_FILE" ]; then
         ok "Credentials file exists: test_creds.yml"
-        ok "SSH:   re-run with --set-password or --update-password to change"
-        ok "Build: re-run with --set-build-creds to update S3/aarch64 creds"
+        ok "SSH:    re-run with --set-password or --update-password to change"
+        ok "Domain: re-run with --set-domain-creds to update S3/aarch64 creds"
     else
         warn "No credentials file found (test_creds.yml)"
-        warn "SSH creds:   bash setup_env.sh --set-password"
-        warn "Build creds: bash setup_env.sh --set-build-creds"
+        warn "SSH creds:    bash setup_env.sh --set-password"
+        warn "Domain creds: bash setup_env.sh --set-domain-creds"
     fi
 fi
 

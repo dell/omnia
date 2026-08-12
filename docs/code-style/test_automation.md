@@ -76,7 +76,7 @@ Every domain test module must follow this structure:
 test/<domain_name>/
 ├── conftest.py                    # Session setup, omnia_auto.configure()
 ├── test_config.yml                # Non-sensitive settings (IP, paths)
-├── test_creds.yml                 # Sensitive credentials (auto-encrypted)
+├── test_creds.yml                 # SSH + domain credentials (auto-encrypted)
 ├── requirements.txt               # Dependencies including omnia-auto wheel
 ├── run_validation.sh              # CLI runner
 ├── setup_env.sh                   # One-time venv + tab-completion setup
@@ -99,7 +99,7 @@ test/<domain_name>/
 │   └── messages/
 │       └── <domain_name>_msgs.py  # TEST_LOG_MSGS, TEST_ASSERT_MSGS
 ├── fvt/                           # Functional Verification Tests
-│   ├── TEST_CASES.md              # All FVT test cases documented
+│   ├── README.md                  # All FVT test cases documented
 │   ├── <scenario>/                # One dir per playbook tag
 │   │   ├── test_playbook.py       # Deploy test
 │   │   └── <suite>/test_<suite>.py
@@ -788,8 +788,11 @@ cd ../..
 # Step 4: Configure test settings
 vi test_config.yml        # Set oim_server_ip, dataset, paths, options
 
-# Step 5: Set SSH password (remote mode only)
+# Step 5: Set SSH password (remote mode only, requires oim_server_ip)
 bash setup_env.sh --set-password
+
+# Step 5b: Set domain credentials (e.g., S3/MinIO — no oim_server_ip needed)
+bash setup_env.sh --set-domain-creds
 ```
 
 `setup_env.sh` installs all dependencies from `requirements.txt` (including `omnia-auto`
@@ -842,7 +845,7 @@ Write code -> Run tests -> Fix failures -> Re-run tests -> All pass -> Push
 7. Add TC entry to test_case_vars.py
 8. Write the test in fvt/<scenario>/<suite>/
 9. Add messages to <domain_name>_msgs.py
-10. Add TC ID to fvt/TEST_CASES.md
+10. Add TC ID to fvt/README.md
 11. Run pylint + bandit + tests
 12. Push
 ```
@@ -975,7 +978,7 @@ Before submitting a PR, verify:
 - [ ] Bandit: zero high-severity findings
 - [ ] No hardcoded IPs, passwords, tokens
 - [ ] All commits signed off (`git commit -s`)
-- [ ] TEST_CASES.md updated with new test cases
+- [ ] fvt/README.md updated with new test cases
 
 ### Co-Change
 - [ ] PR that changes `src/` includes corresponding `test/` updates (or justification in PR description)
