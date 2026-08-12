@@ -19,13 +19,13 @@
 # that can coexist in the same OCI registry and S3 bucket without overwriting
 # each other.
 #
-#   image-builder    →  suffix "-ib"   e.g. rhel-x86_64-base-ib
-#   image-thrillhouse →  suffix "-th"   e.g. rhel-x86_64-base-th
+#   image-builder     →  suffix "-imgbld"   e.g. rhel-x86_64-base-imgbld
+#   image-thrillhouse →  suffix "-imgth"    e.g. rhel-x86_64-base-imgth
 #
 # Suffix is preferred over prefix so alphabetic registry/S3 listings keep all
 # "rhel-*" images grouped together; the engine qualifier trails the semantic name.
 # ---------------------------------------------------------------------------
-_build_type_suffix: "{{ (_is_thrillhouse | bool) | ternary('-th', '-ib') }}"
+_build_type_suffix: "{{ (_is_thrillhouse | bool) | ternary('-imgth', '-imgbld') }}"
 rhel_arch_base_image_name: "rhel-{{ build_arch }}-base{{ _build_type_suffix }}"
 
 pull_image_retries: "5"

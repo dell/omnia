@@ -77,16 +77,16 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ### Build-type naming convention
 
-These cases verify that the `-ib` / `-th` artifact suffix is applied correctly
+These cases verify that the `-imgbld` / `-imgth` artifact suffix is applied correctly
 so the two build engines never overwrite each other's registry images or S3 objects.
 
 | TC ID | Test | Suite | Markers | image_build_type | Description |
 |-------|------|-------|---------|-----------------|-------------|
-| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | Registry repos carry `-ib` suffix; no `-th` contamination |
-| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | S3 boot-images paths carry `-ib`; no `-th` contamination |
-| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | Registry repos carry `-th` suffix; no `-ib` contamination |
-| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-th`; no `-ib` contamination |
-| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | x86_64, functional | both | `-ib` and `-th` base names never collide in registry or S3 |
+| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | Registry repos carry `-imgbld` suffix; no `-imgth` contamination |
+| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | S3 boot-images paths carry `-imgbld`; no `-imgth` contamination |
+| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | Registry repos carry `-imgth` suffix; no `-imgbld` contamination |
+| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-imgth`; no `-imgbld` contamination |
+| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | x86_64, functional | both | `-imgbld` and `-imgth` base names never collide in registry or S3 |
 
 > **Skip behaviour**: TC_BD_007/008 skip automatically when `image_build_type = image-thrillhouse`
 > and TC_BD_009/010 skip when `image_build_type = image-builder`.  TC_BD_011 runs in all cases.

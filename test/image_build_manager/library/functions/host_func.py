@@ -280,25 +280,29 @@ def sync_build_credentials(host) -> Dict[str, Any]:
     cred_file = f"{remote_input}/{CREDENTIALS_FILE_NAME}"
     vault_key = f"{remote_input}/{CREDENTIALS_KEY_NAME}"
 
-    # Build YAML content matching the template format
-    yaml_content = (
-        "---\n"
-        "# Image build credentials (S3 / MinIO)\n"
-        "# Auto-populated by test framework from test_creds.yml.\n"
-        f's3_access_id: "{build_creds["s3_access_id"]}"\n'
-        f's3_secret_key: "{build_creds["s3_secret_key"]}"\n'
-        "\n"
-        "# SSH password for ARM build host\n"
-        f'aarch64_ssh_password: "{build_creds["aarch64_ssh_password"]}"\n'
+    # Build YAML lines matching the template format.
+    # Use printf + shell redirect instead of heredoc — heredoc is unreliable
+    # through testinfra/paramiko SSH because exec_command runs one command.
+    yaml_lines = [
+        "---",
+        "# Image build credentials (S3 / MinIO)",
+        "# Auto-populated by test framework from test_creds.yml.",
+        f's3_access_id: "{build_creds["s3_access_id"]}"',
+        f's3_secret_key: "{build_creds["s3_secret_key"]}"',
+        "",
+        "# SSH password for ARM build host",
+        f'aarch64_ssh_password: "{build_creds["aarch64_ssh_password"]}"',
+    ]
+    # Escape for shell single-quoted printf: backslashes and single quotes.
+    # In shell single quotes, the only char that needs escaping is ' itself,
+    # done via '\'' (end quote, escaped quote, reopen quote).
+    escaped = r"\n".join(
+        line.replace("\\", "\\\\").replace("'", "'\\''")
+        for line in yaml_lines
     )
 
-    # Write to target
-    write_cmd = (
-        f"cat > {cred_file} << 'CRED_EOF'\n"
-        f"{yaml_content}"
-        "CRED_EOF\n"
-        f"chmod 600 {cred_file}"
-    )
+    # Write to target via printf (single-line command, no heredoc)
+    write_cmd = f"printf '{escaped}\\n' > {cred_file} && chmod 600 {cred_file}"
     result = run_on_host(host, write_cmd)
     if result.rc != 0:
         return {
