@@ -24,11 +24,20 @@
 #   New venv (--venv)    — Creates .venv/ and installs there
 #
 # CREDENTIAL HANDLING:
-#   --set-password       — Prompt for SSH password (asks twice for confirmation).
-#                          If password already exists, asks yes/no to update.
-#   --update-password    — Force-update existing password (prompt twice).
-#   --password <pass>    — Set password directly via flag (non-interactive).
-#   Credentials are written to test_creds.yml and encrypted with ansible-vault.
+#   SSH credentials (OIM server):
+#     --set-password       — Prompt for SSH password (asks twice for confirmation).
+#                            If password already exists, asks yes/no to update.
+#     --update-password    — Force-update existing SSH password (prompt twice).
+#     --password <pass>    — Set SSH password directly via flag (non-interactive).
+#
+#   Image build credentials (S3 / aarch64):
+#     --set-build-creds    — Interactive prompt for S3 access ID, S3 secret key,
+#                            and (optional) aarch64 SSH password.
+#                            If creds already exist, asks yes/no to update.
+#     --build-creds <json> — Set all build credentials non-interactively.
+#                            Pass as JSON: '{"s3_access_id":"x","s3_secret_key":"y"}'
+#
+#   All credentials are written to test_creds.yml and encrypted with ansible-vault.
 #   All credential flags require oim_server_ip to be set in test_config.yml.
 #
 # Usage:
@@ -36,8 +45,9 @@
 #   bash setup_env.sh --venv                 # Create .venv/ and install there
 #   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
 #   bash setup_env.sh --set-password         # Prompt for SSH password
-#   bash setup_env.sh --update-password      # Update existing password
-#   bash setup_env.sh --password "secret"    # Set password via flag
+#   bash setup_env.sh --update-password      # Update existing SSH password
+#   bash setup_env.sh --password "secret"    # Set SSH password via flag
+#   bash setup_env.sh --set-build-creds      # Prompt for S3 + aarch64 creds
 #   bash setup_env.sh --debug                # Verbose pip output
 #   bash setup_env.sh --help                 # Show this help
 # =============================================================================
@@ -75,6 +85,8 @@ PIP_QUIET="--quiet"
 SET_PASSWORD=false
 UPDATE_PASSWORD=false
 PASSWORD_VALUE=""
+SET_BUILD_CREDS=false
+BUILD_CREDS_JSON=""
 TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 while [[ $# -gt 0 ]]; do
@@ -89,6 +101,14 @@ while [[ $# -gt 0 ]]; do
                 fail "--password requires a value. Usage: --password <PASSWORD>"
             fi
             PASSWORD_VALUE="$2"
+            shift 2
+            ;;
+        --set-build-creds) SET_BUILD_CREDS=true; shift ;;
+        --build-creds)
+            if [[ $# -lt 2 ]]; then
+                fail "--build-creds requires a JSON value. Usage: --build-creds '{\"s3_access_id\":\"x\",\"s3_secret_key\":\"y\"}'"
+            fi
+            BUILD_CREDS_JSON="$2"
             shift 2
             ;;
         --help|-h)
@@ -113,27 +133,39 @@ while [[ $# -gt 0 ]]; do
             echo "  --force         Only used with --venv. Deletes the existing .venv/"
             echo "                  directory and recreates it from scratch."
             echo ""
-            echo "CREDENTIAL MANAGEMENT"
+            echo "CREDENTIAL MANAGEMENT — SSH (OIM server access)"
             echo "─────────────────────────────────────────────────────────────────"
-            echo "  Credentials are required for remote mode (when oim_server_ip is"
-            echo "  configured in test_config.yml). The SSH password is saved to"
-            echo "  test_creds.yml and encrypted with Ansible Vault automatically."
+            echo "  All credentials are stored in test_creds.yml and encrypted with"
+            echo "  Ansible Vault automatically.  oim_server_ip must be set in"
+            echo "  test_config.yml for any credential flag to work."
             echo ""
-            echo "  --set-password  Interactive password setup. Prompts for the SSH"
-            echo "                  password twice (for confirmation). If a password"
-            echo "                  is already set, asks whether to update it."
-            echo "                  Requires oim_server_ip to be set in test_config.yml."
+            echo "  --set-password  Interactive SSH password setup. Prompts twice for"
+            echo "                  confirmation. If already set, asks yes/no to update."
             echo ""
             echo "  --update-password"
-            echo "                  Force-update an existing password. Prompts for a"
-            echo "                  new password twice (for confirmation). Overwrites"
-            echo "                  the existing test_creds.yml and re-encrypts it."
-            echo "                  Requires oim_server_ip to be set in test_config.yml."
+            echo "                  Force-update the existing SSH password. Prompts twice."
+            echo "                  Overwrites test_creds.yml and re-encrypts."
             echo ""
-            echo "  --password PWD  Non-interactive password setup. Creates test_creds.yml"
-            echo "                  with the given password and encrypts it immediately."
-            echo "                  Overwrites any existing credentials without prompting."
-            echo "                  Requires oim_server_ip to be set in test_config.yml."
+            echo "  --password PWD  Non-interactive SSH password set (overwrites existing)."
+            echo ""
+            echo "CREDENTIAL MANAGEMENT — Image Build (S3 / aarch64)"
+            echo "─────────────────────────────────────────────────────────────────"
+            echo "  These credentials are passed to the image build playbook via the"
+            echo "  image_build_credentials.yml input file.  They are stored alongside"
+            echo "  the SSH password in test_creds.yml (vault-encrypted)."
+            echo ""
+            echo "  --set-build-creds"
+            echo "                  Interactive prompt for:"
+            echo "                    s3_access_id       — MinIO / S3 access key"
+            echo "                    s3_secret_key      — MinIO / S3 secret key"
+            echo "                    aarch64_ssh_password — aarch64 build host password"
+            echo "                                           (leave blank if not used)"
+            echo "                  If already set, asks yes/no to update each field."
+            echo ""
+            echo "  --build-creds JSON"
+            echo "                  Non-interactive build cred set via JSON string."
+            echo "                  Example:"
+            echo "                    --build-creds '{\"s3_access_id\":\"key\",\"s3_secret_key\":\"sec\"}'"
             echo ""
             echo "OTHER OPTIONS"
             echo "─────────────────────────────────────────────────────────────────"
@@ -147,15 +179,16 @@ while [[ $# -gt 0 ]]; do
             echo "  bash setup_env.sh --venv                   # Create .venv/ and install"
             echo "  bash setup_env.sh --venv --force            # Recreate .venv/ from scratch"
             echo "  bash setup_env.sh --set-password           # Set SSH password (prompt)"
-            echo "  bash setup_env.sh --update-password        # Update existing password"
-            echo "  bash setup_env.sh --password 'mypass'      # Set password (non-interactive)"
-            echo "  bash setup_env.sh --venv --set-password    # Venv + password prompt"
+            echo "  bash setup_env.sh --update-password        # Update existing SSH password"
+            echo "  bash setup_env.sh --password 'mypass'      # Set SSH password (inline)"
+            echo "  bash setup_env.sh --set-build-creds        # Set S3 + aarch64 creds (prompt)"
+            echo "  bash setup_env.sh --venv --set-password    # Venv + SSH password prompt"
             echo "  bash setup_env.sh --debug                  # Verbose pip output"
             echo ""
             echo "FILES"
             echo "─────────────────────────────────────────────────────────────────"
             echo "  test_config.yml       Target server IP and sync settings"
-            echo "  test_creds.yml        SSH credentials (auto-encrypted, gitignored)"
+            echo "  test_creds.yml        All credentials: SSH + S3 + aarch64 (encrypted)"
             echo "  .test_creds.key       Vault encryption key (auto-generated, gitignored)"
             echo "  .run_validation_rc    Sourceable shell snippet (baremetal mode)"
             echo "  requirements.txt      Python dependencies"
@@ -276,26 +309,17 @@ _check_oim_server_ip() {
     ok "Target server: ${oim_ip}"
 }
 
-_create_and_encrypt_creds() {
-    local _secret="$1"
-
-    # Write plain-text creds file
-    cat > "$CREDS_FILE" << CREDS_EOF
----
-# SSH credentials for remote OIM server.
-# This file is auto-encrypted with Ansible Vault.
-oim_password: "${_secret}"
-CREDS_EOF
-    chmod 600 "$CREDS_FILE"
-
-    # Create vault key if not exists
+# _ensure_vault_key — creates .test_creds.key if it does not yet exist.
+_ensure_vault_key() {
     if [ ! -f "$CREDS_KEY" ]; then
         info "Generating vault key: .test_creds.key"
         python3 -c "import secrets; print(secrets.token_urlsafe(32)[:32])" > "$CREDS_KEY"
         chmod 600 "$CREDS_KEY"
     fi
+}
 
-    # Encrypt with ansible-vault
+# _vault_encrypt — encrypt (or re-encrypt) CREDS_FILE.
+_vault_encrypt() {
     if command -v ansible-vault &>/dev/null; then
         ansible-vault encrypt "$CREDS_FILE" --vault-password-file "$CREDS_KEY" 2>/dev/null
         ok "Credentials encrypted: test_creds.yml"
@@ -303,6 +327,120 @@ CREDS_EOF
         warn "ansible-vault not found — credentials saved as plain text"
         warn "Install ansible-core and re-run to encrypt"
     fi
+}
+
+# _read_existing_field <field> — read a plain-text field value from CREDS_FILE.
+# Works only before encryption.  Returns empty string if field not found.
+_read_existing_field() {
+    local _field="$1"
+    grep -E "^${_field}:" "$CREDS_FILE" 2>/dev/null \
+        | sed "s/^${_field}:[[:space:]]*//; s/[\"']//g" || true
+}
+
+# _decrypt_creds_temp — decrypt CREDS_FILE to a temp file.
+# Sets DECRYPTED_CREDS_TMP and caller MUST clean it up.
+_decrypt_creds_temp() {
+    DECRYPTED_CREDS_TMP=$(mktemp)
+    if command -v ansible-vault &>/dev/null && grep -q '^\$ANSIBLE_VAULT' "$CREDS_FILE" 2>/dev/null; then
+        ansible-vault decrypt --output "$DECRYPTED_CREDS_TMP" \
+            --vault-password-file "$CREDS_KEY" "$CREDS_FILE" 2>/dev/null || true
+    else
+        cp "$CREDS_FILE" "$DECRYPTED_CREDS_TMP"
+    fi
+}
+
+_create_and_encrypt_creds() {
+    # Args:  $1 = oim_password
+    #        $2 = s3_access_id   (optional; keep existing if not provided)
+    #        $3 = s3_secret_key  (optional; keep existing if not provided)
+    #        $4 = aarch64_ssh_password (optional; keep existing if not provided)
+    local _oim_pass="${1:-}"
+    local _s3_id="${2:-}"
+    local _s3_key="${3:-}"
+    local _aarch64_pass="${4:-}"
+
+    # If file already exists, preserve existing values for fields not being updated
+    if [ -f "$CREDS_FILE" ]; then
+        _decrypt_creds_temp
+        [ -z "$_oim_pass" ]     && _oim_pass=$(_read_existing_field "oim_password" < /dev/null; grep -E '^oim_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^oim_password:[[:space:]]*//; s/[\"'\'']//g' || true)
+        [ -z "$_s3_id" ]        && _s3_id=$(grep -E '^s3_access_id:' "$DECRYPTED_CREDS_TMP" | sed 's/^s3_access_id:[[:space:]]*//; s/[\"'\'']//g' || true)
+        [ -z "$_s3_key" ]       && _s3_key=$(grep -E '^s3_secret_key:' "$DECRYPTED_CREDS_TMP" | sed 's/^s3_secret_key:[[:space:]]*//; s/[\"'\'']//g' || true)
+        [ -z "$_aarch64_pass" ] && _aarch64_pass=$(grep -E '^aarch64_ssh_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^aarch64_ssh_password:[[:space:]]*//; s/[\"'\'']//g' || true)
+        rm -f "$DECRYPTED_CREDS_TMP"
+    fi
+
+    # Write plain-text creds file (all fields)
+    cat > "$CREDS_FILE" << CREDS_EOF
+---
+# Image Build Manager — test credentials
+# Auto-encrypted with Ansible Vault.  Do NOT commit this file.
+
+# SSH password for the remote OIM server (oim_server_ip in test_config.yml).
+# Leave empty to use key-based authentication.
+oim_password: "${_oim_pass}"
+
+# Image build credentials — synced to image_build_credentials.yml on the target.
+# Required by the image_build_manager playbook for S3/MinIO access.
+s3_access_id: "${_s3_id}"
+s3_secret_key: "${_s3_key}"
+
+# aarch64 build host SSH password.
+# Required only when aarch64_inventory_host_ip is set in image_build_config.yml.
+# Leave empty for key-based auth or if no aarch64 host is configured.
+aarch64_ssh_password: "${_aarch64_pass}"
+CREDS_EOF
+    chmod 600 "$CREDS_FILE"
+
+    _ensure_vault_key
+    _vault_encrypt
+}
+
+# _prompt_build_creds — interactive prompt for S3 + aarch64 creds.
+# Reads existing values from a decrypted copy; shows current value as default.
+_prompt_build_creds() {
+    local _existing_id="" _existing_key="" _existing_aarch64=""
+
+    if [ -f "$CREDS_FILE" ]; then
+        _decrypt_creds_temp
+        _existing_id=$(grep -E '^s3_access_id:' "$DECRYPTED_CREDS_TMP" | sed 's/^s3_access_id:[[:space:]]*//; s/[\"'\'']//g' || true)
+        _existing_key=$(grep -E '^s3_secret_key:' "$DECRYPTED_CREDS_TMP" | sed 's/^s3_secret_key:[[:space:]]*//; s/[\"'\'']//g' || true)
+        _existing_aarch64=$(grep -E '^aarch64_ssh_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^aarch64_ssh_password:[[:space:]]*//; s/[\"'\'']//g' || true)
+        rm -f "$DECRYPTED_CREDS_TMP"
+    fi
+
+    echo ""
+    echo -e "  ${CYAN}Image Build Credentials — S3/MinIO + aarch64 build host${NC}"
+    echo ""
+
+    # S3 Access ID
+    local _prompt_id="  S3 Access ID"
+    [ -n "$_existing_id" ] && _prompt_id="${_prompt_id} [current: ${_existing_id}]"
+    read -r -p "${_prompt_id}: " _new_id
+    local _s3_id="${_new_id:-$_existing_id}"
+
+    # S3 Secret Key (masked)
+    echo -e "  S3 Secret Key ${CYAN}(hidden input)${NC}:"
+    read -s -r -p "  S3 Secret Key: " _new_key1; echo ""
+    local _s3_key="$_new_key1"
+    if [ -n "$_new_key1" ]; then
+        read -s -r -p "  Confirm:       " _new_key2; echo ""
+        if [ "$_new_key1" != "$_new_key2" ]; then
+            fail "S3 secret keys do not match. Re-run --set-build-creds."
+        fi
+    else
+        _s3_key="$_existing_key"
+        warn "S3 secret key unchanged (press Enter to keep existing)."
+    fi
+
+    # aarch64 SSH password (optional)
+    local _prompt_aarch64="  aarch64 SSH password (optional — press Enter to skip/keep)"
+    [ -n "$_existing_aarch64" ] && _prompt_aarch64="${_prompt_aarch64} [set]"
+    read -s -r -p "${_prompt_aarch64}: " _new_aarch64; echo ""
+    local _aarch64_pass="${_new_aarch64:-$_existing_aarch64}"
+
+    echo ""
+    # Write back preserving oim_password
+    _create_and_encrypt_creds "" "$_s3_id" "$_s3_key" "$_aarch64_pass"
 }
 
 # Prompt for credential with 2× confirmation
@@ -343,8 +481,11 @@ _ask_yes_no() {
     done
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SSH credential dispatch
+# ─────────────────────────────────────────────────────────────────────────────
 if [ -n "$PASSWORD_VALUE" ]; then
-    # Password passed via --password flag (non-interactive)
+    # --password: non-interactive SSH password set
     _check_oim_server_ip
     info "Setting SSH password from --password flag"
     _create_and_encrypt_creds "$PASSWORD_VALUE"
@@ -357,27 +498,28 @@ elif [ "$UPDATE_PASSWORD" = true ]; then
     fi
     echo ""
     echo -e "  ${CYAN}Update SSH password for the target OIM server.${NC}"
-    echo -e "  ${CYAN}This will overwrite test_creds.yml and re-encrypt it.${NC}"
+    echo -e "  ${CYAN}Existing S3 and aarch64 credentials are preserved.${NC}"
     echo ""
     _cred_input=$(_prompt_credential)
     _create_and_encrypt_creds "$_cred_input"
-    ok "Password updated successfully"
+    ok "SSH password updated successfully"
 
 elif [ "$SET_PASSWORD" = true ]; then
     # --set-password: check if already set, ask to update
     _check_oim_server_ip
 
     if [ -f "$CREDS_FILE" ]; then
-        warn "Password is already set (test_creds.yml exists)."
-        if _ask_yes_no "  Do you want to update the password?"; then
+        warn "SSH password is already set (test_creds.yml exists)."
+        if _ask_yes_no "  Do you want to update the SSH password?"; then
             echo ""
             echo -e "  ${CYAN}Enter new SSH password for the target OIM server.${NC}"
+            echo -e "  ${CYAN}Existing S3 and aarch64 credentials are preserved.${NC}"
             echo ""
             _cred_input=$(_prompt_credential)
             _create_and_encrypt_creds "$_cred_input"
-            ok "Password updated successfully"
+            ok "SSH password updated successfully"
         else
-            ok "Password update skipped. Existing credentials kept."
+            ok "SSH password update skipped. Existing credentials kept."
         fi
     else
         echo ""
@@ -387,15 +529,41 @@ elif [ "$SET_PASSWORD" = true ]; then
         _cred_input=$(_prompt_credential)
         _create_and_encrypt_creds "$_cred_input"
     fi
+fi
 
-else
-    # No password flags — check if creds file exists
+# ─────────────────────────────────────────────────────────────────────────────
+# Image build credential dispatch  (--set-build-creds / --build-creds)
+# ─────────────────────────────────────────────────────────────────────────────
+if [ -n "$BUILD_CREDS_JSON" ]; then
+    # --build-creds JSON: non-interactive (parse s3_access_id, s3_secret_key, aarch64_ssh_password)
+    _check_oim_server_ip
+    info "Setting image build credentials from --build-creds flag"
+    _s3_id=$(echo "$BUILD_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('s3_access_id',''))" 2>/dev/null || true)
+    _s3_key=$(echo "$BUILD_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('s3_secret_key',''))" 2>/dev/null || true)
+    _aarch64=$(echo "$BUILD_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('aarch64_ssh_password',''))" 2>/dev/null || true)
+    _create_and_encrypt_creds "" "$_s3_id" "$_s3_key" "$_aarch64"
+    ok "Image build credentials set"
+
+elif [ "$SET_BUILD_CREDS" = true ]; then
+    # --set-build-creds: interactive prompt
+    _check_oim_server_ip
+    _prompt_build_creds
+    ok "Image build credentials saved to test_creds.yml"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# No credential flags — status report
+# ─────────────────────────────────────────────────────────────────────────────
+if [ -z "$PASSWORD_VALUE" ] && [ "$UPDATE_PASSWORD" = false ] && [ "$SET_PASSWORD" = false ] \
+   && [ -z "$BUILD_CREDS_JSON" ] && [ "$SET_BUILD_CREDS" = false ]; then
     if [ -f "$CREDS_FILE" ]; then
         ok "Credentials file exists: test_creds.yml"
-        ok "To update, re-run with: --set-password or --update-password"
+        ok "SSH:   re-run with --set-password or --update-password to change"
+        ok "Build: re-run with --set-build-creds to update S3/aarch64 creds"
     else
         warn "No credentials file found (test_creds.yml)"
-        warn "For remote mode, run: bash setup_env.sh --set-password"
+        warn "SSH creds:   bash setup_env.sh --set-password"
+        warn "Build creds: bash setup_env.sh --set-build-creds"
     fi
 fi
 

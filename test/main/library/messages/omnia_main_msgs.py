@@ -96,6 +96,22 @@ TEST_NAMES: Dict[str, str] = {
         "Verify Galaxy collections installed in venv"
     ),
 
+    # Init verification — domain input staging (per domain)
+    "domain_input_staged_orchestrator": (
+        "Verify domain input files staged for orchestrator"
+    ),
+    "domain_input_staged_discovery": (
+        "Verify domain input files staged for discovery"
+    ),
+
+    # CLI verification — --cleanup / --catalog
+    "cleanup_in_help": (
+        "Verify --cleanup flag appears in help output"
+    ),
+    "catalog_in_help": (
+        "Verify --catalog flag appears in help output"
+    ),
+
     # omnia-cli verification
     "cli_help_output": (
         "Verify omnia-cli help returns usage text"
@@ -207,6 +223,20 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "input_not_staged": (
         "No input files staged for {domain}"
+    ),
+
+    # Cleanup / Catalog CLI
+    "cleanup_in_help_ok": (
+        "--cleanup flag found in help output"
+    ),
+    "cleanup_not_in_help": (
+        "--cleanup flag NOT found in help output"
+    ),
+    "catalog_in_help_ok": (
+        "--catalog flag found in help output"
+    ),
+    "catalog_not_in_help": (
+        "--catalog flag NOT found in help output"
     ),
 
     # CLI
@@ -490,6 +520,28 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Run omnia.sh --setup-venv first\n"
         "\u2551   2. Check OMNIA_DATA_PATH is accessible\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "cleanup_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --CLEANUP FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--cleanup' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --cleanup to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "catalog_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --CATALOG FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--catalog' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --catalog to omnia.sh show_help()\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

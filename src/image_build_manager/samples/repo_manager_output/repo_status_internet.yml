@@ -38,6 +38,13 @@
 # NOTE: CentOS Stream 10 repos are binary-compatible with RHEL 10.0 and
 #       are freely accessible without a subscription.  For production RHEL
 #       deployments, use the subscription-based CDN URLs instead.
+#
+# PRIORITY:
+#   The 'priority' field under each repo is OPTIONAL.
+#   - When present  → used as-is (e.g., priority: 100).
+#   - When absent   → the image builder defaults to 99.
+#   Omitting priority is equivalent to writing priority: 99.
+#   Repos produced by repo_manager may or may not include this field.
 # ============================================================================
 
 overall_status: "success"

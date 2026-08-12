@@ -20,6 +20,7 @@ run_validation setup test        # Setup + verify
 run_validation init test         # Init + verify
 run_validation cli verify        # CLI argument tests
 run_validation omnia_cli test    # omnia-cli diagnostics
+run_validation nft test          # Performance + idempotency NFT
 run_validation all test          # Run all scenarios
 ```
 
@@ -46,23 +47,28 @@ test/main/
 │   └── messages/            # Test messages
 │       ├── __init__.py
 │       └── omnia_main_msgs.py
-└── fvt/                     # Test scenarios
-    ├── TEST_CASES.md        # Test case registry
-    ├── setup/               # omnia.sh --setup-venv tests
-    │   ├── test_deploy_setup.py
-    │   ├── environment/     # Env file and variable tests
-    │   ├── venv/            # Python venv tests
-    │   └── directories/     # Base directory tests
-    ├── init/                # omnia.sh --init tests
-    │   ├── test_deploy_init.py
-    │   └── domain_init/     # Domain-specific init tests
-    ├── cli/                 # CLI argument tests
-    │   ├── test_deploy_cli.py
-    │   └── commands/        # Command error handling tests
-    └── omnia_cli/           # omnia-cli diagnostics tests
-        ├── test_deploy_omnia_cli.py
-        ├── diagnostics/     # status, check, domain commands
-        └── errors/          # Unknown command error tests
+├── fvt/                     # Functional Verification Tests
+│   ├── TEST_CASES.md        # Test case registry (FVT + NFT)
+│   ├── setup/               # omnia.sh --setup-venv tests
+│   │   ├── test_deploy_setup.py
+│   │   ├── environment/     # Env file and variable tests
+│   │   ├── venv/            # Python venv tests
+│   │   └── directories/     # Base directory tests
+│   ├── init/                # omnia.sh --init tests
+│   │   ├── test_deploy_init.py
+│   │   └── domain_init/     # Domain-specific init tests (incl. orchestrator, discovery)
+│   ├── cli/                 # CLI argument tests
+│   │   ├── test_deploy_cli.py
+│   │   └── commands/        # Command error handling + --cleanup/--catalog help tests
+│   └── omnia_cli/           # omnia-cli diagnostics tests
+│       ├── test_deploy_omnia_cli.py
+│       ├── diagnostics/     # status, check, domain commands
+│       └── errors/          # Unknown command error tests
+└── nft/                     # Non-Functional Tests
+    ├── README.md            # NFT test cases and thresholds
+    ├── __init__.py
+    ├── test_performance.py  # Performance threshold tests
+    └── test_idempotency.py  # Idempotency tests
 ```
 
 ## Scenarios
@@ -70,9 +76,10 @@ test/main/
 | Scenario | What It Tests | Deploy Command |
 |----------|--------------|----------------|
 | `setup` | Environment install, venv creation, directory setup | `omnia.sh --setup-venv --deps-only` |
-| `init` | Domain log directories, input file staging | `omnia.sh --init` |
-| `cli` | Help output, error handling, argument parsing | `omnia.sh --help` |
+| `init` | Domain log directories, input file staging (all 6 domains incl. orchestrator + discovery) | `omnia.sh --init` |
+| `cli` | Help output, error handling, --cleanup/--catalog in help, argument parsing | `omnia.sh --help` |
 | `omnia_cli` | Diagnostics CLI: status, check, version, domain queries | `omnia-cli help` |
+| `nft` | Performance thresholds, idempotency (run twice) | `omnia.sh --setup-venv`, `--init` |
 
 ## Markers
 
@@ -81,6 +88,7 @@ test/main/
 | `sanity` | Baseline must-pass tests |
 | `functional` | Functional verification tests |
 | `deploy` | Script execution tests |
+| `nft` | Non-functional tests (performance, idempotency) |
 
 ## Configuration
 

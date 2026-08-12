@@ -29,6 +29,8 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_IN_002 | `test_domain_log_dirs` | domain_init/ | sanity | Verify domain log directories created (/var/log/omnia/<domain>/) |
 | TC_IN_003 | `test_domain_input_staged_image_build_manager` | domain_init/ | sanity | Verify input files staged for image_build_manager |
 | TC_IN_004 | `test_domain_input_staged_repo_manager` | domain_init/ | sanity | Verify input files staged for repo_manager |
+| TC_IN_005 | `test_domain_input_staged_orchestrator` | domain_init/ | sanity | Verify input files staged for orchestrator |
+| TC_IN_006 | `test_domain_input_staged_discovery` | domain_init/ | sanity | Verify input files staged for discovery |
 
 ---
 
@@ -42,6 +44,8 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_004 | `test_run_no_domain` | commands/ | sanity | Verify --run without domain exits with error |
 | TC_CL_005 | `test_deps_only_in_help` | commands/ | sanity | Verify --deps-only flag appears in help output |
 | TC_CL_006 | `test_unknown_option` | commands/ | sanity | Verify unknown option exits with error |
+| TC_CL_007 | `test_cleanup_in_help` | commands/ | sanity | Verify --cleanup flag appears in help output |
+| TC_CL_008 | `test_catalog_in_help` | commands/ | sanity | Verify --catalog flag appears in help output |
 
 ---
 
@@ -60,3 +64,14 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_OC_009 | `test_cli_help_repo_manager` | diagnostics/ | sanity | Verify omnia-cli help repo-manager shows domain help |
 | TC_OC_010 | `test_cli_help_discovery` | diagnostics/ | sanity | Verify omnia-cli help discovery shows domain help |
 | TC_OC_011 | `test_cli_unknown_command` | errors/ | sanity | Verify omnia-cli unknown command exits with error |
+
+---
+
+## nft (Non-Functional Tests)
+
+| TC ID | Test | File | Markers | Description |
+|-------|------|------|---------|-------------|
+| NFT_MA_001 | `test_setup_venv_performance` | nft/test_performance.py | nft | --setup-venv --deps-only completes within 300s threshold |
+| NFT_MA_002 | `test_init_performance` | nft/test_performance.py | nft | --init completes within 120s threshold |
+| NFT_MA_003 | `test_setup_venv_idempotent` | nft/test_idempotency.py | nft | Running --setup-venv twice produces no errors; venv and env file stable |
+| NFT_MA_004 | `test_init_idempotent` | nft/test_idempotency.py | nft | Running --init twice leaves domain log dirs and input files unchanged |

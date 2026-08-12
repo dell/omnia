@@ -13,7 +13,20 @@
 # limitations under the License.
 ---
 # Architecture-agnostic variables — build_arch is set by the calling playbook
-rhel_arch_base_image_name: "rhel-{{ build_arch }}-base"
+# ---------------------------------------------------------------------------
+# Build-type suffix — applied to ALL output artifact names (base image, compute
+# image, S3 prefixes) so the two build engines produce clearly distinct artifacts
+# that can coexist in the same OCI registry and S3 bucket without overwriting
+# each other.
+#
+#   image-builder    →  suffix "-ib"   e.g. rhel-x86_64-base-ib
+#   image-thrillhouse →  suffix "-th"   e.g. rhel-x86_64-base-th
+#
+# Suffix is preferred over prefix so alphabetic registry/S3 listings keep all
+# "rhel-*" images grouped together; the engine qualifier trails the semantic name.
+# ---------------------------------------------------------------------------
+_build_type_suffix: "{{ (_is_thrillhouse | bool) | ternary('-th', '-ib') }}"
+rhel_arch_base_image_name: "rhel-{{ build_arch }}-base{{ _build_type_suffix }}"
 
 pull_image_retries: "5"
 pull_image_delay: "10"
