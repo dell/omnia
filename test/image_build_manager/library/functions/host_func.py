@@ -69,6 +69,7 @@ __all__ = [
     "sync_project_to_remote",
     "sync_image_build_input",
     "sync_repo_manager_output",
+    "sync_build_credentials",
 ]
 
 from ..vars.common_vars import (
@@ -76,6 +77,8 @@ from ..vars.common_vars import (
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     IBM_CONFIG_FILE,
+    CREDENTIALS_FILE_NAME,
+    CREDENTIALS_KEY_NAME,
     SRC_INPUT_DIR,
     SRC_REPO_OUTPUT_DIR,
 )
@@ -212,3 +215,119 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
         ip=conn["ip"], user=conn["user"],
         password=conn["password"], ssh_opts=conn["ssh_opts"],
     )
+
+
+# =============================================================================
+# BUILD CREDENTIAL SYNC
+# =============================================================================
+
+# Fields in test_creds.yml that map to image_build_credentials.yml on the target
+_BUILD_CRED_FIELDS = ["s3_access_id", "s3_secret_key", "aarch64_ssh_password"]
+
+
+def sync_build_credentials(host) -> Dict[str, Any]:
+    """Write S3 and aarch64 credentials from test_creds.yml to the target.
+
+    Bridges the gap between the test framework's credential store
+    (``test_creds.yml``) and the playbook's credential file
+    (``image_build_credentials.yml``).
+
+    Flow:
+        1. Load ``test_creds.yml`` (decrypted via ``load_test_credentials``).
+        2. Extract ``s3_access_id``, ``s3_secret_key``, ``aarch64_ssh_password``.
+        3. If any field has a non-empty value, write them to
+           ``<input_dir>/image_build_credentials.yml`` on the target.
+        4. Encrypt the file with ansible-vault on the target.
+
+    If no build credential fields are populated (all empty strings), the
+    function skips silently — the ``collect_build_credentials`` role will
+    prompt interactively or use the default template values.
+
+    Returns:
+        Dict with 'success', 'details', 'error' keys.
+    """
+    try:
+        creds = load_test_credentials()
+    except (ValueError, OSError) as exc:
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Cannot load test_creds.yml: {exc}",
+        }
+
+    # Extract build-specific fields
+    build_creds = {k: creds.get(k, "") for k in _BUILD_CRED_FIELDS}
+
+    # Skip if all build credential fields are empty
+    has_values = any(v for v in build_creds.values())
+    if not has_values:
+        return {
+            "success": True,
+            "details": "No build credentials in test_creds.yml — skipping sync",
+            "error": "",
+        }
+
+    # Resolve target input path
+    remote_input = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+    )
+    cred_file = f"{remote_input}/{CREDENTIALS_FILE_NAME}"
+    vault_key = f"{remote_input}/{CREDENTIALS_KEY_NAME}"
+
+    # Build YAML content matching the template format
+    yaml_content = (
+        "---\n"
+        "# Image build credentials (S3 / MinIO)\n"
+        "# Auto-populated by test framework from test_creds.yml.\n"
+        f's3_access_id: "{build_creds["s3_access_id"]}"\n'
+        f's3_secret_key: "{build_creds["s3_secret_key"]}"\n'
+        "\n"
+        "# SSH password for ARM build host\n"
+        f'aarch64_ssh_password: "{build_creds["aarch64_ssh_password"]}"\n'
+    )
+
+    # Write to target
+    write_cmd = (
+        f"cat > {cred_file} << 'CRED_EOF'\n"
+        f"{yaml_content}"
+        "CRED_EOF\n"
+        f"chmod 600 {cred_file}"
+    )
+    result = run_on_host(host, write_cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Failed to write {cred_file}: {result.stderr}",
+        }
+
+    # Create vault key if it doesn't exist
+    key_cmd = (
+        f"if [ ! -f {vault_key} ]; then "
+        f"python3 -c \"import secrets; print(secrets.token_urlsafe(32)[:32])\" > {vault_key} && "
+        f"chmod 600 {vault_key}; fi"
+    )
+    run_on_host(host, key_cmd)
+
+    # Encrypt with ansible-vault
+    encrypt_cmd = (
+        f"ansible-vault encrypt {cred_file} "
+        f"--vault-password-file {vault_key} 2>/dev/null"
+    )
+    enc_result = run_on_host(host, encrypt_cmd)
+    encrypted = enc_result.rc == 0
+
+    field_summary = ", ".join(
+        f"{k}={'set' if build_creds[k] else 'empty'}"
+        for k in _BUILD_CRED_FIELDS
+    )
+
+    return {
+        "success": True,
+        "details": (
+            f"Build credentials synced to {cred_file} "
+            f"({'encrypted' if encrypted else 'plain-text'}) "
+            f"[{field_summary}]"
+        ),
+        "error": "",
+    }

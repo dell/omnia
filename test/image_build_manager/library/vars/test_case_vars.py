@@ -112,6 +112,28 @@ TEST_CASES = {
         "title": "Verify all configured x86_64 functional groups built",
     },
 
+    # ── Build — naming convention (TC_BD_007-011) ─────────────────────────
+    "registry_naming_ib_x86_64": {
+        "id": "TC_BD_007",
+        "title": "Verify image-builder registry naming (-ib suffix, x86_64)",
+    },
+    "s3_naming_ib_x86_64": {
+        "id": "TC_BD_008",
+        "title": "Verify image-builder S3 naming (-ib suffix, x86_64)",
+    },
+    "registry_naming_th_x86_64": {
+        "id": "TC_BD_009",
+        "title": "Verify image-thrillhouse registry naming (-th suffix, x86_64)",
+    },
+    "s3_naming_th_x86_64": {
+        "id": "TC_BD_010",
+        "title": "Verify image-thrillhouse S3 naming (-th suffix, x86_64)",
+    },
+    "artifact_suffix_isolation": {
+        "id": "TC_BD_011",
+        "title": "Verify -ib and -th artifact paths are fully isolated",
+    },
+
     # ── Full (image_build_manager) ────────────────────────────────────────
     "ib_storage_backend": {
         "id": "TC_IB_002",

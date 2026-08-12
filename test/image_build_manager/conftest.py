@@ -63,6 +63,7 @@ from library.functions.host_func import (
     sync_project_to_remote,
     sync_image_build_input,
     sync_repo_manager_output,
+    sync_build_credentials,
 )
 from library.functions.build_image_func import (
     check_target_connectivity,
@@ -286,6 +287,20 @@ def pytest_sessionstart(session):
             log(
                 f"Input sync failed: {sync_result['error']}",
                 "ERROR",
+            )
+
+    # Sync build credentials (S3 + aarch64) from test_creds.yml to target.
+    # This populates image_build_credentials.yml on the target so the
+    # collect_build_credentials role does not prompt interactively.
+    if not is_local_execution():
+        cred_result = sync_build_credentials(host)
+        if cred_result["success"]:
+            if cred_result["details"]:
+                log(cred_result["details"], "OK")
+        else:
+            log(
+                f"Build credential sync failed: {cred_result['error']}",
+                "WARN",
             )
 
     if config.get("sync_output", False):

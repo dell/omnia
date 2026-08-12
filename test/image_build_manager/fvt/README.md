@@ -1,5 +1,7 @@
 # Test Cases — Image Build Manager FVT
 
+> Authoritative test case registry for the `fvt/` directory.
+
 All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ---
@@ -73,6 +75,28 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_BD_005 | `test_build_status` | registry/ | x86_64, aarch64, sanity | Verify build_status.yml reports success |
 | TC_BD_006 | `test_functional_groups_x86_64` | registry/ | x86_64, sanity | Verify all x86_64 functional groups built |
 
+### Build-type naming convention
+
+These cases verify that the `-ib` / `-th` artifact suffix is applied correctly
+so the two build engines never overwrite each other's registry images or S3 objects.
+
+| TC ID | Test | Suite | Markers | image_build_type | Description |
+|-------|------|-------|---------|-----------------|-------------|
+| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | Registry repos carry `-ib` suffix; no `-th` contamination |
+| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | S3 boot-images paths carry `-ib`; no `-th` contamination |
+| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | Registry repos carry `-th` suffix; no `-ib` contamination |
+| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-th`; no `-ib` contamination |
+| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | x86_64, functional | both | `-ib` and `-th` base names never collide in registry or S3 |
+
+> **Skip behaviour**: TC_BD_007/008 skip automatically when `image_build_type = image-thrillhouse`
+> and TC_BD_009/010 skip when `image_build_type = image-builder`.  TC_BD_011 runs in all cases.
+
+> **Running naming tests only**:
+> ```bash
+> ./run_validation.sh build verify --suite naming
+> ./run_validation.sh build verify --suite naming --marker x86_64+sanity
+> ```
+
 ---
 
 ## cleanup
@@ -92,12 +116,22 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ## Summary
 
-| Scenario | Prefix | Test Count |
-|----------|--------|------------|
-| precheck | TC_PC_ | 6 (001–006) |
-| image_build_manager | TC_IB_ | 13 (001–013) |
-| validate | TC_VL_ | 3 |
-| prepare | TC_PR_ | 8 |
-| build | TC_BD_ | 6 |
-| cleanup | TC_CL_ | 8 |
-| **Total** | | **44** |
+| Scenario | Prefix | Test Count | Notes |
+|----------|--------|------------|-------|
+| precheck | TC_PC_ | 6 (001–006) | |
+| image_build_manager | TC_IB_ | 13 (001–013) | Full end-to-end |
+| validate | TC_VL_ | 3 | |
+| prepare | TC_PR_ | 8 | |
+| build | TC_BD_ | 11 (001–011) | 007–011 are naming-convention tests |
+| cleanup | TC_CL_ | 8 | |
+| **Total** | | **49** | |
+
+### Naming Convention Test Matrix
+
+| TC ID | Runs when | Skips when |
+|-------|-----------|------------|
+| TC_BD_007 | `image_build_type: image-builder` | `image_build_type: image-thrillhouse` |
+| TC_BD_008 | `image_build_type: image-builder` | `image_build_type: image-thrillhouse` |
+| TC_BD_009 | `image_build_type: image-thrillhouse` | `image_build_type: image-builder` |
+| TC_BD_010 | `image_build_type: image-thrillhouse` | `image_build_type: image-builder` |
+| TC_BD_011 | always | — |
