@@ -56,7 +56,7 @@ k8s_upgrade_inventory: "{{ tmp_path }}/k8s_upgrade_inventory.ini"
 
 # Pulp base URL
 pulp_content_base: "{{ pulp_protocol | default('http') }}://{{ admin_nic_ip }}:2225/pulp/content"
-pulp_repo_base: "{{ pulp_content_base }}/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ cluster_os_version }}/rpms"
+pulp_repo_base: "{{ pulp_content_base }}/opt/omnia/repo_manager/offline_repo/cluster/x86_64/rhel/{{ cluster_os_version }}/rpms"
 
 # ---------------------------------------------------------------------------
 # Timeouts and retries

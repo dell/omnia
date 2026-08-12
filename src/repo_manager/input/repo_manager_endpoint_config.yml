@@ -33,10 +33,10 @@ pulp_https_enabled: true
 # =============================================================================
 # SSL CERTIFICATES
 # =============================================================================
-# These paths are under OMNIA_DATA_PATH/pulp_config/ (/opt/omnia/pulp_config by default).
+# These paths are under OMNIA_DATA_PATH/repo_manager/pulp_config/ (/opt/omnia/repo_manager/pulp_config by default).
 # Modify only if using a custom OMNIA_DATA_PATH or certificate location.
 
 ssl_certificates:
-  server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
-  server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
-  certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"
+  server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+  server_key: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
+  certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"

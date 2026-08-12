@@ -1,0 +1,120 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ---------------------------------------------------------------------------
+# Functional Group Classification Rules
+# ---------------------------------------------------------------------------
+# Maps functional group name patterns to categories, layers, and descriptions.
+# Used by generate_functional_groups.py and provisioning playbooks.
+#
+# Adding a new functional group:
+#   1. If it matches an existing pattern, no changes needed.
+#   2. To create a new category, add an entry to functional_group_categories.
+#   3. Unknown FGs that match no pattern default to category=custom, layer=compute.
+#
+# Fields:
+#   patterns      - List of regex patterns matched against FG names from PXE CSV.
+#   layer_rules   - Maps a substring of the FG name to a layer (management|compute).
+#                   First match wins. If no substring matches, default_layer is used.
+#   default_layer - Fallback layer when no layer_rule matches.
+#   description_map - Maps a prefix of the FG name (before the arch suffix) to a
+#                     human-readable description. First match wins.
+#   default_description - Fallback description when no prefix matches.
+# ---------------------------------------------------------------------------
+
+functional_group_categories:
+  kubernetes:
+    patterns:
+      - "^service_kube_"
+    layer_rules:
+      control_plane: management
+      node: management
+    default_layer: management
+    description_map:
+      service_kube_control_plane_first: "Kubernetes Control Plane (Primary)"
+      service_kube_control_plane: "Kubernetes Control Plane"
+      service_kube_node: "Kubernetes Worker Node"
+    default_description: "Kubernetes Node"
+
+  slurm:
+    patterns:
+      - "^slurm_"
+    layer_rules:
+      control_node: management
+      node: compute
+    default_layer: compute
+    description_map:
+      slurm_control_node: "Slurm Head"
+      slurm_node: "Slurm Worker"
+    default_description: "Slurm Node"
+
+  login:
+    patterns:
+      - "^login_node_"
+      - "^login_compiler_node_"
+    layer_rules: {}
+    default_layer: management
+    description_map:
+      login_compiler_node: "Login Compiler Node"
+      login_node: "Login Node"
+    default_description: "Login Node"
+
+  os_only:
+    patterns:
+      - "^os_"
+    layer_rules: {}
+    default_layer: compute
+    description_map:
+      os: "Minimal OS Node"
+    default_description: "Minimal OS Node"
+
+  # catch-all for user-defined functional groups
+  custom:
+    patterns:
+      - ".*"
+    layer_rules: {}
+    default_layer: compute
+    description_map: {}
+    default_description: "User-Defined Functional Group"
+
+# ---------------------------------------------------------------------------
+# Category to provisioning playbook mapping
+# ---------------------------------------------------------------------------
+# Used by provisioning playbooks to determine which FGs they own.
+# Login nodes are provisioned as part of the slurm playbook (see §6.5.3).
+
+category_provisioning_map:
+  kubernetes: "provision_kubernetes"
+  slurm: "provision_slurm"
+  login: "provision_slurm"
+  os_only: "provision_os"
+  custom: "provision_custom"
+
+# ---------------------------------------------------------------------------
+# Default bolt-on services per category
+# ---------------------------------------------------------------------------
+# Can be overridden in omnia_config.yml (orchestrator.bolt_ons section).
+
+default_bolt_ons:
+  kubernetes:
+    - mount_config
+    - k8s_config
+    - telemetry
+  slurm:
+    - mount_config
+    - slurm_config
+    - openldap
+  login: []
+  os_only: []
+  custom: []

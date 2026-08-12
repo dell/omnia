@@ -1,0 +1,153 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# provision_common — Generic FG-driven provisioning pipeline.
+#
+# Inputs (set by the calling playbook):
+#   target_functional_groups: list of FG dicts (filtered by caller)
+#   target_category: string (kubernetes|slurm|os|custom)
+#
+# This role is called by each provision_*.yml playbook with a filtered
+# subset of functional groups. It performs all generic provisioning steps
+# without any hardcoded FG name checks.
+
+- name: Skip if no functional groups for this category
+  ansible.builtin.debug:
+    msg: "No functional groups found for category '{{ target_category }}'. Skipping."
+  when: target_functional_groups | length == 0
+
+- name: Provision nodes for category '{{ target_category }}'
+  environment: "{{ hostvars['oim']['ochami_env'] }}"
+  when: target_functional_groups | length > 0
+  block:
+    - name: Set SELinux context for orchestrator directories
+      ansible.builtin.include_tasks: set_selinux_context.yml
+
+    - name: Register nodes in SMD and create groups
+      ansible.builtin.include_tasks: register_nodes.yml
+
+    - name: Fetch additional images
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/fetch_additional_images.yml"
+
+    - name: Validate additional cloud-init configuration
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_cloud_init.yml"
+
+    - name: Create SMD group for additional_cloud_init common
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_common.yml"
+      loop:
+        - "{{ additional_cloud_init_common_group_name }}"
+      when: additional_cloud_init_common_enabled | default(false) | bool
+
+    - name: Create SMD groups for per-FG additional cloud-init
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_additional_fg.yml"
+      with_items: "{{ additional_cloud_init_fg_names | default([]) }}"
+      when: additional_cloud_init_groups_enabled | default(false) | bool
+
+    - name: Delete BSS boot params for target nodes
+      ansible.builtin.command: >
+        /usr/bin/ochami bss boot params delete --no-confirm
+        -d '{"macs":["{{ item }}"]}'
+      changed_when: false
+      failed_when: false
+      with_items: >-
+        {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+           | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
+           | map(attribute='value.ADMIN_MAC') | list }}
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Configure BSS boot params for each functional group
+      ansible.builtin.include_tasks: configure_bss.yml
+      loop: "{{ target_functional_groups | map(attribute='name') | list }}"
+      loop_control:
+        loop_var: fg_name
+
+    - name: Verify boot params set
+      ansible.builtin.command: ochami bss boot params get -F yaml
+      changed_when: false
+      register: boot_params_output
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Display boot params
+      ansible.builtin.debug:
+        msg: "{{ boot_params_output.stdout_lines }}"
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Create cloud-init directory
+      ansible.builtin.file:
+        path: "{{ cloud_init_dir }}"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+
+    - name: Read SSH public key
+      ansible.builtin.command: cat {{ ssh_key_path }}
+      changed_when: false
+      register: read_ssh_key
+      no_log: true
+
+    - name: Read SSH private key
+      ansible.builtin.command: cat {{ ssh_private_key_path }}
+      changed_when: false
+      register: read_ssh_private_key
+      no_log: true
+
+    - name: Hash the provision password
+      ansible.builtin.command: openssl passwd -6 "{{ hostvars['localhost']['provision_password'] }}"
+      changed_when: false
+      register: hashed_password_output
+      no_log: true
+
+    - name: Render cloud-init defaults template
+      ansible.builtin.template:
+        src: "{{ ci_defaults_template }}"
+        dest: "{{ ci_defaults_dest }}"
+        mode: "{{ file_permissions_644 }}"
+
+    - name: Set cloud-init defaults configuration
+      ansible.builtin.command: /usr/bin/ochami cloud-init defaults set -f yaml -d @{{ ci_defaults_dest }}
+      changed_when: true
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Configure cloud-init common group
+      ansible.builtin.include_tasks: configure_cloud_init_common.yml
+
+    - name: Configure cloud-init for each functional group
+      ansible.builtin.include_tasks: configure_cloud_init.yml
+      loop: "{{ target_functional_groups | map(attribute='name') | list }}"
+      loop_control:
+        loop_var: fg_name
+
+    - name: Re-apply per-node hostname data into cloud-init-server
+      ansible.builtin.command: >
+        /usr/bin/ochami cloud-init node set -f yaml
+        -d @"{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
+      changed_when: true
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Configure additional cloud-init
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_cloud_init_additional.yml"
+      when: additional_cloud_init_enabled | default(false) | bool
+
+    - name: Final SELinux context for generated files
+      ansible.builtin.include_tasks: set_selinux_context.yml
+
+    - name: Configure DNS
+      ansible.builtin.include_tasks: configure_dns.yml
+      when: dns_enabled | default(false) | bool
+
+    - name: Provisioning complete for '{{ target_category }}'
+      ansible.builtin.debug:
+        msg: >-
+          Successfully provisioned {{ target_functional_groups | length }} functional groups
+          in category '{{ target_category }}':
+          {{ target_functional_groups | map(attribute='name') | list | join(', ') }}

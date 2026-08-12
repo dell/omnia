@@ -29,6 +29,7 @@ All functions use run_on_host() — no container exec needed
 
 import json
 import os
+import time
 from typing import Dict, Any, List
 
 import yaml
@@ -55,12 +56,42 @@ from ..vars.common_vars import (
     CREDENTIALS_FILE_NAME,
     CREDENTIALS_KEY_NAME,
     BUILD_STATUS_PATH,
+    BUILD_LOG_PATH,
     FG_PACKAGES_FILENAME,
     IMAGE_VERIFY_TEMP_IMAGE,
     IMAGE_VERIFY_TEMP_MOUNT,
     SQUASHFS_PACKAGE,
     S3_BOOT_IMAGES_BUCKET,
 )
+
+
+# =============================================================================
+# HELPER: RETRY ON TRANSIENT SSH FAILURES
+# =============================================================================
+
+def _retry_run(host, cmd_str, retries: int = 2, delay: float = 3.0):
+    """Run a command on the host with retry on transient failures.
+
+    Retries when the command returns rc=255 (SSH connection error)
+    or rc=-1 (connection timeout). Non-SSH failures are not retried.
+
+    Args:
+        host: testinfra host object.
+        cmd_str: Command string to execute.
+        retries: Number of retry attempts (default 2).
+        delay: Seconds to wait between retries (default 3.0).
+
+    Returns:
+        testinfra CommandResult.
+    """
+    last_result = None
+    for attempt in range(1 + retries):
+        last_result = host.run(cmd_str)
+        if last_result.rc not in (255, -1):
+            return last_result
+        if attempt < retries:
+            time.sleep(delay)
+    return last_result
 
 
 # =============================================================================
@@ -101,9 +132,10 @@ def _load_remote_ibm_config(host) -> dict:
     """Load image_build_config.yml from the target host.
 
     Returns parsed YAML as dict, or empty dict on failure.
+    Uses retry for transient SSH errors.
     """
     cfg_path = _get_remote_ibm_config_path(host)
-    cmd = host.run(CMDS["cat_file"].format(path=cfg_path))
+    cmd = _retry_run(host, CMDS["cat_file"].format(path=cfg_path))
     if cmd.rc != 0 or not cmd.stdout.strip():
         return {}
     try:
@@ -221,8 +253,9 @@ def check_container_running(
     Returns:
         Dict with 'success', 'status', 'error'.
     """
-    cmd = host.run(
-        CMDS["podman_ps_running"].format(container=container_name)
+    cmd = _retry_run(
+        host,
+        CMDS["podman_ps_running"].format(container=container_name),
     )
 
     if cmd.rc == 0 and container_name in cmd.stdout:
@@ -234,10 +267,11 @@ def check_container_running(
         }
 
     # Check if container exists but not running
-    check_all = host.run(
+    check_all = _retry_run(
+        host,
         CMDS["podman_ps_all_status"].format(
             container=container_name,
-        )
+        ),
     )
     if check_all.rc == 0 and container_name in check_all.stdout:
         status = check_all.stdout.strip()
@@ -304,7 +338,7 @@ def check_s3_buckets(host) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'found', 'missing', 'details'.
     """
-    ls_cmd = host.run(CMDS["s3cmd_ls"])
+    ls_cmd = _retry_run(host, CMDS["s3cmd_ls"])
     if ls_cmd.rc != 0:
         return {
             "success": False,
@@ -541,7 +575,7 @@ def check_registry_images(
     Returns:
         Dict with 'success', 'registry_url', 'found', 'missing'.
     """
-    hostname_cmd = host.run(CMDS["hostname_cmd"])
+    hostname_cmd = host.run(CMDS["hostname_short"])
     if hostname_cmd.rc != 0:
         return {
             "success": False,
@@ -963,160 +997,166 @@ def verify_image_packages(
     results = []
     all_passed = True
 
-    for fg in groups:
-        expected_pkgs = _get_image_packages_from_config(host, fg)
-        if not expected_pkgs:
-            results.append({
-                "functional_group": fg,
-                "success": True,
-                "expected_count": 0,
-                "found_count": 0,
-                "missing_count": 0,
-                "package_details": [],
-                "note": "No packages defined",
-            })
-            continue
+    try:
+        for fg in groups:
+            expected_pkgs = _get_image_packages_from_config(host, fg)
+            if not expected_pkgs:
+                results.append({
+                    "functional_group": fg,
+                    "success": True,
+                    "expected_count": 0,
+                    "found_count": 0,
+                    "missing_count": 0,
+                    "package_details": [],
+                    "note": "No packages defined",
+                })
+                continue
 
-        # Find rootfs image in S3 output
-        rootfs_line = ""
-        for line in s3_output.split("\n"):
-            if fg in line and "rhel" in line:
-                if "initramfs" not in line and "vmlinuz" not in line:
-                    rootfs_line = line.strip()
-                    break
+            # Find rootfs image in S3 output
+            rootfs_line = ""
+            for line in s3_output.split("\n"):
+                if fg in line and "rhel" in line:
+                    if "initramfs" not in line and "vmlinuz" not in line:
+                        rootfs_line = line.strip()
+                        break
 
-        if not rootfs_line:
-            results.append({
-                "functional_group": fg,
-                "success": False,
-                "error": "No rootfs image found in S3",
-                "expected_count": len(expected_pkgs),
-                "found_count": 0,
-                "missing_count": len(expected_pkgs),
-                "package_details": [],
-            })
-            all_passed = False
-            continue
+            if not rootfs_line:
+                results.append({
+                    "functional_group": fg,
+                    "success": False,
+                    "error": "No rootfs image found in S3",
+                    "expected_count": len(expected_pkgs),
+                    "found_count": 0,
+                    "missing_count": len(expected_pkgs),
+                    "package_details": [],
+                })
+                all_passed = False
+                continue
 
-        s3_path = rootfs_line.split()[-1] if rootfs_line else None
-        if not s3_path:
-            results.append({
-                "functional_group": fg,
-                "success": False,
-                "error": "Failed to parse S3 path",
-                "expected_count": len(expected_pkgs),
-                "found_count": 0,
-                "missing_count": len(expected_pkgs),
-                "package_details": [],
-            })
-            all_passed = False
-            continue
+            s3_path = rootfs_line.split()[-1] if rootfs_line else None
+            if not s3_path:
+                results.append({
+                    "functional_group": fg,
+                    "success": False,
+                    "error": "Failed to parse S3 path",
+                    "expected_count": len(expected_pkgs),
+                    "found_count": 0,
+                    "missing_count": len(expected_pkgs),
+                    "package_details": [],
+                })
+                all_passed = False
+                continue
 
-        # Download, mount, verify
-        dl = host.run(
-            CMDS["s3cmd_get"].format(
-                s3_path=s3_path, dest=temp_image,
+            # Download, mount, verify
+            dl = host.run(
+                CMDS["s3cmd_get"].format(
+                    s3_path=s3_path, dest=temp_image,
+                )
             )
-        )
-        if dl.rc != 0:
-            results.append({
-                "functional_group": fg,
-                "success": False,
-                "error": "Failed to download image",
-                "expected_count": len(expected_pkgs),
-                "found_count": 0,
-                "missing_count": len(expected_pkgs),
-                "package_details": [],
-            })
-            all_passed = False
-            continue
+            if dl.rc != 0:
+                results.append({
+                    "functional_group": fg,
+                    "success": False,
+                    "error": "Failed to download image",
+                    "expected_count": len(expected_pkgs),
+                    "found_count": 0,
+                    "missing_count": len(expected_pkgs),
+                    "package_details": [],
+                })
+                all_passed = False
+                continue
 
-        host.run(CMDS["mkdir_p"].format(path=temp_mount))
-        mt = host.run(
-            CMDS["mount_squashfs"].format(
-                image=temp_image, mount=temp_mount,
+            host.run(CMDS["mkdir_p"].format(path=temp_mount))
+            mt = host.run(
+                CMDS["mount_squashfs"].format(
+                    image=temp_image, mount=temp_mount,
+                )
             )
-        )
-        if mt.rc != 0:
+            if mt.rc != 0:
+                host.run(CMDS["rm_file"].format(path=temp_image))
+                results.append({
+                    "functional_group": fg,
+                    "success": False,
+                    "error": "Failed to mount image",
+                    "expected_count": len(expected_pkgs),
+                    "found_count": 0,
+                    "missing_count": len(expected_pkgs),
+                    "package_details": [],
+                })
+                all_passed = False
+                continue
+
+            rpm_cmd = host.run(
+                CMDS["rpm_list_installed"].format(root=temp_mount)
+            )
+            installed = (
+                rpm_cmd.stdout.strip().split('\n')
+                if rpm_cmd.rc == 0 else []
+            )
+
+            found_pkgs = []
+            missing_pkgs = []
+            pkg_details = []
+
+            for pkg in expected_pkgs:
+                base_pkg = pkg
+                if '-' in pkg and pkg.split('-')[-1][0:1].isdigit():
+                    base_pkg = pkg.rsplit('-', 1)[0]
+
+                matched = False
+                matched_ver = None
+                for inst in installed:
+                    if inst.lower().startswith(base_pkg.lower()):
+                        matched = True
+                        matched_ver = inst
+                        break
+
+                if matched:
+                    found_pkgs.append(pkg)
+                    pkg_details.append({
+                        "expected": pkg,
+                        "found": matched_ver,
+                        "status": "installed",
+                    })
+                else:
+                    missing_pkgs.append(pkg)
+                    pkg_details.append({
+                        "expected": pkg,
+                        "found": None,
+                        "status": "missing",
+                    })
+
+            # Per-group cleanup
+            host.run(CMDS["umount"].format(
+                flags="-l", path=temp_mount,
+            ))
+            host.run(CMDS["rm_dir"].format(path=temp_mount))
             host.run(CMDS["rm_file"].format(path=temp_image))
-            results.append({
+
+            fg_result = {
                 "functional_group": fg,
-                "success": False,
-                "error": "Failed to mount image",
+                "success": len(missing_pkgs) == 0,
+                "image_path": s3_path,
                 "expected_count": len(expected_pkgs),
-                "found_count": 0,
-                "missing_count": len(expected_pkgs),
-                "package_details": [],
-            })
-            all_passed = False
-            continue
+                "found_count": len(found_pkgs),
+                "missing_count": len(missing_pkgs),
+                "package_details": pkg_details,
+                "error": (
+                    f"Missing: {', '.join(missing_pkgs)}"
+                    if missing_pkgs else None
+                ),
+            }
+            results.append(fg_result)
+            if not fg_result["success"]:
+                all_passed = False
 
-        rpm_cmd = host.run(
-            CMDS["rpm_list_installed"].format(root=temp_mount)
-        )
-        installed = (
-            rpm_cmd.stdout.strip().split('\n')
-            if rpm_cmd.rc == 0 else []
-        )
-
-        found_pkgs = []
-        missing_pkgs = []
-        pkg_details = []
-
-        for pkg in expected_pkgs:
-            base_pkg = pkg
-            if '-' in pkg and pkg.split('-')[-1][0:1].isdigit():
-                base_pkg = pkg.rsplit('-', 1)[0]
-
-            matched = False
-            matched_ver = None
-            for inst in installed:
-                if inst.lower().startswith(base_pkg.lower()):
-                    matched = True
-                    matched_ver = inst
-                    break
-
-            if matched:
-                found_pkgs.append(pkg)
-                pkg_details.append({
-                    "expected": pkg,
-                    "found": matched_ver,
-                    "status": "installed",
-                })
-            else:
-                missing_pkgs.append(pkg)
-                pkg_details.append({
-                    "expected": pkg,
-                    "found": None,
-                    "status": "missing",
-                })
-
-        # Cleanup
-        host.run(CMDS["umount"].format(flags="-l", path=temp_mount))
+    finally:
+        # Guaranteed cleanup — runs even if an exception occurs
+        host.run(CMDS["umount"].format(
+            flags="-l", path=temp_mount,
+        ))
         host.run(CMDS["rm_dir"].format(path=temp_mount))
         host.run(CMDS["rm_file"].format(path=temp_image))
-
-        fg_result = {
-            "functional_group": fg,
-            "success": len(missing_pkgs) == 0,
-            "image_path": s3_path,
-            "expected_count": len(expected_pkgs),
-            "found_count": len(found_pkgs),
-            "missing_count": len(missing_pkgs),
-            "package_details": pkg_details,
-            "error": (
-                f"Missing: {', '.join(missing_pkgs)}"
-                if missing_pkgs else None
-            ),
-        }
-        results.append(fg_result)
-        if not fg_result["success"]:
-            all_passed = False
-
-    # Final cleanup
-    host.run(CMDS["umount"].format(flags="-l", path=temp_mount))
-    host.run(CMDS["rm_dir"].format(path=temp_mount))
-    host.run(CMDS["rm_file"].format(path=temp_image))
 
     passed_count = sum(1 for r in results if r["success"])
 
@@ -1641,4 +1681,283 @@ def check_input_config_exists(host) -> Dict[str, Any]:
             if exists
             else f"  image_build_config.yml: NOT FOUND at {cfg_path}"
         ),
+    }
+
+
+# =============================================================================
+# PRECHECK VERIFICATION
+# =============================================================================
+
+def check_target_connectivity(host) -> Dict[str, Any]:
+    """Verify SSH connectivity to the target host.
+
+    Runs a simple echo command to confirm the connection is alive.
+    Uses retry to handle transient SSH failures.
+
+    Returns:
+        Dict with 'success', 'details', 'error'.
+    """
+    cmd = _retry_run(host, CMDS["echo_test"])
+    if cmd.rc == 0 and "connectivity_ok" in cmd.stdout:
+        return {
+            "success": True,
+            "details": "Target host is reachable via SSH",
+            "error": None,
+        }
+    return {
+        "success": False,
+        "details": "",
+        "error": (
+            f"SSH connectivity test failed (rc={cmd.rc}). "
+            "Check: oim_server_ip, SSH user/password in test_config.yml"
+        ),
+    }
+
+
+def check_env_vars_present(host) -> Dict[str, Any]:
+    """Verify all required omnia.env variables exist on target.
+
+    Checks: OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, SYSTEM_ADMIN_NIC_IPV4,
+    SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME.
+    These env vars are set by ``omnia.sh --setup-venv`` and must be
+    present before any playbook can run.
+
+    Returns:
+        Dict with 'success', 'results', 'details'.
+    """
+    required_vars = [
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        "SYSTEM_ADMIN_NIC_IPV4",
+        "SYSTEM_HOSTNAME",
+        "SYSTEM_DOMAIN_NAME",
+    ]
+    results = []
+    all_ok = True
+
+    for var in required_vars:
+        value = read_remote_env(host, var)
+        found = bool(value)
+        results.append({
+            "variable": var,
+            "found": found,
+            "value": value if found else "(not set)",
+        })
+        if not found:
+            all_ok = False
+
+    lines = []
+    for r in results:
+        status = "present" if r["found"] else "MISSING"
+        lines.append(f"  {r['variable']}: {status} ({r['value']})")
+
+    return {
+        "success": all_ok,
+        "results": results,
+        "details": "\n".join(lines),
+        "error": None if all_ok else (
+            "Required env vars missing. "
+            "Run: omnia.sh --setup-venv on the target first."
+        ),
+    }
+
+
+def check_hostname_domain(host) -> Dict[str, Any]:
+    """Verify hostname and domain match configured env vars on target.
+
+    Uses ``hostname -s`` (short hostname) and ``hostname -d`` (domain)
+    to compare against SYSTEM_HOSTNAME and SYSTEM_DOMAIN_NAME.
+
+    Returns:
+        Dict with 'success', 'results', 'details'.
+    """
+    cfg_hostname = read_remote_env(host, "SYSTEM_HOSTNAME")
+    cfg_domain = read_remote_env(host, "SYSTEM_DOMAIN_NAME")
+
+    actual_hostname = _retry_run(
+        host, CMDS["hostname_short"],
+    ).stdout.strip()
+    domain_result = _retry_run(
+        host, CMDS["hostname_domain"],
+    )
+    actual_domain = domain_result.stdout.strip() if domain_result.rc == 0 else ""
+
+    hostname_match = (actual_hostname == cfg_hostname)
+    domain_match = (actual_domain == cfg_domain) if actual_domain else True
+
+    results = {
+        "configured_hostname": cfg_hostname or "(not set)",
+        "actual_hostname": actual_hostname,
+        "hostname_match": hostname_match,
+        "configured_domain": cfg_domain or "(not set)",
+        "actual_domain": actual_domain or "(unavailable)",
+        "domain_match": domain_match,
+    }
+
+    all_ok = hostname_match
+    lines = [
+        f"  SYSTEM_HOSTNAME: {cfg_hostname} (actual: {actual_hostname}) "
+        f"{'MATCH' if hostname_match else 'MISMATCH'}",
+        f"  SYSTEM_DOMAIN_NAME: {cfg_domain} (actual: {actual_domain or '(unavailable)'}) "
+        f"{'MATCH' if domain_match else 'MISMATCH'}",
+        f"  FQDN: {cfg_hostname}.{cfg_domain}",
+    ]
+
+    error = None
+    if not hostname_match:
+        error = (
+            f"Hostname mismatch: SYSTEM_HOSTNAME={cfg_hostname}, "
+            f"actual hostname -s={actual_hostname}. "
+            "Fix: hostnamectl set-hostname <name> or update omnia.env"
+        )
+    elif not domain_match:
+        error = (
+            f"Domain mismatch: SYSTEM_DOMAIN_NAME={cfg_domain}, "
+            f"actual hostname -d={actual_domain}. "
+            "Fix: update SYSTEM_DOMAIN_NAME in omnia.env or "
+            f"hostnamectl set-hostname {cfg_hostname}.{cfg_domain}"
+        )
+
+    return {
+        "success": all_ok,
+        "results": results,
+        "details": "\n".join(lines),
+        "error": error,
+    }
+
+
+def check_admin_ip(host) -> Dict[str, Any]:
+    """Verify SYSTEM_ADMIN_NIC_IPV4 is assigned to a local interface.
+
+    Reads SYSTEM_ADMIN_NIC_IPV4 from the target and verifies the IP is
+    present in the output of ``hostname -I``.
+
+    Returns:
+        Dict with 'success', 'details', 'error'.
+    """
+    cfg_ip = read_remote_env(host, "SYSTEM_ADMIN_NIC_IPV4")
+    if not cfg_ip:
+        return {
+            "success": False,
+            "details": "  SYSTEM_ADMIN_NIC_IPV4: (not set)",
+            "error": (
+                "SYSTEM_ADMIN_NIC_IPV4 is not set. "
+                "Fix: set it in omnia.env and run omnia.sh --setup-venv"
+            ),
+        }
+
+    ip_cmd = _retry_run(host, CMDS["hostname_ip"])
+    all_ips = ip_cmd.stdout.strip().split() if ip_cmd.rc == 0 else []
+    ip_assigned = cfg_ip in all_ips
+
+    return {
+        "success": ip_assigned,
+        "configured_ip": cfg_ip,
+        "assigned_ips": all_ips,
+        "details": (
+            f"  SYSTEM_ADMIN_NIC_IPV4: {cfg_ip} "
+            f"({'assigned' if ip_assigned else 'NOT assigned'})"
+        ),
+        "error": None if ip_assigned else (
+            f"SYSTEM_ADMIN_NIC_IPV4 ({cfg_ip}) is not assigned to any "
+            f"interface. Available IPs: {', '.join(all_ips)}"
+        ),
+    }
+
+
+def check_omnia_setup(host) -> Dict[str, Any]:
+    """Verify omnia.sh setup has been completed on target.
+
+    Checks that ``/etc/omnia/omnia.env`` and
+    ``/etc/profile.d/omnia-env.sh`` exist on the target.
+    These are created by ``omnia.sh --setup-venv``.
+
+    Returns:
+        Dict with 'success', 'details', 'error'.
+    """
+    env_file = "/etc/omnia/omnia.env"
+    profile_file = "/etc/profile.d/omnia-env.sh"
+
+    env_cmd = _retry_run(
+        host, CMDS["file_exists"].format(path=env_file),
+    )
+    profile_cmd = _retry_run(
+        host, CMDS["file_exists"].format(path=profile_file),
+    )
+
+    env_exists = env_cmd.rc == 0 and "exists" in env_cmd.stdout
+    profile_exists = profile_cmd.rc == 0 and "exists" in profile_cmd.stdout
+
+    all_ok = env_exists
+    lines = [
+        f"  {env_file}: {'present' if env_exists else 'MISSING'}",
+        f"  {profile_file}: {'present' if profile_exists else 'MISSING'}",
+    ]
+
+    return {
+        "success": all_ok,
+        "env_file_exists": env_exists,
+        "profile_exists": profile_exists,
+        "details": "\n".join(lines),
+        "error": None if all_ok else (
+            "omnia.sh setup incomplete. "
+            "Run: ./omnia.sh --setup-venv on the target."
+        ),
+    }
+
+
+# =============================================================================
+# LOG COLLECTION (on failure)
+# =============================================================================
+
+def collect_build_logs(host, max_lines: int = 100) -> Dict[str, Any]:
+    """Collect recent build log output from the target host.
+
+    Reads the last ``max_lines`` lines from the build log directory.
+    Used to provide diagnostic context when playbook execution fails.
+
+    Args:
+        host: testinfra host object.
+        max_lines: Maximum number of log lines to return.
+
+    Returns:
+        Dict with 'success', 'log_output', 'log_path'.
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    log_dir = BUILD_LOG_PATH.format(
+        shared_path=_get_shared_path(), project=project,
+    )
+
+    # Find the most recent log file
+    find_cmd = host.run(
+        CMDS["cat_file"].format(
+            path=f"{log_dir}*.log"
+        )
+    )
+
+    # Try to get the latest .log file via ls -t
+    ls_cmd = host.run(
+        f"ls -t {log_dir}*.log 2>/dev/null | head -1"
+    )
+    if ls_cmd.rc != 0 or not ls_cmd.stdout.strip():
+        return {
+            "success": False,
+            "log_output": "",
+            "log_path": log_dir,
+            "error": f"No log files found in {log_dir}",
+        }
+
+    latest_log = ls_cmd.stdout.strip()
+    tail_cmd = host.run(
+        CMDS["cat_build_log"].format(
+            lines=max_lines, log_path=latest_log,
+        )
+    )
+
+    return {
+        "success": tail_cmd.rc == 0,
+        "log_output": tail_cmd.stdout if tail_cmd.rc == 0 else "",
+        "log_path": latest_log,
+        "error": None if tail_cmd.rc == 0 else "Failed to read log",
     }

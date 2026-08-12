@@ -20,8 +20,8 @@ from datetime import datetime
 from prettytable import PrettyTable
 from collections import defaultdict
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.process_parallel import execute_parallel, log_table_output
-from ansible.module_utils.local_repo.download_common import (
+from ansible.module_utils.repo_manager.process_parallel import execute_parallel, log_table_output
+from ansible.module_utils.repo_manager.download_common import (
     build_task_repo_name,
     build_content_base_dir,
     process_manifest,
@@ -85,20 +85,20 @@ success_count:
   type: int
   returned: always
 """
-from ansible.module_utils.local_repo.download_image import process_image
-from ansible.module_utils.local_repo.download_rpm import process_rpm
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.software_utils import (
+from ansible.module_utils.repo_manager.download_image import process_image
+from ansible.module_utils.repo_manager.download_rpm import process_rpm
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.software_utils import (
     load_json,
     set_version_variables,
     get_subgroup_dict
 )
-from ansible.module_utils.local_repo.catalog_resolver import (
+from ansible.module_utils.repo_manager.catalog_resolver import (
     load_repo_manager_config,
     get_catalog_path,
     load_multiple_catalogs,
 )
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.config import (
     DEFAULT_NTHREADS,
     DEFAULT_TIMEOUT,
     LOG_DIR_DEFAULT,
@@ -110,7 +110,7 @@ from ansible.module_utils.local_repo.config import (
     SOFTWARE_CSV_FILENAME,
     SOFTWARE_CSV_HEADER,
     STATUS_CSV_HEADER,
-    LOCAL_REPO_CONFIG_PATH_DEFAULT,
+    REPO_MANAGER_CONFIG_PATH_DEFAULT,
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH
 )
@@ -438,7 +438,7 @@ def main():
         "overall_status_dict": {"type": "dict", "required": True},
         "local_repo_config_path": {
             "type": "str", "required": False,
-            "default": LOCAL_REPO_CONFIG_PATH_DEFAULT
+            "default": REPO_MANAGER_CONFIG_PATH_DEFAULT
         },
         "arch": {"type": "str", "required": False},
         "omnia_credentials_yaml_path": {

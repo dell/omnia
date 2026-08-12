@@ -17,12 +17,12 @@
 
 from pathlib import Path
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.process_metadata import (
+from ansible.module_utils.repo_manager.process_metadata import (
     handle_generate_metadata,
     handle_compare_data,
     handle_update_data
 )
-from ansible.module_utils.local_repo.config import ( metadata_rerun_file_path )
+from ansible.module_utils.repo_manager.config import ( metadata_rerun_file_path )
 
 DOCUMENTATION = r"""
 ---

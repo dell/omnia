@@ -14,40 +14,27 @@
 ---
 # vars/main.yml
 
-# K8s functional groups (x86_64 example; extend if you have aarch64 variants)
-k8s_functional_groups:
-  - service_kube_control_plane_first_x86_64
-  - service_kube_control_plane_x86_64
-  - service_kube_node_x86_64
+# K8s functional group patterns (derived dynamically from functional_groups)
+k8s_fg_pattern: '^service_kube_'
+k8s_functional_groups: >-
+  {{ hostvars['localhost']['functional_groups'] | default([])
+     | map(attribute='name')
+     | select('match', '^service_kube_')
+     | list }}
 
-# Slurm / login functional groups
-slurm_functional_groups:
-  - slurm_control_node_x86_64
-  - slurm_node_x86_64
-  - login_node_x86_64
-  - login_compiler_node_x86_64
-  - slurm_node_aarch64
-  - login_node_aarch64
-  - login_compiler_node_aarch64
+# Slurm / login functional group patterns (derived dynamically from functional_groups)
+slurm_fg_pattern: '^slurm_|^login_'
+slurm_functional_groups: >-
+  {{ hostvars['localhost']['functional_groups'] | default([])
+     | map(attribute='name')
+     | select('match', '^slurm_|^login_')
+     | list }}
 
-# Nodes.yaml group completeness checks
-omnia_required_groups_from_nodes_yaml:
-  - service_kube_control_plane_first_x86_64
-  - service_kube_control_plane_x86_64
-  - service_kube_node_x86_64
-  - slurm_control_node_x86_64
-  - slurm_node_x86_64
-  - login_node_x86_64
-  - login_compiler_node_x86_64
-
-omnia_optional_groups_from_nodes_yaml:
-  - service_kube_control_plane_first_aarch64
-  - service_kube_control_plane_aarch64
-  - service_kube_node_aarch64
-  - slurm_node_aarch64
-  - login_node_aarch64
-  - login_compiler_node_aarch64
-  - os_x86_64
-  - os_aarch64
+# Nodes.yaml group completeness: all FGs from the mapping must exist in nodes.yaml
+# Derived dynamically from functional_groups rather than hardcoded lists.
+omnia_required_groups_from_nodes_yaml: >-
+  {{ hostvars['localhost']['functional_groups'] | default([])
+     | map(attribute='name')
+     | list }}
 
 ssh_private_key_path: /root/.ssh/config

@@ -13,11 +13,11 @@
 # limitations under the License.
 ---
 
-repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/offline_repo"
+repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/repo_manager/offline_repo"
 
 local_repo_access_dest_path: "{{ output_dir }}/repo_status.yml"
-nfs_shared_path: "{{ omnia_base_dir }}"
-repo_store_path: "{{ omnia_base_dir }}"
+nfs_shared_path: "{{ omnia_base_dir }}/repo_manager"
+repo_store_path: "{{ omnia_base_dir }}/repo_manager"
 base_path: "{{ repo_manager_log_dir }}"
 local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
 clean_rpms: true

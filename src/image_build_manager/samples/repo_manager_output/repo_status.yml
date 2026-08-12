@@ -45,9 +45,9 @@ repo_config: "partial"
 repo_manager:
   port: 2225
   certificates:
-    server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
-    server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
-    certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"
+    server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+    server_key: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
+    certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"
 
 repositories:
   "10.0":

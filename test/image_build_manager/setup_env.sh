@@ -582,21 +582,29 @@ case "$INSTALL_MODE" in
 esac
 
 echo ""
-echo "  Credentials:"
+echo "  Credentials (two separate types):"
+echo ""
+echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
 if [ -f "$CREDS_FILE" ]; then
-    echo "    test_creds.yml exists (encrypted)"
-    echo "    To update:  bash setup_env.sh --set-password"
-    echo "    Force update: bash setup_env.sh --update-password"
+    echo "       test_creds.yml exists (encrypted)"
+    echo "       To update:  bash setup_env.sh --set-password"
+    echo "       Force update: bash setup_env.sh --update-password"
 else
-    echo "    No credentials set."
-    echo "    For remote mode: bash setup_env.sh --set-password"
+    echo "       No SSH credentials set."
+    echo "       For remote mode: bash setup_env.sh --set-password"
 fi
+echo ""
+echo "    2. Image build credentials (image_build_credentials.yml):"
+echo "       Managed by the playbook's collect_build_credentials role."
+echo "       For tests: generated via datasets/generator/ and synced to target."
+echo "       See: datasets/generator/README.md"
 
 echo ""
 echo "  Documentation:"
 echo "    docs/test_config.md                 # Configuration reference"
-echo "    docs/test_creds.md                  # Credentials setup"
+echo "    docs/test_creds.md                  # SSH credentials setup"
 echo "    docs/test_run_config.md             # Batch execution config"
+echo "    datasets/generator/README.md        # Dataset + build credentials"
 echo ""
 echo "================================================================="
 echo ""
