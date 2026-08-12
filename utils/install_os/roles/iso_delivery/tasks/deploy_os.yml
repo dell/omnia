@@ -62,6 +62,9 @@
     validate_certs: false
     boot_source_override_enabled: "once"
     boot_source_override_target: "cd"
+    boot_source_override_mode: uefi
+    resource_id: "System.Embedded.1"
+    reset_type: "none"
   register: boot_override_result
   no_log: true
 
@@ -72,6 +75,7 @@
     password: "{{ bmc_password }}"
     validate_certs: false
     reset_type: "ForceRestart"
+    resource_id: "System.Embedded.1"
   register: reboot_result
   no_log: true
 
