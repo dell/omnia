@@ -200,20 +200,17 @@ def check_s3_bucket_images(
         found_images = []
         missing_images = []
 
-        for img_type, suffixes in IMAGE_TYPES.items():
+        for img_type in IMAGE_TYPES:
             found = False
             matched_path = None
             matched_size = 0
 
             for path, info in group_files.items():
                 fname = info["filename"]
-                for suffix in suffixes:
-                    if fname.endswith(suffix) or suffix in fname:
-                        found = True
-                        matched_path = path
-                        matched_size = info["size"]
-                        break
-                if found:
+                if img_type in fname:
+                    found = True
+                    matched_path = path
+                    matched_size = info["size"]
                     break
 
             display = IMAGE_TYPE_DISPLAY.get(img_type, img_type)

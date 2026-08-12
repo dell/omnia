@@ -28,6 +28,7 @@ Common functions are re-exported from omnia_auto so existing
 callers keep working.
 """
 
+import base64
 import os
 from typing import Dict, Any
 
@@ -235,9 +236,18 @@ def sync_build_credentials(host) -> Dict[str, Any]:
     Flow:
         1. Load ``test_creds.yml`` (decrypted via ``load_test_credentials``).
         2. Extract ``s3_access_id``, ``s3_secret_key``, ``aarch64_ssh_password``.
-        3. If any field has a non-empty value, write them to
-           ``<input_dir>/image_build_credentials.yml`` on the target.
-        4. Encrypt the file with ansible-vault on the target.
+        3. If any field has a non-empty value, write them as **plaintext**
+           YAML to ``<input_dir>/image_build_credentials.yml`` on the target.
+
+    The file is written as plaintext intentionally.  The
+    ``collect_build_credentials`` role detects non-vault files (Step 4b)
+    and handles loading + encryption itself.  This avoids vault-key
+    mismatch — the role creates/manages its own vault key at
+    ``<input_dir>/.image_build_credentials_key``.
+
+    The write uses base64 encoding over SSH so credential values
+    containing quotes, backslashes, or special chars are transported
+    without shell-escaping issues.
 
     If no build credential fields are populated (all empty strings), the
     function skips silently — the ``collect_build_credentials`` role will
@@ -278,31 +288,31 @@ def sync_build_credentials(host) -> Dict[str, Any]:
         host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
     )
     cred_file = f"{remote_input}/{CREDENTIALS_FILE_NAME}"
-    vault_key = f"{remote_input}/{CREDENTIALS_KEY_NAME}"
 
-    # Build YAML lines matching the template format.
-    # Use printf + shell redirect instead of heredoc — heredoc is unreliable
-    # through testinfra/paramiko SSH because exec_command runs one command.
-    yaml_lines = [
-        "---",
-        "# Image build credentials (S3 / MinIO)",
-        "# Auto-populated by test framework from test_creds.yml.",
-        f's3_access_id: "{build_creds["s3_access_id"]}"',
-        f's3_secret_key: "{build_creds["s3_secret_key"]}"',
-        "",
-        "# SSH password for ARM build host",
-        f'aarch64_ssh_password: "{build_creds["aarch64_ssh_password"]}"',
-    ]
-    # Escape for shell single-quoted printf: backslashes and single quotes.
-    # In shell single quotes, the only char that needs escaping is ' itself,
-    # done via '\'' (end quote, escaped quote, reopen quote).
-    escaped = r"\n".join(
-        line.replace("\\", "\\\\").replace("'", "'\\''")
-        for line in yaml_lines
+    # Build YAML content matching the template format
+    yaml_content = (
+        "---\n"
+        "# Image build credentials (S3 / MinIO)\n"
+        "# Auto-populated by test framework from test_creds.yml.\n"
+        f's3_access_id: "{build_creds["s3_access_id"]}"\n'
+        f's3_secret_key: "{build_creds["s3_secret_key"]}"\n'
+        "\n"
+        "# SSH password for ARM build host\n"
+        f'aarch64_ssh_password: "{build_creds["aarch64_ssh_password"]}"\n'
     )
 
-    # Write to target via printf (single-line command, no heredoc)
-    write_cmd = f"printf '{escaped}\\n' > {cred_file} && chmod 600 {cred_file}"
+    # Base64-encode to avoid all shell quoting issues over SSH.
+    # base64 output contains only [A-Za-z0-9+/=] — safe in any shell.
+    b64 = base64.b64encode(yaml_content.encode("utf-8")).decode("ascii")
+
+    # Ensure parent directory exists, write via base64 decode, set perms.
+    # Leave as plaintext — the collect_build_credentials role (Step 4b)
+    # detects non-vault files and handles encryption with its own key.
+    write_cmd = (
+        f"mkdir -p {remote_input} && "
+        f"echo '{b64}' | base64 -d > {cred_file} && "
+        f"chmod 600 {cred_file}"
+    )
     result = run_on_host(host, write_cmd)
     if result.rc != 0:
         return {
@@ -311,21 +321,18 @@ def sync_build_credentials(host) -> Dict[str, Any]:
             "error": f"Failed to write {cred_file}: {result.stderr}",
         }
 
-    # Create vault key if it doesn't exist
-    key_cmd = (
-        f"if [ ! -f {vault_key} ]; then "
-        f"python3 -c \"import secrets; print(secrets.token_urlsafe(32)[:32])\" > {vault_key} && "
-        f"chmod 600 {vault_key}; fi"
-    )
-    run_on_host(host, key_cmd)
-
-    # Encrypt with ansible-vault
-    encrypt_cmd = (
-        f"ansible-vault encrypt {cred_file} "
-        f"--vault-password-file {vault_key} 2>/dev/null"
-    )
-    enc_result = run_on_host(host, encrypt_cmd)
-    encrypted = enc_result.rc == 0
+    # Verify the file was written with actual values (not empty)
+    verify_cmd = f"grep -c 's3_secret_key' {cred_file}"
+    verify = run_on_host(host, verify_cmd)
+    if verify.rc != 0:
+        return {
+            "success": False,
+            "details": "",
+            "error": (
+                f"Credential file written but verification failed. "
+                f"Check {cred_file} on the target."
+            ),
+        }
 
     field_summary = ", ".join(
         f"{k}={'set' if build_creds[k] else 'empty'}"
@@ -336,7 +343,7 @@ def sync_build_credentials(host) -> Dict[str, Any]:
         "success": True,
         "details": (
             f"Build credentials synced to {cred_file} "
-            f"({'encrypted' if encrypted else 'plain-text'}) "
+            f"(plaintext — role will encrypt on first run) "
             f"[{field_summary}]"
         ),
         "error": "",

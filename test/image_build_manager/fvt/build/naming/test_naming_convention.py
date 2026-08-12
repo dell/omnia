@@ -38,7 +38,7 @@ from library.functions import (
     get_configured_functional_groups,
 )
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import CMDS, REGISTRY_PORT
+from library.vars.common_vars import CMDS, REGISTRY_PORT, S3_BOOT_IMAGES_BUCKET
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ def _get_registry_repos(host) -> List[str]:
 
 def _get_s3_image_paths(host) -> List[str]:
     """Return S3 object paths using s3cmd ls -Hr (same as check_s3_bucket_images)."""
-    result = host.run(CMDS["s3cmd_ls_bucket"].format(bucket="boot-images"))
+    result = host.run(CMDS["s3cmd_ls_bucket"].format(bucket=S3_BOOT_IMAGES_BUCKET))
     if result.rc != 0:
         return []
     paths = []
