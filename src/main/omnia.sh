@@ -89,7 +89,9 @@ load_env() {
 
 validate_env() {
     local errors=0
+    local warnings=0
 
+    # --- Required env vars ---
     if [ -z "${SYSTEM_ADMIN_NIC_IPV4:-}" ]; then
         echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set${NC}"
         echo -e "${YELLOW}  export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>${NC}"
@@ -109,19 +111,67 @@ validate_env() {
     fi
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh -s${NC}"
+        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh --setup-venv${NC}"
         echo -e "${YELLOW}Or export them manually:  export SYSTEM_ADMIN_NIC_IPV4=<ip>${NC}"
         exit 1
     fi
 
     export SYSTEM_ADMIN_NIC_IPV4
 
+    # --- Validate hostname matches system (hostname -s) ---
+    local actual_hostname
+    actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
+    if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
+        echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}${NC}"
+        errors=$((errors + 1))
+    fi
+
+    # --- Validate domain matches system (hostname -d) ---
+    local actual_domain
+    actual_domain="$(hostname -d 2>/dev/null || true)"
+    if [ -n "$actual_domain" ] && [ "$actual_domain" != "$SYSTEM_DOMAIN_NAME" ]; then
+        echo -e "${YELLOW}WARNING: SYSTEM_DOMAIN_NAME (${SYSTEM_DOMAIN_NAME}) does not match system domain (${actual_domain})${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}${NC}"
+        warnings=$((warnings + 1))
+    fi
+
+    # --- Validate admin IP is assigned to a local interface ---
+    local all_ips
+    all_ips="$(hostname -I 2>/dev/null || ip -4 addr show | grep -oP '(?<=inet\s)\d+\.\d+\.\d+\.\d+' 2>/dev/null || true)"
+    if [ -n "$all_ips" ]; then
+        local ip_found=false
+        for ip in $all_ips; do
+            if [ "$ip" = "$SYSTEM_ADMIN_NIC_IPV4" ]; then
+                ip_found=true
+                break
+            fi
+        done
+        if [ "$ip_found" = false ]; then
+            echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 (${SYSTEM_ADMIN_NIC_IPV4}) is not assigned to any local interface${NC}"
+            echo -e "${YELLOW}  Available IPs: ${all_ips}${NC}"
+            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in omnia.env${NC}"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo -e "${RED}Environment validation failed with ${errors} error(s)${NC}"
+        exit 1
+    fi
+
     echo -e "${GREEN}Environment validated:${NC}"
-    echo -e "  Hostname:    ${SYSTEM_HOSTNAME}"
-    echo -e "  Domain:      ${SYSTEM_DOMAIN_NAME}"
-    echo -e "  Admin IP:    ${SYSTEM_ADMIN_NIC_IPV4}"
+    echo -e "  Hostname:    ${SYSTEM_HOSTNAME} (actual: ${actual_hostname})"
+    echo -e "  Domain:      ${SYSTEM_DOMAIN_NAME}${actual_domain:+ (actual: ${actual_domain})}"
+    echo -e "  FQDN:        ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}"
+    echo -e "  Admin IP:    ${SYSTEM_ADMIN_NIC_IPV4} (verified on interface)"
     echo -e "  Data path:   ${OMNIA_DATA_PATH}"
     echo -e "  Project:     ${OMNIA_PROJECT_NAME}"
+    if [ "$warnings" -gt 0 ]; then
+        echo -e "  ${YELLOW}Warnings: ${warnings}${NC}"
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

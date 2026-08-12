@@ -1,6 +1,6 @@
 # Omnia Domain Integration — omnia.sh & omnia-cli
 
-**Version**: 1.0
+**Version**: 2.0
 **Audience**: Domain developers, platform integrators
 **Purpose**: Document how each Omnia domain integrates with `omnia.sh` (setup/execution script) and `omnia-cli` (status and diagnostics CLI).
 
@@ -12,7 +12,7 @@ Omnia domains run as independent Ansible playbooks on a RHEL host. Two system-le
 
 | Script | Location | Purpose |
 |--------|----------|---------|
-| **`omnia.sh`** | `src/main/omnia.sh` | Bootstrap, venv setup, domain execution, orchestration |
+| **`omnia.sh`** | `src/main/omnia.sh` | Bootstrap, venv setup, environment validation, domain execution |
 | **`omnia-cli`** | `src/main/omnia-cli` | Post-run status query, diagnostics, health checks |
 
 Both scripts are installed to `/usr/local/bin/` (or sourced from the repo) and operate on the shared state directory `<OMNIA_DATA_PATH>` (default `/opt/omnia`).
@@ -28,14 +28,18 @@ Both scripts are installed to `/usr/local/bin/` (or sourced from the repo) and o
    - `SYSTEM_DOMAIN_NAME`
    - `SYSTEM_ADMIN_NIC_IPV4`
    - `OMNIA_DATA_PATH` (default `/opt/omnia`)
+   - `OMNIA_VERSION`
+   - `OMNIA_PROJECT_NAME`
 
-2. **Creates Python venv** — `python3 -m venv <OMNIA_DATA_PATH>/venv`
+2. **Validates the environment** — `validate_env()` cross-checks env vars against the actual system (see §2.6)
 
-3. **Installs dependencies** — `pip install` from each domain's `requirements.txt`
+3. **Creates Python venv** — `python3 -m venv <OMNIA_DATA_PATH>/venv`
 
-4. **Stages domain inputs** — calls each domain's `domain-init.sh` to copy flat input template files from the domain repo's `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+4. **Installs dependencies** — `pip install` from each domain's `requirements.txt`
 
-5. **Runs domain playbooks** — executes `ansible-playbook` for each domain in sequence
+5. **Stages domain inputs** — calls each domain's `domain-init.sh` to copy flat input template files from the domain repo's `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+
+6. **Runs domain playbooks** — executes `ansible-playbook` for each domain in sequence
 
 ### 2.2 Domain Registration
 
@@ -43,10 +47,10 @@ Each domain registers itself with `omnia.sh` via a domain manifest block in the 
 
 ```bash
 # Example domain block in omnia.sh
-DOMAIN_NAME="image_build_manager"
-DOMAIN_PATH="src/image_build_manager"
-DOMAIN_PLAYBOOK="playbooks/image_build_manager.yml"
-DOMAIN_DESCRIPTION="Build OS images for compute nodes"
+DOMAIN_NAME="<domain_name>"
+DOMAIN_PATH="src/<domain_name>"
+DOMAIN_PLAYBOOK="playbooks/<domain_name>.yml"
+DOMAIN_DESCRIPTION="<description of what this domain does>"
 DOMAIN_TAGS="precheck,validate,prepare,build,cleanup,upgrade,rollback"
 ```
 
@@ -56,17 +60,19 @@ DOMAIN_TAGS="precheck,validate,prepare,build,cleanup,upgrade,rollback"
 omnia.sh --setup-venv
   │
   ├── 1. Source /etc/omnia/omnia.env
-  ├── 2. Create/activate Python venv
-  ├── 3. pip install -r requirements.txt (per domain)
-  ├── 4. ansible-galaxy collection install -r requirements.yml (per domain)
-  └── 5. Call domain-init.sh (per domain)
+  ├── 2. Validate environment (validate_env)
+  ├── 3. Create/activate Python venv
+  ├── 4. pip install -r requirements.txt (per domain)
+  ├── 5. ansible-galaxy collection install -r requirements.yml (per domain)
+  └── 6. Call domain-init.sh (per domain)
 
 omnia.sh --run <domain> [--tags <tags>]   # or: omnia.sh -r <domain> --tags <tags>
   │
   ├── 1. Source /etc/omnia/omnia.env
-  ├── 2. Activate venv
-  ├── 3. ansible-playbook <domain>/playbooks/<domain>.yml --tags <tags>
-  └── 4. Write domain status to <OMNIA_DATA_PATH>/<domain>/output/<project>/<domain>_status.yml
+  ├── 2. Validate environment (validate_env)
+  ├── 3. Activate venv
+  ├── 4. ansible-playbook <domain>/playbooks/<domain>.yml --tags <tags>
+  └── 5. Write domain status to <OMNIA_DATA_PATH>/<domain>/output/<project>/<domain>_status.yml
 
 omnia.sh --validate <domain>              # shortcut for --run <domain> --tags validate
 omnia.sh --init                           # run all domain-init.sh scripts
@@ -99,6 +105,22 @@ All domains can access these via `lookup('env', ...)` in Ansible:
 | `SYSTEM_DOMAIN_NAME` | `/etc/omnia/omnia.env` | `omnia.cluster` |
 | `SYSTEM_ADMIN_NIC_IPV4` | `/etc/omnia/omnia.env` | `172.16.107.254` |
 | `OMNIA_DATA_PATH` | `/etc/omnia/omnia.env` | `/opt/omnia` |
+| `OMNIA_VERSION` | `/etc/omnia/omnia.env` | `2.3` |
+| `OMNIA_PROJECT_NAME` | `/etc/omnia/omnia.env` | `project_default` |
+
+### 2.6 Environment Validation (`validate_env`)
+
+`omnia.sh` validates environment variables against the actual system before any domain runs. This prevents misconfigurations from propagating:
+
+| Check | Command | Severity | Description |
+|-------|---------|----------|-------------|
+| Hostname | `hostname -s` | Error | Must match `SYSTEM_HOSTNAME` |
+| Domain | `hostname -d` | Warning | Must match `SYSTEM_DOMAIN_NAME` |
+| Admin IP | `hostname -I` | Error | `SYSTEM_ADMIN_NIC_IPV4` must appear in the output |
+
+If any error-level check fails, `omnia.sh` exits immediately with an actionable message.
+
+The same validation is available as an Ansible module (`validate_system_environment`) for use within playbooks — see §5.
 
 ---
 
@@ -128,18 +150,18 @@ Every domain MUST write a status file after execution:
 
 ```yaml
 ---
-domain: "image_build_manager"
+domain: "<domain_name>"
 project_name: "project_default"
 overall_status: "success"          # success | failed | partial | skipped
-execution_time: "2025-07-27T10:30:00Z"
+execution_time: "2026-07-27T10:30:00Z"
 duration_seconds: 1234
 tags_executed:
   - prepare
   - build
 details:
-  x86_64_base_image: "success"
-  x86_64_compute_images: "success"
-  aarch64_base_image: "skipped"
+  <component_1>: "success"
+  <component_2>: "success"
+  <component_3>: "skipped"
 errors: []
 ```
 
@@ -210,67 +232,85 @@ Each domain reads its upstream contract from a well-known path under `<OMNIA_DAT
 Each domain can run standalone by providing its upstream contract files:
 
 ```bash
-# Run image_build_manager standalone (provide repo_status.yml manually)
-cp repo_status.yml /opt/omnia/repo_manager/output/project_default/
-ansible-playbook image_build_manager/playbooks/image_build_manager.yml --tags build
+# Run a domain standalone (provide upstream contract manually)
+mkdir -p /opt/omnia/<upstream_domain>/output/project_default/
+cp <upstream_contract>.yml /opt/omnia/<upstream_domain>/output/project_default/
+ansible-playbook <domain>/playbooks/<domain>.yml --tags <tag>
 ```
 
 ---
 
-## 5. `image_build_manager` Specific Integration
+## 5. Environment Validation Architecture
 
-### 5.1 Build Type Selection
+Three layers validate system environment, each using the same checks but at different stages:
 
-The `image_build_manager` supports two build backends via `image_build_type` in `image_build_config.yml`:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 validate_system_environment.py              │
+│                 (Ansible module — single source of truth)   │
+│                                                             │
+│  Checks:                                                    │
+│    - Env vars SET (SYSTEM_HOSTNAME, SYSTEM_ADMIN_NIC_IPV4,  │
+│      SYSTEM_DOMAIN_NAME, OMNIA_DATA_PATH)                   │
+│    - hostname -s matches SYSTEM_HOSTNAME                    │
+│    - hostname -d matches SYSTEM_DOMAIN_NAME                 │
+│    - SYSTEM_ADMIN_NIC_IPV4 assigned to a local NIC          │
+│    - OMNIA_DATA_PATH exists or parent is writable           │
+│                                                             │
+│  Returns: structured per-check results with pass/fail       │
+└──────┬──────────────────┬───────────────────────────────────┘
+       │                  │
+┌──────┴───────┐  ┌───────┴──────────┐  ┌──────────────────┐
+│ omnia.sh     │  │ Domain playbook  │  │ FVT tests        │
+│ validate_env │  │ setup role       │  │ (test automation) │
+│ (bash)       │  │ + precheck role  │  │                  │
+│              │  │ (Ansible)        │  │                  │
+└──────────────┘  └──────────────────┘  └──────────────────┘
+```
 
-| Build Type | Binary | Container Image | Config Format |
-|------------|--------|-----------------|---------------|
-| `image-builder` | Python `image-build` | `quay.io/openchami/image-builder:latest` | `options:` + `repos:` + `cmds:` |
-| `image-thrillhouse` | Go `image-thrillhouse` | `ghcr.io/openchami/image-thrillhouse:latest` | `meta:` + `layer:` + `publish:` |
+### 5.1 Usage in Setup Role (env vars only)
 
-### 5.2 Status File Fields
-
-The `image_build_manager` status file includes build-specific fields:
+The domain setup role calls the module to validate env vars are SET but does NOT cross-validate against the system (that is the precheck role's job):
 
 ```yaml
----
-domain: "image_build_manager"
-image_build_type: "image-builder"     # or "image-thrillhouse"
-architectures_built:
-  - x86_64
-  - aarch64
-base_images:
-  x86_64: "rhel-x86_64_base:10.0"
-  aarch64: "rhel-aarch64_base:10.0"
-compute_images:
-  - name: "rhel-compute_default-omnia:10.0"
-    arch: x86_64
-    status: success
-registry_host: "172.16.107.254"
-s3_endpoint: "http://172.16.107.254:9000"
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - SYSTEM_HOSTNAME
+      - SYSTEM_DOMAIN_NAME
+      - OMNIA_DATA_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: false
+  register: _env_validation
 ```
 
-### 5.3 `omnia-cli` Output for Image Build Manager
+### 5.2 Usage in Precheck Role (full cross-validation)
 
+The precheck role calls the module with all cross-validation enabled:
+
+```yaml
+- name: Cross-validate system environment
+  validate_system_environment:
+    required_vars: []
+    validate_hostname: true
+    validate_domain: true
+    validate_ip: true
+    validate_paths: true
+  register: _sys_validation
 ```
-$ omnia-cli status image_build_manager
 
-  Domain: image_build_manager
-  Description: Build and publish OS images for compute nodes (x86_64/aarch64)
-  Status: SUCCESS
-  Build Type: image-builder
-  Duration: 20m 34s
-  Last Run: 2025-07-27 10:30:00
+### 5.3 Module Parameters
 
-  Images Built:
-    ✓ rhel-x86_64_base:10.0
-    ✓ rhel-compute_default-omnia:10.0
-    ✓ rhel-aarch64_base:10.0
-
-  Infrastructure:
-    Registry: 172.16.107.254:5000 (running)
-    MinIO S3: http://172.16.107.254:9000 (running)
-```
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `required_vars` | list | `[SYSTEM_ADMIN_NIC_IPV4, SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME, OMNIA_DATA_PATH]` | Env vars that must be set (non-empty) |
+| `validate_hostname` | bool | `true` | Cross-check SYSTEM_HOSTNAME against `hostname -s` |
+| `validate_domain` | bool | `true` | Cross-check SYSTEM_DOMAIN_NAME against `hostname -d` |
+| `validate_ip` | bool | `true` | Check SYSTEM_ADMIN_NIC_IPV4 is assigned to a local NIC |
+| `validate_paths` | bool | `true` | Verify OMNIA_DATA_PATH exists or parent is writable |
 
 ---
 
@@ -281,8 +321,11 @@ When creating a new Omnia domain, ensure:
 - [ ] `domain-init.sh` exists at domain root
 - [ ] Domain writes `<domain>_status.yml` to `<OMNIA_DATA_PATH>/<domain>/output/<project>/`
 - [ ] Domain reads system env vars from `/etc/omnia/omnia.env` (via `lookup('env', ...)`)
+- [ ] Setup role calls `validate_system_environment` module for env var validation
+- [ ] Precheck role calls `validate_system_environment` module with full cross-validation
 - [ ] Domain is registered in `omnia.sh` domain list
 - [ ] Domain description added to `omnia-cli` `DOMAIN_DESCRIPTIONS` map
 - [ ] Domain input file added to `omnia-cli` `DOMAIN_INPUT_FILES` map
 - [ ] Domain can run standalone with manually-provided upstream contracts
 - [ ] Domain status file follows the standard YAML format documented above
+- [ ] Test automation updated for the domain (see `general.md` §6)

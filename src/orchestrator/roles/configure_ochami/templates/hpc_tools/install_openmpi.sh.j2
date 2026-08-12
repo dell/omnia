@@ -42,7 +42,7 @@ esac
 if [ ! -f openmpi.tar.gz ]; then
     echo "[INFO] Downloading OpenMPI source code..."
     wget --no-check-certificate \
-      https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/${arch}/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/openmpi/openmpi.tar.gz \
+      https://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}/pulp/content/opt/omnia/offline_repo/cluster/${arch}/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/openmpi/openmpi.tar.gz \
       -O openmpi.tar.gz >> "$LOGFILE" 2>&1
     echo "[INFO] OpenMPI download completed"
 else

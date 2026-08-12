@@ -1,0 +1,60 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Provision Preamble — SSH key distribution + OpenCHAMI auth
+# Runs ONCE before all provisioning playbooks to avoid 4x redundant setup.
+# Can be run standalone or imported by orchestrator.yml
+#
+# Prerequisites: prepare_orchestrator.yml, deploy_openchami.yml,
+#                validate_openchami.yml must have run first.
+
+# Step 1: Setup orchestrator vars (needed for standalone runs)
+- name: Setup orchestrator environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: omnia.orchestrator.orchestrator_setup
+      vars:
+        openchami_vars_support: true
+        omnia_metadata_support: true
+        oim_group: true
+
+# Step 2: Build cluster host lists from PXE mapping
+- name: Build cluster host lists from PXE mapping
+  hosts: localhost
+  connection: local
+  roles:
+    - omnia.orchestrator.passwordless_ssh
+
+# Step 3: Configure OIM SSH access
+- name: Configure OIM SSH from cluster host lists
+  hosts: oim
+  connection: ssh
+  roles:
+    - omnia.orchestrator.passwordless_ssh
+
+# Step 4: Authenticate with OpenCHAMI (token stored as fact)
+- name: Authenticate with OpenCHAMI
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: OpenCHAMI cluster authentication
+      ansible.builtin.include_role:
+        name: omnia.orchestrator.orchestrator_common
+        tasks_from: openchami_auth.yml
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"

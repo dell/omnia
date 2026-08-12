@@ -293,3 +293,10 @@ All Python code MUST pass the following gates before merge:
 
 - All `.sh` files (e.g., `domain-init.sh`) MUST pass `shellcheck` with zero errors
 - Warnings (SC-level) SHOULD be addressed; suppressions allowed with `# shellcheck disable=SCXXXX` and a justification comment
+
+---
+
+## 8. Cross-References
+
+- **Test co-change rule**: Changes to Python modules (`plugins/modules/`, `module_utils/`) MUST include corresponding UT/FVT test updates — see `general.md` §6.
+- **AI agent policy**: AI agents MUST NOT be used for PR sign-off — see `general.md` §7.

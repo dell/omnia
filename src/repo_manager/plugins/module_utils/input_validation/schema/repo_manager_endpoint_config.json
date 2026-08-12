@@ -43,5 +43,5 @@
       "description": "SSL certificate configuration."
     }
   },
-  "required": ["pulp_server_ip", "pulp_server_port", "pulp_protocol"]
+  "required": ["pulp_server_port", "pulp_protocol"]
 }

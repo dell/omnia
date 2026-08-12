@@ -60,7 +60,7 @@
 
 - name: Set fact for pulp mirror
   ansible.builtin.set_fact:
-    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
 
 - name: Create x86_64 package base directory
   ansible.builtin.file:

@@ -32,12 +32,12 @@
     filter_slurm_nfs: []
     filter_service_k8s_nfs: []
 
-- name: Check if slurm support is true and if not slurm nodes in 'functional_groups'
+- name: Check if slurm support is true and if slurm control nodes exist in functional_groups
   ansible.builtin.set_fact:
     slurm_support: true
   when:
     - (software_config.softwares | selectattr('name', 'in', ['slurm_custom']) | list | length) > 0
-    - "'slurm_control_node_x86_64' in (hostvars['localhost']['functional_groups'] | map(attribute='name') | list)"
+    - (hostvars['localhost']['functional_groups'] | map(attribute='name') | select('match', '^slurm_control_node_') | list | length) > 0
 
 - name: Check if service_k8s support is true
   ansible.builtin.set_fact:

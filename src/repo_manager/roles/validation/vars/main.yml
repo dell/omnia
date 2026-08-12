@@ -23,7 +23,7 @@ k8s_support: false
 service_k8s_support: false
 k8s_arch: []
 service_k8s_arch: []
-software_csv_path: "{{ repo_manager_log_dir }}/software.csv"
+software_csv_path: "{{ repo_manager_log_dir }}/groups_status.csv"
 usage_message: |
   "WARNING:
   If you have modified any <software_name>.json file (e.g., `additional_software.json`),
@@ -91,12 +91,6 @@ user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and shoul
     Also ensure that there is no indentation error in {{ project_input_path }}/repo_manager_config.yml"
 user_repo_url_fail_url_gpg_key_msg: "Failed. Each item in user_repo_url should have 'url', 'gpgkey' and 'name' keys defined"
 
-# Usage: validate_ubuntu_os_url.yml
-url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
-    Also ensure that there is no indentation error in {{ project_input_path }}/repo_manager_config.yml"
-url_unreachable_fail_msg: "Failed. Unreachable url {{ ubuntu_os_url }} input provided in ubuntu_os_url.
-    This can be due to intermittent internet connectivity issues as well.
-    Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run repo_manager.yml."
 meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 metadata_identical_msg: "Metadata is identical. No changes detected."
@@ -106,7 +100,7 @@ metadata_warn_msg: |
 build_stream_auto_accept_metadata_msg: "Build stream is enabled, automatically accepting metadata changes."
 
 # Usage: remove_k8s_line.yml
-software_csv_file_path: "{{ repo_manager_log_dir }}/software.csv"
+software_csv_file_path: "{{ repo_manager_log_dir }}/groups_status.csv"
 k8s_local_repo_metadata_file_path: "{{ repo_manager_log_dir }}/k8s_local_repo_metadata.yml"
 
 # Usage: validate_rhel_os_url.yml

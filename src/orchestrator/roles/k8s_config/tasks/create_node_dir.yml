@@ -23,36 +23,36 @@
   ansible.builtin.set_fact:
     parsed_yaml: "{{ slurped_yaml.content | b64decode | from_yaml }}"
 
-- name: Extract service_kube_control_plane_first_x86_64 IPs
+- name: Extract control plane first node IPs (service_kube_control_plane_first_*)
   ansible.builtin.set_fact:
     cp_first_ip_list: >-
       {{
         parsed_yaml.nodes
-        | selectattr('group', 'equalto', 'service_kube_control_plane_first_x86_64')
+        | selectattr('group', 'match', '^service_kube_control_plane_first_')
         | map(attribute='interfaces') | map('first')
         | map(attribute='ip_addrs')   | map('first')
         | map(attribute='ip_addr')
         | list
       }}
 
-- name: Extract service_kube_control_plane_x86_64 IPs
+- name: Extract control plane node IPs (service_kube_control_plane_*)
   ansible.builtin.set_fact:
     cp_ip_list: >-
       {{
         parsed_yaml.nodes
-        | selectattr('group', 'equalto', 'service_kube_control_plane_x86_64')
+        | selectattr('group', 'match', '^service_kube_control_plane_(?!first)')
         | map(attribute='interfaces') | map('first')
         | map(attribute='ip_addrs')   | map('first')
         | map(attribute='ip_addr')
         | list
       }}
 
-- name: Extract service_kube_node_x86_64 IPs
+- name: Extract worker node IPs (service_kube_node_*)
   ansible.builtin.set_fact:
     worker_ip_list: >-
       {{
         parsed_yaml.nodes
-        | selectattr('group', 'equalto', 'service_kube_node_x86_64')
+        | selectattr('group', 'match', '^service_kube_node_')
         | map(attribute='interfaces') | map('first')
         | map(attribute='ip_addrs')   | map('first')
         | map(attribute='ip_addr')

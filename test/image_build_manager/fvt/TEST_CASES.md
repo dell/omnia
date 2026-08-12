@@ -4,6 +4,19 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ---
 
+## precheck
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_PC_001 | `test_deploy_precheck` | *(root)* | deploy, sanity | Deploy image_build_manager --tags precheck |
+| TC_PC_002 | `test_env_vars_present` | connectivity/ | sanity | Verify all omnia.env vars present on target |
+| TC_PC_003 | `test_target_connectivity` | connectivity/ | sanity | Verify target host SSH connectivity |
+| TC_PC_004 | `test_hostname_domain` | connectivity/ | sanity | Verify hostname and domain match omnia.env |
+| TC_PC_005 | `test_admin_ip_assigned` | connectivity/ | sanity | Verify admin IP assigned to local interface |
+| TC_PC_006 | `test_omnia_setup` | connectivity/ | sanity | Verify omnia.sh setup completed |
+
+---
+
 ## image_build_manager (Full End-to-End)
 
 | TC ID | Test | Suite | Markers | Description |
@@ -81,9 +94,10 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 | Scenario | Prefix | Test Count |
 |----------|--------|------------|
+| precheck | TC_PC_ | 6 (001–006) |
 | image_build_manager | TC_IB_ | 13 (001–013) |
 | validate | TC_VL_ | 3 |
 | prepare | TC_PR_ | 8 |
 | build | TC_BD_ | 6 |
 | cleanup | TC_CL_ | 8 |
-| **Total** | | **38** |
+| **Total** | | **44** |

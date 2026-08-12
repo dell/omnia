@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Configure DNS for provisioned nodes.
+# Extracted from orchestrator.yml inline DNS shell scripts (lines 150-229).
+# Configures CoreDNS as primary nameserver on both localhost and OIM.
+
+- name: Configure omnia_core resolv.conf for CoreDNS
+  ansible.builtin.shell: |
+    set -o pipefail
+    tmpfile=$(mktemp)
+
+    # Merge cluster domain into existing search line (preserve existing domains)
+    existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
+    if echo " ${existing_search} " | grep -qw '{{ domain_name }}'; then
+      echo "search ${existing_search}" > "$tmpfile"
+    else
+      echo "search {{ domain_name }} ${existing_search}" > "$tmpfile"
+    fi
+
+    # Prepend CoreDNS as primary nameserver
+    echo "nameserver {{ admin_nic_ip }}" >> "$tmpfile"
+
+    # Keep existing nameservers and options (skip search lines and CoreDNS duplicate)
+    grep -v '^search' /etc/resolv.conf 2>/dev/null | \
+      grep -Fxv "nameserver {{ admin_nic_ip }}" | \
+      grep -v '^$' >> "$tmpfile" || true
+
+    # Deduplicate while preserving order
+    awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
+    rm -f "$tmpfile"
+  changed_when: true
+  delegate_to: localhost
+
+- name: Remove immutable flag from OIM /etc/resolv.conf if present
+  ansible.builtin.command: chattr -i /etc/resolv.conf
+  changed_when: true
+  failed_when: false
+
+- name: Prepend CoreDNS as primary nameserver in OIM /etc/resolv.conf
+  ansible.builtin.shell: |
+    set -o pipefail
+    tmpfile=$(mktemp)
+
+    # Merge cluster domain into existing search line (preserve existing domains)
+    existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
+    if echo " ${existing_search} " | grep -qw '{{ domain_name }}'; then
+      echo "search ${existing_search}" > "$tmpfile"
+    else
+      echo "search {{ domain_name }} ${existing_search}" > "$tmpfile"
+    fi
+
+    # Prepend coresmd as primary nameserver
+    echo "nameserver {{ admin_nic_ip }}" >> "$tmpfile"
+
+    # Keep existing nameservers and options (skip search lines and coresmd duplicate)
+    grep -v '^search' /etc/resolv.conf 2>/dev/null | \
+      grep -Fxv "nameserver {{ admin_nic_ip }}" | \
+      grep -v '^$' >> "$tmpfile" || true
+
+    # Deduplicate while preserving order
+    awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
+    rm -f "$tmpfile"
+  changed_when: true
+
+- name: Prevent NetworkManager from overwriting resolv.conf
+  ansible.builtin.command: chattr +i /etc/resolv.conf
+  changed_when: true
+  failed_when: false

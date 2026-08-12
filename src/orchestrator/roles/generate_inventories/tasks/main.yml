@@ -1,0 +1,125 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# generate_inventories — Query SMD and generate all inventory files in one pass.
+# Called from validate_provisioning.yml after all provision_*.yml playbooks.
+# SMD is the single source of truth — query once, generate everything.
+#
+# Outputs:
+#   - orchestrator_inventory.yml (all nodes)
+#   - bmc_group_data.yml (all nodes)
+#   - kube_inventory.yml (FGs matching kubernetes category)
+#   - slurm_inventory.yml (FGs matching slurm category)
+
+- name: Load functional groups configuration
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+
+- name: Load classification rules
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../vars/functional_group_classification.yml"
+
+# Inventory templates and output paths (from configure_ochami/vars/main.yml)
+- name: Set inventory variables
+  ansible.builtin.set_fact:
+    ochami_template_dir: "{{ role_path }}/../configure_ochami/templates"
+    orchestrator_output_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+    file_permissions_644: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    dir_permissions_755: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
+- name: Ensure orchestrator output directory exists on OIM
+  ansible.builtin.file:
+    path: "{{ orchestrator_output_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+
+- name: Ensure playbook output directory exists on localhost
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/output"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+  delegate_to: localhost
+
+- name: Generate BMC group data file
+  ansible.builtin.template:
+    src: "{{ ochami_template_dir }}/nodes/bmc_group_data.csv.j2"
+    dest: "{{ orchestrator_output_dir }}/bmc_group_data.csv"
+    mode: "{{ file_permissions_644 }}"
+  vars:
+    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    group_data: "{{ (lookup('file', hostvars['localhost']['functional_groups_config_path']) | from_yaml).groups }}"
+
+- name: Copy BMC group data to localhost
+  ansible.builtin.fetch:
+    src: "{{ orchestrator_output_dir }}/bmc_group_data.csv"
+    dest: "{{ orchestrator_output_dir }}/bmc_group_data.csv"
+    flat: true
+
+- name: Generate orchestrator inventory file
+  ansible.builtin.template:
+    src: "{{ ochami_template_dir }}/nodes/orchestrator_inventory.yaml.j2"
+    dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
+    mode: "{{ file_permissions_644 }}"
+  vars:
+    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+
+- name: Copy orchestrator inventory to localhost
+  ansible.builtin.fetch:
+    src: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
+    dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
+    flat: true
+
+- name: Generate Kubernetes inventory file
+  ansible.builtin.template:
+    src: "{{ ochami_template_dir }}/nodes/kube_inventory.yml.j2"
+    dest: "{{ playbook_dir }}/output/kube_inventory.yml"
+    mode: "{{ file_permissions_644 }}"
+  vars:
+    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    kube_vip: "{{ hostvars['oim']['kube_vip'] | default('') }}"
+    k8s_functional_groups: >-
+      {{ functional_groups
+         | selectattr('name', 'match', '^service_kube_')
+         | map(attribute='name') | list }}
+
+- name: Copy Kubernetes inventory to localhost
+  ansible.builtin.fetch:
+    src: "{{ playbook_dir }}/output/kube_inventory.yml"
+    dest: "{{ playbook_dir }}/output/kube_inventory.yml"
+    flat: true
+
+- name: Generate Slurm inventory file
+  ansible.builtin.template:
+    src: "{{ ochami_template_dir }}/nodes/slurm_inventory.yml.j2"
+    dest: "{{ playbook_dir }}/output/slurm_inventory.yml"
+    mode: "{{ file_permissions_644 }}"
+  vars:
+    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    slurm_functional_groups: >-
+      {{ functional_groups
+         | selectattr('name', 'match', '^slurm_|^login_')
+         | map(attribute='name') | list }}
+
+- name: Copy Slurm inventory to localhost
+  ansible.builtin.fetch:
+    src: "{{ playbook_dir }}/output/slurm_inventory.yml"
+    dest: "{{ playbook_dir }}/output/slurm_inventory.yml"
+    flat: true
+
+- name: Inventory generation complete
+  ansible.builtin.debug:
+    msg: >-
+      Generated inventories: orchestrator_inventory.yaml, bmc_group_data.csv,
+      kube_inventory.yml ({{ functional_groups | selectattr('name', 'match', '^service_kube_') | list | length }} k8s FGs),
+      slurm_inventory.yml ({{ functional_groups | selectattr('name', 'match', '^slurm_|^login_') | list | length }} slurm FGs)

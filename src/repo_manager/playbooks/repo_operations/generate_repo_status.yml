@@ -112,8 +112,7 @@
       ansible.builtin.set_fact:
         catalog_path: >-
           {{ lookup('env', 'CATALOG_FILE_PATH') |
-             default((input_project_dir | default('/opt/omnia/repo_manager/input/project_default')) +
-                     '/catalog/catalog_rhel.json', true) }}
+             default('/opt/omnia/catalog/catalog_rhel.json', true) }}
 
     - name: Load catalog JSON
       ansible.builtin.set_fact:

@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-local_repo_access_config_file: "/opt/omnia/provision/local_repo_access.yml"
 input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
@@ -26,11 +25,11 @@ nfs_client_provisioner_tarball_url: "{{ offline_tarball_path }}/{{ nfs_subdir_ex
 whereabouts_git_url: "{{ offline_git_path }}/{{ whereabouts_pkg }}/{{ whereabouts_pkg }}.tar.gz"
 file_mode: "0644"
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
-pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+pulp_webserver_cert_path: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # Usage: create_node_dir.yml
-nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes_{{ target_category | default('kubernetes') }}.yaml"
 worker_components:
   - 'kubernetes'
   - 'kubelet'

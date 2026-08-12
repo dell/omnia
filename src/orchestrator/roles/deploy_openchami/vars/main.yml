@@ -17,7 +17,7 @@
 openchami_share_dir: /opt/omnia/openchami
 dir_permissions_755: "0755"
 file_permissions_644: "0644"
-openchami_log_dir: /opt/omnia/log/openchami
+openchami_log_dir: /opt/omnia/orchestrator/log/openchami
 openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_config_vars_template: "{{ role_path }}/templates/configs.yaml.j2"
 openchami_install_fail_msg: "Failed to install OpenCHAMI"
