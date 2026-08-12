@@ -244,7 +244,7 @@ CMDS: Dict[str, str] = {
         " -type f 2>/dev/null | wc -l"
     ),
     # --- System ---
-    "hostname_cmd": "hostname 2>/dev/null",
+    "hostname_cmd": "hostnamectl hostname 2>/dev/null",
     "which_cmd": "which {binary} 2>/dev/null",
     # --- omnia-cli execution ---
     "omnia_cli_help": (

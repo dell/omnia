@@ -118,9 +118,9 @@ validate_env() {
 
     export SYSTEM_ADMIN_NIC_IPV4
 
-    # --- Validate hostname matches system (hostname -s) ---
+    # --- Validate hostname matches system (hostnamectl hostname) ---
     local actual_hostname
-    actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
+    actual_hostname="$(hostnamectl hostname 2>/dev/null)"
     if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
         echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
         echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in omnia.env${NC}"
@@ -128,9 +128,9 @@ validate_env() {
         errors=$((errors + 1))
     fi
 
-    # --- Validate domain matches system (hostname -d) ---
+    # --- Validate domain matches system (hostnamectl --static) ---
     local actual_domain
-    actual_domain="$(hostname -d 2>/dev/null || true)"
+    actual_domain="$(hostnamectl --static 2>/dev/null | cut -s -d. -f2-)"
     if [ -n "$actual_domain" ] && [ "$actual_domain" != "$SYSTEM_DOMAIN_NAME" ]; then
         echo -e "${YELLOW}WARNING: SYSTEM_DOMAIN_NAME (${SYSTEM_DOMAIN_NAME}) does not match system domain (${actual_domain})${NC}"
         echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in omnia.env${NC}"
@@ -140,7 +140,7 @@ validate_env() {
 
     # --- Validate admin IP is assigned to a local interface ---
     local all_ips
-    all_ips="$(hostname -I 2>/dev/null || ip -4 addr show | grep -oP '(?<=inet\s)\d+\.\d+\.\d+\.\d+' 2>/dev/null || true)"
+    all_ips="$(ip -4 addr show 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | tr '\n' ' ')"
     if [ -n "$all_ips" ]; then
         local ip_found=false
         for ip in $all_ips; do

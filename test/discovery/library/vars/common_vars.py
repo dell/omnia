@@ -92,8 +92,8 @@ CMDS: Dict[str, str] = {
     ),
 
     # --- System ---
-    "hostname_cmd": "hostname 2>/dev/null",
-    "hostname_ip": "hostname -I 2>/dev/null",
+    "hostname_cmd": "hostnamectl hostname 2>/dev/null",
+    "hostname_ip": "ip -4 addr show 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | tr '\\n' ' '",
     "rpm_check": "rpm -q {package} 2>/dev/null",
     "which_cmd": "which {binary} 2>/dev/null",
 
