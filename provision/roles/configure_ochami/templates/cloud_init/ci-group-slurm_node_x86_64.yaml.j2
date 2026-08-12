@@ -476,7 +476,6 @@
 {% if dcgm_support %}
         - timeout 300 /usr/local/bin/install_dcgm.sh || echo "DCGM install failed or timed out (non-critical)"
 {% endif %}
-        - timeout 600 /usr/local/bin/install_nvidia_peermem.sh || echo "NVIDIA peermem install failed or timed out (non-critical)"
 {% endif %}
 
         - /usr/local/bin/configure_slurmd_setup.sh
