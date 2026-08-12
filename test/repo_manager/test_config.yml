@@ -1,0 +1,132 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Repo Manager — Test Configuration
+# =============================================================================
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where repo_manager runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files and local_repo output
+#     to the target server before running tests.
+#   - Sensitive credentials (SSH password) go in test_creds.yml
+#     (auto-encrypted with Ansible Vault on first run).
+# =============================================================================
+
+---
+
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# IP address of the server where repo_manager playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Sync repo_manager input files to the env-var-based input path
+#   3. Run all verification tests via SSH/Testinfra
+oim_server_ip: ""
+
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote server (only needed for remote mode).
+oim_ssh_port: 22
+
+# =============================================================================
+# PROJECT SYNC SETTINGS (remote execution)
+# =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/src/repo_manager/playbooks/
+#
+# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
+clone_path: "/omnia"
+
+# venv_path:    Path to Python virtual environment on the target server.
+#               If set, the venv is activated before running ansible-playbook.
+#               Leave empty to use system-wide ansible.
+venv_path: ""
+
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# Controls where input files are loaded from for test execution.
+#
+# Default (empty):
+#   Uses files directly from the source tree:
+#     src/repo_manager/input/   — repo_manager_config.yml,
+#                                  repo_manager_endpoint_config.yml
+#   This is the recommended mode — always stays in sync with source code.
+#
+# Custom dataset:
+#   Set to a folder name under test/repo_manager/datasets/<name>/.
+#   Each dataset folder must contain:
+#     input/repo_manager_config.yml
+#     input/repo_manager_endpoint_config.yml
+#     input/repo_manager_config_credentials.yml  (optional, auto-generated)
+#     input/software_config.json                 (optional)
+dataset: ""
+
+# Project name on the target server.
+# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
+# Input syncs to: <OMNIA_DATA_PATH>/repo_manager/input/<project_name>/
+# Output read from: <OMNIA_DATA_PATH>/repo_manager/output/<project_name>/
+project_name: "project_default"
+
+# =============================================================================
+# SYNC — REPO MANAGER OUTPUT
+# =============================================================================
+# When true, syncs repo_manager output files from the dataset to the target.
+# Target path: <OMNIA_DATA_PATH>/repo_manager/output/<project_name>/
+#
+# Only needed for verification-only runs where the target does not already
+# have repo_manager output (e.g. repo_status.yml).
+sync_output: false
+
+# =============================================================================
+# SYNC — REPO MANAGER INPUT
+# =============================================================================
+# When true, pushes the local dataset input/ files to the target server.
+# Syncs: datasets/<dataset>/input/ -> <OMNIA_DATA_PATH>/repo_manager/input/<project_name>/
+#
+# This ensures the target server has the correct repo_manager_config.yml
+# and credentials before running the playbook.
+sync_repo_manager_input: false
+
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - A folder name (relative to test/): reports
+#   - An absolute path: /var/reports/repo_manager
+# No spaces allowed in the path.
+report_path: /opt/omnia/reports
+
+# Base name for report files (without extension).
+# Generates: repo_manager_test_report.json, repo_manager_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_name: repo_test_report
+
+# Custom report ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_id: ""

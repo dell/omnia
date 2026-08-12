@@ -1,0 +1,167 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+# NOTE: This config uses the catalog-based approach (Omnia 2.2+).
+#       Package resolution is driven by the catalog.
+#       Registry and repository configurations are defined below and
+#       linked to catalog package Sources via Registry and RepoName fields.
+#
+# ================================
+# REPOSITORY FIELD REFERENCE TABLE
+# ================================
+# The following table shows all possible fields for repository entries:
+#
+# +----------------+-----------+----------------------------------------------------------+
+# | Field          | Required  | Description / Allowed Values                            |
+# +----------------+-----------+----------------------------------------------------------+
+# | url            | No        | Repository URL (leave empty for RHEL subscription repos)  |
+# | gpgkey         | No        | GPG key URL for package verification                     |
+# | policy         | No        | Sync policy: always | partial (default: from repo_config) |
+# | caching        | No        | Local caching: true | false (default: true)               |
+# | sslcacert      | No        | Path to SSL CA certificate                               |
+# | sslclientkey   | No        | Path to SSL client key (mTLS)                            |
+# | sslclientcert  | No        | Path to SSL client certificate (mTLS)                    |
+# +----------------+-----------+----------------------------------------------------------+
+# Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
+#       auto-populated from the subscription; do not set them here.
+#
+# ================================
+# VARIABLE DETAILS
+# ================================
+#
+# 1. repo_config
+# --------------------------
+#    Global repository sync policy.
+#    Allowed values:
+#      always  : Sync all packages from all repositories (full mirror)
+#      partial : Sync only packages declared in the catalog (selective sync)
+#      never   : Do not sync any repositories
+#    This can be overridden per-repository using the 'policy' field.
+#
+# 2. registries
+# --------------------------
+#    Container registry configurations.
+#    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
+#
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "Registry" field is resolved by looking
+#      up that name here. If the registry is not found, image syncing will fail.
+#
+#    Fields per registry entry:
+#      BaseURL : Full base URL of the registry (required)
+#      Port    : HTTPS/HTTP port (required)
+#      Auth    : Authentication block
+#        Type        : none | basic | token
+#        Credentials : VaultPath pointing to credentials secret
+#      TLS     : TLS settings
+#        CAPath         : Path to CA certificate (leave empty for public CAs)
+#        ClientCertPath : Path to client cert (mTLS)
+#        ClientKeyPath  : Path to client key (mTLS)
+#        Insecure       : true to skip TLS verification (not recommended)
+#      Mirror  : Pulp mirror configuration
+#        PulpURL     : Pulp content URL for this registry
+#        PullThrough : true to enable pull-through caching
+#        Prefix      : Registry prefix used inside Pulp
+#
+# 3. repositories
+# --------------------------
+#    RPM repository configurations.
+#    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
+#
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "RepoName" field is resolved by looking
+#      up that name here (for the matching version and architecture). If the repo
+#      is not found, RPM syncing will fail.
+#
+#    Optional per-entry fields:
+#      policy      : Sync policy – allowed values: always, partial, never (default: from repo_config)
+#      caching     : Local caching – allowed values: true, false (default: true)
+#      sslcacert   : Path to SSL CA certificate
+#      sslclientkey: Path to SSL client key
+#      sslclientcert: Path to SSL client certificate
+#    Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
+#          auto-populated from the subscription; do not set them here.
+#
+# ================================
+# VARIABLES
+# ================================
+
+# ------------------------------------------------------------
+# 1. REPO CONFIG (global sync policy)
+# ------------------------------------------------------------
+repo_config: "{{ repo_config }}"  # Options: always | partial | never
+
+# ------------------------------------------------------------
+# 2. REGISTRIES
+#    Container registry configurations.
+#    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
+#
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "Registry" field (e.g. "Registry": "docker.io")
+#      is resolved by looking up that name here. If the registry is not found,
+#      image syncing will fail.
+#
+#    Add custom/on-prem registries here. Known public registries (docker.io, ghcr.io,
+#    quay.io, registry.k8s.io) should be pre-configured by the system.
+# ------------------------------------------------------------
+# Example:
+#   registries:
+#     my-reg.example.com:
+#       BaseURL: "https://my-reg.example.com"
+#       Port: 443
+#       Auth:
+#         Type: basic
+#         Credentials:
+#           VaultPath: "secret/omnia/registries/my-reg.example.com"
+#       TLS:
+#         CAPath: ""
+#         ClientCertPath: ""
+#         ClientKeyPath: ""
+#         Insecure: false
+#       Mirror:
+#         PulpURL: "https://pulp.omnia.local/pulp/content/my-reg.example.com/"
+#         PullThrough: true
+#         Prefix: "my-reg.example.com/"
+registries: {{ registries | default({}) }}
+
+# ------------------------------------------------------------
+# 3. REPOSITORIES
+#    RPM repository configurations.
+#    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
+#
+#    LINK TO CATALOG:
+#      Each catalog package Source with a "RepoName" field is resolved by looking
+#      up that name here (for the matching version and architecture). If the repo
+#      is not found, RPM syncing will fail.
+# ------------------------------------------------------------
+# REPO CATEGORIES:
+#   - RHEL SUBSCRIPTION REPOS (baseos, appstream, codeready-builder):
+#       These are provided by RHEL subscription. If subscription is enabled on nodes,
+#       leave these empty – they will be auto-configured from the subscription.
+#       If subscription is NOT registered, you MUST fill in the URLs for these repos.
+#   - USER-REQUIRED REPOS (slurm_custom):
+#       You MUST fill in the URLs here for your custom Slurm repository.
+#       Failure to do so will cause sync errors.
+#   - OMNIA-REQUIRED REPOS (docker-ce, doca, cuda, nvidia-hpc-sdk):
+#       These are required for Omnia features (container runtime, DOCA drivers,
+#       CUDA, NVIDIA HPC SDK). The URLs below are defaults; update them if you
+#       use custom mirrors. Incorrect changes may cause Omnia failure.
+#   - ADDITIONAL REPOS (optional):
+#       For extra repositories not covered above (e.g. grafana, custom tools).
+#       Packages from these repos must be declared in additional_packages.json.
+# ------------------------------------------------------------
+repositories: {{ repositories | default({}) }}
