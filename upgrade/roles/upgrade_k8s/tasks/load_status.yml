@@ -192,6 +192,8 @@
             error:
           addon_upgrade:
             status: pending
+            kube_vip:
+              status: pending
             calico:
               status: pending
             metallb:

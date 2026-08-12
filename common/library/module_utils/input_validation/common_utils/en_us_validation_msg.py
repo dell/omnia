@@ -702,11 +702,6 @@ BUILD_STREAM_CONFIG_EMPTY_MSG = (
     "build_stream_config.yml file is empty or has syntax errors. "
     "It must contain valid YAML with 'enable_build_stream' field."
 )
-AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = (
-    "Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
-    "Check network_spec.yml for admin network configuration."
-)
-
 AARCH64_INVENTORY_HOST_IP_REQUIRED_MSG = (
     "Field 'aarch64_inventory_host_ip' is required when PXE mapping file "
     "contains aarch64 functional groups. Provide the admin IP of the "

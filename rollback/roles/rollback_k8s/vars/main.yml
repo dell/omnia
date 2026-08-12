@@ -28,6 +28,14 @@ repo_file_path: "/etc/yum.repos.d/omnia-upgrade.repo"
 
 nfs_storage_name: "nfs_k8s"
 
+# Telemetry namespace (used by restore_mysql_data.yml)
+telemetry_namespace: telemetry
+
+# MySQL backup filename prefix (must match upgrade role's naming convention)
+# Per-pod backups are named: <prefix><pod_index>.sql.enc
+# e.g., idrac_telemetry_mysql_backup_pod0.sql.enc
+mysql_backup_filename_prefix: "idrac_telemetry_mysql_backup_pod"
+
 # nodes.yaml location (created by discovery)
 nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
 
@@ -152,3 +160,57 @@ msg_bss_backup_ci_missing: >-
   BSS restore failed: cloud-init/ directory not found in openchami backup
   workdir {{ _bss_backup_workdir_container }}/cloud-init.
   The backup may be incomplete or corrupted.
+
+# MySQL restore messages
+msg_mysql_sts_not_found: >-
+  idrac-telemetry StatefulSet not found — skipping MySQL data restore.
+msg_mysql_pod_status: |
+  idrac-telemetry pods status:
+  {{ idrac_pod_raw_status.stdout_lines | default(['unknown']) }}
+msg_mysql_downgrade_fix_start: |
+  ============================================================
+  MySQL VERSION DOWNGRADE DETECTED — STARTING PVC RECOVERY
+  ============================================================
+  Current version: {{ restored_mysql_image.stdout }}
+  Expected version: {{ current_mysql_version.stdout }}
+  The rollback has downgraded the MySQL container image, but the
+  PVC contains data from a newer MySQL version. This is incompatible.
+  We will wipe the PVC data and restore from mysqldump backup.
+  ============================================================
+msg_mysql_replica_count: >-
+  idrac-telemetry has {{ idrac_telemetry_original_replicas }} replica(s) — will wipe and restore ALL PVCs
+msg_mysql_backup_search_results: |
+  Backup directory: {{ mysql_perpod_backup_dir | trim }}
+  Per-pod backup format: {{ mysql_backup_is_perpod | trim }}
+  Legacy single-file format: {{ mysql_backup_is_legacy | trim }}
+msg_mysql_perpod_restore_start: >-
+  Restoring per-pod MySQL data from: {{ mysql_perpod_backup_dir | trim }}
+msg_mysql_perpod_restore_result: >-
+  Pod idrac-telemetry-{{ item.item }}:
+  {{ 'RESTORED' if item.rc == 0 else 'FAILED (rc=' ~ item.rc ~ ')' }}
+msg_mysql_legacy_restore_start: |
+  Found legacy single-file backup (pre multi-pod support).
+  Restoring to pod-0 only. Other pods will reinitialize fresh.
+  Legacy backup: >-
+    {{ (mysql_legacy_enc_backup.files + mysql_legacy_enc_archive.files)
+    | sort(attribute='mtime', reverse=true)
+    | first
+    | default({'path': 'none'})
+    | json_query('path') }}
+msg_mysql_legacy_restore_result: |
+  Legacy backup restore to pod-0: {{ 'SUCCESS' if mysql_legacy_restore.rc == 0 else 'FAILED (rc=' ~ mysql_legacy_restore.rc ~ ')' }}
+  WARNING: Pods 1+ have no backup — MySQL reinitialized fresh with empty database.
+msg_mysql_no_backup_found: |
+  No pre-upgrade mysqldump backup found.
+  ALL pods have been reinitialized fresh at {{ restored_mysql_image.stdout }}.
+  The database tables exist but will be empty.
+  You may need to manually repopulate data (e.g., iDRAC services list).
+msg_mysql_recovery_success: |
+  ============================================================
+  MySQL VERSION DOWNGRADE — RECOVERY COMPLETED
+  ============================================================
+  All idrac-telemetry pods ({{ idrac_telemetry_original_replicas }}) are ready.
+  MySQL data has been restored from pre-upgrade backup.
+  ============================================================
+msg_mysql_no_restore_needed: >-
+  idrac-telemetry MySQL container is running normally — no version downgrade fix needed.

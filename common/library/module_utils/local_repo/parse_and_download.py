@@ -21,6 +21,7 @@ and repository operations used across the local repo management system.
 
 import os
 import subprocess
+import shlex
 import json
 import re
 from multiprocessing import Lock
@@ -57,12 +58,13 @@ def execute_command(cmd_string, logger, type_json=False):
         logger.info(f"Executing command: {safe_cmd_string}")
 
         # Run the command
+        cmd_list = shlex.split(cmd_string)
         cmd = subprocess.run(
-            cmd_string,
+            cmd_list,
             universal_newlines=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            shell=True,
+            shell=False,
         )
         status["returncode"] = cmd.returncode
         status["stdout"] = cmd.stdout.strip() if cmd.stdout else None

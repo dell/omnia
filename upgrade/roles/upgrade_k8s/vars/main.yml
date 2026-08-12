@@ -193,6 +193,10 @@ msg_backup_missing: >-
 msg_node_upgrade_failed: >-
   Node {{ current_node_name }} failed at step {{ current_step }}.
   Error: {{ step_result.stderr | default(step_result.msg | default('unknown')) }}
+msg_addon_kube_vip_failed: >-
+  kube-vip upgrade failed. VIP may be unavailable.
+  Do NOT proceed to further addon upgrades.
+  Check /etc/kubernetes/manifests/kube-vip.yaml on each control plane node.
 msg_addon_calico_failed: >-
   Calico upgrade failed. Networking may be degraded.
   Do NOT proceed to worker upgrades.

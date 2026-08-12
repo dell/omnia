@@ -16,13 +16,13 @@
 # ===========================================================================
 # Upgrade Pulp Role - Main Entry Point
 #
-# This role upgrades the Pulp container from 3.80 to 3.113.
+# This role upgrades the Pulp container from 3.80 to 3.114.2.
 # Pulp stores all data in persistent volumes mounted from shared storage,
 # so data is preserved during the upgrade.
 #
 # IMPORTANT: PostgreSQL data must be backed up before upgrade because:
 # - Pulp 3.80 uses PostgreSQL 12/13
-# - Pulp 3.113 uses PostgreSQL 16
+# - Pulp 3.114.2 uses PostgreSQL 16
 # - PostgreSQL cannot downgrade data files between major versions
 # Without the backup, rollback is not possible.
 #
@@ -30,7 +30,7 @@
 #   1. Resolve admin NIC IP for health check endpoints
 #   2. Pre-upgrade health check (verify Pulp is deployed and accessible)
 #   3. Backup PostgreSQL data (required for rollback)
-#   4. Pull the new Pulp image (3.113)
+#   4. Pull the new Pulp image (3.114.2)
 #   5. Stop the Pulp container
 #   6. Update the quadlet file with the new image tag
 #   7. Reload systemd daemon and restart container

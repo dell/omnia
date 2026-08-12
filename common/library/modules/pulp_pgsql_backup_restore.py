@@ -20,7 +20,7 @@ Backup and restore Pulp PostgreSQL data for upgrade/rollback.
 
 Handles the PostgreSQL version incompatibility between Pulp versions:
   - Pulp 3.80 uses PostgreSQL 12/13
-  - Pulp 3.113 uses PostgreSQL 16
+  - Pulp 3.114.2 uses PostgreSQL 16
 
 Backup (action=backup):
   - Validates source PostgreSQL data exists
