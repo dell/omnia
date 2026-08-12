@@ -1,147 +1,170 @@
 title = "Gitleaks config for Omnia"
 
+# ---------------------------------------------------------------------------
+# Extend the default gitleaks ruleset so AWS, GCP, private-key, JWT, and
+# all other built-in detections remain active without manual maintenance.
+# ---------------------------------------------------------------------------
+[extend]
+useDefault = true
+
+# ===========================  GLOBAL ALLOWLIST  ============================
 [allowlist]
-  description = "Ignore known false positives for infra repos"
+  description = "Ignore known false positives for Omnia infra repos"
 
   paths = [
-    '''(^|/)\.git/'''
+    '''(^|/)\.git/''',
+    '''(^|/)vendor/''',
+    '''go\.sum$''',
+    '''package-lock\.json$''',
+    '''yarn\.lock$''',
+    '''poetry\.lock$''',
+    '''\.css\.map$''',
   ]
 
   regexTarget = "match"
+
   regexes = [
-    # Test/Example/Demo credentials
-    '''example[_-]?(password|secret|token|key)''',
-    '''dummy[_-]?(password|secret|token|key)''',
-    '''test[_-]?(password|secret|token|key)''',
-    '''demo[_-]?(password|secret|token|key)''',
-    '''CHANGEME''',
-    '''changeme''',
-    '''password:\s*dell\d+''',
-    '''PASSWORD\s*=\s*dell\d+''',
-    '''PASSWORD\s*=\s*"dell\d+''',
-    '''password:\s*slurmPassword''',
-    '''password:\s*"slurmPassword''',
-    '''VAULT_PASSWORD.*omnia_test''',
-    '''PASSWORD\s*=\s*"omnia_test''',
-    '''password\s*=\s*"correct_password"''',
-    
-    # Ansible/Jinja2 variable references
-    '''password:\s*"?\{\{.*\}\}"?''',
-    '''ansible_.*password.*\{\{''',
-    '''password:\s*"hostvars''',
-    '''password:\s*hostvars''',
-    '''password:\s*\$\{''',
-    '''password:\s*\$[A-Z_]+''',
-    
-    # Variable names (not values)
-    '''(token|secret|password)\s*=\s*[a-z_]+''',
-    '''password:\s*[a-z_]+(password|secret|key|token)''',
-    '''secret:\s*[a-z_]+(password|secret|key|token)''',
-    '''token:\s*[a-z_]+(password|secret|key|token)''',
-    '''password:\s*\{\s*password:''',
-    '''docker_password_cipher''',
-    '''load_docker_credentials''',
-    '''password:\s*s3_secret_key''',
-    '''password:\s*minio_s3_password''',
-    '''password:\s*switch_snmp3_password''',
-    '''password:\s*"mysql_.*_password''',
-    '''password:\s*"grafana_.*_password''',
-    '''password:\s*"switch_.*_password''',
-    '''password:\s*"kerberos_admin_password''',
-    '''password:\s*"directory_manager_password''',
-    '''secret:\s*"grafana_.*''',
-    '''password:\s*aarch64_ssh_password''',
-    '''password:\s*"[a-z_]+_password"''',
-    '''[a-z_]+_password\s*=.*OMNIA_SH_VARS''',
-    '''[a-z_]+_password\s*=.*get\(''',
-    '''password\s*=\s*OMNIA_SH_VARS''',
-    '''password\s*=\s*[a-z_]+\.get\(''',
-    
-    # Validation/Success messages
-    '''success_msg.*password.*validated''',
-    '''fail_msg.*password''',
-    '''_password.*successfully.*validated''',
-    '''_password.*validated''',
-    '''msg.*password.*valid''',
-    
-    # Database connection strings (localhost/templates)
-    '''postgresql://.*@localhost''',
-    '''postgresql://.*@127\.0\.0\.1''',
-    '''postgresql://user:pass@host''',
-    '''postgresql://.*%\([^)]+\)s''',
-    '''%\([^)]+\)s''',
-    '''timescaledb_password:\s*postgres''',
-    '''password:\s*postgres''',
-    '''PASSWORD:\s*postgres''',
-    
-    # Shell commands and scripts
-    '''passwd:\s*\$''',
-    '''passwd:\$\(''',
-    '''passwd=\$\(openssl''',
-    '''hashed_passwd=\$\(openssl''',
-    '''openssl passwd''',
-    '''passwd:key=''',
-    
-    # Configuration/Documentation fields
-    '''password:\s*Optional''',
-    '''password:\s*Password''',
-    '''password:\s*"Password''',
-    '''password:\s*password''',
-    '''password:\s*"password"''',
-    '''password:\s*"Openldap''',
-    '''password:\s*"Registration''',
-    '''password:\s*Registration''',
-    '''password\s*=\s*IntegrationTestConfig''',
-    '''password:.*description''',
-    '''password:.*request_args''',
-    '''password:.*database''',
-    '''password\s*=\s*AUTH_PASSWORD''',
-    '''password\s*=\s*\$MINIO_PASSWORD''',
-    '''password:\s*$''',
-    '''password:\s+description''',
-    '''password:\s+required''',
-    '''password:\s+type:''',
-    '''password=None''',
-    '''password:\n\s+request_args''',
-    '''password:\n\s*database''',
-    '''password:\ndatabase''',
-    
-    # Documentation examples (xxx placeholders)
-    '''TOKEN=hf_x+''',
-    '''vault_password="x+''',
-    '''Password:\s*\d{8}''',
-    '''secret\s*=\s*"bld_s_[A-Za-z0-9_-]+"''',
-    
-    # Known test/example tokens
+    # ------------------------------------------------------------------
+    # 1. Test / example / demo / dummy credentials
+    # ------------------------------------------------------------------
+    '''(?i)(example|dummy|test|demo)[_-]?(password|secret|token|key)''',
+    '''(?i)(CHANGEME|changeme)''',
+    '''(?i)password:\s*dell\d+''',
+    '''(?i)PASSWORD\s*=\s*"?dell\d+''',
+    '''(?i)password:\s*"?slurmPassword"?''',
+    '''(?i)VAULT_PASSWORD.*omnia_test''',
+    '''(?i)PASSWORD\s*=\s*"omnia_test''',
+    '''(?i)password:\s*"?correct_password"''',
+
+    # ------------------------------------------------------------------
+    # 2. Ansible / Jinja2 variable references (never real secrets)
+    # ------------------------------------------------------------------
+    '''(?i)password:\s*"?\{\{.*\}\}"?''',
+    '''(?i)ansible_.*password.*\{\{''',
+    '''(?i)password:\s*"?hostvars''',
+    '''(?i)password:\s*\$\{''',
+    '''(?i)password:\s*\$[A-Z_]+''',
+
+    # ------------------------------------------------------------------
+    # 3. Variable names used as values (not actual secrets)
+    # ------------------------------------------------------------------
+    '''(?i)(token|secret|password)\s*=\s*[a-z_]+$''',
+    '''(?i)password:\s*[a-z_]+(password|secret|key|token)''',
+    '''(?i)secret:\s*[a-z_]+(password|secret|key|token)''',
+    '''(?i)token:\s*[a-z_]+(password|secret|key|token)''',
+    '''(?i)password:\s*\{\s*password:''',
+    '''(?i)docker_password_cipher''',
+    '''(?i)load_docker_credentials''',
+    '''(?i)password:\s*s3_secret_key''',
+    '''(?i)password:\s*minio_s3_password''',
+    '''(?i)password:\s*switch_snmp3_password''',
+    '''(?i)password:\s*"(mysql|grafana|switch|kerberos_admin|directory_manager)[_a-z]*_password"?''',
+    '''(?i)secret:\s*"grafana_''',
+    '''(?i)password:\s*aarch64_ssh_password''',
+    '''(?i)password:\s*"[a-z_]+_password"''',
+    '''(?i)[a-z_]+_password\s*=.*(OMNIA_SH_VARS|get\()''',
+    '''(?i)password\s*=\s*(OMNIA_SH_VARS|[a-z_]+\.get\()''',
+
+    # ------------------------------------------------------------------
+    # 4. Instructional / documentation / user-facing messages
+    #    (the pattern that caused the original false positive)
+    # ------------------------------------------------------------------
+    '''(?i)user/password''',
+    '''(?i)set-password''',
+    '''(?i)setup_env\.sh''',
+    '''(?i)Verify.*password''',
+
+    # ------------------------------------------------------------------
+    # 5. Validation / success / failure messages
+    # ------------------------------------------------------------------
+    '''(?i)success_msg.*password.*validated''',
+    '''(?i)fail_msg.*password''',
+    '''(?i)_password.*validated''',
+    '''(?i)msg.*password.*valid''',
+
+    # ------------------------------------------------------------------
+    # 6. Database connection strings (localhost / templates)
+    # ------------------------------------------------------------------
+    '''(?i)postgresql://.*@(localhost|127\.0\.0\.1)''',
+    '''(?i)postgresql://user:pass@host''',
+    '''(?i)postgresql://.*%\([^)]+\)s''',
+    '''(?i)%\([^)]+\)s''',
+    '''(?i)(timescaledb_)?password:\s*postgres''',
+    '''(?i)PASSWORD:\s*postgres''',
+
+    # ------------------------------------------------------------------
+    # 7. Shell / hashing commands (not actual secrets)
+    # ------------------------------------------------------------------
+    '''(?i)passwd:\s*\$''',
+    '''(?i)passwd=?\$\(openssl''',
+    '''(?i)hashed_passwd=\$\(openssl''',
+    '''(?i)openssl passwd''',
+    '''(?i)passwd:key=''',
+
+    # ------------------------------------------------------------------
+    # 8. Config field descriptions / schema definitions (no real values)
+    # ------------------------------------------------------------------
+    '''(?i)password:\s*(Optional|Password|"?Password"?|"?Openldap|"?Registration|None)''',
+    '''(?i)password:\s*"?password"?''',
+    '''(?i)password\s*=\s*IntegrationTestConfig''',
+    '''(?i)password:.*description''',
+    '''(?i)password:.*request_args''',
+    '''(?i)password:.*database''',
+    '''(?i)password\s*=\s*AUTH_PASSWORD''',
+    '''(?i)password\s*=\s*\$MINIO_PASSWORD''',
+    '''(?i)password:\s*$''',
+    '''(?i)password:\s+(description|required|type:)''',
+    '''(?i)password=None''',
+
+    # ------------------------------------------------------------------
+    # 9. Documentation placeholder tokens
+    # ------------------------------------------------------------------
+    '''(?i)TOKEN=hf_x+''',
+    '''(?i)vault_password="x+''',
+    '''(?i)Password:\s*\d{8}''',
+    '''(?i)secret\s*=\s*"bld_s_[A-Za-z0-9_-]+"''',
+
+    # ------------------------------------------------------------------
+    # 10. Known test / example tokens
+    # ------------------------------------------------------------------
     '''1c8572f630701e8792bede122ec9c417''',
-    '''secretToken.*1c8572f6''',
-    '''cookieSecret.*1c8572f6''',
-    
-    # Certificate references
-    '''secret:.*-cert''',
-    '''secret:.*-ca-cert'''
+    '''(?i)(secretToken|cookieSecret).*1c8572f6''',
+
+    # ------------------------------------------------------------------
+    # 11. Certificate references (not secrets)
+    # ------------------------------------------------------------------
+    '''(?i)secret:.*-(cert|ca-cert)''',
   ]
 
-[[rules]]
-id = "generic-password"
-description = "Generic Password Detection"
-regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*["']?[A-Za-z0-9!@#$%^&*()_+=\-]{8,}["']?'''
-tags = ["password"]
+# ==========================  CUSTOM RULES  =================================
+# These supplement the default ruleset pulled in via [extend].
+# Each rule uses secretGroup so only the VALUE is flagged, not the key name.
+# ---------------------------------------------------------------------------
 
 [[rules]]
-id = "credentials-in-url"
-description = "Credentials in URL"
-regex = '''(?i)\b\w+:\/\/[^:\s]+:[^@\s]+@[^:\s]+'''
-tags = ["credentials", "url"]
+  id          = "generic-password"
+  description = "Generic Password Detection"
+  regex       = '''(?i)(password|passwd|pwd)\s*[:=]\s*["']?([A-Za-z0-9!@#$%^&*()_+=\-]{8,})["']?'''
+  secretGroup = 2
+  tags        = ["password"]
 
 [[rules]]
-id = "generic-token"
-description = "Generic Token/Secret"
-regex = '''(?i)(secret|token|api[_-]?key)\s*[:=]\s*["']?[A-Za-z0-9_\-]{16,}["']?'''
-tags = ["token", "secret"]
+  id          = "credentials-in-url"
+  description = "Credentials in URL"
+  regex       = '''(?i)\b\w+:\/\/[^:\s]+:([^@\s]+)@[^:\s]+'''
+  secretGroup = 1
+  tags        = ["credentials", "url"]
 
 [[rules]]
-id = "ansible-secret"
-description = "Ansible hardcoded secret"
-regex = '''(?i)(ansible_.*password|vault_password)\s*[:=]\s*["'][^"']{6,}["']'''
-tags = ["ansible", "secret"]
+  id          = "generic-token"
+  description = "Generic Token/Secret"
+  regex       = '''(?i)(secret|token|api[_-]?key)\s*[:=]\s*["']?([A-Za-z0-9_\-]{16,})["']?'''
+  secretGroup = 2
+  tags        = ["token", "secret"]
+
+[[rules]]
+  id          = "ansible-secret"
+  description = "Ansible hardcoded secret"
+  regex       = '''(?i)(ansible_.*password|vault_password)\s*[:=]\s*["']([^"']{6,})["']'''
+  secretGroup = 2
+  tags        = ["ansible", "secret"]
