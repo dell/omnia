@@ -18,11 +18,12 @@
 # kube-vip runs as a static pod managed by kubelet, not a DaemonSet.
 # Upgrade = replace /etc/kubernetes/manifests/kube-vip.yaml on each CP node.
 #
-# Chicken-and-egg problem:
+# Chicken-and-egg problem (solved):
 #   When the old kube-vip pod dies, the VIP goes away. The new pod reads
 #   admin.conf which points to the VIP for leader election, so it cannot
-#   start. Fix: temporarily point admin.conf to the node's real IP, let
-#   kube-vip start and advertise the VIP, then restore admin.conf.
+#   start. Fix: the kubernetes_addr env var in the manifest tells kube-vip
+#   to connect to the local API server (node_ip:6443) instead of the VIP,
+#   so no admin.conf modification is needed.
 #
 # Variables required (set by load_version_vars.yml / detect_addon_versions.yml):
 #   - kube_vip_target_version  (e.g. "1.2.2")
@@ -127,8 +128,6 @@
                         fieldPath: spec.nodeName
                   - name: vip_interface
                     value: {{ kube_vip_interface }}
-                  - name: vip_cidr
-                    value: "{{ admin_netmask_bits }}"
                   - name: dns_mode
                     value: first
                   - name: cp_enable
@@ -155,6 +154,8 @@
                     value: "{{ admin_netmask_bits }}"
                   - name: prometheus_server
                     value: :2112
+                  - name: kubernetes_addr
+                    value: {{ node_ip }}:6443
                   image: ghcr.io/kube-vip/kube-vip:v{{ kube_vip_version }}
                   imagePullPolicy: IfNotPresent
                   name: kube-vip
@@ -179,15 +180,9 @@
                   name: kubeconfig
               status: {}
 
-        # ── Chicken-and-egg fix: temporarily use node IP ─────────────────
-        - name: Temporarily point admin.conf to node IP
-          delegate_to: "{{ node_hostname }}"
-          ansible.builtin.replace:
-            path: /etc/kubernetes/admin.conf
-            regexp: 'server: https://[^:]+:6443'
-            replace: "server: https://{{ node_ip }}:6443"
-
         # ── Replace manifest — kubelet auto-restarts the pod ─────────────
+        # kubernetes_addr env var in the manifest tells kube-vip to connect
+        # to the local API server, so no admin.conf modification is needed.
         - name: Replace kube-vip manifest
           delegate_to: "{{ node_hostname }}"
           ansible.builtin.copy:
@@ -223,14 +218,6 @@
           retries: 12
           delay: 5
           until: _vip_check.stdout | default('') == 'ok'
-
-        # ── Restore admin.conf to VIP ────────────────────────────────────
-        - name: Restore admin.conf to VIP address
-          delegate_to: "{{ node_hostname }}"
-          ansible.builtin.replace:
-            path: /etc/kubernetes/admin.conf
-            regexp: 'server: https://[^:]+:6443'
-            replace: "server: https://{{ kube_vip }}:6443"
 
         # Grep specifically for the version banner (not head -1) and retry
         # until it reports the target version. This doubles as a stabilization
