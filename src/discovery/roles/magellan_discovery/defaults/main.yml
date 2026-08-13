@@ -18,13 +18,13 @@
 # active project.
 admin_inventory_path: >-
   {{ hostvars['localhost']['discovery_input_dir']
-     | default('/opt/omnia/input/project_default/discovery') }}/admin_inventory.csv
+     | default('/opt/omnia/discovery/input/project_default') }}/admin_inventory.csv
 
 # Path to the generated complete inventory CSV (BMC_IP, USLOT, etc.) consumed by
 # magellan_inventory.
 admin_complete_inventory_path: >-
   {{ hostvars['localhost']['discovery_input_dir']
-     | default('/opt/omnia/input/project_default/discovery') }}/admin_complete_inventory.csv
+     | default('/opt/omnia/discovery/input/project_default') }}/admin_complete_inventory.csv
 
 # Default functional group name for discovered nodes (used when not provided in admin_inventory.csv)
 default_functional_group: "slurm_node_aarch64"

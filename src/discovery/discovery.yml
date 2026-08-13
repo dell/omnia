@@ -35,7 +35,7 @@
   gather_facts: false
   tags: always
   roles:
-    - omnia.discovery.discovery_setup
+    - discovery_setup
 
 # Step 1: Validate discovery input (L1 schema + L2 logic)
 - name: Validate discovery input configuration
@@ -43,7 +43,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: omnia.discovery.validate_discovery_input
+    - role: validate_discovery_input
       when: not config_file_status | default(false) | bool
   tags: always
 
@@ -53,7 +53,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: omnia.discovery.discovery_credentials
+    - role: discovery_credentials
       when:
         - not config_file_status | default(false) | bool
         - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
@@ -103,7 +103,7 @@
     - name: Include Magellan discovery role
       when: discovery_mechanism == 'magellan'
       ansible.builtin.include_role:
-        name: omnia.discovery.magellan_discovery
+        name: magellan_discovery
 
     - name: Validate OME inputs before discovery
       when: discovery_mechanism == 'ome'
@@ -118,4 +118,4 @@
 
         - name: Include OME discovery role
           ansible.builtin.include_role:
-            name: omnia.discovery.ome_discovery
+            name: ome_discovery

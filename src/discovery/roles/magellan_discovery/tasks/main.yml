@@ -40,5 +40,5 @@
       discovery_status: complete
       discovery_mechanism: "{{ discovery_mechanism | default('magellan') }}"
       timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
-    dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
+    dest: "{{ discovery_output_dir | default('/opt/omnia/discovery/output/project_default') }}/discovery_status.yml"
     mode: '0644'

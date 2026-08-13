@@ -46,7 +46,7 @@ EXAMPLES = r'''
 - name: Generate xnames mapping file
   generate_xnames_mapping:
     servers: "{{ discovered_servers }}"
-    output_file: "/opt/omnia/input/project_default/xnames_mapping_file.csv"
+    output_file: "/opt/omnia/discovery/output/project_default/xnames_mapping_file.csv"
 '''
 
 RETURN = r'''

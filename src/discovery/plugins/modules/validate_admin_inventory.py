@@ -43,8 +43,8 @@ options:
 EXAMPLES = r'''
 - name: Validate and expand admin inventory
   validate_admin_inventory:
-    input_csv: "/opt/omnia/input/project_default/admin_inventory.csv"
-    output_csv: "/opt/omnia/openchami/admin_complete_inventory.csv"
+    input_csv: "/opt/omnia/discovery/input/project_default/admin_inventory.csv"
+    output_csv: "/opt/omnia/discovery/output/project_default/admin_complete_inventory.csv"
 '''
 
 

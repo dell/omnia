@@ -37,5 +37,5 @@ ome_ip: ""
 #   SERVICE_TAG, GROUP_NAME, FUNCTIONAL_GROUP_NAME, RANGE
 # Optional columns: ROW, RACK, USLOT
 #   (ROW/RACK/USLOT are required if you want xnames mapping generation)
-# Example: "/opt/omnia/input/project_default/discovery/admin_inventory.csv"
-admin_inventory_path: "/opt/omnia/input/project_default/discovery/admin_inventory.csv"
+# Example: "/opt/omnia/discovery/input/project_default/admin_inventory.csv"
+admin_inventory_path: "/opt/omnia/discovery/input/project_default/admin_inventory.csv"

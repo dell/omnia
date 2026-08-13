@@ -28,7 +28,7 @@ This role is invoked by `discovery.yml` when `discovery_mechanism=magellan`.
 ## Input Requirements
 
 The role expects the following project input files in the active discovery input
-directory (default `/opt/omnia/input/project_default/discovery`):
+directory (default `/opt/omnia/discovery/input/project_default`):
 
 - `admin_inventory.csv` — Sparse admin inventory (see format below).
 - `bmc_redfish_config.csv` — Vendor-specific Redfish endpoint configuration.
@@ -111,7 +111,7 @@ module.
    ```
 
 3. Review the generated timestamped files in the discovery output directory
-   (default `/opt/omnia/output/project_default/discovery`):
+   (default `/opt/omnia/discovery/output/project_default`):
 
    - `bmc_pxe_mapping_file_YYYYMMDDTHHMMSS.csv`
    - `xnames_mapping_file_YYYYMMDDTHHMMSS.csv` (if location data is present)
@@ -123,7 +123,7 @@ module.
 5. Update `provision_config.yml`:
 
    ```yaml
-   pxe_mapping_file_path: "/opt/omnia/output/project_default/discovery/bmc_pxe_mapping_file.csv"
+   pxe_mapping_file_path: "/opt/omnia/discovery/output/project_default/bmc_pxe_mapping_file.csv"
    ```
 
 6. Run provision:
@@ -175,8 +175,8 @@ username `root` and password `calvin`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `admin_inventory_path` | `{{ hostvars['localhost']['discovery_input_dir'] \| default('/opt/omnia/input/project_default/discovery') }}/admin_inventory.csv` | Path to the sparse admin inventory CSV. |
-| `admin_complete_inventory_path` | `{{ hostvars['localhost']['discovery_input_dir'] \| default('/opt/omnia/input/project_default/discovery') }}/admin_complete_inventory.csv` | Path to the generated complete inventory CSV. |
+| `admin_inventory_path` | `{{ hostvars['localhost']['discovery_input_dir'] \| default('/opt/omnia/discovery/input/project_default') }}/admin_inventory.csv` | Path to the sparse admin inventory CSV. |
+| `admin_complete_inventory_path` | `{{ hostvars['localhost']['discovery_input_dir'] \| default('/opt/omnia/discovery/input/project_default') }}/admin_complete_inventory.csv` | Path to the generated complete inventory CSV. |
 | `default_functional_group` | `slurm_node_aarch64` | Default functional group when not specified in the CSV. |
 | `default_group_name` | `grp0` | Default group name when not specified in the CSV. |
 | `hostname_prefix` | `nid` | Prefix for generated hostnames. |
