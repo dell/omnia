@@ -575,6 +575,69 @@
       delegate_facts: true
       connection: ssh
 
+    # --- 8b. Detect and handle PostgreSQL major version upgrade ---
+    # Omnia 2.1 used PostgreSQL 11; Omnia 2.2 uses PostgreSQL 17.
+    # PG 17 cannot read PG 11 data files. If a mismatch is detected,
+    # clear the data volume so PG 17 initializes fresh, then restore
+    # from the pg_dump backup created in backup_openchami.yml.
+    - name: Find PostgreSQL data volume mount point
+      ansible.builtin.shell: |
+        set -o pipefail
+        mp=$(podman volume inspect postgres-data --format '{{ '{{' }}.Mountpoint{{ '}}' }}' 2>/dev/null || \
+             podman volume inspect systemd-postgres-data --format '{{ '{{' }}.Mountpoint{{ '}}' }}' 2>/dev/null || \
+             echo "")
+        if [ -n "$mp" ] && [ -d "$mp" ]; then
+          echo "$mp"
+        else
+          echo "not_found"
+        fi
+      register: pg_volume_mount
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Read PG_VERSION from data volume
+      ansible.builtin.shell: |
+        cat "{{ pg_volume_mount.stdout | trim }}/PG_VERSION" 2>/dev/null || echo "unknown"
+      register: pg_version_in_volume
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: pg_volume_mount.stdout | default('not_found') | trim != 'not_found'
+
+    - name: Set PostgreSQL version facts
+      ansible.builtin.set_fact:
+        pg_existing_version: "{{ pg_version_in_volume.stdout | default('unknown') | trim }}"
+        postgres_major_upgrade: >-
+          {{ (pg_volume_mount.stdout | default('not_found') | trim != 'not_found') and
+             (pg_version_in_volume.stdout | default('unknown') | trim not in ['17', 'unknown']) }}
+
+    - name: Handle PostgreSQL major version upgrade
+      when: postgres_major_upgrade | bool
+      block:
+        - name: Display PostgreSQL major version upgrade
+          ansible.builtin.debug:
+            msg: >-
+              PostgreSQL major version upgrade detected: PG {{ pg_existing_version }} → PG 17.
+              Data volume at {{ pg_volume_mount.stdout | trim }} will be cleared.
+              Database will be restored from pg_dump backup after PG 17 initializes.
+
+        - name: Clear incompatible PostgreSQL data from volume
+          ansible.builtin.shell: |
+            set -o pipefail
+            mp="{{ pg_volume_mount.stdout | trim }}"
+            echo "Clearing PG {{ pg_existing_version }} data from ${mp}"
+            rm -rf "${mp:?}"/*
+            echo "cleared"
+          changed_when: true
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
     # --- 9. Start services and recover any failed services ---
     # Initial start may fail due to stale systemd state from the
     # old containers. Allow failure so the recovery below can run.
@@ -634,45 +697,142 @@
       delegate_facts: true
       connection: ssh
 
-    # If recovery restart also failed, capture diagnostics
-    - name: Get failed service details
+    - name: Wait for restarted services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    # Verify container status after restart.
+    # Only postgres is a hard requirement at this stage — it's needed for
+    # the database migration that runs next. Other services (haproxy, smd,
+    # bss, etc.) may fail here due to expired certificates or dependency
+    # issues that get resolved by renew_certificates.yml (which restarts
+    # all services). The post_upgrade_health_check verifies everything.
+    - name: Check container status after restart
       ansible.builtin.shell: |
         set -o pipefail
-        echo "=== openchami.target status ==="
-        systemctl status openchami.target --no-pager 2>&1 | head -5
-        echo ""
-        for svc in postgres smd bss haproxy cloud-init-server \
-                   step-ca opaal coresmd-coredhcp coresmd-coredns; do
-          st=$(systemctl is-active ${svc}.service 2>/dev/null)
-          if [ "$st" != "active" ]; then
-            echo "=== ${svc}.service ($st) ==="
-            journalctl -u ${svc}.service --no-pager -n 5 2>/dev/null
-            echo ""
+        # Helper: wait for a service to leave transient states (activating/deactivating)
+        wait_settled() {
+          local svc=$1
+          local tries=6
+          while [ $tries -gt 0 ]; do
+            st=$(systemctl is-active ${svc}.service 2>/dev/null || echo "unknown")
+            if [ "$st" != "activating" ] && [ "$st" != "deactivating" ] && [ "$st" != "reloading" ]; then
+              echo "$st"
+              return
+            fi
+            sleep 5
+            tries=$((tries - 1))
+          done
+          echo "$st"
+        }
+        core_failed=""
+        other_failed=""
+        for svc in postgres step-ca; do
+          st=$(wait_settled ${svc})
+          ct=$(podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' ${svc} 2>/dev/null || echo "not_found")
+          if [ "$st" != "active" ] || [ "$ct" != "running" ]; then
+            echo "CORE_FAILED: ${svc}.service systemd=$st container=$ct"
+            core_failed="${core_failed} ${svc}"
           fi
         done
-      register: failed_svc_diag
+        for svc in smd bss haproxy cloud-init-server \
+                   opaal coresmd-coredhcp coresmd-coredns; do
+          st=$(systemctl is-active ${svc}.service 2>/dev/null || echo "unknown")
+          ct=$(podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' ${svc} 2>/dev/null || echo "not_found")
+          if [ "$st" != "active" ] || [ "$ct" != "running" ]; then
+            echo "DEFERRED: ${svc}.service systemd=$st container=$ct"
+            other_failed="${other_failed} ${svc}"
+          fi
+        done
+        if [ -n "$core_failed" ]; then
+          echo ""
+          echo "=== Diagnostics for failed core services ==="
+          for svc in $core_failed; do
+            echo "--- ${svc} ---"
+            journalctl -u ${svc}.service --no-pager -n 10 2>/dev/null || true
+            podman logs ${svc} --tail 10 2>&1 || true
+            echo ""
+          done
+          exit 2
+        fi
+        if [ -n "$other_failed" ]; then
+          exit 1
+        fi
+        echo "all services running"
+      register: container_status_check
       changed_when: false
       failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
-      when: recovery_restart_result is failed or
-            (recovery_restart_result.status is defined and
-             recovery_restart_result.status.ActiveState
-             | default('') != 'active')
 
-    - name: Fail with service diagnostics
-      ansible.builtin.fail:
+    # rc=2: core services (postgres/step-ca) failed — attempt recovery
+    - name: Attempt recovery of failed core services
+      when: container_status_check.rc | default(0) == 2
+      block:
+        - name: Display failed core services
+          ansible.builtin.debug:
+            msg: |
+              Core services failed after restart. Attempting recovery...
+              {{ container_status_check.stdout | default('') }}
+
+        - name: Reset failed core units and restart
+          ansible.builtin.shell: |
+            set -o pipefail
+            for svc in postgres step-ca; do
+              st=$(systemctl is-active ${svc}.service 2>/dev/null || echo "unknown")
+              if [ "$st" != "active" ]; then
+                echo "Recovering ${svc}.service..."
+                systemctl reset-failed ${svc}.service 2>/dev/null || true
+                systemctl start ${svc}.service 2>/dev/null || true
+              fi
+            done
+          changed_when: true
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for core services to stabilize
+          ansible.builtin.pause:
+            seconds: 30
+
+        - name: Re-check postgres after recovery
+          ansible.builtin.shell: |
+            set -o pipefail
+            st=$(systemctl is-active postgres.service 2>/dev/null || echo "unknown")
+            ct=$(podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' postgres 2>/dev/null || echo "not_found")
+            echo "postgres: systemd=$st container=$ct"
+            if [ "$st" != "active" ] || [ "$ct" != "running" ]; then
+              echo "--- postgres diagnostics ---"
+              journalctl -u postgres.service --no-pager -n 10 2>/dev/null || true
+              podman logs postgres --tail 15 2>&1 || true
+              exit 1
+            fi
+          register: postgres_recheck
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Fail if postgres still not running after recovery
+          ansible.builtin.fail:
+            msg: |
+              PostgreSQL failed to start after upgrade. Database migration cannot proceed.
+              {{ postgres_recheck.stdout | default('No diagnostics.') }}
+          when: postgres_recheck.rc | default(0) != 0
+
+    # rc=1: only non-core services failed — log warning, continue
+    # These will be restarted by renew_certificates.yml and verified
+    # in post_upgrade_health_check.yml
+    - name: Display deferred service warnings
+      ansible.builtin.debug:
         msg: |
-          openchami.target failed to start after upgrade.
-          {{ failed_svc_diag.stdout | default('No diagnostics.') }}
-      when:
-        - failed_svc_diag is not skipped
-        - failed_svc_diag.stdout | default('') | length > 0
-
-    - name: Wait for restarted services to stabilize
-      ansible.builtin.pause:
-        seconds: "{{ wait_time }}"
+          Some services are not yet running. They will be restarted after
+          certificate renewal. Continuing with database migration...
+          {{ container_status_check.stdout | default('') }}
+      when: container_status_check.rc | default(0) == 1
 
     - name: Display container upgrade success
       ansible.builtin.debug:
