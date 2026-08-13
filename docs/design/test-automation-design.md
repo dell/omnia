@@ -3,13 +3,13 @@
 **Version**: 2.0
 **Audience**: All Omnia test automation developers
 **Purpose**: Architecture, patterns, and conventions for building test modules against any Omnia domain
-**Reference Implementation**: `test/image_build_manager/`
+**Reference Implementation**: Any existing domain module under `test/<domain_name>/`
 
 ---
 
 ## 1. Overview
 
-Each Omnia domain (e.g., `image_build_manager`, `repo_manager`, `provision`, `discovery`, `telemetry`) has a corresponding **test module** under `test/<domain_name>/` that provides Functional Verification Testing (FVT) for that domain's Ansible playbooks.
+Each Omnia domain has a corresponding **test module** under `test/<domain_name>/` that provides Functional Verification Testing (FVT) for that domain's Ansible playbooks.
 
 All test modules share the **`omnia-auto`** plugin package (`test/plugins/`), which provides common utilities for host connectivity, playbook execution, file synchronization, formatting, and HTML/JSON report generation. Domain modules install this shared package as a local wheel and build domain-specific verification on top of it.
 
@@ -343,10 +343,8 @@ report_name: "<domain>_test_report"
 oim_password: ""
 
 # Domain-specific credentials (optional, domain-dependent)
-# For image_build_manager: S3 and aarch64 credentials
-s3_access_id: ""
-s3_secret_key: ""
-aarch64_ssh_password: ""
+# Each domain defines its own credential fields here.
+# Example: s3_access_id, api_token, etc.
 ```
 
 On first `pytest` session, `conftest.py` calls `encrypt_test_credentials()` which:

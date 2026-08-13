@@ -2,7 +2,6 @@
 
 > All test automation code under `test/` MUST follow these rules.
 > These rules apply to every domain test module.
-> The reference implementation is `test/image_build_manager/`.
 
 **Cross-references:**
 - **Co-change rule** (code changes require test updates): see `general.md` §6
@@ -791,7 +790,7 @@ vi test_config.yml        # Set oim_server_ip, dataset, paths, options
 # Step 5: Set SSH password (remote mode only, requires oim_server_ip)
 bash setup_env.sh --set-password
 
-# Step 5b: Set domain credentials (e.g., S3/MinIO — no oim_server_ip needed)
+# Step 5b: Set domain credentials (no oim_server_ip needed)
 bash setup_env.sh --set-domain-creds
 ```
 
