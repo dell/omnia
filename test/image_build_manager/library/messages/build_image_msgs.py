@@ -391,7 +391,6 @@ TEST_ASSERT_MSGS = {
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
-    # gitleaks:allow — "password" is in user-facing instruction message, not a leaked secret
     "connectivity_failed": (
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 TARGET CONNECTIVITY FAILED\n"
@@ -400,7 +399,7 @@ TEST_ASSERT_MSGS = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Verify oim_server_ip in test_config.yml\n"
-        "\u2551   2. Verify SSH user/password: setup_env.sh --set-password\n"
+        "\u2551   2. Verify SSH user/password: setup_env.sh --set-password\n"     # gitleaks:allow — "password" is in user-facing instruction message, not a leaked secret
         "\u2551   3. Test manually: ssh root@<oim_server_ip>\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),

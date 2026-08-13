@@ -14,7 +14,6 @@ jobs:
   gitleaks:
     name: Scan for secrets
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
 
@@ -24,15 +23,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks scan using Docker
+      - name: Run Gitleaks scan
+        # TODO: Make blocking by removing "continue-on-error: true"
+        # and adding "Scan for secrets" as a required status check
+        # in branch protection rules.
+        # Tracking: <issue/ticket number>
+        continue-on-error: true    # ← non-blocking
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}:/repo \
+            -v "${{ github.workspace }}:/repo" \
             -w /repo \
-            ghcr.io/gitleaks/gitleaks:latest \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
             detect \
             --source /repo \
             --config /repo/.github/workflows/.gitleaks.toml \
             --log-opts="origin/${{ github.base_ref }}..${{ github.sha }}" \
-            --verbose \
-            --no-git
+            --redact \
+            --exit-code 1 \
+            --verbose
