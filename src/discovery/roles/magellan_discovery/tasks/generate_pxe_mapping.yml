@@ -18,7 +18,7 @@
     file: "{{ discovery_input_dir }}/network_spec.yml"
     name: network_spec_data
 
-- name: Set admin subnets from network spec
+- name: Set admin and IB subnets from network spec
   ansible.builtin.set_fact:
     admin_subnets: >-
       {{
@@ -28,12 +28,9 @@
         }]
         + ((network_spec_data.Networks | selectattr('admin_network', 'defined') | first).admin_network.additional_subnets | default([]))
       }}
-
-- name: Set ib_subnet from network spec
-  ansible.builtin.set_fact:
     ib_subnet: "{{ (network_spec_data.Networks | selectattr('ib_network', 'defined') | first).ib_network.subnet | default('') }}"
 
-- name: Set timestamp for PXE mapping file
+- name: Set timestamp for output files
   ansible.builtin.set_fact:
     pxe_mapping_timestamp: "{{ ansible_date_time.iso8601_basic_short | default(lookup('pipe', 'date +%Y%m%dT%H%M%S')) }}"
 
@@ -70,3 +67,7 @@
     dest: "{{ pxe_mapping_latest_file }}"
     state: link
     force: true
+
+- name: Display PXE mapping result
+  ansible.builtin.debug:
+    msg: "Generated PXE mapping file at {{ pxe_mapping_result.file_path }} with {{ pxe_mapping_result.server_count }} servers"

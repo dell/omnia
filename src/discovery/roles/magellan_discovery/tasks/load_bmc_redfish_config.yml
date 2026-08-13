@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check for BMC Redfish config CSV
+  ansible.builtin.stat:
+    path: "{{ discovery_input_dir }}/bmc_redfish_config.csv"
+  register: bmc_redfish_csv_stat
+
+- name: Fail if bmc_redfish_config.csv is missing
+  ansible.builtin.fail:
+    msg: "bmc_redfish_config.csv not found in {{ discovery_input_dir }}"
+  when: not bmc_redfish_csv_stat.stat.exists
+
+- name: Validate and load BMC Redfish config CSV
+  omnia.discovery.validate_bmc_redfish_config:
+    csv_path: "{{ discovery_input_dir }}/bmc_redfish_config.csv"
+  register: bmc_redfish_config_result
+
+- name: Set Redfish endpoint facts from CSV
+  ansible.builtin.set_fact:
+    bmc_service_tag_field: "{{ bmc_redfish_config_result.data.service_tag_field }}"
+    bmc_system_endpoint: "{{ bmc_redfish_config_result.data.system_endpoint }}"
+    bmc_systems_collection_endpoint: "{{ bmc_redfish_config_result.data.systems_collection_endpoint | default('') }}"
+    bmc_system_network_adapters_endpoint: "{{ bmc_redfish_config_result.data.system_network_adapters_endpoint | default('') }}"
+    bmc_system_ethernet_interfaces_endpoint: "{{ bmc_redfish_config_result.data.system_ethernet_interfaces_endpoint | default('') }}"
+    bmc_manager_endpoint: "{{ bmc_redfish_config_result.data.manager_endpoint | default('') }}"
+    bmc_manager_attributes_endpoint: "{{ bmc_redfish_config_result.data.manager_attributes_endpoint }}"
+    bmc_managers_collection_endpoint: "{{ bmc_redfish_config_result.data.managers_collection_endpoint | default('') }}"
+    bmc_manager_ethernet_interfaces_endpoint: "{{ bmc_redfish_config_result.data.manager_ethernet_interfaces_endpoint | default('') }}"

@@ -100,20 +100,10 @@
       when: discovery_mechanism not in supported_mechanisms
 
   tasks:
-    - name: Handle Magellan discovery mechanism
+    - name: Include Magellan discovery role
       when: discovery_mechanism == 'magellan'
-      block:
-        - name: Display Magellan not supported message
-          ansible.builtin.debug:
-            msg:
-              - "============================================================"
-              - "NOTICE: Magellan Discovery"
-              - "============================================================"
-              - "This is an upcoming functionality and is not yet supported."
-              - "Please use 'ome' as the discovery_mechanism for now."
-              - "============================================================"
-        - name: End play for magellan
-          ansible.builtin.meta: end_play
+      ansible.builtin.include_role:
+        name: omnia.discovery.magellan_discovery
 
     - name: Validate OME inputs before discovery
       when: discovery_mechanism == 'ome'

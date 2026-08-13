@@ -55,3 +55,8 @@ discovery_complete_msg:
 no_servers_found_msg: |
   No servers found in OME inventory.
   Please verify that servers are discovered and managed by OME.
+
+location_data_missing_msg: |
+  Skipping xnames_mapping_file.csv generation because location data (Row, Rack, Uslot)
+  is not available for all servers in OME. Xnames will be generated using fallback
+  logic during provision.yml execution.

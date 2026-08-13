@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Include OME credential handling
-  ansible.builtin.include_tasks: get_ome_credentials.yml
+- name: Include iDRAC credential handling
+  ansible.builtin.include_tasks: get_idrac_credentials.yml
 
-- name: Collect server inventory from OME
+- name: Validate admin inventory CSV
+  ansible.builtin.include_tasks: validate_admin_inventory.yml
+
+- name: Load BMC Redfish config CSV
+  ansible.builtin.include_tasks: load_bmc_redfish_config.yml
+
+- name: Collect server inventory from iDRACs
   ansible.builtin.include_tasks: collect_inventory.yml
 
 - name: Generate PXE mapping file
@@ -32,7 +38,7 @@
   ansible.builtin.copy:
     content: |
       discovery_status: complete
-      discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+      discovery_mechanism: "{{ discovery_mechanism | default('magellan') }}"
       timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
     dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
     mode: '0644'

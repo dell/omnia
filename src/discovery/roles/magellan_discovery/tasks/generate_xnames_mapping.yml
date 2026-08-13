@@ -1,0 +1,58 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set timestamped xnames mapping file path
+  ansible.builtin.set_fact:
+    xnames_mapping_file: "{{ discovery_output_dir }}/xnames_mapping_file_{{ pxe_mapping_timestamp }}.csv"
+    xnames_mapping_latest_file: "{{ discovery_output_dir }}/xnames_mapping_file.csv"
+
+- name: Compute servers with complete location data
+  ansible.builtin.set_fact:
+    servers_with_location: >-
+      {{
+        discovered_servers | default([])
+        | selectattr('row', 'defined')
+        | rejectattr('row', 'equalto', '')
+        | selectattr('rack', 'defined')
+        | rejectattr('rack', 'equalto', '')
+        | selectattr('uslot', 'defined')
+        | rejectattr('uslot', 'equalto', '')
+        | list
+      }}
+
+- name: Generate xnames mapping file from location data
+  omnia.discovery.generate_xnames_mapping:
+    servers: "{{ servers_with_location }}"
+    output_file: "{{ xnames_mapping_file }}"
+  register: xnames_result
+  when: servers_with_location | length == discovered_servers | length
+
+- name: Create symlink to latest xnames mapping file
+  ansible.builtin.file:
+    src: "{{ xnames_mapping_file }}"
+    dest: "{{ xnames_mapping_latest_file }}"
+    state: link
+    force: true
+  when:
+    - servers_with_location | length == discovered_servers | length
+    - xnames_result.output_file is defined
+
+- name: Display xnames generation skipped message
+  ansible.builtin.debug:
+    msg: >-
+      Skipping xnames_mapping_file.csv generation because location data (Row, Rack, Uslot)
+      is not available for all servers in the admin inventory. Xnames will be generated
+      only when every discovered server has row, rack, and uslot populated.
+  when: servers_with_location | length < discovered_servers | length

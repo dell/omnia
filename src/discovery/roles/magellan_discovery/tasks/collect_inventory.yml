@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load network spec
+  ansible.builtin.include_vars:
+    file: "{{ discovery_input_dir }}/network_spec.yml"
+    name: network_spec_data
+
+- name: Set IB subnet from network spec
+  ansible.builtin.set_fact:
+    ib_subnet: "{{ (network_spec_data.Networks | selectattr('ib_network', 'defined') | first).ib_network.subnet | default('') }}"
+
+- name: Collect inventory from iDRACs via Redfish
+  omnia.discovery.magellan_inventory:
+    admin_inventory: "{{ admin_complete_inventory }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    default_functional_group: "{{ default_functional_group }}"
+    default_group_name: "{{ default_group_name }}"
+    ib_subnet: "{{ ib_subnet }}"
+    verify_ssl: "{{ verify_ssl | default(false) }}"
+    service_tag_field: "{{ bmc_service_tag_field | default('') }}"
+    system_endpoint: "{{ bmc_system_endpoint | default('') }}"
+    systems_collection_endpoint: "{{ bmc_systems_collection_endpoint | default('') }}"
+    system_network_adapters_endpoint: "{{ bmc_system_network_adapters_endpoint | default('') }}"
+    system_ethernet_interfaces_endpoint: "{{ bmc_system_ethernet_interfaces_endpoint | default('') }}"
+    manager_endpoint: "{{ bmc_manager_endpoint | default('') }}"
+    manager_attributes_endpoint: "{{ bmc_manager_attributes_endpoint | default('') }}"
+    managers_collection_endpoint: "{{ bmc_managers_collection_endpoint | default('') }}"
+    manager_ethernet_interfaces_endpoint: "{{ bmc_manager_ethernet_interfaces_endpoint | default('') }}"
+  register: magellan_inventory_result
+  no_log: true
+
+- name: Set discovered servers fact
+  ansible.builtin.set_fact:
+    discovered_servers: "{{ magellan_inventory_result.servers }}"
+
+- name: Display discovered server count
+  ansible.builtin.debug:
+    msg: "Discovered {{ discovered_servers | length }} servers from iDRACs via Redfish"
+
+- name: Fail if no servers were discovered
+  ansible.builtin.fail:
+    msg: "{{ no_servers_found_msg }}"
+  when: discovered_servers | length == 0
+
+- name: Warn if some iDRACs could not be reached
+  ansible.builtin.debug:
+    msg: "Some iDRACs could not be reached: {{ magellan_inventory_result.failed_servers }}"
+  when:
+    - magellan_inventory_result.failed_servers is defined
+    - magellan_inventory_result.failed_servers | length > 0
