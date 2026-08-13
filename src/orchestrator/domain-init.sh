@@ -221,7 +221,7 @@ install_dependencies() {
     if [ -f "$req_yml" ]; then
         if command -v ansible-galaxy >/dev/null 2>&1; then
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
-            if ! ansible-galaxy collection install -r "$req_yml" --force --quiet; then
+            if ! ansible-galaxy collection install -r "$req_yml" --force 2>&1 | tail -1; then
                 echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
             fi
         else

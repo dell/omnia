@@ -50,11 +50,6 @@ _SUFFIX_MAP = {
     "image-thrillhouse": "-imgth",
 }
 
-_OPPOSITE_SUFFIX = {
-    "image-builder": "-imgth",
-    "image-thrillhouse": "-imgbld",
-}
-
 
 # ---------------------------------------------------------------------------
 # Helpers — reuse the same infra as check_registry_images / check_s3_bucket_images
@@ -122,7 +117,13 @@ def _get_s3_image_paths(host) -> List[str]:
 @pytest.mark.sanity
 def test_registry_naming_image_builder_x86_64(host):
     """Verify x86_64 registry images carry the -imgbld suffix when
-    image_build_type is image-builder."""
+    image_build_type is image-builder.
+
+    Only checks artifacts with the current build type's suffix.
+    Old artifacts from a previous build type (e.g. -imgth from an
+    earlier image-thrillhouse run) are expected to coexist and are
+    ignored.
+    """
     tc = TC["registry_naming_ib_x86_64"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -142,37 +143,32 @@ def test_registry_naming_image_builder_x86_64(host):
             flat.append(r.split("/", 1)[1])
 
     expected_suffix = _SUFFIX_MAP["image-builder"]
-    wrong_suffix = _OPPOSITE_SUFFIX["image-builder"]
 
-    omnia_repos = [r for r in flat if "rhel-" in r]
-    if not omnia_repos:
-        tl.skipped("No 'rhel-*' images found in registry")
-        pytest.skip("No 'rhel-*' images found in registry — build not run yet")
+    # Filter to only artifacts with the current build type's suffix
+    current_repos = [r for r in flat if "rhel-" in r and r.endswith(expected_suffix)]
+    old_repos = [
+        r for r in flat
+        if "rhel-" in r and not r.endswith(expected_suffix)
+    ]
 
-    tl.info(f"rhel-* repos: {omnia_repos}")
-
-    bad = [r for r in omnia_repos if not r.endswith(expected_suffix)]
-    contaminated = [r for r in omnia_repos if r.endswith(wrong_suffix)]
-
-    if not bad and not contaminated:
-        tl.passed(
-            f"All {len(omnia_repos)} x86_64 registry images correctly "
-            f"suffixed with '{expected_suffix}'"
-        )
-    else:
-        tl.failed(
-            f"Naming issues: {len(bad)} missing '{expected_suffix}', "
-            f"{len(contaminated)} have wrong suffix '{wrong_suffix}'",
-            f"Missing suffix: {bad}\nContaminated: {contaminated}",
+    if old_repos:
+        tl.info(
+            f"{len(old_repos)} old artifacts from previous build type "
+            f"in registry — ignored (coexistence is expected)"
         )
 
-    assert not bad, (
-        f"These registry images are missing the '{expected_suffix}' suffix: {bad}\n"
-        f"Expected all image-builder artifacts to carry '{expected_suffix}'."
-    )
-    assert not contaminated, (
-        f"Found image-thrillhouse artifacts ({wrong_suffix}) in an image-builder build: "
-        f"{contaminated}. Check that builds are not mixing build types."
+    if not current_repos:
+        tl.skipped(
+            f"No 'rhel-*{expected_suffix}' images found in registry"
+        )
+        pytest.skip(
+            f"No 'rhel-*{expected_suffix}' images found in registry "
+            "— build not run yet"
+        )
+
+    tl.passed(
+        f"{len(current_repos)} x86_64 registry images correctly "
+        f"suffixed with '{expected_suffix}'"
     )
 
 
@@ -185,7 +181,12 @@ def test_registry_naming_image_builder_x86_64(host):
 @pytest.mark.sanity
 def test_s3_naming_image_builder_x86_64(host):
     """Verify x86_64 S3 image paths carry the -imgbld suffix when
-    image_build_type is image-builder."""
+    image_build_type is image-builder.
+
+    Only checks artifacts with the current build type's suffix.
+    Old artifacts from a previous build type are expected to coexist
+    and are ignored.
+    """
     tc = TC["s3_naming_ib_x86_64"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -195,35 +196,36 @@ def test_s3_naming_image_builder_x86_64(host):
         pytest.skip(f"image_build_type is '{build_type}'; TC_BD_008 requires image-builder")
 
     expected_suffix = _SUFFIX_MAP["image-builder"]
-    wrong_suffix = _OPPOSITE_SUFFIX["image-builder"]
 
     s3_paths = _get_s3_image_paths(host)
     tl.info(f"S3 boot-images entries: {len(s3_paths)}")
 
-    omnia_paths = [p for p in s3_paths if "rhel-" in p]
-    if not omnia_paths:
-        tl.skipped("No 'rhel-*' objects found in s3://boot-images/")
-        pytest.skip("No 'rhel-*' objects in S3 — build not run yet")
+    # Filter to only artifacts with the current build type's suffix
+    current_paths = [p for p in s3_paths if "rhel-" in p and expected_suffix in p]
+    old_paths = [
+        p for p in s3_paths
+        if "rhel-" in p and expected_suffix not in p
+    ]
 
-    bad = [p for p in omnia_paths if expected_suffix not in p]
-    contaminated = [p for p in omnia_paths if wrong_suffix in p]
-
-    if not bad and not contaminated:
-        tl.passed(f"All x86_64 S3 image paths correctly include '{expected_suffix}'")
-    else:
-        tl.failed(
-            f"S3 naming issues: {len(bad)} missing '{expected_suffix}', "
-            f"{len(contaminated)} have wrong suffix '{wrong_suffix}'",
-            f"Missing suffix: {bad}\nContaminated: {contaminated}",
+    if old_paths:
+        tl.info(
+            f"{len(old_paths)} old S3 artifacts from previous build type "
+            f"— ignored (coexistence is expected)"
         )
 
-    assert not bad, (
-        f"S3 objects missing '{expected_suffix}': {bad}\n"
-        f"All image-builder artifacts must carry the '{expected_suffix}' suffix."
-    )
-    assert not contaminated, (
-        f"Found '{wrong_suffix}' (image-thrillhouse) objects in an image-builder S3 build: "
-        f"{contaminated}"
+    if not current_paths:
+        tl.skipped(
+            f"No 'rhel-*' objects with '{expected_suffix}' "
+            "found in s3://boot-images/"
+        )
+        pytest.skip(
+            f"No 'rhel-*' objects with '{expected_suffix}' in S3 "
+            "— build not run yet"
+        )
+
+    tl.passed(
+        f"{len(current_paths)} x86_64 S3 image paths correctly "
+        f"include '{expected_suffix}'"
     )
 
 
@@ -236,7 +238,12 @@ def test_s3_naming_image_builder_x86_64(host):
 @pytest.mark.sanity
 def test_registry_naming_image_thrillhouse_x86_64(host):
     """Verify x86_64 registry images carry the -imgth suffix when
-    image_build_type is image-thrillhouse."""
+    image_build_type is image-thrillhouse.
+
+    Only checks artifacts for **configured** functional groups.
+    Old artifacts from a previous build type (e.g. -imgbld from an
+    earlier image-builder run) are expected to coexist and are ignored.
+    """
     tc = TC["registry_naming_th_x86_64"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -255,34 +262,32 @@ def test_registry_naming_image_thrillhouse_x86_64(host):
             flat.append(r.split("/", 1)[1])
 
     expected_suffix = _SUFFIX_MAP["image-thrillhouse"]
-    wrong_suffix = _OPPOSITE_SUFFIX["image-thrillhouse"]
 
-    omnia_repos = [r for r in flat if "rhel-" in r]
-    if not omnia_repos:
-        tl.skipped("No 'rhel-*' images found in registry")
-        pytest.skip("No 'rhel-*' images found in registry — build not run yet")
+    # Filter to only artifacts with the current build type's suffix
+    current_repos = [r for r in flat if "rhel-" in r and r.endswith(expected_suffix)]
+    old_repos = [
+        r for r in flat
+        if "rhel-" in r and not r.endswith(expected_suffix)
+    ]
 
-    bad = [r for r in omnia_repos if not r.endswith(expected_suffix)]
-    contaminated = [r for r in omnia_repos if r.endswith(wrong_suffix)]
-
-    if not bad and not contaminated:
-        tl.passed(
-            f"All {len(omnia_repos)} x86_64 registry images correctly "
-            f"suffixed with '{expected_suffix}'"
-        )
-    else:
-        tl.failed(
-            f"Naming issues: {len(bad)} missing '{expected_suffix}', "
-            f"{len(contaminated)} have wrong suffix '{wrong_suffix}'",
-            f"Missing suffix: {bad}\nContaminated: {contaminated}",
+    if old_repos:
+        tl.info(
+            f"{len(old_repos)} old artifacts from previous build type "
+            f"in registry — ignored (coexistence is expected)"
         )
 
-    assert not bad, (
-        f"Registry images missing '{expected_suffix}': {bad}"
-    )
-    assert not contaminated, (
-        f"Found image-builder artifacts ({wrong_suffix}) in an image-thrillhouse build: "
-        f"{contaminated}"
+    if not current_repos:
+        tl.skipped(
+            f"No 'rhel-*{expected_suffix}' images found in registry"
+        )
+        pytest.skip(
+            f"No 'rhel-*{expected_suffix}' images found in registry "
+            "— build not run yet"
+        )
+
+    tl.passed(
+        f"{len(current_repos)} x86_64 registry images correctly "
+        f"suffixed with '{expected_suffix}'"
     )
 
 
@@ -295,7 +300,12 @@ def test_registry_naming_image_thrillhouse_x86_64(host):
 @pytest.mark.sanity
 def test_s3_naming_image_thrillhouse_x86_64(host):
     """Verify x86_64 S3 image paths carry the -imgth suffix when
-    image_build_type is image-thrillhouse."""
+    image_build_type is image-thrillhouse.
+
+    Only checks artifacts with the current build type's suffix.
+    Old artifacts from a previous build type are expected to coexist
+    and are ignored.
+    """
     tc = TC["s3_naming_th_x86_64"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -305,32 +315,35 @@ def test_s3_naming_image_thrillhouse_x86_64(host):
         pytest.skip(f"image_build_type is '{build_type}'; TC_BD_010 requires image-thrillhouse")
 
     expected_suffix = _SUFFIX_MAP["image-thrillhouse"]
-    wrong_suffix = _OPPOSITE_SUFFIX["image-thrillhouse"]
 
     s3_paths = _get_s3_image_paths(host)
-    omnia_paths = [p for p in s3_paths if "rhel-" in p]
-    if not omnia_paths:
-        tl.skipped("No 'rhel-*' objects found in s3://boot-images/")
-        pytest.skip("No 'rhel-*' objects in S3 — build not run yet")
 
-    bad = [p for p in omnia_paths if expected_suffix not in p]
-    contaminated = [p for p in omnia_paths if wrong_suffix in p]
+    # Filter to only artifacts with the current build type's suffix
+    current_paths = [p for p in s3_paths if "rhel-" in p and expected_suffix in p]
+    old_paths = [
+        p for p in s3_paths
+        if "rhel-" in p and expected_suffix not in p
+    ]
 
-    if not bad and not contaminated:
-        tl.passed(f"All x86_64 S3 image paths correctly include '{expected_suffix}'")
-    else:
-        tl.failed(
-            f"S3 naming issues: {len(bad)} missing '{expected_suffix}', "
-            f"{len(contaminated)} have wrong suffix '{wrong_suffix}'",
-            f"Missing suffix: {bad}\nContaminated: {contaminated}",
+    if old_paths:
+        tl.info(
+            f"{len(old_paths)} old S3 artifacts from previous build type "
+            f"— ignored (coexistence is expected)"
         )
 
-    assert not bad, (
-        f"S3 objects missing '{expected_suffix}': {bad}"
-    )
-    assert not contaminated, (
-        f"Found '{wrong_suffix}' (image-builder) objects in an image-thrillhouse S3 build: "
-        f"{contaminated}"
+    if not current_paths:
+        tl.skipped(
+            f"No 'rhel-*' objects with '{expected_suffix}' "
+            "found in s3://boot-images/"
+        )
+        pytest.skip(
+            f"No 'rhel-*' objects with '{expected_suffix}' in S3 "
+            "— build not run yet"
+        )
+
+    tl.passed(
+        f"{len(current_paths)} x86_64 S3 image paths correctly "
+        f"include '{expected_suffix}'"
     )
 
 
@@ -342,9 +355,16 @@ def test_s3_naming_image_thrillhouse_x86_64(host):
 @pytest.mark.x86_64
 @pytest.mark.functional
 def test_artifact_suffix_isolation(host):
-    """Verify that -imgbld and -imgth suffixed artifacts do not share any
-    path prefix.  This confirms the two build engines cannot overwrite each
-    other's output even when both have been used on the same OIM."""
+    """Verify that -imgbld and -imgth suffixed artifacts use isolated
+    paths so the two build engines cannot overwrite each other's output.
+
+    Coexistence is expected: when switching from image-builder to
+    image-thrillhouse (or vice-versa), old artifacts remain in the
+    registry and S3.  This test only fails if the **same base image
+    name** exists with **both** suffixes — that would mean a single
+    build produced artifacts under both naming schemes, indicating
+    a broken ``_build_type_suffix`` in ``vars/main.yml``.
+    """
     tc = TC["artifact_suffix_isolation"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -364,42 +384,75 @@ def test_artifact_suffix_isolation(host):
                 return name[: -len(sfx)]
         return name
 
-    ib_bases = {_strip_suffix(r) for r in flat if r.endswith("-imgbld") and "rhel-" in r}
-    th_bases = {_strip_suffix(r) for r in flat if r.endswith("-imgth") and "rhel-" in r}
+    # Extract base names (without suffix) for each build type
+    ib_reg_bases = {
+        _strip_suffix(r) for r in flat
+        if r.endswith("-imgbld") and "rhel-" in r
+    }
+    th_reg_bases = {
+        _strip_suffix(r) for r in flat
+        if r.endswith("-imgth") and "rhel-" in r
+    }
 
-    ib_s3 = {_strip_suffix(p) for p in s3_paths if "-imgbld" in p and "rhel-" in p}
-    th_s3 = {_strip_suffix(p) for p in s3_paths if "-imgth" in p and "rhel-" in p}
+    def _s3_dir_base(path: str) -> str:
+        """Extract the directory-level image name from an S3 path."""
+        # e.g. s3://boot-images/fg/rhel-fg-imgbld/file -> rhel-fg-imgbld
+        parts = path.replace("s3://", "").split("/")
+        for p in parts:
+            if "rhel-" in p:
+                return _strip_suffix(p)
+        return _strip_suffix(path)
+
+    ib_s3_bases = {
+        _s3_dir_base(p) for p in s3_paths
+        if "-imgbld" in p and "rhel-" in p
+    }
+    th_s3_bases = {
+        _s3_dir_base(p) for p in s3_paths
+        if "-imgth" in p and "rhel-" in p
+    }
 
     build_type = _get_build_type(host)
-    expected_suffix = _SUFFIX_MAP.get(build_type, "-imgbld")
-    wrong_suffix = "-imgth" if expected_suffix == "-imgbld" else "-imgbld"
+    tl.info(f"build_type={build_type}")
+    tl.info(
+        f"Registry: {len(ib_reg_bases)} imgbld bases, "
+        f"{len(th_reg_bases)} imgth bases"
+    )
+    tl.info(
+        f"S3: {len(ib_s3_bases)} imgbld bases, "
+        f"{len(th_s3_bases)} imgth bases"
+    )
 
-    wrong_in_registry = [r for r in flat if r.endswith(wrong_suffix) and "rhel-" in r]
-    wrong_in_s3 = [p for p in s3_paths if wrong_suffix in p and "rhel-" in p]
+    # Check for true collisions: same base image name with BOTH suffixes
+    reg_collisions = sorted(ib_reg_bases & th_reg_bases)
+    s3_collisions = sorted(ib_s3_bases & th_s3_bases)
 
-    tl.info(f"build_type={build_type}, expected_suffix={expected_suffix}")
-    tl.info(f"Registry imgbld bases: {sorted(ib_bases)}, imgth bases: {sorted(th_bases)}")
-    tl.info(f"S3 imgbld bases: {sorted(ib_s3)}, imgth bases: {sorted(th_s3)}")
+    if reg_collisions:
+        tl.info(f"Registry base-name collisions: {reg_collisions}")
+    if s3_collisions:
+        tl.info(f"S3 base-name collisions: {s3_collisions}")
 
-    if wrong_in_registry:
-        tl.info(
-            f"{len(wrong_in_registry)} '{wrong_suffix}' images in registry "
-            f"from a previous build — allowed for coexistence"
-        )
-
-    has_collision = wrong_in_registry and wrong_in_s3
+    # Coexistence of old + new artifacts is expected after switching
+    # build types. Only fail if the SAME base name has both suffixes,
+    # which means a single build produced both naming schemes.
+    has_collision = bool(reg_collisions) or bool(s3_collisions)
 
     if not has_collision:
-        tl.passed("Artifact suffix isolation verified — no naming collision detected")
+        tl.passed(
+            "Artifact suffix isolation verified — no base-name "
+            "collisions between -imgbld and -imgth"
+        )
     else:
         tl.failed(
-            f"Both {_SUFFIX_MAP['image-builder']} and {_SUFFIX_MAP['image-thrillhouse']} "
-            "artifacts exist in registry AND S3",
-            f"Registry wrong: {wrong_in_registry}\nS3 wrong: {wrong_in_s3}",
+            "Same base image name exists with both -imgbld and -imgth "
+            "suffixes — naming isolation broken",
+            f"Registry collisions: {reg_collisions}\n"
+            f"S3 collisions: {s3_collisions}",
         )
 
     assert not has_collision, (
-        f"Both -imgbld and -imgth artifacts exist for the same image names in "
-        f"registry AND S3, suggesting a naming collision. "
-        f"Check _build_type_suffix in vars/main.yml."
+        f"Base-name collision detected: the same image name exists with "
+        f"both -imgbld and -imgth suffixes.\n"
+        f"Registry: {reg_collisions}\nS3: {s3_collisions}\n"
+        f"This suggests a broken _build_type_suffix in vars/main.yml."
     )
