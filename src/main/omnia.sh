@@ -118,9 +118,9 @@ validate_env() {
 
     export SYSTEM_ADMIN_NIC_IPV4
 
-    # --- Validate hostname matches system (hostname -s) ---
+    # --- Validate hostname matches system (hostnamectl hostname) ---
     local actual_hostname
-    actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
+    actual_hostname="$(hostnamectl hostname 2>/dev/null)"
     if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
         echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
         echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in omnia.env${NC}"
@@ -128,9 +128,9 @@ validate_env() {
         errors=$((errors + 1))
     fi
 
-    # --- Validate domain matches system (hostname -d) ---
+    # --- Validate domain matches system (hostnamectl --static) ---
     local actual_domain
-    actual_domain="$(hostname -d 2>/dev/null || true)"
+    actual_domain="$(hostnamectl --static 2>/dev/null | cut -s -d. -f2-)"
     if [ -n "$actual_domain" ] && [ "$actual_domain" != "$SYSTEM_DOMAIN_NAME" ]; then
         echo -e "${YELLOW}WARNING: SYSTEM_DOMAIN_NAME (${SYSTEM_DOMAIN_NAME}) does not match system domain (${actual_domain})${NC}"
         echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in omnia.env${NC}"
@@ -140,7 +140,7 @@ validate_env() {
 
     # --- Validate admin IP is assigned to a local interface ---
     local all_ips
-    all_ips="$(hostname -I 2>/dev/null || ip -4 addr show | grep -oP '(?<=inet\s)\d+\.\d+\.\d+\.\d+' 2>/dev/null || true)"
+    all_ips="$(ip -4 addr show 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | tr '\n' ' ')"
     if [ -n "$all_ips" ]; then
         local ip_found=false
         for ip in $all_ips; do
@@ -152,7 +152,7 @@ validate_env() {
         if [ "$ip_found" = false ]; then
             echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 (${SYSTEM_ADMIN_NIC_IPV4}) is not assigned to any local interface${NC}"
             echo -e "${YELLOW}  Available IPs: ${all_ips}${NC}"
-            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in omnia.env${NC}"
+            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in ${SYSTEM_ENV_FILE}${NC}"
             errors=$((errors + 1))
         fi
     fi
@@ -184,18 +184,22 @@ readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
-    if [ ! -f "$env_file" ]; then
-        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping system env install${NC}"
-        return 0
-    fi
-
     echo -e "${BLUE}Installing environment to system...${NC}"
 
     mkdir -p "$SYSTEM_ENV_DIR"
-    cp -f "$env_file" "$SYSTEM_ENV_FILE"
-    chmod 0644 "$SYSTEM_ENV_FILE"
 
-    echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    if [ -f "$SYSTEM_ENV_FILE" ]; then
+        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
+        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
+    else
+        if [ ! -f "$env_file" ]; then
+            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+            return 0
+        fi
+        cp -f "$env_file" "$SYSTEM_ENV_FILE"
+        chmod 0644 "$SYSTEM_ENV_FILE"
+        echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    fi
 
     cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
 #!/bin/bash

@@ -1765,8 +1765,9 @@ def check_env_vars_present(host) -> Dict[str, Any]:
 def check_hostname_domain(host) -> Dict[str, Any]:
     """Verify hostname and domain match configured env vars on target.
 
-    Uses ``hostname -s`` (short hostname) and ``hostname -d`` (domain)
-    to compare against SYSTEM_HOSTNAME and SYSTEM_DOMAIN_NAME.
+    Uses ``hostnamectl hostname`` (short hostname) and
+    ``hostnamectl --static`` (domain) to compare against
+    SYSTEM_HOSTNAME and SYSTEM_DOMAIN_NAME.
 
     Returns:
         Dict with 'success', 'results', 'details'.
@@ -1807,13 +1808,13 @@ def check_hostname_domain(host) -> Dict[str, Any]:
     if not hostname_match:
         error = (
             f"Hostname mismatch: SYSTEM_HOSTNAME={cfg_hostname}, "
-            f"actual hostname -s={actual_hostname}. "
+            f"actual hostnamectl hostname={actual_hostname}. "
             "Fix: hostnamectl set-hostname <name> or update omnia.env"
         )
     elif not domain_match:
         error = (
             f"Domain mismatch: SYSTEM_DOMAIN_NAME={cfg_domain}, "
-            f"actual hostname -d={actual_domain}. "
+            f"actual hostnamectl --static (domain)={actual_domain}. "
             "Fix: update SYSTEM_DOMAIN_NAME in omnia.env or "
             f"hostnamectl set-hostname {cfg_hostname}.{cfg_domain}"
         )
@@ -1830,7 +1831,7 @@ def check_admin_ip(host) -> Dict[str, Any]:
     """Verify SYSTEM_ADMIN_NIC_IPV4 is assigned to a local interface.
 
     Reads SYSTEM_ADMIN_NIC_IPV4 from the target and verifies the IP is
-    present in the output of ``hostname -I``.
+    present in the output of ``ip -4 addr show``.
 
     Returns:
         Dict with 'success', 'details', 'error'.
