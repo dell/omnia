@@ -95,14 +95,15 @@ openchami_legacy_quadlet_files:
   - "/etc/containers/systemd/coresmd.container"
 
 # OpenCHAMI component version tags (Omnia 2.2 target)
+# These MUST match prepare_oim/roles/deploy_containers/openchami/vars/main.yml
 openchami_local_ca_tag: "v0.2.6"
-openchami_opaal_tag: "v0.3.12"
-openchami_smd_tag: "v2.19.3"
-openchami_bss_tag: "v1.32.2"
-openchami_cloud_init_tag: "v1.3.0"
-openchami_coresmd_tag: "v0.4.3"
+openchami_opaal_tag: "v0.3.14"
+openchami_smd_tag: "v2.20.6"
+openchami_bss_tag: "v1.32.4"
+openchami_cloud_init_tag: "v1.4.9"
+openchami_coresmd_tag: "v0.6.3"
 minio_release_tag: "RELEASE.2026-08-04T00-00-00Z"
-postgres_tag: "11.5-alpine"
+postgres_tag: "17-alpine"
 hydra_tag: "v2.3"
 haproxy_tag: "latest"
 registry_tag: "3.1.1"
