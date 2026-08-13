@@ -152,7 +152,7 @@ validate_env() {
         if [ "$ip_found" = false ]; then
             echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 (${SYSTEM_ADMIN_NIC_IPV4}) is not assigned to any local interface${NC}"
             echo -e "${YELLOW}  Available IPs: ${all_ips}${NC}"
-            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in omnia.env${NC}"
+            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in ${SYSTEM_ENV_FILE}${NC}"
             errors=$((errors + 1))
         fi
     fi
@@ -184,18 +184,22 @@ readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
-    if [ ! -f "$env_file" ]; then
-        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping system env install${NC}"
-        return 0
-    fi
-
     echo -e "${BLUE}Installing environment to system...${NC}"
 
     mkdir -p "$SYSTEM_ENV_DIR"
-    cp -f "$env_file" "$SYSTEM_ENV_FILE"
-    chmod 0644 "$SYSTEM_ENV_FILE"
 
-    echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    if [ -f "$SYSTEM_ENV_FILE" ]; then
+        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
+        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
+    else
+        if [ ! -f "$env_file" ]; then
+            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+            return 0
+        fi
+        cp -f "$env_file" "$SYSTEM_ENV_FILE"
+        chmod 0644 "$SYSTEM_ENV_FILE"
+        echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    fi
 
     cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
 #!/bin/bash
