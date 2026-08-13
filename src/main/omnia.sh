@@ -184,18 +184,22 @@ readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
-    if [ ! -f "$env_file" ]; then
-        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping system env install${NC}"
-        return 0
-    fi
-
     echo -e "${BLUE}Installing environment to system...${NC}"
 
     mkdir -p "$SYSTEM_ENV_DIR"
-    cp -f "$env_file" "$SYSTEM_ENV_FILE"
-    chmod 0644 "$SYSTEM_ENV_FILE"
 
-    echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    if [ -f "$SYSTEM_ENV_FILE" ]; then
+        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
+        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
+    else
+        if [ ! -f "$env_file" ]; then
+            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+            return 0
+        fi
+        cp -f "$env_file" "$SYSTEM_ENV_FILE"
+        chmod 0644 "$SYSTEM_ENV_FILE"
+        echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    fi
 
     cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
 #!/bin/bash
@@ -451,12 +455,6 @@ run_domain() {
         exit 1
     fi
 
-    if [ -z "$playbook" ]; then
-        echo -e "${RED}ERROR: No playbook found for domain '$domain'${NC}"
-        echo -e "${YELLOW}Expected: src/$domain/playbooks/${domain}.yml${NC}"
-        exit 1
-    fi
-
     # Activate venv
     load_env
     if [ ! -f "$OMNIA_VENV_PATH/bin/activate" ]; then
@@ -490,7 +488,6 @@ run_domain() {
     deactivate 2>/dev/null || true
     return $rc
 }
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Cleanup
@@ -586,7 +583,6 @@ cleanup_omnia() {
     echo ""
 }
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Catalog Copy
 # ─────────────────────────────────────────────────────────────────────────────
@@ -649,11 +645,13 @@ USAGE:
   $0 <command> [options]
 
 SETUP COMMANDS:
-  --setup-venv, -s      Create/update the shared Python venv and install domain dependencies.
-                        Also copies domain input files to the runtime data path.
-  --init, -i            Run all domain-init.sh scripts (stage input files to NFS share).
-                        Called automatically by --setup-venv unless --deps-only.
-  --catalog              Copy catalog/sample files from src/main/samples/ to
+  --setup-venv, -s      Create/update the shared Python venv, then run all
+                        domain-init.sh scripts (pip deps, Galaxy collections,
+                        log dirs, and input file staging).
+  --init, -i            Re-run domain-init.sh scripts only (no venv rebuild).
+                        Useful to re-stage input files or install deps after
+                        editing domain configs. Runs automatically with -s.
+  --catalog             Copy catalog/sample files from src/main/samples/ to
                         \$OMNIA_DATA_PATH/catalog/. Makes catalog_rhel.json available at runtime.
 
 EXECUTION COMMANDS:
@@ -662,14 +660,15 @@ EXECUTION COMMANDS:
                         Passes --tags and any extra args to ansible-playbook.
 
 CLEANUP COMMANDS:
-  --cleanup              Remove venv, system env files (/etc/omnia/omnia.env,
+  --cleanup             Remove venv, system env files (/etc/omnia/omnia.env,
                         /etc/profile.d/omnia-env.sh), and activation script.
                         Data at \$OMNIA_DATA_PATH/ is preserved.
-  --cleanup --all        Remove EVERYTHING: venv, system env, AND all data at
+  --cleanup --all       Remove EVERYTHING: venv, system env, AND all data at
                         \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
 
 OPTIONS:
-  --deps-only            Install deps only, skip input file staging.
+  --deps-only           With -s: install pip/Galaxy deps but skip input file staging.
+                        Cannot be used standalone; requires -s.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -805,14 +804,17 @@ main() {
         esac
     done
 
+    # Validate flag combinations
+    if [ "$DEPS_ONLY" = true ] && [ "$command" != "setup-venv" ]; then
+        echo -e "${RED}ERROR: --deps-only requires --setup-venv (-s)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --deps-only${NC}"
+        exit 1
+    fi
+
     case "$command" in
         setup-venv)
             setup_venv
-            if [ "$DEPS_ONLY" = false ]; then
-                init_domains
-            else
-                echo -e "${YELLOW}Skipping domain init (--deps-only)${NC}"
-            fi
+            init_domains
             ;;
         init)
             init_domains
