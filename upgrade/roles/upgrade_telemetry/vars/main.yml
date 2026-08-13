@@ -186,3 +186,32 @@ idrac_patch_msg: >-
   MySQL will have enough time to flush on NFS during pod restart.
 idrac_skip_patch_msg: "idrac-telemetry StatefulSet not found (first deploy). Skipping patch."
 idrac_replica_restore_msg: "idrac-telemetry scaled back to {{ idrac_replica_count.stdout }} replicas"
+
+# ============================================================================
+# MYSQL BACKUP VARIABLES (Pre-Upgrade)
+# ============================================================================
+mysqldb_secrets_name: "mysqldb-credentials"
+mysql_backup_dir: "{{ telemetry_backup_dir }}/mysql"
+# Per-pod backup naming: <prefix><pod_index>.sql / <prefix><pod_index>.sql.enc
+# e.g., idrac_telemetry_mysql_backup_pod0.sql.enc, idrac_telemetry_mysql_backup_pod1.sql.enc
+mysql_backup_filename_prefix: "idrac_telemetry_mysql_backup_pod"
+mysql_backup_metadata_filename: "mysql_backup_metadata.yml"
+mysql_backup_skip_msg: "idrac-telemetry StatefulSet not found — skipping MySQL data backup."
+mysql_backup_pods_discovered_msg: >-
+  Discovered {{ mysql_backup_replica_count }} idrac-telemetry pod(s) for backup:
+  {{ mysql_backup_pod_list | join(', ') }}
+mysql_backup_all_pods_success_msg: >-
+  MySQL data backup completed successfully for {{ mysql_backup_success_count }}/{{ mysql_backup_replica_count }} pod(s).
+  Backup directory: {{ mysql_backup_dir }}
+  These per-pod backups will be used by the rollback playbook to restore MySQL data
+  if a version downgrade makes the PVC data incompatible.
+mysql_backup_failed_msg: >-
+  WARNING: MySQL data backup FAILED — mysqldump file is empty or missing.
+  The upgrade will proceed but rollback may not be able to restore MySQL data
+  if the MySQL version changes. Check pod logs for MySQL connectivity issues.
+mysql_backup_rescue_msg:
+  - "WARNING: MySQL data backup failed — this is non-fatal."
+  - "The upgrade will proceed. If rollback is needed later, MySQL"
+  - "will be reinitialized fresh (empty database with auto-created"
+  - "schema from MYSQL_DATABASE env var in the StatefulSet)."
+  - "Error: {{ ansible_failed_result.msg | default('unknown') }}"

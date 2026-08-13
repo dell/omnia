@@ -84,21 +84,20 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Download updated OpenCHAMI RPM
-      ansible.builtin.command: curl -L -o {{ openchami_work_dir }}/{{ openchami_rpm_name }} {{ openchami_rpm_url }}  # noqa: command-instead-of-module
-      register: download_openchami
-      retries: "{{ max_retries }}"
-      delay: "{{ max_delay }}"
-      until: download_openchami.rc == 0
-      changed_when: true
+    - name: Copy the openchami RPM tarball to OIM
+      ansible.builtin.copy:
+        src: "{{ prepare_oim_files_path }}/{{ openchami_rpm_tarball }}"
+        dest: "{{ openchami_work_dir }}/{{ openchami_rpm_tarball }}"
+        mode: "{{ dir_permissions_755 }}"
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
-    - name: Set permissions on downloaded OpenCHAMI RPM
-      ansible.builtin.file:
-        path: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
-        mode: "{{ dir_permissions_755 }}"
+    - name: Extract the openchami RPM from tarball
+      ansible.builtin.unarchive:
+        src: "{{ openchami_work_dir }}/{{ openchami_rpm_tarball }}"
+        dest: "{{ openchami_work_dir }}"
+        remote_src: true
       delegate_to: oim
       delegate_facts: true
       connection: ssh

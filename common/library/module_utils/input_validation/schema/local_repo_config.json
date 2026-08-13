@@ -83,7 +83,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
           },
           "policy": {
             "type": "string",
@@ -219,7 +220,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
           },
           "policy": {
             "type": "string",
@@ -355,7 +357,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
           },
           "policy": {
             "type": "string",
@@ -491,7 +494,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
           },
           "policy": {
             "type": "string",
@@ -644,7 +648,8 @@
           },
           "name": {
             "type": "string",
-            "pattern": "^(?!\\s*$).+",
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "maxLength": 64,
             "minLength": 1
           },
           "policy": {
@@ -780,7 +785,8 @@
           },
           "name": {
             "type": "string",
-            "pattern": "^(?!\\s*$).+",
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "maxLength": 64,
             "minLength": 1
           },
           "policy": {
@@ -898,7 +904,8 @@
           },
           "name": {
             "type": "string",
-            "pattern": "^(?!\\s*$).+",
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "maxLength": 64,
             "minLength": 1
           },
           "sslcacert": {
@@ -1027,7 +1034,8 @@
           },
           "name": {
             "type": "string",
-            "pattern": "^(?!\\s*$).+",
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "maxLength": 64,
             "minLength": 1
           },
           "sslcacert": {
@@ -1157,7 +1165,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
           },
           "policy": {
             "type": "string",
@@ -1215,7 +1224,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
           },
           "policy": {
             "type": "string",

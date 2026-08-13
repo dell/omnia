@@ -273,19 +273,6 @@ def validate_build_stream_config(input_file_path, data,
                                           "Invalid IPv4 address format"))
             return errors
 
-        # Check if it's in the same subnet as admin IP
-        try:
-            admin_network = ipaddress.IPv4Network(f"{admin_ip}/{netmask_bits}", strict=False)
-
-            if aarch64_ip not in admin_network:
-                errors.append(create_error_msg(
-                    build_stream_yml,
-                    "aarch64_inventory_host_ip",
-                    msg.AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG
-                ))
-        except ValueError as e:
-            logger.error("Failed to validate subnet for aarch64_inventory_host_ip: %s", str(e))
-
         # Check aarch64 host IP reachability using socket (safer than subprocess)
         try:
             # Try to connect to SSH port which is usually open on inventory hosts

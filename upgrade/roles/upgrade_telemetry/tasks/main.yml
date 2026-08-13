@@ -51,6 +51,14 @@
     msg: "{{ victoria_upgrade_skipped }}"
   when: not (victoria_upgrade_needed | default(false) | bool)
 
+# ── Phase 2b: Backup MySQL data before version change ──
+- name: Phase 2b - Backup MySQL data (pre-upgrade)
+  ansible.builtin.include_tasks: backup_mysql_data.yml
+  when:
+    - k8s_client_mount_path is defined
+    - kube_vip is defined
+    - kube_vip | length > 0
+
 # ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
 - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
   ansible.builtin.include_tasks: execute_telemetry_sh.yml

@@ -6,11 +6,7 @@ on:
       - main
       - staging
       - release_1.7.1
-      - pub/build_stream
-      - pub/q2_dev
-      - pub/telemetry
-      - pub/q2_upgrade
-      - pub/q2_ansible
+      - pub/omnia_2.2.0.0_fix
 
 jobs:
   build:

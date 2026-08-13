@@ -21,7 +21,7 @@
 #
 # Flow:
 #   1. Pre-flight: read manifest, check idempotency
-#   2. Phase 1: Pulp container upgrade (3.80 → 3.113)
+#   2. Phase 1: Pulp container upgrade (3.80 → 3.114.2)
 #   3. Phase 2: OpenCHAMI container upgrade (pg_dump, deployment-recipes,
 #      image pull, ordered restart, DB migration, validation)
 #   4. Mark OIM as completed in manifest
