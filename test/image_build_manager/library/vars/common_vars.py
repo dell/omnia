@@ -244,10 +244,10 @@ CMDS = {
         " --tags {tag} -v 2>&1"
     ),
     # --- System ---
-    "hostname_short": "hostname -s 2>/dev/null",
-    "hostname_domain": "hostname -d 2>/dev/null",
-    "hostname_fqdn": "hostname -f 2>/dev/null",
-    "hostname_ip": "hostname -I 2>/dev/null",
+    "hostname_short": "hostnamectl hostname 2>/dev/null | cut -d. -f1",
+    "hostname_domain": "hostnamectl --static 2>/dev/null | cut -s -d. -f2-",
+    "hostname_fqdn": "hostnamectl --static 2>/dev/null",
+    "hostname_ip": "ip -4 addr show 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | tr '\\n' ' '",
     "rpm_check": "rpm -q {package} 2>/dev/null",
     "which_cmd": "which {binary} 2>/dev/null",
     # --- Systemd ---
