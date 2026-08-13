@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -346,12 +346,6 @@ ACTIVATE_EOF
     echo ""
     echo -e "${BLUE}Dependencies will be installed by each domain's domain-init.sh.${NC}"
     echo ""
-    echo -e "${GREEN}Environment helper created:${NC}"
-    echo -e "  ${GREEN}${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
-    echo ""
-    echo -e "${YELLOW}Activate in your shell:${NC}"
-    echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
-    echo ""
 
     deactivate 2>/dev/null || true
 }
@@ -366,6 +360,10 @@ init_domains() {
     if [ -f "$OMNIA_VENV_PATH/bin/activate" ]; then
         # shellcheck disable=SC1091
         source "$OMNIA_VENV_PATH/bin/activate"
+    else
+        echo -e "${RED}ERROR: Venv not found at ${OMNIA_VENV_PATH}${NC}"
+        echo -e "${YELLOW}Run './omnia.sh -s' first to create the venv${NC}"
+        exit 1
     fi
 
     local domain_init_args=()
@@ -667,8 +665,8 @@ CLEANUP COMMANDS:
                         \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
 
 OPTIONS:
-  --deps-only           With -s: install pip/Galaxy deps but skip input file staging.
-                        Cannot be used standalone; requires -s.
+  --deps-only           With -s or -i: install pip/Galaxy deps but skip input file staging.
+                        Cannot be used standalone; requires -s or -i.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -736,7 +734,7 @@ EOF
 # Main Dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
-    local DEPS_ONLY=false
+    DEPS_ONLY=false  # Global — used by init_domains()
     local CLEANUP_ALL=false
     local command=""
     local run_domain_name=""
@@ -805,9 +803,9 @@ main() {
     done
 
     # Validate flag combinations
-    if [ "$DEPS_ONLY" = true ] && [ "$command" != "setup-venv" ]; then
-        echo -e "${RED}ERROR: --deps-only requires --setup-venv (-s)${NC}"
-        echo -e "${YELLOW}Usage: $0 -s --deps-only${NC}"
+    if [ "$DEPS_ONLY" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
+        echo -e "${RED}ERROR: --deps-only requires --setup-venv (-s) or --init (-i)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --deps-only or $0 -i --deps-only${NC}"
         exit 1
     fi
 
@@ -815,6 +813,19 @@ main() {
         setup-venv)
             setup_venv
             init_domains
+
+            # ── Post-setup activation instructions (shown LAST) ──
+            echo ""
+            echo -e "${GREEN}================================================================================${NC}"
+            echo -e "${GREEN}               Setup Complete${NC}"
+            echo -e "${GREEN}================================================================================${NC}"
+            echo ""
+            echo -e "${GREEN}Environment helper created:${NC}"
+            echo -e "  ${GREEN}${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
+            echo ""
+            echo -e "${YELLOW}Activate in your shell:${NC}"
+            echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
+            echo ""
             ;;
         init)
             init_domains

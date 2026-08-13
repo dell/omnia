@@ -22,27 +22,14 @@
 #   1. Installs Python pip packages from requirements.txt
 #   2. Installs Ansible Galaxy collections from requirements.yml
 #   3. Creates Ansible log directory:  /var/log/omnia/build_stream/
-#   4. Copies app/ source code to NFS runtime data path
-#   5. Copies input files from source tree to runtime data path
-#
-# Source:      src/build_stream/app/   -> <OMNIA_DATA_PATH>/build_stream/
-#              src/build_stream/input/ -> <OMNIA_DATA_PATH>/build_stream/input/<project>/
-#
-# The container mounts <OMNIA_DATA_PATH> at /opt/omnia and reads code from NFS.
-# This eliminates the need to bake app code into the container image.
+#   4. Copies app source code, input files, and examples to NFS
 #
 # Usage:
-#   ./domain-init.sh                        # Uses env vars (must be exported)
-#   ./domain-init.sh --force                # Overwrite without prompting
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=build_stream ./domain-init.sh
+#   ./domain-init.sh                       # Uses env vars (must be exported)
+#   ./domain-init.sh --force               # Overwrite without prompting
+#   ./domain-init.sh --deps-only           # Install deps only, skip input/app staging
+#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
-# Called automatically by: omnia.sh --setup-venv
-#
-# Manual alternative (if not using this script):
-#   sudo mkdir -p /var/log/omnia/build_stream
-#   chmod 755 /var/log/omnia/build_stream
-#   cp -a app/ <OMNIA_DATA_PATH>/build_stream/
-#   cp -a input/build_stream/ <OMNIA_DATA_PATH>/build_stream/input/build_stream/
 # =============================================================================
 
 set -euo pipefail
@@ -70,7 +57,7 @@ _parse_args() {
             --help|-h)
                 echo "Usage: $0 [--force|-f] [--deps-only]"
                 echo "  --force, -f     Overwrite existing files without prompting"
-                echo "  --deps-only     Skip input file staging (only install deps)"
+                echo "  --deps-only     Skip input/app file staging (only install deps)"
                 exit 0
                 ;;
             *)
@@ -92,10 +79,12 @@ _load_env() {
 
 # ---------------------------------------------------------------------------
 # Check if destination has existing files and prompt user
+# Accepts optional second arg: source_dir (for listing overwritable files)
 # Returns 0 if safe to proceed, 1 if user declined
 # ---------------------------------------------------------------------------
 _check_existing_files() {
     local dest_dir="$1"
+    local source_dir="${2:-$SCRIPT_DIR/input}"
 
     # No destination — safe to proceed
     [ -d "$dest_dir" ] || return 0
@@ -114,15 +103,17 @@ _check_existing_files() {
     echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: ${existing_count} file(s) already exist in ${dest_dir}${NC}"
     echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
 
-    # List files that would be overwritten
-    local src_dir="$SCRIPT_DIR/input"
-    local overwrite_list
-    overwrite_list=$(cd "$src_dir" && find . -type f | sed 's|^\./||' | sort)
-    for f in $overwrite_list; do
-        if [ -f "$dest_dir/$f" ]; then
-            echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
-        fi
-    done
+    # List files that would be overwritten (use source_dir if provided)
+    if [ -d "$source_dir" ]; then
+        local overwrite_list
+        overwrite_list=$(cd "$source_dir" && find . -type f | sed 's|^\./||' | sort)
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [ -f "$dest_dir/$f" ]; then
+                echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
+            fi
+        done <<< "$overwrite_list"
+    fi
 
     # Non-interactive check (piped input, cron, etc.)
     if [ ! -t 0 ]; then
@@ -135,7 +126,7 @@ _check_existing_files() {
     case "$response" in
         [yY]|[yY][eE][sS]) return 0 ;;
         *)
-            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped project '${OMNIA_PROJECT_NAME}' — no files overwritten${NC}"
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped — no files overwritten${NC}"
             return 1
             ;;
     esac
@@ -169,7 +160,7 @@ copy_app_source() {
         return 1
     fi
 
-    if ! _check_existing_files "$dest_dir" "app source"; then
+    if ! _check_existing_files "$dest_dir" "$src_dir"; then
         return 0
     fi
 
@@ -209,8 +200,7 @@ copy_input_files() {
         return 0
     fi
 
-    # Check for existing files and prompt if needed
-    if ! _check_existing_files "$dest_dir"; then
+    if ! _check_existing_files "$dest_dir" "$src_dir"; then
         return 0
     fi
 
@@ -261,6 +251,7 @@ install_dependencies() {
     local req_txt="$SCRIPT_DIR/requirements.txt"
     local req_yml="$SCRIPT_DIR/requirements.yml"
 
+    # pip packages
     if [ -f "$req_txt" ]; then
         if command -v pip >/dev/null 2>&1; then
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
@@ -272,6 +263,7 @@ install_dependencies() {
         fi
     fi
 
+    # Galaxy collections
     if [ -f "$req_yml" ]; then
         if command -v ansible-galaxy >/dev/null 2>&1; then
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
@@ -293,17 +285,15 @@ main() {
 
     echo -e "${GREEN}[${DOMAIN_NAME}] Initializing domain...${NC}"
 
-    # 1. Install domain-specific dependencies
+    # 1. Install domain-specific dependencies (always)
     install_dependencies
 
-    # 2. Create Ansible log directory (ansible.cfg log_path)
+    # 2. Create Ansible log directory (always)
     create_log_directory
 
-    # 3. Copy app source code to NFS
-    copy_app_source
-
-    # 4. Copy input files from flat input/ to input/<project>/ (skip if --deps-only)
+    # 3. Copy app source + input files + examples (skip ALL if --deps-only)
     if [ "$DEPS_ONLY" = false ]; then
+        copy_app_source
         copy_input_files
         copy_examples
     else
