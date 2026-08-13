@@ -103,10 +103,13 @@
       connection: ssh
 
     - name: Install updated OpenCHAMI RPM
-      ansible.builtin.dnf:
-        name: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
-        state: present
-        disable_gpg_check: true
+      ansible.builtin.shell: |
+        set -o pipefail
+        dnf reinstall -y --nogpgcheck \
+          {{ openchami_work_dir }}/{{ openchami_rpm_name }} 2>/dev/null \
+        || dnf install -y --nogpgcheck \
+          {{ openchami_work_dir }}/{{ openchami_rpm_name }}
+      changed_when: true
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -131,10 +134,13 @@
       connection: ssh
 
     - name: Install updated ochami CLI RPM
-      ansible.builtin.dnf:
-        name: "{{ openchami_work_dir }}/{{ ochami_client_rpm_name }}"
-        state: present
-        disable_gpg_check: true
+      ansible.builtin.shell: |
+        set -o pipefail
+        dnf reinstall -y --nogpgcheck \
+          {{ openchami_work_dir }}/{{ ochami_client_rpm_name }} 2>/dev/null \
+        || dnf install -y --nogpgcheck \
+          {{ openchami_work_dir }}/{{ ochami_client_rpm_name }}
+      changed_when: true
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -348,6 +354,49 @@
           boot_ip={{ cluster_boot_ip | default('N/A') }},
           ochami_url={{ ochami_base_url | default('N/A') }}
 
+    # --- Load network_spec.yml for template rendering ---
+    # The coredhcp.yaml.j2 template directly references network_data.admin_network
+    # (dynamic_range, netmask_bits) and additional_subnets. The Corefile.j2 template
+    # needs dns_forwarders which may be overridden from network_spec. network_data
+    # is only populated inside the "Regenerate configs_vars.yaml" block above
+    # (which is skipped when configs_vars.yaml already exists — the normal path).
+    # Load network_spec.yml unconditionally here so templates always have the data.
+    - name: Load network_spec.yml for template variables
+      when:
+        - cluster_config_available | default(false) | bool
+        - network_data is not defined
+      block:
+        - name: Check if network_spec.yml exists for template rendering
+          ansible.builtin.stat:
+            path: "{{ network_spec_path }}"
+          register: template_network_spec_stat
+
+        - name: Load network_spec.yml variables
+          ansible.builtin.include_vars:
+            file: "{{ network_spec_path }}"
+          when: template_network_spec_stat.stat.exists
+
+        - name: Parse network_spec data for template rendering
+          ansible.builtin.set_fact:
+            network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+          with_dict: "{{ Networks }}"
+          when: template_network_spec_stat.stat.exists and Networks is defined
+
+    - name: Set additional_subnets from network_data
+      ansible.builtin.set_fact:
+        additional_subnets: "{{ network_data.admin_network.additional_subnets | default([]) }}"
+      when:
+        - network_data is defined
+        - network_data.admin_network is defined
+
+    - name: Override DNS forwarders from network_spec if configured
+      ansible.builtin.set_fact:
+        dns_forwarders: "{{ network_data.admin_network.dns }}"
+      when:
+        - network_data is defined
+        - network_data.admin_network is defined
+        - (network_data.admin_network.dns | default([])) | length > 0
+
     # --- Deploy configs if we have cluster info ---
     - name: Deploy updated CoreDNS Corefile
       ansible.builtin.template:
@@ -527,11 +576,15 @@
       connection: ssh
 
     # --- 9. Start services and recover any failed services ---
+    # Initial start may fail due to stale systemd state from the
+    # old containers. Allow failure so the recovery below can run.
     - name: Start OpenCHAMI services with new images
       ansible.builtin.systemd:
         name: openchami.target
         state: started
         enabled: true
+      register: initial_start_result
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -541,6 +594,7 @@
         name: minio.service
         state: started
         enabled: true
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -550,6 +604,7 @@
         name: registry.service
         state: started
         enabled: true
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
@@ -567,15 +622,53 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Restart openchami.target to recover failed services
+    - name: Reload systemd and restart openchami.target
       ansible.builtin.systemd:
         name: openchami.target
         state: restarted
         enabled: true
         daemon_reload: true
+      register: recovery_restart_result
+      failed_when: false
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+
+    # If recovery restart also failed, capture diagnostics
+    - name: Get failed service details
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "=== openchami.target status ==="
+        systemctl status openchami.target --no-pager 2>&1 | head -5
+        echo ""
+        for svc in postgres smd bss haproxy cloud-init-server \
+                   step-ca opaal coresmd-coredhcp coresmd-coredns; do
+          st=$(systemctl is-active ${svc}.service 2>/dev/null)
+          if [ "$st" != "active" ]; then
+            echo "=== ${svc}.service ($st) ==="
+            journalctl -u ${svc}.service --no-pager -n 5 2>/dev/null
+            echo ""
+          fi
+        done
+      register: failed_svc_diag
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: recovery_restart_result is failed or
+            (recovery_restart_result.status is defined and
+             recovery_restart_result.status.ActiveState
+             | default('') != 'active')
+
+    - name: Fail with service diagnostics
+      ansible.builtin.fail:
+        msg: |
+          openchami.target failed to start after upgrade.
+          {{ failed_svc_diag.stdout | default('No diagnostics.') }}
+      when:
+        - failed_svc_diag is not skipped
+        - failed_svc_diag.stdout | default('') | length > 0
 
     - name: Wait for restarted services to stabilize
       ansible.builtin.pause:
