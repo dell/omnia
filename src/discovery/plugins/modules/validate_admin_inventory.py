@@ -17,9 +17,9 @@
 """Ansible module to validate and expand a sparse admin inventory CSV."""
 
 import os
-import sys
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.omnia.discovery.plugins.module_utils import inventory_expander
 
 DOCUMENTATION = r'''
 ---
@@ -38,10 +38,6 @@ options:
     description: Path to write the complete inventory CSV
     required: false
     type: str
-  utils_path:
-    description: Directory that contains inventory_expander.py
-    default: /opt/omnia/utils
-    type: str
 '''
 
 EXAMPLES = r'''
@@ -53,31 +49,20 @@ EXAMPLES = r'''
 
 
 def main():
+    """Validate and expand a sparse admin inventory CSV."""
     module = AnsibleModule(
-        argument_spec=dict(
-            input_csv=dict(type="str", required=True),
-            output_csv=dict(type="str", required=False, default=None),
-            utils_path=dict(type="str", required=False, default="/opt/omnia/utils"),
-        ),
+        argument_spec={
+            "input_csv": {"type": "str", "required": True},
+            "output_csv": {"type": "str", "required": False, "default": None},
+        },
         supports_check_mode=True,
     )
 
     input_csv = module.params["input_csv"]
     output_csv = module.params["output_csv"]
-    utils_path = module.params["utils_path"]
 
     if not os.path.exists(input_csv):
-        module.fail_json(msg="Input CSV not found: %s" % input_csv)
-
-    if utils_path not in sys.path:
-        sys.path.insert(0, utils_path)
-
-    try:
-        import inventory_expander
-    except ImportError as exc:
-        module.fail_json(
-            msg="Unable to import inventory_expander from %s: %s" % (utils_path, str(exc))
-        )
+        module.fail_json(msg=f"Input CSV not found: {input_csv}")
 
     # Parse raw sparse rows and perform validation here before expansion.
     try:
@@ -100,7 +85,7 @@ def main():
     try:
         inventory_expander.allocate_ips(rows)
     except ValueError as exc:
-        module.fail_json(msg="IP allocation failed: %s" % str(exc))
+        module.fail_json(msg=f"IP allocation failed: {exc}")
 
     complete = inventory_expander.build_complete(rows)
 
@@ -113,7 +98,7 @@ def main():
         changed=changed,
         complete=complete,
         complete_inventory_path=output_csv,
-        msg="Validated and expanded %d entries from %s" % (len(complete), input_csv),
+        msg=f"Validated and expanded {len(complete)} entries from {input_csv}",
     )
 
 

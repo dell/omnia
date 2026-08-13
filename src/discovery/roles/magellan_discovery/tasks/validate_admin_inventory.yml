@@ -27,7 +27,6 @@
   omnia.discovery.validate_admin_inventory:
     input_csv: "{{ admin_inventory_path }}"
     output_csv: "{{ admin_complete_inventory_path }}"
-    utils_path: "{{ role_path }}/../../utils"
   register: admin_complete_inventory_result
 
 - name: Set complete inventory fact

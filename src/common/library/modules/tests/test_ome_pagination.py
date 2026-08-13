@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=missing-function-docstring,protected-access,too-few-public-methods
+# Test methods are self-explanatory and intentionally access internal helpers
+# to verify pagination, retry, and URL construction behavior.
+
 """Unit tests for OME OData pagination in ome_server_inventory.OMEClient.
 
 Tests cover:
@@ -24,13 +28,14 @@ Tests cover:
   - device_type filtering via get_all_devices
 """
 
-import json
 import math
+import os
 import sys
 import types
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests as req
 
 # Test-only IP address used as fixture — not a real host.
 TEST_OME_HOST = "10.0.0.1"  # NOSONAR — test fixture
@@ -49,8 +54,20 @@ sys.modules.setdefault("ansible", _ansible_stub)
 sys.modules.setdefault("ansible.module_utils", _ansible_mu)
 sys.modules.setdefault("ansible.module_utils.basic", _ansible_basic)
 
-# Now we can safely import the module under test
-from ome_server_inventory import OMEClient  # noqa: E402
+# Make the discovery plugin copy of ome_server_inventory findable for this test.
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "..",
+            "discovery", "plugins", "modules"
+        )
+    )
+)
+
+# The import is intentionally placed after sys.path setup so pytest can locate
+# the discovery plugin copy of the module.
+from ome_server_inventory import OMEClient  # noqa: E402, pylint: disable=wrong-import-position
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +286,9 @@ class TestGetPaginatedURLConstruction:
             return_value=_make_page_response([], 0)
         )
 
-        _, _ = client.get_paginated(f"https://{TEST_OME_HOST}/api/DeviceService/Devices?$filter=Type eq 1000")
+        base_url = f"https://{TEST_OME_HOST}/api/DeviceService/Devices"
+        filtered_url = f"{base_url}?$filter=Type eq 1000"
+        _, _ = client.get_paginated(filtered_url)
 
         called_url = client._request_with_retry.call_args[0][1]
         assert "?$filter=Type eq 1000&$top=50&$skip=0" in called_url
@@ -306,8 +325,6 @@ class TestRequestWithRetry:
 
     @patch("time.sleep", return_value=None)
     def test_retry_on_connection_error(self, _mock_sleep):
-        import requests as req
-
         client = OMEClient(TEST_OME_HOST, "u", "p")
         ok_resp = MagicMock()
         ok_resp.status_code = 200
@@ -320,8 +337,6 @@ class TestRequestWithRetry:
 
     @patch("time.sleep", return_value=None)
     def test_retry_exhausted_raises_on_timeout(self, _mock_sleep):
-        import requests as req
-
         client = OMEClient(TEST_OME_HOST, "u", "p")
         client.session.request = MagicMock(
             side_effect=req.exceptions.Timeout("timed out")

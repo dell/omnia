@@ -1,5 +1,5 @@
 SERVICE_TAG,GROUP_NAME,FUNCTIONAL_GROUP_NAME,ROW,RACK,USLOT,RANGE
-ABCD01,SU1,slurm_control_node_x86_64,1,1,,100.20.107.60-100.20.107.79
+ABCD01,SU1,slurm_control_node_x86_64,1,1,,172.17.107.60-172.17.107.79
 ABCD02,,,,,,
 ABCD03,,slurm_node_x86_64,,,3,
 ABCD04,,,,,,
@@ -9,7 +9,7 @@ ABCD07,,service_kube_node_x86_64,,,,
 ABCD08,,,,,2,
 ABCD09,,,,,,
 ABCD10,,,,,,
-ABCD11,SU2,login_node_x86_64,2,1,,100.20.108.10-100.20.108.29
+ABCD11,SU2,login_node_x86_64,2,1,,172.17.108.10-172.17.108.29
 ABCD12,,,,,,
 ABCD13,,login_compiler_node_x86_64,,,4,
 ABCD14,,,,,,
