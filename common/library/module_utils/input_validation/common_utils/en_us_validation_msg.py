@@ -888,8 +888,9 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
 
 # DNS hostname validation messages
 DNS_ENABLED_NON_NID_HOSTNAME_MSG = (
-    "When dns_enabled is true in provision_config.yml, all hostnames in the PXE mapping file "
-    "must follow the NID format (e.g., nid001, nid00001). "
+    "Invalid hostname when dns_enabled is true in provision_config.yml. "
+    "Hostname must follow the OpenCHAMI NID format: nid001 through nid999. "
+    "Prefix must be exactly 'nid' (lowercase) with a 3-digit numeric suffix (001-999). "
     "Custom hostnames are not supported with DNS enabled. "
     "Either set dns_enabled to false to use custom hostnames with /etc/hosts, "
     "or update the hostnames to use the NID format."
