@@ -68,8 +68,10 @@
       when: upgrade_lock_stat.stat.exists
       failed_when: false
 
-    - name: Clear stale upgrade lock (upgrade is not running — playbooks are synchronous)
-      when: upgrade_lock_stat.stat.exists
+    - name: Clear stale upgrade lock (only when force_rollback is true)
+      when:
+        - upgrade_lock_stat.stat.exists
+        - force_rollback | default(false) | bool
       block:
         - name: Display stale upgrade lock warning
           ansible.builtin.debug:
@@ -84,6 +86,20 @@
           ansible.builtin.file:
             path: "{{ upgrade_lock_path }}"
             state: absent
+
+    - name: Abort if stale upgrade lock exists and force_rollback is not set
+      ansible.builtin.fail:
+        msg: |
+          A stale upgrade lock file exists from a previous failed/interrupted upgrade.
+          Lock file: {{ upgrade_lock_path }}
+          Lock contents:
+          {{ (upgrade_lock_raw.content | b64decode) if (upgrade_lock_raw.content is defined) else '(unreadable)' }}
+          To clear the lock and proceed with rollback, use:
+            cd /omnia/rollback
+            ansible-playbook rollback.yml -e force_rollback=true
+      when:
+        - upgrade_lock_stat.stat.exists
+        - not (force_rollback | default(false) | bool)
 
     # ─── Guard 2: Read upgrade_manifest.yml + completed-upgrade check ───
     - name: Check for upgrade_manifest.yml
@@ -470,10 +486,13 @@
     # rollback flows. It is read-only and reflects the cluster's installed
     # version baseline only.
 
-    - name: Remove rollback guard lock (always release at end)
+    - name: Remove rollback guard lock (only when force_rollback is true)
       ansible.builtin.file:
         path: "{{ rollback_lock_path }}"
         state: absent
+      when:
+        - new_status == 'completed'
+        - force_rollback | default(false) | bool
     # ─────────────────────────────────────────────────────────────────────────
 
     # Save rollback summary facts for the final banner play
