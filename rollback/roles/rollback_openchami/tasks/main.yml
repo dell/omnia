@@ -22,6 +22,7 @@
 #   3. Configuration files (coredhcp.yaml, Corefile, configs_vars.yaml)
 #   4. PostgreSQL database from pg_dump backup
 #   5. Cloud-init in-memory data from backup YAML files
+#   6. BSS boot parameters from backup YAML files
 #
 # Key reversals:
 #   - coresmd-coredhcp + coresmd-coredns (v2.2) → single coresmd (v2.1)
@@ -31,6 +32,7 @@
 #     PG 11 initializes fresh, then pg_dump backup is restored)
 #   - Database rolled back to pre-upgrade state
 #   - Cloud-init data reloaded from backup workdir
+#   - BSS boot parameters reloaded from backup workdir
 #
 # No idempotency check — rollback always executes regardless of current
 # container state. This ensures rollback works even in partial or failed
@@ -94,6 +96,14 @@
 
         - name: Reload cloud-init data from backup
           ansible.builtin.include_tasks: reload_cloud_init_data.yml
+
+        # BSS boot parameters are not preserved through the PG 17 → 11
+        # downgrade + data volume clear + hmsds-only pg_dump restore cycle.
+        # Without boot params, BSS returns a fallback bootscript with an
+        # empty SYSTEM_URL iPXE variable, producing a malformed chain URL
+        # (https:///apis/bss/...) that causes PXE boot failures.
+        - name: Reload BSS boot parameters from backup
+          ansible.builtin.include_tasks: reload_bss_boot_params.yml
 
         - name: Post-rollback health check
           ansible.builtin.include_tasks: post_rollback_health_check.yml
