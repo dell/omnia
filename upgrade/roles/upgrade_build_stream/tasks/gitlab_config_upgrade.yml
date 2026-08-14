@@ -568,6 +568,7 @@
 
 - name: "[Step 4A] Remove ALL existing GitLab runner images (any version) before upgrade"
   ansible.builtin.shell: |
+    set -o pipefail
     sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
       ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
       "podman images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | \

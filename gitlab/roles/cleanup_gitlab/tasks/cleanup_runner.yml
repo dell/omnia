@@ -27,6 +27,7 @@
 
 - name: Remove ALL GitLab runner images (any version)
   ansible.builtin.shell: |
+    set -o pipefail
     podman images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | \
       grep -E 'gitlab-runner|gitlab-runner-helper' | \
       xargs -r podman rmi -f 2>/dev/null || true
