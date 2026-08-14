@@ -25,26 +25,17 @@
     state: absent
   failed_when: false
 
-- name: Remove GitLab runner image
-  containers.podman.podman_image:
-    name: "{{ gitlab_runner_image }}"
-    state: absent
-    force: true
+- name: Remove ALL GitLab runner images (any version)
+  ansible.builtin.shell: |
+    podman images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | \
+      grep -E 'gitlab-runner|gitlab-runner-helper' | \
+      xargs -r podman rmi -f 2>/dev/null || true
+  changed_when: false
   failed_when: false
 
 - name: Remove default CI job image
   containers.podman.podman_image:
     name: "{{ gitlab_runner_default_image }}"
-    state: absent
-    force: true
-  failed_when: false
-
-- name: Remove GitLab runner helper image
-  containers.podman.podman_image:
-    name: >-
-      {{ gitlab_runner_helper_image_registry }}:{{
-        'arm64' if ansible_architecture == 'aarch64' else 'x86_64'
-      }}-{{ gitlab_runner_helper_image_version }}
     state: absent
     force: true
   failed_when: false
