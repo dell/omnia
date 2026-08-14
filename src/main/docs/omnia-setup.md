@@ -9,6 +9,9 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 | `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh |
 | `--init, -i` | Run all domain-init.sh scripts (stage input files to NFS share) |
 | `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
+| `--catalog` | Copy catalog/sample files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` |
+| `--cleanup` | Remove venv, system env files, and activation script. Data is preserved. |
+| `--cleanup --all` | Remove everything: venv, system env, AND all data at `$OMNIA_DATA_PATH/` (full reset) |
 | `--help, -h` | Show help message |
 
 ## Options
@@ -38,6 +41,35 @@ Use `--deps-only` to skip input file staging in this step (e.g., in CI or if you
 ./omnia.sh -s                      # Full setup: venv + deps + input copy
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
 ./omnia.sh --init                  # Stage input files only
+./omnia.sh --catalog               # Copy catalog files to $OMNIA_DATA_PATH/catalog/
+./omnia.sh --cleanup               # Remove venv + env (preserve data)
+./omnia.sh --cleanup --all         # Full reset (remove everything)
+```
+
+## What `--catalog` Does
+
+Copies catalog and sample files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/`.
+This makes `catalog_rhel.json` available at the runtime path for downstream domains
+(e.g., `image_build_manager` when `functional_groups_source: catalog`).
+
+```bash
+./omnia.sh --catalog
+```
+
+## What `--cleanup` Does
+
+Removes the Omnia environment without touching runtime data:
+
+1. **Removes the Python venv** at `$OMNIA_VENV_PATH`
+2. **Removes system env files** — `/etc/omnia/omnia.env`, `/etc/profile.d/omnia-env.sh`
+3. **Removes activation script** — `activate-omnia.sh`
+4. **Preserves data** — `$OMNIA_DATA_PATH/` is NOT removed
+
+With `--all`, also removes all data at `$OMNIA_DATA_PATH/` (prompts for confirmation).
+
+```bash
+./omnia.sh --cleanup               # Venv + env only
+./omnia.sh --cleanup --all         # Full reset (prompts for confirmation)
 ```
 
 ## Example Output

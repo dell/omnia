@@ -53,6 +53,9 @@ omnia-cli status
 ./omnia.sh -s                      # Full setup: venv + deps + input copy
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
 ./omnia.sh --init                  # Stage input files only (run all domain-init.sh)
+./omnia.sh --catalog               # Copy catalog files to $OMNIA_DATA_PATH/catalog/
+./omnia.sh --cleanup               # Remove venv + env (preserve data)
+./omnia.sh --cleanup --all         # Full reset (remove everything including data)
 ./omnia.sh -h                      # Help
 ```
 

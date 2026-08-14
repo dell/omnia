@@ -3,13 +3,13 @@
 **Version**: 2.0
 **Audience**: All Omnia test automation developers
 **Purpose**: Architecture, patterns, and conventions for building test modules against any Omnia domain
-**Reference Implementation**: `test/image_build_manager/`
+**Reference Implementation**: Any existing domain module under `test/<domain_name>/`
 
 ---
 
 ## 1. Overview
 
-Each Omnia domain (e.g., `image_build_manager`, `repo_manager`, `provision`, `discovery`, `telemetry`) has a corresponding **test module** under `test/<domain_name>/` that provides Functional Verification Testing (FVT) for that domain's Ansible playbooks.
+Each Omnia domain has a corresponding **test module** under `test/<domain_name>/` that provides Functional Verification Testing (FVT) for that domain's Ansible playbooks.
 
 All test modules share the **`omnia-auto`** plugin package (`test/plugins/`), which provides common utilities for host connectivity, playbook execution, file synchronization, formatting, and HTML/JSON report generation. Domain modules install this shared package as a local wheel and build domain-specific verification on top of it.
 
@@ -51,7 +51,7 @@ test/<domain_name>/
 ├── run_validation.sh                     # CLI runner (scenario, command, markers, suites)
 ├── setup_env.sh                          # One-time venv setup + tab-completion install
 ├── test_config.yml                       # Target server, dataset, sync, report settings
-├── test_creds.yml                        # SSH credentials (auto-encrypted with Ansible Vault)
+├── test_creds.yml                        # SSH + domain credentials (auto-encrypted with Ansible Vault)
 ├── test_run_config.yml                   # Batch execution config (--config mode)
 ├── requirements.txt                      # Python deps + local omnia-auto wheel
 ├── .gitignore                            # Excludes .venv, __pycache__, reports, vault keys
@@ -91,7 +91,7 @@ test/<domain_name>/
 │       └── <domain_name>_msgs.py         # TEST_LOG_MSGS, TEST_ASSERT_MSGS
 │
 ├── fvt/                                  # Functional Verification Tests
-│   ├── TEST_CASES.md                     # Complete test case registry
+│   ├── README.md                         # Complete test case registry
 │   ├── __init__.py
 │   ├── precheck/                         # Precheck scenario (env + connectivity)
 │   │   ├── test_playbook.py
@@ -341,12 +341,31 @@ report_name: "<domain>_test_report"
 # Auto-encrypted with Ansible Vault on first run
 # NEVER commit real passwords. Ship with empty values.
 oim_password: ""
+
+# Domain-specific credentials (optional, domain-dependent)
+# Each domain defines its own credential fields here.
+# Example: s3_access_id, api_token, etc.
 ```
 
 On first `pytest` session, `conftest.py` calls `encrypt_test_credentials()` which:
 1. Generates a random key file (`.test_creds.key`)
 2. Encrypts `test_creds.yml` with `ansible-vault encrypt`
 3. `.gitignore` excludes `.test_creds.key`
+
+#### Credential Setup via `setup_env.sh`
+
+| Flag | Scope | Requires `oim_server_ip` | Description |
+|------|-------|--------------------------|-------------|
+| `--set-password` | SSH | Yes | Interactive prompt for `oim_password` |
+| `--update-password` | SSH | Yes | Force-update existing SSH password |
+| `--password PWD` | SSH | Yes | Non-interactive SSH password set |
+| `--set-domain-creds` | Domain | **No** | Interactive prompt for domain-specific credentials |
+| `--domain-creds JSON` | Domain | **No** | Non-interactive domain credential set via JSON |
+
+Domain credential flags (`--set-domain-creds` / `--domain-creds`) write only to the
+local `test_creds.yml` file and do not require a target server connection.  The
+`sync_build_credentials()` function in `host_func.py` bridges these credentials to the
+target's domain input directory during `pytest_sessionstart`.
 
 ### 5.3 `test_run_config.yml` — Batch Execution
 
@@ -434,7 +453,12 @@ def pytest_sessionstart(session):
     if config.get("sync_output", False):
         sync_upstream_output(host)
 
-    # 7. Initialize TestReport
+    # 7. Sync domain credentials (if applicable)
+    #    Bridges test_creds.yml → target's domain credentials file
+    if not is_local_execution():
+        sync_build_credentials(host)
+
+    # 8. Initialize TestReport
     report = TestReport(
         module_name=DOMAIN_NAME,
         report_path=str(config.get("report_path")),
@@ -767,7 +791,7 @@ To add test automation for a new domain:
    - `library/messages/<domain_name>_msgs.py` — TEST_LOG_MSGS, TEST_ASSERT_MSGS
 5. **Map source roles to tests**: read `src/<domain_name>/roles/`, identify resources, write tests
 6. **Create FVT structure**: one directory per playbook tag, with `test_playbook.py` + suites
-7. **Document**: `fvt/TEST_CASES.md`, `README.md`
+7. **Document**: `fvt/README.md`, module `README.md`
 
 ### Key Customization Points
 

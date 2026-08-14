@@ -2,7 +2,6 @@
 
 > All test automation code under `test/` MUST follow these rules.
 > These rules apply to every domain test module.
-> The reference implementation is `test/image_build_manager/`.
 
 **Cross-references:**
 - **Co-change rule** (code changes require test updates): see `general.md` §6
@@ -76,7 +75,7 @@ Every domain test module must follow this structure:
 test/<domain_name>/
 ├── conftest.py                    # Session setup, omnia_auto.configure()
 ├── test_config.yml                # Non-sensitive settings (IP, paths)
-├── test_creds.yml                 # Sensitive credentials (auto-encrypted)
+├── test_creds.yml                 # SSH + domain credentials (auto-encrypted)
 ├── requirements.txt               # Dependencies including omnia-auto wheel
 ├── run_validation.sh              # CLI runner
 ├── setup_env.sh                   # One-time venv + tab-completion setup
@@ -98,12 +97,16 @@ test/<domain_name>/
 │   │   └── test_case_vars.py      # TEST_CASES dict (TC IDs + titles)
 │   └── messages/
 │       └── <domain_name>_msgs.py  # TEST_LOG_MSGS, TEST_ASSERT_MSGS
-└── fvt/
-    ├── TEST_CASES.md              # All test cases documented
-    ├── <scenario>/                # One dir per playbook tag
-    │   ├── test_playbook.py       # Deploy test
-    │   └── <suite>/test_<suite>.py
-    └── <domain_name>/             # Full end-to-end (no tag)
+├── fvt/                           # Functional Verification Tests
+│   ├── README.md                  # All FVT test cases documented
+│   ├── <scenario>/                # One dir per playbook tag
+│   │   ├── test_playbook.py       # Deploy test
+│   │   └── <suite>/test_<suite>.py
+│   └── <domain_name>/             # Full end-to-end (no tag)
+└── nft/                           # Non-Functional Tests (optional)
+    ├── README.md                  # NFT test cases and thresholds
+    ├── test_performance.py        # Performance threshold tests
+    └── test_idempotency.py        # Idempotency tests
 ```
 
 ### 2.2 Dataset and Input File Behavior
@@ -415,6 +418,36 @@ Tests produce structured output via `TestLogger`:
 ```
 
 **Never use `print()` directly.** Always use `TestLogger` or `log()`.
+
+### 3.11 Non-Functional Tests (NFT)
+
+NFT tests live in `nft/` alongside `fvt/` and validate **performance** and **idempotency**.
+
+**NFT Rules:**
+
+1. **Directory**: Place NFT tests in `test/<domain>/nft/`, not in `fvt/`.
+2. **Marker**: All NFT tests MUST use `@pytest.mark.nft`.
+3. **README**: Each `nft/` directory MUST contain a `README.md` documenting test cases, thresholds, and execution instructions.
+4. **TC ID Prefix**: NFT test case IDs use `NFT_` prefix (e.g., `NFT_001`).
+5. **Thresholds**: Performance thresholds MUST be defined as module-level constants, not inline.
+6. **Prerequisites**: NFT tests require a fully deployed environment. Document prerequisites in the `README.md`.
+7. **Execution**: NFT tests are run via `./run_validation.sh nft test`.
+
+```python
+import pytest
+
+PREPARE_THRESHOLD = 300  # 5 minutes
+
+@pytest.mark.nft
+@pytest.mark.order(1)
+def test_prepare_performance(run_playbook):
+    """NFT_001: Prepare completes within threshold."""
+    start = time.time()
+    result = run_playbook(tag="prepare", timeout=PREPARE_THRESHOLD + 60)
+    elapsed = time.time() - start
+    assert result.rc == 0, f"Prepare failed: rc={result.rc}"
+    assert elapsed <= PREPARE_THRESHOLD, f"Exceeded {PREPARE_THRESHOLD}s: {elapsed:.1f}s"
+```
 
 ---
 
@@ -754,8 +787,11 @@ cd ../..
 # Step 4: Configure test settings
 vi test_config.yml        # Set oim_server_ip, dataset, paths, options
 
-# Step 5: Set SSH password (remote mode only)
+# Step 5: Set SSH password (remote mode only, requires oim_server_ip)
 bash setup_env.sh --set-password
+
+# Step 5b: Set domain credentials (no oim_server_ip needed)
+bash setup_env.sh --set-domain-creds
 ```
 
 `setup_env.sh` installs all dependencies from `requirements.txt` (including `omnia-auto`
@@ -808,7 +844,7 @@ Write code -> Run tests -> Fix failures -> Re-run tests -> All pass -> Push
 7. Add TC entry to test_case_vars.py
 8. Write the test in fvt/<scenario>/<suite>/
 9. Add messages to <domain_name>_msgs.py
-10. Add TC ID to fvt/TEST_CASES.md
+10. Add TC ID to fvt/README.md
 11. Run pylint + bandit + tests
 12. Push
 ```
@@ -941,7 +977,7 @@ Before submitting a PR, verify:
 - [ ] Bandit: zero high-severity findings
 - [ ] No hardcoded IPs, passwords, tokens
 - [ ] All commits signed off (`git commit -s`)
-- [ ] TEST_CASES.md updated with new test cases
+- [ ] fvt/README.md updated with new test cases
 
 ### Co-Change
 - [ ] PR that changes `src/` includes corresponding `test/` updates (or justification in PR description)

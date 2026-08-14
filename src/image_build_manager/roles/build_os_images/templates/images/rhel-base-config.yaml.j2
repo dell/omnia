@@ -13,6 +13,7 @@ repos:
 {% if repo.base_url | length > 1 %}
   - alias: '{{ repo.name }}'
     url: '{{ repo.base_url }}'
+    priority: '{{ repo.priority | default("99") }}'
 {% endif %}
 {% if repo.gpg | length > 1 %}
     gpg: '{{ repo.gpg }}'

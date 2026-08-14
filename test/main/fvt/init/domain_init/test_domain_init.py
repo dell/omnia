@@ -18,6 +18,8 @@ Omnia Main Init — Domain Init Verification.
 TC_IN_002: Verify domain log directories created
 TC_IN_003: Verify domain input files staged for image_build_manager
 TC_IN_004: Verify domain input files staged for repo_manager
+TC_IN_005: Verify domain input files staged for orchestrator
+TC_IN_006: Verify domain input files staged for discovery
 """
 
 import pytest
@@ -105,6 +107,80 @@ def test_domain_input_staged_repo_manager(host):
     domain = "repo_manager"
     tl = TestLogger(
         TEST_NAMES["domain_input_staged"], "TC_IN_004"
+    )
+    config = load_test_config()
+    data_path = config.get(
+        "omnia_data_path", "/opt/omnia"
+    )
+    project = config.get(
+        "project_name", "project_default"
+    )
+
+    result = check_domain_input_staged(host, domain)
+
+    if result["success"]:
+        tl.passed(LOG["input_staged_ok"].format(
+            domain=domain,
+            count=result["details"].split()[0],
+        ))
+    else:
+        tl.failed(LOG["input_not_staged"].format(
+            domain=domain
+        ))
+
+    expected_path = (
+        f"{data_path}/{domain}/input/{project}"
+    )
+    assert result["success"], ASSERT["input_not_staged"].format(
+        domain=domain,
+        path=expected_path,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(4)
+def test_domain_input_staged_orchestrator(host):
+    """TC_IN_005: Verify domain input files staged for orchestrator."""
+    domain = "orchestrator"
+    tl = TestLogger(
+        TEST_NAMES["domain_input_staged_orchestrator"], "TC_IN_005"
+    )
+    config = load_test_config()
+    data_path = config.get(
+        "omnia_data_path", "/opt/omnia"
+    )
+    project = config.get(
+        "project_name", "project_default"
+    )
+
+    result = check_domain_input_staged(host, domain)
+
+    if result["success"]:
+        tl.passed(LOG["input_staged_ok"].format(
+            domain=domain,
+            count=result["details"].split()[0],
+        ))
+    else:
+        tl.failed(LOG["input_not_staged"].format(
+            domain=domain
+        ))
+
+    expected_path = (
+        f"{data_path}/{domain}/input/{project}"
+    )
+    assert result["success"], ASSERT["input_not_staged"].format(
+        domain=domain,
+        path=expected_path,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(5)
+def test_domain_input_staged_discovery(host):
+    """TC_IN_006: Verify domain input files staged for discovery."""
+    domain = "discovery"
+    tl = TestLogger(
+        TEST_NAMES["domain_input_staged_discovery"], "TC_IN_006"
     )
     config = load_test_config()
     data_path = config.get(

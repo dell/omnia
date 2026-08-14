@@ -47,7 +47,7 @@
 
 - name: Build image list entries
   vars:
-    _image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+    _image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
     _current_image:
       functional_group: "{{ item.key }}"
       kernel: "boot-images/efi-images/{{ item.key }}/{{ _image_name }}/vmlinuz"
