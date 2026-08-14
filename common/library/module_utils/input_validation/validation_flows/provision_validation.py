@@ -154,10 +154,16 @@ def validate_slurm_login_compiler_prefix(pxe_mapping_file_path):
 def validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, dns_enabled):
     """
     Validates that all hostnames in the PXE mapping file follow the NID format
-    (e.g., nid001, nid00001) when dns_enabled is true.
+    (nid001 through nid999) when dns_enabled is true.
 
     When DNS is enabled, CoreDNS handles hostname resolution and expects NID-format
     hostnames. Custom hostnames require /etc/hosts (dns_enabled=false).
+
+    Rules:
+        - Prefix must be exactly "nid" (lowercase).
+        - Numeric suffix must be exactly 3 digits (001-999).
+        - Valid examples: nid001, nid123, nid999.
+        - Rejected: nid0, nid01, nid000, nid1000, NID001, node001.
 
     Args:
         pxe_mapping_file_path (str): Path to the PXE mapping file.
@@ -184,7 +190,7 @@ def validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, dns_ena
     if not hostname_col:
         return
 
-    nid_re = re.compile(r"^nid\d+$")
+    nid_re = re.compile(r"^nid(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$")
     invalid_hostnames = []
 
     for row_idx, row in enumerate(reader, start=2):
