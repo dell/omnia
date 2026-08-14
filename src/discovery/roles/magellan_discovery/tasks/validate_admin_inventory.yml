@@ -1,0 +1,38 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check that admin inventory file exists
+  ansible.builtin.stat:
+    path: "{{ admin_inventory_path }}"
+  register: admin_inventory_stat
+
+- name: Fail when admin inventory file is not found
+  ansible.builtin.fail:
+    msg: "{{ admin_inventory_not_found_msg }}"
+  when: not admin_inventory_stat.stat.exists
+
+- name: Validate and expand admin inventory CSV
+  omnia.discovery.validate_admin_inventory:
+    input_csv: "{{ admin_inventory_path }}"
+    output_csv: "{{ admin_complete_inventory_path }}"
+  register: admin_complete_inventory_result
+
+- name: Set complete inventory fact
+  ansible.builtin.set_fact:
+    admin_complete_inventory: "{{ admin_complete_inventory_result.complete }}"
+
+- name: Display complete inventory count
+  ansible.builtin.debug:
+    msg: "Expanded {{ admin_complete_inventory | length }} complete inventory entries from {{ admin_inventory_path }}"

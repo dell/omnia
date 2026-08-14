@@ -21,6 +21,10 @@
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
   when: omnia_run_tags is not defined
 
+- name: Determine CSV file to validate
+  ansible.builtin.set_fact:
+    pxe_csv_file_path: "{{ '' if 'discovery' in input_validate_tags else csv_file_path | default('') }}"
+
 - name: Run input validation module
   validate_input:
     omnia_base_dir: "{{ omnia_base_dir }}"
@@ -28,7 +32,7 @@
     input_project_dir: "{{ input_project_dir }}"
     tag_names: "{{ input_validate_tags }}"
     module_utils_path: "{{ (role_path + '/../../plugins/module_utils/') | ansible.builtin.realpath }}"
-    csv_file_path: "{{ csv_file_path }}"
+    csv_file_path: "{{ pxe_csv_file_path }}"
   environment:
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
     REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"

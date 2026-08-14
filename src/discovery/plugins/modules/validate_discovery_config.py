@@ -59,7 +59,7 @@ options:
 EXAMPLES = r'''
 - name: Validate discovery configuration files
   omnia.discovery.validate_discovery_config:
-    input_project_dir: /opt/omnia/input/project_default
+    input_project_dir: /opt/omnia/discovery/input/project_default
     schema_dir: "{{ role_path }}/../../plugins/module_utils/discovery_validation/schema"
   register: validation_result
 '''

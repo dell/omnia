@@ -29,12 +29,6 @@
     output_file: "{{ discovery_report_output_file }}"
   register: discovery_report_result
 
-- name: Load build_stream_config to check if build_stream is enabled
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/build_stream_config.yml"
-    name: build_stream_config_data
-  failed_when: false
-
 - name: Set xnames mapping summary
   ansible.builtin.set_fact:
     xnames_mapping_message: >-
@@ -53,22 +47,19 @@
         else ''
       }}
 
-- name: Display discovery completion message (without BuildStream)
-  when: not (build_stream_config_data.enable_build_stream | default(false) | bool)
+- name: Display Magellan discovery completion message
   ansible.builtin.debug:
-    msg: "{{ _ome_report_msg | select | list }}"
+    msg: "{{ _discovery_report_msg | select | list }}"
   vars:
-    _ome_report_msg:
+    _discovery_report_msg:
       - "============================================================"
-      - "OME Discovery Complete"
+      - "Magellan Discovery Complete"
       - "============================================================"
       - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
       - "{{ xnames_mapping_message }}"
       - "BMC discovery report generated: {{ discovery_report_output_file }}"
       - "  (Lists link status of BMC, Ethernet, and InfiniBand NICs for each server)"
       - "Total servers discovered: {{ discovered_servers | length }}"
-      - ""
-      - "Output directory: {{ discovery_output_dir }}"
       - ""
       - "Next Steps:"
       - "1. Review and edit the generated PXE mapping file:"
@@ -83,49 +74,9 @@
       - "     cp {{ pxe_mapping_output_file }} {{ pxe_mapping_output_file | dirname }}/bmc_pxe_mapping_file.csv"
       - "     {{ _xnames_copy_instruction }}"
       - ""
-      - "5. If fresh installation of Omnia, Run:"
-      - "     ansible-playbook prepare_oim/prepare_oim.yml"
+      - "5. Update the following parameter in provision_config.yml:"
+      - "     pxe_mapping_file_path: {{ pxe_mapping_output_file | dirname }}/bmc_pxe_mapping_file.csv"
       - ""
-      - "   Then run orchestrator:"
+      - "6. Run:"
       - "     ansible-playbook orchestrator/orchestrator.yml"
-      - "============================================================"
-
-- name: Display discovery completion message (with BuildStream)
-  when: build_stream_config_data.enable_build_stream | default(false) | bool
-  ansible.builtin.debug:
-    msg: "{{ _ome_report_msg | select | list }}"
-  vars:
-    _ome_report_msg:
-      - "============================================================"
-      - "OME Discovery Complete"
-      - "============================================================"
-      - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
-      - "{{ xnames_mapping_message }}"
-      - "BMC discovery report generated: {{ discovery_report_output_file }}"
-      - "  (Lists link status of BMC, Ethernet, and InfiniBand NICs for each server)"
-      - "Total servers discovered: {{ discovered_servers | length }}"
-      - ""
-      - "Output directory: {{ discovery_output_dir }}"
-      - ""
-      - "Next Steps:"
-      - "1. Review and edit the generated PXE mapping file:"
-      - "     {{ pxe_mapping_output_file }}"
-      - ""
-      - "2. Review the discovery report for NIC link statuses:"
-      - "     {{ discovery_report_output_file }}"
-      - ""
-      - "3. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
-      - ""
-      - "4. Copy the reviewed files to the non-timestamped names used by provision:"
-      - "     cp {{ pxe_mapping_output_file }} {{ pxe_mapping_output_file | dirname }}/bmc_pxe_mapping_file.csv"
-      - "     {{ _xnames_copy_instruction }}"
-      - ""
-      - "5. If GitLab server is not yet up, copy the generated file to"
-      - "     /opt/omnia/input/{{ discovery_project_name }}/orchestrator/pxe_mapping_file.csv"
-      - ""
-      - "6. If the GitLab server is up and running, copy the file to"
-      - "     input/pxe_mapping_file.csv in the GitLab project and commit the changes"
-      - "     after building the images using the build pipeline. Committing the PXE mapping"
-      - "     file will automatically trigger the deploy pipeline and deploy the images on"
-      - "     the nodes listed in the newly committed PXE mapping file."
       - "============================================================"

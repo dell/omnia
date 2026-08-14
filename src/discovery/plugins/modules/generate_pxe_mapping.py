@@ -16,9 +16,15 @@
 """Ansible module to generate PXE mapping file from discovered server inventory."""
 
 import csv
+import ipaddress
 import os
 import re
 from ansible.module_utils.basic import AnsibleModule
+
+# Regex for a valid GROUP_NAME in the PXE mapping (grp0-grp100 or SU[A-Z]?1-100).
+GROUP_NAME_RE = re.compile(
+    r"^(?:grp(?:[0-9]|[1-9][0-9]|100)|[Ss][Uu][A-Za-z]?(?:0*[1-9][0-9]?|100))$"
+)
 
 DOCUMENTATION = r'''
 ---
@@ -61,13 +67,13 @@ options:
         required: false
         type: int
         default: 5
+    admin_subnets:
+        description: List of admin network CIDR entries. Each entry contains 'subnet' and 'netmask_bits'. The entry whose CIDR contains the constructed admin IP is selected (longest-prefix match).
+        required: false
+        type: list
+        default: []
     ib_subnet:
         description: InfiniBand subnet (e.g. 192.168.2.0) used to derive IB_IP from BMC IP last two octets
-        required: false
-        type: str
-        default: ""
-    admin_subnet:
-        description: Admin network subnet (e.g. 172.16.0.0) - first two octets combined with last two octets of iDRAC IP to derive ADMIN_IP
         required: false
         type: str
         default: ""
@@ -86,6 +92,11 @@ EXAMPLES = r'''
     hostname_start: 1
     hostname_padding: 5
     ib_subnet: "192.168.2.0"
+    admin_subnets:
+      - subnet: "172.16.107.0"
+        netmask_bits: "24"
+      - subnet: "172.16.108.0"
+        netmask_bits: "24"
 '''
 
 RETURN = r'''
@@ -147,21 +158,61 @@ def extract_su_from_hostname(bmc_hostname):
     return ""
 
 
-def calculate_admin_ip(admin_subnet, bmc_ip):
-    """
-    Derive admin IP from admin_subnet and BMC IP.
-    First two octets come from admin_subnet, last two from bmc_ip.
-    Example: admin_subnet=172.16.0.0, bmc_ip=172.16.0.250 -> 172.16.0.250
-    """
-    if not admin_subnet or not bmc_ip:
-        return ""
-
-    subnet_octets = admin_subnet.split('.')
+def _candidate_ip_from_network(bmc_ip, subnet_str):
+    """Build a candidate IP using the first two octets of a network and the last two of the BMC IP."""
     bmc_octets = bmc_ip.split('.')
-    if len(subnet_octets) != 4 or len(bmc_octets) != 4:
+    subnet_octets = subnet_str.split('.')
+    if len(bmc_octets) != 4 or len(subnet_octets) != 4:
+        return ""
+    return f"{subnet_octets[0]}.{subnet_octets[1]}.{bmc_octets[2]}.{bmc_octets[3]}"
+
+
+def resolve_admin_ip(bmc_ip, admin_subnets):
+    """
+    Derive admin IP from a BMC IP using the best matching admin subnet CIDR.
+
+    Each admin_subnet entry is a dict with 'subnet' (network address) and
+    'netmask_bits'. The candidate admin IP is built from the first two octets
+    of the admin subnet and the last two octets of the BMC IP. The candidate
+    falling inside the most specific (longest prefix) matching CIDR wins.
+
+    If no CIDR matches, an empty string is returned so the caller can detect a
+    configuration mismatch.
+    """
+    if not bmc_ip or not admin_subnets:
         return ""
 
-    return f"{subnet_octets[0]}.{subnet_octets[1]}.{bmc_octets[2]}.{bmc_octets[3]}"
+    bmc_octets = bmc_ip.split('.')
+    if len(bmc_octets) != 4:
+        return ""
+
+    best_match = ""
+    best_prefix = -1
+    for entry in admin_subnets:
+        subnet_str = entry.get("subnet", "") if isinstance(entry, dict) else str(entry)
+        netmask_bits = entry.get("netmask_bits", "") if isinstance(entry, dict) else ""
+        if not subnet_str or not netmask_bits:
+            continue
+
+        try:
+            network = ipaddress.ip_network(f"{subnet_str}/{netmask_bits}", strict=False)
+        except (ValueError, TypeError):
+            continue
+
+        candidate_str = _candidate_ip_from_network(bmc_ip, subnet_str)
+        if not candidate_str:
+            continue
+
+        try:
+            candidate = ipaddress.ip_address(candidate_str)
+        except (ValueError, TypeError):
+            continue
+
+        if candidate in network and network.prefixlen > best_prefix:
+            best_match = candidate_str
+            best_prefix = network.prefixlen
+
+    return best_match
 
 
 def calculate_ib_ip(ib_subnet, bmc_ip):
@@ -196,7 +247,7 @@ def main():
         "hostname_start": {"type": "int", "required": False, "default": 1},
         "hostname_padding": {"type": "int", "required": False, "default": 5},
         "ib_subnet": {"type": "str", "required": False, "default": ""},
-        "admin_subnet": {"type": "str", "required": False, "default": ""}
+        "admin_subnets": {"type": "list", "required": False, "default": []}
     }
 
     module = AnsibleModule(
@@ -212,7 +263,7 @@ def main():
     hostname_start = module.params['hostname_start']
     hostname_padding = module.params['hostname_padding']
     ib_subnet = module.params['ib_subnet']
-    admin_subnet = module.params['admin_subnet']
+    admin_subnets = module.params['admin_subnets']
 
     # CSV headers as specified
     headers = [
@@ -246,30 +297,45 @@ def main():
             bmc_ip = server.get('idrac_ip', '')
             bmc_hostname = server.get('idrac_hostname', '')
             ib_nic_name = server.get('ib_nic_name', '')
-            admin_ip = calculate_admin_ip(admin_subnet, bmc_ip)
+            admin_ip = resolve_admin_ip(bmc_ip, admin_subnets)
             ib_ip = calculate_ib_ip(ib_subnet, bmc_ip) if ib_nic_name else ""
 
-            # Use group_name from OME if available, else fall back to module param default
-            server_group = server.get('group_name', '').strip()
+            # Per-server optional values from inventory (Magellan) vs OME group (OME).
+            # If the inventory source provides both, functional_group takes precedence for
+            # FUNCTIONAL_GROUP_NAME and group_name for GROUP_NAME.
+            server_functional_group = server.get('functional_group', '').strip()
+            server_group_name = server.get('group_name', '').strip()
 
-            # Skip servers whose OME group is not a supported Omnia functional group
-            if server_group and server_group not in SUPPORTED_FUNCTIONAL_GROUPS:
+            # OME stores the static/functional group in 'group_name'. If a per-server
+            # functional_group is absent and group_name is not a valid GROUP_NAME,
+            # treat group_name as the functional group for backward compatibility.
+            if not server_functional_group and not GROUP_NAME_RE.match(server_group_name):
+                server_functional_group = server_group_name
+
+            # Resolve the functional group: per-server value wins, then module default.
+            resolved_functional_group = server_functional_group if server_functional_group else functional_group
+
+            # Validate the functional group that will actually be written.
+            if resolved_functional_group not in SUPPORTED_FUNCTIONAL_GROUPS:
                 svc_tag = server.get('service_tag', 'unknown')
                 module.warn(
-                    f"Skipping device {svc_tag}: OME static group '{server_group}' "
+                    f"Skipping device {svc_tag}: functional group '{resolved_functional_group}' "
                     f"is not a supported Omnia functional group. "
                     f"Supported groups: {', '.join(sorted(SUPPORTED_FUNCTIONAL_GROUPS))}"
                 )
                 continue
 
-            resolved_functional_group = server_group if server_group else functional_group
-
-            # Derive GROUP_NAME: try SU from BMC hostname first,
-            # then from OME group name, then fall back to module default (grp0)
-            su_name = extract_su_from_hostname(bmc_hostname)
-            if not su_name:
-                su_name = extract_su_from_hostname(server_group)
-            resolved_group_name = su_name if su_name else group_name
+            # Derive GROUP_NAME. Prefer an explicit per-server group_name that matches
+            # the valid GROUP_NAME format, then extract an SU from the BMC hostname,
+            # then from the per-server functional group string, then fall back to the
+            # module-level group_name default.
+            if server_group_name and GROUP_NAME_RE.match(server_group_name):
+                resolved_group_name = server_group_name
+            else:
+                su_name = extract_su_from_hostname(bmc_hostname)
+                if not su_name:
+                    su_name = extract_su_from_hostname(server_functional_group)
+                resolved_group_name = su_name if su_name else group_name
 
             row = {
                 "FUNCTIONAL_GROUP_NAME": resolved_functional_group,

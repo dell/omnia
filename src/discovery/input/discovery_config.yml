@@ -31,4 +31,11 @@ enable_bmc_discovery: false
 ome_ip: ""
 
 #### Magellan Discovery
-# Reserved for future Magellan discovery configuration parameters.
+# The admin inventory is read from {{ discovery_input_dir }}/admin_inventory.csv
+# by default. The path can be overridden below if required.
+# The CSV must contain at least the columns:
+#   SERVICE_TAG, GROUP_NAME, FUNCTIONAL_GROUP_NAME, RANGE
+# Optional columns: ROW, RACK, USLOT
+#   (ROW/RACK/USLOT are required if you want xnames mapping generation)
+# Example: "/opt/omnia/discovery/input/project_default/admin_inventory.csv"
+admin_inventory_path: "/opt/omnia/discovery/input/project_default/admin_inventory.csv"

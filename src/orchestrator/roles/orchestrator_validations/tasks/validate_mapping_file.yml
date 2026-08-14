@@ -57,6 +57,7 @@
 - name: Generate xnames in temporary mapping file
   omnia.orchestrator.generate_xname_in_mapping_file:
     mapping_file_path: "{{ temp_pxe_file_path }}"
+    xnames_mapping_file_path: "{{ pxe_mapping_file_path | dirname }}/xnames_mapping_file.csv"
 
 - name: Read host mapping file from CSV file and return a dictionary
   community.general.read_csv:

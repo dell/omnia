@@ -18,6 +18,7 @@
 import json
 import logging
 import math
+import re
 import time
 import urllib3
 from ansible.module_utils.basic import AnsibleModule
@@ -159,8 +160,8 @@ class OMEClient:
 
     def _request_with_retry(self, method, url, **kwargs):
         """Execute an HTTP request with retry on transient failures (5xx / timeout)."""
-        last_exc = None
         for attempt in range(1, self.MAX_RETRIES + 1):
+            last_exc = None
             try:
                 response = self.session.request(method, url, **kwargs)
                 if response.status_code < 500:
@@ -381,6 +382,38 @@ class OMEClient:
         return device_group_map, conflicts, debug
 
 
+def _extract_leading_number(value):
+    """Return the first contiguous integer from a string, or None."""
+    if not value:
+        return None
+    match = re.search(r"\d+", str(value))
+    if match:
+        return int(match.group(0))
+    return None
+
+
+def _parse_ome_device_location(location_info):
+    """Parse OME deviceLocation inventory response into row/rack/uslot numbers."""
+    if not isinstance(location_info, dict):
+        return None, None, None
+    loc = location_info.get("InventoryInfo", {})
+    if isinstance(loc, list):
+        loc = loc[0] if loc else {}
+    if not isinstance(loc, dict):
+        loc = {}
+
+    # Common OME location keys; RackSlot/USlot is the U-slot position.
+    row = loc.get("Aisle") or loc.get("Row") or ""
+    rack = loc.get("Rack") or loc.get("RackName", "")
+    uslot = loc.get("RackSlot", "")
+
+    return (
+        _extract_leading_number(row),
+        _extract_leading_number(rack),
+        _extract_leading_number(uslot),
+    )
+
+
 def extract_server_info(client, device, device_group_map=None):
     """Extract required fields from device and its inventory."""
     device_id = device.get("Id")
@@ -519,6 +552,16 @@ def extract_server_info(client, device, device_group_map=None):
     # Get group name from pre-built device→group map
     if device_group_map:
         info["group_name"] = device_group_map.get(device_id, "")
+
+    # Attempt to fetch physical location data from OME; if RackSlot (Uslot) is
+    # unavailable, row/rack/uslot are left empty and xnames generation is skipped.
+    location_info = client.get_device_inventory(device_id, "deviceLocation")
+    if location_info and location_info.get("InventoryInfo"):
+        row, rack, uslot = _parse_ome_device_location(location_info)
+        if row is not None and rack is not None and uslot is not None:
+            info["row"] = row
+            info["rack"] = rack
+            info["uslot"] = uslot
 
     return info
 
