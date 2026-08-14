@@ -179,10 +179,10 @@ def _build_repo_list(arch_repos: dict) -> list:
     """Build repo list from architecture-specific repos.
 
     Args:
-        arch_repos: Dict of {repo_name: {url: str, ...}}.
+        arch_repos: Dict of {repo_name: {url: str, priority: int, ...}}.
 
     Returns:
-        List of dicts with name, base_url, gpg keys.
+        List of dicts with name, base_url, gpg, priority keys.
     """
     result: list = []
     if not isinstance(arch_repos, dict):
@@ -193,11 +193,14 @@ def _build_repo_list(arch_repos: dict) -> list:
             isinstance(repo_data, dict)
             and repo_data.get("url")
         ):
-            result.append({
+            entry = {
                 "name": repo_name,
                 "base_url": repo_data["url"],
                 "gpg": "",
-            })
+            }
+            if "priority" in repo_data:
+                entry["priority"] = str(repo_data["priority"])
+            result.append(entry)
     return result
 
 

@@ -32,18 +32,23 @@
 #   --marker <expr>   Filter by pytest marker (x86_64, sanity, etc.)
 #   -v, --verbose     Increase verbosity
 #
-# Scenarios:
+# FVT Scenarios:
 #   image_build_manager     Full end-to-end (deploy without tags + verify)
 #   validate                Validate tag tests
 #   prepare                 Prepare tag tests
 #   build                   Build tag tests
 #   cleanup                 Cleanup tag tests
+#
+# NFT Scenarios:
+#   nft                     Non-functional tests (performance + idempotency)
+#                           Tests live in nft/ directory with @pytest.mark.nft
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FVT_DIR="${SCRIPT_DIR}/fvt"
+NFT_DIR="${SCRIPT_DIR}/nft"
 CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
 
 RED='\033[0;31m'
@@ -341,6 +346,7 @@ case "$SCENARIO" in
         echo -e "${BLUE}  Available Scenarios${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
+        echo -e "${YELLOW}FVT (Functional Verification):${NC}"
         for name in $(get_scenarios); do
             scenario_dir="${FVT_DIR}/${name}"
             if [ -d "$scenario_dir" ]; then
@@ -354,6 +360,14 @@ case "$SCENARIO" in
                 echo -e "  ${RED}${name}${NC}  (not found)"
             fi
         done
+        echo ""
+        echo -e "${YELLOW}NFT (Non-Functional Tests):${NC}"
+        if [ -d "$NFT_DIR" ]; then
+            nft_count=$(find "$NFT_DIR" -name 'test_*.py' 2>/dev/null | wc -l)
+            echo -e "  ${GREEN}nft${NC}  (${nft_count} test files — performance, idempotency)"
+        else
+            echo -e "  ${RED}nft${NC}  (directory not found)"
+        fi
         echo ""
         exit 0
         ;;
@@ -370,7 +384,7 @@ _run_validation_completions() {
     local cur prev; cur="\${COMP_WORDS[\$COMP_CWORD]}"; prev="\${COMP_WORDS[\$COMP_CWORD-1]}"
     local fvt_dir="${SCRIPT_DIR}/fvt"
     local scenarios=""; if [ -d "\${fvt_dir}" ]; then for d in "\${fvt_dir}"/*/; do [ -d "\$d" ] || continue; local n; n="\$(basename "\$d")"; [ "\$n" = "__pycache__" ] && continue; scenarios="\${scenarios} \${n}"; done; fi
-    local commands="deploy verify test"; local special="all list help --config --help"; local options="--suite --marker -v --verbose --debug"; local markers="sanity x86_64 aarch64 functional regression deploy"
+    local commands="deploy verify test"; local special="all nft list help --config --help"; local options="--suite --marker -v --verbose --debug"; local markers="sanity x86_64 aarch64 functional regression deploy nft"
     case "\$COMP_CWORD" in
         1) COMPREPLY=( \$(compgen -W "\${scenarios} \${special}" -- "\$cur") ) ;;
         2) case "\$prev" in list|help|--help|-h|--config) COMPREPLY=() ;; *) COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") ) ;; esac ;;
@@ -411,92 +425,78 @@ COMPLETION_EOF
         echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
-        echo "Usage:"
+        echo -e "  End-to-end tests for the ${GREEN}image_build_manager${NC} domain."
+        echo -e "  Deploys the Ansible playbook and verifies S3, registry, and build artifacts."
+        echo -e "  Module: ${CYAN}image_build_manager${NC}   Test dir: ${CYAN}test/image_build_manager/fvt/${NC}"
+        echo ""
+        echo -e "${YELLOW}USAGE${NC}"
         echo "  $0 <scenario> <command> [options]"
-        echo "  $0 all <command> [options]"
-        echo "  $0 --config"
-        echo "  $0 list"
+        echo "  $0 all <command>                  Run all scenarios"
+        echo "  $0 list                           List available scenarios"
+        echo "  $0 --config                       Batch run from test_run_config.yml"
         echo ""
-        echo -e "${YELLOW}Commands:${NC}"
+        echo -e "${YELLOW}COMMANDS${NC}"
         echo "  deploy    Run the Ansible playbook only (live streaming output)"
-        echo "  verify    Run verification tests only (no playbook execution)"
-        echo "  test      Full flow: deploy playbook, then run verification"
+        echo "  verify    Run verification tests only (no playbook, check existing state)"
+        echo "  test      Deploy + verify (full flow)"
         echo ""
-        echo -e "${YELLOW}Options:${NC}"
-        echo "  --suite <name>    Filter by subfolder (container, s3, registry, etc.)"
-        echo "  --marker <expr>   Filter by pytest marker expression"
+        echo -e "${YELLOW}OPTIONS${NC}"
+        echo "  --suite <name>    Run only tests in a subfolder (container, s3, registry, naming)"
+        echo "  --marker <expr>   Filter by pytest marker (see MARKERS below)"
         echo "  -v, --verbose     Increase pytest verbosity"
-        echo "  --debug           Enable full debug output (pytest -vvs + debug env)"
+        echo "  --debug           Full debug output (pytest -vvs + debug env)"
         echo ""
-        echo -e "${YELLOW}Scenarios:${NC}"
-        echo "  image_build_manager    Full end-to-end (deploy without tags + verify)"
-        echo "  validate               Deploy --tags validate + verify inputs"
-        echo "  prepare                Deploy --tags prepare + verify infrastructure"
-        echo "  build                  Deploy --tags build + verify images"
-        echo "  cleanup                Deploy --tags cleanup + verify removal"
+        echo -e "${YELLOW}SCENARIOS${NC}"
+        echo "  Each scenario maps to an Ansible --tags value:"
         echo ""
-        echo -e "${YELLOW}Markers:${NC}"
-        echo "  sanity               Baseline must-pass tests"
-        echo "  x86_64               x86_64 architecture tests"
-        echo "  aarch64              aarch64 architecture tests"
-        echo "  functional           Functional verification tests"
+        echo "  image_build_manager  Full end-to-end (no --tags, runs all stages)"
+        echo "  validate             --tags validate   (verify inputs + config)"
+        echo "  prepare              --tags prepare    (build infrastructure setup)"
+        echo "  build                --tags build      (build OS images)"
+        echo "  cleanup              --tags cleanup    (remove build artifacts)"
         echo ""
-        echo -e "${YELLOW}Marker Expressions:${NC}"
-        echo "  sanity               Single marker"
-        echo "  x86_64,aarch64       OR — tests with either marker"
-        echo "  x86_64+sanity        AND — tests with both markers"
+        echo -e "${YELLOW}MARKERS${NC}"
+        echo "  sanity       Baseline must-pass tests"
+        echo "  x86_64       x86_64 architecture tests"
+        echo "  aarch64      aarch64 architecture tests"
+        echo "  functional   Functional verification tests"
+        echo "  deploy       Playbook execution tests"
         echo ""
-        echo -e "${YELLOW}Examples:${NC}"
+        echo "  Combine markers:  x86_64,aarch64  (OR)    x86_64+sanity  (AND)"
         echo ""
-        echo "  # Verify all sanity tests on an existing deployment"
-        echo "  $0 image_build_manager verify --marker sanity"
+        echo -e "${YELLOW}QUICK START${NC}"
         echo ""
-        echo "  # Verify only x86_64 tests"
-        echo "  $0 image_build_manager verify --marker x86_64"
+        echo "  # Verify an existing deployment (no playbook run):"
+        echo "  $0 build verify"
         echo ""
-        echo "  # Verify both architectures (OR)"
-        echo "  $0 image_build_manager verify --marker x86_64,aarch64"
-        echo ""
-        echo "  # Verify only x86_64 sanity tests (AND)"
-        echo "  $0 image_build_manager verify --marker x86_64+sanity"
-        echo ""
-        echo "  # Verify only container tests"
-        echo "  $0 image_build_manager verify --suite container"
-        echo ""
-        echo "  # Deploy prepare tag and verify"
-        echo "  $0 prepare test"
-        echo ""
-        echo "  # Deploy build tag, verify x86_64 images only"
+        echo "  # Full test: deploy build + verify images:"
         echo "  $0 build test --marker x86_64"
         echo ""
-        echo "  # Run cleanup (deploy + verify removal)"
-        echo "  $0 cleanup test"
+        echo "  # Verify only naming convention tests:"
+        echo "  $0 build verify --suite naming"
         echo ""
-        echo "  # Deploy only (no verification)"
-        echo "  $0 prepare deploy"
+        echo -e "${YELLOW}TYPICAL WORKFLOW${NC}"
+        echo "  $0 cleanup test                                # 1. Clean previous state"
+        echo "  $0 validate test                               # 2. Validate inputs + config"
+        echo "  $0 prepare test                                # 3. Prepare build infrastructure"
+        echo "  $0 build test --marker x86_64                  # 4. Build images + verify"
+        echo "  $0 image_build_manager verify --marker sanity  # 5. Full sanity verification"
+        echo "  $0 nft test                                    # 6. Performance + idempotency"
         echo ""
-        echo "  # Run all scenarios with x86_64 marker"
-        echo "  $0 all test --marker x86_64"
+        echo -e "${YELLOW}NFT (NON-FUNCTIONAL TESTS)${NC}"
+        echo "  $0 nft test                        Run all NFT tests"
+        echo "  $0 nft verify                      NFT verify only (no deploy)"
         echo ""
-        echo "  # Batch run from test_run_config.yml"
-        echo "  $0 --config"
-        echo ""
-        echo -e "${YELLOW}Typical Workflow:${NC}"
-        echo "  $0 cleanup test                          # 1. Clean previous state"
-        echo "  $0 validate test                          # 2. Validate inputs"
-        echo "  $0 prepare test                          # 3. Prepare infrastructure"
-        echo "  $0 build test --marker x86_64             # 4. Build images"
-        echo "  $0 image_build_manager verify --marker sanity  # 5. Full verification"
-        echo ""
-        echo -e "${YELLOW}Configuration:${NC}"
-        echo "  test_config.yml      Target server, sync, report settings"
-        echo "  test_creds.yml       SSH credentials (Ansible Vault encrypted)"
+        echo -e "${YELLOW}CONFIGURATION${NC}"
+        echo "  test_config.yml      Target server, sync settings, report options"
+        echo "  test_creds.yml       SSH + S3 credentials (Ansible Vault encrypted)"
         echo "  test_run_config.yml  Batch suite definitions for --config mode"
+        echo "  setup_env.sh         Setup script: --set-password, --set-domain-creds"
         echo ""
-        echo -e "${YELLOW}Tab Completion:${NC}"
+        echo -e "${YELLOW}TAB COMPLETION${NC}"
         echo "  eval \"\$($0 --completion)\""
         echo ""
-        echo -e "${YELLOW}Reports:${NC}"
+        echo -e "${YELLOW}REPORTS${NC}"
         echo "  Reports are generated in reports/ after each run."
         echo "  View: python3 -m http.server 8899 --directory reports/"
         echo ""
@@ -507,14 +507,26 @@ esac
 # =============================================================================
 # Validate scenario
 # =============================================================================
-SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
-
-if [[ ! -d "$SCENARIO_DIR" ]]; then
-    echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
-    echo ""
-    echo -e "${YELLOW}Available scenarios:${NC}"
-    get_scenarios | while read -r s; do echo "  $s"; done
-    exit 1
+IS_NFT=false
+if [[ "$SCENARIO" == "nft" ]]; then
+    IS_NFT=true
+    SCENARIO_DIR="${NFT_DIR}"
+    if [[ ! -d "$SCENARIO_DIR" ]]; then
+        echo -e "${RED}Error: NFT directory not found at ${NFT_DIR}${NC}"
+        exit 1
+    fi
+else
+    SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+    if [[ ! -d "$SCENARIO_DIR" ]]; then
+        echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
+        echo ""
+        echo -e "${YELLOW}Available FVT scenarios:${NC}"
+        get_scenarios | while read -r s; do echo "  $s"; done
+        echo ""
+        echo -e "${YELLOW}NFT:${NC}"
+        echo "  nft"
+        exit 1
+    fi
 fi
 
 # Validate command
@@ -551,9 +563,14 @@ export OMNIA_LOG_FILE="${LOG_DIR}/${SCENARIO}_${COMMAND}_${REPORT_ID}.log"
 # Display banner
 # =============================================================================
 echo -e "${BLUE}=================================================================${NC}"
-echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
+if [[ "$IS_NFT" == true ]]; then
+    echo -e "${BLUE}  Image Build Manager — NFT Runner${NC}"
+else
+    echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
+fi
 echo -e "${BLUE}=================================================================${NC}"
 echo -e "  Scenario  : ${GREEN}${SCENARIO}${NC}"
+[[ "$IS_NFT" == true ]] && echo -e "  Type      : ${CYAN}Non-Functional Tests${NC}"
 echo -e "  Command   : ${GREEN}${COMMAND}${NC}"
 [[ -n "$SUITE" ]]       && echo -e "  Suite     : ${GREEN}${SUITE}${NC}"
 [[ -n "$MARKER" ]]      && echo -e "  Marker    : ${GREEN}${MARKER}${NC}"
@@ -565,6 +582,28 @@ echo ""
 # =============================================================================
 # Execute based on command
 # =============================================================================
+
+# NFT special handling — all NFT tests use -m nft marker
+if [[ "$IS_NFT" == true ]]; then
+    export OMNIA_COMMAND_TYPE="nft"
+    nft_args="-m nft"
+    [[ -n "$MARKER" ]] && nft_args="${nft_args} --marker ${MARKER}"
+
+    echo -e "${YELLOW}=================================================================${NC}"
+    echo -e "${YELLOW}  Running Non-Functional Tests${NC}"
+    echo -e "${YELLOW}=================================================================${NC}"
+    echo ""
+
+    run_pytest \
+        "${NFT_DIR}" \
+        "${nft_args}" \
+        "Running NFT (performance + idempotency)"
+
+    echo ""
+    echo -e "${GREEN}NFT execution completed.${NC}"
+    exit $?
+fi
+
 case "$COMMAND" in
 
     # -------------------------------------------------------------------------

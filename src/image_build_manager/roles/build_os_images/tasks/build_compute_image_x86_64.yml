@@ -50,7 +50,7 @@
         mode: "{{ dir_permissions_644 }}"
       vars:
         _layer_rhel_tag: "{{ item.value.os_version | default(rhel_tag, true) }}"
-        rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix }}"
+        rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix }}{{ _build_type_suffix }}"
         rhel_tag: "{{ _layer_rhel_tag }}"
         group_name: "{{ item.key }}"
         compute_packages: "{{ item.value.packages }}"
@@ -128,7 +128,7 @@
     # Backup rootfs (boot-images/{group}/{image_name}/)
     - name: Backup x86_64 compute rootfs images in S3
       vars:
-        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
         _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
         _s3_src: "s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}/"
         _s3_dst: "s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}_prev/"
@@ -148,7 +148,7 @@
     # Backup kernel+initrd (efi-images/{group}/{image_name}/)
     - name: Backup x86_64 compute EFI images in S3
       vars:
-        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
         _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
         _s3_src: "s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}/"
         _s3_dst: "s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}_prev/"
@@ -251,10 +251,10 @@
       ansible.builtin.fail:
         msg: >-
           Compute image not found in registry:
-          {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}.
+          {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}.
           Check log: {{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
       when: >-
-        (host_name + '/rhel-' + item.key + omnia_suffix + (compute_image_suffix | default('')))
+        (host_name + '/rhel-' + item.key + omnia_suffix + (compute_image_suffix | default('')) + _build_type_suffix)
         not in verify_compute_osimages.stdout_lines
       loop: "{{ compute_images_dict | dict2items }}"
       loop_control:

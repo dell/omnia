@@ -20,6 +20,8 @@ TC_CL_003: Verify --run with invalid domain exits with error
 TC_CL_004: Verify --run without domain exits with error
 TC_CL_005: Verify --deps-only flag appears in help output
 TC_CL_006: Verify unknown option exits with error
+TC_CL_007: Verify --cleanup flag appears in help output
+TC_CL_008: Verify --catalog flag appears in help output
 """
 
 import pytest
@@ -35,6 +37,8 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+
+# Append TC_CL_007/008 import (re-uses existing LOG / ASSERT keys)
 
 
 @pytest.mark.sanity
@@ -159,3 +163,41 @@ def test_unknown_option(host):
         command="omnia.sh --bogus",
         rc=result["rc"],
     )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(6)
+def test_cleanup_in_help(host):
+    """TC_CL_007: Verify --cleanup flag appears in help output."""
+    tl = TestLogger(
+        TEST_NAMES["cleanup_in_help"], "TC_CL_007"
+    )
+    result = run_omnia_cmd(host, "omnia_sh_help")
+
+    found = "--cleanup" in result.get("output", "")
+
+    if found:
+        tl.passed(LOG["cleanup_in_help_ok"])
+    else:
+        tl.failed(LOG["cleanup_not_in_help"])
+
+    assert found, ASSERT["cleanup_not_in_help"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(7)
+def test_catalog_in_help(host):
+    """TC_CL_008: Verify --catalog flag appears in help output."""
+    tl = TestLogger(
+        TEST_NAMES["catalog_in_help"], "TC_CL_008"
+    )
+    result = run_omnia_cmd(host, "omnia_sh_help")
+
+    found = "--catalog" in result.get("output", "")
+
+    if found:
+        tl.passed(LOG["catalog_in_help_ok"])
+    else:
+        tl.failed(LOG["catalog_not_in_help"])
+
+    assert found, ASSERT["catalog_not_in_help"]

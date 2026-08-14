@@ -54,29 +54,41 @@ repositories:
     x86_64:
       baseos:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_baseos/"
+        priority: 100
       appstream:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_appstream/"
+        priority: 100
       codeready-builder:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_codeready-builder/"
+        priority: 100
       slurm_custom:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_slurm_custom/"
+        priority: 100
       ldms: {}
       epel:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_epel/"
+        priority: 100
       kubernetes-v1-35:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_kubernetes-v1-35/"
+        priority: 100
       cri-o-v1-35:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cri-o-v1-35/"
+        priority: 100
       doca:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_doca/"
+        priority: 100
       docker-ce:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_docker-ce/"
+        priority: 100
       cuda:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cuda/"
+        priority: 100
       nvidia-hpc-sdk:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_nvidia-hpc-sdk/"
+        priority: 100
       repo_manager_additional:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_repo_manager-additional/"
+        priority: 100
       additional_repos: {}
 
     aarch64:
@@ -87,6 +99,7 @@ repositories:
       ldms: {}
       repo_manager_additional:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_repo_manager-additional/"
+        priority: 100
       epel: {}
       kubernetes-v1-35: {}
       cri-o-v1-35: {}
