@@ -35,21 +35,13 @@
     - not (silent_install | bool)
     - not (embed_kickstart | default(true) | bool)
 
-- name: Set rebuild flag from user input (NFS delivery)
+- name: Set rebuild flag from user input
   ansible.builtin.set_fact:
     rebuild_iso: true
   when:
     - custom_iso_stat.stat.exists
     - not (silent_install | bool)
-    - not (embed_kickstart | default(true) | bool)
     - iso_reuse_prompt.user_input | default('') | lower in ['r', 'rebuild']
-
-- name: Always rebuild ISO for embedded kickstart delivery
-  ansible.builtin.set_fact:
-    rebuild_iso: true
-  when:
-    - custom_iso_stat.stat.exists
-    - embed_kickstart | default(true) | bool
 
 # Step 2: Render kickstart file to iso_output directory
 - name: Render kickstart file
