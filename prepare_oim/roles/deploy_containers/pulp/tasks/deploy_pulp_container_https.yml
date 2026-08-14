@@ -105,7 +105,9 @@
   containers.podman.podman_container_exec:
     name: "{{ pulp_container_name }}"
     command: "{{ reset_password_cmd }}"
-  retries: "{{ retries_var }}"
+  register: pulp_password_reset
+  until: pulp_password_reset is not failed
+  retries: "{{ password_reset_retries }}"
   delay: "{{ delay_var }}"
   when: pulp_password | length > 1
   no_log: true

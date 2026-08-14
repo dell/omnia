@@ -23,6 +23,129 @@
         status: in_progress
         started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
+# ── kube-vip upgrade (ABORT on failure) ────────────────────────────
+# kube-vip MUST be upgraded BEFORE other addons because it provides
+# the VIP that all kubectl commands are delegated through.
+# Unlike Calico/MetalLB (cluster-wide kubectl apply), kube-vip runs
+# as a static pod and must be upgraded per-node on each control plane.
+- name: Starting kube-vip upgrade
+  ansible.builtin.debug:
+    msg: "Starting kube-vip upgrade from {{ kube_vip_from_version | default('unknown') }} to {{ kube_vip_target_version }}..."
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+
+- name: Mark kube-vip in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: kube_vip
+    addon_status_update:
+      status: in_progress
+      current_version: "{{ kube_vip_current_version }}"
+      from_version: "{{ kube_vip_from_version | default('unknown') }}"
+      target_version: "{{ kube_vip_target_version }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+
+- name: Build list of control plane nodes for kube-vip upgrade
+  ansible.builtin.set_fact:
+    _cp_node_list: >-
+      {{ upgrade_status.nodes | dict2items
+         | selectattr('value.role', 'in', ['control_plane_first', 'control_plane'])
+         | list }}
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+
+# This role runs under `hosts: localhost, connection: local`. delegate_to
+# only connects over SSH when the target host has `ansible_connection: ssh`
+# set in the inventory; otherwise it inherits connection: local and runs on
+# the controller. Register each CP node explicitly so step_kube_vip_upgrade.yml
+# can delegate to hostnames over SSH.
+- name: Register control plane nodes for SSH delegation (kube-vip upgrade)
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    ansible_host: "{{ item.value.ip }}"
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups: _kube_vip_upgrade_targets
+  loop: "{{ _cp_node_list }}"
+  loop_control:
+    label: "{{ item.key }} ({{ item.value.ip }})"
+  changed_when: false
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+
+# ── Detect VIP leader so we upgrade non-leader nodes first ────────
+# The VIP leader holds the virtual IP. Upgrading it last keeps the
+# API server reachable through the VIP for as long as possible.
+- name: Get kube-vip leader lease for upgrade ordering
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get lease plndr-cp-lock -n kube-system
+      -o jsonpath='{.spec.holderIdentity}'
+  delegate_to: "{{ kube_vip }}"
+  register: _upgrade_vip_leader
+  changed_when: false
+  failed_when: false
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+
+- name: Set VIP leader IP for upgrade ordering
+  ansible.builtin.set_fact:
+    _vip_leader_ip: "{{ _upgrade_vip_leader.stdout | default('') | trim }}"
+  when:
+    - (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+    - _upgrade_vip_leader.rc | default(1) == 0
+
+- name: Reorder CP list — VIP leader last
+  ansible.builtin.set_fact:
+    _cp_node_list: >-
+      {{ (_cp_node_list | rejectattr('value.ip', 'equalto', _vip_leader_ip) | list)
+         + (_cp_node_list | selectattr('value.ip', 'equalto', _vip_leader_ip) | list) }}
+  when:
+    - (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+    - _vip_leader_ip | default('') | length > 0
+
+- name: Display kube-vip upgrade order
+  ansible.builtin.debug:
+    msg: >-
+      kube-vip upgrade order: {{ _cp_node_list | map(attribute='value.ip') | list | join(' -> ') }}
+      (VIP leader {{ _vip_leader_ip | default('unknown') }} upgraded last)
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+
+- name: Upgrade kube-vip
+  when: (upgrade_status.addon_upgrade.kube_vip.status | default('pending')) != 'completed'
+  block:
+    - name: Execute kube-vip upgrade on each control plane
+      ansible.builtin.include_tasks: step_kube_vip_upgrade.yml
+      vars:
+        node_ip: "{{ _cp_item.value.ip }}"
+        node_hostname: "{{ _cp_item.key }}"
+      loop: "{{ _cp_node_list }}"
+      loop_control:
+        loop_var: _cp_item
+        label: "{{ _cp_item.key }} ({{ _cp_item.value.ip }})"
+
+    - name: Mark kube-vip completed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: kube_vip
+        addon_status_update:
+          status: completed
+          current_version: "{{ kube_vip_target_version }}"
+          from_version: "{{ kube_vip_from_version | default('unknown') }}"
+          to_version: "{{ kube_vip_target_version }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+          error:
+  rescue:
+    - name: Mark kube-vip failed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: kube_vip
+        addon_status_update:
+          status: failed
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: ABORT — kube-vip upgrade failed
+      ansible.builtin.fail:
+        msg: "{{ msg_addon_kube_vip_failed }}"
+
 # ── Calico upgrade (ABORT on failure) ──────────────────────────────
 - name: Starting Calico upgrade
   ansible.builtin.debug:

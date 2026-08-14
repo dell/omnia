@@ -14,7 +14,7 @@
 ---
 
 # ============================================================================
-# Pulp Container Rollback (3.113 → 3.80)
+# Pulp Container Rollback (3.114.2 → 3.80)
 #
 # Steps:
 #   1. Pull the v2.1 Pulp image (3.80)

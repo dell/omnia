@@ -12,6 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Verify kube-vip pods are Running on control planes
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n kube-system --no-headers
+      -o custom-columns=':metadata.name,:status.phase' |
+      grep kube-vip
+    executable: /bin/bash
+  register: kube_vip_pods
+  changed_when: false
+  failed_when: false
+
+- name: Warn if kube-vip pods are not Running
+  ansible.builtin.debug:
+    msg: "WARNING: kube-vip issue: {{ kube_vip_pods.stdout | default('no pods found') }}"
+  when: kube_vip_pods.rc != 0 or kube_vip_pods.stdout | trim | length == 0
+
 - name: Verify calico-node pods are Running
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.command:
@@ -56,6 +74,7 @@
   ansible.builtin.debug:
     msg: >-
       Addon validation complete.
+      kube-vip pods: {{ 'OK' if kube_vip_pods.rc == 0 else 'WARN' }}
       Calico pods: {{ 'OK' if calico_pods.rc == 0 else 'WARN' }}
       MetalLB pods: {{ 'OK' if metallb_pods.rc == 0 else 'WARN' }}
       LoadBalancer IPs: {{ lb_services.stdout | default('none') }}

@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Password hashing
+password_hash_algorithm: "sha512"
+
+# Default network device for the os_aarch64 node (empty = auto-detect)
+default_network_device: ""
+
+# Error and info messages
+no_aarch64_node_msg: >-
+  No os_aarch64 node found in PXE mapping file.
+  Ensure the PXE mapping file contains an entry with FUNCTIONAL_GROUP_NAME or HOSTNAME
+  matching 'os_aarch64'.
+
+provision_password_not_set_msg: >-
+  provision_password is not set or empty.
+  Please run the credential utility to set it.
+
+invalid_nfs_share_path_msg: >-
+  Invalid nfs_share_path format: '{{ user_nfs_share_path }}'.
+  Expected format: 'server:/path' (e.g., '192.168.1.100:/mnt/nfs/share').
+  Do not include the ISO filename in the path.
+
+nfs_share_not_available_msg: >-
+  NFS share path not available.
+  Either provide 'nfs_share_path' in iso_config.yml (format: 'server:/path')
+  or ensure /opt/omnia is backed by an NFS mount for iDRAC virtual media.
+
+arm_params_fetched_msg: >-
+  AArch64 parameters fetched for node '{{ ks_hostname }}'.
+  BMC IP: {{ target_bmc_ip }},
+  Admin IP: {{ ks_static_ip }},
+  ISO: {{ iso_source_path }},
+  Kickstart: {{ kickstart_template if kickstart_file | length == 0 else kickstart_file }},
+  Force reinstall: {{ force_reinstall }}

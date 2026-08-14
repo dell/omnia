@@ -1134,7 +1134,6 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         
         if os.path.exists(log_file_path):
             try:
-                import re
                 with open(log_file_path, 'r') as f:
                     log_content = f.read()
                     
@@ -1163,25 +1162,43 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         
         # Extract current run from shared test_report.json by report_id and save to artifact_dir
         report_source_path = "/opt/omnia/automation/reports/test_report.json"
-        if report_id and os.path.exists(report_source_path):
+        log_secure_info('info', f"Attempting to extract test results from {report_source_path}", job_id)
+        log_secure_info('info', f"Extracted report_id from log: {report_id}", job_id)
+        
+        if not report_id:
+            log_secure_info('warning', "No report_id found in molecule_output.log, skipping JSON extraction", job_id)
+        elif not os.path.exists(report_source_path):
+            log_secure_info('warning', f"test_report.json not found at {report_source_path}, skipping JSON extraction", job_id)
+        else:
             try:
                 # Load full report from shared location
                 with open(report_source_path, 'r') as f:
                     full_report = json.load(f)
+                log_secure_info('info', f"Successfully loaded test_report.json", job_id)
                 
-                if "servers" in full_report and "" in full_report["servers"]:
-                    runs = full_report["servers"][""].get("runs", [])
-                    # Find run matching report_id
+                if "servers" not in full_report:
+                    log_secure_info('warning', "test_report.json missing 'servers' key", job_id)
+                else:
+                    # Search all server keys for matching report_id (handles both "" and "localhost")
                     current_run = None
-                    for run in runs:
-                        if run.get("report_id") == report_id:
-                            current_run = run
+                    for server_key, server_data in full_report["servers"].items():
+                        runs = server_data.get("runs", [])
+                        for run in runs:
+                            if run.get("report_id") == report_id:
+                                current_run = run
+                                log_secure_info('info', f"Found matching run with report_id {report_id} under server key '{server_key}'", job_id)
+                                break
+                        if current_run:
                             break
                     
-                    if current_run:
+                    if not current_run:
+                        log_secure_info('warning', f"No run found with report_id {report_id} in test_report.json", job_id)
+                    else:
                         # Populate test_summary from JSON (enforce order: identifiers, duration, counts, tests)
                         modules = current_run.get("modules", [])
-                        if modules:
+                        if not modules:
+                            log_secure_info('warning', f"Run with report_id {report_id} has no modules", job_id)
+                        else:
                             module_info = modules[0]
                             scenario = module_info.get("module", "unknown")
                             molecule_command = module_info.get("molecule_command", "verify")
@@ -1193,33 +1210,45 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             test_summary["report_id"] = report_id
                             test_summary["duration_seconds"] = duration_seconds
                             test_summary["tests"] = tests
+                            
                             summary_block = current_run.get("summary", {})
+                            log_secure_info('info', f"Summary block from JSON: {summary_block}", job_id)
+                            
                             if isinstance(summary_block, dict):
                                 test_summary["total"] = summary_block.get("total", 0)
                                 test_summary["passed"] = summary_block.get("passed", 0)
                                 test_summary["failed"] = summary_block.get("failed", 0)
                                 test_summary["skipped"] = summary_block.get("skipped", 0)
-                                test_summary["errors"] = summary_block.get("errors", 0)
-                        log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {duration_seconds}s, tests: {len(tests)}, report_id: {report_id}", job_id)
-                        
-                        # Save filtered report to artifact_dir
-                        filtered_report = {
-                            "servers": {
-                                "": {
-                                    "runs": [current_run],
-                                    "hostname": ""
+                                test_summary["errors"] = summary_block.get("errors", 0)  # Default to 0 if missing
+                                log_secure_info('info', f"Populated test_summary from JSON: {test_summary}", job_id)
+                            else:
+                                log_secure_info('warning', f"Summary block is not a dict: {type(summary_block)}", job_id)
+                                
+                            log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {duration_seconds}s, tests: {len(tests)}, report_id: {report_id}", job_id)
+                            
+                            # Save filtered report to artifact_dir
+                            filtered_report = {
+                                "servers": {
+                                    "": {
+                                        "runs": [current_run],
+                                        "hostname": ""
+                                    }
                                 }
                             }
-                        }
-                        dest_path = os.path.join(artifact_dir, "test_report.json")
-                        with open(dest_path, 'w') as f:
-                            json.dump(filtered_report, f, indent=2)
-                        log_secure_info('info', f"Extracted report {report_id} to artifact directory", job_id)
+                            dest_path = os.path.join(artifact_dir, "test_report.json")
+                            with open(dest_path, 'w') as f:
+                                json.dump(filtered_report, f, indent=2)
+                            log_secure_info('info', f"Extracted report {report_id} to artifact directory", job_id)
             except (OSError, json.JSONDecodeError) as e:
                 log_secure_info('warning', f"Failed to extract report: {e}", job_id)
-        
+
         # Determine status: if any test failed, mark as failed regardless of exit code
-        if test_summary["failed"] > 0 or test_summary["errors"] > 0:
+        # If test summary is all zeros (parsing failure), default to failed
+        if test_summary["total"] == 0 and test_summary["passed"] == 0 and test_summary["failed"] == 0:
+            status = "failed"
+            exit_code = 1
+            log_secure_info('warning', f"Test summary parsing failed (all zeros), marking as failed", job_id)
+        elif test_summary["failed"] > 0 or test_summary["errors"] > 0:
             status = "failed"
             exit_code = 1  # Override exit code
         elif result.returncode == 0:

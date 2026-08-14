@@ -43,6 +43,13 @@ openchami_target_path: "/etc/systemd/system/openchami.target"
 postgres_db_user: "ochami"
 postgres_db_name: "hmsds"
 
+# PostgreSQL major version rollback target
+# Omnia 2.1 used PostgreSQL 11; Omnia 2.2 uses PostgreSQL 17.
+# PG 11 cannot read PG 17 data files. During rollback, if the data volume
+# contains PG 17 data, it must be cleared so PG 11 can initialize fresh.
+# The database is then restored from the pg_dump backup.
+rollback_target_pg_version: "11"
+
 # oim_metadata path (for resolving oim_shared_path)
 oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
 
@@ -116,7 +123,7 @@ rollback_hostname_path: "{{ rollback_nodes_dir }}/hostname.yaml"
 # Retry and wait settings
 max_retries: 10
 max_delay: 10
-wait_time: 30
+wait_time: 60
 api_readiness_retries: 20
 api_readiness_delay: 15
 # Total wait: 20 × 15s = 300 seconds (5 minutes) max for API endpoints

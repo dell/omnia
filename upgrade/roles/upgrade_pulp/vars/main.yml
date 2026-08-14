@@ -14,7 +14,7 @@
 ---
 
 # ===========================================================================
-# Pulp Container Upgrade Configuration (3.80 → 3.113)
+# Pulp Container Upgrade Configuration (3.80 → 3.114.2)
 # ===========================================================================
 
 # File permissions
@@ -23,7 +23,7 @@ file_permissions_644: "0644"
 
 # Pulp container settings
 pulp_container_name: "pulp"
-pulp_target_tag: "3.113"
+pulp_target_tag: "3.114.2"
 pulp_target_image: "docker.io/pulp/pulp:{{ pulp_target_tag }}"
 
 # Pulp quadlet file path
@@ -46,6 +46,8 @@ pull_image_retries: 5
 pull_image_delay: 10
 
 # Pulp startup and health check settings
+# Note: First startup after upgrade runs pg_upgrade (PG 13→16) + Django migrations,
+# which can take 5-10 minutes. The total wait budget must cover this one-time operation.
 pulp_startup_retries: 10
 pulp_startup_delay: 10
 pulp_init_wait: 30
@@ -60,7 +62,7 @@ pulp_pgsql_path: "{{ pulp_data_base_path }}/pgsql"
 # Backup settings
 # PostgreSQL data must be backed up before upgrade because:
 # - Pulp 3.80 uses PostgreSQL 12/13
-# - Pulp 3.113 uses PostgreSQL 16
+# - Pulp 3.114.2 uses PostgreSQL 16
 # - PostgreSQL cannot downgrade data files between major versions
 pulp_backup_dir: "/opt/omnia/backups/upgrade/version_2.1.0.0/pulp"
 pulp_pgsql_backup_path: "{{ pulp_backup_dir }}/pgsql"
