@@ -27,6 +27,8 @@
 #   - coresmd-coredhcp + coresmd-coredns (v2.2) → single coresmd (v2.1)
 #   - v2.2 quadlet files replaced with v2.1 quadlet files from backup
 #   - openchami.target restored to reference coresmd.service (not split)
+#   - PostgreSQL 17 → 11 major version downgrade (data volume cleared,
+#     PG 11 initializes fresh, then pg_dump backup is restored)
 #   - Database rolled back to pre-upgrade state
 #   - Cloud-init data reloaded from backup workdir
 #
