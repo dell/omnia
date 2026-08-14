@@ -1,0 +1,201 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# reload_bss_boot_params.yml — Reload BSS Boot Parameters After Upgrade
+# ============================================================================
+# During upgrade, the PostgreSQL data volume is cleared for PG 11 → PG 17
+# major version change, and restore_database.yml only restores the hmsds (SMD)
+# database from pg_dump. BSS boot parameters are stored in a separate database
+# (bssdb) that is not preserved through the pg_dump backup and restore cycle.
+# When bss-init runs on startup, it initializes empty BSS tables — any
+# previously configured boot parameters are lost.
+#
+# Without boot parameters, BSS returns a fallback bootscript that chains to
+# https://${SYSTEM_URL}/apis/bss/boot/v1/bootscript — but SYSTEM_URL is
+# unset in the iPXE environment, producing a malformed URL with an empty
+# hostname (https:///apis/bss/...) that causes PXE boot failures.
+#
+# This task reloads BSS boot parameter YAML files from the backup workdir
+# (created by omnia.sh --upgrade) into BSS using the ochami CLI.
+#
+# Data re-loaded:
+#   workdir/boot/bss-<group>.yaml  → ochami bss boot params set
+#
+# This mirrors the provision flow in configure_bss_group.yml.
+# ============================================================================
+
+- name: Reload BSS boot parameters from backup after upgrade
+  block:
+    # ── Read OIM metadata for shared path and cluster name ────────────────
+    # Read locally (inside omnia_core container), NOT delegated to OIM.
+    # The container's bind-mounted /opt/omnia/.data/oim_metadata.yml has
+    # the correct oim_shared_path for NFS setups. Reading from the OIM host
+    # directly could hit a stale local copy with wrong oim_shared_path.
+    - name: Read oim_metadata.yml for BSS reload
+      ansible.builtin.slurp:
+        src: "{{ oim_metadata_path }}"
+      register: bss_reload_metadata_raw
+
+    - name: Parse metadata for BSS reload paths
+      ansible.builtin.set_fact:
+        bss_oim_metadata: "{{ bss_reload_metadata_raw.content | b64decode | from_yaml }}"
+
+    - name: Set oim_shared_path and cluster_name for BSS reload
+      ansible.builtin.set_fact:
+        bss_oim_shared_path: "{{ bss_oim_metadata.oim_shared_path | regex_replace('/$', '') }}"
+        bss_cluster_name: "{{ bss_oim_metadata.oim_node_name | default(cluster_name | default(ansible_hostname)) }}"
+
+    # ── Compute OIM host-side boot params backup path ────────────────────
+    - name: Compute OIM host-side BSS boot params backup path
+      ansible.builtin.set_fact:
+        upgrade_oim_host_boot_dir: >-
+          {{ (openchami_backup_dir | default(openchami_backup_dir_default))
+             | regex_replace('^/opt/omnia', bss_oim_shared_path ~ '/omnia') }}/openchami/openchami_data/workdir/boot
+
+    - name: Display resolved BSS boot params path
+      ansible.builtin.debug:
+        verbosity: 1
+        msg:
+          - "BSS boot params backup dir: {{ upgrade_oim_host_boot_dir }}"
+
+    # ── Generate ochami access token ────────────────────────────────────
+    - name: Generate ochami access token on OIM host for BSS reload
+      ansible.builtin.shell: bash -lc 'gen_access_token'  # noqa: command-instead-of-shell
+      become: true
+      register: upgrade_bss_access_token_result
+      changed_when: false
+      failed_when: upgrade_bss_access_token_result.rc != 0 or upgrade_bss_access_token_result.stdout in ["", "null"]
+      retries: 5
+      delay: 5
+      until: upgrade_bss_access_token_result.rc == 0 and upgrade_bss_access_token_result.stdout not in ["", "null"]
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Set ochami environment for BSS boot params reload
+      ansible.builtin.set_fact:
+        upgrade_bss_ochami_env: "{{ {(bss_cluster_name | upper | trim) ~ '_ACCESS_TOKEN': upgrade_bss_access_token_result.stdout} }}"
+
+    # ── Verify BSS boot params backup directory exists ──────────────────
+    - name: Check BSS boot params backup directory exists on OIM host
+      ansible.builtin.stat:
+        path: "{{ upgrade_oim_host_boot_dir }}"
+      register: upgrade_boot_dir_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Skip BSS boot params reload if backup dir not found
+      ansible.builtin.debug:
+        msg: >-
+          BSS boot params backup directory not found at {{ upgrade_oim_host_boot_dir }}.
+          This is expected for prepare_oim-only setups. Skipping reload.
+          Nodes will not PXE boot until boot parameters are configured
+          (e.g., via provision playbook).
+      when: not (upgrade_boot_dir_stat.stat.exists | default(false))
+
+    # ── Main reload block ───────────────────────────────────────────────
+    - name: Reload BSS boot parameters from backup
+      when: upgrade_boot_dir_stat.stat.exists | default(false)
+      block:
+        # ── Wait for BSS API readiness ──────────────────────────────────
+        - name: Wait for BSS container to be running
+          ansible.builtin.shell: |
+            set -o pipefail
+            status=$(podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' bss 2>/dev/null || echo "not_found")
+            if [ "$status" = "running" ]; then
+              echo "running"
+              exit 0
+            fi
+            echo "status=$status"
+            exit 1
+          register: upgrade_bss_container_ready
+          changed_when: false
+          retries: "{{ api_readiness_retries }}"
+          delay: "{{ api_readiness_delay }}"
+          until: upgrade_bss_container_ready.rc == 0
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for BSS to initialize
+          ansible.builtin.pause:
+            seconds: 15
+
+        # ── Discover BSS boot parameter YAML files in backup ────────────
+        - name: Find all bss-*.yaml files in backup boot directory
+          ansible.builtin.find:
+            paths: "{{ upgrade_oim_host_boot_dir }}"
+            patterns: "bss-*.yaml"
+          register: upgrade_bss_boot_files
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Display discovered BSS boot parameter files
+          ansible.builtin.debug:
+            verbosity: 1
+            msg: >-
+              Found {{ upgrade_bss_boot_files.files | default([]) | length }} BSS boot parameter files:
+              {{ upgrade_bss_boot_files.files | default([]) | map(attribute='path') | map('basename') | list }}
+
+        - name: Skip if no BSS boot parameter files found
+          ansible.builtin.debug:
+            msg: >-
+              No bss-*.yaml files found in {{ upgrade_oim_host_boot_dir }}.
+              BSS boot parameters will remain empty. Nodes will not PXE boot
+              until boot parameters are configured.
+          when: (upgrade_bss_boot_files.files | default([]) | length) == 0
+
+        # ── Reload each BSS boot parameter file ────────────────────────
+        - name: Reload BSS boot parameters from backup files
+          ansible.builtin.command: >
+            /usr/bin/ochami bss boot params set -f yaml
+            -d @{{ item.path }}
+          environment: "{{ upgrade_bss_ochami_env }}"
+          loop: "{{ upgrade_bss_boot_files.files | default([]) }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+          changed_when: true
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── Verify boot params loaded ───────────────────────────────────
+        - name: Verify BSS boot params loaded
+          ansible.builtin.command: /usr/bin/ochami bss boot params get -F yaml
+          environment: "{{ upgrade_bss_ochami_env }}"
+          changed_when: false
+          failed_when: false
+          register: upgrade_bss_verify_result
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Display BSS boot params reload summary
+          ansible.builtin.debug:
+            msg:
+              - "BSS boot parameters reloaded from backup after upgrade."
+              - "Files loaded: {{ upgrade_bss_boot_files.files | default([]) | map(attribute='path') | map('basename') | list }}"
+              - "Boot params verification: {{ 'OK' if upgrade_bss_verify_result.rc == 0 else 'FAILED (rc=' ~ upgrade_bss_verify_result.rc ~ ')' }}"
+
+  rescue:
+    - name: BSS boot params reload failed (non-fatal for upgrade)
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: BSS boot parameter reload failed after upgrade.
+          Nodes will not PXE boot until boot parameters are configured.
+          Manual fix: ochami bss boot params set -f yaml -d @<bss-group.yaml>
