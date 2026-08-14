@@ -33,14 +33,23 @@
   when:
     - custom_iso_stat.stat.exists
     - not (silent_install | bool)
+    - not (embed_kickstart | default(true) | bool)
 
-- name: Set rebuild flag from user input
+- name: Set rebuild flag from user input (NFS delivery)
   ansible.builtin.set_fact:
     rebuild_iso: true
   when:
     - custom_iso_stat.stat.exists
     - not (silent_install | bool)
+    - not (embed_kickstart | default(true) | bool)
     - iso_reuse_prompt.user_input | default('') | lower in ['r', 'rebuild']
+
+- name: Always rebuild ISO for embedded kickstart delivery
+  ansible.builtin.set_fact:
+    rebuild_iso: true
+  when:
+    - custom_iso_stat.stat.exists
+    - embed_kickstart | default(true) | bool
 
 # Step 2: Render kickstart file to iso_output directory
 - name: Render kickstart file
@@ -63,6 +72,14 @@
         msg: "Kickstart file created at {{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
 
 # Step 3: Build custom ISO (if missing or rebuild requested)
+- name: Build custom ISO with embedded kickstart
+  ansible.builtin.include_tasks: build_embedded_iso.yml
+  when:
+    - (not custom_iso_stat.stat.exists or (rebuild_iso | bool))
+    - embed_kickstart | default(true) | bool
+
 - name: Build custom ISO with NFS kickstart reference
   ansible.builtin.include_tasks: build_nfs_iso.yml
-  when: not custom_iso_stat.stat.exists or (rebuild_iso | bool)
+  when:
+    - (not custom_iso_stat.stat.exists or (rebuild_iso | bool))
+    - not (embed_kickstart | default(true) | bool)
