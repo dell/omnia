@@ -78,12 +78,7 @@
       "package": "registry.k8s.io/sig-storage/snapshot-controller",
       "tag": "v8.5.0",
       "type": "image"
-    },
-    {
-      "package": "docker.io/dellemc/csm-encryption",
-      "tag": "v0.6.0",
-      "type": "image"
-     }
+    }
     ]
   }
 }
