@@ -188,7 +188,10 @@ def validate_hostname_nid_format_when_dns_enabled(pxe_mapping_file_path, dns_ena
     hostname_col = fieldname_map.get("HOSTNAME")
 
     if not hostname_col:
-        return
+        raise ValueError(
+            f"{en_us_validation_msg.DNS_ENABLED_NON_NID_HOSTNAME_MSG} "
+            "HOSTNAME column is missing from the PXE mapping file."
+        )
 
     nid_re = re.compile(r"^nid(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$")
     invalid_hostnames = []
