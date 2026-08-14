@@ -21,6 +21,15 @@
 # initialization on startup — they cannot handle the v2.2 schema and will
 # fail if started before the database is rolled back.
 #
+# PostgreSQL major version downgrade (PG 17 → PG 11):
+#   Omnia 2.2 used PostgreSQL 17; Omnia 2.1 uses PostgreSQL 11.
+#   PG 11 cannot read PG 17 data files. Before starting postgres, this
+#   task detects PG_VERSION in the data volume. If it doesn't match the
+#   rollback target (PG 11), the volume is cleared so PG 11 can
+#   initialize fresh. The database is then restored from the pg_dump
+#   backup in restore_database.yml.
+#   This mirrors upgrade_openchami_containers.yml step 8b (PG 11 → 17).
+#
 # This task starts ONLY postgres.service (not openchami.target) so that:
 #   1. pg_dump restore can execute against a running PostgreSQL instance
 #   2. smd-init / bss-init are NOT triggered (they depend on postgres,
@@ -45,6 +54,82 @@
       delegate_facts: true
       connection: ssh
 
+    # ── Detect and handle PostgreSQL major version downgrade ──────────
+    # Omnia 2.2 used PostgreSQL 17; Omnia 2.1 uses PostgreSQL 11.
+    # PG 11 cannot read PG 17 data files. If the data volume contains
+    # PG 17 data (PG_VERSION != rollback_target_pg_version), clear it
+    # so PG 11 can initialize fresh, then restore from pg_dump backup
+    # in restore_database.yml.
+    #
+    # This mirrors the upgrade logic in
+    # upgrade_openchami_containers.yml (step 8b) but in reverse.
+    - name: Find PostgreSQL data volume mount point
+      ansible.builtin.shell: |
+        set -o pipefail
+        mp=$(podman volume inspect postgres-data --format '{{ '{{' }}.Mountpoint{{ '}}' }}' 2>/dev/null || \
+             podman volume inspect systemd-postgres-data --format '{{ '{{' }}.Mountpoint{{ '}}' }}' 2>/dev/null || \
+             echo "")
+        if [ -n "$mp" ] && [ -d "$mp" ]; then
+          echo "$mp"
+        else
+          echo "not_found"
+        fi
+      register: rb_pg_volume_mount
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Read PG_VERSION from data volume
+      ansible.builtin.shell: |
+        cat "{{ rb_pg_volume_mount.stdout | trim }}/PG_VERSION" 2>/dev/null || echo "unknown"
+      register: rb_pg_version_in_volume
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: rb_pg_volume_mount.stdout | default('not_found') | trim != 'not_found'
+
+    - name: Set PostgreSQL version facts for rollback
+      ansible.builtin.set_fact:
+        rb_pg_existing_version: "{{ rb_pg_version_in_volume.stdout | default('unknown') | trim }}"
+        postgres_major_downgrade: >-
+          {{ (rb_pg_volume_mount.stdout | default('not_found') | trim != 'not_found') and
+             (rb_pg_version_in_volume.stdout | default('unknown') | trim not in [rollback_target_pg_version, 'unknown']) }}
+
+    - name: Handle PostgreSQL major version downgrade
+      when: postgres_major_downgrade | bool
+      block:
+        - name: Display PostgreSQL major version downgrade
+          ansible.builtin.debug:
+            msg: >-
+              PostgreSQL major version downgrade detected: PG {{ rb_pg_existing_version }} → PG {{ rollback_target_pg_version }}.
+              Data volume at {{ rb_pg_volume_mount.stdout | trim }} will be cleared.
+              Database will be restored from pg_dump backup after PG {{ rollback_target_pg_version }} initializes.
+
+        - name: Clear incompatible PostgreSQL data from volume
+          ansible.builtin.shell: |
+            set -o pipefail
+            mp="{{ rb_pg_volume_mount.stdout | trim }}"
+            echo "Clearing PG {{ rb_pg_existing_version }} data from ${mp}"
+            rm -rf "${mp:?}"/*
+            echo "cleared"
+          changed_when: true
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+    - name: Display PostgreSQL version status (no downgrade needed)
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: >-
+          PostgreSQL data volume version: {{ rb_pg_existing_version | default('unknown') }}.
+          Target version: {{ rollback_target_pg_version }}.
+          Major version downgrade: {{ postgres_major_downgrade | default(false) }}.
+      when: not (postgres_major_downgrade | default(false) | bool)
+
     # ── Start only postgres.service — NOT openchami.target ────────────
     # Starting postgres.service directly will NOT trigger smd-init or
     # bss-init because they depend ON postgres, not the other way around.
@@ -60,20 +145,34 @@
 
     - name: Wait for PostgreSQL container to initialize
       ansible.builtin.pause:
-        seconds: 10
+        seconds: "{{ 15 if (postgres_major_downgrade | default(false) | bool) else 10 }}"
 
     # ── Verify PostgreSQL is accepting connections ─────────────────────
     - name: Wait for PostgreSQL to accept connections
       ansible.builtin.shell: |
         set -o pipefail
         for i in $(seq 1 30); do
+          status=$(podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' postgres 2>/dev/null || echo "not_found")
+          if [ "$status" != "running" ]; then
+            echo "attempt $i/30: container status=$status"
+            sleep 2
+            continue
+          fi
           if podman exec postgres pg_isready -U {{ postgres_db_user }} -d {{ postgres_db_name }} 2>/dev/null; then
             echo "ready"
             exit 0
           fi
           sleep 2
         done
-        echo "timeout"
+        echo "timeout after 30 attempts"
+        echo "--- container status ---"
+        podman inspect --format \
+          'status={{ '{{' }}.State.Status{{ '}}' }} started={{ '{{' }}.State.StartedAt{{ '}}' }}' \
+          postgres 2>&1 || echo "container not found"
+        echo "--- postgres logs (last 30 lines) ---"
+        podman logs postgres --tail 30 2>&1 || echo "no logs available"
+        echo "--- systemctl status postgres.service ---"
+        systemctl status postgres.service --no-pager 2>&1 | head -10 || true
         exit 1
       register: rb_pg_start_ready
       changed_when: false
@@ -84,5 +183,9 @@
 
     - name: Display PostgreSQL start status
       ansible.builtin.debug:
-        verbosity: 1
-        msg: "PostgreSQL started independently (not via openchami.target). Ready for database restore."
+        msg: >-
+          PostgreSQL started independently (not via openchami.target).
+          {{ 'Volume was cleared for PG ' + rollback_target_pg_version + ' fresh init (major version downgrade from PG ' + rb_pg_existing_version + ').'
+             if (postgres_major_downgrade | default(false) | bool)
+             else 'No major version change detected.' }}
+          Ready for database restore.
