@@ -42,6 +42,10 @@
   ansible.builtin.set_fact:
     backup_provision_config: "{{ backup_provision_config_slurp.content | b64decode | from_yaml }}"
 
+  # NOTE: dns_enabled is intentionally NOT carried forward from the backup.
+  # During upgrade, dns_enabled is always set to false in the template
+  # (provision_config.j2) regardless of the backup value, because DNS
+  # enablement is not supported as part of the upgrade flow.
 - name: Normalize provision_config.yml values
   ansible.builtin.set_fact:
     provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default(provision_default_pxe_mapping_file_path) }}"
