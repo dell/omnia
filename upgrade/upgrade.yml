@@ -752,11 +752,13 @@
         - stale_rollback_stat.stat is defined
         - stale_rollback_stat.stat.exists
 
-    - name: Remove upgrade guard lock (only when fully completed)
+    - name: Remove upgrade guard lock (only when force_upgrade is true)
       ansible.builtin.file:
         path: "{{ upgrade_lock_path }}"
         state: absent
-      when: new_status == 'completed'
+      when:
+        - new_status == 'completed'
+        - force_upgrade | default(false) | bool
 
     - name: Display BuildStream post-upgrade next steps
       ansible.builtin.debug:

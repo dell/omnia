@@ -46,6 +46,12 @@
         - name: Reload cloud-init data into cloud-init-server
           ansible.builtin.include_tasks: reload_cloud_init_data.yml
 
+        # BSS boot parameters are not preserved through the PG 11 → 17
+        # major version upgrade + data volume clear + hmsds-only pg_dump
+        # restore cycle. Reload them from the backup workdir YAML files.
+        - name: Reload BSS boot parameters from backup
+          ansible.builtin.include_tasks: reload_bss_boot_params.yml
+
         - name: Post-upgrade health check
           ansible.builtin.include_tasks: post_upgrade_health_check.yml
 

@@ -44,8 +44,8 @@ default_lease_time: "86400"
 # When true, nodes use coresmd (CoreDNS + OpenCHAMI SMD plugin) instead of /etc/hosts.
 # DNS records are generated automatically from SMD inventory.
 # The cluster domain is read from OIM metadata (domain_name).
-# Default: false
-dns_enabled: false
+# Default: true
+dns_enabled: true
 
 #### Optional
 # Pin a specific kernel version for boot image selection.

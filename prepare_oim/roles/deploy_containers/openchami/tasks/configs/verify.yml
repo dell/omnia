@@ -22,6 +22,10 @@
         enabled: true
         daemon_reload: true
 
+    - name: Wait for OpenCHAMI services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ openchami_stabilization_wait_time }}"
+
     - name: Configure ochami
       ansible.builtin.command: >
         sudo ochami config cluster set --system --default {{ cluster_name }}
@@ -39,6 +43,10 @@
         state: restarted
         enabled: true
         daemon_reload: true
+
+    - name: Wait for OpenCHAMI services to stabilize after retry
+      ansible.builtin.pause:
+        seconds: "{{ openchami_stabilization_wait_time }}"
 
     - name: Configure ochami
       ansible.builtin.command: >

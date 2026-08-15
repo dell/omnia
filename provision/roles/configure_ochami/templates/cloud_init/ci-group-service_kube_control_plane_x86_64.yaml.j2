@@ -185,8 +185,6 @@
                           fieldPath: spec.nodeName
                     - name: vip_interface
                       value: vip_interface
-                    - name: vip_cidr
-                      value: "{{ admin_netmask_bits }}"
                     - name: dns_mode
                       value: first
                     - name: cp_enable
@@ -213,6 +211,8 @@
                       value: "{{ admin_netmask_bits }}"
                     - name: prometheus_server
                       value: :2112
+                    - name: kubernetes_addr
+                      value: {% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}:6443
                   image: {{ kube_vip_image }}
                   imagePullPolicy: IfNotPresent
                   name: kube-vip

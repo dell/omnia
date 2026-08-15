@@ -48,18 +48,67 @@
       ansible.builtin.set_fact:
         migration_backup_dir: "{{ (migration_raw_manifest.content | b64decode | from_yaml).backup_dir | default(openchami_backup_dir_default) }}"
 
+    # ── Verify postgres container is running before waiting ─────────────
+    - name: Check postgres container status
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' postgres 2>/dev/null || echo "not_found"
+      register: pg_container_check
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Attempt to start postgres service if container is not running
+      when: pg_container_check.stdout | default('not_found') | trim != 'running'
+      block:
+        - name: Display postgres container status
+          ansible.builtin.debug:
+            msg: >-
+              Postgres container status: {{ pg_container_check.stdout | default('not_found') | trim }}.
+              Attempting to start postgres.service...
+
+        - name: Start postgres service
+          ansible.builtin.systemd:
+            name: postgres.service
+            state: started
+            daemon_reload: true
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Wait for postgres container to initialize
+          ansible.builtin.pause:
+            seconds: 15
+
     # ── Wait for PostgreSQL to be fully ready ──────────────────────────
     - name: Wait for PostgreSQL to accept connections
       ansible.builtin.shell: |
         set -o pipefail
         for i in $(seq 1 {{ db_migration_max_wait_attempts }}); do
+          status=$(podman inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' postgres 2>/dev/null || echo "not_found")
+          if [ "$status" != "running" ]; then
+            echo "attempt $i/{{ db_migration_max_wait_attempts }}: container status=$status"
+            sleep {{ db_migration_wait_interval }}
+            continue
+          fi
           if podman exec postgres pg_isready -U {{ postgres_db_user }} -d {{ postgres_db_name }} 2>/dev/null; then
             echo "ready"
             exit 0
           fi
           sleep {{ db_migration_wait_interval }}
         done
-        echo "timeout"
+        echo "timeout after {{ db_migration_max_wait_attempts }} attempts"
+        echo "--- container status ---"
+        podman inspect --format \
+          'status={{ '{{' }}.State.Status{{ '}}' }} started={{ '{{' }}.State.StartedAt{{ '}}' }}' \
+          postgres 2>&1 || echo "container not found"
+        echo "--- postgres logs (last 30 lines) ---"
+        podman logs postgres --tail 30 2>&1 || echo "no logs available"
+        echo "--- systemctl status postgres.service ---"
+        systemctl status postgres.service --no-pager 2>&1 | head -10 || true
         exit 1
       register: pg_ready_result
       changed_when: false
@@ -67,6 +116,104 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+
+    # ── Restore from pg_dump after PostgreSQL major version upgrade ──
+    # If upgrade_openchami_containers.yml detected a PG version mismatch
+    # (e.g. PG 11 → PG 17), the data volume was cleared and PG 17
+    # initialized fresh. Restore the pre-upgrade pg_dump backup now.
+    #
+    # Path mapping: omnia_core sees /opt/omnia (bind mount), but the OIM
+    # host uses ${oim_shared_path}/omnia. podman cp runs on OIM, so we
+    # must resolve the OIM host-side path for the backup file.
+    - name: Read oim_metadata.yml for shared path (pg_dump restore)
+      ansible.builtin.slurp:
+        src: "{{ oim_metadata_path }}"
+      register: restore_oim_metadata_raw
+      when: postgres_major_upgrade | default(false) | bool
+
+    - name: Resolve OIM host-side backup path for pg_dump restore
+      ansible.builtin.set_fact:
+        oim_host_pgdump_path: >-
+          {{ migration_backup_dir |
+             regex_replace('^/opt/omnia',
+               (restore_oim_metadata_raw.content | b64decode | from_yaml).oim_shared_path
+               | regex_replace('/$', '') ~ '/omnia')
+          }}/openchami/postgresql_backup/openchami.sql
+      when: postgres_major_upgrade | default(false) | bool
+
+    - name: Locate pg_dump backup for restore (on OIM host)
+      ansible.builtin.stat:
+        path: "{{ oim_host_pgdump_path }}"
+      register: pgdump_backup_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      when: postgres_major_upgrade | default(false) | bool
+
+    - name: Restore database from pg_dump backup (PG major version upgrade)
+      when:
+        - postgres_major_upgrade | default(false) | bool
+        - pgdump_backup_stat.stat.exists | default(false)
+      block:
+        - name: Display pg_dump restore start
+          ansible.builtin.debug:
+            msg: >-
+              Restoring database from pg_dump backup after PG major version upgrade
+              (PG {{ pg_existing_version | default('?') }} → PG 17).
+              OIM host backup: {{ oim_host_pgdump_path }}
+
+        - name: Copy pg_dump backup to postgres container
+          ansible.builtin.command: >-
+            podman cp
+            {{ oim_host_pgdump_path }}
+            postgres:/tmp/openchami_restore.sql
+          changed_when: true
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Restore pg_dump into PostgreSQL 17
+          ansible.builtin.shell: |
+            set -o pipefail
+            podman exec postgres psql -U {{ postgres_db_user }} -d {{ postgres_db_name }} \
+              -f /tmp/openchami_restore.sql 2>&1 | tail -20
+          register: pgdump_restore_result
+          changed_when: true
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Clean up restore file from container
+          ansible.builtin.command: podman exec postgres rm -f /tmp/openchami_restore.sql
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Display pg_dump restore result
+          ansible.builtin.debug:
+            msg: >-
+              pg_dump restore completed.
+              Output: {{ pgdump_restore_result.stdout | default('') | truncate(500) }}
+              {{ 'Errors: ' + pgdump_restore_result.stderr | truncate(300)
+                 if pgdump_restore_result.stderr | default('') | length > 0
+                 else 'No errors reported.' }}
+
+        - name: Wait for SMD to pick up restored schema
+          ansible.builtin.pause:
+            seconds: 15
+
+    - name: Warn if pg_dump backup not found for major version upgrade
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: PostgreSQL major version upgrade detected but pg_dump backup
+          not found at {{ oim_host_pgdump_path | default('unknown') }}.
+          The database will be empty. Previously provisioned nodes may need to be re-provisioned.
+      when:
+        - postgres_major_upgrade | default(false) | bool
+        - not (pgdump_backup_stat.stat.exists | default(false))
 
     # ── Verify core HMS schema objects ─────────────────────────────
     # SMD creates tables in the 'public' schema on first startup.

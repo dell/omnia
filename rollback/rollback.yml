@@ -48,11 +48,15 @@
     all_rollback_components: [slurm, k8s-telemetry, build_stream, oim]
   tasks:
     # ═══════════════════════════════════════════════════════════════
-    # PHASE 1: READ-ONLY GUARDS (no state mutation allowed here)
+    # PHASE 1: PRE-FLIGHT GUARDS
     # ═══════════════════════════════════════════════════════════════
 
     # ─── Guard 1: Upgrade lock check ───
-    - name: Check for active upgrade lock
+    # Ansible playbooks are synchronous — if the user is running rollback,
+    # the upgrade playbook has already exited (succeeded or failed). Any
+    # upgrade lock file at this point is a stale artifact from a previous
+    # failed/interrupted upgrade. Clear it and proceed with rollback.
+    - name: Check for stale upgrade lock
       ansible.builtin.stat:
         path: "{{ upgrade_lock_path }}"
       register: upgrade_lock_stat
@@ -64,17 +68,38 @@
       when: upgrade_lock_stat.stat.exists
       failed_when: false
 
-    - name: Abort if an upgrade is in progress
+    - name: Clear stale upgrade lock (only when force_rollback is true)
+      when:
+        - upgrade_lock_stat.stat.exists
+        - force_rollback | default(false) | bool
+      block:
+        - name: Display stale upgrade lock warning
+          ansible.builtin.debug:
+            msg: |
+              WARNING: Found stale upgrade lock file from a previous failed/interrupted upgrade.
+              Lock file: {{ upgrade_lock_path }}
+              Lock contents:
+              {{ (upgrade_lock_raw.content | b64decode) if (upgrade_lock_raw.content is defined) else '(unreadable)' }}
+              Clearing the lock and proceeding with rollback.
+
+        - name: Remove stale upgrade lock file
+          ansible.builtin.file:
+            path: "{{ upgrade_lock_path }}"
+            state: absent
+
+    - name: Abort if stale upgrade lock exists and force_rollback is not set
       ansible.builtin.fail:
         msg: |
-          An upgrade is currently in progress. Cannot start a rollback.
+          A stale upgrade lock file exists from a previous failed/interrupted upgrade.
           Lock file: {{ upgrade_lock_path }}
           Lock contents:
           {{ (upgrade_lock_raw.content | b64decode) if (upgrade_lock_raw.content is defined) else '(unreadable)' }}
-          Wait for the upgrade to finish, or if no process is actually
-          running (e.g., previous run crashed), manually remove the lock:
-            rm {{ upgrade_lock_path }}
-      when: upgrade_lock_stat.stat.exists
+          To clear the lock and proceed with rollback, use:
+            cd /omnia/rollback
+            ansible-playbook rollback.yml -e force_rollback=true
+      when:
+        - upgrade_lock_stat.stat.exists
+        - not (force_rollback | default(false) | bool)
 
     # ─── Guard 2: Read upgrade_manifest.yml + completed-upgrade check ───
     - name: Check for upgrade_manifest.yml
@@ -461,10 +486,13 @@
     # rollback flows. It is read-only and reflects the cluster's installed
     # version baseline only.
 
-    - name: Remove rollback guard lock (always release at end)
+    - name: Remove rollback guard lock (only when force_rollback is true)
       ansible.builtin.file:
         path: "{{ rollback_lock_path }}"
         state: absent
+      when:
+        - new_status == 'completed'
+        - force_rollback | default(false) | bool
     # ─────────────────────────────────────────────────────────────────────────
 
     # Save rollback summary facts for the final banner play

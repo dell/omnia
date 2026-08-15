@@ -375,7 +375,6 @@
         "Name": "csi",
         "InfrastructurePackages": [
           "csi-powerscale",
-          "docker.io/dellemc/csm-encryption",
           "external-snapshotter",
           "helm-charts_1",
           "quay.io/dell/container-storage-modules/csi-isilon",
@@ -4653,20 +4652,6 @@
             "Uri": "https://github.com/dell/csi-powerscale.git"
           }
         ]
-      },
-      "docker.io/dellemc/csm-encryption": {
-        "Name": "docker.io/dellemc/csm-encryption",
-        "Type": "image",
-        "Version": "v0.6.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v0.6.0"
       },
       "external-snapshotter": {
         "Name": "external-snapshotter-v8.5.0",
