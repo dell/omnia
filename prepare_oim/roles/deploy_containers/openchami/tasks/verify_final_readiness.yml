@@ -1,0 +1,60 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Final readiness gate: verify OpenCHAMI services are stable after
+# omnia.target start and daemon-reload.  This runs at the end of
+# prepare_oim.yml so the playbook does not exit while containers are
+# still restarting.
+
+- name: Wait for services to stabilize after omnia.target start
+  ansible.builtin.pause:
+    seconds: "{{ wait_time }}"
+
+- name: Check openchami.target is active
+  ansible.builtin.command: systemctl is-active openchami.target
+  register: _final_openchami_check
+  changed_when: false
+  failed_when: false
+
+- name: Collect OpenCHAMI service status for diagnostics
+  ansible.builtin.shell: |
+    set -o pipefail
+    systemctl list-dependencies openchami.target --no-pager 2>/dev/null || true
+  register: _openchami_deps
+  changed_when: false
+  when: _final_openchami_check.rc != 0
+
+- name: Retry openchami.target readiness check
+  ansible.builtin.command: systemctl is-active openchami.target
+  register: _final_openchami_retry
+  changed_when: false
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: _final_openchami_retry.rc == 0
+  failed_when: false
+  when: _final_openchami_check.rc != 0
+
+- name: Fail if OpenCHAMI services are not stable
+  ansible.builtin.fail:
+    msg: >-
+      OpenCHAMI services are not in a stable running state after omnia.target start.
+      openchami.target status: {{ _final_openchami_check.stdout | default('unknown') }}
+
+      Service dependency tree:
+      {{ _openchami_deps.stdout | default('unavailable') }}
+
+      Troubleshoot with: systemctl status openchami.target && podman ps -a
+  when:
+    - _final_openchami_check.rc != 0
+    - _final_openchami_retry.rc | default(1) != 0

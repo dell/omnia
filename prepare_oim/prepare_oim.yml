@@ -288,6 +288,16 @@
         name: deploy_containers/common
         tasks_from: package_installation.yml
 
+- name: Verify OpenCHAMI readiness after omnia.target start
+  hosts: oim
+  connection: ssh
+  tags: always
+  tasks:
+    - name: Verify OpenCHAMI services are stable  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/openchami
+        tasks_from: verify_final_readiness.yml
+
 - name: Prepare oim completion
   hosts: localhost
   connection: local
