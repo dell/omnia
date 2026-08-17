@@ -1,0 +1,36 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Migrate Pulp repository / remote / distribution names from the old format
+# (<arch>_<RepoName>) to the new format (<arch>_<os>_<os_version>_<RepoName>).
+#
+# This task is idempotent: if every name already follows the new convention the
+# module reports "0 renamed, N skipped" and makes no changes.
+#
+# A post-migration cleanup pass deletes any stale old-format entities that
+# survived the rename (e.g. partial failures).  Old entities are only removed
+# when the corresponding new-format entity already exists, to avoid data loss.
+
+- name: Run Pulp repository name migration
+  pulp_repo_name_migration:
+    cluster_os_type: "{{ cluster_os_type }}"
+    cluster_os_version: "{{ cluster_os_version }}"
+    base_path: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
+    dry_run: false
+    log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
+  register: migration_result
+
+- name: Display migration result
+  ansible.builtin.debug:
+    msg: "{{ migration_result.msg }}"

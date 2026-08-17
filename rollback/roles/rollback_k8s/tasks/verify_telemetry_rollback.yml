@@ -1,0 +1,104 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Verify Telemetry Rollback (Post-K8s-Rollback)
+# ============================================================================
+# After etcd restore, the 2.1 telemetry objects are restored and 2.2-only
+# objects are removed. This task verifies:
+#   1. All telemetry pods are displayed with their status
+#   2. No 2.2-only components remain (vector-ldms, vector-ome, victoria-logs,
+#      victoria-metrics-operator, vlagent-vector, vmagent-vector)
+#   3. Pod readiness summary
+#
+# Prerequisites (guaranteed by rollback_k8s/main.yml execution order):
+#   - kube_vip: set in load_version_vars.yml, added to inventory in
+#     load_rollback_status.yml, verified reachable in post_validation.yml
+# ============================================================================
+
+# ── Get all telemetry pods ────────────────────────────────────────────
+- name: "Telemetry rollback verification — Get all pods in telemetry namespace"
+  ansible.builtin.command:
+    cmd: kubectl get pods -n telemetry -o wide
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: telemetry_pods_result
+  changed_when: false
+  failed_when: false
+
+- name: "Display telemetry pods after K8s rollback"
+  ansible.builtin.debug:
+    msg: "{{ telemetry_pods_result.stdout_lines | default(['No pods found in telemetry namespace']) }}"
+
+# ── Check for stale 2.2-only components ───────────────────────────────
+- name: "Check for 2.2-only components that should have been removed by etcd restore"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get deploy,sts -n telemetry --no-headers
+      -o custom-columns='KIND:.kind,NAME:.metadata.name'
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: telemetry_resources_result
+  changed_when: false
+  failed_when: false
+
+- name: "Identify any 2.2-only telemetry components still present"
+  ansible.builtin.set_fact:
+    stale_22_components: >-
+      {{ telemetry_resources_result.stdout_lines | default([])
+         | select('search',
+           'vector-ldms|vector-ome|victoria-metrics-operator|vlagent-vector|vmagent-vector|vlstorage|vlinsert|vlselect|vlagent-vlagent|vmstorage-victoria|vmselect-victoria|vminsert-victoria|vmagent-vmagent')
+         | list }}
+
+- name: "Display 2.2-only component cleanup status"
+  ansible.builtin.debug:
+    msg: >-
+      {% if stale_22_components | length == 0 -%}
+      All 2.2-only components removed successfully by etcd restore.{%- else -%}
+      WARNING: {{ stale_22_components | length }} stale 2.2 component(s) still present: {{ stale_22_components | join(', ') }}{%- endif %}
+
+# ── Pod readiness summary ─────────────────────────────────────────────
+- name: "Check telemetry pod readiness summary"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      total=$(kubectl get pods -n telemetry --no-headers 2>/dev/null | grep -cv 'Completed' || echo 0)
+      running=$(kubectl get pods -n telemetry --no-headers 2>/dev/null | grep -c 'Running' || echo 0)
+      not_ready=$(kubectl get pods -n telemetry --no-headers 2>/dev/null | grep -v 'Running\|Completed' || echo "")
+      echo "TOTAL=${total}"
+      echo "RUNNING=${running}"
+      if [ -n "${not_ready}" ]; then
+        echo "NOT_READY:"
+        echo "${not_ready}"
+      fi
+    executable: /bin/bash
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: telemetry_summary
+  changed_when: false
+  failed_when: false
+
+- name: "Display telemetry pod readiness summary"
+  ansible.builtin.debug:
+    msg: "{{ telemetry_summary.stdout_lines | default(['Could not retrieve pod summary']) }}"
+
+- name: "Warn if any telemetry pods are not Running"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Some telemetry pods are not in Running state after K8s rollback.
+      This may be transient — pods may need time to start after etcd restore.
+      If pods remain unhealthy after 5-10 minutes, manual investigation is needed.
+  when:
+    - telemetry_pods_result.stdout is defined
+    - telemetry_pods_result.stdout | regex_search('CrashLoopBackOff|Error|ImagePullBackOff|Pending|ContainerCreating') is not none

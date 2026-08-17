@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# resolve_admin_ip.yml — Resolve OpenCHAMI API Endpoints via HAProxy
+# ============================================================================
+# Reads the ochami CLI config (/etc/ochami/config.yaml) to obtain the HAProxy
+# base URL (e.g., https://oim.example.com:8443). HAProxy has a stable host
+# port mapping and reverse-proxies to SMD/BSS containers internally.
+#
+# WHY NOT podman inspect?
+#   Container-internal IPs (10.89.x.x) are ephemeral — they change on every
+#   container restart. Using them causes "No route to host" errors when
+#   containers restart between IP resolution and API health checks.
+#   HAProxy port 8443 is published on the host and remains stable.
+#
+# Sets facts:
+#   openchami_base_url    — HAProxy base URL (e.g., https://oim:8443)
+#   openchami_smd_endpoint — Full SMD URL (https://oim:8443/hsm/v2)
+#   openchami_bss_endpoint — Full BSS URL (https://oim:8443/boot/v1)
+# ============================================================================
+
+# ── Read ochami CLI config to get HAProxy base URL ───────────────────
+- name: Read ochami CLI config for HAProxy base URL
+  ansible.builtin.slurp:
+    src: "{{ ochami_config_path }}"
+  register: _ochami_config_slurp
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
+
+- name: Parse ochami CLI config
+  ansible.builtin.set_fact:
+    _ochami_config: "{{ _ochami_config_slurp.content | b64decode | from_yaml }}"
+
+# Extract the cluster URI from ochami config.
+# Structure: clusters: [{cluster: {uri: "https://host:8443"}, name: "..."}]
+- name: Extract HAProxy base URL from ochami config
+  ansible.builtin.set_fact:
+    openchami_base_url: >-
+      {{ (_ochami_config.clusters | default([{}]))[0].cluster.uri
+         | default(openchami_haproxy_fallback) }}
+
+# ── Set endpoint facts via HAProxy ───────────────────────────────────
+- name: Set OpenCHAMI endpoint facts via HAProxy
+  ansible.builtin.set_fact:
+    openchami_smd_endpoint: "{{ openchami_base_url }}/hsm/v2"
+    openchami_bss_endpoint: "{{ openchami_base_url }}/boot/v1"
+
+- name: Display the resolved OpenCHAMI endpoints
+  ansible.builtin.debug:
+    verbosity: 1
+    msg:
+      - "HAProxy base URL: {{ openchami_base_url }}"
+      - "SMD endpoint: {{ openchami_smd_endpoint }}"
+      - "BSS endpoint: {{ openchami_bss_endpoint }}"

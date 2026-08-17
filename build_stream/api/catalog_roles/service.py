@@ -16,18 +16,16 @@
 
 import io
 import json
-import logging
 import zipfile
 from typing import Dict, List
 
+from api.logging_utils import log_secure_info
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind
 from core.jobs.exceptions import InvalidStateTransitionError, JobNotFoundError, UpstreamStageNotCompletedError
 from core.jobs.repositories import JobRepository, StageRepository
 from core.jobs.value_objects import JobId, StageName, StageState, StageType
-
-logger = logging.getLogger(__name__)
 
 _FUNCTIONAL_LAYER_FILENAME = "functional_layer.json"
 
@@ -71,12 +69,13 @@ class CatalogRolesService:
                 or artifacts are missing.
             RolesNotFoundError: If functional_layer.json cannot be parsed.
         """
-        logger.info("Retrieving catalog metadata for job: %s", job_id)
+        log_secure_info('info', f"Retrieving catalog metadata for job: {job_id}")
         
         # Validate job exists first
         if not self._job_repo.exists(job_id):
-            logger.warning(
-                "Job not found for catalog metadata retrieval: %s", job_id
+            log_secure_info(
+                'warning',
+                f"Job not found for catalog metadata retrieval: {job_id}"
             )
             raise JobNotFoundError(str(job_id))
         
@@ -90,9 +89,9 @@ class CatalogRolesService:
         )
 
         if record is None:
-            logger.warning(
-                "root-jsons artifact not found for job %s; parse-catalog may not have completed",
-                job_id,
+            log_secure_info(
+                'warning',
+                f"root-jsons artifact not found for job {job_id}; parse-catalog may not have completed"
             )
             raise UpstreamStageNotCompletedError(
                 job_id=str(job_id),
@@ -100,10 +99,9 @@ class CatalogRolesService:
                 actual_state="NOT_COMPLETED",
             )
 
-        logger.debug(
-            "Found root-jsons artifact record for job %s (key=%s)",
-            job_id,
-            record.artifact_ref.key.value,
+        log_secure_info(
+            'debug',
+            f"Found root-jsons artifact record for job {job_id} (key={record.artifact_ref.key.value})"
         )
 
         try:
@@ -112,8 +110,9 @@ class CatalogRolesService:
                 kind=ArtifactKind.FILE,
             )
         except ArtifactNotFoundError as exc:
-            logger.error(
-                "root-jsons artifact file missing from store for job %s", job_id
+            log_secure_info(
+                'error',
+                f"root-jsons artifact file missing from store for job {job_id}"
             )
             raise UpstreamStageNotCompletedError(
                 job_id=str(job_id),
@@ -133,12 +132,9 @@ class CatalogRolesService:
             "architectures": catalog_metadata["architectures"],
         }
         
-        logger.info(
-            "Returning catalog metadata for job %s: %d roles, image_key=%s, %d architectures",
-            job_id,
-            len(roles),
-            result["image_key"],
-            len(result["architectures"]),
+        log_secure_info(
+            'info',
+            f"Returning catalog metadata for job {job_id}: {len(roles)} roles, image_key={result['image_key']}, {len(result['architectures'])} architectures"
         )
         return result
 
@@ -171,10 +167,9 @@ class CatalogRolesService:
                 ]
 
                 if not candidates:
-                    logger.error(
-                        "No %s found in root-jsons archive for job %s",
-                        _FUNCTIONAL_LAYER_FILENAME,
-                        job_id,
+                    log_secure_info(
+                        'error',
+                        f"No {_FUNCTIONAL_LAYER_FILENAME} found in root-jsons archive for job {job_id}"
                     )
                     raise RolesNotFoundError(
                         f"No {_FUNCTIONAL_LAYER_FILENAME} found in the "
@@ -183,25 +178,26 @@ class CatalogRolesService:
 
                 # Use the first functional_layer.json found (any arch/os/version)
                 target = candidates[0]
-                logger.debug(
-                    "Reading roles from archive entry: %s (job=%s)", target, job_id
+                log_secure_info(
+                    'debug',
+                    f"Reading roles from archive entry: {target} (job={job_id})"
                 )
 
                 with zf.open(target) as f:
                     data = json.load(f)
 
         except zipfile.BadZipFile as exc:
-            logger.error(
-                "root-jsons artifact is not a valid zip archive for job %s", job_id
+            log_secure_info(
+                'error',
+                f"root-jsons artifact is not a valid zip archive for job {job_id}"
             )
             raise RolesNotFoundError(
                 f"root-jsons artifact is not a valid archive for job: {job_id}"
             ) from exc
         except json.JSONDecodeError as exc:
-            logger.error(
-                "Failed to parse %s in archive for job %s",
-                _FUNCTIONAL_LAYER_FILENAME,
-                job_id,
+            log_secure_info(
+                'error',
+                f"Failed to parse {_FUNCTIONAL_LAYER_FILENAME} in archive for job {job_id}"
             )
             raise RolesNotFoundError(
                 f"Failed to parse {_FUNCTIONAL_LAYER_FILENAME} for job: {job_id}"
@@ -235,8 +231,9 @@ class CatalogRolesService:
         )
 
         if stage is None:
-            logger.warning(
-                "parse-catalog stage not found for job %s", job_id
+            log_secure_info(
+                'warning',
+                f"parse-catalog stage not found for job {job_id}"
             )
             raise UpstreamStageNotCompletedError(
                 job_id=str(job_id),
@@ -245,10 +242,9 @@ class CatalogRolesService:
             )
 
         if stage.stage_state != StageState.COMPLETED:
-            logger.warning(
-                "parse-catalog stage not completed for job %s (state=%s)",
-                job_id,
-                stage.stage_state.value,
+            log_secure_info(
+                'warning',
+                f"parse-catalog stage not completed for job {job_id} (state={stage.stage_state.value})"
             )
             raise UpstreamStageNotCompletedError(
                 job_id=str(job_id),
@@ -277,8 +273,9 @@ class CatalogRolesService:
         )
 
         if catalog_record is None:
-            logger.error(
-                "catalog-file artifact not found for job %s", job_id
+            log_secure_info(
+                'error',
+                f"catalog-file artifact not found for job {job_id}"
             )
             raise UpstreamStageNotCompletedError(
                 job_id=str(job_id),
@@ -292,8 +289,9 @@ class CatalogRolesService:
                 kind=ArtifactKind.FILE,
             )
         except ArtifactNotFoundError as exc:
-            logger.error(
-                "catalog-file missing from store for job %s", job_id
+            log_secure_info(
+                'error',
+                f"catalog-file missing from store for job {job_id}"
             )
             raise UpstreamStageNotCompletedError(
                 job_id=str(job_id),
@@ -304,8 +302,9 @@ class CatalogRolesService:
         try:
             catalog_data = json.loads(catalog_bytes.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            logger.error(
-                "Failed to parse catalog file for job %s", job_id
+            log_secure_info(
+                'error',
+                f"Failed to parse catalog file for job {job_id}"
             )
             raise RolesNotFoundError(
                 f"Failed to parse catalog file for job: {job_id}"
@@ -315,8 +314,9 @@ class CatalogRolesService:
         catalog_obj = catalog_data.get("Catalog", {})
         image_key = catalog_obj.get("Identifier", "")
         if not image_key:
-            logger.warning(
-                "No Identifier found in catalog for job %s", job_id
+            log_secure_info(
+                'warning',
+                f"No Identifier found in catalog for job {job_id}"
             )
             image_key = "unknown"
 

@@ -1,0 +1,216 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ---------------------------------------------------------------------------
+# Paths  (set dynamically in main.yml after load_version_vars.yml)
+# ---------------------------------------------------------------------------
+# rollback_status_file:    {{ k8s_client_mount_path }}/upgrade/rollback_status.yml
+# upgrade_status_file:     {{ k8s_client_mount_path }}/upgrade/upgrade_status.yml
+# lock_file:               {{ k8s_client_mount_path }}/upgrade/rollback.lock
+# k8s_backup_dir:          {{ k8s_client_mount_path }}/upgrade/backup
+# etcd_snapshot_file:      {{ k8s_client_mount_path }}/upgrade/backup/<from_version>/etcd-snapshot.db
+# etcd_members_file:       {{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json
+# k8s_config_backup_dir:   {{ k8s_client_mount_path }}/upgrade/backup/configs
+
+repo_file_path: "/etc/yum.repos.d/omnia-upgrade.repo"
+
+nfs_storage_name: "nfs_k8s"
+
+# Telemetry namespace (used by restore_mysql_data.yml)
+telemetry_namespace: telemetry
+
+# MySQL backup filename prefix (must match upgrade role's naming convention)
+# Per-pod backups are named: <prefix><pod_index>.sql.enc
+# e.g., idrac_telemetry_mysql_backup_pod0.sql.enc
+mysql_backup_filename_prefix: "idrac_telemetry_mysql_backup_pod"
+
+# nodes.yaml location (created by discovery)
+nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+
+# Input config paths
+software_config_file: "{{ input_project_dir }}/software_config.json"
+storage_config_file: "{{ input_project_dir }}/storage_config.yml"
+ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
+
+# Omnia system paths
+local_repo_access_file: "{{ oim_provision_path }}/local_repo_access.yml"
+
+# Temp file paths
+rollback_status_temp_json: "{{ tmp_path }}/rollback_status.tmp.json"
+rollback_status_temp_yml: "{{ tmp_path }}/rollback_status_temp.yml"
+
+# Pulp base URL
+pulp_content_base: "{{ pulp_protocol | default('http') }}://{{ admin_nic_ip }}:2225/pulp/content"
+pulp_repo_base: "{{ pulp_content_base }}/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ cluster_os_version }}/rpms"
+
+# ---------------------------------------------------------------------------
+# Timeouts and retries
+# ---------------------------------------------------------------------------
+kubelet_ready_timeout: 120
+kubelet_ready_delay: 5
+kubelet_ready_retries: 24
+etcd_health_retries: 12
+etcd_health_delay: 10
+apiserver_wait_timeout: 300
+apiserver_wait_delay: 10
+apiserver_wait_retries: 30
+kubelet_stop_timeout: 60
+vip_settle_delay: 15
+
+# ---------------------------------------------------------------------------
+# Node group suffixes (from nodes.yaml)
+# ---------------------------------------------------------------------------
+group_cp_first: "service_kube_control_plane_first_x86_64"
+group_cp: "service_kube_control_plane_x86_64"
+group_worker: "service_kube_node_x86_64"
+
+# ---------------------------------------------------------------------------
+# Rollback step definitions per role
+# ---------------------------------------------------------------------------
+rollback_cp_steps:
+  - stop_kubelet
+  - restore_etcd
+  - restore_k8s_configs
+  - downgrade_packages
+  - crio_restart
+  - start_kubelet
+  - validation
+  - etcd_health_check
+
+rollback_worker_steps:
+  - stop_kubelet
+  - downgrade_packages
+  - crio_restart
+  - start_kubelet
+  - validation
+
+# ---------------------------------------------------------------------------
+# File permissions
+# ---------------------------------------------------------------------------
+file_perm_644: "0644"
+file_perm_600: "0600"
+file_perm_755: "0755"
+dir_perm_755: "0755"
+
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+msg_rollback_lock_held_same_host: >-
+  Another K8s rollback is running (PID {{ existing_lock.pid }} since
+  {{ existing_lock.started_at }}). Aborting.
+msg_rollback_lock_held_other_host: >-
+  Rollback lock held by {{ existing_lock.host }} (PID {{ existing_lock.pid }} since
+  {{ existing_lock.started_at }}). If stale, delete manually:
+  rm {{ lock_file }}
+msg_rollback_stale_lock_removed: >-
+  Removing stale rollback lock from PID {{ existing_lock.pid }}
+  (process no longer running on this host).
+msg_rollback_lock_verification_failed: >-
+  Rollback lock file verification failed — possible race condition. Aborting.
+msg_etcd_quorum_lost: >-
+  etcd quorum lost after rollback! Manual intervention required.
+msg_rollback_backup_missing: >-
+  Required backup not found: {{ _missing_backup }}.
+  Cannot proceed with rollback. Ensure upgrade backups exist.
+msg_rollback_complete: |
+  ============================================================
+  [ROLLBACK] K8S ROLLBACK COMPLETED SUCCESSFULLY
+  ============================================================
+  Rolled back from {{ k8s_current_version }} to {{ k8s_rollback_version }}.
+  All nodes Ready.
+  ============================================================
+msg_rollback_failed: |
+  ============================================================
+  [ROLLBACK] K8S ROLLBACK FAILED
+  ============================================================
+  K8s rollback failed. Check rollback_status.yml for details.
+  Status file: {{ rollback_status_file }}
+  ============================================================
+msg_metallb_cleanup: >-
+  Stale MetalLB IPs detected. Removing secondary IPs from node interfaces
+  to prevent split-brain when speakers restart.
+msg_metallb_cleanup_complete: >-
+  MetalLB IP cleanup complete. Speakers will re-announce the correct IPs
+  after the cluster restarts.
+msg_vip_split_brain: >-
+  kube-vip split-brain detected after etcd restore.
+  VIP found on multiple nodes. Cleaning up stale VIP assignments.
+msg_bss_backup_workdir_missing: >-
+  BSS restore failed: openchami backup workdir not found at
+  {{ _bss_backup_workdir_container }}.
+  Verify that the upgrade backup ({{ _openchami_backup_dir }}) was created
+  successfully and contains openchami/openchami_data/workdir/.
+msg_bss_backup_boot_missing: >-
+  BSS restore failed: boot/ directory not found in openchami backup workdir
+  {{ _bss_backup_workdir_container }}/boot.
+  The backup may be incomplete or corrupted.
+msg_bss_backup_ci_missing: >-
+  BSS restore failed: cloud-init/ directory not found in openchami backup
+  workdir {{ _bss_backup_workdir_container }}/cloud-init.
+  The backup may be incomplete or corrupted.
+
+# MySQL restore messages
+msg_mysql_sts_not_found: >-
+  idrac-telemetry StatefulSet not found — skipping MySQL data restore.
+msg_mysql_pod_status: |
+  idrac-telemetry pods status:
+  {{ idrac_pod_raw_status.stdout_lines | default(['unknown']) }}
+msg_mysql_downgrade_fix_start: |
+  ============================================================
+  MySQL VERSION DOWNGRADE DETECTED — STARTING PVC RECOVERY
+  ============================================================
+  Current version: {{ restored_mysql_image.stdout }}
+  Expected version: {{ current_mysql_version.stdout }}
+  The rollback has downgraded the MySQL container image, but the
+  PVC contains data from a newer MySQL version. This is incompatible.
+  We will wipe the PVC data and restore from mysqldump backup.
+  ============================================================
+msg_mysql_replica_count: >-
+  idrac-telemetry has {{ idrac_telemetry_original_replicas }} replica(s) — will wipe and restore ALL PVCs
+msg_mysql_backup_search_results: |
+  Backup directory: {{ mysql_perpod_backup_dir | trim }}
+  Per-pod backup format: {{ mysql_backup_is_perpod | trim }}
+  Legacy single-file format: {{ mysql_backup_is_legacy | trim }}
+msg_mysql_perpod_restore_start: >-
+  Restoring per-pod MySQL data from: {{ mysql_perpod_backup_dir | trim }}
+msg_mysql_perpod_restore_result: >-
+  Pod idrac-telemetry-{{ item.item }}:
+  {{ 'RESTORED' if item.rc == 0 else 'FAILED (rc=' ~ item.rc ~ ')' }}
+msg_mysql_legacy_restore_start: |
+  Found legacy single-file backup (pre multi-pod support).
+  Restoring to pod-0 only. Other pods will reinitialize fresh.
+  Legacy backup: >-
+    {{ (mysql_legacy_enc_backup.files + mysql_legacy_enc_archive.files)
+    | sort(attribute='mtime', reverse=true)
+    | first
+    | default({'path': 'none'})
+    | json_query('path') }}
+msg_mysql_legacy_restore_result: |
+  Legacy backup restore to pod-0: {{ 'SUCCESS' if mysql_legacy_restore.rc == 0 else 'FAILED (rc=' ~ mysql_legacy_restore.rc ~ ')' }}
+  WARNING: Pods 1+ have no backup — MySQL reinitialized fresh with empty database.
+msg_mysql_no_backup_found: |
+  No pre-upgrade mysqldump backup found.
+  ALL pods have been reinitialized fresh at {{ restored_mysql_image.stdout }}.
+  The database tables exist but will be empty.
+  You may need to manually repopulate data (e.g., iDRAC services list).
+msg_mysql_recovery_success: |
+  ============================================================
+  MySQL VERSION DOWNGRADE — RECOVERY COMPLETED
+  ============================================================
+  All idrac-telemetry pods ({{ idrac_telemetry_original_replicas }}) are ready.
+  MySQL data has been restored from pre-upgrade backup.
+  ============================================================
+msg_mysql_no_restore_needed: >-
+  idrac-telemetry MySQL container is running normally — no version downgrade fix needed.

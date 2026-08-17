@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ────────────────────────────────────────────────────────────────────────
+# Collect a single example catalog file action for the batched upgrade commit.
+# Called in a loop from gitlab_config_upgrade.yml with loop_var: _example_catalog
+#
+# Instead of committing each file individually, this task reads the file
+# content and checks whether it already exists in the repo, then appends
+# a create/update action to the _upgrade_commit_actions list.
+#
+# Required variables (set by caller):
+#   _example_catalog               — full path to local catalog file
+#   gitlab_external_url_computed
+#   gitlab_project_id
+#   gitlab_root_token
+#   gitlab_default_branch
+#   _upgrade_commit_actions        — list accumulator (initialized by caller)
+# ────────────────────────────────────────────────────────────────────────
+---
+
+- name: Set example catalog filename and encoded repo path
+  ansible.builtin.set_fact:
+    _example_catalog_name: "{{ _example_catalog | basename }}"
+    _encoded_example_path: "{{ ('examples/' ~ (_example_catalog | basename)) | urlencode | replace('/', '%2F') }}"
+
+- name: Read example catalog file
+  ansible.builtin.slurp:
+    src: "{{ _example_catalog }}"
+  register: _example_catalog_content
+  failed_when: false
+
+- name: Build API URL for example catalog check
+  ansible.builtin.set_fact:
+    _example_catalog_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _encoded_example_path }}?ref={{ gitlab_default_branch }}
+
+- name: Check if example catalog exists in repository
+  ansible.builtin.uri:
+    url: "{{ _example_catalog_api_url }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [200, 404]
+  register: _example_catalog_check
+  no_log: true
+  when: _example_catalog_content is succeeded
+
+- name: Collect example catalog action for batched commit
+  ansible.builtin.set_fact:
+    _upgrade_commit_actions: >-
+      {{ _upgrade_commit_actions | default([]) + [{
+        'action': 'update' if _example_catalog_check.status == 200 else 'create',
+        'file_path': 'examples/' ~ _example_catalog_name,
+        'content': _example_catalog_content.content | b64decode,
+        'encoding': 'text'
+      }] }}
+  when: _example_catalog_content is succeeded

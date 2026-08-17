@@ -84,6 +84,7 @@ class GetStageResponse(BaseModel):
     error_code: Optional[str] = Field(default=None, description="Error code if failed")
     error_summary: Optional[str] = Field(default=None, description="Error summary if failed")
     log_file_path: Optional[str] = Field(default=None, description="Ansible log file path on OIM host (NFS share)")
+    result_detail: Optional[Dict[str, Any]] = Field(default=None, description="Detailed stage results (JSONB) including log_path, test_summary, artifact_dir")
 
 
 class CreateJobResponse(BaseModel):

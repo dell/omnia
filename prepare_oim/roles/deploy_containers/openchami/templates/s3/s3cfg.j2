@@ -1,0 +1,20 @@
+[default]
+access_key = {{ s3_access_id }}
+secret_key = {{ s3_secret_key }}
+{% if storage_backend  == 'powerscale' %}
+host_base = {{ s3_configurations.endpoint_url | regex_replace('^https?://', '') }}
+host_bucket = {{ s3_configurations.endpoint_url | regex_replace('^https?://', '') }}
+use_https = {{ 'True' if s3_configurations.endpoint_url.startswith('https') else 'False' }}
+check_ssl_certificate = False
+check_ssl_hostname = False
+{% else %}
+host_base = {{ cluster_name }}.{{ cluster_domain }}:9000
+host_bucket = {{ cluster_name }}.{{ cluster_domain }}:9000
+use_https = False
+check_ssl_certificate = False
+check_ssl_hostname = False
+{% endif %}
+signature_v2 = False
+bucket_location = us-east-1
+human_readable_sizes = True
+multipart_chunk_size_mb = 50

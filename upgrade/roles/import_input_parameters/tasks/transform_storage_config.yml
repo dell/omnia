@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Check if backup storage_config.yml exists
   ansible.builtin.stat:
     path: "{{ backup_location }}/storage_config.yml"
@@ -42,14 +41,31 @@
   ansible.builtin.set_fact:
     backup_storage_config: "{{ backup_storage_config_slurp.content | b64decode | from_yaml }}"
 
-- name: Normalize storage_config.yml values
+- name: Read backup omnia_config.yml
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/omnia_config.yml"
+  register: backup_omnia_config_slurp
+
+- name: Parse backup omnia_config.yml
   ansible.builtin.set_fact:
-    storage_nfs_client_params: "{{ backup_storage_config.nfs_client_params | default([]) }}"
+    backup_omnia_config: "{{ backup_omnia_config_slurp.content | b64decode | from_yaml }}"
+
+- name: Set facts for slurm
+  ansible.builtin.set_fact:
+    slurm_nfs_storage_name: "{{ backup_omnia_config.slurm_cluster[0].nfs_storage_name | default(None) }}"
+    k8s_nfs_storage_name: "{{ backup_omnia_config.service_k8s_cluster[0].nfs_storage_name | default(None) }}"
+
+- name: Read the slurm mount point
+  ansible.builtin.set_fact:
+    slurm_nfs_client_params: "{{ (backup_storage_config.nfs_client_params | selectattr('nfs_name', 'equalto', slurm_nfs_storage_name) | first | default({})) }}"
+    k8s_nfs_client_params: "{{ (backup_storage_config.nfs_client_params | selectattr('nfs_name', 'equalto', k8s_nfs_storage_name) | first | default({})) }}"
+    storage_nfs_client_params: "{{ backup_storage_config.nfs_client_params | default([], true) }}"
+    storage_powervault_config: "{{ backup_storage_config.powervault_config | default({}, true) }}"
 
 - name: Fail if nfs_client_params is missing
   ansible.builtin.fail:
     msg: "{{ msg_nfs_client_params_missing }}"
-  when: (storage_nfs_client_params | default([]) | length) == 0
+  when: (storage_nfs_client_params | default([], true) | length) == 0
 
 - name: Fail if any NFS client entry is missing required keys
   ansible.builtin.fail:
@@ -60,13 +76,14 @@
     (storage_nfs_client_params | selectattr('client_share_path', 'undefined') | list | length) > 0 or
     (storage_nfs_client_params | selectattr('client_mount_options', 'undefined') | list | length) > 0
 
-- name: Write storage_config.yml in Omnia 2.1 format
+- name: Write storage_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: storage_config.j2
     dest: "{{ input_project_dir }}/storage_config.yml"
     mode: "{{ default_file_mode }}"
   vars:
     storage_nfs_client_params: "{{ storage_nfs_client_params }}"
+    storage_powervault_config: "{{ storage_powervault_config }}"
 
 - name: Validate YAML syntax of transformed storage_config.yml
   ansible.builtin.command:

@@ -91,6 +91,12 @@
       when: not hostvars['oim']['hostname_enabled']
       no_log: true
 
+    - name: Ensure certs directory exists
+      ansible.builtin.file:
+        path: "{{ certs_dir }}"
+        state: directory
+        mode: "0755"
+
     - name: Generating Pulp SSL Certificate
       ansible.builtin.command:
         cmd: "{{ generate_cert_cmd }}"
@@ -128,7 +134,7 @@
     - name: Record current timestamp in track file
       ansible.builtin.copy:
         dest: "{{ track_file_path }}"
-        content: "Timestamp: {{ ansible_date_time.iso8601 }}"
+        content: "Timestamp: {{ ansible_facts.date_time.iso8601 }}"
         mode: "{{ logs_dir_permission }}"
 
 # CERT GENERATION USING community.crypto x509_certificate MODULE

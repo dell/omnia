@@ -15,20 +15,18 @@
 """Business logic service for ParseCatalog API."""
 
 import json
-import logging
 import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from api.logging_utils import log_secure_info
 from core.catalog.generator import generate_root_json_from_catalog
 from common.config import load_config
 from core.jobs.value_objects import CorrelationId, JobId
 from infra.id_generator import UUIDv4Generator
 from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
-
-logger = logging.getLogger(__name__)
 
 
 class CatalogParseError(Exception):
@@ -97,7 +95,7 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
             InvalidJSONError: If JSON content is malformed or not a dict.
             CatalogParseError: If catalog processing fails.
         """
-        logger.info("Starting catalog parse for file: %s", filename)
+        log_secure_info('info', f"Starting catalog parse for file: {filename}")
 
         # Note: Job validation is handled by the orchestrator use case
         self._validate_file_format(filename)
@@ -140,7 +138,7 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
     def _validate_file_format(self, filename: str) -> None:
         """Validate that the file has a .json extension."""
         if not filename.endswith(".json"):
-            logger.warning("Invalid file format received: %s", filename)
+            log_secure_info('warning', f"Invalid file format received: {filename}")
             raise InvalidFileFormatError(
                 "Invalid file format. Only JSON files are accepted."
             )
@@ -150,16 +148,16 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
         try:
             return json.loads(contents.decode("utf-8"))
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse JSON content")
+            log_secure_info('error', "Failed to parse JSON content")
             raise InvalidJSONError(f"Invalid JSON data: {e.msg}") from e
         except UnicodeDecodeError as e:
-            logger.error("Failed to decode file content as UTF-8")
+            log_secure_info('error', "Failed to decode file content as UTF-8")
             raise InvalidJSONError("File content is not valid UTF-8 text") from e
 
     def _validate_json_structure(self, json_data: object) -> None:
         """Validate that JSON data is a dictionary."""
         if not isinstance(json_data, dict):
-            logger.warning("JSON data is not a dictionary")
+            log_secure_info('warning', "JSON data is not a dictionary")
             raise InvalidJSONError(
                 "Invalid JSON data. The data must be a dictionary."
             )
@@ -179,29 +177,29 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
         temp_file_path = None
         try:
             temp_file_path = self._write_temp_file(json_data)
-            logger.debug("Wrote catalog to temporary file: %s", temp_file_path)
+            log_secure_info('debug', f"Wrote catalog to temporary file: {temp_file_path}")
 
             generate_root_json_from_catalog(
                 catalog_path=temp_file_path,
                 output_root=self.output_root,
             )
 
-            logger.info("Catalog parsed successfully, output at: %s", self.output_root)
+            log_secure_info('info', f"Catalog parsed successfully, output at: {self.output_root}")
             return ParseResult(
                 success=True,
                 message="Catalog parsed successfully",
             )
 
         except FileNotFoundError as e:
-            logger.error("Required file not found during processing")
+            log_secure_info('error', "Required file not found during processing")
             raise CatalogParseError("Required file not found during processing") from e
         except Exception as e:
-            logger.error("Catalog processing failed")
+            log_secure_info('error', "Catalog processing failed")
             raise CatalogParseError("Failed to process catalog") from e
         finally:
             if temp_file_path and os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
-                logger.debug("Cleaned up temporary file: %s", temp_file_path)
+                log_secure_info('debug', f"Cleaned up temporary file: {temp_file_path}")
 
     def _write_temp_file(self, json_data: dict) -> str:
         """Write JSON data to a temporary file.

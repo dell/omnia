@@ -31,14 +31,15 @@ class TestParseCatalogDefaults:
         assert os.path.abspath(_DEFAULT_SCHEMA_PATH) == os.path.abspath(expected_schema)
 
     def test_parse_catalog_with_explicit_paths_uses_fixture(self):
-        # Use the fixtures directory for test data
-        fixtures_dir = os.path.join(PROJECT_ROOT, "tests", "fixtures", "catalogs")
-        catalog_path = os.path.join(fixtures_dir, "catalog_rhel.json")
+        # Use the maintained catalog from the examples directory (sibling of build_stream)
+        catalog_path = os.path.join(
+            os.path.dirname(PROJECT_ROOT), "examples", "catalog", "catalog_rhel.json"
+        )
         schema_path = os.path.join(PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json")
 
-        # Skip test if fixtures don't exist
+        # Skip test if the examples catalog or schema isn't available
         if not os.path.exists(catalog_path) or not os.path.exists(schema_path):
-            pytest.skip("Test fixtures not found")
+            pytest.skip("Examples catalog or schema not found")
 
         catalog = ParseCatalog(catalog_path, schema_path)
         assert len(catalog.functional_packages) > 0

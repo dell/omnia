@@ -259,4 +259,4 @@ def validate_powerscale_secret_and_values_file(
     if values_validation_errros:
         for value_err in values_validation_errros:
             errors.append(
-                create_error_msg(f"Powerscale Value File Validation Error: ",value_err, None))
+                create_error_msg(f"Powerscale Value File Validation Error in {values_file_path}: ",value_err, None))

@@ -20,7 +20,6 @@ This module provides JWT handling following the OAuth2 Implementation Spec:
 - Claims: iss, sub, aud, iat, exp, nbf, jti, scope, client_name
 """
 
-import logging
 import os
 import uuid
 from dataclasses import dataclass
@@ -36,7 +35,7 @@ from jwt.exceptions import (
     InvalidSignatureError,
 )
 
-logger = logging.getLogger(__name__)
+from api.logging_utils import log_secure_info
 
 
 class JWTHandlerError(Exception):
@@ -130,12 +129,12 @@ class JWTHandler:
                 with open(self.config.private_key_path, "r", encoding="utf-8") as f:
                     self._private_key = f.read()
             except FileNotFoundError:
-                logger.error("JWT private key not found: %s", self.config.private_key_path)
+                log_secure_info('error', f"JWT private key not found: {self.config.private_key_path}")
                 raise JWTCreationError(
                     f"JWT private key not found: {self.config.private_key_path}"
                 ) from None
             except IOError:
-                logger.error("Failed to read JWT private key")
+                log_secure_info('error', "Failed to read JWT private key")
                 raise JWTCreationError("Failed to read JWT private key") from None
         return self._private_key
 
@@ -153,12 +152,12 @@ class JWTHandler:
                 with open(self.config.public_key_path, "r", encoding="utf-8") as f:
                     self._public_key = f.read()
             except FileNotFoundError:
-                logger.error("JWT public key not found: %s", self.config.public_key_path)
+                log_secure_info('error', f"JWT public key not found: {self.config.public_key_path}")
                 raise JWTValidationError(
                     f"JWT public key not found: {self.config.public_key_path}"
                 ) from None
             except IOError:
-                logger.error("Failed to read JWT public key")
+                log_secure_info('error', "Failed to read JWT public key")
                 raise JWTValidationError("Failed to read JWT public key") from None
         return self._public_key
 
@@ -212,10 +211,10 @@ class JWTHandler:
                 algorithm=self.config.algorithm,
                 headers=headers,
             )
-            logger.info("Access token created for client: %s", client_id[:8] + "...")
+            log_secure_info('info', f"Access token created for client: {client_id[:8]}...")
             return token, int(expires_delta.total_seconds())
         except Exception:
-            logger.error("Failed to create access token")
+            log_secure_info('error', "Failed to create access token")
             raise JWTCreationError("Failed to create access token") from None
 
     def validate_token(self, token: str) -> TokenData:
@@ -251,17 +250,17 @@ class JWTHandler:
                 token_id=payload.get("jti", ""),
             )
         except ExpiredSignatureError:
-            logger.warning("Token has expired")
+            log_secure_info('warning', "Token has expired")
             raise JWTExpiredError("Token has expired") from None
         except (InvalidAudienceError, InvalidIssuerError):
-            logger.warning("Invalid token claims")
+            log_secure_info('warning', "Invalid token claims")
             raise JWTValidationError("Invalid token claims") from None
         except InvalidSignatureError:
-            logger.warning("Invalid token signature")
+            log_secure_info('warning', "Invalid token signature")
             raise JWTInvalidSignatureError("Invalid token signature") from None
         except DecodeError:
-            logger.warning("Invalid token format")
+            log_secure_info('warning', "Invalid token format")
             raise JWTValidationError("Invalid token format") from None
         except Exception:
-            logger.error("Unexpected error validating token")
+            log_secure_info('error', "Unexpected error validating token")
             raise JWTValidationError("Token validation failed") from None

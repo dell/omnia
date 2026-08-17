@@ -20,11 +20,20 @@
   hosts: localhost
   connection: local
   tags: always
+  vars:
+    build_tags:
+      - "build_image"
+  pre_tasks:
+    - name: Check if config file exists
+      ansible.builtin.set_fact:
+        build_tags:
+          - "software_config"
+      when: functional_groups is defined
   tasks:
     - name: Set dynamic run tags including 'build_image'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['build_image']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + build_tags | default([]) | list) | unique }}"
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations with build_image tag
@@ -41,7 +50,7 @@
     openchami_vars_suppport: true
     omnia_metadata_support: true
 
-- name: Load build_stream configuration
+- name: Load build_stream and storage configuration
   hosts: localhost
   connection: local
   gather_facts: false
@@ -51,6 +60,18 @@
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/build_stream_config.yml"
       failed_when: false
+
+    - name: Include storage_config.yml
+      block:
+        - name: Include storage_config.yml file
+          ansible.builtin.include_vars:
+            file: "{{ input_project_dir }}/storage_config.yml"
+          no_log: true
+      rescue:
+        - name: Set default storage backend if storage_config.yml not found
+          ansible.builtin.set_fact:
+            s3_configurations:
+              provider: "minio"
 
     - name: Set build_stream variables from extra_vars
       ansible.builtin.set_fact:
@@ -85,6 +106,16 @@
     oim_group: true
   tags: always
 
+- name: Pre-flight SELinux policy fix on OIM node
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Install SELinux policy module for container runtime
+      ansible.builtin.include_role:
+        name: image_creation
+        tasks_from: preflight_selinux_check.yml
+
 - name: Configure auth for OpenCHAMI
   hosts: oim
   connection: ssh
@@ -116,18 +147,9 @@
   roles:
     - fetch_packages
 
-- name: Tagging OpenCHAMI image
+- name: OpenCHAMI build image for x86_64
   hosts: oim
   connection: ssh
-  tasks:
-    - name: Tag OpenCHAMI image
-      ansible.builtin.include_role:
-        name: image_creation
-        tasks_from: prepare_pulp_image.yml
-
-- name: OpenCHAMI build image for x86_64
-  hosts: localhost
-  connection: local
   gather_facts: false
   roles:
     - image_creation

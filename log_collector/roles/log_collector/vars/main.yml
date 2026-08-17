@@ -1,0 +1,114 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Log collection workspace root on OIM
+log_root: /opt/omnia/collector_logs
+
+# PXE mapping file used to build dynamic node inventory
+pxe_mapping_file_path: "/opt/omnia/input/project_default/pxe_mapping_file.csv"
+
+# K8s master log paths
+k8s_master_log_dirs:
+  - /var/log/containers/
+  - /var/log/pods/
+  - /var/log/calico/
+  - /var/log/crio/
+  - /var/log/chrony/
+  - /var/log/private/
+  - /var/log/rhsm/
+
+k8s_master_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+  - /var/log/dnf.log
+  - /var/log/dnf.rpm.log
+  - /var/log/dnf.librepo.log
+  - /var/log/hawkey.log
+  - /var/log/secure
+  - /var/log/spooler
+
+# K8s worker log paths
+k8s_worker_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+  - /var/log/spooler
+  - /var/log/messages
+  - /var/log/cron
+  - /var/log/secure
+  - /var/log/maillog
+  - /var/log/lastlog
+  - /var/log/btmp
+
+# Slurm controller log paths
+slurm_ctl_log_dirs:
+  - /var/log/slurm/
+  - /var/log/rhsm/
+  - /var/log/private/
+  - /var/log/chrony/
+  - /var/log/munge/
+  - /var/log/insights-client/
+  - /var/log/mariadb/
+
+slurm_ctl_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+  - /var/log/ldms-cloudinit.log
+
+# Slurm node log paths
+slurm_node_log_dirs:
+  - /var/log/slurm/
+
+slurm_node_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+
+# Login node log paths
+login_node_log_dirs:
+  - /var/log/slurm/
+  - /var/log/chrony/
+  - /var/log/private/
+
+login_node_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+  - /var/log/secure
+  - /var/log/messages
+
+# Login compiler node log paths
+login_compiler_log_dirs:
+  - /var/log/slurm/
+  - /var/log/chrony/
+  - /var/log/private/
+
+login_compiler_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+  - /var/log/secure
+  - /var/log/messages
+
+# Curated support mode: exclusion patterns to remove from workspace before bundling
+# These patterns are applied recursively in log_root when collection_mode == 'curated_support'
+# Customize per environment to match temp/stale/old log patterns
+exclude_patterns:
+  - "*.tmp"
+  - "*.temp"
+  - "*.bak"
+  - "*.gz"
+  - "*.bz2"
+  - "*.1"
+  - "*.2"
+  - "*.3"
+  - "*.4"
+  - "*.5"

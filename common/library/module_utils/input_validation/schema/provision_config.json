@@ -16,6 +16,22 @@
       "description": "Default lease time for DHCP.",
       "pattern": "^[0-9]+$",
       "default": "86400"
+    },
+    "dns_enabled": {
+      "type": "boolean",
+      "description": "Enable DNS-based hostname resolution via coresmd.",
+      "default": false
+    },
+    "kernel_version_override": {
+      "type": "string",
+      "description": "Optional kernel version to pin for boot image selection. Leave empty to auto-select latest.",
+      "pattern": "^(|[0-9]+\\.[0-9]+\\.[0-9]+-.+)$",
+      "default": ""
+    },
+    "additional_cloud_init_config_file": {
+      "type": "string",
+      "description": "Path to additional cloud-init configuration file for stateless node provisioning. Leave empty to disable.",
+      "default": ""
     }
   },
   "required": [

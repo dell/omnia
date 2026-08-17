@@ -17,14 +17,18 @@
 This module util contains all custom software utilities used across custom modules
 """
 from collections import defaultdict
+import logging
 import os
 import json
 import csv
 import re
 import shlex
+import ssl
 import yaml
 from jinja2 import Template
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
 from ansible.module_utils.local_repo.parse_and_download import execute_command
@@ -34,6 +38,7 @@ from ansible.module_utils.local_repo.config import (
     CSV_COLUMNS,
     SOFTWARE_CONFIG_SUBDIR,
     DEFAULT_STATUS_FILENAME,
+    STATUS_CSV_HEADER,
     RPM_LABEL_TEMPLATE,
     RHEL_OS_URL,
     SOFTWARES_KEY,
@@ -42,8 +47,39 @@ from ansible.module_utils.local_repo.config import (
     DEFAULT_CACHING,
     ARCH_SUFFIXES,
     ADDITIONAL_REPOS_KEY,
+    REPO_NAME_FORMAT,
+    REPO_NAME_PREFIX_FORMAT,
     pulp_container_commands
 )
+
+
+# ----------------------------
+# Repo Naming Convention Helpers
+# Single place to define how Pulp repo / remote / distribution names
+# are built from (arch, os_type, os_version, name).
+#
+# Format:  <arch>_<os_type>_<os_version>_<name>
+# Example: x86_64_rhel_10.0_baseos
+# ----------------------------
+
+def build_repo_name(arch, os_type, os_version, name):
+    """Build a Pulp repository/remote/distribution name.
+
+    Uses ``REPO_NAME_FORMAT`` from config.py.
+    Default: ``<arch>_<os_type>_<os_version>_<name>``.
+    """
+    return REPO_NAME_FORMAT.format(arch=arch, os_type=os_type,
+                                   os_version=os_version, name=name)
+
+
+def build_repo_name_prefix(arch, os_type, os_version):
+    """Return the prefix portion used to detect/construct full names.
+
+    Uses ``REPO_NAME_PREFIX_FORMAT`` from config.py.
+    Default: ``<arch>_<os_type>_<os_version>_``.
+    """
+    return REPO_NAME_PREFIX_FORMAT.format(arch=arch, os_type=os_type,
+                                          os_version=os_version)
 
 
 def load_json(file_path):
@@ -61,7 +97,7 @@ def load_json(file_path):
         ValueError: If the JSON parsing fails.
     """
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Error: File '{file_path}' not found.") from exc
@@ -87,7 +123,7 @@ def load_yaml(file_path):
         return yaml.safe_load(file)
 
 def get_json_file_path(software_name, cluster_os_type,
-                       cluster_os_version, user_json_path, arch):
+                       cluster_os_version, user_json_path, arch, software_version=None):
     """
     Generate the file path for a JSON file based on the provided software name,
      cluster OS type, cluster OS version, and user JSON path.
@@ -98,13 +134,23 @@ def get_json_file_path(software_name, cluster_os_type,
         cluster_os_version (str): The version of the cluster operating system.
         user_json_path (str): The path to the user JSON file.
         arch: Architecture for a particular software
+        software_version (str, optional): Version of the software for versioned JSON files.
+            Used for software like service_k8s that have versioned JSON files
+            (e.g., service_k8s_v1.35.1.json).
 
     Returns:
         str or None: The file path for the JSON file if it exists, otherwise None.
     """
     base_path = os.path.dirname(os.path.abspath(user_json_path))
+
+    # Handle versioned JSON files (e.g., service_k8s_v1.35.1.json)
+    if software_name == "service_k8s" and software_version:
+        json_filename = f"{software_name}_v{software_version}.json"
+    else:
+        json_filename = f"{software_name}.json"
+
     json_path = os.path.join(base_path,
-            f'{SOFTWARE_CONFIG_SUBDIR}/{arch}/{cluster_os_type}/{cluster_os_version}/{software_name}.json'
+            f'{SOFTWARE_CONFIG_SUBDIR}/{arch}/{cluster_os_type}/{cluster_os_version}/{json_filename}'
         )
     return json_path
 
@@ -129,6 +175,35 @@ def get_csv_file_path(software_name, user_csv_dir, arch):
     return status_csv_file_path
 
 
+class _RelaxedCAAdapter(HTTPAdapter):
+    """HTTPAdapter that loads a custom CA but clears VERIFY_X509_STRICT.
+
+    Python 3.13+ enforces strict RFC 5280 Basic Constraints validation,
+    rejecting CA certs where the extension is not marked critical. Some
+    vendor CAs (e.g. Red Hat redhat-uep.pem) have non-critical Basic
+    Constraints which OpenSSL/curl accept. This adapter restores the
+    Python 3.12 behavior while keeping full chain and hostname validation.
+
+    Remove this workaround once the upstream CA is reissued with the
+    Basic Constraints extension marked critical.
+    """
+
+    def __init__(self, ca_cert, client_cert, client_key, *args, **kwargs):
+        self._ca_cert = ca_cert
+        self._client_cert = client_cert
+        self._client_key = client_key
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        ctx = ssl.create_default_context(cafile=self._ca_cert)
+        ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
+        if self._client_cert and self._client_key:
+            ctx.load_cert_chain(self._client_cert, self._client_key)
+        self.poolmanager = PoolManager(
+            num_pools=connections, maxsize=maxsize,
+            block=block, ssl_context=ctx, **pool_kwargs)
+
+
 def is_remote_url_reachable(remote_url, timeout=10,
                             client_cert=None, client_key=None, ca_cert=None):
     """
@@ -145,20 +220,40 @@ def is_remote_url_reachable(remote_url, timeout=10,
     Returns:
         bool: True if the URL is reachable (HTTP status 200), False otherwise.
     """
+    logger = logging.getLogger(__name__)
     try:
         # Check if SSL certs are provided and handle accordingly
         if client_cert and client_key and ca_cert:
-            response = requests.get(
-                remote_url,
-                cert=(client_cert, client_key),
-                verify=ca_cert,
-                timeout=timeout
-            )
+            try:
+                response = requests.get(
+                    remote_url,
+                    cert=(client_cert, client_key),
+                    verify=ca_cert,
+                    timeout=timeout
+                )
+            except requests.exceptions.SSLError:
+                # Python 3.13+ rejects CA certs with non-critical Basic
+                # Constraints (RFC 5280 strict mode). Retry against the
+                # SAME CA with VERIFY_X509_STRICT cleared — still validates
+                # the full chain and hostname, just relaxes the one check.
+                logger.warning(
+                    f"Strict SSL verification failed for {remote_url}. "
+                    "Retrying with VERIFY_X509_STRICT cleared.")
+                session = requests.Session()
+                adapter = _RelaxedCAAdapter(
+                    ca_cert, client_cert, client_key)
+                session.mount("https://", adapter)
+                response = session.get(remote_url, timeout=timeout)
         else:
             # Proceed with a regular HTTP request if no SSL certs are provided
             response = requests.get(remote_url, timeout=timeout)
+        if response.status_code != 200:
+            logger.error(
+                f"URL {remote_url} returned HTTP {response.status_code}")
         return response.status_code == 200
     except Exception:
+        logger.error(
+            f"URL reachability check failed for {remote_url}")
         return False
 
 def transform_package_dict(data, arch_val,logger):
@@ -242,7 +337,8 @@ def resolve_pulp_policy(policy_str, caching_val, logger=None):
     return pulp_policy
 
 def parse_repo_urls(repo_config, local_repo_config_path,
-                    version_variables, vault_key_path, sub_urls,logger,sw_archs=None):
+                    version_variables, vault_key_path, sub_urls,logger,sw_archs=None,
+                    cluster_os_type="rhel", cluster_os_version="10.0"):
     """
     Parses the repository URLs from the given local repository configuration file.
     Args:
@@ -255,6 +351,8 @@ def parse_repo_urls(repo_config, local_repo_config_path,
         logger (logging.Logger): Logger instance used for structured logging of process steps.
         sw_archs (list, optional): List of architectures to process based on software_config.json.
                                    If None, defaults to ARCH_SUFFIXES.
+        cluster_os_type (str): The cluster OS type (e.g., 'rhel').
+        cluster_os_version (str): The cluster OS version (e.g., '10.0').
     Returns:
         tuple: A tuple where the first element is either the parsed repository URLs as a JSON string
                (on success) or the rendered URL (if unreachable),
@@ -301,7 +399,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            caching_given = url_.get("caching", True)
+            caching_given = url_.get("caching", repo_config != "always")
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
@@ -321,8 +419,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 logger.error(f"User repo URL unreachable: {url}")
                 return url, False
 
+            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
             parsed_repos.append({
-                "package": name,
+                "package": sw_name,
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "null",
                 "version": "null",
@@ -333,7 +432,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "sw_arch": arch
             })
 
-            logger.info(f"Added user repo entry: {name}")
+            logger.info(f"Added user repo entry: {sw_name}")
 
     # Handle RHEL repositories (includes subscription-based repos)
     for arch, repo_list in rhel_repo_entry.items():
@@ -345,12 +444,16 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            caching_given = url_.get("caching", True)
+            caching_given = url_.get("caching", repo_config != "always")
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
 
             logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
+            logger.info(f"RHEL SSL paths: ca_cert={ca_cert}, client_key={client_key}, client_cert={client_cert}")
+            logger.info(f"RHEL SSL files exist: ca_cert={os.path.exists(ca_cert) if ca_cert else 'N/A'}, "
+                         f"client_key={os.path.exists(client_key) if client_key else 'N/A'}, "
+                         f"client_cert={os.path.exists(client_cert) if client_cert else 'N/A'}")
 
             for path in [ca_cert, client_key, client_cert]:
                 mode = "decrypt"
@@ -368,8 +471,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             # if not is_remote_url_reachable(url):
             #     return url, False
 
+            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
             parsed_repos.append({
-                "package": name,
+                "package": sw_name,
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "null",
                 "version": "null",
@@ -379,7 +483,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "policy": policy,
                 "sw_arch": arch
             })
-            logger.info(f"Added RHEL repo entry: {name}")
+            logger.info(f"Added RHEL repo entry: {sw_name}")
 
     # Handle OMNIA repositories
     seen_urls = set()
@@ -393,7 +497,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             url = repo.get("url", "")
             gpgkey = repo.get("gpgkey", "")
             policy_given = repo.get("policy", repo_config)
-            caching_given = repo.get("caching", True)
+            caching_given = repo.get("caching", repo_config != "always")
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
@@ -436,7 +540,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 except Exception:
                     rendered_gpgkey = gpgkey  # fallback to original
 
-            sw_name = f"{arch}_{name}"
+            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
             version = "null"
             for var in template_vars_url:
                 if var in version_variables:
@@ -451,7 +555,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "policy": policy,
                 "sw_arch": arch
             })
-            logger.info(f"Added OMNIA repo entry: {arch}_{name}")
+            logger.info(f"Added OMNIA repo entry: {sw_name}")
 
     logger.info(f"Successfully parsed {len(parsed_repos)} repository entries.")
     return parsed_repos, True
@@ -527,7 +631,7 @@ def get_csv_software(file_name):
     if not os.path.isfile(file_name):
         return csv_software
 
-    with open(file_name, mode='r') as csv_file:
+    with open(file_name, mode='r', encoding='utf-8') as csv_file:
         reader = csv.DictReader(csv_file)
         csv_software = [row.get(CSV_COLUMNS["column1"], "").strip()
                         for row in reader]
@@ -550,7 +654,7 @@ def get_failed_software(file_path):
     if not os.path.isfile(file_path):
         return failed_software
 
-    with open(file_path, mode='r') as csv_file:
+    with open(file_path, mode='r', encoding='utf-8') as csv_file:
         reader = csv.DictReader(csv_file)
         failed_software = [
             str(row.get(CSV_COLUMNS["column1"]) or "").strip()
@@ -750,7 +854,17 @@ def check_csv_existence(path):
 
 def read_status_csv(csv_path):
     """Reads the status.csv file and returns a list of row dictionaries."""
-    with open(csv_path, mode='r', newline='') as file:
+    # Ensure file has valid header before reading
+    if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+            if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
+                # Header missing or invalid - prepend header to existing data
+                with open(csv_path, 'w', encoding='utf-8') as wfile:
+                    wfile.write(STATUS_CSV_HEADER)
+                    wfile.writelines(lines)
+
+    with open(csv_path, mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         return [row for row in reader]
 
@@ -865,7 +979,7 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
     return combined, failed_packages
 
 def get_software_names(json_file_path):
-    with open(json_file_path, "r") as f:
+    with open(json_file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     softwares = data.get("softwares", [])

@@ -12,60 +12,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Domain entities for ValidateImageOnTest module."""
+"""Domain entities for Validate module."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict
-
-from core.localrepo.value_objects import ExecutionTimeout, ExtraVars, PlaybookPath
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
-class ValidateImageOnTestRequest:
-    """Immutable entity representing a validate-image-on-test request.
+class ValidateRequest:
+    """Immutable entity representing a validate stage request.
 
-    Written to the NFS queue for OIM Core consumption.
-    Compatible with PlaybookRequest interface for reuse of existing repository.
+    Written to the NFS queue for the Playbook Watcher to consume.
+    Uses command_type 'test_automation' to distinguish from ansible-playbook requests.
 
     Attributes:
-        job_id: Parent job identifier.
-        stage_name: Stage identifier (validate-image-on-test).
-        playbook_path: Validated path to the discovery playbook.
-        extra_vars: Ansible extra variables (includes job_id).
+        request_id: Unique request identifier (validate_{job_id}_{timestamp}).
+        job_id: Parent job identifier (UUID).
+        stage_type: Stage identifier ('validate').
+        command_type: Command type ('test_automation') — distinguishes from 'ansible-playbook'.
+        scenario_names: Test scenarios to run (e.g. ['discovery'], ['all']).
+        test_suite: Optional suite filter (e.g. 'smoke', 'sanity', 'regression').
+        timeout_minutes: Max execution time in minutes.
+        artifact_dir: Path for test artifacts output.
+        config_path: Path to omnia_test_config.yml.
         correlation_id: Request tracing identifier.
-        timeout: Execution timeout configuration.
-        submitted_at: Request submission timestamp.
-        request_id: Unique request identifier.
+        submitted_at: Request submission timestamp (ISO 8601).
+        attempt: Attempt number for this validate stage.
     """
 
-    job_id: str
-    stage_name: str
-    playbook_path: PlaybookPath
-    extra_vars: ExtraVars
-    correlation_id: str
-    timeout: ExecutionTimeout
-    submitted_at: str
     request_id: str
+    job_id: str
+    stage_type: str = "validate"
+    command_type: str = "test_automation"
+    scenario_names: List[str] = field(default_factory=lambda: ["all"])
+    test_suite: str = ""
+    timeout_minutes: int = 120
+    artifact_dir: str = ""
+    config_path: str = "/opt/omnia/automation/omnia_test_config.yml"
+    correlation_id: str = ""
+    submitted_at: str = ""
+    attempt: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
         return {
-            "job_id": self.job_id,
-            "stage_name": self.stage_name,
-            "playbook_path": str(self.playbook_path),
-            "extra_vars": self.extra_vars.to_dict(),
-            "correlation_id": self.correlation_id,
-            "timeout_minutes": self.timeout.minutes,
-            "submitted_at": self.submitted_at,
             "request_id": self.request_id,
+            "job_id": self.job_id,
+            "stage_type": self.stage_type,
+            "command_type": self.command_type,
+            "scenario_names": self.scenario_names,
+            "test_suite": self.test_suite,
+            "timeout_minutes": self.timeout_minutes,
+            "artifact_dir": self.artifact_dir,
+            "config_path": self.config_path,
+            "correlation_id": self.correlation_id,
+            "submitted_at": self.submitted_at,
+            "attempt": self.attempt,
         }
 
     def generate_filename(self) -> str:
         """Generate request file name following naming convention.
 
         Returns:
-            Filename: {job_id}_{stage_name}_{timestamp}.json
+            Filename: {job_id}_{stage_type}_{timestamp}.json
         """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        return f"{self.job_id}_{self.stage_name}_{timestamp}.json"
+        return f"{self.job_id}_{self.stage_type}_{timestamp}.json"

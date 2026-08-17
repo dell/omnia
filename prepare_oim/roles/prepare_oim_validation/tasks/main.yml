@@ -30,3 +30,6 @@
 
 - name: Check openldap support
   ansible.builtin.include_tasks: check_openldap_support.yml
+
+- name: Check powerscale endpoint
+  ansible.builtin.include_tasks: powerscale_check.yml

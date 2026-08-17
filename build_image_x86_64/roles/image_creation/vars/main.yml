@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.1"
+pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.2"
 x86_64_local_tag: "x86_64-image-builder/ochami"
-pull_image_retries: "3"
+pull_image_retries: "5"
 pull_image_delay: "10"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
-openchami_dir: "/opt/omnia/openchami"
-openchami_clone_path: /opt/omnia/openchami/deployment-recipes
-job_retry: "120"
+pulp_cert_host_path: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
+job_retry: "240"
 job_delay: "30"
-network_spec: "{{ input_project_dir }}/network_spec.yml"
+job_async: "7200"
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
@@ -44,19 +43,37 @@ ochami_base_command:
   - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
 
 # build_base_image.yml
-openchami_log_dir: /opt/omnia/log/openchami
-openchami_x86_64_base_image_log_path: "{{ openchami_log_dir }}/x86_64_base_image.log"
-openchami_base_image_vars_template: "{{ role_path }}/templates/base_image_template.j2"
-openchami_x86_64_base_image_vars_path: "/opt/omnia/openchami/x86_64_base_image_template.yaml"
+openchami_log_dir: "{{ oim_shared_path }}/omnia/log/openchami"
+openchami_x86_64_base_image_log_path: "{{ oim_shared_path }}/omnia/log/openchami/x86_64_base_image.log"
+# build_base_image.yml - image-build config template
+openchami_base_image_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
 base_image_failure_msg: |
   Base x86_64 image build job failed or timed out.
-  Check logs at path {{ openchami_x86_64_base_image_log_path }} for details.
+  Check logs at path {{ openchami_x86_64_base_image_log_path }} on OIM host for details.
 compute_image_failure_msg: |
   x86_64 compute image build job did not complete successfully.
-  Check logs at {{ openchami_log_dir }} for respective functional group for more details.
+  Check logs at {{ openchami_log_dir }} on OIM host for respective functional group for more details.
 
-# build_compute_image.yml
-openchami_compute_image_vars_template: "{{ role_path }}/templates/compute_images_templates.j2"
-openchami_compute_image_vars_path: "/opt/omnia/openchami/compute_images_template.yaml"
+# build_compute_image.yml - image-build config template
+openchami_compute_image_config_template: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
 
+network_spec: "{{ input_project_dir }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed to load network_spec.yml due to syntax error"
+storage_config_file_path: "{{ input_project_dir }}/storage_config.yml"
+storage_config_syntax_fail_msg: "Failed to load storage_config.yml due to syntax error"
+
+# preflight_selinux_check.yml
+selinux_module_name: "omnia-crun-bpf"
+selinux_policy_dir: "/etc/selinux/targeted/custom"
+selinux_tools_fail_msg: >-
+  Required SELinux policy build tools (policycoreutils, checkpolicy) are not installed.
+  Please run prepare_oim/prepare_oim.yml to install the required packages.
+podman_verify_fail_msg: >-
+  Podman cannot start containers on this node.
+  Ensure the node was rebooted after the kernel update and that the
+  omnia-crun-bpf SELinux module loaded successfully
+  (semodule -lfull | grep omnia-crun-bpf).
+selinux_verify_warn_msg: >-
+  WARNING: Failed to verify or load omnia-crun-bpf SELinux policy module.
+  Build will continue but may fail if the eBPF device filter issue is present.
+  Check SELinux policy tools and audit log on this node.

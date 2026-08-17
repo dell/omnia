@@ -18,28 +18,44 @@ These implement the repository Protocol ports defined in core/jobs/repositories.
 using SQLAlchemy ORM against PostgreSQL.
 """
 
-from typing import List, Optional
+from datetime import datetime, timezone
+from typing import List, Optional, Tuple
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from core.jobs.entities.audit import AuditEvent
 from core.jobs.entities.idempotency import IdempotencyRecord
 from core.jobs.entities.job import Job
 from core.jobs.entities.stage import Stage
 from core.jobs.exceptions import OptimisticLockError
-from core.jobs.value_objects import IdempotencyKey, JobId, StageName
+from core.jobs.value_objects import IdempotencyKey, JobId, StageName, StageType
 from core.artifacts.ports import ArtifactMetadataRepository
 from core.artifacts.entities import ArtifactRecord, ArtifactRef, ArtifactKind
 from core.artifacts.value_objects import ArtifactKey, ArtifactDigest
+from core.image_group.entities import ImageGroup, Image
+from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
+from core.image_group.repositories import (
+    ImageGroupRepository,
+    ImageRepository,
+)
 from .mappers import (
     AuditEventMapper,
     IdempotencyRecordMapper,
+    ImageGroupMapper,
+    ImageMapper,
     JobMapper,
     StageMapper,
 )
-from .models import AuditEventModel, IdempotencyKeyModel, JobModel, StageModel
+from .models import (
+    AuditEventModel,
+    IdempotencyKeyModel,
+    ImageGroupModel,
+    ImageModel,
+    JobModel,
+    StageModel,
+)
 
 
 class SqlJobRepository:
@@ -170,6 +186,7 @@ class SqlStageRepository:
             existing.error_code = stage.error_code
             existing.error_summary = stage.error_summary
             existing.log_file_path = stage.log_file_path
+            existing.result_detail = stage.result_detail
             existing.version = stage.version
         else:
             stage_model = StageMapper.to_orm(stage)
@@ -229,9 +246,13 @@ class SqlStageRepository:
         Returns:
             List of stage entities (may be empty).
         """
+        valid_names = [st.value for st in StageType]
         stmt = (
             select(StageModel)
-            .where(StageModel.job_id == str(job_id))
+            .where(
+                StageModel.job_id == str(job_id),
+                StageModel.stage_name.in_(valid_names),
+            )
             .order_by(StageModel.stage_name)
         )
         stage_models = self.session.execute(stmt).scalars().all()
@@ -419,3 +440,268 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
             content_type=db_record.content_type,
             tags=db_record.tags or {},
         )
+
+
+class SqlImageGroupRepository(ImageGroupRepository):
+    """SQL implementation of ImageGroupRepository.
+
+    Uses synchronous SQLAlchemy Session (per existing codebase convention).
+    """
+
+    def __init__(self, session: Session):
+        """Initialize repository with database session.
+
+        Args:
+            session: SQLAlchemy session for database operations.
+        """
+        self.session = session
+
+    def save(self, image_group: ImageGroup) -> None:
+        """Persist a new ImageGroup record.
+
+        Args:
+            image_group: ImageGroup entity to persist.
+        """
+        model = ImageGroupMapper.to_orm(image_group)
+        self.session.add(model)
+        self.session.flush()
+
+    def find_by_id(self, image_group_id: ImageGroupId) -> Optional[ImageGroup]:
+        """Find ImageGroup by its catalog ID.
+
+        Args:
+            image_group_id: Catalog identifier.
+
+        Returns:
+            ImageGroup if found, None otherwise.
+        """
+        model = self.session.get(ImageGroupModel, str(image_group_id))
+        if model is None:
+            return None
+        return ImageGroupMapper.to_domain(model)
+
+    def find_by_job_id(self, job_id: JobId) -> Optional[ImageGroup]:
+        """Find ImageGroup by associated Job ID (1:1 mapping).
+
+        Args:
+            job_id: Associated job identifier.
+
+        Returns:
+            ImageGroup if found, None otherwise.
+        """
+        stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.job_id == str(job_id))
+            .options(selectinload(ImageGroupModel.images))
+        )
+        result = self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        return ImageGroupMapper.to_domain(model)
+
+    def find_by_job_id_for_update(self, job_id: JobId) -> Optional[ImageGroup]:
+        """SELECT FOR UPDATE — holds row lock for transaction duration.
+
+        Args:
+            job_id: Associated job identifier.
+
+        Returns:
+            ImageGroup if found, None otherwise.
+        """
+        stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.job_id == str(job_id))
+            .with_for_update()
+            .options(selectinload(ImageGroupModel.images))
+        )
+        result = self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        return ImageGroupMapper.to_domain(model)
+
+    def update_status(
+        self, image_group_id: ImageGroupId, new_status: ImageGroupStatus
+    ) -> None:
+        """Update ImageGroup status and updated_at timestamp.
+
+        Args:
+            image_group_id: Identifier of the ImageGroup.
+            new_status: Target status.
+        """
+        model = self.session.get(ImageGroupModel, str(image_group_id))
+        if model:
+            model.status = new_status.value
+            model.updated_at = datetime.now(timezone.utc)
+            self.session.flush()
+
+    def list_by_status(
+        self, status: ImageGroupStatus, limit: int, offset: int
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups by status with pagination.
+
+        Args:
+            status: Filter by this status.
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            Tuple of (image_groups_with_images, total_count).
+        """
+        # Count query
+        count_stmt = (
+            select(func.count())
+            .select_from(ImageGroupModel)
+            .where(ImageGroupModel.status == status.value)
+        )
+        total_count = self.session.execute(count_stmt).scalar()
+
+        # Data query with eager-loaded images
+        data_stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.status == status.value)
+            .options(selectinload(ImageGroupModel.images))
+            .order_by(ImageGroupModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = self.session.execute(data_stmt)
+        models = result.scalars().unique().all()
+
+        return [ImageGroupMapper.to_domain(m) for m in models], total_count
+
+    def list_post_built(
+        self, limit: int, offset: int
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups in all post-BUILT states with pagination.
+
+        Returns image groups with status >= BUILT (BUILT, DEPLOYING, DEPLOYED,
+        RESTARTING, RESTARTED, VALIDATING, PASSED, FAILED).
+
+        Args:
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            Tuple of (image_groups_with_images, total_count).
+        """
+        # All post-BUILT states
+        post_built_states = [
+            ImageGroupStatus.BUILT.value,
+            ImageGroupStatus.DEPLOYING.value,
+            ImageGroupStatus.DEPLOYED.value,
+            ImageGroupStatus.RESTARTING.value,
+            ImageGroupStatus.RESTARTED.value,
+            ImageGroupStatus.VALIDATING.value,
+            ImageGroupStatus.PASSED.value,
+            ImageGroupStatus.FAILED.value,
+        ]
+
+        # Count query
+        count_stmt = (
+            select(func.count())
+            .select_from(ImageGroupModel)
+            .where(ImageGroupModel.status.in_(post_built_states))
+        )
+        total_count = self.session.execute(count_stmt).scalar()
+
+        # Data query with eager-loaded images
+        data_stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.status.in_(post_built_states))
+            .options(selectinload(ImageGroupModel.images))
+            .order_by(ImageGroupModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = self.session.execute(data_stmt)
+        models = result.scalars().unique().all()
+
+        return [ImageGroupMapper.to_domain(m) for m in models], total_count
+
+    def exists(self, image_group_id: ImageGroupId) -> bool:
+        """Check if an ImageGroup with the given ID exists.
+
+        Args:
+            image_group_id: Identifier to check.
+
+        Returns:
+            True if exists, False otherwise.
+        """
+        stmt = select(ImageGroupModel.id).where(
+            ImageGroupModel.id == str(image_group_id)
+        )
+        result = self.session.execute(stmt).first()
+        return result is not None
+
+    def count_non_cleaned(self) -> int:
+        """Count ImageGroups whose status is not CLEANED.
+
+        Used by the build-image stage guard to enforce the retention
+        limit.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(ImageGroupModel)
+            .where(
+                ImageGroupModel.status
+                != ImageGroupStatus.CLEANED.value
+            )
+        )
+        return self.session.execute(stmt).scalar() or 0
+
+    def list_by_status_all(
+        self, status: ImageGroupStatus
+    ) -> List[ImageGroup]:
+        """List all ImageGroups with the given status (no pagination)."""
+        stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.status == status.value)
+            .options(selectinload(ImageGroupModel.images))
+            .order_by(ImageGroupModel.created_at.asc())
+        )
+        result = self.session.execute(stmt)
+        models = result.scalars().unique().all()
+        return [ImageGroupMapper.to_domain(m) for m in models]
+
+
+class SqlImageRepository(ImageRepository):
+    """SQL implementation of ImageRepository."""
+
+    def __init__(self, session: Session):
+        """Initialize repository with database session.
+
+        Args:
+            session: SQLAlchemy session for database operations.
+        """
+        self.session = session
+
+    def save_batch(self, images: List[Image]) -> None:
+        """Persist multiple Image records in a single operation.
+
+        Args:
+            images: List of Image entities to persist.
+        """
+        for img in images:
+            model = ImageMapper.to_orm(img)
+            self.session.add(model)
+        self.session.flush()
+
+    def find_by_image_group_id(
+        self, image_group_id: ImageGroupId
+    ) -> List[Image]:
+        """Find all Images belonging to an ImageGroup.
+
+        Args:
+            image_group_id: Parent ImageGroup identifier.
+
+        Returns:
+            List of Image entities (may be empty).
+        """
+        stmt = (
+            select(ImageModel)
+            .where(ImageModel.image_group_id == str(image_group_id))
+        )
+        result = self.session.execute(stmt)
+        return [ImageMapper.to_domain(m) for m in result.scalars().all()]

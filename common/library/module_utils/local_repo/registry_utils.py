@@ -35,8 +35,8 @@ def is_https(host, timeout=1):
     port = int(port)
 
     context = ssl.create_default_context()
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
+    context.check_hostname = False  # NOSONAR - TLS capability probe requires unverified connection
+    context.verify_mode = ssl.CERT_NONE  # NOSONAR - TLS capability probe requires unverified connection
 
     result = False
     sock = None

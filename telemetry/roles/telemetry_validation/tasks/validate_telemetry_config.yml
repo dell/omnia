@@ -24,6 +24,23 @@
     msg: "{{ fail_msg_telemetry_config_file }}"
   when: not stat_result.stat.exists
 
+- name: Check if telemetry_storage_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/telemetry_storage_config.yml"
+  register: storage_config_stat
+
+- name: Fail if telemetry_storage_config.yml file doesn't exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_telemetry_storage_config_file }}"
+  when: not storage_config_stat.stat.exists
+
+- name: Load telemetry storage configuration (optional)
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/telemetry_storage_config.yml"
+  failed_when: false
+  register: include_telemetry_storage_config
+  no_log: true
+
 - name: Include variable file telemetry_config.yml
   block:
     - name: Include variable file telemetry_config.yml
@@ -40,18 +57,18 @@
   register: include_metadata
   no_log: true
 
-- name: Set support values
+- name: Map telemetry_sources to legacy feature flags
   ansible.builtin.set_fact:
-    idrac_telemetry_support: "{{ idrac_telemetry_support | lower }}"
+    idrac_telemetry_support: "{{ telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
 
-- name: Warning for idrac_telemetry_support is currently set to false
+- name: Warning for iDRAC telemetry is currently disabled
   ansible.builtin.pause:
     seconds: "{{ pause_time_15 }}"
     prompt: "{{ warning_idrac_telemetry_support_false }}"
-  when: not idrac_telemetry_support
+  when: not (idrac_telemetry_support | bool)
 
-- name: Warning for idrac_telemetry_support is currently set to true
+- name: Warning for iDRAC telemetry is currently enabled
   ansible.builtin.pause:
     seconds: "{{ pause_time_15 }}"
     prompt: "{{ warning_idrac_telemetry_support_true }}"
-  when: idrac_telemetry_support
+  when: idrac_telemetry_support | bool

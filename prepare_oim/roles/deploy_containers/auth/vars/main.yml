@@ -23,14 +23,14 @@ openldap_ports:
   - 636
 wait_time: 10
 auth_service_image_name: omnia_auth
-auth_service_image_tag: "1.0"
+auth_service_image_tag: "1.1"
 auth_service_registry: "docker.io/dellhpcomniaaisolution"
 auth_service_container_name: omnia_auth
 auth_service_image_pull_fail_msg:
   - The pull of the auth service image {{ auth_service_image_name }}:{{ auth_service_image_tag }} has failed.
   - "ERROR: {{ auth_service_image_name }}:{{ auth_service_image_tag }} not found locally or on Docker Hub."
   - To resolve this, please follow these steps
-  - Clone the Omnia Artifactory repository
+  - Clone the Omnia Containers repository
   - git clone https://github.com/dell/omnia-containers -b omnia-container
   - Navigate to the repository directory and Build the auth image locally
   - ./build_images.sh auth

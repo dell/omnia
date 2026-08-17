@@ -14,29 +14,56 @@
 
 """Performance tests for Local Repository API."""
 
+# pylint: disable=import-outside-toplevel,too-many-arguments,too-many-positional-arguments,too-many-locals,unused-argument,import-error,no-else-return,line-too-long,unused-import
+
 import time
-import uuid
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from tests.integration.api.local_repo.conftest import setup_input_files
-
 # Import fixtures needed for performance tests
-pytest_plugins = ["tests.integration.api.local_repo.conftest"]
+pytest_plugins = ["tests.unit.api.local_repo.conftest"]
 
 
 class TestLocalRepoPerformance:
     """Performance tests for create local repository API."""
 
     @pytest.mark.performance
-    def test_response_time_under_threshold(self, client, auth_headers, created_job, nfs_queue_dir, input_dir):
+    def test_response_time_under_threshold(self, client, auth_headers, created_job, nfs_queue_dir, input_dir, monkeypatch):
         """Test that API response time is under acceptable threshold."""
         # Create actual input directory for this test
         input_dir_for_job = input_dir / created_job / "input"
         input_dir_for_job.mkdir(parents=True, exist_ok=True)
         (input_dir_for_job / "test.txt").write_text("test content")
+
+        # Mock stage repository to make upstream generate-input-files stage appear completed
+        from core.jobs.entities import Stage
+        from core.jobs.value_objects import JobId, StageName, StageState, StageType
+        from container import container
+
+        def mock_find_by_job_and_name(self, job_id, stage_name):
+            job_id_str = str(job_id)
+            if stage_name.value == StageType.GENERATE_INPUT_FILES.value:
+                return Stage(
+                    job_id=JobId(job_id_str),
+                    stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
+                    stage_state=StageState.COMPLETED,
+                    attempt=1
+                )
+            elif stage_name.value == StageType.CREATE_LOCAL_REPOSITORY.value:
+                return Stage(
+                    job_id=JobId(job_id_str),
+                    stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
+                    stage_state=StageState.PENDING,
+                    attempt=1
+                )
+            return None
+
+        monkeypatch.setattr(
+            container.stage_repository().__class__,
+            "find_by_job_and_name",
+            mock_find_by_job_and_name
+        )
 
         with patch(
             "infra.repositories.nfs_input_repository"
@@ -68,12 +95,41 @@ class TestLocalRepoPerformance:
             assert response_time < 5.0, f"Response time {response_time}s exceeds threshold of 5.0s"
 
     @pytest.mark.performance
-    def test_concurrent_requests_performance(self, client, auth_headers, created_job, nfs_queue_dir, input_dir):
+    def test_concurrent_requests_performance(self, client, auth_headers, created_job, nfs_queue_dir, input_dir, monkeypatch):
         """Test performance under concurrent load."""
         # Create actual input directory for this test
         input_dir_for_job = input_dir / created_job / "input"
         input_dir_for_job.mkdir(parents=True, exist_ok=True)
         (input_dir_for_job / "test.txt").write_text("test content")
+
+        # Mock stage repository to make upstream generate-input-files stage appear completed
+        from core.jobs.entities import Stage
+        from core.jobs.value_objects import JobId, StageName, StageState, StageType
+        from container import container
+
+        def mock_find_by_job_and_name(self, job_id, stage_name):
+            job_id_str = str(job_id)
+            if stage_name.value == StageType.GENERATE_INPUT_FILES.value:
+                return Stage(
+                    job_id=JobId(job_id_str),
+                    stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
+                    stage_state=StageState.COMPLETED,
+                    attempt=1
+                )
+            elif stage_name.value == StageType.CREATE_LOCAL_REPOSITORY.value:
+                return Stage(
+                    job_id=JobId(job_id_str),
+                    stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
+                    stage_state=StageState.PENDING,
+                    attempt=1
+                )
+            return None
+
+        monkeypatch.setattr(
+            container.stage_repository().__class__,
+            "find_by_job_and_name",
+            mock_find_by_job_and_name
+        )
 
         with patch(
             "infra.repositories.nfs_input_repository"
@@ -179,7 +235,7 @@ class TestLocalRepoPerformance:
             assert memory_increase < 100 * 1024 * 1024, f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
 
     @pytest.mark.performance
-    def test_large_correlation_id_handling(self, client, auth_headers, created_job, nfs_queue_dir, input_dir):
+    def test_large_correlation_id_handling(self, client, auth_headers, created_job, nfs_queue_dir, input_dir, monkeypatch):
         """Test performance with large correlation IDs."""
         # Create actual input directory for this test
         input_dir_for_job = input_dir / created_job / "input"
@@ -188,6 +244,35 @@ class TestLocalRepoPerformance:
 
         # Create very large correlation ID (but still reasonable)
         large_correlation_id = "x" * 1000  # Reduced from 10000
+
+        # Mock stage repository to make upstream generate-input-files stage appear completed
+        from core.jobs.entities import Stage
+        from core.jobs.value_objects import JobId, StageName, StageState, StageType
+        from container import container
+
+        def mock_find_by_job_and_name(self, job_id, stage_name):
+            job_id_str = str(job_id)
+            if stage_name.value == StageType.GENERATE_INPUT_FILES.value:
+                return Stage(
+                    job_id=JobId(job_id_str),
+                    stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
+                    stage_state=StageState.COMPLETED,
+                    attempt=1
+                )
+            elif stage_name.value == StageType.CREATE_LOCAL_REPOSITORY.value:
+                return Stage(
+                    job_id=JobId(job_id_str),
+                    stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
+                    stage_state=StageState.PENDING,
+                    attempt=1
+                )
+            return None
+
+        monkeypatch.setattr(
+            container.stage_repository().__class__,
+            "find_by_job_and_name",
+            mock_find_by_job_and_name
+        )
 
         with patch(
             "infra.repositories.nfs_input_repository"

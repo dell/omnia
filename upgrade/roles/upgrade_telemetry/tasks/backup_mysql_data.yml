@@ -1,0 +1,244 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Backup MySQL Data (Pre-Upgrade)
+# ============================================================================
+# Performs a logical backup (mysqldump) of the idrac-telemetry MySQL database
+# for ALL pods before the upgrade changes the MySQL version. Each pod has its
+# own independent MySQL instance with its own PVC, so backups are taken
+# per-pod to ensure no data loss.
+#
+# Why this is needed:
+#   MySQL only allows downgrades between patch versions (e.g., 9.3.1 -> 9.3.0).
+#   Minor/major version downgrades (e.g., 9.7.2 -> 9.3.0) are rejected because
+#   MySQL upgrades the internal data format on disk. When etcd rollback restores
+#   the old StatefulSet spec (with the old MySQL image), the new-format data on
+#   the PVC causes MySQL to crash with:
+#     [ERROR] [MY-014061] Cannot downgrade from 90702 to 90300.
+#
+# This task creates per-pod mysqldumps that can be restored into fresh MySQL
+# instances at the old version, preserving all schema and data for every pod.
+#
+# NOTE: Failures in this task do NOT block the upgrade. The rollback playbook
+#       can handle the downgrade even without a backup (by wiping the PVC and
+#       letting MySQL reinitialize), but data will be lost in that case.
+# ============================================================================
+
+- name: Backup idrac-telemetry MySQL data (pre-upgrade)
+  when:
+    - kube_vip is defined
+    - kube_vip | length > 0
+    - k8s_client_mount_path is defined
+  block:
+    # ── Check if idrac-telemetry StatefulSet exists ──
+    - name: Check if idrac-telemetry StatefulSet exists
+      ansible.builtin.command:
+        cmd: kubectl get statefulset idrac-telemetry -n {{ telemetry_namespace }} --no-headers
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: idrac_sts_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Skip MySQL backup if idrac-telemetry not deployed
+      ansible.builtin.debug:
+        msg: "{{ mysql_backup_skip_msg }}"
+      when: idrac_sts_exists.rc != 0
+
+    # ── Perform MySQL backup for all pods ──
+    - name: Perform MySQL logical backup
+      when: idrac_sts_exists.rc == 0
+      block:
+        - name: Create MySQL backup directory on NFS
+          ansible.builtin.file:
+            path: "{{ mysql_backup_dir }}"
+            state: directory
+            mode: '0755'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+
+        # Get the MySQL root password from the K8s secret
+        - name: Get MySQL root password from secret
+          ansible.builtin.shell:
+            cmd: |
+              set -o pipefail
+              kubectl get secret {{ mysqldb_secrets_name }} -n {{ telemetry_namespace }} \
+                -o jsonpath='{.data.mysqldb_root_password}' | base64 -d
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_root_password
+          changed_when: false
+          no_log: true
+
+        # Get the current MySQL image version (for metadata)
+        - name: Get current MySQL image version
+          ansible.builtin.shell:
+            cmd: >
+              kubectl get statefulset idrac-telemetry -n {{ telemetry_namespace }}
+              -o jsonpath='{.spec.template.spec.containers[?(@.name=="mysqldb")].image}'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: current_mysql_image
+          changed_when: false
+
+        # Discover all running idrac-telemetry pods
+        - name: Get current replica count from StatefulSet
+          ansible.builtin.shell:
+            cmd: >
+              kubectl get statefulset idrac-telemetry -n {{ telemetry_namespace }}
+              -o jsonpath='{.spec.replicas}'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_backup_replica_count_raw
+          changed_when: false
+
+        - name: Set replica count for backup
+          ansible.builtin.set_fact:
+            mysql_backup_replica_count: "{{ mysql_backup_replica_count_raw.stdout | default('1') | int }}"
+
+        - name: Build list of pod names for backup
+          ansible.builtin.set_fact:
+            mysql_backup_pod_list: >-
+              {{ range(0, mysql_backup_replica_count | int)
+                 | map('regex_replace', '^(.*)$', 'idrac-telemetry-\1')
+                 | list }}
+
+        - name: Display pods to backup
+          ansible.builtin.debug:
+            msg: "{{ mysql_backup_pods_discovered_msg }}"
+
+        # Wait for MySQL to be ready on each pod before dumping
+        - name: Wait for MySQL container to be ready on each pod
+          ansible.builtin.shell:
+            cmd: |
+              kubectl exec {{ item }} -n {{ telemetry_namespace }} -c mysqldb -- \
+                mysqladmin ping -u root -p'{{ mysql_root_password.stdout }}' 2>/dev/null
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysql_ping_results
+          until: mysql_ping_results.rc == 0
+          retries: 12
+          delay: 10
+          changed_when: false
+          no_log: true
+          loop: "{{ mysql_backup_pod_list }}"
+
+        # Perform mysqldump per pod (plaintext, temporary)
+        - name: Execute mysqldump for each pod
+          ansible.builtin.shell:
+            cmd: |
+              kubectl exec {{ item }} -n {{ telemetry_namespace }} -c mysqldb -- \
+                mysqldump -u root -p'{{ mysql_root_password.stdout }}' \
+                --single-transaction --routines --triggers --events \
+                --set-gtid-purged=OFF \
+                idrac_telemetrydb 2>/dev/null \
+                > {{ mysql_backup_dir }}/{{ mysql_backup_filename_prefix }}{{ loop_index0 }}.sql
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysqldump_results
+          changed_when: true
+          no_log: true
+          loop: "{{ mysql_backup_pod_list }}"
+          loop_control:
+            index_var: loop_index0
+
+        # Verify and encrypt each dump file
+        - name: Verify plaintext mysqldump files were created
+          ansible.builtin.stat:
+            path: "{{ mysql_backup_dir }}/{{ mysql_backup_filename_prefix }}{{ item }}.sql"
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: mysqldump_file_stats
+          loop: "{{ range(0, mysql_backup_replica_count | int) | list }}"
+
+        - name: Warn about empty or missing mysqldump files
+          ansible.builtin.debug:
+            msg: "{{ mysql_backup_failed_msg }} Pod index: {{ item.item }}"
+          when: not (item.stat.exists | default(false)) or (item.stat.size | default(0)) < 100
+          loop: "{{ mysqldump_file_stats.results }}"
+          loop_control:
+            label: "pod-{{ item.item }}"
+
+        # Encrypt each dump file
+        - name: Encrypt mysqldump backup files
+          ansible.builtin.shell:
+            cmd: |
+              openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
+                -in {{ mysql_backup_dir }}/{{ mysql_backup_filename_prefix }}{{ item.item }}.sql \
+                -out {{ mysql_backup_dir }}/{{ mysql_backup_filename_prefix }}{{ item.item }}.sql.enc \
+                -pass pass:'{{ mysql_root_password.stdout }}'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          changed_when: true
+          no_log: true
+          when: (item.stat.exists | default(false)) and (item.stat.size | default(0)) >= 100
+          loop: "{{ mysqldump_file_stats.results }}"
+          loop_control:
+            label: "pod-{{ item.item }}"
+
+        - name: Remove plaintext mysqldump files
+          ansible.builtin.file:
+            path: "{{ mysql_backup_dir }}/{{ mysql_backup_filename_prefix }}{{ item.item }}.sql"
+            state: absent
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          when: (item.stat.exists | default(false)) and (item.stat.size | default(0)) >= 100
+          loop: "{{ mysqldump_file_stats.results }}"
+          loop_control:
+            label: "pod-{{ item.item }}"
+
+        - name: Verify encrypted backup files exist
+          ansible.builtin.stat:
+            path: "{{ mysql_backup_dir }}/{{ mysql_backup_filename_prefix }}{{ item }}.sql.enc"
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          register: encrypted_backup_file_stats
+          loop: "{{ range(0, mysql_backup_replica_count | int) | list }}"
+
+        - name: Count successful backups
+          ansible.builtin.set_fact:
+            mysql_backup_success_count: >-
+              {{ encrypted_backup_file_stats.results
+                 | selectattr('stat.exists', 'equalto', true)
+                 | list | length }}
+
+        # Save metadata about the backup
+        - name: Save MySQL backup metadata
+          ansible.builtin.copy:
+            content: |
+              # MySQL backup metadata (pre-upgrade)
+              backup_timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              mysql_image: "{{ current_mysql_image.stdout }}"
+              database: "idrac_telemetrydb"
+              replica_count: {{ mysql_backup_replica_count }}
+              encrypted: true
+              backup_filename_prefix: "{{ mysql_backup_filename_prefix }}"
+              pods_backed_up: {{ mysql_backup_pod_list }}
+              successful_backups: {{ mysql_backup_success_count }}
+            dest: "{{ mysql_backup_dir }}/{{ mysql_backup_metadata_filename }}"
+            mode: '0644'
+          delegate_to: "{{ kube_vip }}"
+          connection: ssh
+          when: mysql_backup_success_count | int > 0
+
+        - name: Display MySQL backup success
+          ansible.builtin.debug:
+            msg: "{{ mysql_backup_all_pods_success_msg }}"
+          when: mysql_backup_success_count | int > 0
+
+  rescue:
+    - name: Display MySQL backup warning (non-fatal)
+      ansible.builtin.debug:
+        msg: "{{ mysql_backup_rescue_msg }}"

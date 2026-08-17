@@ -38,24 +38,50 @@ _INFRA_BUNDLES = {
     "csi_driver_powerscale",
 }
 
+# All known bundle names that may carry a version suffix in the filename.
+_KNOWN_BUNDLES = _FUNCTIONAL_BUNDLES | _INFRA_BUNDLES | {
+    "default_packages", "admin_debug_packages", "openldap",
+    "openmpi", "ucx", "ldms", "nfs",
+}
+
+
+def _extract_bundle_name(filename_stem: str) -> str:
+    """Strip version suffix from a config filename stem.
+
+    Examples:
+        service_k8s_v1.35.1  -> service_k8s
+        service_k8s_1.35.1   -> service_k8s
+        service_k8s-1.35.1   -> service_k8s
+        slurm_custom         -> slurm_custom
+    """
+    # Try matching a known bundle prefix
+    for name in sorted(_KNOWN_BUNDLES, key=len, reverse=True):
+        if filename_stem == name:
+            return name
+        # version suffixed with _v, _, or -
+        if filename_stem.startswith(name) and len(filename_stem) > len(name):
+            sep = filename_stem[len(name)]
+            if sep in ('_', '-'):
+                remainder = filename_stem[len(name) + 1:]
+                # strip optional leading 'v'
+                if remainder.startswith('v'):
+                    remainder = remainder[1:]
+                # check looks like a version (digits and dots)
+                if remainder and re.match(r'^[\d]+(\.[\d]+)*$', remainder):
+                    return name
+    # Fallback: try generic regex stripping
+    stripped = re.sub(r'[-_]v?\d+(\.\d+)*$', '', filename_stem)
+    return stripped
+
 def load_json(filepath):
     """Load and return JSON from the given file path."""
     with open(filepath, 'r', encoding='utf-8') as json_file:
         return json.load(json_file)
 
 
-def _is_infra_package_name(pkg_name: str) -> bool:
-    """Return True if a package name should be considered infrastructure (CSI-related)."""
-    name = (pkg_name or "").lower()
-    has_csi_token = re.search(r'(^|[^a-z0-9])csi([^a-z0-9]|$)', name) is not None
-    has_csi_prefix = name.startswith('csi-') or '/csi-' in name or name.endswith('/csi')
-    return (
-        has_csi_token
-        or has_csi_prefix
-        or 'powerscale' in name
-        or 'snapshotter' in name
-        or 'helm-charts' in name
-    )
+# Bundle that should be included in os_* functional layers when those roles exist
+# ldms packages will populate os_x86_64 and os_aarch64 functional layers
+_OS_LAYER_BUNDLE = "ldms"
 
 def load_software_config(config_path):
     """Load software_config.json.
@@ -130,6 +156,79 @@ def _append_unique_source(pkg_sources, source):
     if source not in pkg_sources:
         pkg_sources.append(source)
 
+def _merge_package_entries(dst, src):
+    """Merge package fields from src into dst, combining sets and sources."""
+    # Merge architectures and bundles (both are sets)
+    if 'architectures' in src and src['architectures']:
+        dst.setdefault('architectures', set()).update(src['architectures'])
+    if 'bundles' in src and src['bundles']:
+        dst.setdefault('bundles', set()).update(src['bundles'])
+    # Merge sources (deduplicated)
+    for s in src.get('sources', []) or []:
+        _append_unique_source(dst.setdefault('sources', []), s)
+    # Prefer explicit tag/version/url if missing in dst
+    if not dst.get('tag') and src.get('tag'):
+        dst['tag'] = src['tag']
+    if not dst.get('version') and src.get('version'):
+        dst['version'] = src['version']
+    if not dst.get('url') and src.get('url'):
+        dst['url'] = src['url']
+
+def _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids):
+    """Generate a human-readable package ID with collision handling.
+    
+    Format: {name} (the version is stripped from the name)
+    If collision occurs, append counter: {base_id}_{counter}
+    """
+    # Extract version from package name if present (e.g., PyMySQL==1.1.2)
+    name_for_id = pkg_name
+    if '==' in pkg_name:
+        parts = pkg_name.split('==')
+        name_for_id = parts[0]
+        if not pkg_version:
+            pkg_version = parts[1]
+
+    # Try exact match removal if version is known
+    if pkg_version and isinstance(pkg_version, str):
+        # match at the end with 'v' prefixed
+        if name_for_id.endswith('v' + pkg_version):
+            name_for_id = name_for_id[:-(len(pkg_version) + 1)]
+        # exact match at the end
+        elif name_for_id.endswith(pkg_version):
+            name_for_id = name_for_id[:-len(pkg_version)]
+        # match with dots replaced by hyphens
+        elif name_for_id.endswith(pkg_version.replace('.', '-')):
+            name_for_id = name_for_id[:-len(pkg_version)]
+            
+    # Use regex to strip version-like suffixes for remaining cases
+    # Matches:
+    # 1. -v followed by digits/dots/hyphens (e.g. -v1.2.3, -v2)
+    # 2. - followed by multi-part digits (e.g. -2-16-0, -1.1.2)
+    # 3. - followed by single digit at the end (e.g. -3$)
+    # Preserves trailing non-version suffixes (e.g. -amd64, -chart)
+    version_regex = r'[-_](?:v\d+(?:[-.]\d+)*|\d+(?:[-.]\d+)+|\d+$)(?=[-_]|$)'
+    name_for_id = re.sub(version_regex, '', name_for_id)
+    
+    # Clean up trailing separators
+    name_for_id = name_for_id.rstrip('-_')
+    
+    # Build base ID
+    base_id = name_for_id
+    
+    # Handle collisions
+    if base_id not in used_ids:
+        used_ids.add(base_id)
+        return base_id
+    
+    # Collision detected - append counter
+    counter = 1
+    while True:
+        collision_id = f"{base_id}_{counter}"
+        if collision_id not in used_ids:
+            used_ids.add(collision_id)
+            return collision_id
+        counter += 1
+
 def _render_templated_url(template: str, bundle_name: str, versions_by_name: dict) -> str:
     """Render very simple Jinja-like templates used in config URLs.
 
@@ -176,8 +275,8 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
             if not file.endswith('.json'):
                 continue
 
-            # Extract bundle name from filename (e.g., 'service_k8s.json' -> 'service_k8s')
-            bundle_name = file.replace('.json', '')
+            # Extract bundle name from filename (e.g., 'service_k8s_1.35.1.json' -> 'service_k8s')
+            bundle_name = _extract_bundle_name(file.replace('.json', ''))
 
             filepath = os.path.join(root, file)
             # Extract arch from path (e.g., x86_64 or aarch64)
@@ -257,12 +356,55 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
                     elif pkg_type == 'git':
                         url = pkg.get('url', '')
                         version = pkg.get('version', '')
+                        # Use version-aware key for git packages to
+                        # avoid collisions when the same repo is
+                        # referenced with different versions/branches
+                        # across bundles (e.g. helm-charts in
+                        # service_k8s vs csi_driver_powerscale).
+                        if version:
+                            git_key = f"{pkg_name}_{pkg_type}_{version}"
+                            if git_key != key:
+                                # Always consolidate under the version-aware key
+                                if git_key in packages and key in packages:
+                                    _merge_package_entries(packages[git_key], packages.pop(key))
+                                elif key in packages:
+                                    packages[git_key] = packages.pop(key)
+                                key = git_key
+                            # Ensure fields are set on the consolidated entry
+                            packages[key]['name'] = pkg_name
+                            packages[key]['type'] = pkg_type
+                            packages[key]['architectures'].add(arch)
+                            packages[key]['bundles'].add(bundle_name)
                         packages[key]['url'] = url
                         packages[key]['version'] = version
+                        if url:
+                            _append_unique_source(
+                                packages[key]['sources'],
+                                {
+                                    'Architecture': arch,
+                                    'Uri': url
+                                }
+                            )
                     elif pkg_type == 'image':
                         tag = pkg.get('tag', '')
-                        packages[key]['tag'] = tag
-                        packages[key]['version'] = tag
+                        # Use tag-aware key for images so two entries with the same
+                        # name but different tags are treated as distinct packages.
+                        img_key = f"{pkg_name}_{pkg_type}_{tag}" if tag else f"{pkg_name}_{pkg_type}"
+                        if tag and img_key != key:
+                            # Always consolidate under the tag-aware key
+                            if img_key in packages and key in packages:
+                                _merge_package_entries(packages[img_key], packages.pop(key))
+                            elif key in packages:
+                                packages[img_key] = packages.pop(key)
+                            key = img_key
+                        # Ensure fields are set on the consolidated entry
+                        packages[key]['name'] = pkg_name
+                        packages[key]['type'] = pkg_type
+                        packages[key]['architectures'].add(arch)
+                        packages[key]['bundles'].add(bundle_name)
+                        if tag:
+                            packages[key]['tag'] = tag
+                            packages[key]['version'] = tag
 
     return packages
 
@@ -290,7 +432,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
     # Map packages to roles
     allowed_bundles = set().union(*allowed_bundles_by_arch.values())
     role_package_map, package_id_map = map_packages_to_roles(
-        packages, input_dir, allowed_bundles, bundle_roles
+        packages, input_dir, allowed_bundles, bundle_roles, pxe_groups
     )
     print("Role to package mapping: {}".format(dict(role_package_map)))
 
@@ -318,44 +460,80 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
     infra_packages = {}
     misc_package_ids = []
 
-    os_pkg_id_counter = 1
-    infra_pkg_id_counter = 1
+    # Track used IDs for collision detection across all package types
+    used_ids = set()
+    # Add functional package IDs to used_ids to avoid collisions
+    used_ids.update(package_id_map.values())
+
+    # Precompute OS-role flags
+    has_os_x86_64 = 'os_x86_64' in (pxe_groups or [])
+    has_os_aarch64 = 'os_aarch64' in (pxe_groups or [])
+    has_os_roles = has_os_x86_64 or has_os_aarch64
+
+    # Bundles whose packages are routed to OSPackages (BaseOS) even though
+    # they are not functional or infrastructure bundles.
+    _BASE_OS_BUNDLES = _KNOWN_BUNDLES - _FUNCTIONAL_BUNDLES - _INFRA_BUNDLES
 
     for key, pkg_data in packages.items():
-        pkg_name = pkg_data['name']
         bundles = set(pkg_data.get('bundles') or [])
 
-        # Determine classification using bundle membership.
-        # - Functional: service_k8s, slurm_custom, additional_packages
-        # - Infrastructure: csi_driver_powerscale (plus name-based fallback)
-        # - BaseOS: everything else
+        # Classification uses bundle membership exclusively:
+        #   Functional  = service_k8s | slurm_custom | additional_packages
+        #   Infra       = csi_driver_powerscale
+        #   OS (BaseOS) = everything that belongs to any non-functional,
+        #                 non-infra bundle (admin_debug_packages, default_packages, ...)
+        #   ldms        = both Functional (os_* layers) AND OS (adapter generates ldms.json)
         is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
-        is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
+        is_infra = bool(bundles & _INFRA_BUNDLES)
         is_misc = _MISC_BUNDLE in bundles
+        is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
+        has_base_os_bundle = bool(bundles & _BASE_OS_BUNDLES)
 
+        # --- Infrastructure ---
         if is_infra:
-            pkg_id = f"infrastructure_package_id_{infra_pkg_id_counter}"
-            infra_pkg_id_counter += 1
+            pkg_name = pkg_data['name']
+            pkg_type = pkg_data['type']
+            pkg_version = pkg_data.get('version') or pkg_data.get('tag')
+            pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             infra_packages[pkg_id] = create_infra_package_entry(pkg_data)
+            # Infra packages are exclusive; skip other sections
             continue
 
-        if is_functional:
-            # Use the package_id from package_id_map
-            if key in package_id_map:
-                pkg_id = package_id_map[key]
-                functional_packages[pkg_id] = create_package_entry(pkg_data)
-                if is_misc:
-                    misc_package_ids.append(pkg_id)
+        # --- Functional ---
+        if is_functional and key in package_id_map:
+            pkg_id = package_id_map[key]
+            functional_packages[pkg_id] = create_package_entry(pkg_data)
+            if is_misc:
+                misc_package_ids.append(pkg_id)
+
+        # --- ldms → Functional + OS when os_* roles exist ---
+        if is_os_layer_bundle and has_os_roles and key in package_id_map:
+            func_pkg_id = package_id_map[key]
+            functional_packages[func_pkg_id] = create_package_entry(pkg_data)
+            # Also add to OS so adapter_policy can generate ldms.json from base_os.json
+            pkg_name = pkg_data['name']
+            pkg_type = pkg_data['type']
+            pkg_version = pkg_data.get('version') or pkg_data.get('tag')
+            os_pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
+            os_packages[os_pkg_id] = create_package_entry(pkg_data)
             continue
 
-        pkg_id = f"os_package_id_{os_pkg_id_counter}"
-        os_pkg_id_counter += 1
-        os_packages[pkg_id] = create_package_entry(pkg_data)
+        # --- OS (BaseOS) ---
+        # A package goes to BaseOS if:
+        #   (a) it belongs to at least one non-functional, non-infra bundle, OR
+        #   (b) it does not belong to any functional or infra bundle at all
+        if has_base_os_bundle or (not is_functional and not is_infra):
+            pkg_name = pkg_data['name']
+            pkg_type = pkg_data['type']
+            pkg_version = pkg_data.get('version') or pkg_data.get('tag')
+            os_pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
+            os_packages[os_pkg_id] = create_package_entry(pkg_data)
 
-    catalog["Catalog"]["FunctionalPackages"] = functional_packages
-    catalog["Catalog"]["OSPackages"] = os_packages
+    # Sort all package dictionaries alphabetically by key
+    catalog["Catalog"]["FunctionalPackages"] = dict(sorted(functional_packages.items()))
+    catalog["Catalog"]["OSPackages"] = dict(sorted(os_packages.items()))
+    catalog["Catalog"]["InfrastructurePackages"] = dict(sorted(infra_packages.items()))
     catalog["Catalog"]["Miscellaneous"] = sorted(list(set(misc_package_ids)))
-    catalog["Catalog"]["InfrastructurePackages"] = infra_packages
 
     # Add BaseOS section
     catalog["Catalog"]["BaseOS"] = [{
@@ -372,67 +550,101 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
         }]
 
     # Build Functional Layers based on PXE mapping
-    catalog["Catalog"]["FunctionalLayer"] = build_functional_layers(
+    functional_layers = build_functional_layers(
         functional_packages, pxe_groups, role_package_map
     )
+    # Sort functional layers by Name
+    catalog["Catalog"]["FunctionalLayer"] = sorted(functional_layers, key=lambda x: x["Name"])
 
     return catalog
 
 def build_functional_layers(functional_packages, pxe_groups, role_package_map):
-    """Build FunctionalLayer based on PXE functional groups and package mappings."""
+    """Build FunctionalLayer strictly from PXE groups.
+
+    Only role+arch combinations explicitly listed in the PXE mapping file
+    get a functional layer.  For roles that have a ``_first`` variant in
+    the role_package_map, a separate ``<role>_first_<arch>`` layer is
+    also emitted – but only for architectures present in the PXE file.
+    """
     functional_layers = []
+    generated: set = set()   # track names already emitted
 
-    # Map PXE functional groups to package roles
+    # Build a map of base_role -> set of architectures from PXE groups
+    pxe_role_arches: dict[str, set] = {}
     for pxe_group in pxe_groups:
-        # Extract role name from PXE group
-        # (e.g., 'slurm_control_node_x86_64' -> 'slurm_control_node')
-        # Remove architecture suffix
         role_name = pxe_group.replace('_x86_64', '').replace('_aarch64', '')
+        pxe_arch = _extract_arch_from_pxe_group(pxe_group)
+        if pxe_arch:
+            pxe_role_arches.setdefault(role_name, set()).add(pxe_arch)
 
-        # Find packages for this role.
-        # Also merge in packages from the "<role>_first" section (e.g.,
-        # service_kube_control_plane_first) which covers first-node-only items
-        # like manifests and tarballs that are not present in the base section.
+    # ── 1. PXE-driven layers (os_* and any explicit PXE entries) ──
+    for pxe_group in pxe_groups:
+        role_name = pxe_group.replace('_x86_64', '').replace('_aarch64', '')
+        pxe_arch = _extract_arch_from_pxe_group(pxe_group)
+
         package_ids = list(role_package_map.get(role_name, []))
         first_role = role_name + "_first"
         if first_role in role_package_map:
             package_ids = sorted(set(package_ids) | set(role_package_map[first_role]))
 
-        # Filter package IDs by architecture encoded in PXE group name.
-        pxe_arch = _extract_arch_from_pxe_group(pxe_group)
         if pxe_arch:
             package_ids = [
-                pkg_id
-                for pkg_id in package_ids
-                if pkg_id in functional_packages
-                and pxe_arch in functional_packages[pkg_id].get('Architecture', [])
+                pid for pid in package_ids
+                if pid in functional_packages
+                and pxe_arch in functional_packages[pid].get('Architecture', [])
             ]
 
-        functional_layers.append({
-            "Name": pxe_group,
-            "FunctionalPackages": package_ids
-        })
+        if package_ids:
+            functional_layers.append({
+                "Name": pxe_group,
+                "FunctionalPackages": package_ids
+            })
+        generated.add(pxe_group)
+
+    # ── 2. Generate _first variant layers only if explicitly in PXE mapping ──
+    # Skip this step since PXE mapping doesn't include _first variants
+    # The adapter policy will handle _first variants during bundle expansion
 
     return functional_layers
 
-def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
+def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, pxe_groups=None):
     """Map packages to their roles based on which config section they appear in."""
     # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
     role_package_map = defaultdict(list)
     package_id_map = {}
 
-    pkg_id_counter = 1
+    # Track used IDs for collision detection
+    used_ids = set()
 
-    # First pass: assign package IDs (only for functional bundles)
+    # Check if os_x86_64 or os_aarch64 exist in PXE groups
+    has_os_roles = any(g in (pxe_groups or []) for g in ['os_x86_64', 'os_aarch64'])
+    
+    # First pass: assign package IDs (functional bundles + infra if os_* roles exist)
     for key, pkg_data in packages.items():
         pkg_name = pkg_data['name']
+        pkg_type = pkg_data['type']
         bundles = set(pkg_data.get('bundles') or [])
         is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
-        is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
+        is_infra = bool(bundles & _INFRA_BUNDLES)
 
+        # Include ldms packages in package_id_map when os_* roles exist
+        is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
+        
+        # Determine version for ID generation
+        pkg_version = None
+        if pkg_type == 'image' and pkg_data.get('tag'):
+            pkg_version = pkg_data['tag']
+        elif pkg_type == 'git' and pkg_data.get('version'):
+            pkg_version = pkg_data['version']
+        elif pkg_data.get('version'):
+            pkg_version = pkg_data['version']
+        
         if is_functional and not is_infra:
-            pkg_id = f"package_id_{pkg_id_counter}"
-            pkg_id_counter += 1
+            pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
+            package_id_map[key] = pkg_id
+        elif is_os_layer_bundle and has_os_roles:
+            # ldms packages should be added to functional packages for os_* layers
+            pkg_id = _generate_human_readable_id(pkg_name, pkg_type, pkg_version, used_ids)
             package_id_map[key] = pkg_id
 
     # Second pass: map packages to roles by scanning config files
@@ -441,12 +653,14 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
             if not file.endswith('.json'):
                 continue
 
-            bundle_name = file.replace('.json', '')
+            bundle_name = _extract_bundle_name(file.replace('.json', ''))
             if bundle_name not in allowed_bundles:
                 continue
 
-            # Only functional bundles should contribute to role-package mappings.
-            if bundle_name not in _FUNCTIONAL_BUNDLES:
+            # Functional bundles + ldms bundle (if os_* roles exist) contribute to role mappings
+            is_infra_bundle = bundle_name in _INFRA_BUNDLES
+            is_os_layer_bundle = bundle_name == _OS_LAYER_BUNDLE
+            if bundle_name not in _FUNCTIONAL_BUNDLES and not (is_os_layer_bundle and has_os_roles):
                 continue
 
             filepath = os.path.join(root, file)
@@ -462,6 +676,19 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
                     pkg_type = pkg['type']
                     key = f"{pkg_name}_{pkg_type}"
 
+                    # For git packages, use version-aware key (must
+                    # match the key used in collect_packages_from_config)
+                    if pkg_type == 'git' and pkg.get('version'):
+                        git_key = f"{pkg_name}_{pkg_type}_{pkg['version']}"
+                        if git_key in package_id_map:
+                            key = git_key
+                    # For image packages, include tag in key when present (must
+                    # match the key used in collect_packages_from_config)
+                    if pkg_type == 'image' and pkg.get('tag'):
+                        img_key = f"{pkg_name}_{pkg_type}_{pkg['tag']}"
+                        if img_key in package_id_map:
+                            key = img_key
+
                     if key in package_id_map:
                         pkg_id = package_id_map[key]
                         # Map to role(s)
@@ -469,8 +696,12 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
                         # 2) If the section name is the bundle itself (bundle_name) or "cluster",
                         #    treat these as common packages and map to all roles declared for
                         #    that bundle in software_config.json.
+                        # 3) For ldms bundle when os_* roles exist, map to 'os' role
                         if section_name not in ['cluster', bundle_name]:
                             role_package_map[section_name].append(pkg_id)
+                        elif is_os_layer_bundle and has_os_roles:
+                            # Map ldms packages to 'os' role
+                            role_package_map['os'].append(pkg_id)
                         else:
                             for role in bundle_roles.get(bundle_name, []):
                                 role_package_map[role].append(pkg_id)

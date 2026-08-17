@@ -14,11 +14,11 @@
 ---
 
 - name: Check entitlement certs
-  ansible.builtin.find:
-    paths: "{{ entitlement_path }}"
-    patterns: "*.pem"
-    file_type: file
-  register: entitlement_certs
+  ansible.builtin.shell: |
+    set -o pipefail
+    find "{{ entitlement_path }}" -maxdepth 1 -name "*.pem" -type f 2>/dev/null | wc -l
+  register: entitlement_certs_count
+  changed_when: false
   failed_when: false
 
 - name: Extract repo baseurls if redhat.repo exists
@@ -31,12 +31,20 @@
   changed_when: false
   failed_when: false
 
+- name: Check subscription-manager registration status
+  ansible.builtin.command: subscription-manager status
+  register: subscription_manager_status
+  changed_when: false
+  failed_when: false
+
 - name: Determine subscription status
   ansible.builtin.set_fact:
     subscription_status: >-
       {{
-        (entitlement_certs.matched | default(0) | int > 0)
+        (entitlement_certs_count.stdout | default('0') | trim | int > 0)
         or ((repo_urls.stdout_lines | default([])) | length > 0)
+        or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
+        or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
       }}
 
 - name: Debug subscription status
@@ -67,21 +75,33 @@
         state: directory
         mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
+    - name: Remove stale files from rhel_repo_cert_dir before fresh copy
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: absent
+
+    - name: Recreate rhel_repo_cert_dir after cleanup
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: directory
+        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
     - name: Find entitlement certs on oim
-      ansible.builtin.find:
-        paths: "{{ entitlement_path }}"
-        patterns: "*.pem"
-        file_type: file
-      register: entitlement_certs
+      ansible.builtin.shell: |
+        set -o pipefail
+        find "{{ entitlement_path }}" -maxdepth 1 -name "*.pem" -type f 2>/dev/null
+      register: entitlement_certs_paths
+      changed_when: false
+      failed_when: false
       when: subscription_status | bool
 
     - name: Copy entitlement certs to shared path
       ansible.builtin.copy:
-        src: "{{ item.path }}"
+        src: "{{ item }}"
         dest: "{{ rhel_repo_cert_dir }}"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
         remote_src: true
-      loop: "{{ entitlement_certs.files | default([]) }}"
+      loop: "{{ entitlement_certs_paths.stdout_lines | default([]) }}"
       when: subscription_status | bool
 
     - name: Copy Red Hat UEP cert
@@ -103,25 +123,45 @@
       changed_when: true
       failed_when: false
 
-    - name: Extract only RHEL baseurls (appstream, baseos, codeready-builder)
+    - name: Extract EUS baseurls (appstream, baseos, codeready-builder)
+      vars:
+        eus_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-eus-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-eus-rpms"
       ansible.builtin.shell: |
         set -o pipefail
-        awk -v ver="{{ rhel_version }}" '
+        awk '
           /^\[/ {section=$0}
-          /^baseurl/ && section ~ /(rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms)/ {
-            gsub(/\$releasever/, ver, $3)
+          /^baseurl/ && section ~ /({{ eus_pattern }})/ {
+            gsub(/\$releasever/, "{{ hostvars['localhost']['cluster_os_version'] }}", $3)
             print $3
           }
         ' {{ redhat_repo_file }}
-      register: repo_baseurls
+      register: eus_baseurls
       changed_when: false
+      failed_when: false
 
+    - name: Extract standard baseurls if EUS not found
+      vars:
+        std_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms"
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk '
+          /^\[/ {section=$0}
+          /^baseurl/ && section ~ /({{ std_pattern }})/ {
+            gsub(/\$releasever/, "{{ hostvars['localhost']['cluster_os_version'] }}", $3)
+            print $3
+          }
+        ' {{ redhat_repo_file }}
+      register: standard_baseurls
+      changed_when: false
+      when: eus_baseurls.stdout_lines | default([]) | length == 0
 
-    - name: Set fact repo baseurls with trailing slash
+    - name: Set fact repo baseurls (EUS preferred, fallback to standard)
       ansible.builtin.set_fact:
-        repo_baseurls: "{{ repo_baseurls.stdout_lines
-                          | map('regex_replace', '([^/])$', '\\1/')
-                          | list }}"
+        repo_baseurls: >-
+          {{ (eus_baseurls.stdout_lines if (eus_baseurls.stdout_lines | default([]) | length > 0)
+              else standard_baseurls.stdout_lines | default([]))
+              | map('regex_replace', '([^/])$', '\1/')
+              | list }}
 
     - name: Show extracted baseurls
       ansible.builtin.debug:

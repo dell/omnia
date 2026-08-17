@@ -26,6 +26,7 @@ from api.dependencies import (
     _create_sql_job_repo,
     _create_sql_stage_repo,
     _create_sql_audit_repo,
+    _create_sql_image_group_repo,
     _get_container,
     _ENV,
 )
@@ -38,10 +39,13 @@ from orchestrator.catalog.use_cases import ParseCatalogUseCase
 def get_parse_catalog_use_case(
     db_session: Session = Depends(get_db_session),
 ) -> ParseCatalogUseCase:
-    """Provide parse-catalog use case with shared session in prod."""
+    """Provide parse-catalog use case with shared session in prod.
+
+    Enhanced (S1-4): Now injects image_group_repo for uniqueness checking.
+    """
     if _ENV == "prod":
         from infra.db.repositories import SqlArtifactMetadataRepository
-        
+
         container = _get_container()
         return ParseCatalogUseCase(
             job_repo=_create_sql_job_repo(db_session),
@@ -50,5 +54,6 @@ def get_parse_catalog_use_case(
             artifact_store=container.artifact_store(),
             artifact_metadata_repo=SqlArtifactMetadataRepository(db_session),
             uuid_generator=container.uuid_generator(),
+            image_group_repo=_create_sql_image_group_repo(db_session),
         )
     return _get_container().parse_catalog_use_case()

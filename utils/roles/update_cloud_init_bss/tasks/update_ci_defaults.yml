@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Update cloud-init defaults configuration
+# ============================================================================
+# Sets cloud-init defaults from a pre-rendered YAML file using ochami CLI.
+# This covers the ci-defaults operation skipped during upgrade_mode.
+#
+# Required variables:
+#   ci_defaults_file_path  — Path to pre-rendered ci-defaults YAML (on target host)
+#
+# See provision/roles/configure_ochami/templates/cloud_init/ci-defaults.yaml.j2
+# ============================================================================
+
+- name: Verify ci-defaults file exists
+  ansible.builtin.stat:
+    path: "{{ ci_defaults_file_path }}"
+  register: ci_defaults_file_stat
+
+- name: Fail if ci-defaults file not found
+  ansible.builtin.fail:
+    msg: "{{ ci_defaults_file_missing_msg }}"
+  when: not ci_defaults_file_stat.stat.exists
+
+- name: Set ci-defaults configuration
+  ansible.builtin.command: >
+    /usr/bin/ochami cloud-init defaults set -f yaml -d @{{ ci_defaults_file_path }}
+  changed_when: true
+  register: ci_defaults_set_result
+
+- name: Fail if ci-defaults update failed
+  ansible.builtin.fail:
+    msg: "{{ ci_defaults_update_fail_msg }}"
+  when: ci_defaults_set_result.rc != 0
+
+- name: Verify ci-defaults configuration
+  ansible.builtin.command: /usr/bin/ochami cloud-init defaults get -F json-pretty
+  changed_when: false
+  register: ci_defaults_verify_output
+
+- name: Display ci-defaults verification
+  ansible.builtin.debug:
+    msg: "{{ ci_defaults_verify_output.stdout_lines }}"
+    verbosity: 1

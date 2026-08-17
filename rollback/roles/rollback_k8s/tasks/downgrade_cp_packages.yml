@@ -1,0 +1,89 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 5a: Downgrade packages on all control planes ─────────────
+# Downgrades kubeadm, kubelet, kubectl, and cri-o to the rollback
+# version using the Pulp repo.
+
+- name: Skip downgrade_cp if already completed
+  ansible.builtin.debug:
+    msg: "downgrade_cp already completed — skipping."
+  when: (rollback_status.stages.downgrade_cp.status | default('pending')) == 'completed'
+
+- name: Downgrade CP packages
+  when: (rollback_status.stages.downgrade_cp.status | default('pending')) != 'completed'
+  block:
+    - name: Mark downgrade_cp in_progress
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            downgrade_cp:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Verify rollback package availability on first CP before downgrade
+      ansible.builtin.command:
+        cmd: "dnf repoquery --available --qf '%{name} %{version}' {{ item }}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _rollback_pkg_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - kubeadm
+        - kubelet
+        - kubectl
+        - cri-o
+
+    - name: Fail if rollback packages are unavailable
+      ansible.builtin.fail:
+        msg: >-
+          Required rollback package {{ item.item }}-{{ k8s_rollback_version }} is unavailable on
+          {{ groups_cp_first | first }}. Ensure the Pulp repo for Kubernetes v{{
+          k8s_rollback_version | regex_replace('\.[0-9]+$', '') }} and matching cri-o is synced and enabled.
+      loop: "{{ _rollback_pkg_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - item.rc != 0 or (item.stdout | default('') | trim) == ''
+        - (item.stdout_lines | default([]) | select('search', '^' ~ item.item ~ ' ' ~ k8s_rollback_version ~ '(\\s|$)') | list | length) == 0
+
+    - name: Downgrade packages on each CP
+      ansible.builtin.include_tasks: downgrade_packages_single_node.yml
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        loop_var: _node
+        label: "{{ _node }}"
+      vars:
+        _node_role: control_plane
+        _packages:
+          - "kubeadm-{{ k8s_rollback_version }}"
+          - "kubelet-{{ k8s_rollback_version }}"
+          - "kubectl-{{ k8s_rollback_version }}"
+        _crio_package: "cri-o-{{ k8s_rollback_version }}"
+
+    - name: Mark downgrade_cp completed
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        status_update:
+          stages:
+            downgrade_cp:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display downgrade_cp completion
+      ansible.builtin.debug:
+        msg: "Packages downgraded to {{ k8s_rollback_version }} on all {{ all_cp_nodes | length }} control planes."

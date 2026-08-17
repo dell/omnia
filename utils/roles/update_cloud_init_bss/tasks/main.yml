@@ -1,0 +1,189 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_cloud_init_bss role — Entry point
+# ============================================================================
+# Updates BSS boot parameters and/or cloud-init group configuration
+# for a given functional group using pre-rendered YAML files.
+#
+# Required variables:
+#   functional_group_name  — Name of the functional group (e.g., slurm_node_x86_64)
+#
+# Optional variables:
+#   bss_file_path          — Path to pre-rendered BSS YAML file on target host
+#   cloud_init_file_path   — Path to pre-rendered cloud-init group YAML on target host
+#   update_bss             — Whether to update BSS boot parameters (default: true)
+#   update_cloud_init      — Whether to update cloud-init group config (default: true)
+# ============================================================================
+
+- name: Validate functional_group_name is provided
+  ansible.builtin.assert:
+    that:
+      - functional_group_name is defined
+      - functional_group_name | length > 0
+    fail_msg: "{{ functional_group_missing_msg }}"
+
+- name: Validate at least one file path is provided
+  ansible.builtin.assert:
+    that:
+      - (bss_file_path is defined and bss_file_path | length > 0) or
+        (cloud_init_file_path is defined and cloud_init_file_path | length > 0) or
+        (ci_defaults_file_path is defined and ci_defaults_file_path | length > 0) or
+        (ci_common_file_path is defined and ci_common_file_path | length > 0) or
+        (hostname_file_path is defined and hostname_file_path | length > 0)
+    fail_msg: "{{ no_input_files_msg }}"
+
+- name: Ensure OpenCHAMI services are reachable before ochami commands
+  block:
+    - name: Check ochami cloud-init service status
+      ansible.builtin.command: /usr/bin/ochami cloud-init service status
+      register: ci_preflight_check
+      changed_when: false
+      failed_when: false
+      retries: "{{ ochami_recheck_retries }}"
+      delay: "{{ ochami_recheck_delay }}"
+      until: ci_preflight_check.rc == 0
+
+    - name: Recover OpenCHAMI services if unreachable
+      when: ci_preflight_check.rc != 0
+      block:
+        - name: Restart acme-deploy to deploy renewed certificate to HAProxy
+          ansible.builtin.systemd:
+            name: acme-deploy.service
+            state: restarted
+          failed_when: false
+
+        - name: Wait for certificate deployment to HAProxy volume
+          ansible.builtin.pause:
+            seconds: "{{ acme_deploy_wait_seconds }}"
+
+        - name: Check ochami cloud-init service status
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_preflight_check
+          changed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_preflight_check.rc == 0
+      rescue:
+        - name: Stop HAProxy to clear stale backend DNS cache
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: stopped
+          failed_when: false
+
+        - name: Start HAProxy with renewed certificate
+          ansible.builtin.systemd:
+            name: haproxy.service
+            state: started
+          failed_when: false
+
+        - name: Wait for HAProxy to stabilize
+          ansible.builtin.pause:
+            seconds: "{{ haproxy_stabilize_wait_seconds }}"
+
+        # Start coresmd (v2.1) or coredhcp/coredns (v2.2) — depends on HAProxy
+        # Try both; only the version-appropriate service will exist.
+        - name: Start coresmd after HAProxy Start (v2.1)
+          ansible.builtin.systemd:
+            name: coresmd.service
+            state: started
+          failed_when: false
+
+        - name: Start coresmd-coredhcp after HAProxy Start (v2.2)
+          ansible.builtin.systemd:
+            name: coresmd-coredhcp.service
+            state: started
+          failed_when: false
+
+        - name: Start coresmd-coredns after HAProxy Start (v2.2)
+          ansible.builtin.systemd:
+            name: coresmd-coredns.service
+            state: started
+          failed_when: false
+
+        - name: Wait for coresmd services to stabilize
+          ansible.builtin.pause:
+            seconds: 10
+
+        - name: Recheck ochami cloud-init service status after recovery
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_recheck
+          changed_when: false
+          failed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_recheck.rc == 0
+
+        - name: Restart openchami.target if still unreachable
+          ansible.builtin.systemd:
+            name: openchami.target
+            state: restarted
+          failed_when: false
+          when: ci_recheck.rc != 0
+
+        - name: Wait for openchami to initialize
+          ansible.builtin.pause:
+            seconds: 15
+          when: ci_recheck.rc != 0
+
+        - name: Final recheck ochami cloud-init service status
+          ansible.builtin.command: /usr/bin/ochami cloud-init service status
+          register: ci_final_recheck
+          changed_when: false
+          failed_when: false
+          retries: "{{ ochami_recheck_retries }}"
+          delay: "{{ ochami_recheck_delay }}"
+          until: ci_final_recheck.rc == 0
+          when: ci_recheck.rc != 0
+
+        - name: Fail if OpenCHAMI services still unreachable
+          ansible.builtin.fail:
+            msg: "{{ openchami_unreachable_fail_msg }}"
+          when: (ci_final_recheck.rc | default(ci_recheck.rc | default(1))) != 0
+
+- name: Update ci-defaults configuration
+  ansible.builtin.include_tasks: update_ci_defaults.yml
+  when:
+    - update_ci_defaults | bool
+    - ci_defaults_file_path is defined
+    - ci_defaults_file_path | length > 0
+
+- name: Update ci-group-common configuration
+  ansible.builtin.include_tasks: update_ci_common.yml
+  when:
+    - update_ci_common | bool
+    - ci_common_file_path is defined
+    - ci_common_file_path | length > 0
+
+- name: Update BSS boot parameters - {{ functional_group_name }}
+  ansible.builtin.include_tasks: update_bss.yml
+  when:
+    - update_bss | bool
+    - bss_file_path is defined
+    - bss_file_path | length > 0
+
+- name: Update cloud-init group configuration - {{ functional_group_name }}
+  ansible.builtin.include_tasks: update_cloud_init.yml
+  when:
+    - update_cloud_init | bool
+    - cloud_init_file_path is defined
+    - cloud_init_file_path | length > 0
+
+- name: Update hostname configuration - {{ functional_group_name }}
+  ansible.builtin.include_tasks: update_hostname.yml
+  when:
+    - update_hostname | bool
+    - hostname_file_path is defined
+    - hostname_file_path | length > 0

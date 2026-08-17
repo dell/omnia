@@ -46,7 +46,7 @@ def get_bmc_license_info(bmc_ip, username, password, module):
         # Get the license details
         response = requests.get(
             licenses_url,
-            verify=False,
+            verify=False,  # NOSONAR - iDRAC BMC uses self-signed certificates
             timeout=30,
             auth=HTTPBasicAuth(username, password))
         response.raise_for_status()
@@ -110,7 +110,7 @@ def get_bmc_firmware_info(bmc_ip, username, password, module, min_firmware_versi
         # Get the iDRAC manager details
         response = requests.get(
             manager_url,
-            verify=False,
+            verify=False,  # NOSONAR - iDRAC BMC uses self-signed certificates
             timeout=30,
             auth=HTTPBasicAuth(username, password))
         response.raise_for_status()

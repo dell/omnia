@@ -212,13 +212,13 @@ def validate_build_stream_config(input_file_path, data,
 
         if port_in_use:
             # Port is in use, check if it's build_stream by probing /health
+            conn = None
             try:
-                context = ssl._create_unverified_context()
+                context = ssl._create_unverified_context()  # NOSONAR - Health check probe must support self-signed certificates
                 socket.setdefaulttimeout(2)
                 conn = client.HTTPSConnection(build_stream_host_ip, port_int, timeout=2, context=context)
                 conn.request("GET", "/health")
                 resp = conn.getresponse()
-                conn.close()
                 if resp.status not in [200, 401, 403, 404, 500]:
                     raise ValueError(f"Unexpected HTTP status {resp.status}")            
             except Exception as exc:  # pylint: disable=broad-except
@@ -227,6 +227,9 @@ def validate_build_stream_config(input_file_path, data,
                     "build_stream_port",
                     msg.BUILD_STREAM_PORT_INUSE_MSG.format(port=port_int, host_ip=build_stream_host_ip, detail=str(exc)),
                 ))
+            finally:
+                if conn is not None:
+                    conn.close()
             return errors
 
     # Validate aarch64_inventory_host_ip
@@ -269,19 +272,6 @@ def validate_build_stream_config(input_file_path, data,
             errors.append(create_error_msg(build_stream_yml, "aarch64_inventory_host_ip",
                                           "Invalid IPv4 address format"))
             return errors
-
-        # Check if it's in the same subnet as admin IP
-        try:
-            admin_network = ipaddress.IPv4Network(f"{admin_ip}/{netmask_bits}", strict=False)
-
-            if aarch64_ip not in admin_network:
-                errors.append(create_error_msg(
-                    build_stream_yml,
-                    "aarch64_inventory_host_ip",
-                    msg.AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG
-                ))
-        except ValueError as e:
-            logger.error("Failed to validate subnet for aarch64_inventory_host_ip: %s", str(e))
 
         # Check aarch64 host IP reachability using socket (safer than subprocess)
         try:

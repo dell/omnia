@@ -1,0 +1,100 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: controller
+  namespace: telemetry
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  replicas: 3
+  roles:
+    - controller
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: "{{ telemetry_config.telemetry_sinks.kafka.persistence_size }}"
+        kraftMetadata: shared
+        deleteClaim: false
+---
+
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: broker
+  namespace: telemetry
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  replicas: 3
+  roles:
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: "{{ telemetry_config.telemetry_sinks.kafka.persistence_size }}"
+        kraftMetadata: shared
+        deleteClaim: false
+---
+
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: telemetry
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: 4.3.0
+    metadataVersion: 4.3-IV0
+    listeners:
+      - name: internal
+        port: 9092
+        type: internal
+        tls: true
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication:
+          type: tls
+      # External listener with mTLS
+      - name: external
+        port: 9094
+        type: loadbalancer
+        tls: true
+        authentication:
+          type: tls
+    # Enable authorization for proper access control
+    authorization:
+      type: simple
+    config:
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      log.retention.hours: {{ kafka_log_retention_hours }}
+      log.segment.bytes: {{ kafka_log_segment_bytes }}
+      log.retention.bytes: {{ kafka_log_retention_bytes }}
+      log.retention.check.interval.ms: 300000
+      # Enable topic auto-creation for external clients
+      auto.create.topics.enable: true
+      num.partitions: 3
+  entityOperator:
+    topicOperator: {}
+    userOperator:
+      # Allow User Operator to connect via TLS
+      secretPrefix: ""
+      resources:
+        requests:
+          memory: {{ kafka_storage.entity_operator.user_operator.resources.requests.memory }}
+          cpu: {{ kafka_storage.entity_operator.user_operator.resources.requests.cpu }}
+        limits:
+          memory: {{ kafka_storage.entity_operator.user_operator.resources.limits.memory }}
+          cpu: {{ kafka_storage.entity_operator.user_operator.resources.limits.cpu }}

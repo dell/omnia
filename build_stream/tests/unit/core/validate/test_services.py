@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for ValidateImageOnTest domain services."""
+"""Unit tests for Validate domain services."""
 
 import uuid
 
 import pytest
 
-from core.jobs.value_objects import CorrelationId
-from core.localrepo.value_objects import ExecutionTimeout, ExtraVars, PlaybookPath
-from core.validate.entities import ValidateImageOnTestRequest
+from core.validate.entities import ValidateRequest
 from core.validate.services import ValidateQueueService
 
 
@@ -38,16 +36,20 @@ class MockQueueRepo:
 
 
 def _make_request():
-    """Create a ValidateImageOnTestRequest with sensible defaults."""
-    return ValidateImageOnTestRequest(
+    """Create a ValidateRequest with sensible defaults."""
+    return ValidateRequest(
+        request_id=f"validate_{uuid.uuid4()}_20260217_103000",
         job_id=str(uuid.uuid4()),
-        stage_name="validate-image-on-test",
-        playbook_path=PlaybookPath("discovery.yml"),
-        extra_vars=ExtraVars({"job_id": str(uuid.uuid4())}),
+        stage_type="validate",
+        command_type="test_automation",
+        scenario_names=["all"],
+        test_suite="",
+        timeout_minutes=120,
+        artifact_dir="/opt/omnia/build_stream_root/artifacts/test/validate/attempt_1",
+        config_path="/opt/omnia/automation/omnia_test_config.yml",
         correlation_id=str(uuid.uuid4()),
-        timeout=ExecutionTimeout(60),
         submitted_at="2026-02-17T10:30:00Z",
-        request_id=str(uuid.uuid4()),
+        attempt=1,
     )
 
 
@@ -59,7 +61,7 @@ class TestValidateQueueService:
         repo = MockQueueRepo()
         service = ValidateQueueService(queue_repo=repo)
         request = _make_request()
-        corr_id = CorrelationId(str(uuid.uuid4()))
+        corr_id = str(uuid.uuid4())
 
         service.submit_request(request=request, correlation_id=corr_id)
 
@@ -71,7 +73,30 @@ class TestValidateQueueService:
         repo = MockQueueRepo(should_fail=True)
         service = ValidateQueueService(queue_repo=repo)
         request = _make_request()
-        corr_id = CorrelationId(str(uuid.uuid4()))
+        corr_id = str(uuid.uuid4())
 
         with pytest.raises(IOError, match="Queue unavailable"):
             service.submit_request(request=request, correlation_id=corr_id)
+
+    def test_submit_request_with_scenarios(self):
+        """Submission with specific scenarios should succeed."""
+        repo = MockQueueRepo()
+        service = ValidateQueueService(queue_repo=repo)
+        request = ValidateRequest(
+            request_id="test-req",
+            job_id="test-job",
+            stage_type="validate",
+            command_type="test_automation",
+            scenario_names=["discovery", "slurm"],
+            test_suite="smoke",
+            timeout_minutes=60,
+            correlation_id="corr-123",
+        )
+
+        service.submit_request(request=request, correlation_id="corr-123")
+
+        assert len(repo.written_requests) == 1
+        written = repo.written_requests[0]
+        assert written.scenario_names == ["discovery", "slurm"]
+        assert written.test_suite == "smoke"
+        assert written.command_type == "test_automation"

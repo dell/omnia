@@ -1,0 +1,217 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# SHARED TELEMETRY UPGRADE VARIABLES
+# ============================================================================
+# Common variables used by upgrade_telemetry role and all
+# component task files (victoria, kafka, idrac, powerscale).
+# ============================================================================
+
+# Telemetry namespace
+telemetry_namespace: telemetry
+# OIM host for NFS share access
+oim_host: oim
+executable_mode: "0755"
+
+# Upgrade directory paths (on k8s NFS share, resolved at runtime)
+telemetry_backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup/telemetry/omnia_{{ manifest.source_version | default('unknown') }}"
+# PV backup location (cluster-wide backup pre-provision)
+telemetry_pv_backup_file: "{{ telemetry_backup_dir }}/all_pvs.yaml"
+
+# Victoria deployment directory (pre-staged by upgrade_provision)
+telemetry_deploy_dir: "{{ k8s_client_mount_path }}/telemetry"
+
+# Telemetry script and kustomization paths (for execute_telemetry_sh.yml)
+telemetry_script_path: "{{ telemetry_deploy_dir }}/telemetry.sh"
+telemetry_kustomization_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# Pod wait configuration
+pod_wait_retries: 60
+pod_wait_delay: 15
+
+# idrac-telemetry rollout wait configuration
+idrac_rollout_retries: 3
+idrac_rollout_delay: 30
+
+# LoadBalancer IP wait configuration
+lb_ip_wait_retries: 30
+lb_ip_wait_delay: 5
+ip_conflict_script_path: /tmp/find_ip_conflict_svcs.sh
+ip_inject_script_path: /tmp/inject_vm_lb_ips.py
+
+# Victoria operator configuration
+# victoria_operator_pkg is loaded dynamically from service_k8s JSON in include_required_input.yml
+victoria_operator_release_name: victoria-metrics-operator
+
+# Victoria cluster configuration
+new_vmcluster_name: victoria-cluster
+new_vmstorage_sts: victoria-cluster-vmstorage
+new_vmstorage_pvc_prefix: victoria-cluster-vmstorage
+old_vm_pod_label: "app.kubernetes.io/name=victoria-metrics"
+old_vmagent_deployment: vmagent
+old_vmagent_pod_label: "app=vmagent"
+# ============================================================================
+# BACKUP MESSAGES
+# ============================================================================
+telemetry_backup_msgs:
+  telemetry_folder: "Telemetry folder backed up to: {{ telemetry_backup_dir }}"
+  pv_backup: "All PVs backed up to {{ telemetry_pv_backup_file }}"
+
+# ============================================================================
+# VICTORIA UPGRADE MESSAGES
+# ============================================================================
+victoria_cluster_mode_forced: "Victoria upgrade forcing cluster mode (HA) — Omnia 2.2 supports only cluster mode"
+victoria_upgrade_completed: "VictoriaMetrics upgrade COMPLETED"
+victoria_components_not_ready: "WARNING: Some VMCluster components may not be fully ready. Check manually."
+victoria_orphan_pods_found: "WARNING: Found orphan pods in telemetry namespace: {{ orphan_pods.stdout_lines | default([]) }}"
+victoria_no_orphan_pods: "SUCCESS: No orphan pods found in telemetry namespace."
+victoria_operator_installed: "VictoriaMetrics operator installed/upgraded — CRDs ready (Helm result: {{ helm_install_result.rc | default('unknown') }})"
+victoria_skip_pvc_no_pv: "Skipping PVC {{ old_pvc_item }} — no PV bound, data preservation not needed"
+victoria_relabeling_pvc: "Relabeling: {{ old_pvc_item }} → {{ new_pvc_name }} (PV: {{ old_pv_name }})"
+victoria_pvc_bind_failed: "New PVC {{ new_pvc_name }} failed to bind to PV {{ old_pv_name }} (status: {{ new_pvc_phase.stdout }})"
+victoria_cleaning_vmsingle: "Cleaning up old VMSingle: {{ vmsingle_name.stdout | trim }}"
+victoria_vmsingle_cleanup_completed: "VMSingle cleanup completed"
+victoria_migrating_pvcs: "Migrating PVCs: {{ old_pvc_list.stdout }}"
+victoria_sts_force_delete_failed: >-
+  Old StatefulSet {{ actual_old_statefulset }} still exists after force delete.
+  Manual intervention required to delete it. Delete error: {{ old_sts_force_delete.stderr | default('N/A') }}
+victoria_upgrade_needed: "Victoria upgrade needed: {{ victoria_upgrade_needed }}"
+victoria_upgrade_decision: "victoria_upgrade_needed: {{ victoria_upgrade_needed }}"
+victoria_upgrade_failed: "VictoriaMetrics upgrade FAILED"
+victoria_upgrade_failed_detail: "VictoriaMetrics upgrade failed. Check ansible output above for the specific failing task."
+victoria_upgrade_skipped: "VictoriaMetrics upgrade skipped — not in telemetry_config and no victoria pods found"
+victoria_deployment_dir_missing: "Deployment directory not found: {{ telemetry_deploy_dir }}/deployments. Run upgrade_provision first."
+victoria_operator_tarball_missing: "Operator tarball not found: {{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz. Run upgrade_provision first."
+victoria_manifest_missing: "Required manifest missing: {{ telemetry_deploy_dir }}/deployments/{{ item.item }}"
+victoria_detected_state: >-
+  Migration type: {{ victoria_migration_type }}, Deploy mode: {{ victoria_deploy_mode }},
+  HA (cluster): {{ victoria_deploy_mode == 'cluster' }}, Old STS found: {{ old_sts_found }},
+  Actual old StatefulSet: {{ actual_old_statefulset | default('N/A') }},
+  VMCluster found: {{ 'found' in vmcluster_check.stdout }}, VMSingle found: {{ 'found' in vmsingle_check.stdout }}
+victoria_unhealthy_pods_warning: >-
+  WARNING: Unhealthy VictoriaMetrics pods detected! The following pods are NOT in Running state:
+  {{ unhealthy_victoria_pods.stdout_lines | default([]) }}. These pods will be DELETED before the upgrade
+  proceeds. The upgrade will re-create them with the new version.
+victoria_pods_deleted: "Deleted {{ victoria_unhealthy_pods | length }} unhealthy pod(s). Upgrade will re-create them."
+victoria_backup_completed: "Victoria backup completed: {{ telemetry_backup_dir }}"
+victoria_crs_applied: "VictoriaMetrics CRs applied (mode: {{ victoria_deploy_mode }})"
+victoria_lb_ips_preserved: >-
+  LoadBalancer IPs injected into VMCluster manifest -
+  vminsert: {{ preserved_vminsert_ip | default('N/A') }},
+  vmselect: {{ preserved_vmselect_ip | default('N/A') }}
+victoria_lb_ip_injection_status: >-
+  {{ victoria_lb_ips_preserved
+     if (preserved_vminsert_ip | default('') | length > 0)
+        or (preserved_vmselect_ip | default('') | length > 0)
+     else victoria_lb_ips_not_preserved }}
+victoria_lb_ips_not_preserved: "No old LoadBalancer IPs found to preserve (fresh deploy or already operator-managed)"
+victoria_lb_ip_confirmed: >-
+  VMCluster LoadBalancer IPs confirmed -
+  vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
+  vmselect-{{ new_vmcluster_name }}: {{ vmselect_lb_ip.stdout | default('PENDING') | trim }}
+victoria_lb_ip_reclaim_needed: >-
+  VMCluster services still pending after initial wait.
+  Checking if preserved IPs were assigned to wrong services...
+victoria_lb_ip_conflict_svcs_found: >-
+  Services holding preserved IPs (will be deleted and re-created by telemetry.sh):
+  {{ ip_conflict_svcs.stdout_lines | default([]) | select() | list }}
+victoria_lb_ip_reclaim_success: >-
+  Successfully reclaimed preserved IPs for VMCluster services -
+  vminsert-{{ new_vmcluster_name }}: {{ vminsert_lb_ip.stdout | default('PENDING') | trim }},
+  vmselect-{{ new_vmcluster_name }}: {{ vmselect_lb_ip.stdout | default('PENDING') | trim }}
+victoria_lb_ip_reclaim_failed: >-
+  WARNING: VMCluster services still do not have LoadBalancer IPs after reclaim attempt.
+  vminsert: {{ vminsert_lb_ip.stdout | default('NONE') | trim }},
+  vmselect: {{ vmselect_lb_ip.stdout | default('NONE') | trim }}.
+  Please use new assigned IPs.
+victoria_old_svc_cleanup_summary: >-
+  Old services deleted: {{ old_services.stdout_lines | default([]) | select() | list }}.
+  Old vmagent deployment cleanup attempted: {{ old_vmagent_deployment }}
+victoria_pods_not_ready: "Telemetry upgrade FAILED: Some pods are not ready. {{ pods_not_ready.stdout | int }} pod(s) not in Running state."
+victoria_pods_ready_after_wait: "All telemetry pods are ready after waiting"
+telemetry_upgrade_success: "Telemetry upgrade COMPLETED: All telemetry pods are running and ready."
+telemetry_upgrade_failed: "Telemetry upgrade FAILED: Pod verification failed."
+
+# ============================================================================
+# TELEMETRY.SH EXECUTION MESSAGES
+# ============================================================================
+telemetry_sh_success_msg: "telemetry.sh executed successfully. All telemetry components deployed."
+telemetry_sh_fail_msg: "telemetry.sh execution failed. Check the error output above for details."
+telemetry_sh_helm_skip_msg: >-
+  telemetry.sh had Helm errors (existing releases), but StatefulSet was already patched
+  with terminationGracePeriodSeconds=120s for MySQL safety. Skipping full re-deployment.
+  Image tags should be updated via kustomize if needed.
+telemetry_sh_missing_msg: >-
+  telemetry.sh not found at {{ telemetry_script_path }} on kube_vip.
+  Ensure the provision playbook has generated the telemetry deployment script.
+kustomization_missing_msg: >-
+  kustomization.yaml not found at {{ telemetry_kustomization_dir }}/kustomization.yaml on kube_vip.
+  Ensure the provision playbook has generated the kustomize deployment files.
+telemetry_sh_non_helm_error_msg: "telemetry.sh failed with non-Helm error: {{ telemetry_sh_result.stderr }}"
+idrac_rollout_fail_msg: >-
+  idrac-telemetry rollout did not complete after {{ idrac_rollout_retries }} attempts (300s each).
+  The pods may not be in Running state. Check pod events:
+    kubectl describe pods -n {{ telemetry_namespace }} -l app=idrac-telemetry
+pods_not_ready_msg: "Some telemetry pods are not ready after deployment."
+pods_not_ready_detailed_msg: >-
+  {{ pods_not_ready_msg }}
+  Review the pod status report above and check pod logs for errors:
+    kubectl logs -n {{ telemetry_namespace }} <pod-name>
+mysql_crash_error_msg: |
+  ERROR: idrac-telemetry MySQL container failed to start after graceful shutdown.
+  Manual intervention required:
+    1. Check pod logs: kubectl logs -n telemetry <pod-name> -c mysqldb
+    2. Check PVC status: kubectl get pvc -n telemetry | grep idrac
+    3. Contact support if issue persists.
+
+# ============================================================================
+# PAUSE MESSAGES
+# ============================================================================
+vmstorage_merge_wait_msg: "Waiting 30s for vmstorage background merges to settle..."
+storage_cache_flush_msg: "Waiting 15s for storage cache flush..."
+idrac_patch_msg: >-
+  idrac-telemetry patched: terminationGracePeriodSeconds=120s.
+  MySQL will have enough time to flush on NFS during pod restart.
+idrac_skip_patch_msg: "idrac-telemetry StatefulSet not found (first deploy). Skipping patch."
+idrac_replica_restore_msg: "idrac-telemetry scaled back to {{ idrac_replica_count.stdout }} replicas"
+
+# ============================================================================
+# MYSQL BACKUP VARIABLES (Pre-Upgrade)
+# ============================================================================
+mysqldb_secrets_name: "mysqldb-credentials"
+mysql_backup_dir: "{{ telemetry_backup_dir }}/mysql"
+# Per-pod backup naming: <prefix><pod_index>.sql / <prefix><pod_index>.sql.enc
+# e.g., idrac_telemetry_mysql_backup_pod0.sql.enc, idrac_telemetry_mysql_backup_pod1.sql.enc
+mysql_backup_filename_prefix: "idrac_telemetry_mysql_backup_pod"
+mysql_backup_metadata_filename: "mysql_backup_metadata.yml"
+mysql_backup_skip_msg: "idrac-telemetry StatefulSet not found — skipping MySQL data backup."
+mysql_backup_pods_discovered_msg: >-
+  Discovered {{ mysql_backup_replica_count }} idrac-telemetry pod(s) for backup:
+  {{ mysql_backup_pod_list | join(', ') }}
+mysql_backup_all_pods_success_msg: >-
+  MySQL data backup completed successfully for {{ mysql_backup_success_count }}/{{ mysql_backup_replica_count }} pod(s).
+  Backup directory: {{ mysql_backup_dir }}
+  These per-pod backups will be used by the rollback playbook to restore MySQL data
+  if a version downgrade makes the PVC data incompatible.
+mysql_backup_failed_msg: >-
+  WARNING: MySQL data backup FAILED — mysqldump file is empty or missing.
+  The upgrade will proceed but rollback may not be able to restore MySQL data
+  if the MySQL version changes. Check pod logs for MySQL connectivity issues.
+mysql_backup_rescue_msg:
+  - "WARNING: MySQL data backup failed — this is non-fatal."
+  - "The upgrade will proceed. If rollback is needed later, MySQL"
+  - "will be reinitialized fresh (empty database with auto-created"
+  - "schema from MYSQL_DATABASE env var in the StatefulSet)."
+  - "Error: {{ ansible_failed_result.msg | default('unknown') }}"

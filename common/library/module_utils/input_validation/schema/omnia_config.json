@@ -19,6 +19,11 @@
             "minLength": 1,
             "description": "Name of the nfs storage in storage_config.yml" 
           },
+          "vast_storage_name": { 
+            "type": "string", 
+            "minLength": 1,
+            "description": "Name of the vast storage in storage_config.yml" 
+          },
           "skip_merge": { 
             "type": "boolean", 
             "description": "Variable indicates whether a specific configuration file path under config_sources should be used as-is without merging" 
@@ -30,9 +35,9 @@
           },
           "node_hardware_defaults": {
             "type": "object",
-            "description": "Hardware specifications for homogeneous node groups. Key is group name (grp0-grp100), value is hardware specs.",
+            "description": "Hardware specifications for homogeneous node groups. Key is group name (grp0-grp100 or SU1-SU100), value is hardware specs.",
             "patternProperties": {
-              "^grp([0-9]|[1-9][0-9]|100)$": {
+              "^(grp([0-9]|[1-9][0-9]|100)|[Ss][Uu]([1-9]|[1-9][0-9]|100))$": {
                 "type": "object",
                 "properties": {
                   "sockets": {
@@ -66,6 +71,14 @@
               }
             },
             "additionalProperties": false
+          },
+          "nvidia_driver_version_x86_64": {
+            "type": "string",
+            "description": "NVIDIA driver version to install on x86_64 GPU nodes"
+          },
+          "nvidia_driver_version_aarch64": {
+            "type": "string",
+            "description": "NVIDIA driver version to install on aarch64 GPU nodes"
           },
           "config_sources": {
             "type": "object",
@@ -106,6 +119,9 @@
           "deployment": {
             "type": "boolean"
           },
+          "etcd_on_local_disk": {
+            "type": "boolean"
+          },
           "k8s_cni": {
             "enum": ["calico"],
             "description": "K8s CNI plugin to use for this cluster."
@@ -138,7 +154,6 @@
             "description": "File path for the values.yaml file.",
             "type": "string",
             "pattern": "^(|/?([a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.yaml)$"
-
           },
           "k8s_crio_storage_size": {
             "description": "Storage size for CRI-O in Gigabytes only (example: 10G, 15G, 100G)",
@@ -149,6 +164,7 @@
         "required": [
           "cluster_name",
           "k8s_cni",
+          "etcd_on_local_disk",
           "k8s_service_addresses",
           "k8s_crio_storage_size"
         ],

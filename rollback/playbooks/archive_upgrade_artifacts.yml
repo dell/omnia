@@ -1,0 +1,329 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# archive_upgrade_artifacts.yml — Post-Rollback NFS Artifact Archival
+# ============================================================================
+#
+# Called after a successful rollback to archive all upgrade/rollback artifacts
+# into a timestamped directory on the NFS share. This ensures:
+#   - A clean slate for the next upgrade run
+#   - All evidence preserved for root cause analysis
+#
+# Artifacts archived:
+#   - upgrade_status.yml, rollback_status.yml (per-node step tracking)
+#   - backup/ directory (etcd snapshot, K8s configs, addon backups)
+#   - telemetry/ directory (telemetry backups)
+#   - Upgrade execution logs from OIM container /tmp/
+#
+# Artifacts cleaned (not archived):
+#   - Lock files on NFS
+#   - Repo files on all K8s nodes (/etc/yum.repos.d/omnia-upgrade.repo)
+#   - Temp files from OIM container /tmp/
+#
+# Prerequisites:
+#   - k8s-telemetry rollback must be completed
+#   - rollback_manifest must be available in hostvars
+# ============================================================================
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 1: Resolve NFS path and stage OIM container logs for transfer
+# ──────────────────────────────────────────────────────────────────────
+- name: "Archive — Resolve NFS path and stage OIM logs"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
+    nfs_storage_name: "nfs_k8s"
+  tasks:
+    - name: Read rollback_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: _archive_raw_manifest
+      failed_when: false
+
+    - name: Parse rollback manifest
+      ansible.builtin.set_fact:
+        _archive_rollback_manifest: "{{ _archive_raw_manifest.content | b64decode | from_yaml }}"
+      when: _archive_raw_manifest.content is defined
+
+    # ── Check if k8s-telemetry was completed ──
+    - name: Check k8s-telemetry rollback status
+      ansible.builtin.set_fact:
+        _k8s_rollback_completed: >-
+          {{ (_archive_rollback_manifest is defined) and
+             (_archive_rollback_manifest.component_status is defined) and
+             (_archive_rollback_manifest.component_status['k8s-telemetry'] | default('pending') == 'completed') }}
+
+    - name: Skip archival if k8s-telemetry was not rolled back
+      when: not (_k8s_rollback_completed | bool)
+      block:
+        - name: Set skip flag
+          ansible.builtin.set_fact:
+            _archive_skip: true
+        - name: End play (k8s-telemetry not completed)
+          ansible.builtin.meta: end_play
+
+    # ── Resolve NFS mount path ──
+    - name: Load storage_config.yml for NFS path resolution
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/storage_config.yml"
+        name: _archive_storage_config
+
+    - name: Load high_availability_config.yml for kube_vip
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: _archive_ha_config
+
+    - name: Set NFS mount path and kube_vip
+      ansible.builtin.set_fact:
+        _archive_mount_path: >-
+          {{ (_archive_storage_config.mounts
+              | selectattr('name', 'equalto', nfs_storage_name)
+              | first).mount_point }}
+        _archive_kube_vip: "{{ _archive_ha_config.service_k8s_cluster_ha[0].virtual_ip_address }}"
+        _archive_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+        _archive_rollback_id: "{{ _archive_rollback_manifest.rollback_id | default('unknown') }}"
+
+    - name: Build archive directory path
+      ansible.builtin.set_fact:
+        _nfs_archive_dir: >-
+          {{ _archive_mount_path }}/upgrade/archive/{{ _archive_rollback_id }}_{{ _archive_timestamp }}
+
+    # ── Add kube_vip to inventory for delegation ──
+    - name: Add kube_vip to inventory
+      ansible.builtin.add_host:
+        name: "{{ _archive_kube_vip }}"
+        ansible_host: "{{ _archive_kube_vip }}"
+        ansible_connection: ssh
+        ansible_user: root
+        groups: archive_target
+
+    # ── Stage OIM logs into a temp directory for transfer ──
+    - name: Create temp staging directory
+      ansible.builtin.file:
+        path: /tmp/_archive_staging/logs
+        state: directory
+        mode: '0755'
+
+    - name: Find upgrade log files in /tmp
+      ansible.builtin.find:
+        paths: /tmp
+        patterns:
+          - "upgrade_*.log"
+          - "reboot_*.log"
+          - "update_bss_*.log"
+          - "rollback_bss_*.log"
+          - "rollback_*.log"
+          - "k8s_upgrade_inventory.ini"
+          - "k8s_vars.yml"
+      register: _tmp_log_files
+
+    - name: Copy log files to staging
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "/tmp/_archive_staging/logs/{{ item.path | basename }}"
+        remote_src: true
+        mode: '0644'
+      loop: "{{ _tmp_log_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 2: Archive artifacts on NFS (runs on cluster node via kube_vip)
+# ──────────────────────────────────────────────────────────────────────
+- name: "Archive — Move upgrade artifacts to NFS archive"
+  hosts: archive_target
+  gather_facts: false
+  vars:
+    archive_mount_path: "{{ hostvars['localhost']['_archive_mount_path'] | default('') }}"
+    nfs_archive_dir: "{{ hostvars['localhost']['_nfs_archive_dir'] | default('') }}"
+  tasks:
+    - name: Skip if archival was not triggered
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['_archive_skip'] | default(false) | bool
+
+    - name: Verify SSH connectivity to cluster node
+      ansible.builtin.wait_for_connection:
+        delay: 2
+        timeout: 30
+
+    # ── Create archive directory structure ──
+    - name: Create archive directory on NFS
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ nfs_archive_dir }}"
+        - "{{ nfs_archive_dir }}/logs"
+
+    # ── Move NFS artifacts into archive ──
+    - name: Check for upgrade_status.yml on NFS
+      ansible.builtin.stat:
+        path: "{{ archive_mount_path }}/upgrade/upgrade_status.yml"
+      register: _nfs_upgrade_status
+
+    - name: Archive upgrade_status.yml
+      ansible.builtin.command:
+        cmd: "mv {{ archive_mount_path }}/upgrade/upgrade_status.yml {{ nfs_archive_dir }}/upgrade_status.yml"
+      when: _nfs_upgrade_status.stat.exists
+      changed_when: true
+
+    - name: Check for rollback_status.yml on NFS
+      ansible.builtin.stat:
+        path: "{{ archive_mount_path }}/upgrade/rollback_status.yml"
+      register: _nfs_rollback_status
+
+    - name: Archive rollback_status.yml
+      ansible.builtin.command:
+        cmd: "mv {{ archive_mount_path }}/upgrade/rollback_status.yml {{ nfs_archive_dir }}/rollback_status.yml"
+      when: _nfs_rollback_status.stat.exists
+      changed_when: true
+
+    - name: Check for backup directory on NFS
+      ansible.builtin.stat:
+        path: "{{ archive_mount_path }}/upgrade/backup"
+      register: _nfs_backup_dir
+
+    - name: Archive backup directory
+      ansible.builtin.command:
+        cmd: "mv {{ archive_mount_path }}/upgrade/backup {{ nfs_archive_dir }}/backup"
+      when: _nfs_backup_dir.stat.exists
+      changed_when: true
+
+    - name: Check for telemetry directory on NFS
+      ansible.builtin.stat:
+        path: "{{ archive_mount_path }}/upgrade/telemetry"
+      register: _nfs_telemetry_dir
+
+    - name: Archive telemetry directory
+      ansible.builtin.command:
+        cmd: "mv {{ archive_mount_path }}/upgrade/telemetry {{ nfs_archive_dir }}/telemetry"
+      when: _nfs_telemetry_dir.stat.exists
+      changed_when: true
+
+    # ── Remove stale lock files from NFS ──
+    - name: Remove lock files from NFS
+      ansible.builtin.file:
+        path: "{{ archive_mount_path }}/upgrade/{{ item }}"
+        state: absent
+      loop:
+        - upgrade.lock
+        - rollback.lock
+      failed_when: false
+
+    # ── Copy staged logs from OIM container to NFS archive ──
+    - name: Find staged log files
+      ansible.builtin.find:
+        paths: /tmp/_archive_staging/logs
+      register: _staged_logs
+      delegate_to: localhost
+
+    - name: Copy staged logs to NFS archive
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ nfs_archive_dir }}/logs/{{ item.path | basename }}"
+        mode: '0644'
+      loop: "{{ _staged_logs.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: _staged_logs.files | length > 0
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 3: Remove repo file from all K8s nodes
+# Uses k8s_nodes group added to inventory by rollback_k8s role.
+# If k8s-telemetry was skipped (e.g., Slurm-only cluster), k8s_nodes
+# group will be empty and this play runs on zero hosts (no-op).
+# ──────────────────────────────────────────────────────────────────────
+- name: "Archive — Remove repo file from all K8s nodes"
+  hosts: k8s_nodes
+  gather_facts: false
+  ignore_unreachable: true
+  tasks:
+    - name: Skip if archival was not triggered
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['_archive_skip'] | default(false) | bool
+
+    - name: Remove omnia-upgrade.repo from K8s nodes
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/omnia-upgrade.repo
+        state: absent
+      failed_when: false
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 4: Clean up OIM container temp files
+# ──────────────────────────────────────────────────────────────────────
+- name: "Archive — Clean up OIM temp files"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Skip if archival was not triggered
+      ansible.builtin.meta: end_play
+      when: _archive_skip | default(false) | bool
+
+    - name: Remove staged files
+      ansible.builtin.file:
+        path: /tmp/_archive_staging
+        state: absent
+
+    - name: Remove upgrade log files from /tmp
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ _tmp_log_files.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: Remove remaining temp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/upgrade_status.tmp
+        - /tmp/upgrade_status.tmp.json
+        - /tmp/upgrade_status_temp.yml
+        - /tmp/rollback_status.tmp.json
+        - /tmp/rollback_status_temp.yml
+        - /tmp/k8s_upgrade_inventory.ini
+        - /tmp/k8s_vars.yml
+      failed_when: false
+
+    - name: Display NFS archive summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════════════════════════"
+          - "  UPGRADE ARTIFACTS ARCHIVED ON NFS"
+          - "═══════════════════════════════════════════════════════════"
+          - ""
+          - "  Archive location:"
+          - "    {{ hostvars['localhost']['_nfs_archive_dir'] }}"
+          - ""
+          - "  Contents:"
+          - "    - upgrade_status.yml      (per-node upgrade step tracking)"
+          - "    - rollback_status.yml     (per-node rollback step tracking)"
+          - "    - backup/                 (etcd snapshot, K8s configs, addon backups)"
+          - "    - telemetry/              (telemetry backups)"
+          - "    - logs/                   (upgrade execution logs from OIM)"
+          - ""
+          - "  Cleaned:"
+          - "    - Lock files on NFS"
+          - "    - omnia-upgrade.repo from all K8s nodes"
+          - "    - Temp files from OIM /tmp/"
+          - ""
+          - "  Next upgrade will start with a clean slate."
+          - "═══════════════════════════════════════════════════════════"

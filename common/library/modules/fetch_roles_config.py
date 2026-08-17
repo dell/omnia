@@ -24,7 +24,7 @@ MANAGEMENT_LAYER_ROLES = {
     "login_node_x86_64", "login_compiler_node_x86_64", "login_node_aarch64", "login_compiler_node_aarch64",
     "slurm_control_node_x86_64", "service_kube_node_x86_64"
     }
-SECOND_LAYER_ROLES = {"default_x86_64", "slurm_node_x86_64", "slurm_node_aarch64"}
+SECOND_LAYER_ROLES = {"os_x86_64", "os_aarch64", "slurm_node_x86_64", "slurm_node_aarch64"}
 NON_SERVICE_ROLES = (MANAGEMENT_LAYER_ROLES | SECOND_LAYER_ROLES) - {"service_node"}
 
 def validate_roles(roles, layer, module, management_layer_roles=MANAGEMENT_LAYER_ROLES, second_layer_roles=SECOND_LAYER_ROLES, non_service_roles=NON_SERVICE_ROLES): # type: ignore

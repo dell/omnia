@@ -67,8 +67,24 @@ def main():
 
     telemetry_status_list = []
 
-    if telemetry_config_data["idrac_telemetry_support"]:
+    telemetry_sources = telemetry_config_data.get("telemetry_sources", {})
+
+    if telemetry_sources.get("idrac", {}).get("metrics_enabled", False):
         telemetry_status_list.append("idrac_telemetry")
+
+    # Check UFM telemetry
+    ufm_config = telemetry_sources.get("ufm", {})
+    if ufm_config.get("metrics_enabled", False):
+        telemetry_status_list.append("ufm_telemetry")
+    if ufm_config.get("logs_enabled", False):
+        telemetry_status_list.append("ufm_logs")
+
+    # Check VAST telemetry
+    vast_config = telemetry_sources.get("vast", {})
+    if vast_config.get("metrics_enabled", False):
+        telemetry_status_list.append("vast_telemetry")
+    if vast_config.get("logs_enabled", False):
+        telemetry_status_list.append("vast_logs")
 
     module.exit_json(
             changed=False,

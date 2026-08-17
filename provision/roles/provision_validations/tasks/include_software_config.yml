@@ -1,0 +1,97 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load software_config.json as software_config
+  block:
+    - name: Load software_config.json as software_config
+      ansible.builtin.include_vars:
+        file: "{{ software_config_file }}"
+        name: software_config
+      register: include_software_config
+      no_log: true
+  rescue:
+    - name: Failed to load software_config.json as software_config
+      ansible.builtin.fail:
+        msg: "{{ software_config_syntax_fail_msg }} Error: {{ include_software_config.message }}"
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+
+- name: Parse network_spec data
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Networks }}"
+
+- name: Set admin network nic and ip
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+    admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
+    admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
+    ib_network_subnet: "{{ network_data.ib_network.subnet }}"
+    ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
+    dns: "{{ network_data.admin_network.dns }}"
+
+- name: Set dns_enabled default when not defined
+  ansible.builtin.set_fact:
+    dns_enabled: false
+  when: dns_enabled is not defined
+
+- name: Initialise variables
+  ansible.builtin.set_fact:
+    service_k8s_support: false
+
+- name: Check if service k8s support is true
+  ansible.builtin.set_fact:
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
+- name: Extract k8s version
+  ansible.builtin.set_fact:
+    service_k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | map(attribute='version') | first }}"
+  when: service_k8s_support
+
+- name: Check if csi support is true
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
+
+- name: Initialise openldap support variables
+  ansible.builtin.set_fact:
+    openldap_support: false
+
+- name: Check if openldap support is true
+  ansible.builtin.set_fact:
+    openldap_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openldap') | list | length > 0 }}"
+
+- name: Initialise ucx support variables
+  ansible.builtin.set_fact:
+    ucx_support: false
+
+- name: Check if ucx support is true
+  ansible.builtin.set_fact:
+    ucx_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'ucx') | list | length > 0 }}"
+
+- name: Initialise openmpi support variables
+  ansible.builtin.set_fact:
+    openmpi_support: false
+
+- name: Check if openmpi support is true
+  ansible.builtin.set_fact:
+    openmpi_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openmpi') | list | length > 0 }}"
+
+- name: Set NVIDIA driver version from omnia_config
+  ansible.builtin.set_fact:
+    nvidia_driver_version_x86_64: "{{ slurm_cluster[0].nvidia_driver_version_x86_64 | default('580.159.04') }}"
+    nvidia_driver_version_aarch64: "{{ slurm_cluster[0].nvidia_driver_version_aarch64 | default('580.159.04') }}"

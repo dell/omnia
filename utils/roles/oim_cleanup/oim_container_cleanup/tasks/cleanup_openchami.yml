@@ -13,6 +13,71 @@
 # limitations under the License.
 ---
 
+# S3 BUCKET CLEANUP (Must run BEFORE OpenCHAMI package removal)
+
+- name: Check if s3cmd is available
+  ansible.builtin.command: which s3cmd
+  register: s3cmd_check
+  changed_when: false
+  failed_when: false
+
+- name: List existing S3 buckets
+  ansible.builtin.command: s3cmd ls
+  register: s3_bucket_output
+  changed_when: false
+  failed_when: false
+  when: s3cmd_check.rc == 0
+
+- name: Remove all S3 boot-images contents
+  ansible.builtin.command: s3cmd del --recursive --force s3://boot-images/
+  register: s3_boot_cleanup
+  changed_when: s3_boot_cleanup.rc == 0
+  failed_when: false
+  when:
+    - s3cmd_check.rc == 0
+    - s3_bucket_output.stdout is defined
+    - "'s3://boot-images' in s3_bucket_output.stdout"
+
+- name: Remove S3 boot-images bucket
+  ansible.builtin.command: s3cmd rb s3://boot-images/
+  register: s3_boot_bucket_delete
+  changed_when: s3_boot_bucket_delete.rc == 0
+  failed_when: false
+  when:
+    - s3cmd_check.rc == 0
+    - s3_bucket_output.stdout is defined
+    - "'s3://boot-images' in s3_bucket_output.stdout"
+
+- name: Remove all S3 efi contents
+  ansible.builtin.command: s3cmd del --recursive --force s3://efi/
+  register: s3_efi_cleanup
+  changed_when: s3_efi_cleanup.rc == 0
+  failed_when: false
+  when:
+    - s3cmd_check.rc == 0
+    - s3_bucket_output.stdout is defined
+    - "'s3://efi' in s3_bucket_output.stdout"
+
+- name: Remove S3 efi bucket
+  ansible.builtin.command: s3cmd rb s3://efi/
+  register: s3_efi_bucket_delete
+  changed_when: s3_efi_bucket_delete.rc == 0
+  failed_when: false
+  when:
+    - s3cmd_check.rc == 0
+    - s3_bucket_output.stdout is defined
+    - "'s3://efi' in s3_bucket_output.stdout"
+
+- name: Display S3 cleanup result
+  ansible.builtin.debug:
+    msg: >-
+      S3 cleanup: boot-images={{ "deleted" if (s3_boot_bucket_delete.changed | default(false))
+      else "skipped" }}, efi={{ "deleted" if (s3_efi_bucket_delete.changed | default(false))
+      else "skipped" }}
+  when: s3cmd_check.rc == 0
+
+# OPENCHAMI PACKAGE AND SERVICE CLEANUP
+
 - name: Remove OpenChami packages
   ansible.builtin.dnf:
     name: "{{ openchami_packages }}"

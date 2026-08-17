@@ -26,6 +26,18 @@
       ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
       tags: always
 
+    - name: Validate OIM deployment
+      ansible.builtin.fail:
+        msg: "OIM is not properly deployed. oim_shared_path is not defined in hostvars. Please deploy OIM first."
+      when: hostvars['localhost']['oim_shared_path'] is not defined
+      tags: always
+
+    - name: Validate slurm_cluster configuration
+      ansible.builtin.fail:
+        msg: "slurm_cluster is not configured or is empty in omnia_config.yml. Please configure slurm_cluster first."
+      when: slurm_cluster is not defined or slurm_cluster is none or (slurm_cluster | default([])) | length == 0
+      tags: always
+
     - name: Set facts for slurm
       ansible.builtin.set_fact:
         nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"
@@ -33,7 +45,7 @@
 
     - name: Read the slurm mount point
       ansible.builtin.set_fact:
-        share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
+        share_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).mount_point }}"
       tags: always
 
     - name: Slurp remote YAML file

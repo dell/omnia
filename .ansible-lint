@@ -4,3 +4,4 @@ skip_list:
   - fqcn[canonical]
   - internal-error
   - role-name[path]
+  - load-failure

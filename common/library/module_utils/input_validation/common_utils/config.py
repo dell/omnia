@@ -37,10 +37,12 @@ OMNIA_REDHAT_REPO = '/opt/omnia/rhel_repo_certs/redhat.repo'
 ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS = {
     "x86_64": [
         "slurm_control_node", "slurm_node", "login_node", "login_compiler_node",
-        "service_kube_control_plane", "service_kube_control_plane_first", "service_kube_node"
+        "service_kube_control_plane", "service_kube_control_plane_first", "service_kube_node",
+        "os"
     ],
     "aarch64": [
-         "slurm_node", "login_node", "login_compiler_node"
+         "slurm_node", "login_node", "login_compiler_node",
+         "os"
     ]
 }
 
@@ -54,15 +56,18 @@ files = {
     "software_config": "software_config.json",
     "storage_config": "storage_config.yml",
     "telemetry_config": "telemetry_config.yml",
+    "telemetry_storage_config": "telemetry_storage_config.yml",
     "high_availability_config": "high_availability_config.yml",
     "build_stream_config": "build_stream_config.yml",
-    "gitlab_config": "gitlab_config.yml"
+    "gitlab_config": "gitlab_config.yml",
+    "discovery_config": "discovery_config.yml"
     # "additional_software": "additional_software.json"
 }
 
 # Tags and the files that will be run based off of it
 input_file_inventory = {
     "build_image": [files["provision_config"]],
+    "build_aarch_image": [files["provision_config"]],
     "software_config": [files["software_config"]],
     "scheduler": [
         files["software_config"],
@@ -79,7 +84,7 @@ input_file_inventory = {
     "security": [
         files["security_config"]
     ],
-    "telemetry": [files["telemetry_config"]],
+    "telemetry": [files["telemetry_config"], files["telemetry_storage_config"]],
     "local_repo": [files["local_repo_config"], files["software_config"]],
     "slurm": [
         files["omnia_config"],
@@ -95,11 +100,13 @@ input_file_inventory = {
     "prepare_oim": [
         files["network_spec"],
         files["software_config"],
+        files["storage_config"],
         files["build_stream_config"]
     ],
     # "high_availability": [files["high_availability_config"]],
     # "additional_software": [files["additional_software"]],
     "build_stream": [files["build_stream_config"]],
+    "discovery": [files["discovery_config"]],
     "gitlab": [files["gitlab_config"], files["build_stream_config"]],
     "all": [
         files["local_repo_config"],
@@ -107,6 +114,7 @@ input_file_inventory = {
         files["omnia_config"],
         files["security_config"],
         files["telemetry_config"],
+        files["telemetry_storage_config"],
         files["provision_config"],
         files["software_config"],
         files["storage_config"],
@@ -124,9 +132,9 @@ expected_versions = {
     "intel_benchmarks": "2024.1.0",
     "ucx": "1.19.0",
     "openmpi": "5.0.8",
-    "csi_driver_powerscale": "v2.15.0",
+    "csi_driver_powerscale": "v2.17.0",
     "rocm": "6.3.1",
-    "service_k8s": "1.34.1"
+    "service_k8s": "1.35.1"
 }
 
 # All of the passwords fields
@@ -189,7 +197,9 @@ FUNCTIONAL_GROUP_LAYER_MAP = {
     "login_compiler_node_aarch64": "management",
     "slurm_control_node_x86_64": "management",
     "slurm_node_x86_64": "compute",
-    "slurm_node_aarch64": "compute"
+    "slurm_node_aarch64": "compute",
+    "os_x86_64": "compute",
+    "os_aarch64": "compute"
 }
 
 # used for security_config.yml validation

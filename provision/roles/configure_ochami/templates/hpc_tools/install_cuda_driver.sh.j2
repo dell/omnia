@@ -1,0 +1,87 @@
+#!/bin/bash
+# Local NVIDIA driver install. Always runs on Slurm nodes. Idempotent.
+# Never touches NFS lock artifacts. Never touches /hpc_tools/cuda contents.
+set -euo pipefail
+
+# NVIDIA driver version defaults.
+#
+# 580.159.04 is NOT the latest NVIDIA driver release.
+# It was chosen as the default because it is a validated and packaged
+# version in the Omnia local repository for Omnia 2.2, for both x86_64
+# and aarch64 compute nodes running RHEL 10.0.
+#
+# We do not automatically use the latest NVIDIA release because the
+# matching nvidia-driver-<version> and nvidia-driver-cuda-<version>
+# packages must exist in the local repository and be tested on the
+# target OS/arch before they can be installed safely. If you change
+# this to a newer NVIDIA release, ensure the matching packages are
+# available; otherwise the install will fail.
+
+DRIVER_VERSION_x86_64="{{ hostvars['localhost']['nvidia_driver_version_x86_64'] | default('580.159.04') }}"
+DRIVER_VERSION_aarch64="{{ hostvars['localhost']['nvidia_driver_version_aarch64'] | default('580.159.04') }}"
+
+ARCH=$(uname -m)
+if [ "$ARCH" == "aarch64" ]; then
+    DRIVER_VERSION="$DRIVER_VERSION_aarch64"
+else
+    DRIVER_VERSION="$DRIVER_VERSION_x86_64"
+fi
+
+LOGFILE="/var/log/nvidia_install.log"
+
+# ── Ensure full PATH (non-interactive shells may miss /usr/sbin) ──
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
+# ── GPU check BEFORE exec redirection to avoid pipe/buffering issues ──
+LSPCI_OUT=$(lspci 2>/dev/null || true)
+if ! echo "$LSPCI_OUT" | grep -qi nvidia; then
+    echo "[INFO] No NVIDIA GPU detected. Exiting."
+    exit 0
+fi
+
+# ── NOW safe to redirect output ──
+exec > >(tee -a "$LOGFILE") 2>&1
+echo "===== NVIDIA DRIVER INSTALL START ====="
+
+# Install only if nvidia-smi is missing
+if command -v nvidia-smi >/dev/null 2>&1; then
+    echo "[INFO] NVIDIA driver already installed. Skipping."
+else
+    echo "[INFO] Installing NVIDIA driver via dnf..."
+    dnf install -y \
+        nvidia-driver-${DRIVER_VERSION} \
+        nvidia-driver-cuda-${DRIVER_VERSION}
+    dkms autoinstall
+fi
+
+# Load modules (safe even if already loaded)
+modprobe nvidia || true
+modprobe nvidia_uvm || true
+modprobe nvidia_modeset || true
+modprobe nvidia_drm || true
+
+# Ensure device nodes
+echo "[INFO] Ensuring /dev/nvidia devices"
+nvidia-modprobe -u || true
+
+# Enable persistence mode
+nvidia-smi -pm 1 || true
+
+# Mount shared toolkit at /usr/local/cuda (harmless if already mounted)
+mkdir -p /usr/local/cuda
+CUDA_NFS="/hpc_tools/cuda"
+if ! mountpoint -q /usr/local/cuda; then
+    mount --bind "$CUDA_NFS" /usr/local/cuda || true
+fi
+
+grep -q "$CUDA_NFS /usr/local/cuda" /etc/fstab || \
+    echo "$CUDA_NFS /usr/local/cuda none bind,_netdev 0 0" >> /etc/fstab
+
+cat > /etc/profile.d/cuda.sh <<'EOF'
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda
+EOF
+chmod +x /etc/profile.d/cuda.sh
+
+echo "===== NVIDIA driver install completed ====="

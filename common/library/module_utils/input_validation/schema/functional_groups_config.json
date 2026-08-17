@@ -5,7 +5,7 @@
     "groups": {
       "type": "object",
       "patternProperties": {
-        "^grp([1-9][0-9]?|0)$": {
+        "^(grp([0-9]|[1-9][0-9]|100)|[Ss][Uu]([1-9]|[1-9][0-9]|100))$": {
           "type": "object",
           "properties": {
             "location_id": {
@@ -36,7 +36,7 @@
             "type": "string",
             "description": "Name of the functional_group, can be any of the following Omnia defined functional_group.",
             "enum": [
-              "default_x86_64",
+              "os_x86_64",
               "service_kube_node_x86_64",
               "service_kube_control_plane_x86_64",
               "service_kube_control_plane_first_x86_64",
@@ -45,7 +45,7 @@
               "login_compiler_node_x86_64",
               "login_compiler_node_aarch64",
               "slurm_control_node_x86_64",
-              "default_aarch64",
+              "os_aarch64",
               "slurm_node_x86_64",
               "slurm_node_aarch64"
             ]
@@ -60,7 +60,7 @@
             "description": "List of groups defined by the user",
             "items": {
               "type": "string",
-              "pattern": "^grp\\d{1,2}$"
+              "pattern": "^(grp([0-9]|[1-9][0-9]|100)|[Ss][Uu]([1-9]|[1-9][0-9]|100))$"
             },
             "minItems": 1,
             "uniqueItems": true

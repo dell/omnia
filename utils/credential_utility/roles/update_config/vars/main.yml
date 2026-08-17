@@ -73,8 +73,11 @@ omnia_credentials:
       - { username: docker_username, password: docker_password }
     mandatory:
       - { password: pulp_password }
-      - { password: minio_s3_password }
+      - { password: s3_secret_key }
     conditional_mandatory:
+      # PowerScale S3 Access Key -- only prompted when storage provider is 'powerscale'
+      - username: s3_access_id
+        condition: "{{ s3_configurations.provider == 'powerscale' }}"
       - username: build_stream_auth_username
         password: build_stream_auth_password
         condition: "{{ enable_build_stream | default(false) | bool }}"
@@ -97,8 +100,12 @@ omnia_credentials:
   idrac_telemetry:
     mandatory:
       - { username: bmc_username, password: bmc_password }
-      - { username: mysqldb_user, password: mysqldb_password }
-      - { password: mysqldb_root_password }
+    conditional_mandatory:
+      - username: mysqldb_user
+        password: mysqldb_password
+        condition: "{{ idrac_telemetry_support | default(false) | bool }}"
+      - password: mysqldb_root_password
+        condition: "{{ idrac_telemetry_support | default(false) | bool }}"
   csi_driver_powerscale:
     conditional_mandatory:
       - username: csi_username
@@ -110,3 +117,18 @@ omnia_credentials:
   ldms:
     mandatory:
       - { password: ldms_sampler_password }
+  discovery:
+    conditional_mandatory:
+      - username: ome_username
+        password: ome_password
+        condition: "{{ enable_bmc_discovery | default(false) | bool }}"
+  ufm_telemetry:
+    conditional_mandatory:
+      - username: ufm_username
+        password: ufm_password
+        condition: "{{ ufm_telemetry_support | default(false) | bool }}"
+  vast_telemetry:
+    conditional_mandatory:
+      - username: vast_username
+        password: vast_password
+        condition: "{{ vast_telemetry_support | default(false) | bool }}"

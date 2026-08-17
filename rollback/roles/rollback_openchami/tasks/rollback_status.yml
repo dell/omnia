@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# rollback_status.yml — Report Rollback Result
+# ============================================================================
+# Runs in the 'always' block of main.yml — executes regardless of success
+# or failure.
+# ============================================================================
+
+- name: Report rollback result
+  block:
+    - name: Report rollback failure
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ rollback_messages.status.failure }}"
+      when: openchami_rollback_failed | default(false) | bool
+
+    - name: Report rollback success
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: "{{ rollback_messages.status.success }}"
+      when:
+        - not (openchami_rollback_failed | default(false) | bool)
+
+    - name: Clear pg_dump backup lock after successful rollback
+      ansible.builtin.file:
+        path: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ pgdump_backup_lock }}"
+        state: absent
+      when:
+        - not (openchami_rollback_failed | default(false) | bool)
+      failed_when: false
+
+- name: Fail the play if rollback failed
+  ansible.builtin.fail:
+    msg: "OpenCHAMI rollback failed. See above for details."
+  when: openchami_rollback_failed | default(false) | bool

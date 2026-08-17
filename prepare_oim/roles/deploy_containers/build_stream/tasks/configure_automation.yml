@@ -1,0 +1,144 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+# Phase 2 Implementation: Automation Clone, Install & Config Setup
+# This task implements the requirements from Component_5_Validate_Module_Spec.md
+# Section 6: Phase 2 — prepare_oim: Automation Clone, Install & Config Setup
+
+- name: Create automation directory
+  ansible.builtin.file:
+    path: "{{ automation_base_dir }}"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+    owner: root
+    group: root
+
+- name: Check if automation repository already exists
+  ansible.builtin.stat:
+    path: "{{ automation_base_dir }}/.git"
+  register: automation_repo_check
+
+- name: Clone automation repository with retries
+  ansible.builtin.git:
+    repo: "{{ automation_repo_url }}"
+    dest: "{{ automation_base_dir }}"
+    version: "{{ automation_repo_branch }}"
+    force: true
+    update: true
+  register: git_clone_result
+  retries: "{{ automation_git_retries }}"
+  delay: "{{ automation_git_delay }}"
+  until: git_clone_result is succeeded
+  failed_when: git_clone_result is failed
+  when: not automation_repo_check.stat.exists
+
+- name: Update existing automation repository
+  ansible.builtin.git:
+    repo: "{{ automation_repo_url }}"
+    dest: "{{ automation_base_dir }}"
+    version: "{{ automation_repo_branch }}"
+    force: true
+    update: true
+  register: git_update_result
+  retries: "{{ automation_git_retries }}"
+  delay: "{{ automation_git_delay }}"
+  until: git_update_result is succeeded
+  failed_when: git_update_result is failed
+  when: automation_repo_check.stat.exists
+
+- name: Display git operation result
+  ansible.builtin.debug:
+    msg: "{{ automation_git_success_msg }}"
+    verbosity: 1
+  when: (git_clone_result is defined and git_clone_result is succeeded) or
+        (git_update_result is defined and git_update_result is succeeded)
+
+- name: Make automation scripts executable
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "{{ automation_script_mode }}"
+    owner: root
+    group: root
+  loop:
+    - "{{ automation_base_dir }}/run_molecule.sh"
+    - "{{ automation_base_dir }}/setup_env.sh"
+
+- name: Check if Python virtual environment already exists
+  ansible.builtin.stat:
+    path: "{{ automation_venv_dir }}/bin/python"
+  register: venv_check
+
+- name: Run setup_env.sh to create virtual environment and install dependencies
+  ansible.builtin.command:
+    cmd: "bash {{ automation_base_dir }}/setup_env.sh"
+    chdir: "{{ automation_base_dir }}"
+  register: setup_env_result
+  changed_when: setup_env_result.rc == 0
+  failed_when: setup_env_result.rc != 0
+  when: not venv_check.stat.exists
+
+- name: Display setup_env.sh result
+  ansible.builtin.debug:
+    msg:
+      - "Virtual environment setup completed successfully"
+      - "Output: {{ setup_env_result.stdout_lines | default([]) }}"
+    verbosity: 1
+  when: setup_env_result is defined and setup_env_result is succeeded
+
+- name: Generate omnia_test_config.yml from template
+  ansible.builtin.template:
+    src: "omnia_test_config.yml.j2"
+    dest: "{{ automation_config_file }}"
+    mode: "{{ build_stream_file_mode }}"
+    owner: root
+    group: root
+    backup: true
+
+- name: Verify Molecule installation in virtual environment
+  ansible.builtin.command:
+    cmd: "{{ automation_venv_dir }}/bin/python3 -m molecule --version"
+  environment:
+    PATH: "{{ automation_venv_dir }}/bin:{{ ansible_env.PATH }}"
+  register: molecule_version_check
+  changed_when: false
+  failed_when: molecule_version_check.rc != 0
+
+- name: Display Molecule version
+  ansible.builtin.debug:
+    msg: "Molecule version: {{ molecule_version_check.stdout }}"
+    verbosity: 1
+
+- name: Verify automation library can be loaded
+  ansible.builtin.command:
+    cmd: "{{ automation_venv_dir }}/bin/python3 -c 'from automation_library.core import load_omnia_test_config; load_omnia_test_config()'"
+    chdir: "{{ automation_base_dir }}"
+  register: automation_library_check
+  changed_when: false
+  failed_when: automation_library_check.rc != 0
+  environment:
+    PYTHONPATH: "{{ automation_base_dir }}"
+
+- name: Verify run_molecule.sh script functionality
+  ansible.builtin.command:
+    cmd: "bash {{ automation_base_dir }}/run_molecule.sh --help"
+  register: run_molecule_help
+  changed_when: false
+  failed_when: run_molecule_help.rc != 0
+
+- name: Display automation setup completion message
+  ansible.builtin.debug:
+    msg: "{{ automation_setup_success_msg }}"
+    verbosity: 1

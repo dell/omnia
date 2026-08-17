@@ -29,12 +29,11 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.config import (
     pulp_rpm_commands,
-    AGGREGATED_REPO_NAME_TEMPLATE,
-    AGGREGATED_REMOTE_NAME_TEMPLATE,
-    AGGREGATED_DISTRIBUTION_NAME_TEMPLATE,
+    AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
     PULP_CONCURRENCY
 )
+from ansible.module_utils.local_repo.software_utils import build_repo_name
 
 def validate_command_input(value):
     """
@@ -245,12 +244,12 @@ def create_rpm_remote(repo,log):
             repo_name = f"{repo_name}_{version}"
 
         remote_name = repo_name
-    
+
         # Check if remote already exists - skip if it does
         if show_rpm_remote(remote_name, log):
             log.info("Remote '%s' already exists. Skipping.", remote_name)
             return True, repo_name
-        
+
         # Remote doesn't exist - create it
         repo_keys = repo.keys()
         if "ca_cert" in repo_keys and repo["ca_cert"]:
@@ -327,7 +326,7 @@ def sync_rpm_repository(repo,log, resync_repos=None):
         log.info("Starting synchronization for RPM repository")
         # Determine if we should skip sync check
         force_sync = False
-        
+
         # Normalize resync_repos: convert comma-separated string to list
         resync_list = None
         if resync_repos == "all":
@@ -459,9 +458,25 @@ def check_publication_exists(repo_name, log):
     try:
         command = pulp_rpm_commands["check_publication"] % repo_name
         log.info("Checking if publication exists for repository '%s'", repo_name)
-        result = execute_command(command, log)
-        # The command returns a list - if empty, no publication exists
-        return bool(result)
+        cmd_list = shlex.split(command)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+        log.info("check_publication_exists command return code: %s", result.returncode)
+
+        if result.returncode != 0:
+            log.info("Publication check command failed for '%s'", repo_name)
+            return False
+
+        # Parse the JSON output - publication list returns [] when empty
+        publications = json.loads(result.stdout)
+        if publications:
+            log.info("Publication exists for '%s' (%d found)", repo_name, len(publications))
+            return True
+        else:
+            log.info("No publications found for '%s' (empty list)", repo_name)
+            return False
+    except (json.JSONDecodeError, ValueError) as e:
+        log.error("Error parsing publication list for '%s': %s", repo_name, str(e))
+        return False
     except Exception as e:
         log.error("Error checking publication for '%s': %s", repo_name, str(e))
         return False
@@ -485,6 +500,43 @@ def check_distribution_exists(repo_name, log):
     except Exception as e:
         log.error("Error checking distribution for '%s': %s", repo_name, str(e))
         return False
+
+
+def get_latest_publication_href(repo_name, log):
+    """
+    Get the pulp_href of the latest publication for a repository.
+
+    Args:
+        repo_name (str): The name of the repository.
+        log (logging.Logger): Logger instance for logging.
+
+    Returns:
+        str or None: The pulp_href of the latest publication, or None if not found.
+    """
+    try:
+        command = pulp_rpm_commands["check_publication"] % repo_name
+        cmd_list = shlex.split(command)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            log.info("No publications found for '%s'", repo_name)
+            return None
+
+        publications = json.loads(result.stdout)
+        if not publications:
+            log.info("Empty publication list for '%s'", repo_name)
+            return None
+
+        pub_href = publications[-1].get("pulp_href")
+        if pub_href:
+            validated_href = validate_pulp_href(pub_href)
+            log.info("Latest publication href for '%s': %s", repo_name, validated_href)
+            return validated_href
+
+        return None
+    except Exception as e:
+        log.error("Error getting latest publication for '%s': %s", repo_name, str(e))
+        return None
 
 
 def delete_old_publications(repo_name, log):
@@ -538,7 +590,7 @@ def delete_old_publications(repo_name, log):
                     log.warning("Failed to delete publication %s: %s", pub_href, delete_result.stderr)
                 else:
                     log.info("Successfully deleted publication: %s", pub_href)
-        
+
         return True
     except Exception as e:
         log.error("Error deleting publications for '%s': %s", repo_name, str(e))
@@ -565,10 +617,10 @@ def create_publication(repo,log, resync_repos=None):
             repo_name = f"{repo_name}_{version}"
 
         log.info("Processing publication for repository: '%s'", repo_name)
-        
+
         # Check if version changed during sync (passed via _version_changed flag)
         version_changed = repo.get("_version_changed", True)  # Default True for safety
-        
+
         # If publication exists and version didn't change, keep existing publication
         if check_publication_exists(repo_name, log):
             if not version_changed:
@@ -648,10 +700,27 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
         log.info("Checking if distribution exists for repository '%s'", repo_name)
         if execute_command(show_command, log):
             log.info(f"Distribution for {package_name} exists. Updating it.")
-            return execute_command(update_command, log), repo_name
+            result = execute_command(update_command, log)
         else:
             log.info(f"Distribution for {package_name} does not exist. Creating it.")
-            return execute_command(create_command, log), repo_name
+            result = execute_command(create_command, log)
+
+        if not result:
+            return False, repo_name
+
+        # Link distribution to the latest publication so that served package
+        # paths match the publication metadata (nested_alphabetically layout).
+        pub_href = get_latest_publication_href(repo_name, log)
+        if pub_href:
+            log.info("Linking distribution '%s' to publication '%s'", repo_name, pub_href)
+            update_pub_cmd = pulp_rpm_commands["update_distribution_publication"] % (repo_name, pub_href)
+            pub_result = execute_command(update_pub_cmd, log)
+            if not pub_result:
+                log.warning("Failed to link distribution '%s' to publication. Packages may not be served correctly.", repo_name)
+        else:
+            log.warning("No publication found for '%s'. Distribution linked to repository only.", repo_name)
+
+        return True, repo_name
 
     except Exception as e:
         log.error("Unexpected error during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))
@@ -796,10 +865,18 @@ def process_sync_results(sync_results, rpm_config, resync_repos, log):
     """
     Process sync results and determine which repos need publication/distribution.
 
+    This function handles two scenarios:
+    1. Repos with version changes from current sync - need new publication/distribution
+    2. Repos that were synced previously but missing publication/distribution (crash recovery)
+       - This check is performed for ALL repos regardless of resync_repos setting
+       - Ensures that if a previous run synced repos A, B, C but failed before creating
+         pub/dist, a subsequent run (even with resync_repos=["D"]) will still create
+         the missing pub/dist for A, B, C
+
     Args:
         sync_results (list): Results from sync_rpm_repository (success, name, actually_synced, version_changed).
         rpm_config (list): List of repository configurations.
-        resync_repos (str/list): Controls which repos to process.
+        resync_repos (str/list): Controls which repos to sync (not which repos to check for pub/dist).
         log (logging.Logger): Logger instance.
 
     Returns:
@@ -812,113 +889,73 @@ def process_sync_results(sync_results, rpm_config, resync_repos, log):
     # Get list of repos where version changed (need new publication)
     version_changed_repos = [name for success, name, actually_synced, version_changed in sync_results if success and actually_synced and version_changed]
     log.info(f"Repos with version change: {len(version_changed_repos)} - {version_changed_repos}")
-    
-    # If no versions changed, check for missing publication/distribution
-    # This handles the crash recovery case: process failed after sync but before pub/dist
-    if not version_changed_repos:
-        log.info("No version changes detected. Checking for missing publication/distribution.")
-
-        # Check all synced repos (including previously synced) for missing pub/dist
-        repos_missing_pub_dist = []
-        all_repo_names = []
-        for repo in rpm_config:
-            repo_name = repo["package"]
-            version = repo.get("version")
-            if version and version != "null":
-                repo_name = f"{repo_name}_{version}"
-            all_repo_names.append(repo_name)
-
-            # If resync_repos is a specific list, only check those repos
-            if resync_repos and resync_repos != "all":
-                resync_list = resync_repos if isinstance(resync_repos, list) else [r.strip() for r in resync_repos.split(",")]
-                if repo_name not in resync_list:
-                    continue
-
-            pub_exists = check_publication_exists(repo_name, log)
-            dist_exists = check_distribution_exists(repo_name, log)
-
-            if not pub_exists or not dist_exists:
-                log.info(f"{repo_name} missing publication={not pub_exists}, distribution={not dist_exists}. Including for pub/dist creation.")
-                repo_copy = repo.copy()
-                repo_copy["_version_changed"] = False
-                repos_missing_pub_dist.append(repo_copy)
-
-        if repos_missing_pub_dist:
-            missing_names = [r["package"] for r in repos_missing_pub_dist]
-            log.info(f"Found {len(repos_missing_pub_dist)} repo(s) missing publication/distribution: {missing_names}")
-            return repos_missing_pub_dist, False, ""
-
-        # All repos have publication and distribution - safe to skip
-        log.info("All repos have existing publication and distribution. Skipping.")
-        if actually_synced_repos:
-            # Repos were synced but no metadata change
-            synced_list = ", ".join(actually_synced_repos)
-            skip_msg = f"Sync successful for {len(actually_synced_repos)} repo(s): {synced_list}. No metadata changes detected - existing publication/distribution retained"
-        else:
-            # No repos were synced at all (already up to date)
-            skip_msg = "All repositories already synced - no updates required"
-        return [], True, skip_msg
 
     repos_for_pub_dist = []
+    repos_for_pub_dist_names = set()  # Track names to avoid duplicates
 
-    if resync_repos == "all":
-        log.info("resync_repos='all' - Processing publication and distribution for repos with version change")
-        for repo in rpm_config:
-            repo_name = repo["package"]
-            version = repo.get("version")
-            if version and version != "null":
-                repo_name = f"{repo_name}_{version}"
-            # Only include repos with version change
-            if repo_name in version_changed_repos:
-                repo_copy = repo.copy()
-                repo_copy["_version_changed"] = True
-                repos_for_pub_dist.append(repo_copy)
+    # Step 1: Add repos with version changes (these definitely need new publication)
+    for repo in rpm_config:
+        repo_name = repo["package"]
+        version = repo.get("version")
+        if version and version != "null":
+            repo_name = f"{repo_name}_{version}"
+
+        if repo_name in version_changed_repos:
+            repo_copy = repo.copy()
+            repo_copy["_version_changed"] = True
+            repos_for_pub_dist.append(repo_copy)
+            repos_for_pub_dist_names.add(repo_name)
+            log.info(f"{repo_name} has version change. Including for pub/dist creation.")
+
+    # Step 2: Check ALL repos for missing publication/distribution (crash recovery)
+    # This is independent of resync_repos - we always want to ensure all synced repos
+    # have their publication/distribution created
+    log.info("Checking all repos for missing publication/distribution (crash recovery check).")
+
+    for repo in rpm_config:
+        repo_name = repo["package"]
+        version = repo.get("version")
+        if version and version != "null":
+            repo_name = f"{repo_name}_{version}"
+
+        # Skip if already added due to version change
+        if repo_name in repos_for_pub_dist_names:
+            continue
+
+        # Check if repo is synced (has content) but missing publication or distribution
+        # First verify the repo has been synced at least once (version > 0)
+        repo_version = get_repo_version(repo_name, log)
+        if repo_version == 0:
+            # Repo has never been synced, skip it
+            log.debug(f"{repo_name} has never been synced (version=0). Skipping pub/dist check.")
+            continue
+
+        pub_exists = check_publication_exists(repo_name, log)
+        dist_exists = check_distribution_exists(repo_name, log)
+
+        if not pub_exists or not dist_exists:
+            log.info(f"{repo_name} is synced (version={repo_version}) but missing publication={not pub_exists}, distribution={not dist_exists}. Including for pub/dist creation.")
+            repo_copy = repo.copy()
+            repo_copy["_version_changed"] = False  # No version change, just missing pub/dist
+            repos_for_pub_dist.append(repo_copy)
+            repos_for_pub_dist_names.add(repo_name)
+
+    # Determine if we should skip or process
+    if repos_for_pub_dist:
+        pub_dist_names = [r["package"] for r in repos_for_pub_dist]
+        log.info(f"Found {len(repos_for_pub_dist)} repo(s) needing publication/distribution: {pub_dist_names}")
         return repos_for_pub_dist, False, ""
+
+    # All repos have publication and distribution - safe to skip
+    log.info("All synced repos have existing publication and distribution. Skipping pub/dist creation.")
+    if actually_synced_repos:
+        # Repos were synced but no metadata change
+        synced_list = ", ".join(actually_synced_repos)
+        skip_msg = f"Sync successful for {len(actually_synced_repos)} repo(s): {synced_list}. No metadata changes detected - existing publication/distribution retained"
     else:
-        # If no repos were actually synced, check for missing pub/dist (crash recovery)
-        if not actually_synced_repos:
-            log.info("No repos were actually synced. Checking for missing publication/distribution.")
-            repos_missing_pub_dist = []
-            for repo in rpm_config:
-                repo_name = repo["package"]
-                version = repo.get("version")
-                if version and version != "null":
-                    repo_name = f"{repo_name}_{version}"
-
-                # If resync_repos is a specific list, only check those repos
-                if resync_repos and resync_repos != "all":
-                    resync_list = resync_repos if isinstance(resync_repos, list) else [r.strip() for r in resync_repos.split(",")]
-                    if repo_name not in resync_list:
-                        continue
-
-                pub_exists = check_publication_exists(repo_name, log)
-                dist_exists = check_distribution_exists(repo_name, log)
-
-                if not pub_exists or not dist_exists:
-                    log.info(f"{repo_name} missing publication={not pub_exists}, distribution={not dist_exists}. Including for pub/dist creation.")
-                    repo_copy = repo.copy()
-                    repo_copy["_version_changed"] = False
-                    repos_missing_pub_dist.append(repo_copy)
-
-            if repos_missing_pub_dist:
-                missing_names = [r["package"] for r in repos_missing_pub_dist]
-                log.info(f"Found {len(repos_missing_pub_dist)} repo(s) missing publication/distribution: {missing_names}")
-                return repos_missing_pub_dist, False, ""
-
-            log.info("All repos have existing publication and distribution. No updates required.")
-            return [], True, "All repositories already synced - no updates required"
-
-        # Filter rpm_config to only include repos with version change
-        for repo in rpm_config:
-            repo_name = repo["package"]
-            version = repo.get("version")
-            if version and version != "null":
-                repo_name = f"{repo_name}_{version}"
-            if repo_name in actually_synced_repos and repo_name in version_changed_repos:
-                repo_copy = repo.copy()
-                repo_copy["_version_changed"] = True
-                repos_for_pub_dist.append(repo_copy)
-        return repos_for_pub_dist, False, ""
+        # No repos were synced at all (already up to date)
+        skip_msg = "All repositories already synced - no updates required"
+    return [], True, skip_msg
 
 # ============================================================================
 # AGGREGATED REPOS FUNCTIONS
@@ -926,24 +963,26 @@ def process_sync_results(sync_results, rpm_config, resync_repos, log):
 # multiple user-defined repos into a single Pulp repository per architecture.
 # ============================================================================
 
-def delete_aggregated_repo(arch, log):
+def delete_aggregated_repo(repo_name, log):
     """
     Delete the aggregated repository, its remotes, and distribution for a given architecture.
     This is called before recreating the aggregated repo to ensure a clean state.
 
+    Note: This only deletes the distribution with the exact repo_name. Old distributions
+    with different naming conventions are preserved to allow coexistence during upgrades.
+
     Args:
-        arch (str): Architecture (x86_64 or aarch64).
+        repo_name (str): Pre-built aggregated repository name.
         log (logging.Logger): Logger instance.
 
     Returns:
         bool: True if deletion was successful or resources didn't exist, False on error.
     """
-    repo_name = AGGREGATED_REPO_NAME_TEMPLATE.format(arch=arch)
-    dist_name = AGGREGATED_DISTRIBUTION_NAME_TEMPLATE.format(arch=arch)
+    dist_name = repo_name
 
-    log.info(f"Deleting aggregated resources for arch '{arch}'")
+    log.info(f"Deleting aggregated resources for repo '{repo_name}'")
 
-    # Delete distribution first (depends on repo)
+    # Delete distribution by name (only the one matching this repo_name)
     dist_cmd = pulp_rpm_commands["delete_distribution"] % dist_name
     execute_command(dist_cmd, log)  # Ignore errors - may not exist
 
@@ -951,23 +990,21 @@ def delete_aggregated_repo(arch, log):
     repo_cmd = pulp_rpm_commands["delete_repository"] % repo_name
     execute_command(repo_cmd, log)  # Ignore errors - may not exist
 
-    log.info(f"Completed deletion of aggregated resources for arch '{arch}'")
+    log.info(f"Completed deletion of aggregated resources for repo '{repo_name}'")
     return True
 
 
-def create_aggregated_repository(arch, log):
+def create_aggregated_repository(repo_name, log):
     """
     Create the aggregated repository for a given architecture.
 
     Args:
-        arch (str): Architecture (x86_64 or aarch64).
+        repo_name (str): Pre-built aggregated repository name.
         log (logging.Logger): Logger instance.
 
     Returns:
         tuple: (success, repo_name)
     """
-    repo_name = AGGREGATED_REPO_NAME_TEMPLATE.format(arch=arch)
-
     log.info(f"Creating aggregated repository: {repo_name}")
 
     if not show_rpm_repository(repo_name, log):
@@ -983,13 +1020,13 @@ def create_aggregated_repository(arch, log):
     return True, repo_name
 
 
-def create_aggregated_remote(repo_entry, arch, log):
+def create_aggregated_remote(repo_entry, repo_name, log):
     """
     Create or update a remote for an additional repo entry.
 
     Args:
         repo_entry (dict): Repository entry with name, url, policy, and optional SSL certs.
-        arch (str): Architecture (x86_64 or aarch64).
+        repo_name (str): Pre-built aggregated repository name (used as prefix for remote name).
         log (logging.Logger): Logger instance.
 
     Returns:
@@ -998,7 +1035,7 @@ def create_aggregated_remote(repo_entry, arch, log):
     name = repo_entry["name"]
     url = repo_entry["url"]
     policy = repo_entry["policy"]
-    remote_name = AGGREGATED_REMOTE_NAME_TEMPLATE.format(arch=arch, name=name)
+    remote_name = f"{repo_name}-{name}"
 
     log.info(f"Creating/updating remote '{remote_name}' for URL: {url}")
 
@@ -1117,22 +1154,20 @@ def create_aggregated_publication(repo_name, log):
         return False, None
 
 
-def create_aggregated_distribution(arch, pub_href, log, cluster_os_version="10.0"):
+def create_aggregated_distribution(repo_name, base_path, pub_href, log):
     """
     Create or update the distribution for the aggregated repository.
 
     Args:
-        arch (str): Architecture (x86_64 or aarch64).
+        repo_name (str): Pre-built aggregated repository name.
+        base_path (str): Pre-built base path for the distribution.
         pub_href (str): Publication href to associate with distribution.
         log (logging.Logger): Logger instance.
-        cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
 
     Returns:
         tuple: (success, distribution_name)
     """
-    repo_name = AGGREGATED_REPO_NAME_TEMPLATE.format(arch=arch)
-    dist_name = AGGREGATED_DISTRIBUTION_NAME_TEMPLATE.format(arch=arch)
-    base_path = AGGREGATED_BASE_PATH_TEMPLATE.format(arch=arch, os_version=cluster_os_version)
+    dist_name = repo_name
 
     log.info(f"Creating/updating distribution '{dist_name}' with base_path '{base_path}'")
 
@@ -1175,7 +1210,7 @@ def create_aggregated_distribution(arch, pub_href, log, cluster_os_version="10.0
     return True, dist_name
 
 
-def manage_aggregated_repos(additional_repos_config, log, cluster_os_version="10.0"):
+def manage_aggregated_repos(additional_repos_config, log, cluster_os_type="rhel", cluster_os_version="10.0"):
     """
     Manage aggregated repositories for additional_repos_* entries.
     This function handles the complete workflow:
@@ -1189,7 +1224,8 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_version="10
     Args:
         additional_repos_config (dict): Dictionary with arch as key and list of repo configs as value.
         log (logging.Logger): Logger instance.
-        cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
+        cluster_os_type (str): The cluster OS type (e.g., 'rhel').
+        cluster_os_version (str): The cluster OS version (e.g., '10.0').
 
     Returns:
         tuple: (success, error_message)
@@ -1198,17 +1234,18 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_version="10
 
     for arch in ["x86_64", "aarch64"]:
         repos = additional_repos_config.get(arch, [])
-        repo_name = AGGREGATED_REPO_NAME_TEMPLATE.format(arch=arch)
+        repo_name = build_repo_name(arch, cluster_os_type, cluster_os_version, AGGREGATED_REPO_SUFFIX)
+        base_path = AGGREGATED_BASE_PATH_TEMPLATE.format(arch=arch, os_type=cluster_os_type, os_version=cluster_os_version, repo_name=repo_name)
 
         log.info(f"Processing aggregated repos for arch '{arch}': {len(repos)} repos")
 
         # Step 1: Delete existing aggregated repo for clean state
         log.info(f"Step 1: Deleting existing aggregated repo for {arch}")
-        delete_aggregated_repo(arch, log)
+        delete_aggregated_repo(repo_name, log)
 
         # Step 2: Create aggregated repository
         log.info(f"Step 2: Creating aggregated repository for {arch}")
-        success, _ = create_aggregated_repository(arch, log)
+        success, _ = create_aggregated_repository(repo_name, log)
         if not success:
             return False, f"Failed to create aggregated repository for {arch}"
 
@@ -1219,7 +1256,7 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_version="10
             for repo_entry in repos:
                 # Create remote
                 log.info(f"Step 3: Creating remote for '{repo_entry['name']}'")
-                success, remote_name = create_aggregated_remote(repo_entry, arch, log)
+                success, remote_name = create_aggregated_remote(repo_entry, repo_name, log)
                 if not success:
                     return False, f"Failed to create remote for {repo_entry['name']}"
 
@@ -1241,7 +1278,7 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_version="10
 
         # Step 6: Create/update distribution
         log.info(f"Step 6: Creating/updating distribution for {arch}")
-        success, _ = create_aggregated_distribution(arch, pub_href, log, cluster_os_version)
+        success, _ = create_aggregated_distribution(repo_name, base_path, pub_href, log)
         if not success:
             return False, f"Failed to create distribution for aggregated repo {arch}"
 
@@ -1344,7 +1381,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
 
     # Process sync results and get repos for publication/distribution
     repos_for_pub_dist, should_skip, skip_message  = process_sync_results(sync_results, rpm_config, resync_repos, log)
-    
+
     # Only run publication/distribution if repos need it
     if not should_skip:
         # Step 4: Concurrent publication creation
@@ -1379,7 +1416,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     if not base_urls:
         log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
         return False, "Base URLs fetch failed — repo file not created."
-    
+
     log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
     create_yum_repo_file(base_urls, log)
     log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
@@ -1387,7 +1424,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     # Return appropriate success message based on resync_repos and skip status
     if should_skip:
         return True, skip_message
-    
+
     if resync_repos == "all":
         return True, "Resync completed successfully for all repositories"
     elif resync_repos:
@@ -1396,7 +1433,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         else:
             repos_list = ", ".join(resync_repos)
         return True, f"Resync completed successfully for specified repositories: {repos_list}"
-    
+
     return True, "RPM repository sync and configuration completed successfully"
 
 def main():
@@ -1429,6 +1466,7 @@ def main():
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},
         "resync_repos": {"type": "raw", "required": False, "default": None},
+        "cluster_os_type": {"type": "str", "required": False, "default": "rhel"},
         "cluster_os_version": {"type": "str", "required": False, "default": "10.0"}
     }
 
@@ -1441,6 +1479,7 @@ def main():
     pulp_concurrency = module.params["pulp_concurrency"]
     sw_archs = module.params["sw_archs"]
     resync_repos = module.params["resync_repos"]
+    cluster_os_type = module.params["cluster_os_type"]
     cluster_os_version = module.params["cluster_os_version"]
 
     log = setup_standard_logger(log_dir)
@@ -1471,7 +1510,7 @@ def main():
     # Handle aggregated repos if additional_repos_config is provided
     if additional_repos_config:
         log.info("Processing additional_repos aggregated repositories")
-        result, output = manage_aggregated_repos(additional_repos_config, log, cluster_os_version)
+        result, output = manage_aggregated_repos(additional_repos_config, log, cluster_os_type, cluster_os_version)
         if result is False:
             module.fail_json(msg=f"Error in aggregated repos: {output}, check {standard_log_path}")
         log.info("Successfully processed additional_repos aggregated repositories")

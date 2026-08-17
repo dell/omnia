@@ -27,7 +27,8 @@ ROLE_SPECIFIC_KEYS = [
     "login_compiler_node",
     "service_kube_control_plane_first",
     "service_kube_control_plane",
-    "service_kube_node"
+    "service_kube_node",
+    "os"
 ]
 
 # ----------------------------

@@ -25,7 +25,7 @@ device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_name: "pulp"
 pulp_protocol_https: true
 # Tag is fixed for the Pulp container image as of 10-06-2025
-pulp_image: "docker.io/pulp/pulp:3.80"
+pulp_image: "docker.io/pulp/pulp:3.114.2"
 
 # Usage: deployment_prereq.yml - pull image retries
 pull_image_retries: 5
@@ -47,6 +47,7 @@ pulp_deployed_fail_msg:
   Run utility/oim_cleanup.yml to cleanup, then re-run the playbook to deploy the {{ pulp_container_name }}
   container successfully."
 retries_var: 8
+password_reset_retries: 15
 delay_var: 30
 delay_var_sixty: 30
 timeout_var: 60

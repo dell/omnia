@@ -78,10 +78,10 @@ gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
 gitlab_root_token_file_path: "/root/.gitlab_root_token"
 
 # Runner container
-gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v18.8.0"
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v19.2.0"
 gitlab_runner_default_image: "docker.io/library/alpine:3.23.3"
 gitlab_runner_helper_image_registry: "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper"
-gitlab_runner_helper_image_version: "v18.8.0"
+gitlab_runner_helper_image_version: "v19.2.0"
 gitlab_runner_container_name: "gitlab-runner"
 gitlab_restart_policy: "always"
 gitlab_runner_description: "Omnia Hosted Runner"
@@ -137,6 +137,34 @@ gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: "{{ role_path }}/../../../examples/catalog/catalog_rhel.json"
+gitlab_input_repo_dir: "input"
+# Use NFS input_project_dir for user-configured files instead of default repo files
+gitlab_input_nfs_root: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
+gitlab_input_files:
+  - name: "high_availability_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/high_availability_config.yml"
+  - name: "build_stream_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/build_stream_config.yml"
+  - name: "gitlab_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/gitlab_config.yml"
+  - name: "local_repo_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/local_repo_config.yml"
+  - name: "network_spec.yml"
+    src: "{{ gitlab_input_nfs_root }}/network_spec.yml"
+  - name: "omnia_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/omnia_config.yml"
+  - name: "provision_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/provision_config.yml"
+  - name: "pxe_mapping_file.csv"
+    src: "{{ gitlab_input_nfs_root }}/pxe_mapping_file.csv"
+  - name: "security_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/security_config.yml"
+  - name: "telemetry_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/telemetry_config.yml"
+  - name: "telemetry_storage_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/telemetry_storage_config.yml"
+  - name: "storage_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/storage_config.yml"
 
 # Pipeline CI/CD variables
 gitlab_pipeline_var_check_status_codes: [200, 404]
@@ -230,8 +258,10 @@ gitlab_disable_grafana: true
 retry_count: "5"
 delay_time: "10"
 podman_login_fail_msg: >
-  Podman login failed. Please ensure the podman login credentials in the input/omnia_config_credentials.yml are valid.
-  If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while.
+  Podman login failed. Please ensure the podman login credentials in the
+  {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml are valid.
+  If they are, this error can occur due to a pull limit issue or multiple requests.
+  Please try running the playbook again after waiting for a while.
 
 # Image pull configuration
 gitlab_image_pull_retries: 5
@@ -306,7 +336,7 @@ gitlab_deployment_complete_msg:
   - "Access URL: {{ gitlab_external_url_computed }}"
   - "SSH Port:   {{ gitlab_ssh_port }}"
   - "Username:   root"
-  - "Password:   [Encrypted - Stored in {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml]"
+  - "Password:   [Encrypted - Stored in Omnia core container {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml]"
   - ""
   - "Project:    {{ gitlab_project_name }}"
   - "Project ID: {{ gitlab_project_id }}"

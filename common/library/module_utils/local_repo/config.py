@@ -59,6 +59,37 @@ RHEL_OS_URL = "rhel_os_url"
 SOFTWARES_KEY = "softwares"
 USER_REPO_URL = "user_repo_url"
 ARCH_SUFFIXES = {"x86_64", "aarch64"}
+
+# Target OS → Python version mapping for pip cross-version downloads.
+# The omnia_core container (Fedora 42) runs Python 3.13, but target nodes
+# run a different Python. pip must download wheels for the TARGET version.
+OS_TARGET_PYTHON = {
+    "rhel": {"10": "3.12"},
+}
+
+# Architecture → manylinux platform tags for pip --platform flag.
+# Multiple tags are listed most-specific-first; pip matches any of them.
+ARCH_PIP_PLATFORMS = {
+    "x86_64": [
+        "manylinux_2_34_x86_64",
+        "manylinux_2_28_x86_64",
+        "manylinux_2_17_x86_64",
+    ],
+    "aarch64": [
+        "manylinux_2_34_aarch64",
+        "manylinux_2_28_aarch64",
+        "manylinux_2_17_aarch64",
+    ],
+}
+
+# ----------------------------
+# Repo Naming Format
+# Controls the naming convention for Pulp repositories, remotes, and distributions.
+# Placeholders: {arch}, {os_type}, {os_version}, {name}
+# ----------------------------
+REPO_NAME_FORMAT = "{arch}_{os_type}_{os_version}_{name}"
+REPO_NAME_PREFIX_FORMAT = "{arch}_{os_type}_{os_version}_"
+
 DEFAULT_POLICY = "on_demand"
 DEFAULT_CACHING = True
 POLICY_CACHING_MAP = {
@@ -70,7 +101,7 @@ POLICY_CACHING_MAP = {
     ("never", True): "streamed"
 }
 DNF_COMMANDS = {
-    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64,noarch", "--disablerepo=*", "--enablerepo=x86_64_*"],
+    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64", "--arch=noarch", "--disablerepo=*", "--enablerepo=x86_64_*"],
     "aarch64": ["dnf", "download", "--forcearch", "aarch64", "--resolve", "--alldeps", "--exclude=*.x86_64", "--disablerepo=*", "--enablerepo=aarch64_*"]
 }
 DNF_INFO_COMMANDS = {
@@ -133,22 +164,22 @@ PULP_SSL_CA_CERT = "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 pulp_container_commands = {
     "create_container_repo": "pulp container repository create --name %s",
     "show_container_repo": "pulp container repository show --name %s",
-    "create_container_remote": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]'",
-    "create_container_remote_for_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s",
-    "create_user_remote_tag": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --ca-cert %s --client-key %s --tls-validation false",
-    "update_user_remote_tag": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --ca-cert %s --client-key %s --tls-validation false",
-    "update_user_remote_digest": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s  --ca-cert %s --client-key %s --tls-validation false",
-    "create_user_remote_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --ca-cert %s --client-key %s --tls-validation false",
-    "update_remote_for_digest": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s",
-    "update_container_remote": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s'",
+    "create_container_remote": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --exclude-tags '[\"*sha256*.sig\"]'",
+    "create_container_remote_for_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]'",
+    "create_user_remote_tag": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false",
+    "update_user_remote_tag": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false",
+    "update_user_remote_digest": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false",
+    "create_user_remote_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false",
+    "update_remote_for_digest": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]'",
+    "update_container_remote": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --exclude-tags '[\"*sha256*.sig\"]'",
     "show_container_remote": "pulp container remote show --name %s",
     "show_container_distribution": "pulp container distribution show --name %s",
     "sync_container_repository": "pulp container repository sync --name %s --remote %s",
     "distribute_container_repository": "pulp container distribution create --name %s --repository %s --base-path %s",
     "update_container_distribution": "pulp container distribution update --name %s --repository %s --base-path %s",
     "list_container_remote_tags": "pulp container remote list --name %s --field include_tags",
-    "create_container_remote_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
-    "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
+    "create_container_remote_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --exclude-tags '[\"*sha256*.sig\"]' --username %s --password '%s'",
+    "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --exclude-tags '[\"*sha256*.sig\"]' --username %s --password '%s'",
     # Cleanup commands
     "delete_repository": "pulp container repository destroy --name %s",
     "delete_remote": "pulp container remote destroy --name %s",
@@ -237,13 +268,11 @@ CLEANUP_LOG_FILE_PATH = "/opt/omnia/log/local_repo/cleanup.log"
 # ----------------------------
 # Additional Repos Aggregation Settings
 # Used by process_rpm_config.py for aggregated repos feature
-# Naming convention: <arch>_omnia-additional to match existing filter patterns
+# Naming convention: build_repo_name(arch, os_type, os_version, AGGREGATED_REPO_SUFFIX)
 # ----------------------------
 ADDITIONAL_REPOS_KEY = "additional_repos"
-AGGREGATED_REPO_NAME_TEMPLATE = "{arch}_omnia-additional"
-AGGREGATED_REMOTE_NAME_TEMPLATE = "{arch}_omnia-additional-{name}"
-AGGREGATED_DISTRIBUTION_NAME_TEMPLATE = "{arch}_omnia-additional"
-AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/rhel/{os_version}/rpms/omnia-additional"
+AGGREGATED_REPO_SUFFIX = "omnia-additional"
+AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/{os_type}/{os_version}/rpms/{repo_name}"
 STANDARD_LOG_FILE_PATH = "/opt/omnia/log/local_repo/standard.log"
 
 # ----------------------------

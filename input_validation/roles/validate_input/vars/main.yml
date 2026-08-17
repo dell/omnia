@@ -16,6 +16,9 @@
 input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 project_name: "{{ hostvars['localhost']['project_name'] }}"
 
+# CSV validation configuration for build_image playbook
+csv_file_path: "{{ input_dir }}/pxe_mapping_file.csv"
+
 # Note: When running a specific playbook without tags ansible run tags will default to ["all"], thus if two or more tags are present
 # then the "all" tag should be removed so that only the config files related to that playbook are validated.
 input_validate_tags: "{{ omnia_run_tags | default([]) | difference(['all']) if (omnia_run_tags | length) >= 2

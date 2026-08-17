@@ -24,10 +24,12 @@ Functions:
     validate_input
     get_data
     verify
+    validate_csv_structure
 """
 
 import logging
 import os
+import csv
 
 # pylint: disable=no-name-in-module,E0401
 import ansible.module_utils.input_validation.common_utils.data_fetch as fetch
@@ -36,6 +38,65 @@ import ansible.module_utils.input_validation.common_utils.data_verification as v
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+
+def validate_csv_structure(csv_file_path, logger=None):
+    """
+    Validate CSV structure for PXE mapping files.
+    
+    Args:
+        csv_file_path (str): Path to the CSV file to validate
+        logger (logging.Logger): Logger instance for logging
+        
+    Returns:
+        bool: True if validation passes, False otherwise
+        
+    Raises:
+        ValueError: If CSV structure validation fails
+    """
+    try:
+        if not os.path.exists(csv_file_path):
+            error_msg = f"CSV ERROR: File not found - {csv_file_path}"
+            if logger:
+                logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        with open(csv_file_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration:
+                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+                if logger:
+                    logger.error(error_msg)
+                raise ValueError(error_msg)
+                
+            expected_columns = len(header)
+            
+            line_num = 2
+            for row in reader:
+                if len(row) != expected_columns:
+                    error_msg = (
+                        f"CSV ERROR: {csv_file_path}: Line {line_num} has {len(row)} columns, expected {expected_columns}. "
+                        f"Missing values in CSV row. Ensure each row has the correct number of values separated by commas."
+                    )
+                    if logger:
+                        logger.error(error_msg)
+                        logger.error(f"Problem row: {','.join(row)}")
+                    raise ValueError(error_msg)
+                line_num += 1
+                
+        success_msg = f"CSV validation passed - {line_num - 2} rows validated"
+        if logger:
+            logger.info(success_msg)
+        print(success_msg)
+        return True
+        
+    except Exception as e:
+        error_msg = f"CSV validation error: {str(e)}"
+        if logger:
+            logger.error(error_msg)
+        raise ValueError(error_msg)
+
 
 def createlogger(project_name, tag_name=None):
     """
@@ -77,7 +138,8 @@ def main():
         "omnia_base_dir": {"type": "str", "required": True},
         "project_name": {"type": "str", "required": True},
         "tag_names": {"type": "list", "required": True},
-        "module_utils_path": {"type": "str"}
+        "module_utils_path": {"type": "str"},
+        "csv_file_path": {"type": "str", "required": False},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -86,6 +148,7 @@ def main():
     omnia_base_dir = module.params["omnia_base_dir"]
     project_name = module.params["project_name"]
     tag_names = module.params["tag_names"]
+    csv_file_path = module.params.get("csv_file_path", "")
 
     schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
     input_dir_path = os.path.join(omnia_base_dir, project_name)
@@ -121,8 +184,29 @@ def main():
     # Run L1 and L2 validation if user included a tag and extra var files.
     # Or user only had tags and no extra var files.
     error_bucket = []
+    
+    # Check if build_stream is enabled to determine if GitLab validation should run
+    skip_gitlab_validation = False
+    build_stream_config_path = os.path.join(omnia_base_dir, project_name, "build_stream_config.yml")
+    if os.path.exists(build_stream_config_path):
+        try:
+            build_stream_data, _ = fetch.input_data(
+                build_stream_config_path, omnia_base_dir, project_name, logger, module
+            )
+            if build_stream_data:
+                enable_build_stream = build_stream_data.get("enable_build_stream", False)
+                if not enable_build_stream:
+                    skip_gitlab_validation = True
+                    logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
+        except Exception:
+            logger.warning("Failed to check build_stream status from build_stream_config.yml")
+    
+    validated_files = set()
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
+            if name in validated_files:
+                continue
+            validated_files.add(name)
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
@@ -137,9 +221,15 @@ def main():
 
             input_file_path = input_file_dict.get(name)
 
+            # Skip gitlab_config.yml validation if build_stream is disabled
+            # This check happens after file lookup to handle both missing and existing files
+            if skip_gitlab_validation and name == "gitlab_config.yml":
+                logger.info("Skipping gitlab_config.yml validation (build_stream disabled)")
+                continue
+
             if input_file_path is None:
                 error_message = (
-                    f"file not found in directory: {omnia_base_dir}/{project_name}"
+                    f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
                 )
                 logger.error(error_message)
                 module.fail_json(msg=error_message)
@@ -185,6 +275,17 @@ def main():
             vstatus.append(schema_status)
             vstatus.append(logic_status)
 
+    # Optional CSV validation
+    if csv_file_path:
+        try:
+            validate_csv_structure(csv_file_path, logger)
+            validation_status["tag"].append("csv_structure")
+            vstatus.append(True)
+        except ValueError as csv_error:
+            error_bucket = error_bucket + [str(csv_error)]
+            validation_status["Failed"].append(csv_file_path)
+            vstatus.append(False)
+
     if not validation_status:
         message = "No validation has been performed. \
             Please provide tags or include individual file names."
@@ -202,14 +303,16 @@ def main():
                f"Tag(s) run: {tag_names}. ",
                f"Look at the logs for more details: filename={log_file_name}"]
 
-    module.exit_json(failed=not status_bool,
+    module.exit_json(
+        changed=False,
+        validation_failed=not status_bool,
         error_msg=message,
         log_file=log_file_name,
         errors=error_bucket,
         valid_files=list(set(validation_status['Passed'])),
         invalid_files=list(set(validation_status['Failed'])),
         tags=tag_names
-        )
+    )
 
 
 if __name__ == "__main__":

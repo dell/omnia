@@ -42,18 +42,23 @@
   ansible.builtin.set_fact:
     backup_provision_config: "{{ backup_provision_config_slurp.content | b64decode | from_yaml }}"
 
+  # NOTE: dns_enabled is intentionally NOT carried forward from the backup.
+  # During upgrade, dns_enabled is always set to false in the template
+  # (provision_config.j2) regardless of the backup value, because DNS
+  # enablement is not supported as part of the upgrade flow.
 - name: Normalize provision_config.yml values
   ansible.builtin.set_fact:
-    provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default('pxe_mapping_file.csv') }}"
-    provision_language: "{{ backup_provision_config.language | default('en_US.UTF-8') }}"
-    provision_default_lease_time: "{{ backup_provision_config.default_lease_time | default('86400') }}"
+    provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default(provision_default_pxe_mapping_file_path) }}"
+    provision_language: "{{ backup_provision_config.language | default(provision_default_language) }}"
+    provision_default_lease_time: "{{ backup_provision_config.default_lease_time | default(provision_default_lease_time) }}"
+    provision_kernel_version_override: "{{ backup_provision_config.kernel_version_override | default(provision_default_kernel_version_override) }}"
 
 - name: Fail if pxe_mapping_file_path is missing
   ansible.builtin.fail:
     msg: "{{ msg_pxe_mapping_file_path_missing }}"
   when: (provision_pxe_mapping_file_path | string | trim) == ''
 
-- name: Write provision_config.yml in Omnia 2.1 format
+- name: Write provision_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: provision_config.j2
     dest: "{{ input_project_dir }}/provision_config.yml"
@@ -62,6 +67,7 @@
     provision_pxe_mapping_file_path: "{{ provision_pxe_mapping_file_path }}"
     provision_language: "{{ provision_language }}"
     provision_default_lease_time: "{{ provision_default_lease_time }}"
+    provision_kernel_version_override: "{{ provision_kernel_version_override }}"
 
 - name: Validate YAML syntax of transformed provision_config.yml
   ansible.builtin.command:

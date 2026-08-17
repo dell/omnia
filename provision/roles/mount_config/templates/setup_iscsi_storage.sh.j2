@@ -1,0 +1,226 @@
+#!/bin/bash
+set -euo pipefail
+
+LOGFILE="/var/log/omnia_iscsi_setup_{{ pv_entry.name }}.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+PORTALS=({% for ip in pv_entry.ip %}"{{ ip }}" {% endfor %})
+PORT="{{ pv_entry.port | default(3260) }}"
+INITIATOR_IQN="{{ pv_entry.iscsi_initiator | default('') }}"
+VOLUME_ID="{{ pv_entry.volume_id | default('') }}"
+MOUNT_POINT="{{ pv_entry.mount_point }}"
+{% if pv_entry.fs_type is defined %}
+FS_TYPE="{{ pv_entry.fs_type }}"
+MOUNT_OPTS="{{ pv_entry.mnt_opts | default('defaults,_netdev,noatime') }}"
+{% elif pv_entry.mount_params is defined and mount_params[pv_entry.mount_params] is defined %}
+FS_TYPE="{{ mount_params[pv_entry.mount_params].fs_type | default('xfs') }}"
+MOUNT_OPTS="{{ mount_params[pv_entry.mount_params].mnt_opts | default('defaults,_netdev,noatime') }}"
+{% else %}
+FS_TYPE="xfs"
+MOUNT_OPTS="defaults,_netdev,noatime"
+{% endif %}
+{% if pv_entry.node_key is defined %}
+NODE_KEY="{{ pv_entry.node_key }}"
+{% endif %}
+
+log "Enabling iSCSI daemon"
+systemctl enable --now iscsid
+/sbin/mpathconf --enable || true
+
+if [[ -n "${INITIATOR_IQN}" ]]; then
+  log "Setting InitiatorName to ${INITIATOR_IQN}"
+  if [[ -f /etc/iscsi/initiatorname.iscsi ]] && grep -q "^InitiatorName=${INITIATOR_IQN}$" /etc/iscsi/initiatorname.iscsi; then
+    log "InitiatorName already set; not changing"
+  else
+    printf "InitiatorName=%s\n" "${INITIATOR_IQN}" > /etc/iscsi/initiatorname.iscsi
+    log "Restarting iscsid after InitiatorName change"
+    systemctl restart iscsid
+  fi
+else
+  log "INITIATOR_IQN not set; leaving /etc/iscsi/initiatorname.iscsi unchanged"
+fi
+
+log "Current initiatorname:"
+cat /etc/iscsi/initiatorname.iscsi || true
+
+log "Discovering iSCSI targets from all portals"
+TARGET_IQN=""
+
+for ip in "${PORTALS[@]}"; do
+  log "Trying discovery on ${ip}:${PORT}"
+  OUT=$(iscsiadm -m discovery -t sendtargets -p "${ip}:${PORT}" 2>/dev/null || true)
+  echo "$OUT"
+  if [[ -z "${TARGET_IQN}" ]]; then
+    CANDIDATE_IQN=$(echo "$OUT" | awk '{print $2}' | head -1)
+    if [[ -n "${CANDIDATE_IQN}" ]]; then
+      TARGET_IQN="${CANDIDATE_IQN}"
+    fi
+  fi
+done
+
+if [[ -z "${TARGET_IQN}" ]]; then
+  log "ERROR: Unable to determine target IQN from discovery output"
+  exit 1
+fi
+log "Discovered TARGET_IQN=${TARGET_IQN}"
+
+log "Logging in to ALL discovered iSCSI targets"
+iscsiadm -m node --login || true
+
+log "Setting automatic startup for all nodes"
+iscsiadm -m node --op update -n node.startup -v automatic || true
+
+log "Waiting for devices to settle..."
+sleep 5
+
+log "Enabling multipathd"
+systemctl enable --now multipathd || true
+
+log "Rescanning iSCSI sessions"
+iscsiadm -m session --rescan || true
+
+log "Reloading multipath configuration"
+multipath -r || true
+
+sleep 3
+
+log "Verifying disks"
+lsblk || true
+lsscsi -s 2>/dev/null | grep -iE "ME|DELL" || true
+
+log "Multipath devices:"
+multipath -ll || true
+
+LATEST_MPATH=""
+
+if [[ -n "${VOLUME_ID}" ]]; then
+  log "Selecting multipath using VOLUME_ID match: ${VOLUME_ID}"
+  LATEST_MPATH=$(multipath -ll 2>/dev/null | grep -iF "${VOLUME_ID}" | awk '{print $1}' | head -1 || true)
+fi
+
+if [[ -z "${LATEST_MPATH}" ]]; then
+  log "Selecting multipath using vendor match DellEMC,ME5"
+  LATEST_MPATH=$(multipath -ll 2>/dev/null | grep -i "DellEMC,ME5" | awk '{print $1}' | head -1 || true)
+fi
+
+if [[ -z "${LATEST_MPATH}" ]]; then
+  log "Selecting multipath using vendor match DellEMC,ME4"
+  LATEST_MPATH=$(multipath -ll 2>/dev/null | grep -i "DellEMC,ME4" | awk '{print $1}' | head -1 || true)
+fi
+
+if [[ -z "${LATEST_MPATH}" ]]; then
+  log "Selecting multipath using latest dm-* fallback"
+  LATEST=$(multipath -ll 2>/dev/null | grep -oP 'dm-\d+' | sort -t- -k2 -n | tail -1 || true)
+  if [[ -z "${LATEST}" ]]; then
+    log "ERROR: No multipath dm-* devices detected"
+    exit 1
+  fi
+  LATEST_MPATH=$(multipath -ll 2>/dev/null | grep "${LATEST}" | awk '{print $1}' | head -1 || true)
+fi
+
+if [[ -z "${LATEST_MPATH}" ]]; then
+  log "ERROR: Unable to determine multipath device"
+  exit 1
+fi
+
+MPATH_DEV="/dev/mapper/${LATEST_MPATH}"
+log "Using multipath device: ${MPATH_DEV}"
+
+PART_DEV="/dev/mapper/${LATEST_MPATH}1"
+
+if [[ ! -e "${PART_DEV}" ]]; then
+  log "Creating GPT label and partition on ${MPATH_DEV}"
+  parted -s "${MPATH_DEV}" mklabel gpt
+  parted -s "${MPATH_DEV}" mkpart primary "${FS_TYPE}" 0% 100%
+  sleep 2
+  partprobe "${MPATH_DEV}" || true
+  kpartx -av "${MPATH_DEV}" || true
+  sleep 2
+fi
+
+log "Using partition device: ${PART_DEV}"
+
+# TODO: remove this partitioning and add it as prereq - as it may happen simultaneously
+if ! blkid -s TYPE -o value "${PART_DEV}" 2>/dev/null | grep -q .; then
+  log "Formatting ${PART_DEV} with ${FS_TYPE}"
+  mkfs."${FS_TYPE}" -f "${PART_DEV}"
+else
+  log "Filesystem already exists on ${PART_DEV}; skipping format"
+fi
+
+mkdir -pv "${MOUNT_POINT}"
+
+UUID=$(blkid -s UUID -o value "${PART_DEV}" 2>/dev/null || true)
+
+if [[ -n "${UUID}" ]]; then
+  log "Using UUID=${UUID} for fstab"
+  FSTAB_ENTRY="UUID=${UUID}"
+  FSTAB_MATCH="^UUID=${UUID}\s"
+else
+  log "UUID not available, using device path ${PART_DEV} for fstab"
+  FSTAB_ENTRY="${PART_DEV}"
+  FSTAB_MATCH="^${PART_DEV}\s"
+fi
+
+if ! grep -qE "${FSTAB_MATCH}" /etc/fstab; then
+  log "Adding persistent mount to /etc/fstab"
+  echo "${FSTAB_ENTRY} ${MOUNT_POINT} ${FS_TYPE} ${MOUNT_OPTS} 0 0" >> /etc/fstab
+fi
+
+if ! mountpoint -q "${MOUNT_POINT}"; then
+  log "Mounting ${MOUNT_POINT}"
+  mount "${PART_DEV}" "${MOUNT_POINT}"
+fi
+
+df -h "${MOUNT_POINT}" || true
+
+{% if pv_entry.node_key is defined and pv_entry.node_mount_point is defined %}
+# Get node-specific identifier from cloud-init datasource
+{% raw %}
+NODE_VALUE="{{ {% endraw %}{{ pv_entry.node_key }}{% raw %} }}"
+{% endraw %}
+
+log "Using node identifier: ${NODE_VALUE}"
+
+# Create node-specific subdirectory
+NODE_SUBDIR="${MOUNT_POINT}/${NODE_VALUE}"
+mkdir -pv "${NODE_SUBDIR}"
+
+{% for bind_mount in pv_entry.node_mount_point %}
+# Create bind mount subdirectory and target
+BIND_SOURCE="${NODE_SUBDIR}{{ bind_mount }}"
+BIND_TARGET="{{ bind_mount }}"
+
+mkdir -pv "${BIND_SOURCE}" "${BIND_TARGET}"
+
+# Add bind mount to fstab if not already present
+if ! grep -qE "\s+${BIND_TARGET}\s+none\s+bind" /etc/fstab; then
+  log "Adding bind mount: ${BIND_SOURCE} -> ${BIND_TARGET}"
+  echo "${BIND_SOURCE} ${BIND_TARGET} none bind 0 0" >> /etc/fstab
+fi
+
+# Mount bind mount
+if ! mountpoint -q "${BIND_TARGET}"; then
+  mount "${BIND_TARGET}" || true
+fi
+{% endfor %}
+
+{% if pv_entry.permissions is defined %}
+# Set permissions on mount point
+chown -R {{ pv_entry.permissions.owner | default('root') }}:{{ pv_entry.permissions.group | default('root') }} "${MOUNT_POINT}"
+chmod {{ pv_entry.permissions.mode | default('0755') }} "${MOUNT_POINT}"
+{% endif %}
+{% endif %}
+
+log "Final mount summary:"
+mount | grep -E "${MOUNT_POINT}" || true
+
+log "iSCSI sessions:"
+iscsiadm -m session || true
+
+log "Multipath status:"
+multipath -ll || true
+
+log "iSCSI/multipath setup complete for {{ pv_entry.name }}. Log saved to ${LOGFILE}"

@@ -1,0 +1,91 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# start_v21_containers.yml — Start v2.1 Containers via openchami.target
+# ============================================================================
+# After restoring v2.1 quadlet files and openchami.target, start all
+# OpenCHAMI services. The restored openchami.target references
+# coresmd.service (single container) instead of the v2.2 split services.
+#
+# Mirrors the start sequence from upgrade_openchami_containers.yml step 9,
+# but in reverse — starting the v2.1 service set.
+#
+# Idempotency:
+#   - systemd start is idempotent (no error if already running)
+#   - reset-failed + restart recovers any initially failed services
+# ============================================================================
+
+- name: Start v2.1 containers
+  block:
+    # ── Start all OpenCHAMI services ────────────────────────────────────
+    - name: Start openchami.target with v2.1 containers
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Start MinIO service
+      ansible.builtin.systemd:
+        name: minio.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Start registry service
+      ansible.builtin.systemd:
+        name: registry.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    # ── Recover any failed services ─────────────────────────────────────
+    - name: Reset any failed services
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restart openchami.target to recover failed services
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for restarted services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    - name: Display v2.1 container start status
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: "v2.1 OpenCHAMI services started via openchami.target."

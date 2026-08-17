@@ -1,0 +1,34 @@
+---
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Generate Telemetry Deployment Script
+# Purpose: Create telemetry.sh script in shared directory for cloud-init execution
+# This replaces the inline script generation in cloud-init templates
+#
+# The script is created at: {{ k8s_client_share_path }}/telemetry/telemetry.sh
+# Cloud-init will execute this script during node provisioning to deploy telemetry stack
+
+- name: Create telemetry deployment script
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/telemetry/telemetry.sh.j2"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/telemetry.sh"
+    mode: "{{ hostvars['localhost']['file_permissions_755'] }}"
+  vars:
+    k8s_client_mount_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}"
+
+- name: Display telemetry deployment script location
+  ansible.builtin.debug:
+    msg: "Telemetry deployment script created at {{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/telemetry.sh"
+    verbosity: 1

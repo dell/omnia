@@ -37,6 +37,8 @@
         password: "{{ hostvars['localhost']['bmc_password'] }}"
         timeout: "{{ redfish_timeout }}"
       register: disable_telemetry_result
+      delegate_to: "{{ worker_node }}"
+      when: worker_node is defined
       ignore_errors: true
 
     - name: Show successfully disabled telemetry IPs
@@ -59,7 +61,7 @@
     - name: Delete iDRAC IPs from mysqldb
       delete_idracips_from_mysqldb:
         telemetry_namespace: "{{ telemetry_namespace }}"
-        idrac_podnames: "{{ idrac_podname_idracips.idrac_podname_ips.keys() | list }}"
+        idrac_podnames: "{{ all_idrac_podnames }}"
         mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
         mysqldb_name: "{{ mysqldb_name }}"
         mysqldb_user: "{{ hostvars['localhost']['mysqldb_user'] }}"
@@ -96,6 +98,6 @@
     deleted_idrac_ips: "{{ delete_idrac_result.deleted_ips | default([]) }}"
     failed_delete_count: "{{ delete_idrac_result.failed_ips | default([]) | length }}"
     failed_delete_ips: "{{ delete_idrac_result.failed_ips | default([]) }}"
-    disabled_telemetry_count: "{{ disable_telemetry_result.disabled_ips | default([]) | length }}"
-    disabled_telemetry_ips: "{{ disable_telemetry_result.disabled_ips | default([]) }}"
+    disabled_telemetry_count: "{{ (disable_telemetry_result | default({})).disabled_ips | default([]) | length }}"
+    disabled_telemetry_ips: "{{ (disable_telemetry_result | default({})).disabled_ips | default([]) }}"
   when: ips_to_remove | length > 0

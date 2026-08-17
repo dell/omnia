@@ -58,22 +58,22 @@
 
     - name: Confirm all tasks Success
       ansible.builtin.debug:
-        msg: "All tasks completed successfully. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/"
+        msg: "All tasks completed successfully. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/ on OIM host" # noqa: yaml[line-length]
       when: task_results.overall_status == "SUCCESS"
 
     - name: Fail if Partial Success
       ansible.builtin.debug:
-        msg: "Some tasks partially failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
+        msg: "Some tasks partially failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/ on OIM host" # noqa: yaml[line-length]
       when: task_results.overall_status == "PARTIAL"
 
     - name: Fail if Failure to download package
       ansible.builtin.debug:
-        msg: "Some tasks failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
+        msg: "Some tasks failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/ on OIM host" # noqa: yaml[line-length]
       when: task_results.overall_status == "FAILURE"
 
     - name: Fail if Timeout during download
       ansible.builtin.debug:
-        msg: "Some tasks failed due to timeout. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs" # noqa: yaml[line-length]
+        msg: "Some tasks failed due to timeout. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs on OIM host" # noqa: yaml[line-length]
       when: task_results.overall_status == "TIMEOUT"
 
   rescue:
@@ -81,8 +81,8 @@
       ansible.builtin.debug:
         msg:
           - "Parallel tasks encountered an error. Check the logs for details:"
-          - "Log directory: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs"
-          - "Log file: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}_task_results.log"
+          - "Log directory: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs on OIM host"
+          - "Log file: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}_task_results.log on OIM host"
           - "Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
 
     - name: Fail the playbook execution

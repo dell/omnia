@@ -130,3 +130,7 @@
     regexp: "playbook_watcher.service"
     replace: ''
   when: p.stat.exists
+
+- name: Cleanup automation framework
+  ansible.builtin.import_tasks: cleanup_automation.yml
+  tags: automation

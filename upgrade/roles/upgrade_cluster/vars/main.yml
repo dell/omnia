@@ -14,5 +14,5 @@
 ---
 storage_config_path: "/opt/omnia/input/project_default/storage_config.yml"
 storage_content: "{{ lookup('file', storage_config_path, errors='ignore') | default('') }}"
-storage_yaml: "{{ storage_content | from_yaml | default({}) }}"
-nfs_params: "{{ storage_yaml.nfs_client_params | default([]) }}"
+storage_yaml: "{{ storage_content | from_yaml | default({}, true) }}"
+nfs_params: "{{ storage_yaml.nfs_client_params | default([], true) }}"

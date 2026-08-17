@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# rollback_buildstream — Role-Internal Constants
+# ============================================================================
+# Higher priority than defaults. Backup subpaths match the paths created
+# by upgrade/roles/upgrade_build_stream/tasks/upgrade_existing.yml and
+# upgrade/playbooks/tasks/upgrade_gitlab_config.yml.
+# ============================================================================
+
+# Component identification
+component_name: build_stream
+
+# Shared NFS path (matches oim_cleanup pattern)
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt') }}/omnia"
+
+# OIM metadata
+oim_metadata_file: /opt/omnia/.data/oim_metadata.yml
+
+# Quadlet directory (same as upgrade role)
+quadlet_dir: /etc/containers/systemd
+
+# Database name (same as upgrade role)
+postgres_db_name: build_stream_db
+
+# Backup subpaths (relative to backup_dir)
+# Created by upgrade/roles/upgrade_build_stream/tasks/upgrade_existing.yml
+buildstream_backup_quadlet_subpath: buildstream/omnia_build_stream.container.bak
+postgres_backup_quadlet_subpath: buildstream/omnia_postgres.container.bak
+postgres_backup_sql_subpath: buildstream/buildstream_db_backup.sql
+buildstream_upgrade_metadata_subpath: buildstream_upgrade_metadata.yml
+
+# GitLab backup subpaths (from upgrade/playbooks/tasks/upgrade_gitlab_config.yml)
+gitlab_backup_config_subpath: configs/gitlab/gitlab.rb
+gitlab_backup_secrets_subpath: configs/gitlab/gitlab-secrets.json
+
+# BuildStream cleanup directories (from oim_cleanup role vars)
+# Used by Uninstall path to remove all buildstream artifacts
+build_stream_cleanup_directories:
+  - "{{ omnia_nfs_share }}/log/build_stream"
+  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/build_stream_ssl"
+  - "{{ omnia_nfs_share }}/build_stream_root"
+  - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream"
+
+# Automation framework paths (from oim_cleanup role vars)
+automation_base_dir: "/opt/omnia/automation"
+automation_venv_dir: "{{ automation_base_dir }}/.venv"
+automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
+
+# GitLab cleanup packages (from gitlab/roles/cleanup_gitlab/vars/main.yml)
+gitlab_cleanup_packages:
+  - gitlab-ce
+  - gitlab-ee
+  - gitlab-ci
+  - gitlab-runner
+
+# GitLab cleanup directories (from gitlab/roles/cleanup_gitlab/vars/main.yml)
+gitlab_cleanup_core_directories:
+  - /etc/gitlab
+  - /var/opt/gitlab
+  - /var/log/gitlab
+  - /opt/gitlab
+
+# GitLab runner
+gitlab_runner_container_name: gitlab-runner
+gitlab_runner_config_path: /srv/gitlab-runner/config

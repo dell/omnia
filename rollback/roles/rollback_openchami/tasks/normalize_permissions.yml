@@ -1,0 +1,181 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# normalize_permissions.yml — Normalize Backup & Config Permissions
+# ============================================================================
+# The pre-upgrade backup is created with `cp -a`, which PRESERVES the source
+# permissions of /etc/openchami and its contents. Several of those files are
+# created by containers running as non-root UIDs (e.g. configs/, pg-init/,
+# postgresql_backup/openchami.sql) and may carry restrictive modes. On the
+# shared NFS backup path (root_squash), those restrictive bits cause
+# "permission denied" when the rollback later reads the backup or restores
+# /etc/openchami — which makes the final OpenCHAMI rollback step fail.
+#
+# Additionally, SELinux contexts may prevent container access to files.
+# Files need the container_file_t context to be accessible from containers.
+#
+# This task normalizes permissions and SELinux contexts BEFORE the restore:
+#   - Directories  -> 0755
+#   - Files        -> 0644
+#   - SELinux      -> system_u:object_r:container_file_t:s0
+# for two roots:
+#   1. Backup root on OIM host: {{ rollback_oim_host_backup_dir }}/openchami
+#   2. /etc/openchami on OIM host: {{ openchami_etc_dir }}
+#
+# NOTE: All operations run on the OIM host (delegated) because:
+#   - The backup is on shared NFS storage mounted on OIM
+#   - NFS root_squash causes permission issues when accessed from core container
+#   - SELinux contexts must be set on the OIM host filesystem
+#
+# Behaviour:
+#   - If permissions are simply wrong, they are corrected automatically and
+#     the rollback proceeds with no user action.
+#   - If any directory/file CANNOT be made readable (chmod denied / immutable
+#     / read-only mount), a clear error is shown asking the operator to fix
+#     the permissions manually and re-run the OpenCHAMI/OIM rollback with
+#     `--tags oim`.
+# ============================================================================
+
+- name: Normalize backup and /etc/openchami permissions
+  block:
+    # ── Resolve the two roots to normalize (OIM host paths) ───────────────
+    - name: Set permission normalization targets (OIM host paths)
+      ansible.builtin.set_fact:
+        normalize_backup_root: "{{ rollback_oim_host_backup_dir }}/openchami"
+        normalize_etc_root: "{{ openchami_etc_dir }}"
+
+    # ── 1. Backup root (OIM host — on shared NFS path) ────────────────────
+    # NOTE: Must run on OIM host because NFS root_squash prevents core
+    # container from accessing/modifying files with restrictive permissions.
+    - name: Check backup root exists (OIM host)
+      ansible.builtin.stat:
+        path: "{{ normalize_backup_root }}"
+      register: normalize_backup_root_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Normalize permissions on backup root (OIM host)
+      ansible.builtin.shell: |
+        set -o pipefail
+        find "{{ normalize_backup_root }}" -type d -exec chmod {{ dir_permissions_755 }} {} + 2>/dev/null || true
+        find "{{ normalize_backup_root }}" -type f -exec chmod {{ file_permissions_644 }} {} + 2>/dev/null || true
+      register: normalize_backup_chmod
+      changed_when: true
+      failed_when: false
+      when: normalize_backup_root_stat.stat.exists | default(false)
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Fix SELinux context on backup root (OIM host)
+      ansible.builtin.command: >
+        chcon -R system_u:object_r:container_file_t:s0 "{{ normalize_backup_root }}"
+      register: normalize_backup_selinux
+      changed_when: true
+      failed_when: false
+      when: normalize_backup_root_stat.stat.exists | default(false)
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Detect unreadable items under backup root (OIM host)
+      ansible.builtin.shell: |
+        set -o pipefail
+        {
+          find "{{ normalize_backup_root }}" -type d \( ! -readable -o ! -executable \) -print
+          find "{{ normalize_backup_root }}" -type f ! -readable -print
+        } 2>/dev/null
+      register: normalize_backup_bad
+      changed_when: false
+      failed_when: false
+      when: normalize_backup_root_stat.stat.exists | default(false)
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── 2. /etc/openchami (OIM host — delegated) ────────────────────────
+    - name: Check /etc/openchami exists (OIM host)
+      ansible.builtin.stat:
+        path: "{{ normalize_etc_root }}"
+      register: normalize_etc_root_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Normalize permissions on /etc/openchami (OIM host)
+      ansible.builtin.shell: |
+        set -o pipefail
+        find "{{ normalize_etc_root }}" -type d -exec chmod {{ dir_permissions_755 }} {} + 2>/dev/null || true
+        find "{{ normalize_etc_root }}" -type f -exec chmod {{ file_permissions_644 }} {} + 2>/dev/null || true
+      register: normalize_etc_chmod
+      changed_when: true
+      failed_when: false
+      when: normalize_etc_root_stat.stat.exists | default(false)
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Fix SELinux context on /etc/openchami (OIM host)
+      ansible.builtin.command: >
+        chcon -R system_u:object_r:container_file_t:s0 "{{ normalize_etc_root }}"
+      register: normalize_etc_selinux
+      changed_when: true
+      failed_when: false
+      when: normalize_etc_root_stat.stat.exists | default(false)
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Detect unreadable items under /etc/openchami (OIM host)
+      ansible.builtin.shell: |
+        set -o pipefail
+        {
+          find "{{ normalize_etc_root }}" -type d \( ! -readable -o ! -executable \) -print
+          find "{{ normalize_etc_root }}" -type f ! -readable -print
+        } 2>/dev/null
+      register: normalize_etc_bad
+      changed_when: false
+      failed_when: false
+      when: normalize_etc_root_stat.stat.exists | default(false)
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── 3. Aggregate results and fail with guidance if unfixable ────────
+    - name: Build list of items that could not be normalized
+      ansible.builtin.set_fact:
+        normalize_unfixable_backup: "{{ (normalize_backup_bad.stdout_lines | default([])) | select('string') | reject('equalto', '') | list }}"
+        normalize_unfixable_etc: "{{ (normalize_etc_bad.stdout_lines | default([])) | select('string') | reject('equalto', '') | list }}"
+
+    - name: Display permission normalization summary
+      ansible.builtin.debug:
+        verbosity: 1
+        msg:
+          - "Backup root: {{ normalize_backup_root }} ({{ 'present' if normalize_backup_root_stat.stat.exists | default(false) else 'absent' }})"
+          - "/etc/openchami: {{ normalize_etc_root }} ({{ 'present' if normalize_etc_root_stat.stat.exists | default(false) else 'absent' }})"
+          - "Directories normalized to {{ dir_permissions_755 }}, files normalized to {{ file_permissions_644 }}."
+          - "Unreadable items remaining (backup): {{ normalize_unfixable_backup | length }}"
+          - "Unreadable items remaining (/etc/openchami): {{ normalize_unfixable_etc | length }}"
+
+    - name: Fail if permissions could not be corrected
+      ansible.builtin.fail:
+        msg: "{{ rollback_messages.permissions.unfixable }}"
+      when: (normalize_unfixable_backup | length > 0) or (normalize_unfixable_etc | length > 0)
+
+    - name: Display permission normalization success
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.permissions.normalized }}"

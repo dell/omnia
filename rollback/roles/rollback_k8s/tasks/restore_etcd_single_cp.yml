@@ -1,0 +1,147 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Restore etcd snapshot on a single control plane node.
+# Called from restore_etcd.yml with loop_var: _cp_node
+
+- name: Skip if restore_etcd already done for {{ _cp_node }}
+  ansible.builtin.debug:
+    msg: "restore_etcd already completed on {{ _cp_node }} — skipping."
+  when: >-
+    (rollback_status.nodes[_cp_node].steps.restore_etcd.status | default('pending'))
+    == 'completed'
+
+- name: Restore etcd on {{ _cp_node }}
+  when: >-
+    (rollback_status.nodes[_cp_node].steps.restore_etcd.status | default('pending'))
+    != 'completed'
+  block:
+    # ── Determine this node's etcd member name and peer URL ────────
+    - name: Find etcd member info for {{ _cp_node }}
+      ansible.builtin.set_fact:
+        _etcd_member: >-
+          {{ etcd_members.members
+             | selectattr('peerURLs', 'search', node_ips[_cp_node])
+             | first }}
+
+    - name: Set etcd member name for {{ _cp_node }}
+      ansible.builtin.set_fact:
+        _etcd_name: "{{ _etcd_member.name }}"
+
+    # ── Ensure etcd is fully stopped (kubelet stop does not guarantee container exit) ──
+    - name: Stop any lingering etcd containers on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          # Kill etcd containers via crictl (CRI-O / containerd)
+          for cid in $(crictl ps -q --name etcd 2>/dev/null); do
+            crictl stop "$cid" 2>/dev/null || true
+            crictl rm "$cid" 2>/dev/null || true
+          done
+          # Also kill any bare etcd processes
+          pkill -9 -x etcd 2>/dev/null || true
+          # Brief wait for NFS file handles to release
+          sleep 2
+      delegate_to: "{{ _cp_node }}"
+      changed_when: true
+
+    # ── Remove existing etcd member data ────────────────────────────
+    - name: Remove etcd member directory on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          rm -rf /var/lib/etcd/member 2>/dev/null || true
+          # If NFS .nfs* stale handles block rm, move the dir aside
+          [ -d /var/lib/etcd/member ] && mv /var/lib/etcd/member /var/lib/etcd/member.stale.$$ || true
+      delegate_to: "{{ _cp_node }}"
+      changed_when: true
+
+    # ── Copy snapshot to node ──────────────────────────────────────
+    - name: Copy etcd snapshot to {{ _cp_node }}
+      ansible.builtin.copy:
+        src: "{{ etcd_snapshot_file }}"
+        dest: /tmp/etcd-snapshot.db
+        mode: "{{ file_perm_600 }}"
+        remote_src: true
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Restore snapshot using etcdutl binary from NFS backup ───────
+    # etcdutl requires --data-dir to be empty or absent. Since
+    # /var/lib/etcd may contain NFS stale handles (.nfs* files) that
+    # cannot be removed or moved, restore to a clean temp dir and
+    # then move the member directory into place.
+    - name: Copy etcdutl binary to {{ _cp_node }}
+      ansible.builtin.copy:
+        src: "{{ k8s_backup_dir }}/etcdutl"
+        dest: /tmp/etcdutl
+        mode: "{{ file_perm_755 }}"
+        remote_src: true
+      delegate_to: "{{ _cp_node }}"
+
+    - name: Restore etcd snapshot using etcdutl on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          TMPDIR=$(mktemp -d /tmp/etcd-restore.XXXXXX)
+          /tmp/etcdutl snapshot restore /tmp/etcd-snapshot.db \
+            --name {{ _etcd_name }} \
+            --data-dir "$TMPDIR" \
+            --initial-cluster {{ etcd_initial_cluster }} \
+            --initial-cluster-token etcd-cluster-1 \
+            --initial-advertise-peer-urls https://{{ node_ips[_cp_node] }}:2380
+          cp -a "$TMPDIR/member" /var/lib/etcd/member
+          rm -rf "$TMPDIR"
+      delegate_to: "{{ _cp_node }}"
+      register: _etcd_restore_result
+      changed_when: true
+
+    - name: Remove temporary etcdutl from {{ _cp_node }}
+      ansible.builtin.file:
+        path: /tmp/etcdutl
+        state: absent
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Clean up snapshot copy ─────────────────────────────────────
+    - name: Remove temporary snapshot file on {{ _cp_node }}
+      ansible.builtin.file:
+        path: /tmp/etcd-snapshot.db
+        state: absent
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Verify restore produced member directory ───────────────────
+    - name: Verify etcd data directory exists after restore on {{ _cp_node }}
+      ansible.builtin.stat:
+        path: /var/lib/etcd/member
+      delegate_to: "{{ _cp_node }}"
+      register: _etcd_member_dir
+
+    - name: Fail if etcd restore did not produce data on {{ _cp_node }}
+      ansible.builtin.fail:
+        msg: "etcd snapshot restore failed on {{ _cp_node }} — /var/lib/etcd/member does not exist."
+      when: not _etcd_member_dir.stat.exists
+
+    # ── Update per-node status ─────────────────────────────────────
+    - name: Mark restore_etcd completed for {{ _cp_node }}
+      ansible.builtin.include_tasks:
+        file: update_status.yml
+      vars:
+        node_name: "{{ _cp_node }}"
+        node_status_update:
+          steps:
+            restore_etcd:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+
+    - name: Display restore result for {{ _cp_node }}
+      ansible.builtin.debug:
+        msg: "etcd snapshot restored on {{ _cp_node }} (member: {{ _etcd_name }})."

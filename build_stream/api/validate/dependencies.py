@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI dependency providers for ValidateImageOnTest API."""
+"""FastAPI dependency providers for Validate API."""
 
 from typing import Optional
 
@@ -28,7 +28,7 @@ from api.dependencies import (
     _ENV,
 )
 from core.jobs.value_objects import CorrelationId
-from orchestrator.validate.use_cases import ValidateImageOnTestUseCase
+from orchestrator.validate.use_cases import ValidateUseCase
 
 
 def _get_container():
@@ -37,20 +37,20 @@ def _get_container():
     return container
 
 
-def get_validate_image_on_test_use_case(
+def get_validate_use_case(
     db_session: Session = Depends(get_db_session),
-) -> ValidateImageOnTestUseCase:
-    """Provide validate-image-on-test use case with shared session in prod."""
+) -> ValidateUseCase:
+    """Provide validate use case with shared session in prod."""
     if _ENV == "prod":
         container = _get_container()
-        return ValidateImageOnTestUseCase(
+        return ValidateUseCase(
             job_repo=_create_sql_job_repo(db_session),
             stage_repo=_create_sql_stage_repo(db_session),
             audit_repo=_create_sql_audit_repo(db_session),
             queue_service=container.validate_queue_service(),
             uuid_generator=container.uuid_generator(),
         )
-    return _get_container().validate_image_on_test_use_case()
+    return _get_container().validate_use_case()
 
 
 def get_validate_correlation_id(

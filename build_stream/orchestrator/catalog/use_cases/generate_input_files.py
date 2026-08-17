@@ -16,7 +16,7 @@
 
 """GenerateInputFiles use case implementation."""
 
-import logging
+from api.logging_utils import log_secure_info
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -58,7 +58,6 @@ from core.jobs.value_objects import JobId, StageName, StageType, StageState, Job
 from orchestrator.catalog.commands.generate_input_files import GenerateInputFilesCommand
 from orchestrator.catalog.dtos import GenerateInputFilesResult
 
-logger = logging.getLogger(__name__)
 
 
 class GenerateInputFilesUseCase:
@@ -158,6 +157,28 @@ class GenerateInputFilesUseCase:
             raise JobNotFoundError(
                 job_id=str(command.job_id),
                 correlation_id=str(command.correlation_id),
+            )
+
+        # Reset FAILED stages for retry (build stages don't support re-run from COMPLETED)
+        if stage.stage_state == StageState.FAILED:
+            prev_state = stage.stage_state.value
+            stage.reset()
+            self._stage_repo.save(stage)
+            log_secure_info(
+                "info",
+                f"Resetting generate-input-files stage from {prev_state} to PENDING "
+                f"for retry (attempt {stage.attempt}): job_id={command.job_id}",
+                job_id=str(command.job_id),
+            )
+            # Resume job from FAILED to IN_PROGRESS so CI polling doesn't exit early
+            JobStateHelper.handle_job_resume(
+                job_repo=self._job_repo,
+                audit_repo=self._audit_repo,
+                uuid_generator=self._uuid_generator,
+                job_id=command.job_id,
+                stage_name=StageType.GENERATE_INPUT_FILES.value,
+                correlation_id=str(command.correlation_id),
+                client_id=str(command.client_id),
             )
 
         if stage.stage_state == StageState.COMPLETED:
@@ -300,11 +321,7 @@ class GenerateInputFilesUseCase:
             label="omnia-configs",
         )
         if existing_record is not None:
-            logger.info(
-                "Artifact already exists for job %s, returning existing record: %s",
-                command.job_id,
-                existing_record.artifact_ref.key.value,
-            )
+            log_secure_info('info', f"Artifact already exists for job {command.job_id}, returning existing record: {existing_record.artifact_ref.key.value}")
             return existing_record.artifact_ref, existing_record
 
         hint = StoreHint(
@@ -367,10 +384,7 @@ class GenerateInputFilesUseCase:
             elif item.is_dir():
                 shutil.copytree(item, target_dir / item.name, dirs_exist_ok=True)
         
-        logger.info(
-            "Copied generated configs to artifacts input directory: %s",
-            target_dir
-        )
+        log_secure_info('info', f"Copied generated configs to artifacts input directory: {target_dir}")
 
     # ------------------------------------------------------------------
     # State transitions
