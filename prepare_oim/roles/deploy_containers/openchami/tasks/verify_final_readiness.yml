@@ -21,7 +21,7 @@
   ansible.builtin.pause:
     seconds: "{{ wait_time }}"
 
-- name: Check openchami.target is active
+- name: Check openchami.target is active # noqa: command-instead-of-module
   ansible.builtin.command: systemctl is-active openchami.target
   register: _final_openchami_check
   changed_when: false
@@ -35,7 +35,7 @@
   changed_when: false
   when: _final_openchami_check.rc != 0
 
-- name: Retry openchami.target readiness check
+- name: Retry openchami.target readiness check # noqa: command-instead-of-module
   ansible.builtin.command: systemctl is-active openchami.target
   register: _final_openchami_retry
   changed_when: false
