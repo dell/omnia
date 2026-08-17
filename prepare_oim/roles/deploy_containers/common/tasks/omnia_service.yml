@@ -35,10 +35,10 @@
     omnia_postgres_service: "omnia_postgres.service"
   when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
 
-- name: Start network manager services
+- name: Ensure network manager services are running
   ansible.builtin.systemd:
     name: "{{ item }}"
-    state: restarted
+    state: started
     enabled: true
   with_items: "{{ network_services }}"
 

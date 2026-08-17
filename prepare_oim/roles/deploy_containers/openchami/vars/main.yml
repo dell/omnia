@@ -136,7 +136,7 @@ podman_interfaces:
   - podman4
 
 # Retry / timeout settings
-openchami_stabilization_wait_time: 60
+openchami_stabilization_wait_time: 30
 wait_time: 30
 max_delay: 10
 max_retries: 10
