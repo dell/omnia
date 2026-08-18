@@ -17,14 +17,24 @@
 Ansible module to bulk-discover hardware specs from iDRAC Redfish API
 across multiple nodes in parallel.
 
+Supports two discovery modes:
+
+  Heterogeneous (per-node):  Each compute node is individually queried
+      via its iDRAC.  Use the ``nodes`` parameter.
+
+  Homogeneous (per-group):  For each hardware group one sample node is
+      queried and the discovered specs are replicated to every node in
+      that group.  Use the ``groups`` parameter.
+
+Exactly one of ``nodes`` or ``groups`` must be provided.
+
 Designed for HPC clusters with 500-2000 nodes where serial Ansible
 URI loops are prohibitively slow (50-80 min at 1000 nodes serial
 vs ~4 min at 20 parallel threads).
 
-Replicates all logic from read_node_idrac.yml including GPU fallback
-detection via PCIe device enumeration.
+GPU fallback detection via PCIe device enumeration is included.
 
-Usage in playbook:
+Usage in playbook (heterogeneous):
   bulk_discover_node_specs:
     nodes: "{{ cmpt_list }}"
     bmc_ip_map: "{{ bmc_ip_map }}"
@@ -36,6 +46,21 @@ Usage in playbook:
       real_memory: 864
       corespersocket: 72
       threadspercore: 1
+  register: bulk_discovery
+
+Usage in playbook (homogeneous group):
+  bulk_discover_node_specs:
+    groups: "{{ sample_idrac_groups }}"
+    bmc_ip_map: "{{ bmc_ip_map }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    max_parallel: 20
+    connect_timeout: 60
+    defaults:
+      real_memory: 864
+      corespersocket: 72
+      threadspercore: 1
+      sockets: 2
   register: bulk_discovery
 """
 import json
@@ -218,12 +243,79 @@ def _discover_single_node(hostname, bmc_ip, username, password,
     return (hostname, node_params, gpus, None)
 
 
+# ─── Per-group discovery (homogeneous) ────────────────────────────────────
+
+def _discover_group(group_name, group_nodes, bmc_ip_map, username,
+                    password, timeout, defaults):
+    """Discover hardware specs for a homogeneous group via iDRAC Redfish.
+
+    Tries each node in the group sequentially until one iDRAC responds,
+    then replicates the discovered specs to all nodes in the group.
+
+    Returns (group_name, node_params_list, gpu_dict, sample_node_or_None,
+             failed_bool).
+    """
+    default_memory = defaults.get("real_memory", 864)
+    default_cores = defaults.get("corespersocket", 72)
+    default_threads = defaults.get("threadspercore", 1)
+    default_sockets = defaults.get("sockets", 2)
+
+    # Try each node until one responds
+    sample_hostname = None
+    sample_params = None
+    sample_gpus = []
+
+    for hostname in group_nodes:
+        bmc_ip = bmc_ip_map.get(hostname)
+        if not bmc_ip:
+            continue
+        _, params, gpus, error = _discover_single_node(
+            hostname, bmc_ip, username, password, timeout, defaults,
+        )
+        if error is None:
+            sample_hostname = hostname
+            sample_params = params
+            sample_gpus = gpus
+            break
+
+    # Replicate discovered (or default) specs to all nodes in group
+    node_params_list = []
+    gpu_dict = {}
+
+    if sample_params:
+        for hostname in group_nodes:
+            entry = dict(sample_params)
+            entry["NodeName"] = hostname
+            node_params_list.append(entry)
+            if sample_gpus:
+                gpu_dict[hostname] = sample_gpus
+    else:
+        # All iDRACs in group failed — use defaults
+        for hostname in group_nodes:
+            node_params_list.append({
+                "NodeName": hostname,
+                "Sockets": default_sockets,
+                "CoresPerSocket": default_cores,
+                "ThreadsPerCore": default_threads,
+                "RealMemory": default_memory,
+            })
+
+    return (group_name, node_params_list, gpu_dict, sample_hostname,
+            sample_params is None)
+
+
 # ─── Main module ────────────────────────────────────────────────────────────
 
 def run_module():
     """Ansible module entry point."""
     module_args = {
-        "nodes": {"type": "list", "required": True, "elements": "str"},
+        "nodes": {
+            "type": "list", "required": False, "default": None,
+            "elements": "str",
+        },
+        "groups": {
+            "type": "dict", "required": False, "default": None,
+        },
         "bmc_ip_map": {"type": "dict", "required": True},
         "bmc_username": {"type": "str", "required": True, "no_log": True},
         "bmc_password": {"type": "str", "required": True, "no_log": True},
@@ -238,9 +330,15 @@ def run_module():
         },
     }
 
-    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
+    module = AnsibleModule(
+        argument_spec=module_args,
+        supports_check_mode=True,
+        mutually_exclusive=[("nodes", "groups")],
+        required_one_of=[("nodes", "groups")],
+    )
 
     nodes = module.params["nodes"]
+    groups = module.params["groups"]
     bmc_ip_map = module.params["bmc_ip_map"]
     bmc_username = module.params["bmc_username"]
     bmc_password = module.params["bmc_password"]
@@ -248,6 +346,23 @@ def run_module():
     connect_timeout = module.params["connect_timeout"]
     defaults = module.params["defaults"]
 
+    # Dispatch to per-node or per-group discovery
+    if groups is not None:
+        _run_group_discovery(
+            module, groups, bmc_ip_map, bmc_username, bmc_password,
+            max_parallel, connect_timeout, defaults,
+        )
+    else:
+        _run_node_discovery(
+            module, nodes or [], bmc_ip_map, bmc_username, bmc_password,
+            max_parallel, connect_timeout, defaults,
+        )
+
+
+def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
+                        bmc_password, max_parallel, connect_timeout,
+                        defaults):
+    """Heterogeneous mode: discover every node individually in parallel."""
     result = {
         "changed": False,
         "node_params": [],
@@ -257,10 +372,7 @@ def run_module():
         "discovered_count": 0,
     }
 
-    if module.check_mode:
-        module.exit_json(**result)
-
-    if not nodes:
+    if module.check_mode or not nodes:
         module.exit_json(**result)
 
     # Validate that all nodes have BMC IPs
@@ -268,7 +380,8 @@ def run_module():
     if missing_bmc:
         module.warn(
             f"No BMC IP found for {len(missing_bmc)} node(s): "
-            f"{', '.join(missing_bmc[:10])}{'...' if len(missing_bmc) > 10 else ''}"
+            f"{', '.join(missing_bmc[:10])}"
+            f"{'...' if len(missing_bmc) > 10 else ''}"
         )
 
     # Parallel iDRAC discovery
@@ -293,7 +406,9 @@ def run_module():
                 _, node_params, gpus, error = future.result()
                 if error:
                     result["failed_nodes"].append(hostname)
-                    module.warn(f"iDRAC discovery failed for {hostname}: {error}")
+                    module.warn(
+                        f"iDRAC discovery failed for {hostname}: {error}"
+                    )
                 else:
                     result["node_params"].append(node_params)
                     if gpus:
@@ -301,12 +416,83 @@ def run_module():
                     result["discovered_count"] += 1
             except Exception as exc:  # pylint: disable=broad-except
                 result["failed_nodes"].append(hostname)
-                module.warn(f"iDRAC discovery exception for {hostname}: {exc}")
+                module.warn(
+                    f"iDRAC discovery exception for {hostname}: {exc}"
+                )
 
     if result["failed_nodes"]:
         module.warn(
             f"iDRAC discovery failed for {len(result['failed_nodes'])} of "
             f"{len(nodes)} node(s)"
+        )
+
+    module.exit_json(**result)
+
+
+def _run_group_discovery(module, groups, bmc_ip_map, bmc_username,
+                         bmc_password, max_parallel, connect_timeout,
+                         defaults):
+    """Homogeneous mode: discover one sample per group in parallel."""
+    all_nodes = [h for hosts in groups.values() for h in hosts]
+    result = {
+        "changed": False,
+        "node_params": [],
+        "gpu_params": {},
+        "failed_nodes": [],
+        "failed_groups": [],
+        "total_nodes": len(all_nodes),
+        "total_groups": len(groups),
+        "discovered_count": 0,
+        "group_sample_nodes": {},
+    }
+
+    if module.check_mode or not groups:
+        module.exit_json(**result)
+
+    # Parallel group discovery — one thread per group
+    workers = min(max_parallel, len(groups))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {}
+        for group_name, group_nodes in groups.items():
+            future = pool.submit(
+                _discover_group,
+                group_name, group_nodes, bmc_ip_map,
+                bmc_username, bmc_password, connect_timeout, defaults,
+            )
+            futures[future] = group_name
+
+        for future in as_completed(futures):
+            group_name = futures[future]
+            try:
+                (_, node_params_list, gpu_dict, sample_node,
+                 failed) = future.result()
+                result["node_params"].extend(node_params_list)
+                result["gpu_params"].update(gpu_dict)
+                if sample_node:
+                    result["group_sample_nodes"][group_name] = sample_node
+                if failed:
+                    result["failed_groups"].append(group_name)
+                    module.warn(
+                        f"All iDRACs failed for group '{group_name}' "
+                        f"({len(groups[group_name])} nodes) — "
+                        f"using defaults"
+                    )
+                else:
+                    result["discovered_count"] += len(
+                        groups[group_name]
+                    )
+            except Exception as exc:  # pylint: disable=broad-except
+                result["failed_groups"].append(group_name)
+                module.warn(
+                    f"Group discovery exception for '{group_name}': "
+                    f"{exc}"
+                )
+
+    if result["failed_groups"]:
+        module.warn(
+            f"iDRAC group discovery failed for "
+            f"{len(result['failed_groups'])} of "
+            f"{len(groups)} group(s)"
         )
 
     module.exit_json(**result)
