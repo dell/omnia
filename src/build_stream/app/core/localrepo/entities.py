@@ -38,6 +38,11 @@ class PlaybookRequest:
         timeout: Execution timeout configuration.
         submitted_at: Request submission timestamp.
         request_id: Unique request identifier.
+        tags: Optional Ansible tags to filter playbook execution (e.g., "validate,deploy,download,status").
+
+    TODO: The `tags` field is a temporary addition for cross-domain playbook invocation.
+    Once build_stream fully integrates with repo_manager's credential collection, this field
+    can be removed and playbooks can be invoked without tag filtering.
     """
 
     job_id: str
@@ -48,10 +53,11 @@ class PlaybookRequest:
     timeout: ExecutionTimeout
     submitted_at: str
     request_id: str
+    tags: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
-        return {
+        result = {
             "job_id": self.job_id,
             "stage_name": self.stage_name,
             "playbook_path": str(self.playbook_path),
@@ -61,6 +67,9 @@ class PlaybookRequest:
             "submitted_at": self.submitted_at,
             "request_id": self.request_id,
         }
+        if self.tags:
+            result["tags"] = self.tags
+        return result
 
     def generate_filename(self) -> str:
         """Generate request file name following naming convention.

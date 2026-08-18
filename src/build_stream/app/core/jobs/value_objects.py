@@ -98,18 +98,17 @@ class StageType(str, Enum):
     for validation and by domain logic to avoid raw string comparisons.
     """
 
-    # Existing (Release 1)
-    PARSE_CATALOG = "parse-catalog"
-    GENERATE_INPUT_FILES = "generate-input-files"
+    # Build Pipeline stages (Release 2.3 — domain-segregated)
+    # NOTE: PARSE_CATALOG and GENERATE_INPUT_FILES have been retired in 2.3.
+    # With domain segregation, the catalog is consumed directly by each domain
+    # and input files are domain-specific (no central generation needed).
     CREATE_LOCAL_REPOSITORY = "create-local-repository"
-    #CREATE_IMAGE_REPOSITORY = "create-image-repository"
     BUILD_IMAGE_X86_64 = "build-image-x86_64"
     BUILD_IMAGE_AARCH64 = "build-image-aarch64"
     VALIDATE = "validate"
     RESTART = "restart"
-    #PROMOTE = "promote"
 
-    # New (Release 2 — Deploy Pipeline)
+    # Deploy Pipeline stages
     UPLOAD = "upload"
     DEPLOY = "deploy"
 

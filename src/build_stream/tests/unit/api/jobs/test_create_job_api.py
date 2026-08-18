@@ -57,18 +57,17 @@ class TestCreateJobSuccess:
         assert response.status_code == 201
         assert response.json()["job_state"] == "CREATED"
 
-    def test_create_job_creates_all_nine_stages(self, client, auth_headers):
+    def test_create_job_creates_all_seven_stages(self, client, auth_headers):
+        """Omnia 2.3+: 7 stages (parse-catalog and generate-input-files retired)."""
         payload = {"client_id": "client-123", "client_name": "test-client"}
 
         response = client.post("/api/v1/jobs", json=payload, headers=auth_headers)
 
         assert response.status_code == 201
         stages = response.json()["stages"]
-        assert len(stages) == 9
+        assert len(stages) == 7
 
         expected_stages = [
-            "parse-catalog",
-            "generate-input-files",
             "create-local-repository",
             "build-image-x86_64",
             "build-image-aarch64",

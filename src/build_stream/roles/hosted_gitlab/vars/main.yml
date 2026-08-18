@@ -141,34 +141,32 @@ gitlab_catalog_json_source: >-
      if (hostvars['localhost']['standalone_mode'] | default(false) | bool)
      else '/omnia/examples/catalog/catalog_rhel.json' }}
 gitlab_input_repo_dir: "input"
-# Use NFS input_project_dir for user-configured files instead of default repo files
-gitlab_input_nfs_root: >-
-  {{ hostvars['localhost']['input_project_dir']
-     | default((lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true))
-               ~ '/build_stream/input/project_default') }}
+
+# --- Domain-segregated input layout (Omnia 2.3+) ---
+# The GitLab repo uses a top-level input/ directory with domain subdirectories:
+#   input/repo_manager/        — repo_manager domain input files
+#   input/image_build_manager/ — image_build_manager domain input files
+#
+# Source paths resolve from each domain's runtime input directory.
+gitlab_omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+gitlab_omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+gitlab_omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default((role_path | realpath) + '/../../..', true) }}"
+
+# omnia.env — copied into the GitLab repo root so CI can source it
+gitlab_omnia_env_source: "{{ gitlab_omnia_src_path }}/main/omnia.env"
+
+# Domain-specific input files (top-level input/ with domain subdirectories)
 gitlab_input_files:
-  - name: "high_availability_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/high_availability_config.yml"
-  - name: "build_stream_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/build_stream_config.yml"
-  - name: "local_repo_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/local_repo_config.yml"
-  - name: "network_spec.yml"
-    src: "{{ gitlab_input_nfs_root }}/network_spec.yml"
-  - name: "omnia_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/omnia_config.yml"
-  - name: "provision_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/provision_config.yml"
-  - name: "pxe_mapping_file.csv"
-    src: "{{ gitlab_input_nfs_root }}/pxe_mapping_file.csv"
-  - name: "security_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/security_config.yml"
-  - name: "telemetry_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/telemetry_config.yml"
-  - name: "telemetry_storage_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/telemetry_storage_config.yml"
-  - name: "storage_config.yml"
-    src: "{{ gitlab_input_nfs_root }}/storage_config.yml"
+  # --- repo_manager domain ---
+  - name: "repo_manager/repo_manager_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/repo_manager/input/{{ gitlab_omnia_project_name }}/repo_manager_config.yml"
+  - name: "repo_manager/repo_manager_endpoint_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/repo_manager/input/{{ gitlab_omnia_project_name }}/repo_manager_endpoint_config.yml"
+  # --- image_build_manager domain ---
+  - name: "image_build_manager/image_build_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/image_build_manager/input/{{ gitlab_omnia_project_name }}/image_build_config.yml"
+  - name: "image_build_manager/package_groups.yml"
+    src: "{{ gitlab_omnia_data_path }}/image_build_manager/input/{{ gitlab_omnia_project_name }}/package_groups.yml"
 
 # Pipeline CI/CD variables
 gitlab_pipeline_var_check_status_codes: [200, 404]

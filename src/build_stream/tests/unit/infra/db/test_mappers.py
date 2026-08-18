@@ -130,7 +130,7 @@ class TestStageMapper:
         """Convert domain entity to ORM model."""
         stage = Stage(
             job_id=JobId("12345678-1234-5678-9abc-123456789abc"),
-            stage_name=StageName("parse-catalog"),
+            stage_name=StageName("create-local-repository"),
             stage_state=StageState.FAILED,
             attempt=2,
             started_at=datetime(2026, 1, 26, 10, 0, tzinfo=timezone.utc),
@@ -143,7 +143,7 @@ class TestStageMapper:
         model = StageMapper.to_orm(stage)
 
         assert model.job_id == "12345678-1234-5678-9abc-123456789abc"
-        assert model.stage_name == "parse-catalog"
+        assert model.stage_name == "create-local-repository"
         assert model.stage_state == "FAILED"
         assert model.attempt == 2
         assert model.started_at == datetime(2026, 1, 26, 10, 0, tzinfo=timezone.utc)
@@ -156,7 +156,7 @@ class TestStageMapper:
         """Convert ORM model to domain entity."""
         model = StageModel(
             job_id="12345678-1234-5678-9abc-123456789abc",
-            stage_name="parse-catalog",
+            stage_name="create-local-repository",
             stage_state="FAILED",
             attempt=2,
             started_at=datetime(2026, 1, 26, 10, 0, tzinfo=timezone.utc),
@@ -169,7 +169,7 @@ class TestStageMapper:
         stage = StageMapper.to_domain(model)
 
         assert str(stage.job_id) == "12345678-1234-5678-9abc-123456789abc"
-        assert str(stage.stage_name) == "parse-catalog"
+        assert str(stage.stage_name) == "create-local-repository"
         assert stage.stage_state == StageState.FAILED
         assert stage.attempt == 2
         assert stage.started_at == datetime(2026, 1, 26, 10, 0, tzinfo=timezone.utc)
@@ -215,7 +215,7 @@ class TestAuditEventMapper:
             correlation_id=CorrelationId("87654321-4321-8765-cba9-876543210cba"),
             client_id=ClientId("test-client"),
             timestamp=datetime(2026, 1, 26, 10, 0, tzinfo=timezone.utc),
-            details={"stage": "parse-catalog", "duration_ms": 5000},
+            details={"stage": "create-local-repository", "duration_ms": 5000},
         )
 
         model = AuditEventMapper.to_orm(event)
@@ -226,7 +226,7 @@ class TestAuditEventMapper:
         assert model.correlation_id == "87654321-4321-8765-cba9-876543210cba"
         assert model.client_id == "test-client"
         assert model.timestamp == datetime(2026, 1, 26, 10, 0, tzinfo=timezone.utc)
-        assert model.details == {"stage": "parse-catalog", "duration_ms": 5000}
+        assert model.details == {"stage": "create-local-repository", "duration_ms": 5000}
 
     def test_to_orm_without_details(self) -> None:
         """Convert domain entity to ORM model without details."""

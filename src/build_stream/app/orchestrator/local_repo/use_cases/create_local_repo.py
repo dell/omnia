@@ -23,7 +23,6 @@ from core.jobs.exceptions import (
     JobNotFoundError,
     StageAlreadyCompletedError,
     InvalidStateTransitionError,
-    UpstreamStageNotCompletedError,
 )
 from core.jobs.repositories import (
     AuditEventRepository,
@@ -57,8 +56,13 @@ from orchestrator.local_repo.dtos import LocalRepoResponse
 from core.common.playbook_registry import get_playbook_path
 
 
-DEFAULT_PLAYBOOK_NAME = "local_repo.yml"
-_LOCAL_REPO_PLAYBOOK_PATH = get_playbook_path(DEFAULT_PLAYBOOK_NAME) or "/omnia/local_repo/local_repo.yml"
+DEFAULT_PLAYBOOK_NAME = "repo_manager.yml"
+_LOCAL_REPO_PLAYBOOK_PATH = get_playbook_path(DEFAULT_PLAYBOOK_NAME)
+if _LOCAL_REPO_PLAYBOOK_PATH is None:
+    raise RuntimeError(
+        f"Playbook '{DEFAULT_PLAYBOOK_NAME}' not found in playbook_paths.yml. "
+        "Verify that playbook_paths.yml is present and OMNIA_SRC_PATH is set correctly."
+    )
 
 
 class CreateLocalRepoUseCase:
@@ -159,37 +163,14 @@ class CreateLocalRepoUseCase:
 
         return job
 
-    def _verify_upstream_stage_completed(
-        self, command: CreateLocalRepoCommand
-    ) -> None:
-        """Verify that generate-input-files stage is COMPLETED."""
-        from core.jobs.value_objects import StageState
-        
-        prerequisite_stage = self._stage_repo.find_by_job_and_name(
-            command.job_id, 
-            StageName(StageType.GENERATE_INPUT_FILES.value)
-        )
-        if (
-            prerequisite_stage is None
-            or prerequisite_stage.stage_state != StageState.COMPLETED
-        ):
-            raise UpstreamStageNotCompletedError(
-                job_id=str(command.job_id),
-                required_stage="generate-input-files",
-                actual_state=(
-                    prerequisite_stage.stage_state.value
-                    if prerequisite_stage
-                    else "NOT_FOUND"
-                ),
-                correlation_id=str(command.correlation_id),
-            )
-
     def _validate_stage(self, command: CreateLocalRepoCommand) -> Stage:
-        """Validate stage exists; reset to PENDING if in a retryable terminal state."""
+        """Validate stage exists; reset to PENDING if in a retryable terminal state.
+
+        Note: In Omnia 2.3+ (domain-segregated), create-local-repository is the
+        first stage in the build pipeline.  There is no upstream stage dependency
+        (parse-catalog and generate-input-files have been retired).
+        """
         from core.jobs.value_objects import StageState
-        
-        # Verify upstream stage is completed
-        self._verify_upstream_stage_completed(command)
         
         stage_name = StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
@@ -308,7 +289,14 @@ class CreateLocalRepoUseCase:
         command: CreateLocalRepoCommand,
         stage: Stage,
     ) -> PlaybookRequest:
-        """Build a PlaybookRequest entity from the command."""
+        """Build a PlaybookRequest entity from the command.
+
+        TODO: Temporary workaround - tags are set to skip credential collection
+        since build_stream handles all credential collection centrally via
+        get_domain_credentials.yml. Once repo_manager is fully integrated with
+        build_stream's centralized credential collection, remove the `tags` parameter
+        and revert to invoking repo_manager.yml without tag filtering.
+        """
         return PlaybookRequest(
             job_id=str(command.job_id),
             stage_name=StageType.CREATE_LOCAL_REPOSITORY.value,
@@ -321,6 +309,7 @@ class CreateLocalRepoUseCase:
             timeout=ExecutionTimeout.default(),
             submitted_at=datetime.now(timezone.utc).isoformat() + "Z",
             request_id=str(self._uuid_generator.generate()),
+            tags="validate,deploy,download,status",
         )
 
     def _submit_to_queue(

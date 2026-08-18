@@ -150,13 +150,16 @@ class TestStageName:
 
     def test_immutability(self):
         """StageName should be immutable."""
-        stage = StageName("parse-catalog")
+        stage = StageName("create-local-repository")
         with pytest.raises(AttributeError):
             stage.value = "build-image"
 
     def test_canonical_stages_count(self):
-        """Verify we have exactly 9 canonical stages (7 R1 + 2 R2)."""
-        assert len(StageType) == 9
+        """Verify we have exactly 7 canonical stages (5 build + 2 deploy).
+
+        Omnia 2.3+: parse-catalog and generate-input-files retired.
+        """
+        assert len(StageType) == 7
 
 
 class TestIdempotencyKey:

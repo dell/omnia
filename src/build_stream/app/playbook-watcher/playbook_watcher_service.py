@@ -79,12 +79,19 @@ RESULTS_DIR = QUEUE_BASE / "results"
 PROCESSING_DIR = QUEUE_BASE / "processing"
 ARCHIVE_DIR = QUEUE_BASE / "archive"
 
-# NFS shared path configuration
-NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
-HOST_LOG_BASE_DIR = NFS_SHARE_PATH / "omnia" / "log" / "build_stream"
-CONTAINER_LOG_BASE_DIR = Path("/opt/omnia/log/build_stream")
+# Environment configuration (sourced from omnia.env)
+OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
+OMNIA_VENV_PATH = os.getenv("OMNIA_VENV_PATH", "/opt/omnia/venv")
 
-# Build Stream artifacts directory (constructed from NFS_SHARE_PATH like HOST_LOG_BASE_DIR)
+# Application log directory (build_stream service logs)
+HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
+
+# Playbook log directory: /var/log/omnia/<domain>/
+# The domain name is extracted from the playbook path at runtime.
+PLAYBOOK_LOG_BASE_DIR = Path("/var/log/omnia")
+
+# Build Stream artifacts directory
+NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
 BUILD_STREAM_ROOT = NFS_SHARE_PATH / "omnia" / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
@@ -100,10 +107,33 @@ PLAYBOOK_PATHS_CONFIG = Path(os.getenv(
     str(Path(__file__).resolve().parent.parent / "playbook_paths.yml"),
 ))
 
+# Auto-detect: this file is at src/build_stream/app/playbook-watcher/
+# so .parent x4 gives src/
+_AUTO_DETECTED_SRC_PATH = str(
+    Path(__file__).resolve().parent.parent.parent.parent
+)
+
+
+def _get_omnia_src_path() -> str:
+    """Return OMNIA_SRC_PATH from env, or auto-detect from source tree."""
+    return os.environ.get("OMNIA_SRC_PATH") or _AUTO_DETECTED_SRC_PATH
+
+
+def _resolve_path(relative_path: str) -> str:
+    """Resolve a relative playbook path to an absolute path.
+
+    If the path is already absolute it is returned as-is (backward compat).
+    Otherwise it is joined with OMNIA_SRC_PATH.
+    """
+    if os.path.isabs(relative_path):
+        return relative_path
+    return str(Path(_get_omnia_src_path()) / relative_path)
+
 
 def _load_playbook_paths(config_path: Path) -> dict:
     """Load playbook path mapping from YAML config file.
 
+    Relative paths are resolved against OMNIA_SRC_PATH.
     Falls back to an empty dict if the file is missing or malformed,
     which will cause every playbook request to be rejected by the
     whitelist check — a safe default.
@@ -113,7 +143,8 @@ def _load_playbook_paths(config_path: Path) -> dict:
         with open(config_path, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
         if isinstance(data, dict) and isinstance(data.get("playbook_paths"), dict):
-            return dict(data["playbook_paths"])
+            raw = data["playbook_paths"]
+            return {name: _resolve_path(p) for name, p in raw.items()}
         log_secure_info("error", "playbook_paths.yml missing 'playbook_paths' key")
         return {}
     except FileNotFoundError:
@@ -264,8 +295,11 @@ def validate_stage_name(stage_name: str) -> bool:
 def validate_command(cmd: list, playbook_path: str) -> bool:
     """Validate command structure and arguments to prevent injection.
 
-    This function implements strict command allowlisting with rigorous validation
-    of each command argument to prevent any possibility of command injection.
+    Domain-segregated (Omnia 2.3+): the command runs ansible-playbook
+    directly on the host via the shared venv — no podman/container.
+
+    Expected structure:
+        [<venv>/bin/ansible-playbook, <playbook_path>, ...]
 
     Args:
         cmd: Command list to validate
@@ -275,14 +309,8 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
         True if valid, raises ValueError with detailed message if invalid
     """
     # Define the minimum required command structure
-    # This defines the exact structure and position of each argument
     MIN_REQUIRED_STRUCTURE = [
-        {"value": "podman", "fixed": True},
-        {"value": "exec", "fixed": True},
-        {"value": "-e", "fixed": True},
-        {"value": "ANSIBLE_LOG_PATH=", "prefix": True},  # Only the prefix is fixed, value is validated separately
-        {"value": "omnia_core", "fixed": True},
-        {"value": "ansible-playbook", "fixed": True},
+        {"value": "ansible-playbook", "suffix": True},  # venv path ends with ansible-playbook
         {"value": None, "fixed": False},  # playbook_path (validated separately)
     ]
 
@@ -290,7 +318,8 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     ALLOWED_EXTRA_ARGS = [
         "-v",
         "--extra-vars",
-        "--inventory"
+        "--inventory",
+        "--tags",
     ]
 
     # 1. Check minimum command length
@@ -303,7 +332,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
         )
         raise ValueError("Invalid command structure")
 
-    # 2. Structure validation - each argument must match the allowlisted structure
+    # 2. Structure validation
     for i, (arg, allowed) in enumerate(zip(cmd[:min_required_length], MIN_REQUIRED_STRUCTURE)):
         # Type check - must be string
         if not isinstance(arg, str):
@@ -315,7 +344,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
             raise ValueError("Invalid command argument type")
 
         # Length check - prevent excessively long arguments
-        if len(arg) > 4096:  # Reasonable maximum length
+        if len(arg) > 4096:
             log_secure_info(
                 "error",
                 "Command argument exceeds maximum allowed length",
@@ -323,26 +352,17 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
             )
             raise ValueError("Command argument too long")
 
-        # Fixed arguments must match exactly
-        if allowed.get("fixed", False) and arg != allowed.get("value", ""):
+        # Suffix check (ansible-playbook binary — may include venv prefix)
+        if allowed.get("suffix") and not arg.endswith(allowed.get("value", "")):
             log_secure_info(
                 "error",
-                f"Command argument at position {i} does not match allowlist",
-                f"Expected '{allowed.get('value', '')}', got '{arg}'"
+                f"Command argument at position {i} does not end with required suffix",
+                f"Expected suffix '{allowed.get('value', '')}', got '{arg}'"
             )
             raise ValueError(f"Invalid command argument at position {i}")
 
-        # Arguments with prefix must start with the specified prefix
-        if allowed.get("prefix") and not arg.startswith(allowed.get("value", "")):
-            log_secure_info(
-                "error",
-                f"Command argument at position {i} does not start with required prefix",
-                f"Expected prefix '{allowed.get('value', '')}', got '{arg}'"
-            )
-            raise ValueError(f"Invalid command argument prefix at position {i}")
-
-        # Special validation for playbook path
-        if not allowed.get("fixed", True) and i == 6:  # playbook_path position
+        # Playbook path position validation
+        if not allowed.get("suffix") and allowed.get("value") is None and i == 1:
             if arg != playbook_path:
                 log_secure_info(
                     "error",
@@ -352,20 +372,15 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
 
     # 3. Validate additional arguments (after the minimum required structure)
     if len(cmd) > min_required_length:
-        # Check for allowed additional arguments
         i = min_required_length
         while i < len(cmd):
             arg = cmd[i]
 
-            # Check if this is a parameter that takes a value
-            if arg in ["--inventory", "--extra-vars"] and i + 1 < len(cmd):
-                # Skip the value (next argument)
+            if arg in ["--inventory", "--extra-vars", "--tags"] and i + 1 < len(cmd):
                 i += 2
             elif arg == "-v" or arg.startswith("-v"):
-                # Verbosity flag
                 i += 1
             else:
-                # Unknown argument
                 log_secure_info(
                     "error",
                     "Unknown additional argument",
@@ -376,23 +391,18 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     # 4. Character validation - check for dangerous characters in all arguments
     DANGEROUS_CHARS = ['\n', '\r', '\0', '\t', '\v', '\f', '\a', '\b', '\\', '`', '$', '&', '|', ';', '<', '>', '(', ')', '*', '?', '~', '#']
 
-    # Skip validation for playbook path position and --extra-vars value
-    SKIP_POSITIONS = [6]  # Position of playbook_path
+    # Skip validation for playbook path position and value arguments
+    SKIP_POSITIONS = [1]  # Position of playbook_path
 
-    # Find positions of --extra-vars and --inventory values to skip validation
     i = min_required_length
     while i < len(cmd):
-        if cmd[i] == "--extra-vars" and i + 1 < len(cmd):
-            SKIP_POSITIONS.append(i + 1)  # Skip validating the JSON value
-            i += 2
-        elif cmd[i] == "--inventory" and i + 1 < len(cmd):
-            SKIP_POSITIONS.append(i + 1)  # Skip validating the inventory file path
+        if cmd[i] in ("--extra-vars", "--inventory", "--tags") and i + 1 < len(cmd):
+            SKIP_POSITIONS.append(i + 1)
             i += 2
         else:
             i += 1
 
     for i, arg in enumerate(cmd):
-        # Skip validation for playbook path and --extra-vars value
         if i in SKIP_POSITIONS:
             continue
 
@@ -405,7 +415,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
                 )
                 raise ValueError("Invalid command argument content")
 
-    # 4. Shell binary check - prevent shell execution
+    # 5. Shell binary check - prevent shell execution
     SHELL_BINARIES = ["sh", "bash", "dash", "zsh", "ksh", "csh", "tcsh", "fish"]
     for i, arg in enumerate(cmd):
         if arg in SHELL_BINARIES:
@@ -416,7 +426,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
             )
             raise ValueError("Shell binary not allowed in command")
 
-    # 5. URL check - prevent remote resource fetching
+    # 6. URL check - prevent remote resource fetching
     for i, arg in enumerate(cmd):
         if re.search(r'(https?|ftp|file)://', arg):
             log_secure_info(
@@ -627,8 +637,35 @@ def extract_playbook_name(full_playbook_path: str) -> str:
     return os.path.basename(full_playbook_path)
 
 
+def _extract_domain_from_playbook_path(playbook_path: str) -> str:
+    """Extract the domain name from a playbook's absolute path.
+
+    Convention: ``src/<domain>/playbooks/<playbook>.yml``
+    We walk up from the playbook file to find the domain directory.
+
+    Args:
+        playbook_path: Absolute path to the playbook file.
+
+    Returns:
+        Domain name (e.g. ``repo_manager``, ``image_build_manager``).
+        Falls back to ``unknown`` if extraction fails.
+    """
+    try:
+        parts = Path(playbook_path).resolve().parts
+        # Look for 'playbooks' directory in path and take the component before it
+        for idx, part in enumerate(parts):
+            if part == "playbooks" and idx > 0:
+                return parts[idx - 1]
+    except Exception:  # pylint: disable=broad-except
+        pass
+    return "unknown"
+
+
 def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = None) -> tuple:
-    """Build host and container log file paths with optional attempt number.
+    """Build playbook log file path under /var/log/omnia/<domain>/.
+
+    With domain segregation (Omnia 2.3+), playbook logs are written to
+    ``/var/log/omnia/<domain>/`` rather than inside a container.
 
     Args:
         playbook_path: Full path to the playbook file
@@ -636,28 +673,23 @@ def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = No
         attempt: Optional attempt number (1-indexed). If None, attempt suffix is omitted.
 
     Returns:
-        Tuple of (host_log_file_path, container_log_file_path, host_log_dir)
+        Tuple of (log_file_path, log_dir)
     """
-    # Extract playbook name from the full path
     playbook_name = extract_playbook_name(playbook_path)
+    domain = _extract_domain_from_playbook_path(playbook_path)
 
-    # Create base log directory on NFS share (no job-specific subdirectory)
-    host_log_dir = HOST_LOG_BASE_DIR
-    host_log_dir.mkdir(parents=True, exist_ok=True)
+    # Playbook logs go to /var/log/omnia/<domain>/
+    log_dir = PLAYBOOK_LOG_BASE_DIR / domain
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create log file path with playbook name and timestamp
-    # Attempt suffix is only included when explicitly provided
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
     if attempt is not None:
         log_filename = f"{playbook_name}_{timestamp}_attempt{attempt}.log"
     else:
         log_filename = f"{playbook_name}_{timestamp}.log"
-    host_log_file_path = host_log_dir / log_filename
+    log_file_path = log_dir / log_filename
 
-    # Container log path (equivalent path in container)
-    container_log_file_path = CONTAINER_LOG_BASE_DIR / log_filename
-
-    return host_log_file_path, container_log_file_path, host_log_dir
+    return log_file_path, log_dir
 
 
 def move_log_to_job_directory(host_log_file_path: Path, job_id: str, attempt: int = None) -> Path:
@@ -705,7 +737,14 @@ def move_log_to_job_directory(host_log_file_path: Path, job_id: str, attempt: in
 
 
 def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute Ansible playbook and capture results.
+    """Execute Ansible playbook directly on the host via the shared venv.
+
+    Domain-segregated (Omnia 2.3+): no podman / container.  The watcher
+    invokes ``<OMNIA_VENV_PATH>/bin/ansible-playbook`` with the working
+    directory set to the playbook's parent so that ``ansible.cfg`` and
+    relative role paths are picked up correctly.
+
+    Playbook logs are written to ``/var/log/omnia/<domain>/``.
 
     Args:
         request_data: Parsed request dictionary
@@ -716,202 +755,122 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     job_id = request_data["job_id"]
     stage_name = request_data["stage_name"]
     # Perform a fresh whitelist lookup to break taint chain
-    # Reading from request_data["full_playbook_path"] is tainted because the dict comes from json.load()
     playbook_name = str(request_data.get("playbook_name", request_data.get("playbook_path", "")))
     playbook_path = map_playbook_name_to_path(playbook_name)
     if playbook_path is None:
         raise ValueError(f"Invalid playbook name: {playbook_name[:8]}")
-    # Use default timeout to prevent potential injection from user input
     timeout_minutes = DEFAULT_TIMEOUT_MINUTES
     correlation_id = request_data.get("correlation_id", job_id)
 
-    log_secure_info(
-        "info",
-        "Executing playbook for job",
-        job_id
-    )
-    log_secure_info(
-        "debug",
-        "Stage name",
-        stage_name
-    )
-    log_secure_info(
-        "debug",
-        "Playbook name",
-        playbook_name
-    )
+    log_secure_info("info", "Executing playbook for job", job_id)
+    log_secure_info("debug", "Stage name", stage_name)
+    log_secure_info("debug", "Playbook name", playbook_name)
 
     started_at = datetime.now(timezone.utc)
 
-    # Build log paths without attempt number to keep log_path_str untainted
-    # Attempt number will be appended later when moving to job-specific directory
-    host_log_file_path, container_log_file_path, _ = _build_log_paths(
-        playbook_path, started_at
-    )
+    # Build log paths (playbook logs go to /var/log/omnia/<domain>/)
+    log_file_path, _ = _build_log_paths(playbook_path, started_at)
 
-    # Build podman command to execute playbook in omnia_core container
-    # Build command as a list to prevent shell injection
-    # Ensure environment variable value is properly sanitized
-    log_path_str = str(container_log_file_path)
+    log_path_str = str(log_file_path)
 
     # Strict validation for log path
     if not log_path_str.startswith('/') or '..' in log_path_str:
-        log_secure_info(
-            "error",
-            "Container log path must be absolute and cannot contain path traversal",
-            log_path_str[:8]
-        )
-        raise ValueError("Invalid container log path")
-
-    # Validate log path format using regex (alphanumeric, underscore, hyphen, forward slash, and dots)
+        log_secure_info("error", "Log path must be absolute and cannot contain path traversal", log_path_str[:8])
+        raise ValueError("Invalid log path")
     if not re.match(r'^[a-zA-Z0-9_\-/.]+$', log_path_str):
-        log_secure_info(
-            "error",
-            "Container log path contains invalid characters",
-            log_path_str[:8]
-        )
-        raise ValueError("Invalid container log path format")
+        log_secure_info("error", "Log path contains invalid characters", log_path_str[:8])
+        raise ValueError("Invalid log path format")
 
-    # Build command as a list to prevent shell injection
-    # We no longer use extra_vars to prevent potential command injection
-    # This simplifies the code and removes a potential security vulnerability
+    # Resolve ansible-playbook binary from venv
+    ansible_playbook_bin = f"{OMNIA_VENV_PATH}/bin/ansible-playbook"
 
-    # Command structure will be validated by the validate_command function
-
-    # Check if this is a build_image playbook
-    # is_build_image = "build_image" in playbook_name
-
-    # Build command as a list with all validated components
-    # Each element is a separate argument - no shell interpretation possible
+    # Build command — direct invocation, no podman/container
     cmd = [
-        "podman", "exec",
-        "-e", f"ANSIBLE_LOG_PATH={log_path_str}",
-        "omnia_core",
-        "ansible-playbook",
-        playbook_path  # Validated against strict whitelist
+        ansible_playbook_bin,
+        playbook_path,  # Validated against strict whitelist
     ]
 
-    # Add inventory file path if present for build_image playbooks
+    # Add inventory file path if present
     if "inventory_file_path" in request_data:
         inventory_file_path = str(request_data["inventory_file_path"])
         cmd.extend(["--inventory", inventory_file_path])
-        log_secure_info(
-            "info",
-            "Using inventory file for build_image playbook",
-            inventory_file_path[:8]
-        )
+        log_secure_info("info", "Using inventory file for playbook", inventory_file_path[:8])
 
     # Build extra_vars: always inject job_id so playbooks can reference it
-    import json
+    import json  # pylint: disable=import-outside-toplevel
     extra_vars = request_data.get("extra_vars", {})
     if not isinstance(extra_vars, dict):
         extra_vars = {}
-
-    # Always inject job_id into extra_vars (playbook requires it for artifact paths)
     extra_vars["job_id"] = job_id
-
-    # Pass extra_vars to ansible-playbook
     extra_vars_json = json.dumps(extra_vars)
     cmd.extend(["--extra-vars", extra_vars_json])
+    log_secure_info("info", "Added extra_vars with job_id for playbook", job_id)
 
-    log_secure_info(
-        "info",
-        "Added extra_vars with job_id for playbook",
-        job_id
-    )
+    # Add tags if present (for selective playbook execution)
+    # TODO: Temporary workaround for cross-domain playbook invocation.
+    # Once build_stream fully integrates with repo_manager's credential collection,
+    # this tag filtering logic can be removed.
+    if "tags" in request_data and request_data["tags"]:
+        tags_str = str(request_data["tags"])
+        cmd.extend(["--tags", tags_str])
+        log_secure_info("info", f"Added tags for playbook: {tags_str}", job_id)
 
     # Add verbosity flag
     cmd.append("-v")
 
-    # Use the dedicated command validation function to perform comprehensive validation
-    # This includes structure validation, argument validation, and security checks
+    # Validate the command structure
     try:
         validate_command(cmd, playbook_path)
     except ValueError as e:
-        log_secure_info(
-            "error",
-            "Command validation failed",
-            str(e)
-        )
+        log_secure_info("error", "Command validation failed", str(e))
         raise ValueError(f"Command validation failed: {e}")
 
-    # Don't log the full command with potentially sensitive paths
-    log_secure_info(
-        "debug",
-        "Executing ansible playbook for job",
-        job_id
-    )
-    log_secure_info(
-        "info",
-        "Ansible logs will be written to job directory",
-        job_id
-    )
+    # Working directory = playbook's parent directory (for ansible.cfg / roles)
+    playbook_dir = str(Path(playbook_path).resolve().parent)
+
+    log_secure_info("debug", "Executing ansible playbook for job", job_id)
+    log_secure_info("info", "Ansible logs will be written to", log_path_str[:20])
 
     try:
-        # Execute playbook with timeout and custom log path
         timeout_seconds = timeout_minutes * 60
-        # Only set ANSIBLE_LOG_PATH in the environment
-        # This is already passed as -e parameter to podman exec
-        # No need for a full sanitized environment
 
-        # Log the command being executed (without sensitive details)
-        log_secure_info(
-            "debug",
-            "Executing command",
-            f"podman exec omnia_core ansible-playbook [playbook]"
-        )
+        # Set ANSIBLE_LOG_PATH as env var so Ansible writes its log there
+        env = os.environ.copy()
+        env["ANSIBLE_LOG_PATH"] = log_path_str
 
-        # Execute with explicit shell=False and validated arguments
+        log_secure_info("debug", "Executing command", f"ansible-playbook [playbook] in {playbook_dir[:30]}")
+
+        # Execute directly — shell=False, cwd=playbook directory
         result = subprocess.run(
             cmd,
-            capture_output=False,  # Don't capture to avoid duplication with ANSIBLE_LOG_PATH
+            capture_output=False,
             timeout=timeout_seconds,
             check=False,
-            shell=False,  # Explicitly set shell=False to prevent injection
-            text=False,   # Don't interpret output as text to prevent encoding issues
-            start_new_session=True  # Isolate the process from the parent session
+            shell=False,
+            text=False,
+            start_new_session=True,
+            cwd=playbook_dir,
+            env=env,
         )
 
-        # Log file is directly accessible via NFS share, no need to copy
-        # Wait a moment for log to be written
+        # Wait briefly for log flush
         time.sleep(0.5)
 
         # Verify log file exists
-        if host_log_file_path.exists():
-            log_secure_info(
-                "info",
-                "Log file confirmed for job",
-                job_id
-            )
-            # Move log file to job-specific directory after completion
-            # Append attempt number from request_data during move (post-execution)
-            # This keeps the tainted attempt value out of subprocess.run
-            extra_vars = request_data.get("extra_vars", {})
-            attempt = extra_vars.get("attempt", 1) if isinstance(extra_vars, dict) else 1
-            host_log_file_path = move_log_to_job_directory(host_log_file_path, job_id, attempt=attempt)
+        if log_file_path.exists():
+            log_secure_info("info", "Log file confirmed for job", job_id)
+            ev = request_data.get("extra_vars", {})
+            attempt = ev.get("attempt", 1) if isinstance(ev, dict) else 1
+            log_file_path = move_log_to_job_directory(log_file_path, job_id, attempt=attempt)
         else:
-            log_secure_info(
-                "warning",
-                "Log file not found at expected location for job",
-                job_id
-            )
+            log_secure_info("warning", "Log file not found at expected location for job", job_id)
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
 
-        # Determine status
         status = "success" if result.returncode == 0 else "failed"
-
-        log_secure_info(
-            "info",
-            "Playbook execution completed for job",
-            job_id
-        )
-        log_secure_info(
-            "debug",
-            "Execution status",
-            status
-        )
+        log_secure_info("info", "Playbook execution completed for job", job_id)
+        log_secure_info("debug", "Execution status", status)
 
         # Build result dictionary
         result_data = {
@@ -921,17 +880,21 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "status": status,
             "exit_code": result.returncode,
-            "log_file_path": str(host_log_file_path),  # Host path to Ansible log file (NFS share)
+            "log_file_path": str(log_file_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
             "timestamp": completed_at.isoformat(),
         }
 
-        # Add error details if failed
+        # Add error details if failed — include playbook log path for debugging
         if status == "failed":
+            domain = _extract_domain_from_playbook_path(playbook_path)
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
-            result_data["error_summary"] = f"Playbook exited with code {result.returncode}"
+            result_data["error_summary"] = (
+                f"Playbook exited with code {result.returncode}. "
+                f"Check playbook logs at /var/log/omnia/{domain}/ for details."
+            )
 
         # For restart stage, include path to per-node results JSON if it exists
         # Per spec 12.4: node_results.json is at BUILD_STREAM_ROOT/artifacts/<job_id>/

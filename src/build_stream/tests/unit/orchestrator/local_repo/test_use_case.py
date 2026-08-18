@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from core.jobs.entities import Job, Stage
-from core.jobs.exceptions import JobNotFoundError, UpstreamStageNotCompletedError
+from core.jobs.exceptions import JobNotFoundError
 from core.jobs.value_objects import (
     ClientId,
     CorrelationId,
@@ -82,29 +82,19 @@ def command_fixture(job_id, client_id, correlation_id):
     )
 
 
-@pytest.fixture(name="upstream_stage")
-def upstream_stage_fixture(job_id):
-    """Provide a COMPLETED generate-input-files stage (upstream prerequisite)."""
-    upstream = Stage(
-        job_id=job_id,
-        stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
-    )
-    upstream.start()
-    upstream.complete()
-    return upstream
-
-
 @pytest.fixture(name="use_case")
-def use_case_fixture(job, stage, upstream_stage):
-    """Provide a CreateLocalRepoUseCase with mocked dependencies."""
+def use_case_fixture(job, stage):
+    """Provide a CreateLocalRepoUseCase with mocked dependencies.
+
+    Omnia 2.3+: no upstream generate-input-files stage — create-local-repository
+    is the first stage in the build pipeline.
+    """
     job_repo = MagicMock()
     job_repo.find_by_id.return_value = job
 
     stage_repo = MagicMock()
 
     def _find_by_job_and_name(job_id_arg, stage_name_arg):
-        if stage_name_arg.value == StageType.GENERATE_INPUT_FILES.value:
-            return upstream_stage
         if stage_name_arg.value == StageType.CREATE_LOCAL_REPOSITORY.value:
             return stage
         return None
@@ -188,14 +178,10 @@ class TestCreateLocalRepoUseCase:
         with pytest.raises(JobNotFoundError):
             use_case.execute(command)
 
-    def test_execute_stage_not_found(self, use_case, command, upstream_stage):
+    def test_execute_stage_not_found(self, use_case, command):
         """Missing stage should raise error."""
-        def _find_upstream_only(job_id_arg, stage_name_arg):
-            if stage_name_arg.value == StageType.GENERATE_INPUT_FILES.value:
-                return upstream_stage
-            return None
-
-        use_case._stage_repo.find_by_job_and_name.side_effect = _find_upstream_only
+        use_case._stage_repo.find_by_job_and_name.side_effect = None
+        use_case._stage_repo.find_by_job_and_name.return_value = None
 
         with pytest.raises(JobNotFoundError):
             use_case.execute(command)

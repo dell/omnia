@@ -52,7 +52,8 @@ class CreateJobUseCase:
     - Idempotency: Same idempotency key returns same result
     - Atomicity: All-or-nothing persistence (job + stages + idempotency record)
     - Audit trail: Emits JOB_CREATED event
-    - Initial stages: Creates all 5 stages in PENDING state
+    - Initial stages: Creates all 7 stages in PENDING state
+      (Omnia 2.3+: parse-catalog and generate-input-files retired)
 
     Attributes:
         job_repo: Job repository port.
@@ -239,16 +240,14 @@ class CreateJobUseCase:
     def _create_initial_stages(self, job_id: JobId) -> List[Stage]:
         """Create initial stages for the job.
 
-        Creates all 9 stages in PENDING state:
-        - PARSE_CATALOG
-        - GENERATE_INPUT_FILES
+        Creates all 7 stages in PENDING state (Omnia 2.3+ domain-segregated):
         - CREATE_LOCAL_REPOSITORY
-        - UPDATE_LOCAL_REPOSITORY
-        - CREATE_IMAGE_REPOSITORY
-        - BUILD_IMAGE
-        - VALIDATE_IMAGE
+        - BUILD_IMAGE_X86_64
+        - BUILD_IMAGE_AARCH64
         - VALIDATE
         - RESTART
+        - UPLOAD
+        - DEPLOY
 
         Returns:
             List of Stage entities in PENDING state.

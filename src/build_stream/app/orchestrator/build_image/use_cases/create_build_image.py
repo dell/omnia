@@ -77,9 +77,18 @@ from orchestrator.build_image.dtos import BuildImageResponse
 from core.common.playbook_registry import get_playbook_path
 
 
+# Domain-segregated (Omnia 2.3+): both architectures use the single
+# image_build_manager.yml entry point.  The playbook internally dispatches
+# to build_image_x86_64.yml / build_image_aarch64.yml based on tags.
+_IBM_PATH = get_playbook_path("image_build_manager.yml")
+if _IBM_PATH is None:
+    raise RuntimeError(
+        "Playbook 'image_build_manager.yml' not found in playbook_paths.yml. "
+        "Verify that playbook_paths.yml is present and OMNIA_SRC_PATH is set correctly."
+    )
 PLAYBOOK_PATHS = {
-    "x86_64": get_playbook_path("build_image_x86_64.yml") or "/omnia/build_image_x86_64/build_image_x86_64.yml",
-    "aarch64": get_playbook_path("build_image_aarch64.yml") or "/omnia/build_image_aarch64/build_image_aarch64.yml",
+    "x86_64": _IBM_PATH,
+    "aarch64": _IBM_PATH,
 }
 
 DEFAULT_TIMEOUT_MINUTES = 60
