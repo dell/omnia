@@ -91,7 +91,9 @@ KNOWN_DOMAINS: List[str] = [
 # Domains that have domain-init.sh scripts
 DOMAINS_WITH_INIT: List[str] = [
     "build_stream",
+    "discovery",
     "image_build_manager",
+    "orchestrator",
     "repo_manager",
     "telemetry",
 ]
@@ -122,12 +124,16 @@ VALID_CLI_COMMANDS: List[str] = [
     "--setup-venv", "-s",
     "--init", "-i",
     "--run", "-r",
+    "--cleanup",
+    "--catalog",
     "--help", "-h",
 ]
 
 VALID_CLI_OPTIONS: List[str] = [
     "--deps-only",
     "--tags", "-t",
+    "--all",
+    "--list",
 ]
 
 # =============================================================================
@@ -201,6 +207,22 @@ CMDS: Dict[str, str] = {
     "omnia_sh_unknown_option": (
         "cd {clone_path} && bash {omnia_sh}"
         " --bogus 2>&1"
+    ),
+    "omnia_sh_cleanup": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --cleanup 2>&1"
+    ),
+    "omnia_sh_cleanup_all": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --cleanup --all 2>&1"
+    ),
+    "omnia_sh_catalog": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --catalog 2>&1"
+    ),
+    "omnia_sh_catalog_list": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --catalog --list 2>&1"
     ),
     # --- Files ---
     "file_exists": "test -f {path} && echo exists",

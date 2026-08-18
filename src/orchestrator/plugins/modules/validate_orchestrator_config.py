@@ -58,6 +58,25 @@ options:
     type: str
 '''
 
+EXAMPLES = r'''
+- name: Validate orchestrator configuration files
+  omnia.orchestrator.validate_orchestrator_config:
+    input_project_dir: /opt/omnia/input/project_default
+    schema_dir: "{{ role_path }}/../../plugins/module_utils/input_validation/schema"
+  register: validation_result
+'''
+
+RETURN = r'''
+msg:
+  description: Validation summary message.
+  type: str
+  returned: always
+validation_errors:
+  description: List of validation errors found, if any.
+  type: list
+  returned: failure
+'''
+
 VALIDATION_LOG_PATH = "/opt/omnia/log/core/playbooks/"
 
 # Files to validate and their corresponding schema names

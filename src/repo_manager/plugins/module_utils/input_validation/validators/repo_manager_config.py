@@ -35,7 +35,7 @@ from ansible.module_utils.input_validation.core.config import (
 from ansible.module_utils.input_validation.core.utils import create_error_msg, create_file_path
 from ansible.module_utils.input_validation.core.file_utils import load_json
 
-from ansible.module_utils.local_repo.software_utils import get_json_file_path
+from ansible.module_utils.repo_manager.software_utils import get_json_file_path
 
 
 def validate(

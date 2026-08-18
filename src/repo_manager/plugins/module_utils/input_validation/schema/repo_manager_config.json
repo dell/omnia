@@ -3,6 +3,19 @@
   "type": "object",
   "description": "Schema for repo_manager_config.yml (catalog-based approach)",
   "properties": {
+    "catalog_config": {
+      "type": "object",
+      "description": "Catalog configuration pointing to the catalog JSON file",
+      "properties": {
+        "catalog": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path to the catalog JSON file"
+        }
+      },
+      "required": ["catalog"],
+      "additionalProperties": false
+    },
     "repo_config": {
       "type": "string",
       "enum": ["always", "partial"],

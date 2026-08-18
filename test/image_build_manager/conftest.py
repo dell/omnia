@@ -63,6 +63,10 @@ from library.functions.host_func import (
     sync_project_to_remote,
     sync_image_build_input,
     sync_repo_manager_output,
+    sync_build_credentials,
+)
+from library.functions.build_image_func import (
+    check_target_connectivity,
 )
 from library.functions.validation_func import (
     validate_all,
@@ -112,6 +116,7 @@ def pytest_configure(config):
         "functional": "Functional verification",
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
+        "nft": "Non-functional tests (performance, idempotency)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -252,6 +257,21 @@ def pytest_sessionstart(session):
 
     host = get_testinfra_host()
 
+    # Pre-flight connectivity check (remote mode only)
+    if not is_local_execution():
+        conn_result = check_target_connectivity(host)
+        if conn_result["success"]:
+            log("Pre-flight: target is reachable", "OK")
+        else:
+            log(
+                f"Pre-flight: {conn_result['error']}",
+                "FAIL",
+            )
+            pytest.exit(
+                f"Target unreachable: {conn_result['error']}",
+                returncode=1,
+            )
+
     if not is_local_execution():
         sync_result = sync_project_to_remote(host)
         if sync_result["success"]:
@@ -269,6 +289,22 @@ def pytest_sessionstart(session):
                 "ERROR",
             )
 
+    # Sync build credentials (S3 + aarch64) from test_creds.yml to target.
+    # This populates image_build_credentials.yml on the target so the
+    # collect_build_credentials role does not prompt interactively.
+    if not is_local_execution():
+        cred_result = sync_build_credentials(host)
+        if cred_result["success"]:
+            if cred_result["details"]:
+                # Distinguish between "synced" and "skipped (empty)" messages
+                level = "WARN" if "skipping sync" in cred_result["details"] else "OK"
+                log(cred_result["details"], level)
+        else:
+            log(
+                f"Build credential sync failed: {cred_result['error']}",
+                "WARN",
+            )
+
     if config.get("sync_output", False):
         out_result = sync_repo_manager_output(host)
         if out_result["success"]:
@@ -283,7 +319,7 @@ def pytest_sessionstart(session):
     # Detect scenario name from test paths (fvt/<scenario>/...)
     valid_scenarios = {
         "image_build_manager", "validate", "prepare",
-        "build", "cleanup",
+        "build", "cleanup", "precheck",
     }
     module_name = "image_build_manager"
     test_paths = session.config.args if hasattr(session.config, 'args') else []

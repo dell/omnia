@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,7 +89,9 @@ load_env() {
 
 validate_env() {
     local errors=0
+    local warnings=0
 
+    # --- Required env vars ---
     if [ -z "${SYSTEM_ADMIN_NIC_IPV4:-}" ]; then
         echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set${NC}"
         echo -e "${YELLOW}  export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>${NC}"
@@ -109,19 +111,67 @@ validate_env() {
     fi
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh -s${NC}"
+        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh --setup-venv${NC}"
         echo -e "${YELLOW}Or export them manually:  export SYSTEM_ADMIN_NIC_IPV4=<ip>${NC}"
         exit 1
     fi
 
     export SYSTEM_ADMIN_NIC_IPV4
 
+    # --- Validate hostname matches system (hostname -s) ---
+    local actual_hostname
+    actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
+    if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
+        echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}${NC}"
+        errors=$((errors + 1))
+    fi
+
+    # --- Validate domain matches system (hostname -d) ---
+    local actual_domain
+    actual_domain="$(hostname -d 2>/dev/null || true)"
+    if [ -n "$actual_domain" ] && [ "$actual_domain" != "$SYSTEM_DOMAIN_NAME" ]; then
+        echo -e "${YELLOW}WARNING: SYSTEM_DOMAIN_NAME (${SYSTEM_DOMAIN_NAME}) does not match system domain (${actual_domain})${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}${NC}"
+        warnings=$((warnings + 1))
+    fi
+
+    # --- Validate admin IP is assigned to a local interface ---
+    local all_ips
+    all_ips="$(hostname -I 2>/dev/null || ip -4 addr show | grep -oP '(?<=inet\s)\d+\.\d+\.\d+\.\d+' 2>/dev/null || true)"
+    if [ -n "$all_ips" ]; then
+        local ip_found=false
+        for ip in $all_ips; do
+            if [ "$ip" = "$SYSTEM_ADMIN_NIC_IPV4" ]; then
+                ip_found=true
+                break
+            fi
+        done
+        if [ "$ip_found" = false ]; then
+            echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 (${SYSTEM_ADMIN_NIC_IPV4}) is not assigned to any local interface${NC}"
+            echo -e "${YELLOW}  Available IPs: ${all_ips}${NC}"
+            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in omnia.env${NC}"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo -e "${RED}Environment validation failed with ${errors} error(s)${NC}"
+        exit 1
+    fi
+
     echo -e "${GREEN}Environment validated:${NC}"
-    echo -e "  Hostname:    ${SYSTEM_HOSTNAME}"
-    echo -e "  Domain:      ${SYSTEM_DOMAIN_NAME}"
-    echo -e "  Admin IP:    ${SYSTEM_ADMIN_NIC_IPV4}"
+    echo -e "  Hostname:    ${SYSTEM_HOSTNAME} (actual: ${actual_hostname})"
+    echo -e "  Domain:      ${SYSTEM_DOMAIN_NAME}${actual_domain:+ (actual: ${actual_domain})}"
+    echo -e "  FQDN:        ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}"
+    echo -e "  Admin IP:    ${SYSTEM_ADMIN_NIC_IPV4} (verified on interface)"
     echo -e "  Data path:   ${OMNIA_DATA_PATH}"
     echo -e "  Project:     ${OMNIA_PROJECT_NAME}"
+    if [ "$warnings" -gt 0 ]; then
+        echo -e "  ${YELLOW}Warnings: ${warnings}${NC}"
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -134,18 +184,22 @@ readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
-    if [ ! -f "$env_file" ]; then
-        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping system env install${NC}"
-        return 0
-    fi
-
     echo -e "${BLUE}Installing environment to system...${NC}"
 
     mkdir -p "$SYSTEM_ENV_DIR"
-    cp -f "$env_file" "$SYSTEM_ENV_FILE"
-    chmod 0644 "$SYSTEM_ENV_FILE"
 
-    echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    if [ -f "$SYSTEM_ENV_FILE" ]; then
+        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
+        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
+    else
+        if [ ! -f "$env_file" ]; then
+            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+            return 0
+        fi
+        cp -f "$env_file" "$SYSTEM_ENV_FILE"
+        chmod 0644 "$SYSTEM_ENV_FILE"
+        echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+    fi
 
     cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
 #!/bin/bash
@@ -292,12 +346,6 @@ ACTIVATE_EOF
     echo ""
     echo -e "${BLUE}Dependencies will be installed by each domain's domain-init.sh.${NC}"
     echo ""
-    echo -e "${GREEN}Environment helper created:${NC}"
-    echo -e "  ${GREEN}${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
-    echo ""
-    echo -e "${YELLOW}Activate in your shell:${NC}"
-    echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
-    echo ""
 
     deactivate 2>/dev/null || true
 }
@@ -312,6 +360,10 @@ init_domains() {
     if [ -f "$OMNIA_VENV_PATH/bin/activate" ]; then
         # shellcheck disable=SC1091
         source "$OMNIA_VENV_PATH/bin/activate"
+    else
+        echo -e "${RED}ERROR: Venv not found at ${OMNIA_VENV_PATH}${NC}"
+        echo -e "${YELLOW}Run './omnia.sh -s' first to create the venv${NC}"
+        exit 1
     fi
 
     local domain_init_args=()
@@ -401,12 +453,6 @@ run_domain() {
         exit 1
     fi
 
-    if [ -z "$playbook" ]; then
-        echo -e "${RED}ERROR: No playbook found for domain '$domain'${NC}"
-        echo -e "${YELLOW}Expected: src/$domain/playbooks/${domain}.yml${NC}"
-        exit 1
-    fi
-
     # Activate venv
     load_env
     if [ ! -f "$OMNIA_VENV_PATH/bin/activate" ]; then
@@ -441,6 +487,146 @@ run_domain() {
     return $rc
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Cleanup
+# ─────────────────────────────────────────────────────────────────────────────
+cleanup_omnia() {
+    local cleanup_all="${1:-false}"
+    load_env
+
+    echo -e "${BLUE}================================================================================${NC}"
+    echo -e "${BLUE}               Omnia Cleanup${NC}"
+    echo -e "${BLUE}================================================================================${NC}"
+    echo ""
+
+    if [ "$cleanup_all" = true ]; then
+        echo -e "${RED}WARNING: This will remove ALL Omnia data including:${NC}"
+        echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
+        echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
+        echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
+        echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
+    else
+        echo -e "${YELLOW}This will remove the Omnia venv and system environment files:${NC}"
+        echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
+        echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
+        echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
+        echo ""
+        echo -e "${GREEN}Data at ${OMNIA_DATA_PATH}/ will be preserved.${NC}"
+        echo -e "${YELLOW}Use --cleanup --all to remove everything.${NC}"
+    fi
+
+    echo ""
+    read -rp "Are you sure? (yes/no): " confirm
+    if [ "$confirm" != "yes" ]; then
+        echo -e "${YELLOW}Cleanup cancelled.${NC}"
+        return 0
+    fi
+
+    echo ""
+
+    # Remove venv
+    if [ -d "$OMNIA_VENV_PATH" ]; then
+        echo -e "${BLUE}Removing venv: ${OMNIA_VENV_PATH}${NC}"
+        rm -rf "$OMNIA_VENV_PATH"
+        echo -e "  ${GREEN}Removed.${NC}"
+    else
+        echo -e "  ${YELLOW}Venv not found at ${OMNIA_VENV_PATH} — skipping.${NC}"
+    fi
+
+    # Remove activation script
+    if [ -f "${OMNIA_DATA_PATH}/activate-omnia.sh" ]; then
+        echo -e "${BLUE}Removing activation script${NC}"
+        rm -f "${OMNIA_DATA_PATH}/activate-omnia.sh"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove system env file
+    if [ -f "$SYSTEM_ENV_FILE" ]; then
+        echo -e "${BLUE}Removing system env: ${SYSTEM_ENV_FILE}${NC}"
+        rm -f "$SYSTEM_ENV_FILE"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+    # Remove empty /etc/omnia dir
+    if [ -d "$SYSTEM_ENV_DIR" ]; then
+        rmdir "$SYSTEM_ENV_DIR" 2>/dev/null || true
+    fi
+
+    # Remove profile drop-in
+    if [ -f "$PROFILE_DROP_IN" ]; then
+        echo -e "${BLUE}Removing profile drop-in: ${PROFILE_DROP_IN}${NC}"
+        rm -f "$PROFILE_DROP_IN"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # If --all, remove entire data path
+    if [ "$cleanup_all" = true ]; then
+        if [ -d "$OMNIA_DATA_PATH" ]; then
+            echo -e "${BLUE}Removing all data: ${OMNIA_DATA_PATH}${NC}"
+            rm -rf "$OMNIA_DATA_PATH"
+            echo -e "  ${GREEN}Removed.${NC}"
+        fi
+    fi
+
+    echo ""
+    echo -e "${GREEN}================================================================================${NC}"
+    echo -e "${GREEN}               Cleanup Complete${NC}"
+    echo -e "${GREEN}================================================================================${NC}"
+    if [ "$cleanup_all" = true ]; then
+        echo -e "  ${GREEN}All Omnia data, venv, and system env files have been removed.${NC}"
+    else
+        echo -e "  ${GREEN}Venv and system env files removed. Data at ${OMNIA_DATA_PATH}/ preserved.${NC}"
+    fi
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Catalog Copy
+# ─────────────────────────────────────────────────────────────────────────────
+copy_catalog() {
+    load_env
+
+    local catalog_source="${SCRIPT_DIR}/samples/catalog_rhel.json"
+    local catalog_target_dir="${OMNIA_DATA_PATH}/catalog"
+    local catalog_target_file="${catalog_target_dir}/catalog_rhel.json"
+
+    echo -e "${BLUE}================================================================================${NC}"
+    echo -e "${BLUE}               Catalog Copy${NC}"
+    echo -e "${BLUE}================================================================================${NC}"
+    echo ""
+
+    if [ ! -f "$catalog_source" ]; then
+        echo -e "${RED}ERROR: Catalog source not found: ${catalog_source}${NC}"
+        echo -e "${YELLOW}Expected at: src/main/samples/catalog_rhel.json${NC}"
+        exit 1
+    fi
+
+    mkdir -p "$catalog_target_dir"
+
+    # Copy all sample/catalog files from src/main/samples/
+    local copied=0
+    for sample_file in "$SCRIPT_DIR"/samples/*.json "$SCRIPT_DIR"/samples/*.yml "$SCRIPT_DIR"/samples/*.yaml; do
+        if [ -f "$sample_file" ]; then
+            local filename
+            filename="$(basename "$sample_file")"
+            cp -f "$sample_file" "${catalog_target_dir}/${filename}"
+            echo -e "  ${GREEN}Copied: ${filename} -> ${catalog_target_dir}/${filename}${NC}"
+            copied=$((copied + 1))
+        fi
+    done
+
+    if [ "$copied" -eq 0 ]; then
+        echo -e "${YELLOW}No catalog/sample files found in ${SCRIPT_DIR}/samples/${NC}"
+        return 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}Catalog files copied to: ${catalog_target_dir}/${NC}"
+    echo -e "${GREEN}  CATALOG_FILE_PATH=${catalog_target_file}${NC}"
+    echo ""
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Help
@@ -457,18 +643,30 @@ USAGE:
   $0 <command> [options]
 
 SETUP COMMANDS:
-  --setup-venv, -s      Create/update the shared Python venv and install domain dependencies.
-                        Also copies domain input files to the runtime data path.
-  --init, -i            Run all domain-init.sh scripts (stage input files to NFS share).
-                        Called automatically by --setup-venv unless --deps-only.
+  --setup-venv, -s      Create/update the shared Python venv, then run all
+                        domain-init.sh scripts (pip deps, Galaxy collections,
+                        log dirs, and input file staging).
+  --init, -i            Re-run domain-init.sh scripts only (no venv rebuild).
+                        Useful to re-stage input files or install deps after
+                        editing domain configs. Runs automatically with -s.
+  --catalog             Copy catalog/sample files from src/main/samples/ to
+                        \$OMNIA_DATA_PATH/catalog/. Makes catalog_rhel.json available at runtime.
 
 EXECUTION COMMANDS:
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
                         Passes --tags and any extra args to ansible-playbook.
 
+CLEANUP COMMANDS:
+  --cleanup             Remove venv, system env files (/etc/omnia/omnia.env,
+                        /etc/profile.d/omnia-env.sh), and activation script.
+                        Data at \$OMNIA_DATA_PATH/ is preserved.
+  --cleanup --all       Remove EVERYTHING: venv, system env, AND all data at
+                        \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
+
 OPTIONS:
-  --deps-only            Install deps only, skip input file staging.
+  --deps-only           With -s or -i: install pip/Galaxy deps but skip input file staging.
+                        Cannot be used standalone; requires -s or -i.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -503,10 +701,13 @@ EXAMPLES:
   # First-time setup:
   vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
   ./omnia.sh -s                                # Installs env + venv + deps + input files
-  ./omnia.sh -s --deps-only                # Installs env + venv + deps (skips input staging)
+  ./omnia.sh -s --deps-only                    # Installs env + venv + deps (skips input staging)
 
   # Stage domain input files (without full setup):
   ./omnia.sh --init                            # Run all domain-init.sh scripts
+
+  # Copy catalog files to runtime path:
+  ./omnia.sh --catalog                         # Copies catalog_rhel.json to \$OMNIA_DATA_PATH/catalog/
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
@@ -516,6 +717,12 @@ EXAMPLES:
   # Validate a domain (uses --tags validate):
   ./omnia.sh --run image_build_manager --tags validate
   ./omnia.sh -r repo_manager --tags validate
+
+  # Cleanup (remove venv + system env, preserve data):
+  ./omnia.sh --cleanup
+
+  # Full cleanup (remove EVERYTHING including data):
+  ./omnia.sh --cleanup --all
 
   # Diagnostics:
   omnia-cli status               # All domains
@@ -527,7 +734,8 @@ EOF
 # Main Dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
-    local DEPS_ONLY=false
+    DEPS_ONLY=false  # Global — used by init_domains()
+    local CLEANUP_ALL=false
     local command=""
     local run_domain_name=""
     local run_extra_args=()
@@ -544,9 +752,24 @@ main() {
                 command="setup-venv"
                 shift
                 ;;
-            --deps-only) DEPS_ONLY=true ;;
+            --deps-only)
+                DEPS_ONLY=true
+                shift
+                ;;
             --init|-i)
                 command="init"
+                shift
+                ;;
+            --catalog)
+                command="catalog"
+                shift
+                ;;
+            --cleanup)
+                command="cleanup"
+                shift
+                ;;
+            --all)
+                CLEANUP_ALL=true
                 shift
                 ;;
             --run|-r)
@@ -579,17 +802,39 @@ main() {
         esac
     done
 
+    # Validate flag combinations
+    if [ "$DEPS_ONLY" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
+        echo -e "${RED}ERROR: --deps-only requires --setup-venv (-s) or --init (-i)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --deps-only or $0 -i --deps-only${NC}"
+        exit 1
+    fi
+
     case "$command" in
         setup-venv)
             setup_venv
-            if [ "$DEPS_ONLY" = false ]; then
-                init_domains
-            else
-                echo -e "${YELLOW}Skipping domain init (--deps-only)${NC}"
-            fi
+            init_domains
+
+            # ── Post-setup activation instructions (shown LAST) ──
+            echo ""
+            echo -e "${GREEN}================================================================================${NC}"
+            echo -e "${GREEN}               Setup Complete${NC}"
+            echo -e "${GREEN}================================================================================${NC}"
+            echo ""
+            echo -e "${GREEN}Environment helper created:${NC}"
+            echo -e "  ${GREEN}${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
+            echo ""
+            echo -e "${YELLOW}Activate in your shell:${NC}"
+            echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
+            echo ""
             ;;
         init)
             init_domains
+            ;;
+        catalog)
+            copy_catalog
+            ;;
+        cleanup)
+            cleanup_omnia "$CLEANUP_ALL"
             ;;
         run)
             run_domain "$run_domain_name" "${run_extra_args[@]}"

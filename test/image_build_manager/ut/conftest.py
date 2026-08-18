@@ -20,10 +20,11 @@ import pytest
 import yaml
 
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-SRC_DIR = REPO_ROOT / "src"
-INPUT_DIR = SRC_DIR / "input" / "project_default"
-REPO_MGR_OUTPUT = INPUT_DIR / "repo_manager_output"
+# ut/conftest.py -> ut/ -> image_build_manager/ -> test/ -> omnia-bsm/
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+SRC_DIR = REPO_ROOT / "src" / "image_build_manager"
+INPUT_DIR = SRC_DIR / "input"
+REPO_MGR_OUTPUT = SRC_DIR / "samples" / "repo_manager_output"
 
 
 @pytest.fixture

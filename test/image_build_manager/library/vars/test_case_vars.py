@@ -112,6 +112,28 @@ TEST_CASES = {
         "title": "Verify all configured x86_64 functional groups built",
     },
 
+    # ── Build — naming convention (TC_BD_007-011) ─────────────────────────
+    "registry_naming_ib_x86_64": {
+        "id": "TC_BD_007",
+        "title": "Verify image-builder registry naming (-imgbld suffix, x86_64)",
+    },
+    "s3_naming_ib_x86_64": {
+        "id": "TC_BD_008",
+        "title": "Verify image-builder S3 naming (-imgbld suffix, x86_64)",
+    },
+    "registry_naming_th_x86_64": {
+        "id": "TC_BD_009",
+        "title": "Verify image-thrillhouse registry naming (-imgth suffix, x86_64)",
+    },
+    "s3_naming_th_x86_64": {
+        "id": "TC_BD_010",
+        "title": "Verify image-thrillhouse S3 naming (-imgth suffix, x86_64)",
+    },
+    "artifact_suffix_isolation": {
+        "id": "TC_BD_011",
+        "title": "Verify -imgbld and -imgth artifact paths are fully isolated",
+    },
+
     # ── Full (image_build_manager) ────────────────────────────────────────
     "ib_storage_backend": {
         "id": "TC_IB_002",
@@ -160,6 +182,32 @@ TEST_CASES = {
     "ib_packages_aarch64": {
         "id": "TC_IB_013",
         "title": "Verify packages installed in aarch64 S3 images",
+    },
+
+    # ── Precheck ──────────────────────────────────────────────────────────
+    "deploy_precheck": {
+        "id": "TC_PC_001",
+        "title": "Deploy image_build_manager (precheck)",
+    },
+    "env_vars_present": {
+        "id": "TC_PC_002",
+        "title": "Verify OMNIA env vars present on target",
+    },
+    "target_connectivity": {
+        "id": "TC_PC_003",
+        "title": "Verify target host connectivity and SSH",
+    },
+    "hostname_domain": {
+        "id": "TC_PC_004",
+        "title": "Verify hostname and domain match omnia.env",
+    },
+    "admin_ip_assigned": {
+        "id": "TC_PC_005",
+        "title": "Verify admin IP assigned to local interface",
+    },
+    "omnia_setup": {
+        "id": "TC_PC_006",
+        "title": "Verify omnia.sh setup completed on target",
     },
 
     # ── Cleanup ───────────────────────────────────────────────────────────

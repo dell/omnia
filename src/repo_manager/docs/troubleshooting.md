@@ -147,7 +147,7 @@ unable to get local issuer certificate
 
 **Fix**: Ensure Pulp certificates are properly configured:
 ```bash
-ls -la /opt/omnia/pulp_config/pulp/settings/certs/
+ls -la /opt/omnia/repo_manager/pulp_config/settings/certs/
 ```
 
 If using self-signed certificates, ensure the CA cert is trusted.

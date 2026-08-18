@@ -13,7 +13,20 @@
 # limitations under the License.
 ---
 # Architecture-agnostic variables — build_arch is set by the calling playbook
-rhel_arch_base_image_name: "rhel-{{ build_arch }}-base"
+# ---------------------------------------------------------------------------
+# Build-type suffix — applied to ALL output artifact names (base image, compute
+# image, S3 prefixes) so the two build engines produce clearly distinct artifacts
+# that can coexist in the same OCI registry and S3 bucket without overwriting
+# each other.
+#
+#   image-builder     →  suffix "-imgbld"   e.g. rhel-x86_64-base-imgbld
+#   image-thrillhouse →  suffix "-imgth"    e.g. rhel-x86_64-base-imgth
+#
+# Suffix is preferred over prefix so alphabetic registry/S3 listings keep all
+# "rhel-*" images grouped together; the engine qualifier trails the semantic name.
+# ---------------------------------------------------------------------------
+_build_type_suffix: "{{ (_is_thrillhouse | bool) | ternary('-imgth', '-imgbld') }}"
+rhel_arch_base_image_name: "rhel-{{ build_arch }}-base{{ _build_type_suffix }}"
 
 pull_image_retries: "5"
 pull_image_delay: "10"
@@ -47,7 +60,7 @@ _is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
 
 # Container images per build type
 _builder_container_image: "dellhpcomniaaisolution/image-build-el10:1.2"
-_thrillhouse_container_image: "ghcr.io/openchami/image-thrillhouse:latest"
+_thrillhouse_container_image: "ghcr.io/openchami/image-thrillhouse:v0.0.20"
 repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_container_image, _builder_container_image) }}"
 
 # Local tag per build type

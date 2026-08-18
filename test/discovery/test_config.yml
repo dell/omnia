@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Discovery — Test Configuration
+# =============================================================================
+---
+
+# Target OIM server IP (leave empty for local execution)
+oim_server_ip: ""
+
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote server (only needed for remote mode).
+oim_ssh_port: 22
+
+# Absolute path on the target where the project code is synced.
+clone_path: "/root/omnia"
+
+# The dataset name selects the local folder under test/discovery/datasets/.
+dataset: "data_set_01"
+
+# Only change if the target uses a different project name than the dataset.
+project_name: "project_default"
+
+# Sync discovery input files (discovery_config.yml, network_spec.yml)
+sync_discovery_input: true
+
+# Convention: /opt/omnia/discovery
+shared_path: "/opt/omnia/discovery"
+
+# Report output path (no spaces allowed)
+report_path: /opt/omnia/reports
+
+# Report file name (no spaces, only letters/numbers/underscores/hyphens)
+report_name: discovery_test_report
+
+# Report ID (auto-generated if empty)
+report_id: ""

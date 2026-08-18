@@ -14,233 +14,49 @@
 ---
 # Orchestrator Domain Entrypoint
 # ==============================
-# Replaces the former provision.yml. Owns:
-#   - OpenCHAMI deployment and configuration
-#   - PXE boot orchestration
-#   - Image deployment
-#   - Lifecycle orchestration (k8s, slurm, telemetry, etc.)
+# Thin wrapper that imports focused sub-playbooks.
+# Each sub-playbook can also be run independently.
+#
+# Workflow:
+#   1. prepare_orchestrator    — setup, validate, credentials, FG gen, persist state
+#   2. deploy_openchami        — S3 access + OpenCHAMI container deployment
+#   3. validate_openchami      — gate: verify OpenCHAMI readiness
+#   4. provision_preamble      — SSH keys + auth (runs once)
+#   5. provision_kubernetes    — K8s FGs + bolt-ons
+#   6. provision_slurm         — Slurm+Login FGs + bolt-ons
+#   7. provision_os            — OS-only FGs (minimal)
+#   8. provision_custom        — User-defined FGs (catch-all)
+#   9. validate_provisioning   — inventory generation + post-provision checks
 #
 # Inputs:  /opt/omnia/input/project_default/orchestrator/
-#   - orchestrator_config.yml
-#   - network_spec.yml
-#   - pxe_mapping_file.csv  (external contract from discovery)
-#
 # Outputs: /opt/omnia/output/project_default/orchestrator/
 #
 # Usage:
 #   ansible-playbook orchestrator.yml
 
-# Step 0: Setup — upgrade guard, project dirs, OIM group
-- name: Setup orchestrator environment
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  roles:
-    - role: omnia.orchestrator.orchestrator_setup
-      vars:
-        openchami_vars_support: true
-        omnia_metadata_support: true
-        oim_group: true
+- name: Prepare orchestrator
+  ansible.builtin.import_playbook: playbooks/prepare_orchestrator.yml
 
-# Step 1: Validate orchestrator input (L1 schema + L2 logic)
-- name: Validate orchestrator input configuration
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: omnia.orchestrator.validate_orchestrator_input
-      when: not config_file_status | default(false) | bool
+- name: Deploy OpenCHAMI
+  ansible.builtin.import_playbook: playbooks/deploy_openchami.yml
 
-# Step 2: Credential management (prompt, encrypt, vault)
-- name: Create and update credential config files
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: omnia.orchestrator.orchestrator_credentials
-      when:
-        - not config_file_status | default(false) | bool
-        - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
-          or (omnia_run_tags | default([]) | length == 0)
+- name: Validate OpenCHAMI readiness
+  ansible.builtin.import_playbook: playbooks/validate_openchami.yml
 
-# Step 3: Generate functional groups from pxe_mapping_file.csv
-- name: Generate functional groups configuration
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  roles:
-    - omnia.orchestrator.orchestrator_functional_groups
+- name: Provision preamble (SSH + auth)
+  ansible.builtin.import_playbook: playbooks/provision_preamble.yml
 
-- name: Validate orchestrator parameters
-  hosts: localhost
-  connection: local
-  roles:
-    - omnia.orchestrator.orchestrator_validations
+- name: Provision Kubernetes cluster
+  ansible.builtin.import_playbook: playbooks/provision_kubernetes.yml
 
-- name: Validate OIM timezone
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Validate OIM timezone has not changed
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_validations
-        tasks_from: validate_oim_timezone.yml
+- name: Provision Slurm cluster
+  ansible.builtin.import_playbook: playbooks/provision_slurm.yml
 
-- name: Build cluster host lists from PXE mapping
-  hosts: localhost
-  connection: local
-  roles:
-    - omnia.orchestrator.passwordless_ssh
+- name: Provision OS-only nodes
+  ansible.builtin.import_playbook: playbooks/provision_os.yml
 
-- name: Configure OIM SSH from cluster host lists
-  hosts: oim
-  connection: ssh
-  roles:
-    - omnia.orchestrator.passwordless_ssh
+- name: Provision custom nodes
+  ansible.builtin.import_playbook: playbooks/provision_custom.yml
 
-- name: Configure S3 access for boot image storage
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tasks:
-    - name: Configure s3cmd and set S3 facts from orchestrator config
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
-        tasks_from: configure_s3_access.yml
-
-- name: Deploy OpenCHAMI containers on OIM
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: openchami
-  tasks:
-    - name: Deploy OpenCHAMI
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.deploy_openchami
-
-- name: Validate orchestrator parameters on OIM
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Validate OpenLDAP container is running
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_validations
-        tasks_from: validate_openldap_container.yml
-      when: hostvars['localhost']['openldap_support']
-
-    - name: Image validation
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_validations
-        tasks_from: validate_image.yml
-      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
-
-- name: Configure auth for openchami
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Openchami cluster authentication
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
-        tasks_from: openchami_auth.yml
-      vars:
-        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
-
-- name: Configure omnia_core DNS resolution for CoreDNS
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Configure omnia_core resolv.conf for CoreDNS (when dns_enabled)
-      when: dns_enabled | default(false) | bool
-      block:
-        - name: Prepend CoreDNS as primary nameserver in omnia_core /etc/resolv.conf
-          ansible.builtin.shell: |
-            set -o pipefail
-            tmpfile=$(mktemp)
-
-            # Merge cluster domain into existing search line (preserve existing domains)
-            existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
-            if echo " ${existing_search} " | grep -qw '{{ domain_name }}'; then
-              echo "search ${existing_search}" > "$tmpfile"
-            else
-              echo "search {{ domain_name }} ${existing_search}" > "$tmpfile"
-            fi
-
-            # Prepend CoreDNS as primary nameserver
-            echo "nameserver {{ admin_nic_ip }}" >> "$tmpfile"
-
-            # Keep existing nameservers and options (skip search lines and CoreDNS duplicate)
-            grep -v '^search' /etc/resolv.conf 2>/dev/null | \
-              grep -Fxv "nameserver {{ admin_nic_ip }}" | \
-              grep -v '^$' >> "$tmpfile" || true
-
-            # Deduplicate while preserving order
-            awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
-            rm -f "$tmpfile"
-          changed_when: true
-
-- name: Orchestrate nodes, configure bss and cloud-init
-  hosts: oim
-  connection: ssh
-  pre_tasks:
-    - name: Load dns_enabled from orchestrator_config.yml on OIM
-      ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_config.yml"
-        name: _orchestrator_config_oim
-
-    - name: Configure OIM DNS resolution for CoreDNS (when dns_enabled)
-      when: _orchestrator_config_oim.dns_enabled | default(false) | bool
-      block:
-        - name: Remove immutable flag from /etc/resolv.conf if present
-          ansible.builtin.command: chattr -i /etc/resolv.conf
-          changed_when: true
-          failed_when: false
-
-        - name: Prepend coresmd as primary nameserver in OIM /etc/resolv.conf
-          ansible.builtin.shell: |
-            set -o pipefail
-            tmpfile=$(mktemp)
-
-            # Merge cluster domain into existing search line (preserve existing domains)
-            existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
-            if echo " ${existing_search} " | grep -qw '{{ hostvars["localhost"]["domain_name"] }}'; then
-              echo "search ${existing_search}" > "$tmpfile"
-            else
-              echo "search {{ hostvars['localhost']['domain_name'] }} ${existing_search}" > "$tmpfile"
-            fi
-
-            # Prepend coresmd as primary nameserver
-            echo "nameserver {{ hostvars['localhost']['admin_nic_ip'] }}" >> "$tmpfile"
-
-            # Keep existing nameservers and options (skip search lines and coresmd duplicate)
-            grep -v '^search' /etc/resolv.conf 2>/dev/null | \
-              grep -Fxv "nameserver {{ hostvars['localhost']['admin_nic_ip'] }}" | \
-              grep -v '^$' >> "$tmpfile" || true
-
-            # Deduplicate while preserving order
-            awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
-            rm -f "$tmpfile"
-          changed_when: true
-
-        - name: Prevent NetworkManager from overwriting resolv.conf
-          ansible.builtin.command: chattr +i /etc/resolv.conf
-          changed_when: true
-          failed_when: false
-
-    - name: Orchestrate nodes
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.configure_ochami
-        tasks_from: orchestration_mapping_nodes.yml
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Read nodes.yaml and derive Omnia node facts
-      ansible.builtin.include_role:
-        name: omnia.orchestrator.passwordless_ssh
-        tasks_from: read_nodes_yaml.yml
-  roles:
-    - omnia.orchestrator.mount_config
-    - omnia.orchestrator.k8s_config
-    - omnia.orchestrator.slurm_config
-    - omnia.orchestrator.openldap
-    - omnia.orchestrator.configure_ochami
+- name: Validate provisioning
+  ansible.builtin.import_playbook: playbooks/validate_provisioning.yml

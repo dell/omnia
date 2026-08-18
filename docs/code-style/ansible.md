@@ -331,3 +331,10 @@ Keep as Ansible tasks when the logic is:
     build_arch: "{{ build_arch }}"
   register: _catalog_result
 ```
+
+---
+
+## 13. Cross-References
+
+- **Test co-change rule**: Changes to roles, playbooks, or modules MUST include corresponding FVT/UT test updates — see `general.md` §6.
+- **AI agent policy**: AI agents MUST NOT be used for PR sign-off — see `general.md` §7.

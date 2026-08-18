@@ -215,9 +215,9 @@ software_config.json
 - Business logic validators
 - Common validation functions
 
-#### local_repo
+#### repo_manager
 
-**Purpose**: Local repository utilities
+**Purpose**: Repo manager utilities
 
 **Components**:
 - Pulp command wrappers

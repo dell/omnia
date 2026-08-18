@@ -75,7 +75,38 @@ Role-level `README.md` SHALL additionally include:
 - Keep files focused on a single responsibility
 - Maximum file length: ~300 lines (split if larger)
 
-## 6. Version Control
+## 6. Test Automation — Mandatory Co-Change Rule
+
+Every code change MUST include corresponding test automation updates. Code and tests are treated as a single deliverable — one is never merged without the other.
+
+| Change Type | Required Test Update |
+|-------------|---------------------|
+| New feature / role / module | New FVT test cases covering the feature |
+| Bug fix | Failing test that reproduces the bug, then passes after fix |
+| Refactor (behavior unchanged) | Existing tests pass — no new tests needed unless coverage gaps exist |
+| Config schema change | Unit test updates for schema validation |
+| New env var / input field | Precheck test and validation test updates |
+| Playbook tag added | New scenario directory under `fvt/` with deploy + verify tests |
+
+**Rules:**
+
+1. **PRs that change `src/` code without updating `test/` MUST include a justification** in the PR description explaining why no test changes are needed.
+2. **New playbook tags MUST have a corresponding FVT scenario** — no tag goes untested.
+3. **Deleted features MUST have their tests removed** — no orphan tests.
+4. **Test coverage SHOULD increase or stay constant** — never decrease without justification.
+5. **CI gates enforce this** — PR reviewers MUST verify test co-changes before approving.
+
+## 7. AI Agent Usage Policy
+
+AI agents (Devin, Copilot, Cursor, ChatGPT, Claude, or any other AI-assisted coding tool) MAY be used for development, but the following restrictions apply:
+
+1. **AI agents MUST NOT be used for sign-off or approval.** All code reviews, PR approvals, and merge decisions MUST be made by a human team member. An AI-generated "LGTM" or approval comment is not a valid sign-off.
+2. **AI-generated code MUST be reviewed by a human** before merge — the developer who submits the PR is responsible for every line, regardless of whether it was AI-generated.
+3. **AI agents MUST NOT modify security policies**, compliance controls, branch protection rules, or CI gate configurations.
+4. **AI-generated commit messages MUST be reviewed** — ensure they accurately describe the change and do not contain hallucinated details.
+5. **Co-authored-by tags** (e.g., `Co-Authored-By: Devin <...>`) are acceptable in commits but do NOT constitute sign-off.
+
+## 8. Version Control
 
 - One logical change per commit
 - Clear, descriptive commit messages

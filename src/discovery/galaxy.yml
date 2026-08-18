@@ -1,7 +1,7 @@
 ---
 namespace: omnia
 name: discovery
-version: 2.2.0
+version: 3.0.0
 readme: README.md
 authors:
   - Dell Technologies <omnia-support@dell.com>

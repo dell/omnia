@@ -16,11 +16,34 @@
 # Image Build Manager — Test Credentials
 # =============================================================================
 # This file is auto-encrypted with Ansible Vault on first test run.
-# Fill in values below, then run tests — the file will be encrypted in-place.
+# Use setup_env.sh to fill in values — never edit the encrypted form directly.
 #
-# oim_password: SSH password for the remote target server (oim_server_ip).
-#               Leave empty if using passwordless SSH (key-based auth).
+# MANAGED BY setup_env.sh:
+#   SSH creds:   bash setup_env.sh --set-password
+#   Build creds: bash setup_env.sh --set-build-creds
+#
+# FIELDS:
+#   oim_password        — SSH password for the remote OIM server (oim_server_ip).
+#                         Leave empty for key-based authentication.
+#
+#   s3_access_id        — MinIO / S3 access key ID.
+#                         Used to populate image_build_credentials.yml on the target.
+#                         Required when the image build playbook writes images to S3.
+#
+#   s3_secret_key       — MinIO / S3 secret key.
+#                         Stored encrypted; never committed in plain text.
+#
+#   aarch64_ssh_password — SSH password for the aarch64 cross-compile build host.
+#                          Required only when aarch64_inventory_host_ip is set in
+#                          image_build_config.yml.  Leave empty otherwise.
 # =============================================================================
 
 ---
 oim_password: ""
+
+# Image build credentials (S3 / MinIO)
+s3_access_id: ""
+s3_secret_key: ""
+
+# aarch64 build host (optional — leave empty if not building aarch64 images)
+aarch64_ssh_password: ""

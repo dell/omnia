@@ -13,7 +13,7 @@ All tasks execute on localhost with no SSH dependencies.
 
 | Requirement | Minimum | Validated |
 |------------|---------|-----------|
-| OS | RHEL 10.x, Rocky 10.x | RHEL 10.0 |
+| OS | RHEL 10.x | RHEL 10.0 |
 | Python | 3.11+ | 3.12.8 |
 | Ansible | ansible-core 2.20+ | 2.20.0 |
 | Container runtime | Podman 5.0+ | 5.3.1 |
@@ -232,7 +232,7 @@ repo_manager/                       # omnia.repo_manager collection
 │   │   └── process_rpm_config.py         # RPM configuration processing
 │   └── module_utils/                # Shared Python utilities for modules
 │       ├── input_validation/        # Input validation framework
-│       └── local_repo/              # Local repository utilities
+│       └── repo_manager/             # Repo manager utilities
 ├── roles/                           # All Ansible roles
 │   ├── deploy_pulp/                 # Pulp deployment
 │   ├── validate_subscription/       # RHEL subscription validation
@@ -293,7 +293,7 @@ Repo Manager includes custom Ansible modules for Pulp operations:
 
 Pulp is configured with HTTPS by default. Certificates are stored in:
 ```
-/opt/omnia/pulp_config/pulp/settings/certs/
+/opt/omnia/repo_manager/pulp_config/settings/certs/
 ├── pulp_webserver.crt
 └── pulp_webserver.key
 ```

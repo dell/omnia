@@ -27,19 +27,20 @@ configured. This is done via `omnia.sh` in `src/main/`:
 # On the target server:
 cd <omnia_repo>/src/main/
 vi omnia.env                  # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
-./omnia.sh -s                 # Installs env vars system-wide + creates venv
+./omnia.sh --setup-venv       # Installs env vars system-wide + creates venv
 ```
 
-After `omnia.sh -s`, the following environment variables are available on
-every login shell (via `/etc/profile.d/omnia-env.sh`):
+After `omnia.sh --setup-venv`, the following environment variables are available
+on every login shell (via `/etc/profile.d/omnia-env.sh`):
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SYSTEM_ADMIN_NIC_IPV4` | **Yes** | — | Admin NIC IP (Pulp, S3, registry endpoint) |
-| `OMNIA_DATA_PATH` | No | `/opt/omnia` | Root data directory for all Omnia data |
-| `OMNIA_PROJECT_NAME` | No | `project_default` | Project name for input/output paths |
-| `SYSTEM_HOSTNAME` | No | `oim` | Short hostname of the OIM host |
-| `SYSTEM_DOMAIN_NAME` | No | `omnia.cluster` | Domain name of the OIM host |
+| `SYSTEM_ADMIN_NIC_IPV4` | **Yes** | — | Admin NIC IP — must be assigned to a local interface (`hostname -I`) |
+| `SYSTEM_HOSTNAME` | **Yes** | `oim` | Short hostname — must match `hostname -s` output |
+| `SYSTEM_DOMAIN_NAME` | **Yes** | `omnia.cluster` | Domain name — validated against `hostname -d` |
+| `OMNIA_DATA_PATH` | **Yes** | `/opt/omnia` | Root data directory for all Omnia data |
+| `OMNIA_PROJECT_NAME` | **Yes** | `project_default` | Project name for input/output paths |
+| `OMNIA_VERSION` | **Yes** | — | Omnia release version |
 
 The test framework reads these from the target at runtime (sourcing
 `/etc/omnia/omnia.env`) to resolve input sync paths and playbook parameters.
@@ -64,11 +65,21 @@ bash setup_env.sh --venv --force     # Recreate .venv/ from scratch
 bash setup_env.sh --set-password     # Interactive prompt (2× confirmation)
 bash setup_env.sh --password 'pass'  # Non-interactive
 
+# Step 4b — Set domain credentials (S3 + aarch64)
+bash setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret + aarch64 pw
+
 # Step 5 — Activate environment (if using --venv mode)
 source .venv/bin/activate            # For --venv mode
 source .run_validation_rc            # For baremetal mode (tab completion)
 
-# Step 6 — Run tests (uses src/ input files by default)
+# Step 6 — (Optional) Generate a dataset for custom input
+cd datasets/generator/
+python generate_dataset.py my_dataset defaults
+cd ../..
+# Set: dataset: "my_dataset" in test_config.yml
+# Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
+
+# Step 7 — Run tests
 ./run_validation.sh prepare verify --marker sanity
 ```
 
@@ -83,16 +94,44 @@ source .run_validation_rc            # For baremetal mode (tab completion)
 
 ### Credential Management
 
-Credentials are required for remote mode (`oim_server_ip` set in `test_config.yml`).
-The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Vault.
+All credentials are stored in `test_creds.yml` and auto-encrypted with Ansible Vault.
+SSH credential flags require `oim_server_ip` to be set in `test_config.yml`.
+Domain credential flags (`--set-domain-creds` / `--domain-creds`) do **not** require
+`oim_server_ip` — they only write to the local `test_creds.yml` file.
+
+#### SSH Credentials (OIM server access)
 
 | Flag | Description |
 |------|-------------|
 | `--set-password` | Interactive prompt (asks twice). If password exists, asks yes/no to update. |
-| `--update-password` | Force-update existing password (no confirmation prompt). |
-| `--password PWD` | Non-interactive. Overwrites any existing credentials. |
+| `--update-password` | Force-update existing SSH password (no confirmation prompt). |
+| `--password PWD` | Non-interactive. Overwrites any existing SSH credentials. |
 
-> **Note**: All credential flags require `oim_server_ip` to be set in `test_config.yml`.
+#### Domain Credentials (S3 / aarch64)
+
+The image build playbook (`image_build_manager.yml`) requires access to S3/MinIO
+for image storage and optionally to a remote aarch64 host.  These credentials are
+stored alongside the SSH password in `test_creds.yml` (vault-encrypted) and are
+read by `collect_build_credentials` during the test deployment step.
+These flags do **not** require `oim_server_ip` — they only write to the local file.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `s3_access_id` | Yes | MinIO / S3 access key ID |
+| `s3_secret_key` | Yes | MinIO / S3 secret key |
+| `aarch64_ssh_password` | No | SSH password for the aarch64 build host. Leave empty for key-based auth or if no aarch64 build is needed. |
+
+| Flag | Description |
+|------|-------------|
+| `--set-domain-creds` | Interactive prompt for S3 access ID, secret, and aarch64 password. |
+| `--domain-creds JSON` | Non-interactive. Pass a JSON string with `s3_access_id`, `s3_secret_key`, `aarch64_ssh_password`. |
+
+> **Note**: `--set-password` and `--set-domain-creds` are independent — run each separately, or combine in one invocation:
+> ```bash
+> bash setup_env.sh --set-password      # sets oim_password (requires oim_server_ip)
+> bash setup_env.sh --set-domain-creds  # sets S3 + aarch64 creds (no oim_server_ip needed)
+> ```
+> Existing fields not updated by a given flag are **preserved**.
 
 ---
 
@@ -113,21 +152,44 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | `verify` | Run verification tests only (no playbook) |
 | `test` | Full flow: deploy + verify |
 
-### Scenarios
+### FVT Scenarios
 
 | Scenario | Playbook Tag | What It Tests |
 |----------|-------------|---------------|
+| `precheck` | `--tags precheck` | Env vars, hostname, IP, connectivity, omnia.sh setup |
 | `image_build_manager` | *(default: prepare + build)* | Full end-to-end |
 | `validate` | `--tags validate` | Input config and credentials present |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
-| `build` | `--tags build` | S3 images, registry images, build_status |
+| `build` | `--tags build` | S3 images, registry images, build_status, **naming convention** |
 | `cleanup` | `--tags cleanup` | All artifacts removed |
+
+#### Build-type naming convention (within `build` scenario)
+
+Both `image-builder` and `image-thrillhouse` produce artifacts with distinct suffixes
+(`-ib` / `-th`) to prevent cross-contamination in the registry and S3 bucket.
+The naming tests (`naming/` suite) run automatically within the `build` scenario.
+
+| Suite | `--suite` name | Runs when | What it checks |
+|-------|---------------|-----------|----------------|
+| `naming/` | `naming` | both build types | `-ib` / `-th` suffix on all `rhel-*` images in registry + S3 |
+
+```bash
+# Run only naming convention tests
+./run_validation.sh build verify --suite naming
+./run_validation.sh build verify --suite naming --marker x86_64+sanity
+```
+
+### NFT Scenario
+
+| Scenario | Marker | What It Tests |
+|----------|--------|---------------|
+| `nft` | `@pytest.mark.nft` | Performance thresholds and idempotency |
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--suite <name>` | Filter by subfolder (`container`, `s3`, `registry`) |
+| `--suite <name>` | Filter by subfolder (`container`, `s3`, `registry`, `naming`) |
 | `--marker <expr>` | Filter by marker (`sanity`, `x86_64`, `x86_64+sanity`) |
 | `--debug` | Full debug output (pytest -vvs) |
 | `-v, --verbose` | Increase pytest verbosity |
@@ -135,11 +197,14 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 ### Typical Workflow
 
 ```bash
+./run_validation.sh precheck verify --marker sanity             # 0. Precheck environment
 ./run_validation.sh cleanup test                                # 1. Clean previous state
 ./run_validation.sh validate test                               # 2. Validate inputs
 ./run_validation.sh prepare test                                # 3. Prepare infrastructure
-./run_validation.sh build test --marker x86_64                  # 4. Build images
+./run_validation.sh build test --marker x86_64                  # 4. Build images (+ naming checks)
+./run_validation.sh build verify --suite naming                 # 4b. Naming convention verify only
 ./run_validation.sh image_build_manager verify --marker sanity  # 5. Full verification
+./run_validation.sh nft test                                    # 6. Performance + idempotency
 ```
 
 ---
@@ -160,7 +225,7 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
 | `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
-| `dataset` | No | `""` | Empty = use `src/` files directly. Set to a dataset folder name for custom inputs. |
+| `dataset` | No | `""` | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. |
 | `project_name` | No | `project_default` | Project name for input/output paths on target. |
 
 ### Execution Modes
@@ -178,15 +243,48 @@ On session startup the framework performs:
 
 ### Input Files
 
-By default (`dataset: ""`), the framework reads input files directly from `src/`:
+#### Option A: Empty dataset (`dataset: ""`) — Target server input
 
-| File | Source |
-|------|--------|
-| `image_build_config.yml` | `src/image_build_manager/input/` |
-| `package_groups.yml` | `src/image_build_manager/input/` |
-| `repo_status.yml` | `src/image_build_manager/samples/repo_manager_output/` |
+When `dataset` is empty, the playbook reads input files from the **target server** at:
 
-For custom datasets, use the [dataset generator](datasets/generator/README.md).
+```
+$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/
+```
+
+No input files are synced from the local machine. Files must already exist on the
+target (placed by `omnia.sh` setup or a prior deployment). This is the **production behavior**.
+
+When `sync_image_build_input: true` AND `dataset: ""`, the framework syncs from
+`src/image_build_manager/input/` to the target path as a development convenience.
+
+#### Option B: Generated dataset (`dataset: "<name>"`)
+
+Create a dataset using the [dataset generator](datasets/generator/README.md),
+then set `dataset: "<name>"` in `test_config.yml`:
+
+```bash
+cd datasets/generator/
+
+# Generate from a profile
+python generate_dataset.py my_dataset defaults
+
+# Generate with overrides
+python generate_dataset.py my_dataset defaults --var s3_provider=powerscale
+
+# Copy directly from src/ (quick bootstrap)
+python generate_dataset.py my_dataset --from-src
+
+# List available profiles
+python generate_dataset.py --list-profiles
+```
+
+The generated dataset contains all required input files:
+
+| File | Location |
+|------|----------|
+| `image_build_config.yml` | `datasets/<name>/input/` |
+| `image_build_credentials.yml` | `datasets/<name>/input/` |
+| `repo_status.yml` | `datasets/<name>/repo_manager_output/` |
 
 ---
 
@@ -203,15 +301,28 @@ Generated in the configured `report_path` (default `/opt/omnia/reports`):
 
 ## Test Cases
 
-See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry.
+See [`fvt/README.md`](fvt/README.md) for the complete test case registry.
 
-| Scenario | Prefix | Count |
-|----------|--------|-------|
-| image_build_manager | TC_IB_ | 12 |
-| validate | TC_VL_ | 3 |
-| prepare | TC_PR_ | 8 |
-| build | TC_BD_ | 6 |
-| cleanup | TC_CL_ | 8 |
+| Scenario | Prefix | Count | Notes |
+|----------|--------|-------|-------|
+| precheck | TC_PC_ | 6 | 001–006 |
+| image_build_manager | TC_IB_ | 13 | Full end-to-end |
+| validate | TC_VL_ | 3 | |
+| prepare | TC_PR_ | 8 | |
+| build | TC_BD_ | 11 | 007–011 = naming convention tests |
+| cleanup | TC_CL_ | 8 | |
+| nft | NFT_ | 4 | |
+| **Total** | | **53** | |
+
+### Build-type naming convention tests (TC_BD_007 – TC_BD_011)
+
+| Test | Build type | Checks |
+|------|-----------|--------|
+| TC_BD_007 | image-builder | x86_64 registry images end with `-ib`; no `-th` leakage |
+| TC_BD_008 | image-builder | x86_64 S3 paths include `-ib`; no `-th` leakage |
+| TC_BD_009 | image-thrillhouse | x86_64 registry images end with `-th`; no `-ib` leakage |
+| TC_BD_010 | image-thrillhouse | x86_64 S3 paths include `-th`; no `-ib` leakage |
+| TC_BD_011 | both | `-ib` and `-th` base names never collide (isolation check) |
 
 ---
 
@@ -220,10 +331,10 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 ```
 test/image_build_manager/
 ├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
-├── run_validation.sh            # CLI runner
+├── run_validation.sh            # CLI runner (FVT + NFT)
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
-├── test_creds.yml               # SSH credentials (Ansible Vault, gitignored)
+├── test_creds.yml               # All credentials: SSH + S3 + aarch64 (Ansible Vault, gitignored)
 ├── test_run_config.yml          # Batch execution config
 ├── requirements.txt             # Python dependencies
 │
@@ -232,7 +343,7 @@ test/image_build_manager/
 │   ├── test_creds.md
 │   └── test_run_config.md
 │
-├── datasets/                    # Custom test datasets (optional)
+├── datasets/                    # Test datasets (generated via generator tool)
 │   └── generator/               # Dataset generator tool
 │       ├── generate_dataset.py
 │       ├── profiles/            # Variable profiles (YAML)
@@ -243,23 +354,34 @@ test/image_build_manager/
 │   ├── vars/                    # Constants, paths, commands (common_vars)
 │   └── messages/                # Test names, log/assert messages
 │
-└── fvt/                         # Functional Verification Tests
-    ├── TEST_CASES.md
-    ├── image_build_manager/     # Full end-to-end
-    │   ├── container/
-    │   ├── s3/
-    │   ├── registry/
-    │   └── image_verification/
-    ├── validate/                # Validate tag
-    │   └── status/
-    ├── prepare/                 # Prepare tag
-    │   ├── container/
-    │   └── s3/
-    ├── build/                   # Build tag
-    │   ├── s3/
-    │   └── registry/
-    └── cleanup/                 # Cleanup tag
-        └── cleanup/
+├── fvt/                         # Functional Verification Tests
+│   ├── README.md                # Test case registry (authoritative)
+│   ├── image_build_manager/     # Full end-to-end
+│   │   ├── container/
+│   │   ├── s3/
+│   │   ├── registry/
+│   │   └── image_verification/
+│   ├── precheck/                # Precheck tag (env + connectivity)
+│   │   └── connectivity/
+│   ├── validate/                # Validate tag
+│   │   └── status/
+│   ├── prepare/                 # Prepare tag
+│   │   ├── container/
+│   │   └── s3/
+│   ├── build/                   # Build tag
+│   │   ├── s3/
+│   │   ├── registry/
+│   │   └── naming/              # Naming convention tests (TC_BD_007-011)
+│   └── cleanup/                 # Cleanup tag
+│       └── cleanup/
+│
+├── nft/                         # Non-Functional Tests
+│   ├── README.md                # NFT documentation (thresholds, execution)
+│   ├── test_performance.py      # Performance threshold tests (NFT_001–NFT_003)
+│   └── test_idempotency.py      # Idempotency tests (NFT_004)
+│
+└── ut/                          # Unit Tests
+    └── conftest.py
 ```
 
 ---

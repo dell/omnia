@@ -36,13 +36,16 @@
     path: "{{ temp_pxe_file_path }}"
   register: mapping_file_raw
 
-- name: Replace only the first occurrence (Jinja split+join)
+- name: Replace only the first occurrence of service_kube_control_plane_<arch> with _first_<arch>
   ansible.builtin.set_fact:
     modified_mapping_file: >-
       {{
         (mapping_file_raw.content | b64decode)
-        .split('service_kube_control_plane_x86_64', 1)
-        | join('service_kube_control_plane_first_x86_64')
+        | regex_replace(
+            '(service_kube_control_plane_)((?!first_)\w+)',
+            'service_kube_control_plane_first_\2',
+            count=1
+          )
       }}
 
 - name: Write updated mapping file back to disk

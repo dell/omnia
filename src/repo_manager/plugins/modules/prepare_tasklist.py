@@ -18,14 +18,14 @@
 import os
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.software_utils import (
+from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.software_utils import (
     transform_package_dict,
     remove_duplicates_from_trans,
     build_repo_name,
     resolve_pulp_policy,
 )
-from ansible.module_utils.local_repo.catalog_resolver import (
+from ansible.module_utils.repo_manager.catalog_resolver import (
     load_repo_manager_config,
     get_catalog_path,
     get_repo_config_policy,
@@ -34,7 +34,7 @@ from ansible.module_utils.local_repo.catalog_resolver import (
     parse_repo_urls_from_config,
     parse_additional_repos_from_config,
 )
-from ansible.module_utils.local_repo.mirror_status import (
+from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
     save_global_package_index,
@@ -84,10 +84,10 @@ task_count:
   returned: success
 """
 
-from ansible.module_utils.local_repo.config import (
+from ansible.module_utils.repo_manager.config import (
     CSV_FILE_PATH_DEFAULT,
     LOG_DIR_DEFAULT,
-    LOCAL_REPO_CONFIG_PATH_DEFAULT,
+    REPO_MANAGER_CONFIG_PATH_DEFAULT,
     ARCH_SUFFIXES,
     MIRROR_STATUS_DIR,
     MIRROR_INDEX_FILENAME,
@@ -99,12 +99,12 @@ def main():
     Prepares package lists and processes software based on catalog-based configuration.
 
     Reads from catalog/ directory and repo_manager_config.yml. Uses multi-catalog
-    deduplication and mirror_index.json for incremental mirroring.
+    deduplication and pulp_mirror_index.json for incremental mirroring.
     """
 
     module_args = {
         "csv_file_path": {"type": "str", "required": False, "default": CSV_FILE_PATH_DEFAULT},
-        "local_repo_config_path": {"type": "str", "required": False, "default": LOCAL_REPO_CONFIG_PATH_DEFAULT},
+        "local_repo_config_path": {"type": "str", "required": False, "default": REPO_MANAGER_CONFIG_PATH_DEFAULT},
         "log_dir": {"type": "str", "required": False, "default": LOG_DIR_DEFAULT},
         "key_path": {"type": "str", "required": True},
         "sub_urls": {"type": "dict", "required": False, "default": {}}
@@ -136,7 +136,7 @@ def main():
         cluster_os_version = "10.0"
         parts = catalog_id.split("-")
         for i, part in enumerate(parts):
-            if part in ("rhel", "ubuntu", "rocky"):
+            if part in ("rhel"):
                 cluster_os_type = part
                 version_parts = []
                 for j in range(i + 1, min(i + 3, len(parts))):
