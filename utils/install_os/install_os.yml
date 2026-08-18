@@ -49,14 +49,15 @@
 #   - ks_static_ip:         static IP for the installed node
 #
 # Optional variables:
-#   - iso_source_checksum:  SHA-256 checksum for source ISO verification
-#   - iso_target_directory: output directory for repacked ISO (default: /opt/omnia/iso_output)
-#   - kickstart_file:       user-provided kickstart file path
-#   - kickstart_template:   Jinja2 template name (default: rhel10)
-#   - ks_install_disk:      target install disk (default: auto-detect)
-#   - force_reinstall:      proceed even if target is reachable (default: false)
-#   - silent_install:       suppress all interactive prompts (default: false)
-#   - rebuild_iso:          force ISO rebuild when it exists (default: false)
+#   - iso_source_checksum:      SHA-256 checksum for source ISO verification
+#   - iso_target_directory:     output directory for repacked ISO (default: /opt/omnia/iso_output)
+#   - kickstart_file:           user-provided kickstart file path
+#   - kickstart_template:       Jinja2 template name (default: rhel10)
+#   - ks_install_disk:          target install disk (default: auto-detect)
+#   - force_reinstall:          proceed even if target is reachable (default: false)
+#   - silent_install:           suppress all interactive prompts (default: false)
+#   - rebuild_iso:              force ISO rebuild when it exists (default: false)
+#   - embed_kickstart:          embed kickstart in ISO instead of NFS (default: true)
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -254,6 +255,7 @@
           Install Disk    : {{ ks_install_disk | default('auto-detect') }}
           Source ISO      : {{ iso_source_path | default('unknown') }}
           Kickstart       : {{ kickstart_file if (kickstart_file | default('')) | length > 0 else (kickstart_template | default('rhel10') + ' template') }}
+          Delivery Method : {{ 'Embedded in ISO' if (embed_kickstart | default(true) | bool) else 'Network share (NFS)' }}
 
           ==============================================================
           Press ENTER to continue, or Ctrl+C then 'A' to abort.

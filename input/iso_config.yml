@@ -66,12 +66,16 @@ rebuild_iso: false
 # Default: false
 # force_reinstall: false
 
+# Embed kickstart file in ISO instead of hosting on NFS share
+# embed_kickstart: true
+
 # Target install disk (e.g., "sda", "nvme0n1"). When set, Anaconda will
 # only use this disk and ignore all others. Leave empty to auto-detect.
 # install_disk: ""
 
 # Network configuration for the installed node
 # These override values derived from network_spec.yml and PXE mapping.
+# network_device: ""  # Network device name (e.g., "eno1", "eth0"). Leave empty to use "link" (auto-detect first active interface)
 # netmask: "255.255.255.0"
 # gateway: ""
 # dns: ""
