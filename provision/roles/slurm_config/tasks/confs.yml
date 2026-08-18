@@ -138,7 +138,7 @@
     - bulk_discovery is defined
     - bulk_discovery is not skipped
 
-- name: Warn about failed group discoveries
+- name: Warn about failed group discoveries # noqa: yaml[line-length]
   ansible.builtin.debug:
     msg: "iDRAC group discovery failed for {{ bulk_discovery.failed_groups | length }} group(s): {{ bulk_discovery.failed_groups | join(', ') }} — using defaults"
   when:
