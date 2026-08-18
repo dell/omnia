@@ -21,10 +21,11 @@ keyboard --vckeymap=us --xlayouts='us'
 timezone {{ ks_timezone | default('UTC') }} --utc
 
 # Network
+{% set network_device = ks_network_device if (ks_network_device is defined and ks_network_device | length > 0) else 'link' %}
 {% if ks_dns is defined and ks_dns | length > 0 %}
-network --bootproto=static --device=link --ip={{ ks_static_ip }} --netmask={{ ks_netmask }} --gateway={{ ks_gateway }} --nameserver={{ ks_dns }} --hostname={{ ks_hostname | default('admin-node') }} --activate --onboot=yes
+network --bootproto=static --device={{ network_device }} --ip={{ ks_static_ip }} --netmask={{ ks_netmask }} --gateway={{ ks_gateway }} --nameserver={{ ks_dns }} --hostname={{ ks_hostname | default('admin-node') }} --activate --onboot=yes
 {% else %}
-network --bootproto=static --device=link --ip={{ ks_static_ip }} --netmask={{ ks_netmask }}{% if ks_gateway is defined and ks_gateway | length > 0 %} --gateway={{ ks_gateway }}{% endif %} --hostname={{ ks_hostname | default('admin-node') }} --activate --onboot=yes
+network --bootproto=static --device={{ network_device }} --ip={{ ks_static_ip }} --netmask={{ ks_netmask }}{% if ks_gateway is defined and ks_gateway | length > 0 %} --gateway={{ ks_gateway }}{% endif %} --hostname={{ ks_hostname | default('admin-node') }} --activate --onboot=yes
 {% endif %}
 
 # Authentication
