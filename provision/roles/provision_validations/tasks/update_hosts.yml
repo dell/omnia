@@ -13,22 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Ensure 127.0.0.1 localhost entry exists
-  ansible.builtin.lineinfile:
-    path: "{{ hosts_file_path }}"
-    regexp: '^127\.0\.0\.1\s'
-    line: '127.0.0.1 localhost.localdomain localhost'
-    state: present
-    create: true
-    mode: '0644'
-
-- name: Update hosts file with PXE mapping entries
-  ansible.builtin.blockinfile:
-    path: "{{ hosts_file_path }}"
-    marker: "# {mark} OMNIA MANAGED HOSTS"
-    block: |
-      {% for item in read_mapping_file.dict | dict2items | sort(attribute='value.HOSTNAME') %}
-      {{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}
-      {% endfor %}
-    create: true
-    mode: '0644'
+# Container-mount safe: lineinfile/blockinfile use atomic rename() which fails
+# on overlay/bind-mounted filesystems (EXDEV). Use shell redirect instead.
+- name: Write hosts file (container-mount safe)
+  ansible.builtin.shell: |
+    set -o pipefail
+    cat > {{ hosts_file_path }} << 'HOSTS_EOF'
+    127.0.0.1 localhost.localdomain localhost
+    # BEGIN OMNIA MANAGED HOSTS
+    {% for item in read_mapping_file.dict | dict2items | sort(attribute='value.HOSTNAME') %}
+    {{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}
+    {% endfor %}
+    # END OMNIA MANAGED HOSTS
+    HOSTS_EOF
+    chmod 0644 {{ hosts_file_path }}
+  changed_when: true

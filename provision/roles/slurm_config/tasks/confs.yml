@@ -127,11 +127,36 @@
     - discovery_mode == 'homogeneous'
     - sample_idrac_groups | default({}) | length > 0
 
-- name: Process heterogeneous nodes (individual iDRAC)
-  ansible.builtin.include_tasks: read_node_idrac.yml
-  loop: "{{ cmpt_list }}"
+- name: Bulk discover node hardware specs via iDRAC (parallel)
+  bulk_discover_node_specs:
+    nodes: "{{ cmpt_list }}"
+    bmc_ip_map: "{{ bmc_ip_map }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    max_parallel: "{{ bulk_idrac_max_parallel }}"
+    connect_timeout: "{{ bulk_idrac_connect_timeout }}"
+    defaults:
+      real_memory: "{{ default_real_memory }}"
+      corespersocket: "{{ default_corespersocket }}"
+      threadspercore: "{{ default_threadspercore }}"
+  register: bulk_discovery
+  when: discovery_mode == 'heterogeneous'
+
+- name: Set node_params from bulk discovery
+  ansible.builtin.set_fact:
+    node_params: "{{ node_params + bulk_discovery.node_params }}"
+    gpu_params: "{{ gpu_params | default({}) | combine(bulk_discovery.gpu_params) }}"
   when:
     - discovery_mode == 'heterogeneous'
+    - bulk_discovery is not skipped
+
+- name: Warn about failed iDRAC discoveries
+  ansible.builtin.debug:
+    msg: "iDRAC discovery failed for {{ bulk_discovery.failed_nodes | length }} node(s): {{ bulk_discovery.failed_nodes | join(', ') }}"
+  when:
+    - discovery_mode == 'heterogeneous'
+    - bulk_discovery is not skipped
+    - bulk_discovery.failed_nodes | default([]) | length > 0
 
 - name: DEBUG - Show final node_params before building slurm.conf
   ansible.builtin.debug:
