@@ -108,6 +108,45 @@ AI agents (Devin, Copilot, Cursor, ChatGPT, Claude, or any other AI-assisted cod
 
 ## 8. Version Control
 
+### 8.1 Commit Format (MANDATORY)
+
+```bash
+git commit --signoff -m "<type>(<scope>): <description>"
+```
+
+**Types:** `feat` | `fix` | `docs` | `style` | `refactor` | `test` | `chore` | `sdd` | `ci` | `perf` | `build` | `revert`
+
+**Scope:** domain, component, or Story ID (e.g., `oim`, `prov`, `A19`, `sdd`)
+
+**Examples:**
+
+```
+feat(prov):       ER-PROV-001 add iDRAC-based node discovery
+fix(tele):        A12-telemetry-fix null pointer in idrac collector
+docs(specs):      update ER-OIM-001 acceptance criteria
+sdd(checkpoint):  A19 CP2 approved [SHA:abc123]
+sdd(plan):        scaffold add-idrac-telemetry-source Story workspace
+```
+
+### 8.2 Commit Message Rules
+
+- **First line**: `<type>(<scope>): <description>` (max 72 characters)
+- **Imperative mood**: "add" not "adds" or "added"
+- **No period** at end of description line
+- **Body** (optional): blank line, then explain the WHY — reference ER ID and Story ID
+- **Signed-off-by**: auto-added by `--signoff` flag (required for DCO)
+- **Co-Authored-By tags** (e.g., `Co-Authored-By: Devin <...>`) are acceptable but do NOT constitute sign-off — human review is always required
+- Include **Story ID** in scope or description for every code commit
+
+### 8.3 Branch Naming
+
+```
+feature/<issue>-<short-description>
+bugfix/<issue>-<short-description>
+```
+
+### 8.4 General Rules
+
 - One logical change per commit
 - Clear, descriptive commit messages
-- Branch naming: `feature/<name>` or `fix/<name>`
+- Sync before commit/push: `git fetch origin && git merge origin/main`

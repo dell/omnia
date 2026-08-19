@@ -21,7 +21,11 @@ TC_CL_004: Verify --run without domain exits with error
 TC_CL_005: Verify --deps-only flag appears in help output
 TC_CL_006: Verify unknown option exits with error
 TC_CL_007: Verify --cleanup flag appears in help output
-TC_CL_008: Verify --catalog flag appears in help output
+TC_CL_008: Verify --check-deps flag appears in help output
+TC_CL_009: Verify --force-deps flag appears in help output
+TC_CL_010: Verify --skip-catalog flag appears in help output
+TC_CL_011: Verify --force-deps without -s/-i exits with error
+TC_CL_012: Verify --check-deps runs
 """
 
 import pytest
@@ -186,18 +190,107 @@ def test_cleanup_in_help(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(7)
-def test_catalog_in_help(host):
-    """TC_CL_008: Verify --catalog flag appears in help output."""
+def test_check_deps_in_help(host):
+    """TC_CL_008: Verify --check-deps flag appears in help output."""
     tl = TestLogger(
-        TEST_NAMES["catalog_in_help"], "TC_CL_008"
+        TEST_NAMES["check_deps_in_help"], "TC_CL_008"
     )
     result = run_omnia_cmd(host, "omnia_sh_help")
 
-    found = "--catalog" in result.get("output", "")
+    found = "--check-deps" in result.get("output", "")
 
     if found:
-        tl.passed(LOG["catalog_in_help_ok"])
+        tl.passed(LOG["check_deps_in_help_ok"])
     else:
-        tl.failed(LOG["catalog_not_in_help"])
+        tl.failed(LOG["check_deps_not_in_help"])
 
-    assert found, ASSERT["catalog_not_in_help"]
+    assert found, ASSERT["check_deps_not_in_help"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(8)
+def test_force_deps_in_help(host):
+    """TC_CL_009: Verify --force-deps flag appears in help output."""
+    tl = TestLogger(
+        TEST_NAMES["force_deps_in_help"], "TC_CL_009"
+    )
+    result = run_omnia_cmd(host, "omnia_sh_help")
+
+    found = "--force-deps" in result.get("output", "")
+
+    if found:
+        tl.passed(LOG["force_deps_in_help_ok"])
+    else:
+        tl.failed(LOG["force_deps_not_in_help"])
+
+    assert found, ASSERT["force_deps_not_in_help"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(9)
+def test_skip_catalog_in_help(host):
+    """TC_CL_010: Verify --skip-catalog flag appears in help output."""
+    tl = TestLogger(
+        TEST_NAMES["skip_catalog_in_help"], "TC_CL_010"
+    )
+    result = run_omnia_cmd(host, "omnia_sh_help")
+
+    found = "--skip-catalog" in result.get("output", "")
+
+    if found:
+        tl.passed(LOG["skip_catalog_in_help_ok"])
+    else:
+        tl.failed(LOG["skip_catalog_not_in_help"])
+
+    assert found, ASSERT["skip_catalog_not_in_help"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(10)
+def test_force_deps_invalid(host):
+    """TC_CL_011: Verify --force-deps without -s/-i exits with error."""
+    tl = TestLogger(
+        TEST_NAMES["force_deps_invalid"], "TC_CL_011"
+    )
+    result = run_omnia_cmd_expect_error(
+        host, "omnia_sh_force_deps_invalid",
+    )
+
+    if result["success"]:
+        tl.passed(LOG["error_exit_ok"].format(
+            rc=result["rc"]
+        ))
+    else:
+        tl.failed(LOG["error_exit_unexpected"].format(
+            rc=result["rc"]
+        ))
+
+    assert result["success"], ASSERT["force_deps_invalid"].format(
+        rc=result["rc"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(11)
+def test_check_deps_runs(host):
+    """TC_CL_012: Verify --check-deps command runs."""
+    tl = TestLogger(
+        TEST_NAMES["check_deps_runs"], "TC_CL_012"
+    )
+    result = run_omnia_cmd(host, "omnia_sh_check_deps")
+
+    # --check-deps may exit 0 (no mismatches) or 1 (mismatches found).
+    # Both are valid executions.  We check that it produces output.
+    output = result.get("output", "")
+    ran = "Dependency Version Audit" in output
+
+    if ran:
+        tl.passed(LOG["check_deps_ok"])
+    else:
+        tl.failed(LOG["check_deps_failed"].format(
+            rc=result["rc"]
+        ))
+
+    assert ran, ASSERT["check_deps_failed"].format(
+        rc=result["rc"],
+    )

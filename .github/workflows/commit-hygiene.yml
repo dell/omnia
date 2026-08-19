@@ -1,0 +1,271 @@
+---
+# Commit Hygiene — validates every commit in a PR
+#
+# Enforces the AI Agent Usage Policy (Omnia_Spec/specs/code-styleguides/general.md §7):
+#   - No commits authored solely by AI/LLM bots (Devin, Codex, Copilot, etc.)
+#   - No commits from root user
+#   - Commit message format: <type>(<scope>): <description>
+#   - No empty or single-word commit messages
+#   - Copyright header present in new source files
+#
+# Co-Authored-By trailers are acceptable — the check validates the
+# primary Author and Committer fields, not trailers.
+#
+name: Commit Hygiene
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Job 1: Commit Author & Message Validation
+  # ═══════════════════════════════════════════════════════════════════════
+  commit-validation:
+    name: Validate Commit Authors & Messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate all commits in PR
+        id: check
+        run: |
+          set -euo pipefail
+
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          ERRORS=0
+          WARNINGS=0
+          COMMIT_COUNT=0
+          ERROR_DETAILS=""
+          WARN_DETAILS=""
+
+          # ─── Known AI/LLM bot patterns ───
+          AI_NAME_PATTERNS=(
+            "devin-ai-integration"
+            "devin\[bot\]"
+            "copilot\[bot\]"
+            "github-actions\[bot\]"
+            "dependabot\[bot\]"
+            "codex"
+            "openai-codex"
+            "claude"
+            "anthropic"
+            "cursor\[bot\]"
+            "codeium\[bot\]"
+            "tabnine"
+            "amazon-q"
+            "gemini"
+            "chatgpt"
+          )
+
+          AI_EMAIL_PATTERNS=(
+            "devin-ai-integration\[bot\]@users.noreply"
+            "copilot\[bot\]@users.noreply"
+            "noreply@github.com"
+            "actions@github.com"
+            "codex@openai.com"
+            "49699333+dependabot\[bot\]"
+            "158243242\+devin-ai-integration"
+          )
+
+          AI_NAME_RE=$(IFS='|'; echo "${AI_NAME_PATTERNS[*]}")
+          AI_EMAIL_RE=$(IFS='|'; echo "${AI_EMAIL_PATTERNS[*]}")
+
+          while IFS= read -r sha; do
+            COMMIT_COUNT=$((COMMIT_COUNT + 1))
+            SHORT=$(echo "$sha" | cut -c1-7)
+
+            AUTHOR_NAME=$(git log -1 --format='%an' "$sha")
+            AUTHOR_EMAIL=$(git log -1 --format='%ae' "$sha")
+            COMMITTER_NAME=$(git log -1 --format='%cn' "$sha")
+            COMMITTER_EMAIL=$(git log -1 --format='%ce' "$sha")
+            SUBJECT=$(git log -1 --format='%s' "$sha")
+
+            # ─── Check 1: Block root user ───
+            if [ "$AUTHOR_NAME" = "root" ] || [ "$COMMITTER_NAME" = "root" ]; then
+              ERRORS=$((ERRORS + 1))
+              ERROR_DETAILS="${ERROR_DETAILS}\n::error::${SHORT}: Commit authored/committed by 'root' — use a personal identity"
+            fi
+            if [ "$AUTHOR_EMAIL" = "root@localhost" ] || [ "$COMMITTER_EMAIL" = "root@localhost" ] || \
+               echo "$AUTHOR_EMAIL" | grep -qE '^root@' || echo "$COMMITTER_EMAIL" | grep -qE '^root@'; then
+              if [ "$AUTHOR_EMAIL" != "root@localhost" ] 2>/dev/null; then true; fi
+              ERRORS=$((ERRORS + 1))
+              ERROR_DETAILS="${ERROR_DETAILS}\n::error::${SHORT}: Commit uses root@ email — configure git user.email with your identity"
+            fi
+
+            # ─── Check 2: Block AI/LLM-only authors ───
+            if echo "$AUTHOR_NAME" | grep -qiE "$AI_NAME_RE"; then
+              ERRORS=$((ERRORS + 1))
+              ERROR_DETAILS="${ERROR_DETAILS}\n::error::${SHORT}: Author '${AUTHOR_NAME}' is an AI bot — human must be the author (Co-Authored-By trailers are OK)"
+            fi
+            if echo "$AUTHOR_EMAIL" | grep -qiE "$AI_EMAIL_RE"; then
+              ERRORS=$((ERRORS + 1))
+              ERROR_DETAILS="${ERROR_DETAILS}\n::error::${SHORT}: Author email '${AUTHOR_EMAIL}' is an AI bot — human must be the author"
+            fi
+            if echo "$COMMITTER_NAME" | grep -qiE "$AI_NAME_RE"; then
+              WARNINGS=$((WARNINGS + 1))
+              WARN_DETAILS="${WARN_DETAILS}\n::warning::${SHORT}: Committer '${COMMITTER_NAME}' is an AI bot — ensure a human reviewed"
+            fi
+
+            # ─── Check 3: Commit message format ───
+            if ! echo "$SUBJECT" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|sdd|ci|perf|build|revert)(\(.+\))?:'; then
+              if ! echo "$SUBJECT" | grep -qiE '^(Merge|Revert|Signed-off-by)'; then
+                WARNINGS=$((WARNINGS + 1))
+                WARN_DETAILS="${WARN_DETAILS}\n::warning::${SHORT}: '${SUBJECT}' — does not follow conventional commit format"
+              fi
+            fi
+
+            # ─── Check 4: No trivially short messages ───
+            MSG_LEN=${#SUBJECT}
+            if [ "$MSG_LEN" -lt 10 ]; then
+              ERRORS=$((ERRORS + 1))
+              ERROR_DETAILS="${ERROR_DETAILS}\n::error::${SHORT}: Commit message too short (${MSG_LEN} chars)"
+            fi
+
+            # ─── Check 5: Detect AI hallucination patterns ───
+            if echo "$SUBJECT" | grep -qiE '(implement.*as requested|per your instruction|as you asked|happy to help|certainly|I have implemented|I.ve implemented)'; then
+              WARNINGS=$((WARNINGS + 1))
+              WARN_DETAILS="${WARN_DETAILS}\n::warning::${SHORT}: Commit message contains LLM-style language — review for accuracy"
+            fi
+
+          done < <(git rev-list ${BASE_SHA}..${HEAD_SHA})
+
+          echo ""
+          echo "==========================================="
+          echo "     COMMIT HYGIENE SUMMARY"
+          echo "==========================================="
+          echo "Commits checked: ${COMMIT_COUNT}"
+          echo "Errors: ${ERRORS}"
+          echo "Warnings: ${WARNINGS}"
+          echo "==========================================="
+
+          if [ -n "$ERROR_DETAILS" ]; then echo -e "$ERROR_DETAILS"; fi
+          if [ -n "$WARN_DETAILS" ]; then echo -e "$WARN_DETAILS"; fi
+
+          echo "errors=$ERRORS" >> "$GITHUB_OUTPUT"
+          echo "warnings=$WARNINGS" >> "$GITHUB_OUTPUT"
+          echo "commit_count=$COMMIT_COUNT" >> "$GITHUB_OUTPUT"
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "FAILED: ${ERRORS} commit hygiene error(s) found."
+            exit 1
+          fi
+          echo "PASSED: All ${COMMIT_COUNT} commits pass hygiene checks."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Job 2: Copyright Header Check (new/modified source files)
+  # ═══════════════════════════════════════════════════════════════════════
+  copyright-header:
+    name: Copyright Header Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check copyright headers in new/changed source files
+        run: |
+          set -euo pipefail
+
+          git fetch origin ${{ github.base_ref }}
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- \
+            '*.py' '*.yml' '*.yaml' '*.sh' '*.bash' || true)
+
+          # Exclude workflow files, galaxy.yml, and requirements files
+          CHANGED=$(echo "$CHANGED" | grep -v '^\.github/workflows/' | \
+            grep -v 'galaxy\.yml$' | \
+            grep -v 'requirements\.yml$' | \
+            grep -v 'meta/main\.yml$' || true)
+
+          if [ -z "$CHANGED" ]; then
+            echo "No source files changed — skipping copyright check."
+            exit 0
+          fi
+
+          MISSING=0
+          MISSING_FILES=""
+
+          COPYRIGHT_PATTERN="Copyright.*Dell Inc"
+
+          for f in $CHANGED; do
+            if [ ! -f "$f" ]; then continue; fi
+
+            # Check first 15 lines for copyright header
+            if ! head -15 "$f" | grep -qi "$COPYRIGHT_PATTERN"; then
+              MISSING=$((MISSING + 1))
+              MISSING_FILES="${MISSING_FILES}\n  - ${f}"
+              echo "::warning file=${f}::Missing Dell copyright header (see specs/code-styleguides/general.md §1)"
+            fi
+          done
+
+          echo ""
+          echo "==========================================="
+          echo "     COPYRIGHT HEADER SUMMARY"
+          echo "==========================================="
+          if [ "$MISSING" -gt 0 ]; then
+            echo "Files missing copyright header: ${MISSING}"
+            echo -e "$MISSING_FILES"
+            echo "==========================================="
+            echo ""
+            echo "Add the Apache 2.0 copyright header to each file."
+            echo "See: Omnia_Spec/specs/code-styleguides/general.md §1"
+            # Advisory for now — uncomment next line to make blocking
+            # exit 1
+          else
+            echo "All source files have copyright headers."
+            echo "==========================================="
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Job 3: Test Co-Change Rule (general.md §6)
+  # ═══════════════════════════════════════════════════════════════════════
+  test-co-change:
+    name: Test Co-Change Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check src/ changes have corresponding test/ changes
+        run: |
+          set -euo pipefail
+
+          git fetch origin ${{ github.base_ref }}
+
+          SRC_CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- 'src/**' | wc -l || echo 0)
+          TEST_CHANGED=$(git diff --name-only --diff-filter=d \
+            origin/${{ github.base_ref }} HEAD -- 'test/**' | wc -l || echo 0)
+
+          echo "Source files changed: ${SRC_CHANGED}"
+          echo "Test files changed: ${TEST_CHANGED}"
+
+          if [ "$SRC_CHANGED" -gt 0 ] && [ "$TEST_CHANGED" -eq 0 ]; then
+            echo ""
+            echo "::warning::Source code changed (${SRC_CHANGED} files) but no test files updated."
+            echo "Per code-styleguides/general.md §6: PRs that change src/ without updating test/"
+            echo "MUST include a justification in the PR description."
+            echo ""
+            echo "Source files changed:"
+            git diff --name-only --diff-filter=d \
+              origin/${{ github.base_ref }} HEAD -- 'src/**'
+          else
+            echo "PASSED: Test co-change rule satisfied."
+          fi
