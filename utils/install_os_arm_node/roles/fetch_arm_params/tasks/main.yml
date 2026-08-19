@@ -13,31 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Read PXE mapping file
-  ansible.builtin.read_csv:
-    path: "{{ pxe_mapping_file_path }}"
-  register: pxe_mapping_data
-
-- name: Find os_aarch64 node in PXE mapping
-  ansible.builtin.set_fact:
-    arm_node_entry: >-
-      {{ pxe_mapping_data.list
-         | selectattr('FUNCTIONAL_GROUP_NAME', 'search', 'os_aarch64')
-         | list
-         | first
-         | default(
-             pxe_mapping_data.list
-             | selectattr('HOSTNAME', 'search', 'os_aarch64')
-             | list
-             | first
-             | default(None)
-           ) }}
-
-- name: Fail if no os_aarch64 node found
-  ansible.builtin.fail:
-    msg: "{{ no_aarch64_node_msg }}"
-  when: arm_node_entry is none or arm_node_entry | length == 0
-
 - name: Read OIM SSH public key
   ansible.builtin.slurp:
     src: "{{ oim_ssh_key_path }}"
@@ -81,8 +56,8 @@
     kickstart_file: "{{ iso_config.kickstart_file | default('') }}"
     kickstart_template: "{{ iso_config.kickstart_template | default(default_kickstart_template) }}"
     ks_ssh_public_key: "{{ oim_ssh_key_content.content | b64decode | trim }}"
-    ks_hostname: "{{ arm_node_entry.HOSTNAME | default('os-aarch64') }}"
-    ks_static_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
+    ks_hostname: "{{ iso_config.hostname }}"
+    ks_static_ip: "{{ iso_config.target_node_ip }}"
     ks_netmask: "{{ iso_config.netmask | default('255.255.255.0') }}"
     ks_gateway: "{{ iso_config.gateway | default('') }}"
     ks_dns: "{{ iso_config.dns | default('') }}"
@@ -90,8 +65,8 @@
     ks_timezone: "{{ iso_config.timezone | default('UTC') }}"
     ks_install_disk: "{{ iso_config.install_disk | default('') }}"
     # iDRAC parameters
-    target_bmc_ip: "{{ arm_node_entry.BMC_IP }}"
-    target_node_ip: "{{ arm_node_entry.ADMIN_IP | default('') }}"
+    target_bmc_ip: "{{ iso_config.target_bmc_ip }}"
+    target_node_ip: "{{ iso_config.target_node_ip }}"
     force_reinstall: "{{ iso_config.force_reinstall | default(false) | bool }}"
     # NFS share path (server:/path) — user-provided or auto-detected from mount
     iso_nfs_share: "{{ user_nfs_share_path if user_nfs_share_path | length > 0 else nfs_mount_result.stdout | default('') }}"
@@ -109,6 +84,7 @@
     # Interactive behavior
     silent_install: "{{ iso_config.silent_install | default(false) | bool }}"
     rebuild_iso: "{{ iso_config.rebuild_iso | default(false) | bool }}"
+    embed_kickstart: "{{ iso_config.embed_kickstart | default(true) | bool }}"
     cacheable: true
 
 - name: Log fetched ARM parameters

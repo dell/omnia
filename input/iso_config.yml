@@ -22,6 +22,15 @@
 # and customize as needed.
 # ─────────────────────────────────────────────────────────────────────────
 
+# Target node BMC/iDRAC IP address (required).
+target_bmc_ip: ""
+
+# Hostname for the installed node (required).
+hostname: "nid101"
+
+# Target node OS IP address to set (required).
+target_node_ip: "172.16.107.201"
+
 # Path to the pre-placed RHEL 10.x AArch64 Server with GUI full DVD ISO.
 # The ISO must be accessible on the OIM node.
 iso_source_path: "/opt/omnia/RHEL-10.0-aarch64-dvd1.iso"
@@ -66,12 +75,15 @@ rebuild_iso: false
 # Default: false
 # force_reinstall: false
 
+# Embed kickstart file in ISO instead of hosting on NFS share
+# embed_kickstart: true
+
 # Target install disk (e.g., "sda", "nvme0n1"). When set, Anaconda will
 # only use this disk and ignore all others. Leave empty to auto-detect.
 # install_disk: ""
 
 # Network configuration for the installed node
-# These override values derived from network_spec.yml and PXE mapping.
+network_device: "enP6s3f0np0"  # Network device name (e.g., "eno1", "eth0").
 # netmask: "255.255.255.0"
 # gateway: ""
 # dns: ""

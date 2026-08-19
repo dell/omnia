@@ -13,30 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Verify PXE mapping file exists
-  ansible.builtin.stat:
-    path: "{{ pxe_mapping_file_path }}"
-  register: pxe_mapping_stat
-
-- name: Fail if PXE mapping file not found
+- name: Validate required iso_config fields
   ansible.builtin.fail:
-    msg: "{{ pxe_mapping_not_found_msg }}"
-  when: not pxe_mapping_stat.stat.exists
-
-- name: Verify network_spec.yml exists
-  ansible.builtin.stat:
-    path: "{{ network_spec_file }}"
-  register: network_spec_stat
-
-- name: Fail if network_spec.yml not found
-  ansible.builtin.fail:
-    msg: "{{ network_spec_not_found_msg }}"
-  when: not network_spec_stat.stat.exists
-
-- name: Load network_spec.yml
-  ansible.builtin.include_vars:
-    file: "{{ network_spec_file }}"
-    name: network_spec
+    msg: "{{ item.msg }}"
+  when: item.value | length == 0
+  loop:
+    - { value: "{{ iso_config.target_bmc_ip }}", msg: "'target_bmc_ip' is required in iso_config.yml" }
+    - { value: "{{ iso_config.hostname }}", msg: "'hostname' is required in iso_config.yml" }
+    - { value: "{{ iso_config.target_node_ip }}", msg: "'target_node_ip' is required in iso_config.yml" }
 
 - name: Verify OIM SSH public key exists
   ansible.builtin.stat:
@@ -55,4 +39,4 @@
 
 - name: Log ARM config validation success
   ansible.builtin.debug:
-    msg: "{{ arm_config_success_msg }}"
+    msg: "ARM configuration validation passed. BMC: {{ iso_config.target_bmc_ip }}, Node IP: {{ iso_config.target_node_ip }}"
