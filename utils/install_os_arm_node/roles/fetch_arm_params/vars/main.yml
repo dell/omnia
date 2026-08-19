@@ -20,11 +20,6 @@ password_hash_algorithm: "sha512"
 default_network_device: ""
 
 # Error and info messages
-no_aarch64_node_msg: >-
-  No os_aarch64 node found in PXE mapping file.
-  Ensure the PXE mapping file contains an entry with FUNCTIONAL_GROUP_NAME or HOSTNAME
-  matching 'os_aarch64'.
-
 provision_password_not_set_msg: >-
   provision_password is not set or empty.
   Please run the credential utility to set it.
