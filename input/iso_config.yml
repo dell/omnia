@@ -23,13 +23,13 @@
 # ─────────────────────────────────────────────────────────────────────────
 
 # Target node BMC/iDRAC IP address (required).
-target_bmc_ip: ""
+target_bmc_ip: "100.11.10.43"
 
 # Hostname for the installed node (required).
-hostname: ""
+hostname: "armnode"
 
 # Target node OS IP address to set (required).
-target_node_ip: ""
+target_node_ip: "172.16.107.201"
 
 # Path to the pre-placed RHEL 10.x AArch64 Server with GUI full DVD ISO.
 # The ISO must be accessible on the OIM node.
@@ -83,7 +83,7 @@ rebuild_iso: false
 # install_disk: ""
 
 # Network configuration for the installed node
-# network_device: ""  # Network device name (e.g., "eno1", "eth0"). Leave empty to use "link" (auto-detect first active interface)
+network_device: "enP6s3f0np0"  # Network device name (e.g., "eno1", "eth0").
 # netmask: "255.255.255.0"
 # gateway: ""
 # dns: ""
