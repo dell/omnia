@@ -352,8 +352,11 @@ ACTIVATE_EOF
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Initialize Domain Input Files
+# Accepts an optional comma-separated domain filter (e.g. "repo_manager,telemetry").
+# If empty or "all", initializes every domain.
 # ─────────────────────────────────────────────────────────────────────────────
 init_domains() {
+    local domain_filter="${1:-}"
     load_env
 
     # Activate venv so domain-init.sh can install pip/galaxy deps
@@ -366,6 +369,32 @@ init_domains() {
         exit 1
     fi
 
+    # Build the list of domains to initialize
+    local target_domains=()
+    if [ -z "$domain_filter" ] || [ "$domain_filter" = "all" ]; then
+        target_domains=("${DOMAINS[@]}")
+    else
+        # Split comma-separated list and validate each
+        IFS=',' read -ra requested <<< "$domain_filter"
+        for req in "${requested[@]}"; do
+            req="$(echo "$req" | xargs)"  # trim whitespace
+            local found=false
+            for d in "${DOMAINS[@]}"; do
+                if [ "$d" = "$req" ]; then
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = true ]; then
+                target_domains+=("$req")
+            else
+                echo -e "${RED}ERROR: Unknown domain '$req'${NC}"
+                echo -e "${YELLOW}Available domains: ${DOMAINS[*]}${NC}"
+                exit 1
+            fi
+        done
+    fi
+
     local domain_init_args=()
     if [ "$DEPS_ONLY" = true ]; then
         domain_init_args+=(--deps-only)
@@ -373,9 +402,16 @@ init_domains() {
     else
         echo -e "${BLUE}Initializing domains (deps + log dirs + input files) ...${NC}"
     fi
+    if [ "$FORCE_DEPS" = true ]; then
+        domain_init_args+=(--force-deps)
+    fi
+
+    if [ ${#target_domains[@]} -lt ${#DOMAINS[@]} ]; then
+        echo -e "${BLUE}  Targets: ${target_domains[*]}${NC}"
+    fi
 
     local initialized=0
-    for domain in "${DOMAINS[@]}"; do
+    for domain in "${target_domains[@]}"; do
         local init_script="$SRC_DIR/$domain/domain-init.sh"
         if [ -f "$init_script" ]; then
             chmod +x "$init_script"
@@ -507,13 +543,14 @@ cleanup_omnia() {
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
     else
-        echo -e "${YELLOW}This will remove the Omnia venv and system environment files:${NC}"
+        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, and dependency cache:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
+        echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
-        echo -e "${GREEN}Data at ${OMNIA_DATA_PATH}/ will be preserved.${NC}"
+        echo -e "${GREEN}Runtime data at ${OMNIA_DATA_PATH}/ (input, output, logs) will be preserved.${NC}"
         echo -e "${YELLOW}Use --cleanup --all to remove everything.${NC}"
     fi
 
@@ -560,6 +597,14 @@ cleanup_omnia() {
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
+    # Remove dependency cache (tied to venv, not user data)
+    local deps_cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
+    if [ -d "$deps_cache_dir" ]; then
+        echo -e "${BLUE}Removing dependency cache: ${deps_cache_dir}${NC}"
+        rm -rf "$deps_cache_dir"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
     # If --all, remove entire data path
     if [ "$cleanup_all" = true ]; then
         if [ -d "$OMNIA_DATA_PATH" ]; then
@@ -576,7 +621,7 @@ cleanup_omnia() {
     if [ "$cleanup_all" = true ]; then
         echo -e "  ${GREEN}All Omnia data, venv, and system env files have been removed.${NC}"
     else
-        echo -e "  ${GREEN}Venv and system env files removed. Data at ${OMNIA_DATA_PATH}/ preserved.${NC}"
+        echo -e "  ${GREEN}Venv, system env files, and dependency cache removed. Runtime data at ${OMNIA_DATA_PATH}/ preserved.${NC}"
     fi
     echo ""
 }
@@ -629,6 +674,125 @@ copy_catalog() {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Check Dependency Version Mismatches Across Domains
+# Scans all domain requirements.txt and requirements.yml for the same
+# package/collection pinned at different versions.  Exits non-zero if
+# mismatches are found.
+# ─────────────────────────────────────────────────────────────────────────────
+check_deps() {
+    echo -e "${BLUE}================================================================================${NC}"
+    echo -e "${BLUE}               Dependency Version Audit${NC}"
+    echo -e "${BLUE}================================================================================${NC}"
+    echo ""
+
+    local has_mismatch=false
+
+    # ── pip requirements.txt ──
+    echo -e "${BLUE}Scanning pip requirements.txt across domains...${NC}"
+    declare -A pip_versions  # key = normalized_pkg, value = "domain:spec domain:spec ..."
+    for domain in "${DOMAINS[@]}"; do
+        local req_txt="$SRC_DIR/$domain/requirements.txt"
+        [ -f "$req_txt" ] || continue
+        while IFS= read -r line; do
+            # Skip comments and blanks
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+            # Extract package name and version spec
+            local pkg spec
+            pkg="$(echo "$line" | sed -E 's/([a-zA-Z0-9_-]+).*/\1/' | tr '[:upper:]' '[:lower:]' | tr '_' '-')"
+            spec="$(echo "$line" | sed -E 's/[a-zA-Z0-9_-]+//')"
+            pip_versions["$pkg"]+="${domain}:${spec} "
+        done < "$req_txt"
+    done
+
+    local pip_mismatches=0
+    for pkg in $(echo "${!pip_versions[@]}" | tr ' ' '\n' | sort); do
+        local entries="${pip_versions[$pkg]}"
+        # Extract unique version specs
+        local unique_specs
+        unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
+        if [ "$unique_specs" -gt 1 ]; then
+            echo -e "  ${RED}MISMATCH: ${pkg}${NC}"
+            for entry in $entries; do
+                local d="${entry%%:*}"
+                local v="${entry#*:}"
+                echo -e "    ${YELLOW}${d}: ${v}${NC}"
+            done
+            pip_mismatches=$((pip_mismatches + 1))
+            has_mismatch=true
+        fi
+    done
+
+    if [ "$pip_mismatches" -eq 0 ]; then
+        echo -e "  ${GREEN}No pip version mismatches found.${NC}"
+    else
+        echo -e "  ${RED}${pip_mismatches} pip package(s) have version mismatches.${NC}"
+    fi
+    echo ""
+
+    # ── Galaxy requirements.yml ──
+    echo -e "${BLUE}Scanning Galaxy requirements.yml across domains...${NC}"
+    declare -A galaxy_versions  # key = collection_name, value = "domain:version ..."
+    for domain in "${DOMAINS[@]}"; do
+        local req_yml="$SRC_DIR/$domain/requirements.yml"
+        [ -f "$req_yml" ] || continue
+        # Parse YAML manually (name/version pairs)
+        local current_name=""
+        while IFS= read -r line; do
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            if [[ "$line" =~ name:[[:space:]]*(.+) ]]; then
+                current_name="${BASH_REMATCH[1]}"
+                current_name="$(echo "$current_name" | tr -d '"' | tr -d "'" | xargs)"
+            elif [[ "$line" =~ version:[[:space:]]*(.+) ]] && [ -n "$current_name" ]; then
+                local ver="${BASH_REMATCH[1]}"
+                ver="$(echo "$ver" | tr -d '"' | tr -d "'" | xargs)"
+                galaxy_versions["$current_name"]+="${domain}:${ver} "
+                current_name=""
+            fi
+        done < "$req_yml"
+    done
+
+    local galaxy_mismatches=0
+    for col in $(echo "${!galaxy_versions[@]}" | tr ' ' '\n' | sort); do
+        local entries="${galaxy_versions[$col]}"
+        local unique_specs
+        unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
+        if [ "$unique_specs" -gt 1 ]; then
+            echo -e "  ${RED}MISMATCH: ${col}${NC}"
+            for entry in $entries; do
+                local d="${entry%%:*}"
+                local v="${entry#*:}"
+                echo -e "    ${YELLOW}${d}: ${v}${NC}"
+            done
+            galaxy_mismatches=$((galaxy_mismatches + 1))
+            has_mismatch=true
+        fi
+    done
+
+    if [ "$galaxy_mismatches" -eq 0 ]; then
+        echo -e "  ${GREEN}No Galaxy version mismatches found.${NC}"
+    else
+        echo -e "  ${RED}${galaxy_mismatches} Galaxy collection(s) have version mismatches.${NC}"
+    fi
+    echo ""
+
+    # ── Summary ──
+    local total=$((pip_mismatches + galaxy_mismatches))
+    if [ "$has_mismatch" = true ]; then
+        echo -e "${RED}================================================================================${NC}"
+        echo -e "${RED}  ${total} mismatch(es) found — align versions across domains to avoid conflicts.${NC}"
+        echo -e "${RED}================================================================================${NC}"
+        return 1
+    else
+        echo -e "${GREEN}================================================================================${NC}"
+        echo -e "${GREEN}  All dependency versions are consistent across domains.${NC}"
+        echo -e "${GREEN}================================================================================${NC}"
+        return 0
+    fi
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Help
 # ─────────────────────────────────────────────────────────────────────────────
 show_help() {
@@ -645,32 +809,50 @@ USAGE:
 SETUP COMMANDS:
   --setup-venv, -s      Create/update the shared Python venv, then run all
                         domain-init.sh scripts (pip deps, Galaxy collections,
-                        log dirs, and input file staging).
-  --init, -i            Re-run domain-init.sh scripts only (no venv rebuild).
-                        Useful to re-stage input files or install deps after
-                        editing domain configs. Runs automatically with -s.
-  --catalog             Copy catalog/sample files from src/main/samples/ to
-                        \$OMNIA_DATA_PATH/catalog/. Makes catalog_rhel.json available at runtime.
+                        log dirs, input file staging) and copy catalog files.
+  --init, -i [domain,...]
+                        Re-run domain-init.sh scripts only (no venv rebuild).
+                        Optionally specify comma-separated domains to init.
+                        Default: all domains.  Runs automatically with -s.
+                        Examples:
+                          ./omnia.sh -i                  # all domains
+                          ./omnia.sh -i telemetry        # single domain
+                          ./omnia.sh -i repo_manager,telemetry  # specific set
 
 EXECUTION COMMANDS:
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
                         Passes --tags and any extra args to ansible-playbook.
 
+DIAGNOSTIC COMMANDS:
+  --check-deps          Audit all domain requirements.txt and requirements.yml
+                        for version mismatches (e.g. pyyaml>=5.4 vs >=6.0.3).
+                        Exits non-zero if any mismatch is found.
+
 CLEANUP COMMANDS:
   --cleanup             Remove venv, system env files (/etc/omnia/omnia.env,
-                        /etc/profile.d/omnia-env.sh), and activation script.
-                        Data at \$OMNIA_DATA_PATH/ is preserved.
-  --cleanup --all       Remove EVERYTHING: venv, system env, AND all data at
+                        /etc/profile.d/omnia-env.sh), activation script, and
+                        dependency cache. Runtime data at \$OMNIA_DATA_PATH/
+                        (input, output, logs) is preserved.
+  --cleanup --all       Remove EVERYTHING: venv, system env, cache, AND all data at
                         \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
 
 OPTIONS:
   --deps-only           With -s or -i: install pip/Galaxy deps but skip input file staging.
                         Cannot be used standalone; requires -s or -i.
+  --force-deps          With -s or -i: bypass the dependency cache and force a
+                        fresh pip install + Galaxy collection install.
+  --skip-catalog        With -s: skip the automatic catalog copy.
   --help, -h            Show this help message.
 
 DOMAINS:
   ${DOMAINS[*]}
+
+DEPENDENCY CACHING:
+  On first run, each domain's requirements.txt and requirements.yml are hashed
+  (MD5).  On subsequent runs, if the file hasn't changed the install step is
+  skipped entirely — saving 10-30 seconds per domain.  Use --force-deps to
+  bypass the cache.  Cache files are stored at \$OMNIA_DATA_PATH/.data/deps-cache/.
 
 DIAGNOSTICS (see omnia-cli):
   omnia-cli status [--project <name>]         All domain statuses
@@ -700,14 +882,19 @@ SYSTEM ENVIRONMENT:
 EXAMPLES:
   # First-time setup:
   vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
-  ./omnia.sh -s                                # Installs env + venv + deps + input files
+  ./omnia.sh -s                                # Installs env + venv + deps + input files + catalog
   ./omnia.sh -s --deps-only                    # Installs env + venv + deps (skips input staging)
+  ./omnia.sh -s --skip-catalog                 # Setup without catalog copy
 
-  # Stage domain input files (without full setup):
-  ./omnia.sh --init                            # Run all domain-init.sh scripts
+  # Init specific domains (re-stage input files or reinstall deps):
+  ./omnia.sh -i                                # All domains
+  ./omnia.sh -i telemetry                      # Single domain
+  ./omnia.sh -i repo_manager,telemetry         # Comma-separated
+  ./omnia.sh -i --force-deps                   # Force reinstall even if cached
+  ./omnia.sh -i telemetry --deps-only          # Only deps for telemetry
 
-  # Copy catalog files to runtime path:
-  ./omnia.sh --catalog                         # Copies catalog_rhel.json to \$OMNIA_DATA_PATH/catalog/
+  # Check dependency versions across all domains:
+  ./omnia.sh --check-deps                      # Lists any pip/Galaxy version mismatches
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
@@ -734,9 +921,12 @@ EOF
 # Main Dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
-    DEPS_ONLY=false  # Global — used by init_domains()
+    DEPS_ONLY=false    # Global — used by init_domains()
+    FORCE_DEPS=false   # Global — passed to domain-init.sh
     local CLEANUP_ALL=false
+    local SKIP_CATALOG=false
     local command=""
+    local init_domain_filter=""
     local run_domain_name=""
     local run_extra_args=()
 
@@ -756,12 +946,25 @@ main() {
                 DEPS_ONLY=true
                 shift
                 ;;
+            --force-deps)
+                FORCE_DEPS=true
+                shift
+                ;;
+            --skip-catalog)
+                SKIP_CATALOG=true
+                shift
+                ;;
             --init|-i)
                 command="init"
                 shift
+                # Next arg may be a domain filter (not starting with --)
+                if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+                    init_domain_filter="$1"
+                    shift
+                fi
                 ;;
-            --catalog)
-                command="catalog"
+            --check-deps)
+                command="check-deps"
                 shift
                 ;;
             --cleanup)
@@ -808,11 +1011,21 @@ main() {
         echo -e "${YELLOW}Usage: $0 -s --deps-only or $0 -i --deps-only${NC}"
         exit 1
     fi
+    if [ "$FORCE_DEPS" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
+        echo -e "${RED}ERROR: --force-deps requires --setup-venv (-s) or --init (-i)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
+        exit 1
+    fi
 
     case "$command" in
         setup-venv)
             setup_venv
-            init_domains
+            init_domains ""
+
+            # Auto-copy catalog unless --skip-catalog
+            if [ "$SKIP_CATALOG" = false ]; then
+                copy_catalog
+            fi
 
             # ── Post-setup activation instructions (shown LAST) ──
             echo ""
@@ -828,10 +1041,10 @@ main() {
             echo ""
             ;;
         init)
-            init_domains
+            init_domains "$init_domain_filter"
             ;;
-        catalog)
-            copy_catalog
+        check-deps)
+            check_deps
             ;;
         cleanup)
             cleanup_omnia "$CLEANUP_ALL"

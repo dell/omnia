@@ -15,6 +15,7 @@ timeframes and produce consistent results across repeated executions.
 | NFT_MA_002 | `test_init_performance` | Performance | `omnia.sh --init` completes within threshold |
 | NFT_MA_003 | `test_setup_venv_idempotent` | Idempotency | Running `--setup-venv` twice produces no errors or state change |
 | NFT_MA_004 | `test_init_idempotent` | Idempotency | Running `--init` twice leaves domain dirs unchanged |
+| NFT_MA_005 | `test_check_deps_performance` | Performance | `omnia.sh --check-deps` completes within threshold |
 
 ---
 
@@ -24,6 +25,7 @@ timeframes and produce consistent results across repeated executions.
 |-----------|-----------|---------|-----------|
 | `--setup-venv --deps-only` | 300s (5 min) | 360s | pip + Galaxy install on first run |
 | `--init` | 120s (2 min) | 180s | Domain log dir creation + input file copy |
+| `--check-deps` | 10s | 30s | File scan only, no installs |
 
 Thresholds are defined in `nft/test_performance.py` and can be adjusted
 based on target hardware or network speed.
@@ -78,9 +80,10 @@ bash run_validation.sh nft test -v
 
 ```
 nft/
-├── test_performance.py    ← NFT_MA_001, NFT_MA_002
+├── test_performance.py    ← NFT_MA_001, NFT_MA_002, NFT_MA_005
 │   ├── test_setup_venv_performance    (order=1)
-│   └── test_init_performance          (order=2)
+│   ├── test_init_performance          (order=2)
+│   └── test_check_deps_performance    (order=3)
 │
 └── test_idempotency.py    ← NFT_MA_003, NFT_MA_004
     ├── test_setup_venv_idempotent     (order=1)
@@ -109,6 +112,7 @@ Edit the constants in `nft/test_performance.py`:
 ```python
 SETUP_VENV_THRESHOLD = 300   # 5 minutes
 INIT_THRESHOLD = 120          # 2 minutes
+CHECK_DEPS_THRESHOLD = 10    # 10 seconds
 ```
 
 For air-gapped environments with Pulp, pip and Galaxy installs are fast

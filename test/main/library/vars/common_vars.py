@@ -125,15 +125,16 @@ VALID_CLI_COMMANDS: List[str] = [
     "--init", "-i",
     "--run", "-r",
     "--cleanup",
-    "--catalog",
+    "--check-deps",
     "--help", "-h",
 ]
 
 VALID_CLI_OPTIONS: List[str] = [
     "--deps-only",
+    "--force-deps",
+    "--skip-catalog",
     "--tags", "-t",
     "--all",
-    "--list",
 ]
 
 # =============================================================================
@@ -216,13 +217,25 @@ CMDS: Dict[str, str] = {
         "cd {clone_path} && bash {omnia_sh}"
         " --cleanup --all 2>&1"
     ),
-    "omnia_sh_catalog": (
+    "omnia_sh_check_deps": (
         "cd {clone_path} && bash {omnia_sh}"
-        " --catalog 2>&1"
+        " --check-deps 2>&1"
     ),
-    "omnia_sh_catalog_list": (
+    "omnia_sh_init_domain": (
         "cd {clone_path} && bash {omnia_sh}"
-        " --catalog --list 2>&1"
+        " --init {domain} 2>&1"
+    ),
+    "omnia_sh_init_force_deps": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --force-deps 2>&1"
+    ),
+    "omnia_sh_setup_skip_catalog": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --setup-venv --deps-only --skip-catalog 2>&1"
+    ),
+    "omnia_sh_force_deps_invalid": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --force-deps 2>&1"
     ),
     # --- Files ---
     "file_exists": "test -f {path} && echo exists",
