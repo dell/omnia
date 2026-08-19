@@ -6,10 +6,10 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 | Command | Description |
 |---------|-------------|
-| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh |
-| `--init, -i` | Run all domain-init.sh scripts (stage input files to NFS share) |
+| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh, copy catalog |
+| `--init, -i [domain,...]` | Run domain-init.sh scripts (all or comma-separated subset) |
 | `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
-| `--catalog` | Copy catalog/sample files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` |
+| `--check-deps` | Audit all domains for pip/Galaxy version mismatches |
 | `--cleanup` | Remove venv, system env files, and activation script. Data is preserved. |
 | `--cleanup --all` | Remove everything: venv, system env, AND all data at `$OMNIA_DATA_PATH/` (full reset) |
 | `--help, -h` | Show help message |
@@ -18,7 +18,9 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 | Option | Description |
 |--------|-------------|
-| `--deps-only` | Install deps only, skip input file staging. Useful in CI or when input files are managed externally. |
+| `--deps-only` | Install deps only, skip input file staging. Use with `-s` or `-i`. |
+| `--force-deps` | Bypass dependency cache and force reinstall. Use with `-s` or `-i`. |
+| `--skip-catalog` | With `-s`: skip the automatic catalog copy. |
 
 ## What `--setup-venv` Does
 
@@ -29,32 +31,48 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 5. **Creates or updates venv** — Sets up virtual environment at `$OMNIA_VENV_PATH`
 6. **Upgrades pip** — Ensures latest pip, setuptools, wheel
 7. **Initializes domains** — Runs each domain's `domain-init.sh` which:
-   - Installs pip packages from that domain's `requirements.txt`
-   - Installs Galaxy collections from that domain's `requirements.yml`
+   - Installs pip packages from that domain's `requirements.txt` (cached — skipped if unchanged)
+   - Installs Galaxy collections from that domain's `requirements.yml` (cached — skipped if unchanged)
    - Creates Ansible log directories
    - Stages input files from flat `src/<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
-8. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
+8. **Copies catalog** — Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
+9. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
-Use `--deps-only` to skip input file staging in this step (e.g., in CI or if you manage input files externally). Dependencies are still installed.
+Use `--deps-only` to skip input file staging in step 7 (e.g., in CI or if you manage input files externally). Dependencies are still installed.
+
+Use `--force-deps` to bypass the dependency cache and force a fresh `pip install` + `ansible-galaxy collection install`.
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + deps + input copy
+./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
-./omnia.sh --init                  # Stage input files only
-./omnia.sh --catalog               # Copy catalog files to $OMNIA_DATA_PATH/catalog/
+./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
+./omnia.sh --init                  # Stage input files only (all domains)
+./omnia.sh -i telemetry            # Init single domain
+./omnia.sh -i repo_manager,telemetry  # Init specific domains
+./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --cleanup               # Remove venv + env (preserve data)
 ./omnia.sh --cleanup --all         # Full reset (remove everything)
 ```
 
-## What `--catalog` Does
+## What `--check-deps` Does
 
-Copies catalog and sample files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/`.
-This makes `catalog_rhel.json` available at the runtime path for downstream domains
-(e.g., `image_build_manager` when `functional_groups_source: catalog`).
+Scans all domain `requirements.txt` and `requirements.yml` files for the same
+package/collection pinned at different versions across domains. Exits non-zero
+if any mismatch is found.
 
 ```bash
-./omnia.sh --catalog
+./omnia.sh --check-deps
 ```
+
+## Dependency Caching
+
+On first run, each domain's `requirements.txt` and `requirements.yml` are
+hashed (MD5). On subsequent runs, if the file hasn't changed, the install
+step is skipped entirely — saving 10-30 seconds per domain. Cache files
+live at `$OMNIA_DATA_PATH/.data/deps-cache/`.
+
+Use `--force-deps` to bypass the cache and force a fresh install.
 
 ## What `--cleanup` Does
 
@@ -129,6 +147,9 @@ bash src/image_build_manager/domain-init.sh
 
 # Run with --deps-only (deps only, no input staging)
 bash src/image_build_manager/domain-init.sh --deps-only
+
+# Run with --force-deps (force reinstall even if cached)
+bash src/image_build_manager/domain-init.sh --force-deps
 
 # Run with --force (overwrite without prompting)
 bash src/image_build_manager/domain-init.sh --force
