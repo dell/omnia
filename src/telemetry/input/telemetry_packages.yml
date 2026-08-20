@@ -34,11 +34,11 @@ telemetry_registry:
     # VictoriaMetrics and VictoriaLogs
     victoria:
       # VictoriaMetrics cluster components (use -cluster suffix)
-      vmstorage: "victoriametrics/vmstorage:v1.128.0-cluster"
-      vmselect: "victoriametrics/vmselect:v1.128.0-cluster"
-      vminsert: "victoriametrics/vminsert:v1.128.0-cluster"
+      vmstorage: "victoriametrics/vmstorage:v1.149.0-cluster"
+      vmselect: "victoriametrics/vmselect:v1.149.0-cluster"
+      vminsert: "victoriametrics/vminsert:v1.149.0-cluster"
       # VMAgent (standalone version)
-      vmagent: "victoriametrics/vmagent:v1.128.0"
+      vmagent: "victoriametrics/vmagent:v1.149.0"
       # VictoriaLogs components (cluster mode uses victoria-logs binary)
       vlstorage: "victoriametrics/victoria-logs:v1.50.0"
       vlselect: "victoriametrics/victoria-logs:v1.50.0"

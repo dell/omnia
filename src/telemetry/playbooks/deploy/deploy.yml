@@ -104,3 +104,36 @@
     - name: Log full-stack apply result
       ansible.builtin.debug:
         msg: "Full-stack kustomize apply result: {{ fullstack_kustomize_result.stdout_lines | default([]) }}"
+
+    - name: Wait for telemetry pods to stabilize
+      ansible.builtin.command: >
+        kubectl wait pods --all -n {{ telemetry_namespace }}
+        --for=condition=Ready --timeout=300s
+      register: pod_wait_result
+      changed_when: false
+      failed_when: false
+
+    - name: Collect pod status in telemetry namespace
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} --no-headers
+      register: telemetry_pods
+      changed_when: false
+
+    - name: Check for pods in error state
+      ansible.builtin.set_fact:
+        failed_pods: >-
+          {{ telemetry_pods.stdout_lines | default([])
+             | select('search', 'CrashLoopBackOff|Error|ImagePullBackOff|ErrImagePull|InvalidImageName|CreateContainerConfigError')
+             | list }}
+
+    - name: Display telemetry pod status
+      ansible.builtin.debug:
+        msg: "{{ telemetry_pods.stdout_lines | default(['No pods found']) }}"
+
+    - name: Fail if pods are in error state
+      ansible.builtin.fail:
+        msg: >-
+          Telemetry deployment verification failed. The following pods are in error state:
+          {{ failed_pods | join('\n') }}
+          Check pod logs with: kubectl logs -n {{ telemetry_namespace }} <pod-name>
+      when: failed_pods | length > 0
