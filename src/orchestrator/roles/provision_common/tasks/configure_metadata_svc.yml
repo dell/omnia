@@ -110,10 +110,15 @@
     ldap_ssl_port: "{{ ldap_ssl_port | default(636) }}"
     ldap_starttls_port: "{{ ldap_starttls_port | default(389) }}"
     connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
-    ldap_search_base: "{{ (hostvars['localhost']['domain_name'] | default('') ).split('.') | select | map('regex_replace', '^', 'dc=') | join(',') }}"
+    ldap_search_base: >-
+      {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
+      | select | map('regex_replace', '^', 'dc=') | join(',') }}
     ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
     password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
-    ldap_default_bind_dn: "cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{ (hostvars['localhost']['domain_name'] | default('')).split('.') | select | map('regex_replace', '^', 'dc=') | join(',') }}"
+    ldap_default_bind_dn: >-
+      cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+      (hostvars['localhost']['domain_name'] | default('')).split('.')
+      | select | map('regex_replace', '^', 'dc=') | join(',') }}
 
 - name: Set functional_group_name for template compatibility
   ansible.builtin.set_fact:
@@ -128,10 +133,15 @@
         mode: "{{ file_permissions_644 }}"
       vars:
         connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
-        ldap_search_base: "{{ (hostvars['localhost']['domain_name'] | default('')).split('.') | select | map('regex_replace', '^', 'dc=') | join(',') }}"
+        ldap_search_base: >-
+          {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
+          | select | map('regex_replace', '^', 'dc=') | join(',') }}
         ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
         password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
-        ldap_default_bind_dn: "cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{ (hostvars['localhost']['domain_name'] | default('')).split('.') | select | map('regex_replace', '^', 'dc=') | join(',') }}"
+        ldap_default_bind_dn: >-
+          cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+          (hostvars['localhost']['domain_name'] | default('')).split('.')
+          | select | map('regex_replace', '^', 'dc=') | join(',') }}
   rescue:
     - name: Failed to load metadata-service group template
       ansible.builtin.fail:
