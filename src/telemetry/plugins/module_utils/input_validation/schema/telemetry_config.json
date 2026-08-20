@@ -4,6 +4,12 @@
   "description": "Three-layer telemetry configuration: Sources → Bridges → Sinks, with source-specific configurations.",
   "type": "object",
   "properties": {
+    "cluster_inventory": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to Ansible inventory file for telemetry deployment. Must be a valid file path under omnia/src/telemetry/input/ directory. Required for LDMS Slurm node discovery and K8s cluster validation.",
+      "errorMessage": "cluster_inventory is required and must be a non-empty file path (e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml')."
+    },
     "kube_vip": {
       "type": "string",
       "minLength": 1,
@@ -590,5 +596,5 @@
       "required": []
     }
   },
-  "required": ["kube_vip", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
+  "required": ["cluster_inventory", "kube_vip", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
 }
