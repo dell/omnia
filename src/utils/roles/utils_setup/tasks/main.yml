@@ -1,15 +1,55 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
-- name: Validate utils domain prerequisites
+# =============================================================================
+# utils_setup — Main Entry Point
+# =============================================================================
+# This role runs first (tag: always) and handles:
+#   1. Environment validation — check required env vars
+#   2. Path derivation — derive input_project_dir, output_project_dir, log_dir
+#   3. Directory creation — ensure output/log directories exist
+#   4. Prerequisite checks — Ansible/Python versions
+#   5. Guard facts — set utils_setup_done: true
+# =============================================================================
+
+- name: Load role variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/main.yml"
+
+# Step 1: Validate environment variables
+- name: Validate environment variables
+  ansible.builtin.include_tasks: validate_environment.yml
+  when: validate_environment | bool
+
+# Step 2: Derive standard domain paths
+- name: Derive domain paths
+  ansible.builtin.include_tasks: derive_paths.yml
+
+# Step 3: Ensure directories exist
+- name: Ensure directories exist
+  ansible.builtin.include_tasks: ensure_directories.yml
+
+# Step 4: Validate prerequisites (Ansible/Python versions)
+- name: Validate prerequisites
   ansible.builtin.include_tasks: validate_prerequisites.yml
   when: validate_prerequisites | bool
 
-- name: Validate configuration files
-  ansible.builtin.include_tasks: validate_config_files.yml
-  when: validate_config_files | bool
-
+# Step 5: Validate disk space
 - name: Validate disk space
   ansible.builtin.include_tasks: validate_disk_space.yml
   when: validate_disk_space | bool
 
+# Step 6: Set guard facts
 - name: Set guard facts
   ansible.builtin.include_tasks: set_guard_facts.yml

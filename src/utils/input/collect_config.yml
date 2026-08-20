@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# collect_config.yml — Log Collection Configuration
+# =============================================================================
+# This file configures the collect.yml playbook for log collection.
+#
+# Edit this file BEFORE running: omnia.sh --init
+# After init, the file is copied to:
+#   /opt/omnia/utils/input/<project>/collect_config.yml
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Node Inventory File
+# -----------------------------------------------------------------------------
+# Path to the INI file containing node groups and IP addresses.
+# Relative path is resolved from input_project_dir.
+node_inventory_file: "collect.ini"
+
+# -----------------------------------------------------------------------------
+# Collection Mode
+# -----------------------------------------------------------------------------
+# Mode for log collection:
+#   - "full": Collect all logs (default)
+#   - "curated_support": Collect only essential logs, exclude temp files
+collection_mode: "full"
+
+# -----------------------------------------------------------------------------
+# Log Paths Configuration (Optional)
+# -----------------------------------------------------------------------------
+# Override default log paths per node type.
+# Leave empty [] to use defaults from role vars.
+# Uncomment and modify to customize.
+
+# K8s control plane (master) nodes
+# k8s_control_log_dirs:
+#   - /var/log/containers/
+#   - /var/log/pods/
+# k8s_control_log_files:
+#   - /var/log/cloud-init.log
+
+# K8s worker nodes
+# k8s_worker_log_dirs: []
+# k8s_worker_log_files:
+#   - /var/log/messages
+
+# Slurm control nodes
+# slurm_control_log_dirs:
+#   - /var/log/slurm/
+# slurm_control_log_files:
+#   - /var/log/cloud-init.log
+
+# Slurm compute nodes
+# slurm_node_log_dirs:
+#   - /var/log/slurm/
+# slurm_node_log_files:
+#   - /var/log/cloud-init.log
+
+# Login nodes
+# login_node_log_dirs:
+#   - /var/log/slurm/
+# login_node_log_files:
+#   - /var/log/secure
+
+# Login compiler nodes
+# login_compiler_log_dirs:
+#   - /var/log/slurm/
+# login_compiler_log_files:
+#   - /var/log/secure
+
+# -----------------------------------------------------------------------------
+# Bundle Configuration
+# -----------------------------------------------------------------------------
+# Bundle filename prefix (timestamp is appended automatically)
+bundle_prefix: "omnia_logs"
+
+# Compression format: "gz" (gzip) or "bz2" (bzip2)
+compression_format: "gz"
+
+# Generate summary file with collection statistics
+generate_summary: true
