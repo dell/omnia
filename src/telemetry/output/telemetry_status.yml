@@ -31,6 +31,23 @@ telemetry_state:
     deployed: false
   vast:
     deployed: false
+  ome:
+    deployed: false
+    version: ""
+  dcgm:
+    deployed: false
+    version: ""
+  sfm:
+    deployed: false
+    version: ""
+  skyway:
+    deployed: false
+    version: ""
+
+
+  powervault:
+    deployed: false
+    version: ""
 
 # Telemetry deployment results - success/failure/""status
 telemetry_results:
@@ -51,4 +68,14 @@ telemetry_results:
     ufm:
       status: ""
     vast:
+      status: ""
+    ome:
+      status: ""
+    dcgm:
+      status: ""
+    sfm:
+      status: ""
+    skyway:
+      status: ""
+    powervault:
       status: ""
