@@ -92,7 +92,8 @@
 # FLOW: cleanup — Remove telemetry components (opt-in only)
 # =========================================================================
 # Each component has its own tag (cleanup_kafka, cleanup_idrac, etc.)
-# --tags cleanup runs ALL cleanups; --tags cleanup_kafka runs kafka only.
+# --tags cleanup runs ALL cleanups; --tags cleanup_powerscale runs only PowerScale.
+# Component filtering is handled by ansible_run_tags checks inside cleanup.yml.
 - name: "Cleanup | Remove telemetry components"
   ansible.builtin.import_playbook: cleanup/cleanup.yml
   tags:
@@ -105,12 +106,6 @@
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
-    - cleanup_dcgm
-    - cleanup_ufm
-    - cleanup_vast
-    - cleanup_sfm
-    - cleanup_skyway
-    - cleanup_powervault
 
 # =========================================================================
 # FLOW: upgrade — Upgrade telemetry (opt-in only, placeholder)

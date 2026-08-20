@@ -1,0 +1,142 @@
+---
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.crd_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete CRD resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item }} --all --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.crd_all_resources }}'
+  name: VictoriaMetrics | Delete all CRD instances
+- ansible.builtin.pause:
+    seconds: '{{ cleanup_post_delete_pause }}'
+  name: VictoriaMetrics | Wait for operator to cascade deletions
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.cluster_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete cluster components
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.single_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete single-node components
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.agent_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete vmagent resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.shared_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete shared resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.tls_secret_resource }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete TLS secret (shared with VictoriaLogs)
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete job {{ item }} --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.job_resources }}'
+  name: VictoriaMetrics | Delete TLS test jobs
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pvc -l {{ item }} --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.pvc_labels }}'
+  name: VictoriaMetrics | Delete PVCs
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pvc {{ item }} --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.single_pvc }}'
+  name: VictoriaMetrics | Delete single-node PVC by name
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pvc vmstorage-data-vmstorage-victoria-cluster-{{ item
+    }} --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ range(0, 10) | list }}'
+  name: VictoriaMetrics | Delete vmstorage PVCs by name
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.vmagent_vector_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete vmagent-vector resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }} --grace-period={{ cleanup_resource_grace_period
+    }} --force --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_metrics.pod_labels }}'
+  name: VictoriaMetrics | Force delete pods
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} get vlcluster --no-headers --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  name: VictoriaMetrics | Check if VictoriaLogs workloads still exist
+  register: vl_workloads
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_operator_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaMetrics | Delete operator (no VictoriaLogs workloads found)
+  when: vl_workloads.stdout is defined and vl_workloads.stdout | trim | length == 0
+- ansible.builtin.debug:
+    msg: Keeping victoria-metrics-operator (VictoriaLogs workloads still exist)
+  name: VictoriaMetrics | Operator kept (VictoriaLogs still running)
+  when: vl_workloads.stdout is defined and vl_workloads.stdout | trim | length > 0
+- ansible.builtin.debug:
+    msg: VictoriaMetrics cleanup completed (includes vmagent-vector write-buffer)
+  name: VictoriaMetrics | Cleanup complete

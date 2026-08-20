@@ -657,6 +657,21 @@ def validate_telemetry_config(
                     en_us_validation_msg.POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG
                 ))
 
+            # csi_powerscale_secret_path must be set and file must exist
+            csi_secret_path = powerscale_configs.get("csi_powerscale_secret_path", "")
+            if not csi_secret_path or (isinstance(csi_secret_path, str) and csi_secret_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.csi_powerscale_secret_path",
+                    csi_secret_path,
+                    en_us_validation_msg.POWERSCALE_CSI_SECRET_PATH_REQUIRED_MSG
+                ))
+            elif not os.path.exists(csi_secret_path):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.csi_powerscale_secret_path",
+                    csi_secret_path,
+                    en_us_validation_msg.powerscale_csi_secret_not_found_msg(csi_secret_path)
+                ))
+
             # csm_observability_values_file_path must be set and exist
             csm_values_path = powerscale_configs.get("csm_observability_values_file_path", "")
             if not csm_values_path or (isinstance(csm_values_path, str) and csm_values_path.strip() == ""):

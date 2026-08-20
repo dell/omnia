@@ -1,0 +1,21 @@
+---
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ vector_ome_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: OME | Delete Vector-OME bridge resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ome_pod_label }} --grace-period={{
+    cleanup_resource_grace_period }} --force --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  name: OME | Force delete Vector-OME pods
+- ansible.builtin.debug:
+    msg: OME telemetry cleanup completed (includes Vector-OME bridge)
+  name: OME | Cleanup complete

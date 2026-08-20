@@ -1,0 +1,65 @@
+---
+- ansible.builtin.shell: "if helm list -n {{ telemetry_namespace }} --filter {{ powerscale_helm_release }} -q 2>/dev/null\
+    \ | grep -q {{ powerscale_helm_release }}; then\n  helm uninstall {{ powerscale_helm_release }} -n {{ telemetry_namespace\
+    \ }} --wait --timeout {{ cleanup_helm_timeout }} 2>/dev/null || true\nfi\n"
+  changed_when: false
+  failed_when: false
+  name: PowerScale | Uninstall Helm release
+- ansible.builtin.pause:
+    seconds: '{{ cleanup_post_delete_pause }}'
+  name: PowerScale | Wait for Helm resources to terminate
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} -l {{ item.label }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ powerscale_label_resources }}'
+  loop_control:
+    label: '{{ item.type }} ({{ item.label }})'
+  name: PowerScale | Delete label-selected resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ powerscale_named_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: PowerScale | Delete named resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item }} -l "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
+    --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop:
+  - deployment
+  - pod
+  name: PowerScale | Delete cert-manager resources
+- ansible.builtin.command: 'kubectl delete {{ item.type }} {{ item.name }} --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ powerscale_cluster_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: PowerScale | Delete cluster-scoped resources
+- ansible.builtin.file:
+    path: '{{ telemetry_deployments_dir | default(''/share_omnia_k8s/telemetry/deployments'') }}/csi-volume-exporter.yaml'
+    state: absent
+  failed_when: false
+  name: PowerScale | Remove generated manifest
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }} --grace-period={{ cleanup_resource_grace_period
+    }} --force --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ powerscale_pod_labels }}'
+  name: PowerScale | Force delete pods
+- ansible.builtin.debug:
+    msg: PowerScale telemetry cleanup completed
+  name: PowerScale | Cleanup complete

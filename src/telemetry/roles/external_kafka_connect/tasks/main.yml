@@ -180,22 +180,15 @@
   run_once: true
   no_log: true
 
-- name: Get Kafka pod status (human-readable)
-  ansible.builtin.command: >-
-    kubectl get pods -n {{ kafka_namespace }}
-    -l app.kubernetes.io/name=kafka
-    -o wide
-  register: _kafka_pods_wide
-  changed_when: false
-
 - name: Build connection details
   ansible.builtin.set_fact:
     _kafka_connect_details:
       kafka:
         namespace: "{{ kafka_namespace }}"
         loadbalancer_service: "{{ kafka_lb_service_name }}"
-        pod_status: "{{ _kafka_pods_wide.stdout | default('') }}"
         bootstrap_server: "{{ _kafka_external_ip }}:{{ _kafka_external_port }}"
+        bootstrap_ip: "{{ _kafka_external_ip }}"
+        bootstrap_port: "{{ _kafka_external_port }}"
         tls:
           ca_crt: "{{ kafka_output_dir }}/ca.crt"
           client_crt: "{{ kafka_output_dir }}/user.crt"

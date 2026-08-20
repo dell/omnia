@@ -1,0 +1,103 @@
+---
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.crd_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaLogs | Delete CRD resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item }} --all --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.crd_all_resources }}'
+  name: VictoriaLogs | Delete all CRD instances
+- ansible.builtin.pause:
+    seconds: '{{ cleanup_post_delete_pause }}'
+  name: VictoriaLogs | Wait for operator to cascade deletions
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.cluster_resources + victoria_logs.agent_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaLogs | Delete cluster components
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.shared_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaLogs | Delete shared resources
+- ansible.builtin.debug:
+    msg: Keeping victoria-tls-certs secret (shared with VictoriaMetrics)
+  name: 'VictoriaLogs | Note: victoria-tls-certs kept (shared with VictoriaMetrics)'
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pvc -l {{ item }} --ignore-not-found=true --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.pvc_labels }}'
+  name: VictoriaLogs | Delete PVCs by label
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pvc {{ item.0 }}-{{ item.1 }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.named_pvc_prefixes | product(range(0, 10) | list) | list }}'
+  loop_control:
+    label: '{{ item.0 }}-{{ item.1 }}'
+  name: VictoriaLogs | Delete named PVCs (vlstorage + vlagent 0-9)
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.vlagent_vector_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaLogs | Delete vlagent-vector resources
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }} --grace-period={{ cleanup_resource_grace_period
+    }} --force --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_logs.pod_labels }}'
+  name: VictoriaLogs | Force delete pods
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} get vmcluster --no-headers --ignore-not-found=true
+
+    '
+  changed_when: false
+  failed_when: false
+  name: VictoriaLogs | Check if VictoriaMetrics workloads still exist
+  register: vm_workloads
+- ansible.builtin.command: 'kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }} --ignore-not-found=true
+    --wait=false
+
+    '
+  changed_when: false
+  failed_when: false
+  loop: '{{ victoria_operator_resources }}'
+  loop_control:
+    label: '{{ item.type }}/{{ item.name }}'
+  name: VictoriaLogs | Delete operator (no VictoriaMetrics workloads found)
+  when: vm_workloads.stdout is defined and vm_workloads.stdout | trim | length == 0
+- ansible.builtin.debug:
+    msg: Keeping victoria-metrics-operator (VictoriaMetrics workloads still exist)
+  name: VictoriaLogs | Operator kept (VictoriaMetrics still running)
+  when: vm_workloads.stdout is defined and vm_workloads.stdout | trim | length > 0
+- ansible.builtin.debug:
+    msg: VictoriaLogs cleanup completed (includes vlagent-vector write-buffer)
+  name: VictoriaLogs | Cleanup complete
