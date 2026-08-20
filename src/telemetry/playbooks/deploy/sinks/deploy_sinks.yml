@@ -223,7 +223,7 @@
   connection: local
   gather_facts: false
   vars_files:
-    - vars_deploy_sinks.yml
+    - ../../../vars/deploy_sinks.yml
   tasks:
     - name: Display deployment summary
       vars:

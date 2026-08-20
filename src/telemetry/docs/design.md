@@ -50,8 +50,8 @@ playbooks/telemetry.yml (entry point)
   |
   +-- precheck/precheck.yml            [tag: precheck]      K8s readiness
   +-- cleanup/cleanup.yml              [tag: cleanup]       Component removal
-  |     +-- sources/cleanup_*.yml      Per-source cleanup
-  |     +-- sinks/cleanup_kafka.yml    Per-sink cleanup
+  |     +-- sources/cleanup_*.yml      Per-source cleanup (vars from ../../vars/cleanup.yml)
+  |     +-- sinks/cleanup_kafka.yml    Per-sink cleanup (vars from ../../vars/cleanup.yml)
   |     +-- sinks/cleanup_victoria_*.yml
   +-- upgrade/upgrade.yml              [tag: upgrade]       Placeholder
   +-- rollback/rollback.yml            [tag: rollback]      Placeholder

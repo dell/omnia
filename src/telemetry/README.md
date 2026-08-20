@@ -138,8 +138,7 @@ telemetry/
 │   │   ├── deploy.yml             # Deploy orchestrator (phases 0-4)
 │   │   ├── telemetry_prereq.yml   # Prerequisites (config, flags, kube_vip)
 │   │   ├── sinks/                 # Sink deployment playbooks
-│   │   │   ├── deploy_sinks.yml   # Sink orchestrator (Kafka, VM, VL)
-│   │   │   └── vars_deploy_sinks.yml  # Sink summary variables
+│   │   │   └── deploy_sinks.yml   # Sink orchestrator (Kafka, VM, VL)
 │   │   └── sources/               # Per-source deploy playbooks
 │   │       ├── deploy_idrac_telemetry.yml
 │   │       ├── deploy_ldms.yml
@@ -153,7 +152,6 @@ telemetry/
 │   │       └── deploy_powervault.yml
 │   ├── cleanup/
 │   │   ├── cleanup.yml            # Cleanup orchestrator
-│   │   ├── vars/cleanup.yml       # Cleanup resource variables
 │   │   ├── sinks/                 # Sink cleanup playbooks
 │   │   │   ├── cleanup_kafka.yml
 │   │   │   ├── cleanup_victoria_metrics.yml
@@ -170,6 +168,10 @@ telemetry/
 │   └── rollback/
 │       ├── rollback.yml           # Rollback orchestrator (placeholder)
 │       └── sources/               # Per-source rollback playbooks
+│
+├── vars/                          # Shared cross-playbook variables
+│   ├── cleanup.yml                # Cleanup resource definitions (namespaces, labels, resources)
+│   └── deploy_sinks.yml           # Sink deployment summary template
 │
 ├── roles/
 │   ├── telemetry_setup/           # Step 0: omnia.env loading, path derivation, dir creation

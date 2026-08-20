@@ -31,7 +31,7 @@
   hosts: kube_vip_group
   gather_facts: false
   vars_files:
-    - ../vars/cleanup.yml
+    - ../../../vars/cleanup.yml
   tasks:
     - name: "LDMS | Delete Helm releases"  # noqa: risky-shell-pipe
       ansible.builtin.shell: |

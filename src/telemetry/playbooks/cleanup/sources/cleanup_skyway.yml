@@ -29,7 +29,7 @@
   hosts: kube_vip_group
   gather_facts: false
   vars_files:
-    - ../vars/cleanup.yml
+    - ../../../vars/cleanup.yml
   tasks:
     - name: "Skyway | Delete resources"
       ansible.builtin.command: >

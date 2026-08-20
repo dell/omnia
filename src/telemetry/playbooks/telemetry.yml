@@ -129,3 +129,27 @@
   tags:
     - never
     - rollback
+
+# ---------------------------------------------------------------------------
+# Summary — Display telemetry status file location
+# ---------------------------------------------------------------------------
+- name: "Summary | Display telemetry deployment status location"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../roles/common/vars/main.yml
+  tags: [deploy, upgrade, rollback]
+  tasks:
+    - name: Display telemetry status file location
+      ansible.builtin.debug:
+        msg:
+          - "╔══════════════════════════════════════════════════════════════════════════╗"
+          - "║              TELEMETRY DEPLOYMENT STATUS                                 ║"
+          - "╚══════════════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Deployment status has been saved to:"
+          - "  {{ playbook_dir }}/output/telemetry_status.yml"
+          - ""
+          - "View the file to see detailed deployment state and results for all components."
+          - ""
+          - "╚══════════════════════════════════════════════════════════════════════════╝"
