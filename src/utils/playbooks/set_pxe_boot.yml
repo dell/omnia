@@ -13,70 +13,138 @@
 # limitations under the License.
 ---
 # ─────────────────────────────────────────────────────────────────────────
-# Play 1: Validate and setup BMC inventory from CSV
+# PXE Boot Utility — Set PXE boot on Dell iDRAC nodes and restart
+#
+# Usage:
+#   # Collect credentials only (exits after saving):
+#   ansible-playbook playbooks/set_pxe_boot.yml --tags credentials
+#
+#   # Full PXE boot with phone-home verification:
+#   ansible-playbook playbooks/set_pxe_boot.yml -i inventory.ini
+#
+#   # Skip credential prompting (use pre-provisioned credentials):
+#   ansible-playbook playbooks/set_pxe_boot.yml -i inventory.ini --skip-tags credentials
+#
+#   # Disable phone-home verification:
+#   ansible-playbook playbooks/set_pxe_boot.yml -i inventory.ini -e enable_phone_home=false
+#
+# Inventory format (INI with host vars):
+#   [bmc]
+#   100.10.0.73 admin_ip=192.168.1.50 hostname=node01
+#   100.10.0.74 admin_ip=192.168.1.51 hostname=node02
 # ─────────────────────────────────────────────────────────────────────────
-- name: Validate and setup BMC inventory
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 1: Collect PXE boot credentials
+# ─────────────────────────────────────────────────────────────────────────
+- name: Collect PXE boot credentials
   hosts: localhost
   connection: local
   gather_facts: false
-  tasks:
-    - name: Clear stale bmc group from previous run
-      ansible.builtin.meta: refresh_inventory
-
-    - name: Include pre-checks for BMC inventory validation
-      ansible.builtin.include_role:
-        name: idrac_pxe_boot
-        tasks_from: pre_checks
+  tags: [credentials]
+  roles:
+    - role: collect_pxe_credentials
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 2: Fetch credentials
+# Play 2: Load PXE configuration
 # ─────────────────────────────────────────────────────────────────────────
-- name: Set_fact for fetch omnia config credentials
+- name: Load PXE configuration
   hosts: localhost
   connection: local
-  tags: always
+  gather_facts: false
+  tags: [pxe_boot]
   tasks:
-    - name: Set dynamic run tags including 'provision'
-      when: not config_file_status | default(false) | bool
+    - name: Resolve input directory path
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['provision']) | unique }}"
+        input_config_dir: >-
+          {{ input_project_dir
+             | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
+                       + '/utils/input/'
+                       + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)) }}
         cacheable: true
 
-- name: Invoke get_config_credentials.yml
-  ansible.builtin.import_playbook: ../../playbooks/utils/credential_utility/get_config_credentials.yml
+    - name: Load PXE configuration from input directory
+      ansible.builtin.include_vars:
+        file: "{{ input_config_dir }}/set_pxe_boot_config.yml"
+      register: pxe_config_loaded
+      failed_when: false
+
+    - name: Set config variables as cacheable facts for cross-play access
+      ansible.builtin.set_fact:
+        enable_phone_home: "{{ enable_phone_home | default(true) }}"
+        phone_home_pause_minutes: "{{ phone_home_pause_minutes | default(3) }}"
+        phone_home_retries: "{{ phone_home_retries | default(120) }}"
+        phone_home_delay: "{{ phone_home_delay | default(15) }}"
+        phone_home_log_pattern: "{{ phone_home_log_pattern | default('Phone home request from') }}"
+        restart_host: "{{ restart_host | default(true) }}"
+        force_restart: "{{ force_restart | default(true) }}"
+        boot_source_override_enabled: "{{ boot_source_override_enabled | default('continuous') }}"
+        boot_source_override_target: "{{ boot_source_override_target | default('pxe') }}"
+        cacheable: true
+
+    - name: Warn if set_pxe_boot_config.yml not found (using defaults)
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: set_pxe_boot_config.yml not found at {{ input_config_dir }}/set_pxe_boot_config.yml.
+          Using default configuration. To customize phone-home timing and PXE boot settings,
+          create set_pxe_boot_config.yml in the input directory.
+      when: pxe_config_loaded is failed
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 3: [BSM] Compute effective inventory + capture pre-boot state
+# Play 3: Validate BMC inventory and prepare for phone-home
 # ─────────────────────────────────────────────────────────────────────────
-- name: "[BSM] Compute effective restart inventory (diff + failed retry)"
+- name: Validate BMC inventory and prepare for phone-home
   hosts: localhost
   connection: local
   gather_facts: true
+  tags: [pxe_boot]
   tasks:
-    - name: Compute effective restart inventory
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: compute_effective_inventory
-      when: enable_build_stream | default(false) | bool
+    - name: Validate BMC group has hosts
+      ansible.builtin.fail:
+        msg: "Failed. 'bmc' group has no hosts. Provide an inventory file with a [bmc] group: ansible-playbook set_pxe_boot.yml -i <inventory>"
+      when: ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
+
+    - name: Capture PXE boot start epoch for phone-home verification
+      ansible.builtin.set_fact:
+        pxe_start_epoch: "{{ ansible_date_time.epoch }}"
+        cacheable: true
+      when: enable_phone_home | default(true) | bool
+
+    - name: Build list of target node admin IPs for phone-home verification
+      ansible.builtin.set_fact:
+        target_node_admin_ips: "{{ groups['bmc'] | map('extract', hostvars, 'admin_ip') | select('defined') | list }}"
+        cacheable: true
+      when: enable_phone_home | default(true) | bool
+
+    - name: Validate admin_ip is set for all BMC hosts (required for phone-home)
+      ansible.builtin.fail:
+        msg: >-
+          Phone-home verification is enabled but some BMC hosts are missing 'admin_ip'.
+          Please add admin_ip to all hosts in your inventory or disable phone-home with -e enable_phone_home=false
+      when:
+        - enable_phone_home | default(true) | bool
+        - target_node_admin_ips | length != groups['bmc'] | length
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 4: Reboot Host via PXE
+# Play 3: Reboot hosts via PXE
 # ─────────────────────────────────────────────────────────────────────────
-- name: Reboot Host via PXE
+- name: Reboot hosts via PXE
   hosts: bmc
   connection: local
   strategy: host_pinned
   gather_facts: false
+  tags: [pxe_boot]
   roles:
     - role: idrac_pxe_boot
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 5: Synchronized Reporting (iDRAC reboot status only)
+# Play 4: Report PXE boot results
 # ─────────────────────────────────────────────────────────────────────────
-- name: Synchronized Reporting
+- name: Report PXE boot results
   hosts: bmc
   connection: local
   gather_facts: false
+  tags: [pxe_boot]
   tasks:
     - name: Report iDRAC reboot failure
       ansible.builtin.debug:
@@ -88,158 +156,111 @@
         msg: "[OK] {{ inventory_hostname }}: {{ reboot_status }}"
       when: not reboot_failed
 
-    - name: Fail if reboot failed (non-BSM flow)
+    - name: Collect failed BMC IPs for phone-home exclusion
+      ansible.builtin.set_fact:
+        pxe_boot_failed_bmc_ips: "{{ pxe_boot_failed_bmc_ips | default([]) + [inventory_hostname] }}"
+      delegate_to: localhost
+      delegate_facts: true
+      when: reboot_failed
+
+    - name: Fail if reboot failed (when phone-home disabled)
       ansible.builtin.fail:
         msg: "{{ reboot_status }}"
       when:
         - reboot_failed
-        - not (hostvars['localhost']['enable_build_stream'] | default(false) | bool)
+        - not (enable_phone_home | default(true) | bool)
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 6: Filter phone-home list — exclude nodes whose reboot failed
+# Play 5: Filter phone-home target list (exclude failed PXE boots)
 # ─────────────────────────────────────────────────────────────────────────
-- name: "[BSM] Filter phone-home target list to exclude failed reboots"
+- name: Filter phone-home target list
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: [pxe_boot]
   tasks:
-    - name: BSM filtering block
-      when: enable_build_stream | default(false) | bool
+    - name: Filter phone-home verification block
+      when: enable_phone_home | default(true) | bool
       block:
-        - name: Build list of successfully rebooted BMC IPs (exclude BSM-skipped and failed)
+        - name: Build admin IP to BMC IP mapping
           ansible.builtin.set_fact:
-            successful_bmc_ips: "{{ successful_bmc_ips | default([]) + [item] }}"
-          loop: "{{ groups['bmc'] | default([]) }}"
-          when:
-            - not (hostvars[item]['bsm_skip_this_host'] | default(false))
-            - not (hostvars[item]['reboot_failed'] | default(true))
-          tags: always
+            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
+          loop: "{{ groups['bmc'] }}"
+          when: hostvars[item]['admin_ip'] is defined
 
-        - name: Default successful_bmc_ips to empty list if none succeeded
+        - name: Filter out failed PXE boots from phone-home target list
           ansible.builtin.set_fact:
-            successful_bmc_ips: "{{ successful_bmc_ips | default([]) }}"
-          tags: always
-
-        - name: Build filtered admin IPs for phone-home (only successfully rebooted nodes)
-          ansible.builtin.set_fact:
-            target_node_admin_ips: >-
-              {{ successful_bmc_ips
-                 | map('extract', pxe_csv_node_map)
-                 | map(attribute='ADMIN_IP')
-                 | list }}
+            target_node_admin_ips: "{{ target_node_admin_ips | default([]) | difference(failed_admin_ips | default([])) }}"
             cacheable: true
-          when:
-            - pxe_csv_node_map is defined
-            - successful_bmc_ips | length > 0
-          tags: always
-
-        - name: Set empty phone-home list when no nodes rebooted successfully
-          ansible.builtin.set_fact:
-            target_node_admin_ips: []
-            cacheable: true
-          when: successful_bmc_ips | default([]) | length == 0
-          tags: always
+          vars:
+            failed_admin_ips: "{{ pxe_boot_failed_bmc_ips | default([]) | map('extract', hostvars, 'admin_ip') | select('defined') | list }}"
 
         - name: Report phone-home target list
           ansible.builtin.debug:
             msg: >-
-              Phone-home targets: {{ target_node_admin_ips | default([]) | length }} of
-              {{ groups['bmc'] | default([]) | length }} nodes
-              ({{ successful_bmc_ips | default([]) | length }} rebooted successfully,
-              {{ (groups['bmc'] | default([]) | length) - (successful_bmc_ips | default([]) | length) }} failed)
-          tags: always
+              Phone-home verification will wait for {{ target_node_admin_ips | length }} nodes
+              ({{ pxe_boot_failed_bmc_ips | default([]) | length }} excluded due to PXE boot failure)
 
-# ─────────────────────────────────────────────────────────────────────────
-# Play 7: Create OIM group for phone-home verification
-# ─────────────────────────────────────────────────────────────────────────
-- name: Create oim group for phone-home verification
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Create OIM group (BSM only)
-      when: enable_build_stream | default(false) | bool
-      ansible.builtin.include_role:
-        name: create_container_group
-      vars:
-        oim_group: true
-      tags: always
-
-# ─────────────────────────────────────────────────────────────────────────
-# Play 8: [Phone-Home] via pxe_buildstream_manager role task
-# Runs on oim host — journalctl is on the OIM server
-# Only runs when enable_build_stream is true (same gate as rest of BSM)
-# Skipped entirely when no nodes rebooted successfully
-# ─────────────────────────────────────────────────────────────────────────
-- name: "[Phone-Home] Wait for cloud-init completion on all nodes"
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  become: true
-  ignore_unreachable: true
-  max_fail_percentage: 100
-  tasks:
-    - name: Phone-home block (BSM only)
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-      block:
-        - name: Skip phone-home when no nodes rebooted successfully
+        - name: Skip phone-home when no nodes to verify
           ansible.builtin.debug:
-            msg: "Skipping phone-home verification — no nodes rebooted successfully"
-          when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length == 0
-
-        - name: Run cloud-init phone-home verification via BSM role
-          ansible.builtin.include_role:
-            name: pxe_buildstream_manager
-            tasks_from: cloudinit_phone_home
-          when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length > 0
-          vars:
-            pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
-            target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
+            msg: "[Phone-Home] Skipping — no nodes to verify (all PXE boots failed)"
+          when: target_node_admin_ips | default([]) | length == 0
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 9: [BSM] Write per-node results AFTER phone-home verified
+# Play 6: Phone-home verification (runs on OIM server)
 # ─────────────────────────────────────────────────────────────────────────
-- name: "[BSM] Write per-node results, update persistent state, and upload to GitLab"
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tasks:
-    - name: Execute BuildStream Manager post-processing
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-      when: enable_build_stream | default(false) | bool
-
-# ─────────────────────────────────────────────────────────────────────────
-# Play 10: Upload to GitLab
-# ─────────────────────────────────────────────────────────────────────────
-- name: Upload failed_nodes to gitlab
-  hosts: gitlab_server
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Upload failed_nodes to gitlab
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: upload_to_gitlab
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-
-# ─────────────────────────────────────────────────────────────────────────
-# Play 11: Fail the playbook if any nodes failed
-# (runs AFTER failed_nodes.json is written and uploaded to GitLab)
-# ─────────────────────────────────────────────────────────────────────────
-- name: Fail playbook if any nodes failed
+- name: Verify cloud-init phone-home
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: [pxe_boot]
   tasks:
-    - name: Fail if any nodes failed PXE boot or phone-home (BSM only)
-      ansible.builtin.fail:
-        msg: "Node failures detected. See failed_nodes.json for details."
+    - name: Phone-home verification block
       when:
-        - enable_build_stream | default(false) | bool
-        - >-
-          (groups['bmc'] | default([])
-           | map('extract', hostvars)
-           | selectattr('reboot_failed', 'defined')
-           | selectattr('reboot_failed', 'equalto', true)
-           | list | length > 0)
-          or (phone_home_failed_ips | default([]) | length > 0)
+        - enable_phone_home | default(true) | bool
+        - target_node_admin_ips | default([]) | length > 0
+      block:
+        - name: Run phone-home verification
+          ansible.builtin.include_role:
+            name: verify_phone_home
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 7: Final reporting (includes phone-home failures)
+# ─────────────────────────────────────────────────────────────────────────
+- name: Final PXE boot and phone-home report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [pxe_boot]
+  tasks:
+    - name: Build final failure report
+      when: enable_phone_home | default(true) | bool
+      block:
+        - name: Build reverse map of admin IP to BMC IP for reporting
+          ansible.builtin.set_fact:
+            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
+          loop: "{{ groups['bmc'] }}"
+          when: hostvars[item]['admin_ip'] is defined
+
+        - name: Map phone-home failed admin IPs back to BMC IPs
+          ansible.builtin.set_fact:
+            phone_home_failed_bmc_ips: "{{ phone_home_failed_bmc_ips | default([]) + [admin_to_bmc_map[item]] }}"
+          loop: "{{ phone_home_failed_ips | default([]) }}"
+          when: item in admin_to_bmc_map
+
+        - name: Report total failures
+          ansible.builtin.debug:
+            msg: >-
+              PXE Boot Summary:
+              - Total nodes: {{ groups['bmc'] | length }}
+              - PXE boot failed: {{ pxe_boot_failed_bmc_ips | default([]) | length }}
+              - Phone-home failed: {{ phone_home_failed_bmc_ips | default([]) | length }}
+              - Success: {{ groups['bmc'] | length - (pxe_boot_failed_bmc_ips | default([]) | length) - (phone_home_failed_bmc_ips | default([]) | length) }}
+
+        - name: Fail if any nodes failed PXE boot or phone-home
+          ansible.builtin.fail:
+            msg: >-
+              Node failures detected.
+              PXE boot failures: {{ pxe_boot_failed_bmc_ips | default([]) | join(', ') or 'none' }}
+              Phone-home failures: {{ phone_home_failed_bmc_ips | default([]) | join(', ') or 'none' }}
+          when: (pxe_boot_failed_bmc_ips | default([]) | length > 0) or (phone_home_failed_bmc_ips | default([]) | length > 0)

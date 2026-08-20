@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: verify_phone_home
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Verify cloud-init phone-home completion after PXE boot
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - cloud-init
+    - verification
+
+dependencies: []
