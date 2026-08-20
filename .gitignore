@@ -28,3 +28,4 @@ src/rpm_build/**/ovis-code/
 # Container build artifacts
 *.tar
 *.img
+test/

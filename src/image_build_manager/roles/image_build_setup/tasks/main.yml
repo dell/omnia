@@ -15,11 +15,14 @@
 # image_build_setup — Self-contained setup for image_build_manager.
 #
 # Task files:
-#   validate_tags.yml      — Step 1: Validate tags and tag combinations
+#   validate_tags.yml      — Step 1: Validate tags, tag combinations, set needs_repo_status
 #   load_config.yml        — Step 2-3: Load config.yml, validate host, set dirs
-#   validate_prereqs.yml   — Step 4: Validate all prerequisite files (fail-fast)
-#   load_repo_status.yml   — Step 5-6: Load repo_status.yml, build repo lists
+#   validate_prereqs.yml   — Step 4: Validate prerequisite files (repo_status only for build tags)
+#   load_repo_status.yml   — Step 5-6: Load repo_status.yml, build repo lists, validate repo URLs
 #   main.yml (this file)   — Step 7: Set guard facts
+#
+# repo_status.yml is only required for build-related tags (build, execute, or default flow).
+# The prepare tag deploys MinIO + Registry and does not need repo_status.yml.
 
 - name: Include tag validation
   ansible.builtin.include_tasks: validate_tags.yml
@@ -38,6 +41,7 @@
   when:
     - "'cleanup' not in (provided_tags | default([]))"
     - "'precheck' not in (provided_tags | default([]))"
+    - needs_repo_status | default(false) | bool
 
 # =========================================================================
 # Step 7: Set guard facts

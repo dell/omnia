@@ -73,7 +73,7 @@ orchestration_completion_msg: |
   The orchestrator.yml playbook has completed successfully.
   Next, you can either manually PXE boot the nodes or use the utils/set_pxe_boot.yml playbook
   by specifying a bmc group in your inventory to initiate the PXE boot process.
-  Once the nodes have booted, proceed to run telemetry/telemetry.yml to start collecting telemetry data.
+  Once the nodes have booted, proceed to run telemetry/playbooks/telemetry.yml to start collecting telemetry data.
 
 # Usage: ci-group-login_node_x86_64.yaml.j2
 tls_cert_path: "/etc/openldap/certs/ldapserver.crt"
