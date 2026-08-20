@@ -30,32 +30,29 @@ orchestrator_config_syntax_fail_msg: "Failed. Syntax errors present in orchestra
 pull_image_retries: 5
 pull_image_delay: 10
 
-# OpenCHAMI image tags
+# OpenCHAMI image tags (fabrica-based architecture)
 openchami_local_ca_tag: "v0.2.6"
-openchami_opaal_tag: "v0.3.12"
-openchami_smd_tag: "v2.19.3"
-openchami_bss_tag: "v1.32.2"
-openchami_cloud_init_tag: "v1.3.0"
-openchami_coresmd_tag: "v0.4.3"
+openchami_smd_tag: "v2.20.5"
+openchami_boot_service_tag: "v0.3.1"
+openchami_metadata_service_tag: "v0.2.1"
+openchami_tokensmith_tag: "v0.4.1"
+openchami_coresmd_tag: "v0.7.0"
 # Third-party image tags for OpenCHAMI
 postgres_tag: "11.5-alpine"
-hydra_tag: "v2.3"
 haproxy_tag: "latest"
-curl_tag: "latest"
 acme_tag: "3.1.1"
 
 # OpenCHAMI images list for podman pull on OIM
+# NOTE: MinIO and registry images are managed by image_build_manager domain.
 openchami_images:
   - "ghcr.io/openchami/local-ca:{{ openchami_local_ca_tag }}"
-  - "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
   - "ghcr.io/openchami/smd:{{ openchami_smd_tag }}"
-  - "ghcr.io/openchami/bss:{{ openchami_bss_tag }}"
-  - "ghcr.io/openchami/cloud-init:{{ openchami_cloud_init_tag }}"
+  - "ghcr.io/openchami/boot-service:{{ openchami_boot_service_tag }}"
+  - "ghcr.io/openchami/metadata-service:{{ openchami_metadata_service_tag }}"
+  - "ghcr.io/openchami/tokensmith:{{ openchami_tokensmith_tag }}"
   - "ghcr.io/openchami/coresmd:{{ openchami_coresmd_tag }}"
   - "docker.io/library/postgres:{{ postgres_tag }}"
-  - "docker.io/oryd/hydra:{{ hydra_tag }}"
   - "cgr.dev/chainguard/haproxy:{{ haproxy_tag }}"
-  - "cgr.dev/chainguard/curl:{{ curl_tag }}"
   - "docker.io/neilpang/acme.sh:{{ acme_tag }}"
 
 # Usage: verify_openchami.yml
@@ -66,7 +63,7 @@ cluster_env_key: "{{ oim_node_name | upper }}_ACCESS_TOKEN"
 ochami_dir: /etc/ochami
 openchami_dir: /etc/openchami
 openchami_config_dir: "{{ openchami_dir }}/configs"
-openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
+openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/openchami/workdir"
 
 # File permissions
 file_perm_rw: "0644"
@@ -77,11 +74,16 @@ ochami_cli_log_level: warning
 ochami_cli_log_format: rfc3339
 ochami_base_url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
 
-# OpenCHAMI RPM packages
-openchami_rpm_url: https://github.com/OpenCHAMI/release/releases/download/v0.1.5/openchami-0.1.5.rpm
-openchami_rpm_name: openchami-0.1.5.rpm
-ochami_client_rpm_url: https://github.com/OpenCHAMI/ochami/releases/download/v0.7.1/ochami_0.7.1_linux_amd64.rpm
-ochami_client_rpm_name: ochami_0.7.1_linux_amd64.rpm
+# OpenCHAMI RPM — downloaded from GitHub releases at install time
+openchami_release_repo: OpenCHAMI/release
+openchami_release_api_url: "https://api.github.com/repos/{{ openchami_release_repo }}/releases/latest"
+openchami_rpm_name: openchami-0.2.0.rpm
+ochami_client_rpm_url: https://github.com/OpenCHAMI/ochami/releases/download/v0.10.2/ochami_0.10.2_linux_amd64.rpm
+ochami_client_rpm_name: ochami_0.10.2_linux_amd64.rpm
+
+# Quadlet base paths (v0.2.0 installs to /usr/share, site overrides go to /etc)
+openchami_quadlet_dir: /usr/share/containers/systemd
+openchami_quadlet_override_dir: /etc/containers/systemd
 
 # System package dependencies
 ochami_package_dependencies:
@@ -143,3 +145,5 @@ coredhcp_tmp_lease_duration: "5m"
 coredhcp_cache_validity: "30s"
 coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
+
+# Legacy (pre-fabrica) service lists moved to playbooks/upgrade/upgrade_openchami.yml

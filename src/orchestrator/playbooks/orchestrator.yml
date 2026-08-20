@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# orchestrator.yml — Top-level entry point for the orchestrator domain.
+# =====================================================================
+# Thin wrapper that imports focused sub-playbooks organized by phase.
+# Each sub-playbook can also be run independently from its phase directory.
+#
+# Workflow:
+#   1. prepare_orchestrator    — setup, validate, credentials, FG gen, persist state
+#   2. deploy_openchami        — S3 access + OpenCHAMI container deployment
+#   3. deploy_openldap         — OpenLDAP container deployment (when enabled)
+#   4. validate_openchami      — gate: verify OpenCHAMI readiness
+#   5. validate_openldap       — gate: verify OpenLDAP readiness (when enabled)
+#   6. provision_preamble      — SSH keys + auth (runs once)
+#   7. provision_kubernetes    — K8s FGs + bolt-ons
+#   8. provision_slurm         — Slurm+Login FGs + bolt-ons
+#   9. provision_os            — OS-only FGs (minimal)
+#  10. provision_custom        — User-defined FGs (catch-all)
+#  11. validate_provisioning   — inventory generation + post-provision checks
+#
+# Inputs:  /opt/omnia/orchestrator/input/project_default/
+# Outputs: /opt/omnia/orchestrator/output/project_default/
+#
+# Usage:
+#   cd src/orchestrator/playbooks
+#   ansible-playbook orchestrator.yml
+
+- name: Prepare orchestrator
+  ansible.builtin.import_playbook: prepare/prepare_orchestrator.yml
+
+- name: Deploy OpenCHAMI
+  ansible.builtin.import_playbook: deploy/deploy_openchami.yml
+
+- name: Deploy OpenLDAP
+  ansible.builtin.import_playbook: deploy/deploy_openldap.yml
+
+- name: Validate OpenCHAMI readiness
+  ansible.builtin.import_playbook: validate/validate_openchami.yml
+
+- name: Validate OpenLDAP readiness
+  ansible.builtin.import_playbook: validate/validate_openldap.yml
+
+- name: Provision preamble (SSH + auth)
+  ansible.builtin.import_playbook: provision/provision_preamble.yml
+
+- name: Provision Kubernetes cluster
+  ansible.builtin.import_playbook: provision/provision_kubernetes.yml
+
+- name: Provision Slurm cluster
+  ansible.builtin.import_playbook: provision/provision_slurm.yml
+
+- name: Provision OS-only nodes
+  ansible.builtin.import_playbook: provision/provision_os.yml
+
+- name: Provision custom nodes
+  ansible.builtin.import_playbook: provision/provision_custom.yml
+
+- name: Validate provisioning
+  ansible.builtin.import_playbook: validate/validate_provisioning.yml

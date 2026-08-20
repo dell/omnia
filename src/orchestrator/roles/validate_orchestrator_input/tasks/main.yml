@@ -25,28 +25,17 @@
   ansible.builtin.debug:
     msg: "{{ orchestrator_validation_start_msg }}"
 
-# Pre-load software_config from project root (downstream roles need it)
-- name: Pre-load software_config from project root
-  when: not config_file_status | default(false) | bool
-  block:
-    - name: Validate software_config.json syntax
-      ansible.builtin.command: "jq . {{ omnia_project_input_dir }}/software_config.json"
-      register: _sw_json_check
-      changed_when: false
-      failed_when: false
-      no_log: true
-
-    - name: Fail if software_config.json has syntax errors
-      ansible.builtin.fail:
-        msg: "{{ software_config_syntax_fail_msg }}"
-      when: _sw_json_check.rc != 0
-
-    - name: Load software_config from project root
-      ansible.builtin.set_fact:
-        software_config: "{{ lookup('file', omnia_project_input_dir + '/software_config.json') | from_json }}"
-        cluster_os_version: "{{ (lookup('file', omnia_project_input_dir + '/software_config.json') | from_json).cluster_os_version }}"
-        cluster_os_type: "{{ (lookup('file', omnia_project_input_dir + '/software_config.json') | from_json).cluster_os_type }}"
-        cacheable: true
+# Verify catalog-derived facts (cluster_os_type, cluster_os_version, feature flags)
+# are available from orchestrator_setup. No software_config.json needed.
+- name: Verify catalog-derived OS metadata is available
+  ansible.builtin.assert:
+    that:
+      - cluster_os_type is defined
+      - cluster_os_version is defined
+    fail_msg: >-
+      Catalog-derived OS metadata is not available. Ensure orchestrator_setup
+      has loaded the catalog file before running validation.
+    quiet: true
 
 # Pre-check: ensure orchestrator_config.yml exists
 - name: Check orchestrator_config.yml exists

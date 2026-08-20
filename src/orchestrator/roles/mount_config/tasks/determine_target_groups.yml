@@ -20,9 +20,9 @@
   ansible.builtin.set_fact:
     target_functional_groups: []
 
-- name: Create cloud-init groups dict
+- name: Create metadata-service groups dict
   ansible.builtin.set_fact:
-    cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: cloud_init_groups_dict[item] | default({})}, recursive=True) }}"
+    metadata_svc_groups_dict: "{{ metadata_svc_groups_dict | default({}) | combine({item: metadata_svc_groups_dict[item] | default({})}, recursive=True) }}"
   with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
 
 - name: Match functional groups by prefix
@@ -32,7 +32,7 @@
       ansible.builtin.set_fact:
         target_functional_groups: >-
           {{
-            cloud_init_groups_dict.keys() | list |
+            metadata_svc_groups_dict.keys() | list |
             select('match', '^(' + (config_item.functional_group_prefix | join('|')) + ')') |
             list
           }}

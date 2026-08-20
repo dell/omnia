@@ -12,32 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Creates an SMD group for per-functional-group additional cloud-init.
-# The group name is prefixed with additional_cloud_init_ and contains
+# Creates an SMD group for per-functional-group additional metadata-service.
+# The group name is prefixed with additional_metadata_svc_ and contains
 # only nodes belonging to the target functional group.
 
-- name: Set per-FG additional cloud-init group variables
+- name: Set per-FG additional metadata-service group variables
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
-    additional_cloud_init_fg_smd_group_name: "{{ additional_cloud_init_fg_group_prefix }}{{ item }}"
+    additional_metadata_svc_fg_smd_group_name: "{{ additional_metadata_svc_fg_group_prefix }}{{ item }}"
 
-- name: Render SMD group template - {{ additional_cloud_init_fg_smd_group_name }}
+- name: Render SMD group template - {{ additional_metadata_svc_fg_smd_group_name }}
   ansible.builtin.template:
-    src: "{{ additional_cloud_init_fg_groups_template }}"
-    dest: "{{ nodes_dir }}/groups-{{ additional_cloud_init_fg_smd_group_name }}.yml"
+    src: "{{ additional_metadata_svc_fg_groups_template }}"
+    dest: "{{ nodes_dir }}/groups-{{ additional_metadata_svc_fg_smd_group_name }}.yml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   vars:
     nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
 
-- name: Delete SMD group - {{ additional_cloud_init_fg_smd_group_name }}
+- name: Delete SMD group - {{ additional_metadata_svc_fg_smd_group_name }}
   ansible.builtin.command: >-
     /usr/bin/ochami smd group delete --no-confirm
-    {{ additional_cloud_init_fg_smd_group_name }}
+    {{ additional_metadata_svc_fg_smd_group_name }}
   changed_when: true
   failed_when: false
 
-- name: POST SMD group - {{ additional_cloud_init_fg_smd_group_name }}
+- name: POST SMD group - {{ additional_metadata_svc_fg_smd_group_name }}
   ansible.builtin.command: >-
     /usr/bin/ochami smd group add -f yaml
-    -d @{{ nodes_dir }}/groups-{{ additional_cloud_init_fg_smd_group_name }}.yml
+    -d @{{ nodes_dir }}/groups-{{ additional_metadata_svc_fg_smd_group_name }}.yml
   changed_when: true
