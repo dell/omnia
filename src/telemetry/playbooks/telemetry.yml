@@ -130,6 +130,15 @@
     - never
     - rollback
 
+# =========================================================================
+# UTILITY: external_kafka — Fetch Kafka connection details (opt-in only)
+# =========================================================================
+- name: "Utility | Fetch external Kafka connection details"
+  ansible.builtin.import_playbook: utils/external_kafka_connect.yml
+  tags:
+    - never
+    - external_kafka
+
 # ---------------------------------------------------------------------------
 # Summary — Display telemetry status file location
 # ---------------------------------------------------------------------------

@@ -1,0 +1,248 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# external_kafka_connect — Fetch Kafka connection details for external clients
+#
+# This role runs on kube_vip to extract:
+#   - Kafka bridge LoadBalancer external IP and port
+#   - TLS certificates (CA, client cert, client key) from K8s secrets
+#   - Connection details YAML file for external integration (e.g., OME)
+#
+# Output: {{ kafka_output_dir }}/
+#           ├── ca.crt
+#           ├── user.crt
+#           ├── user.key
+#           └── external_kafka_connect_details.yml
+# =============================================================================
+
+- name: Validate kube_vip connectivity
+  block:
+    - name: Wait for kube_vip connection
+      ansible.builtin.wait_for_connection:
+        timeout: 30
+  rescue:
+    - name: Fail when kube_vip is not reachable
+      ansible.builtin.fail:
+        msg: "{{ kafka_err_kube_vip_unreachable }}"
+
+- name: Check kubectl availability
+  ansible.builtin.command: kubectl version --client=true
+  register: _kubectl_check
+  changed_when: false
+  failed_when: _kubectl_check.rc != 0
+
+- name: Clean output directory for fresh export
+  ansible.builtin.file:
+    path: "{{ kafka_output_dir }}"
+    state: absent
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+# =============================================================================
+# Validate Kafka cluster health
+# =============================================================================
+
+- name: Get Kafka pod status (JSON)
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ kafka_namespace }}
+    -l app.kubernetes.io/name=kafka
+    -o json
+  register: _kafka_pods_json
+  changed_when: false
+  failed_when: _kafka_pods_json.rc != 0
+
+- name: Parse Kafka pod data
+  ansible.builtin.set_fact:
+    _kafka_pods: "{{ _kafka_pods_json.stdout | from_json }}"
+
+- name: Extract pod items from parsed data
+  ansible.builtin.set_fact:
+    _kafka_pod_items: "{{ _kafka_pods['items'] | default([]) }}"
+
+- name: Fail if no Kafka pods found
+  ansible.builtin.fail:
+    msg: "{{ kafka_err_no_pods_found }}"
+  when: (_kafka_pod_items | length) == 0
+
+- name: Fail if Kafka pods are not Running
+  ansible.builtin.fail:
+    msg: "{{ kafka_err_pods_not_running }}"
+  when: >-
+    (_kafka_pod_items
+    | selectattr('status.phase', 'ne', 'Running')
+    | list | length) > 0
+
+- name: Fail if Kafka pods are not Ready
+  ansible.builtin.fail:
+    msg: "{{ kafka_err_pods_not_ready }}"
+  when: >-
+    (_kafka_pod_items
+    | selectattr('status.containerStatuses', 'defined')
+    | map(attribute='status.containerStatuses')
+    | list | flatten
+    | selectattr('ready', 'equalto', false)
+    | list | length) > 0
+
+# =============================================================================
+# Extract Kafka external endpoint
+# =============================================================================
+
+- name: Get Kafka LoadBalancer external IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_lb_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _kafka_lb_ip
+  changed_when: false
+  failed_when: _kafka_lb_ip.rc != 0
+
+- name: Set Kafka external endpoint
+  ansible.builtin.set_fact:
+    _kafka_external_ip: "{{ _kafka_lb_ip.stdout | trim }}"
+    _kafka_external_port: "{{ kafka_bootstrap_port | string }}"
+
+- name: Fail when Kafka external endpoint is not available
+  ansible.builtin.fail:
+    msg: "{{ kafka_err_external_ip_missing }}"
+  when: _kafka_external_ip | trim | length == 0
+
+# =============================================================================
+# Extract TLS certificates from K8s secrets
+# =============================================================================
+
+- name: Read Kafka cluster CA certificate
+  ansible.builtin.command: >-
+    kubectl get secret {{ kafka_cluster_ca_secret }} -n {{ kafka_namespace }}
+    -o jsonpath='{.data.ca\.crt}'
+  register: _kafka_ca_crt_b64
+  changed_when: false
+  failed_when: _kafka_ca_crt_b64.rc != 0 or (_kafka_ca_crt_b64.stdout | trim | length == 0)
+  no_log: true
+
+- name: Read Kafka client certificate
+  ansible.builtin.command: >-
+    kubectl get secret {{ kafka_client_secret }} -n {{ kafka_namespace }}
+    -o jsonpath='{.data.user\.crt}'
+  register: _kafka_user_crt_b64
+  changed_when: false
+  failed_when: _kafka_user_crt_b64.rc != 0 or (_kafka_user_crt_b64.stdout | trim | length == 0)
+  no_log: true
+
+- name: Read Kafka client key
+  ansible.builtin.command: >-
+    kubectl get secret {{ kafka_client_secret }} -n {{ kafka_namespace }}
+    -o jsonpath='{.data.user\.key}'
+  register: _kafka_user_key_b64
+  changed_when: false
+  failed_when: _kafka_user_key_b64.rc != 0 or (_kafka_user_key_b64.stdout | trim | length == 0)
+  no_log: true
+
+# =============================================================================
+# Write output files
+# =============================================================================
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ kafka_output_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Write TLS certificate files
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ item.dest }}"
+    mode: "0600"
+  loop:
+    - dest: "{{ kafka_output_dir }}/ca.crt"
+      content: "{{ _kafka_ca_crt_b64.stdout | b64decode }}"
+    - dest: "{{ kafka_output_dir }}/user.crt"
+      content: "{{ _kafka_user_crt_b64.stdout | b64decode }}"
+    - dest: "{{ kafka_output_dir }}/user.key"
+      content: "{{ _kafka_user_key_b64.stdout | b64decode }}"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+  no_log: true
+
+- name: Get Kafka pod status (human-readable)
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ kafka_namespace }}
+    -l app.kubernetes.io/name=kafka
+    -o wide
+  register: _kafka_pods_wide
+  changed_when: false
+
+- name: Build connection details
+  ansible.builtin.set_fact:
+    _kafka_connect_details:
+      kafka:
+        namespace: "{{ kafka_namespace }}"
+        loadbalancer_service: "{{ kafka_lb_service_name }}"
+        pod_status: "{{ _kafka_pods_wide.stdout | default('') }}"
+        bootstrap_server: "{{ _kafka_external_ip }}:{{ _kafka_external_port }}"
+        tls:
+          ca_crt: "{{ kafka_output_dir }}/ca.crt"
+          client_crt: "{{ kafka_output_dir }}/user.crt"
+          client_key: "{{ kafka_output_dir }}/user.key"
+
+- name: Write connection details to file
+  ansible.builtin.copy:
+    content: "{{ _kafka_connect_details | to_nice_yaml }}"
+    dest: "{{ kafka_output_file }}"
+    mode: "0644"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Display Kafka connection details
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [
+          '══════════════════════════════════════════════════════════════',
+          'Kafka External Connection Details',
+          '══════════════════════════════════════════════════════════════',
+          '',
+          'Connection details written to: ' ~ kafka_output_file,
+          '',
+          '[ENDPOINT] Kafka bridge: ' ~ _kafka_external_ip ~ ':' ~ _kafka_external_port,
+          '',
+          '[TLS FILES] (on this host):',
+          '  CA cert (server):  ' ~ kafka_output_dir ~ '/ca.crt',
+          '  Client cert:       ' ~ kafka_output_dir ~ '/user.crt',
+          '  Client key:        ' ~ kafka_output_dir ~ '/user.key',
+          '',
+          '[OME INTEGRATION STEPS (mTLS)]',
+          '  Step 1: Create client certificate in .pfx format:',
+          '          cd ' ~ kafka_output_dir,
+          '          openssl pkcs12 -export -out user.pfx -inkey user.key -in user.crt',
+          '  Step 2: If OME UI is on a different host, copy ca.crt and user.pfx there.',
+          '  Step 3: In OME UI: ' ~ kafka_ome_ui_navigation,
+          '  Step 4: Click: ' ~ kafka_ome_ui_enable_label,
+          '  Step 5: Set Kafka Bootstrap Server to: ' ~ _kafka_external_ip ~ ':' ~ _kafka_external_port,
+          '  Step 6: Set Authentication Mode to: ' ~ kafka_ome_auth_mode_value,
+          '  Step 7: ' ~ kafka_ome_server_cert_note,
+          '  Step 8: ' ~ kafka_ome_client_cert_note,
+          '',
+          '══════════════════════════════════════════════════════════════'
+        ]
+      }}
+  delegate_to: localhost
+  connection: local
+  run_once: true
