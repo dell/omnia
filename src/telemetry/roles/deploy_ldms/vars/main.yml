@@ -13,15 +13,11 @@
 # limitations under the License.
 ---
 
-# Paths — relative to telemetry repo root
-telemetry_repo_root: "{{ playbook_dir }}/.."
-telemetry_input_dir: "{{ telemetry_repo_root }}/input"
-telemetry_output_dir: "{{ telemetry_repo_root }}/output"
+# Paths — derived from telemetry_setup role (Step 0, tags: always)
+# input_project_dir, output_project_dir, and telemetry_data_path are set by telemetry_setup.
+# telemetry_config_file and telemetry_storage_config_file are defined in common/vars/main.yml.
+telemetry_output_dir: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}"
 telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
-
-# Input files
-telemetry_config_file: "{{ telemetry_input_dir }}/telemetry_config.yml"
-telemetry_storage_config_file: "{{ telemetry_input_dir }}/telemetry_storage_config.yml"
 
 # Namespace
 telemetry_namespace: "telemetry"
@@ -47,7 +43,7 @@ ldms_store_name: "nersc-ldms-store"
 slurm_config_path: "/etc/slurm"
 
 # LDMS backup path for PXE change detection
-backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+backup_pxe_mapping_ldms_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/backup_pxe_mapping_ldms.csv"
 
 # Dynamic image configuration from service_k8s_v<version>.json
 telemetry_images: "{{ service_k8s_images | default({}) }}"
