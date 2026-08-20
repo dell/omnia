@@ -45,7 +45,8 @@
 #   - precheck, cleanup, and validate tags skip credential prompting
 #
 # Internal steps (always):
-#   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs, load repo_status.yml
+#   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs
+#           repo_status.yml is loaded only for build-related tags (build/execute/default)
 #   Step 1: Input validation (schema + logic)
 #   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 

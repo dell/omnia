@@ -41,6 +41,12 @@ skip_credential_tags:
   - precheck
   - cleanup
   - validate
+# Tags that require repo_status.yml (build-related operations)
+build_related_tags:
+  - build
+  - execute
+  - x86_64
+  - aarch64
 invalid_tag_combinations:
   - [prepare, cleanup]
   - [build, cleanup]
@@ -114,3 +120,7 @@ repo_status_missing_section_fail_msg: >-
 image_build_config_not_found_fail_msg: >-
   image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
   This file is required. See docs/contracts/input-contract.md for the expected format.
+repo_url_unreachable_fail_msg: >-
+  One or more repo URLs from repo_status.yml are unreachable.
+  Unreachable URLs: {{ _unreachable_repos | default([]) | join(', ') }}.
+  Verify that repo_manager is running and the repo URLs are accessible from this host.

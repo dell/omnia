@@ -15,23 +15,25 @@
 # =============================================================================
 # TELEMETRY SETUP ROLE - MAIN ENTRY POINT
 # =============================================================================
-# This role handles initial setup tasks for telemetry:
-# - Create log and output directories
-# - Load telemetry configuration
-# - Display usage information
-# - Set guard fact
+# Self-contained setup for telemetry — matches image_build_setup pattern.
+#
+# Task files:
+#   load_config.yml       — Step 1: Read omnia.env vars, derive paths, auto-copy inputs
+#   create_directories.yml — Step 2: Create runtime directories
+#   display_usage.yml     — Step 3: Display usage information
+#   main.yml (this file)  — Step 4: Set guard fact
 # =============================================================================
 
-- name: Create directories
-  ansible.builtin.include_tasks: create_directories.yml
-
-- name: Load telemetry configuration
+- name: Load configuration from environment (omnia.env)
   ansible.builtin.include_tasks: load_config.yml
+
+- name: Create runtime directories
+  ansible.builtin.include_tasks: create_directories.yml
 
 - name: Display usage information
   ansible.builtin.include_tasks: display_usage.yml
 
-- name: Set setup guard fact
+- name: Set telemetry setup guard fact
   ansible.builtin.set_fact:
     telemetry_setup_done: true
     cacheable: true

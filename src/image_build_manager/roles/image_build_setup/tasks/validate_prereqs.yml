@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Step 4: Validate all prerequisite files (fail-fast)
+# Step 4: Validate prerequisite files (fail-fast)
 #
-# Loads image_build_config.yml to discover repo_manager_output_path,
-# then checks that repo_status.yml and mode-specific package files exist.
+# Always validates: image_build_config.yml exists.
+# Build-related tags only (needs_repo_status=true): validates repo_status.yml
+# and mode-specific package files (package_groups.yml or catalog file).
 # Dual-mode: "config" checks package_groups.yml, "catalog" checks CATALOG_FILE_PATH env var.
 
 - name: Load image_build_config.yml to get repo_manager_output_path
@@ -34,55 +35,61 @@
     cacheable: true
   when: build_image is defined
 
-- name: Stat prerequisite files
+- name: Stat image_build_config.yml
   ansible.builtin.stat:
-    path: "{{ item }}"
-  loop:
-    - "{{ input_project_dir }}/image_build_config.yml"
-    - "{{ repo_manager_output_path }}"
-  register: _prereq_checks
+    path: "{{ input_project_dir }}/image_build_config.yml"
+  register: _config_check
 
 - name: Fail if image_build_config.yml not found
   ansible.builtin.fail:
     msg: "{{ image_build_config_not_found_fail_msg }}"
-  when: not _prereq_checks.results[0].stat.exists
+  when: not _config_check.stat.exists
 
-- name: Fail if repo_status.yml not found
-  ansible.builtin.fail:
-    msg: "{{ repo_status_not_found_fail_msg }}"
-  when: not _prereq_checks.results[1].stat.exists
-
-# --- Dual-mode package source validation ---
-- name: Validate package_groups.yml exists (config mode)
-  when: functional_groups_source == 'config'
+# --- repo_status.yml and package validation (build-related tags only) ---
+- name: Validate build prerequisites (repo_status and packages)
+  when: needs_repo_status | bool
   block:
-    - name: Stat package_groups.yml in project directory
+    - name: Stat repo_status.yml
       ansible.builtin.stat:
-        path: "{{ input_project_dir }}/package_groups.yml"
-      register: _pkg_groups_check
+        path: "{{ repo_manager_output_path }}"
+      register: _repo_status_check
 
-    - name: Fail if package_groups.yml not found
+    - name: Fail if repo_status.yml not found
       ansible.builtin.fail:
-        msg: "{{ package_groups_not_found_fail_msg }}"
-      when: not _pkg_groups_check.stat.exists
+        msg: "{{ repo_status_not_found_fail_msg }}"
+      when: not _repo_status_check.stat.exists
 
-- name: Validate catalog file exists (catalog mode)
-  when: functional_groups_source == 'catalog'
-  block:
-    - name: Fail if CATALOG_FILE_PATH env var is not set
-      ansible.builtin.fail:
-        msg: >-
-          CATALOG_FILE_PATH environment variable is not set.
-          When functional_groups_source is 'catalog', set CATALOG_FILE_PATH
-          in omnia.env (e.g., /opt/omnia/catalog/catalog_rhel.json).
-      when: catalog_file | length == 0
+    # --- Dual-mode package source validation ---
+    - name: Validate package_groups.yml exists (config mode)
+      when: functional_groups_source == 'config'
+      block:
+        - name: Stat package_groups.yml in project directory
+          ansible.builtin.stat:
+            path: "{{ input_project_dir }}/package_groups.yml"
+          register: _pkg_groups_check
 
-    - name: Stat catalog file
-      ansible.builtin.stat:
-        path: "{{ catalog_file }}"
-      register: _catalog_check
+        - name: Fail if package_groups.yml not found
+          ansible.builtin.fail:
+            msg: "{{ package_groups_not_found_fail_msg }}"
+          when: not _pkg_groups_check.stat.exists
 
-    - name: Fail if catalog file not found
-      ansible.builtin.fail:
-        msg: "{{ catalog_not_found_fail_msg }}"
-      when: not _catalog_check.stat.exists
+    - name: Validate catalog file exists (catalog mode)
+      when: functional_groups_source == 'catalog'
+      block:
+        - name: Fail if CATALOG_FILE_PATH env var is not set
+          ansible.builtin.fail:
+            msg: >-
+              CATALOG_FILE_PATH environment variable is not set.
+              When functional_groups_source is 'catalog', set CATALOG_FILE_PATH
+              in omnia.env (e.g., /opt/omnia/catalog/catalog_rhel.json).
+          when: catalog_file | length == 0
+
+        - name: Stat catalog file
+          ansible.builtin.stat:
+            path: "{{ catalog_file }}"
+          register: _catalog_check
+
+        - name: Fail if catalog file not found
+          ansible.builtin.fail:
+            msg: "{{ catalog_not_found_fail_msg }}"
+          when: not _catalog_check.stat.exists
