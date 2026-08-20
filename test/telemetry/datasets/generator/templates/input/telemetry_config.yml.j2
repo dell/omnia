@@ -1,0 +1,38 @@
+{# Telemetry Config — Dataset Template #}
+---
+kube_vip: "{{ kube_vip }}"
+bmc_group_data_path: "{{ bmc_group_data_path }}"
+
+telemetry_sources:
+  idrac:
+    metrics_enabled: {{ idrac_metrics_enabled | lower }}
+    collection_targets:
+      - "victoria_metrics"
+      - "kafka"
+  ldms:
+    metrics_enabled: {{ ldms_metrics_enabled | lower }}
+    collection_targets:
+      - "kafka"
+  dcgm:
+    metrics_enabled: {{ dcgm_metrics_enabled | lower }}
+  powerscale:
+    metrics_enabled: {{ powerscale_metrics_enabled | lower }}
+  ufm:
+    metrics_enabled: {{ ufm_metrics_enabled | lower }}
+  vast:
+    metrics_enabled: {{ vast_metrics_enabled | lower }}
+  ome:
+    metrics_enabled: {{ ome_metrics_enabled | lower }}
+  sfm:
+    metrics_enabled: {{ sfm_metrics_enabled | lower }}
+
+telemetry_sinks:
+  victoria_metrics:
+    enabled: {{ victoria_metrics_enabled | lower }}
+    persistence_size: "{{ victoria_persistence_size }}"
+    retention_period: "{{ victoria_retention_period }}"
+  victoria_logs:
+    enabled: {{ victoria_logs_enabled | lower }}
+  kafka:
+    enabled: {{ kafka_enabled | lower }}
+    persistence_size: "{{ kafka_persistence_size }}"
