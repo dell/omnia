@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Set NFS info fact
-  ansible.builtin.set_fact:
-    oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
-
 - name: Initialize openchami_install_status
   ansible.builtin.set_fact:
     openchami_install_status: false
@@ -25,6 +21,8 @@
   ansible.builtin.include_role:
     name: omnia.orchestrator.orchestrator_common
     tasks_from: openchami_auth.yml
+  vars:
+    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"
@@ -41,19 +39,7 @@
         msg: "{{ openchami_dependencies.stdout_lines }}"
         verbosity: 2
 
-    - name: Verify ochami bss status
-      ansible.builtin.command:
-        ochami bss service status
-      register: openchami_bss_status
-      changed_when: false
-      failed_when: false
-
-    - name: Openchami bss status output
-      ansible.builtin.debug:
-        msg: "{{ openchami_bss_status.stdout_lines }}"
-        verbosity: 2
-
-    - name: Verify ochami smd status
+    - name: Verify smd status
       ansible.builtin.command:
         ochami smd service status
       register: openchami_smd_status
@@ -65,17 +51,24 @@
         msg: "{{ openchami_smd_status.stdout_lines }}"
         verbosity: 2
 
-    - name: Verify s3 bucket
-      ansible.builtin.command: s3cmd ls
+    - name: Verify boot-service is active
+      ansible.builtin.systemd:
+        name: boot-service.service
+      register: boot_service_status
       changed_when: false
-      register: s3_bucket_output
+      failed_when: false
+
+    - name: Verify tokensmith is active
+      ansible.builtin.systemd:
+        name: tokensmith.service
+      register: tokensmith_status
+      changed_when: false
       failed_when: false
 
     - name: Set openchami_install_status
       ansible.builtin.set_fact:
         openchami_install_status: true
       when:
-        - openchami_bss_status.rc == 0
         - openchami_smd_status.rc == 0
-        - s3_bucket_output.rc == 0
-        - '"s3://boot-images" in s3_bucket_output.stdout'
+        - boot_service_status.status.ActiveState == "active"
+        - tokensmith_status.status.ActiveState == "active"

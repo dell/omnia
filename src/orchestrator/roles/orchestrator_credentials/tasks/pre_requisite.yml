@@ -12,83 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# pre_requisite.yml — Verify catalog-derived feature flags are available for
+# credential prompting. Feature flags are set by orchestrator_setup from the
+# catalog file. No software_config.json loading is needed.
 
-- name: Load software_config.json as software_config
-  block:
-    - name: Load software_config.json as user_config
-      ansible.builtin.include_vars:
-        file: "{{ software_config_file }}"
-        name: software_config
-      register: include_software_config
-      no_log: true
-  rescue:
-    - name: Failed to load software_config.json as user_config
-      ansible.builtin.fail:
-        msg: "{{ software_config_syntax_fail_msg }} Error: {{ include_software_config.message }}"
-
-- name: Generate software JSON file names
-  ansible.builtin.set_fact:
-    software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
-
-- name: Set support flags for credential conditions
-  ansible.builtin.set_fact:
-    csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
-    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
-    openldap_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openldap') | list | length > 0 }}"
-
-- name: Fetch telemetry status from telemetry_config.yml
-  omnia.orchestrator.fetch_telemetry_status:
-    input_path: "{{ input_project_dir }}"
-  register: result
-  when: "'telemetry' in (omnia_run_tags | default([]))"
-
-- name: Set run tags for telemetry
-  ansible.builtin.set_fact:
-    omnia_run_tags: "{{ ((omnia_run_tags | default([])) + (result.telemetry_status_list | default([]))) | unique }}"
-  when:
-    - not result.skipped | default(false)
-    - result.telemetry_status_list | length > 0
-
-- name: Derive iDRAC telemetry support flag from telemetry_config.yml
-  when: "'idrac_telemetry' in (omnia_run_tags | default([]))"
-  block:
-    - name: Load telemetry_config.yml for iDRAC support flag
-      ansible.builtin.include_vars:
-        file: "{{ telemetry_config_path }}"
-        name: _telemetry_config
-      failed_when: false
-
-    - name: Set idrac_telemetry_support flag
-      ansible.builtin.set_fact:
-        idrac_telemetry_support: >-
-          {{ ((_telemetry_config.telemetry_sources | default({})).idrac | default({})).metrics_enabled
-             | default(_telemetry_config.idrac_telemetry_support | default(false)) | bool }}
-      when: _telemetry_config is defined
-
-- name: Derive UFM telemetry support flag from telemetry_config.yml
-  when: "'ufm_telemetry' in (omnia_run_tags | default([]))"
-  block:
-    - name: Load telemetry_config.yml for UFM support flag
-      ansible.builtin.include_vars:
-        file: "{{ telemetry_config_path }}"
-        name: _telemetry_config
-      failed_when: false
-
-    - name: Set ufm_telemetry_support flag
-      ansible.builtin.set_fact:
-        ufm_telemetry_support: "{{ _telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
-      when: _telemetry_config is defined and _telemetry_config.telemetry_sources is defined
-
-- name: Derive VAST telemetry support flag from telemetry_config.yml
-  when: "'vast_telemetry' in (omnia_run_tags | default([]))"
-  block:
-    - name: Load telemetry_config.yml for VAST support flag
-      ansible.builtin.include_vars:
-        file: "{{ telemetry_config_path }}"
-        name: _telemetry_config
-      failed_when: false
-
-    - name: Set vast_telemetry_support flag
-      ansible.builtin.set_fact:
-        vast_telemetry_support: "{{ _telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
-      when: _telemetry_config is defined and _telemetry_config.telemetry_sources is defined
+- name: Verify catalog-derived feature flags are available
+  ansible.builtin.assert:
+    that:
+      - service_k8s_support is defined
+      - openldap_support is defined
+      - csi_driver_powerscale_support is defined
+    fail_msg: >-
+      Feature flags not available. Ensure orchestrator_setup has loaded the
+      catalog file before running credential collection.
+    quiet: true

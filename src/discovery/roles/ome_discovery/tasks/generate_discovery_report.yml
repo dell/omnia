@@ -65,7 +65,7 @@
       - "     ansible-playbook prepare_oim/prepare_oim.yml"
       - ""
       - "   Then run orchestrator:"
-      - "     ansible-playbook orchestrator/orchestrator.yml"
+      - "     cd orchestrator/playbooks && ansible-playbook orchestrator.yml"
       - "============================================================"
 
 - name: Display discovery completion message (with BuildStream)

@@ -65,44 +65,9 @@ omnia_credentials:
   openldap:
     mandatory:
       - { username: openldap_db_username, password: openldap_db_password }
-  idrac_telemetry:
-    mandatory:
-      - { username: bmc_username, password: bmc_password }
-    conditional_mandatory:
-      - username: mysqldb_user
-        password: mysqldb_password
-        condition: "{{ idrac_telemetry_support | default(false) | bool }}"
-      - password: mysqldb_root_password
-        condition: "{{ idrac_telemetry_support | default(false) | bool }}"
-  csi_driver_powerscale:
-    conditional_mandatory:
-      - username: csi_username
-        password: csi_password
-        condition: "{{ csi_driver_powerscale_support | default(false) | bool }}"
-  ldms:
-    mandatory:
-      - { password: ldms_sampler_password }
-  ufm_telemetry:
-    conditional_mandatory:
-      - username: ufm_username
-        password: ufm_password
-        condition: "{{ ufm_telemetry_support | default(false) | bool }}"
-  vast_telemetry:
-    conditional_mandatory:
-      - username: vast_username
-        password: vast_password
-        condition: "{{ vast_telemetry_support | default(false) | bool }}"
 
 # Pre-requisite vars
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 conf_file_mode: "0600"
-software_config_file: "{{ omnia_project_input_dir | default(input_project_dir) }}/software_config.json"
-telemetry_config_path: "{{ input_project_dir }}/telemetry_config.yml"
-
-# Validation error messages
-invalid_software_config_fail_msg: >-
-  Failed. Please provide valid software_config.json file with
-  cluster_os_type, cluster_os_version, repo_config and repo_config values.
-software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
 password_fail_msg_validation: "Failed to validate credentials file"
 include_credentials_msg: "Failed to include {{ credential_file_path }}"

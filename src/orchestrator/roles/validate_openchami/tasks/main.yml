@@ -26,7 +26,7 @@
 
     - name: Verify SMD API is reachable
       ansible.builtin.uri:
-        url: "{{ openchami_base_url }}/smd/v2/service/ready"
+        url: "{{ openchami_base_url }}/hsm/v2/service/ready"
         method: GET
         status_code: 200
         validate_certs: "{{ openchami_validate_certs | default(true) }}"
@@ -37,29 +37,28 @@
       delay: 5
       until: smd_health.status == 200
 
-    - name: Verify BSS API is reachable
+    - name: Verify boot-service is reachable
       ansible.builtin.uri:
-        url: "{{ openchami_base_url }}/bss/boot/v1/service/status"
+        url: "{{ openchami_base_url }}/boot-service/nodes"
         method: GET
         status_code: 200
         validate_certs: "{{ openchami_validate_certs | default(true) }}"
         headers:
           Authorization: "Bearer {{ openchami_access_token }}"
-      register: bss_health
+      register: boot_service_health
       retries: 3
       delay: 5
-      until: bss_health.status == 200
+      until: boot_service_health.status == 200
 
-    - name: Verify cloud-init-server is reachable
-      ansible.builtin.uri:
-        url: "{{ openchami_base_url }}/cloud-init/"
-        method: GET
-        status_code: 200
-        validate_certs: "{{ openchami_validate_certs | default(true) }}"
-      register: cloudinit_health
+    - name: Verify tokensmith is reachable
+      ansible.builtin.systemd:
+        name: tokensmith.service
+      register: tokensmith_health
+      changed_when: false
+      failed_when: tokensmith_health.status.ActiveState != "active"
       retries: 3
       delay: 5
-      until: cloudinit_health.status == 200
+      until: tokensmith_health.status.ActiveState == "active"
 
     - name: Set openchami_ready fact
       ansible.builtin.set_fact:
@@ -75,5 +74,5 @@
         msg: >-
           OpenCHAMI is not ready for provisioning. Check that all services are
           running and accessible. SMD: {{ smd_health.status | default('N/A') }},
-          BSS: {{ bss_health.status | default('N/A') }},
-          Cloud-Init: {{ cloudinit_health.status | default('N/A') }}.
+          Boot-Service: {{ boot_service_health.status | default('N/A') }},
+          Tokensmith: {{ tokensmith_health.status.ActiveState | default('N/A') }}.
