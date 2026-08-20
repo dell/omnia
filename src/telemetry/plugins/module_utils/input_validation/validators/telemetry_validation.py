@@ -51,6 +51,80 @@ def validate_telemetry_config(
     errors = []
 
     # =========================================================================
+    # L2: Validate cluster_inventory — file existence under telemetry input dir
+    # =========================================================================
+    cluster_inventory = data.get("cluster_inventory", "")
+    if cluster_inventory:
+        # Determine the telemetry input directory
+        # module_utils_base = /path/to/omnia/src/telemetry/plugins/module_utils
+        # telemetry_root = /path/to/omnia/src/telemetry (2 levels up)
+        # telemetry_input_dir = /path/to/omnia/src/telemetry/input
+        telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
+        telemetry_input_dir = os.path.join(telemetry_root, "input")
+
+        # Normalize the cluster_inventory path
+        cluster_inv_path = cluster_inventory.strip()
+
+        # Check if path is absolute or relative
+        if not os.path.isabs(cluster_inv_path):
+            # If relative, prepend telemetry input dir
+            cluster_inv_full_path = os.path.join(telemetry_input_dir, cluster_inv_path)
+        else:
+            cluster_inv_full_path = cluster_inv_path
+
+        # Validate file exists
+        if not os.path.exists(cluster_inv_full_path):
+            # Extract just the filename for the example
+            example_filename = os.path.basename(cluster_inv_path)
+            errors.append(create_error_msg(
+                "cluster_inventory",
+                cluster_inventory,
+                f". Cluster inventory file not found as: {cluster_inv_full_path}. "
+                f"Ensure the file exists under omnia/src/telemetry/input/ directory. "
+                f"Example paths: '/omnia/src/telemetry/input/{example_filename}'"
+            ))
+            logger.error(f"cluster_inventory file not found: {cluster_inv_full_path}")
+        elif not os.path.isfile(cluster_inv_full_path):
+            errors.append(create_error_msg(
+                "cluster_inventory",
+                cluster_inventory,
+                f"cluster_inventory path exists but is not a file: {cluster_inv_full_path}. "
+                f"Provide a valid YAML inventory file path."
+            ))
+            logger.error(f"cluster_inventory is not a file: {cluster_inv_full_path}")
+        else:
+            # Validate it's under the telemetry input directory
+            try:
+                real_inv_path = os.path.realpath(cluster_inv_full_path)
+                real_input_dir = os.path.realpath(telemetry_input_dir)
+
+                if not real_inv_path.startswith(real_input_dir):
+                    errors.append(create_error_msg(
+                        "cluster_inventory",
+                        cluster_inventory,
+                        f"cluster_inventory file must be located under omnia/src/telemetry/input/ directory. "
+                        f"Found: {real_inv_path}, Expected under: {real_input_dir}"
+                    ))
+                    logger.error(f"cluster_inventory not under telemetry input dir: {real_inv_path}")
+                else:
+                    logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
+            except (OSError, ValueError) as e:
+                errors.append(create_error_msg(
+                    "cluster_inventory",
+                    cluster_inventory,
+                    f"Failed to validate cluster_inventory path: {e}"
+                ))
+                logger.error(f"cluster_inventory path validation error: {e}")
+    else:
+        errors.append(create_error_msg(
+            "cluster_inventory",
+            "",
+            "cluster_inventory is required. Provide the path to the Ansible inventory file "
+            "(e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml' or 'orchestrator_inventory.yml')"
+        ))
+        logger.error("cluster_inventory is empty or not provided")
+
+    # =========================================================================
     # L2: Validate kube_vip — IPv4 format + SSH reachability + cluster_mount path
     # =========================================================================
     kube_vip = data.get("kube_vip", "")

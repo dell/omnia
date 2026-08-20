@@ -54,6 +54,34 @@
     mode: '0644'
   register: vector_ome_service_rendered
 
+- name: Render vmagent-vector Deployment (metrics write-buffer)
+  ansible.builtin.template:
+    src: "vmagent-vector-deployment.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml"
+    mode: '0644'
+  when: telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool
+
+- name: Render vmagent-vector Service
+  ansible.builtin.template:
+    src: "vmagent-vector-service.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vmagent-vector-service.yaml"
+    mode: '0644'
+  when: telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool
+
+- name: Render vlagent-vector Deployment (logs write-buffer)
+  ansible.builtin.template:
+    src: "vlagent-vector-deployment.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vlagent-vector-deployment.yaml"
+    mode: '0644'
+  when: telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+
+- name: Render vlagent-vector Service
+  ansible.builtin.template:
+    src: "vlagent-vector-service.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vlagent-vector-service.yaml"
+    mode: '0644'
+  when: telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+
 - name: Display Vector-OME template generation summary
   ansible.builtin.debug:
     msg: >

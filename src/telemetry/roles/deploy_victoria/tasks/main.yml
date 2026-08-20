@@ -35,14 +35,8 @@
   ansible.builtin.set_fact:
     victoria_enabled: >-
       {{
-        (telemetry_config.telemetry_sources | dict2items
-         | selectattr('value.metrics_enabled', 'defined')
-         | selectattr('value.metrics_enabled', 'equalto', true)
-         | selectattr('value.collection_targets', 'defined')
-         | map(attribute='value.collection_targets')
-         | flatten
-         | select('in', ['victoria_metrics', 'victoria_logs'])
-         | list | length > 0)
+        (hostvars['localhost']['victoria_metrics_support'] | default(false) | bool) or
+        (hostvars['localhost']['victoria_logs_support'] | default(false) | bool)
       }}
   when: telemetry_config is defined
 

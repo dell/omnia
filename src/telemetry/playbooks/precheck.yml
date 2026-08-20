@@ -40,6 +40,11 @@
 #     8. All pods (outside telemetry namespace) are Running or Succeeded
 #     9. [Conditional] isilon namespace exists and all its pods are Running
 #          — only when powerscale.metrics_enabled or powerscale.logs_enabled = true
+#    10. [Conditional] LDMS Slurm cluster validation:
+#          - At least 1 slurm_control_node and 1 slurm_node in cluster inventory
+#          - slurmctld running on all slurm_control_node hosts
+#          - slurmd running on all slurm_node hosts
+#          — only when ldms.metrics_enabled = true
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -102,6 +107,13 @@
       when: >-
         (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
         (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool)
+
+    - name: Check LDMS Slurm cluster nodes and services
+      ansible.builtin.include_role:
+        name: precheck
+        tasks_from: check_ldms_slurm_nodes
+      when: >-
+        (hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool)
 
     - name: Precheck complete — cluster is ready for telemetry deployment
       ansible.builtin.debug:

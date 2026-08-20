@@ -52,13 +52,6 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Precheck — import before deploy plays so --tags precheck works
-# ---------------------------------------------------------------------------
-- name: "Precheck | Validate telemetry prerequisites"
-  ansible.builtin.import_playbook: playbooks/precheck.yml
-  tags: [precheck]
-
-# ---------------------------------------------------------------------------
 # Validation — L1 + L2 input validation for all 3 telemetry input files
 # ---------------------------------------------------------------------------
 - name: "Validation | Validate telemetry input files"
@@ -66,29 +59,63 @@
   tags: [validate, validation]
 
 # ---------------------------------------------------------------------------
-# Cleanup — tag-based cleanup of telemetry components
+# Precheck — import before deploy plays so --tags precheck works
 # ---------------------------------------------------------------------------
-# When imported with tags: [cleanup], all plays in cleanup.yml inherit the
-# 'cleanup' tag. Each component import also has its own tag (cleanup_kafka,
-# cleanup_victoria_metrics, etc.) so --tags cleanup runs all cleanups while
-# --tags cleanup_kafka runs only Kafka cleanup.
-- name: "Cleanup | Remove telemetry components"
-  ansible.builtin.import_playbook: playbooks/cleanup.yml
-  tags: [cleanup]
+- name: "Precheck | Validate telemetry prerequisites"
+  ansible.builtin.import_playbook: playbooks/precheck.yml
+  tags: [precheck]
 
 # Deploy / Execute: Deploy all telemetry sources
 - name: "Execute | Deploy all telemetry sources"
   ansible.builtin.import_playbook: playbooks/deploy.yml
   tags: [execute, deploy]
 
+# ---------------------------------------------------------------------------
+# Cleanup — tag-based cleanup of telemetry components
+# ---------------------------------------------------------------------------
+# Tagged with 'never' to prevent running by default (only when explicitly
+# called with --tags cleanup or component-specific tags like --tags cleanup_kafka).
+# Each component import in cleanup.yml has its own tag (cleanup_kafka,
+# cleanup_victoria_metrics, etc.) so --tags cleanup runs all cleanups while
+# --tags cleanup_kafka runs only Kafka cleanup.
+- name: "Cleanup | Remove telemetry components"
+  ansible.builtin.import_playbook: playbooks/cleanup.yml
+  tags: [cleanup, never]
+
 # Upgrade: Upgrade telemetry components
+# Tagged with 'never' to prevent running by default (only when explicitly
+# called with --tags upgrade or component-specific upgrade tags).
 - name: "Upgrade | Upgrade telemetry components"
   ansible.builtin.import_playbook: playbooks/upgrade.yml
-  tags: upgrade
-  when: "'upgrade' in ansible_run_tags"
+  tags: [upgrade, never]
 
 # Rollback: Rollback telemetry components
+# Tagged with 'never' to prevent running by default (only when explicitly
+# called with --tags rollback or component-specific rollback tags).
 - name: "Rollback | Rollback telemetry components"
   ansible.builtin.import_playbook: playbooks/rollback.yml
-  tags: rollback
-  when: "'rollback' in ansible_run_tags"
+  tags: [rollback, never]
+
+# ---------------------------------------------------------------------------
+# Summary — Display telemetry status file location
+# ---------------------------------------------------------------------------
+- name: "Summary | Display telemetry deployment status location"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - roles/common/vars/main.yml
+  tags: [deploy, upgrade, rollback]
+  tasks:
+    - name: Display telemetry status file location
+      ansible.builtin.debug:
+        msg:
+          - "╔══════════════════════════════════════════════════════════════════════════╗"
+          - "║              TELEMETRY DEPLOYMENT STATUS                                 ║"
+          - "╚══════════════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Deployment status has been saved to:"
+          - "  {{ playbook_dir }}/output/telemetry_status.yml"
+          - ""
+          - "View the file to see detailed deployment state and results for all components."
+          - ""
+          - "╚══════════════════════════════════════════════════════════════════════════╝"

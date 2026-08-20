@@ -61,24 +61,19 @@
       when:
         - hostvars['localhost']['kafka_support'] | default(false) | bool
 
-    - name: Check if VictoriaMetrics is needed for OME telemetry
-      ansible.builtin.set_fact:
-        victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.ome.collection_targets | default([])) }}"
-      when: telemetry_config is defined
-
     - name: Set victoria_deployment_mode
       ansible.builtin.set_fact:
         victoria_deployment_mode: "cluster"
       when:
-        - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool or
+          hostvars['localhost']['victoria_logs_support'] | default(false) | bool
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed
+    - name: Deploy VictoriaMetrics and VictoriaLogs if needed
       ansible.builtin.include_role:
         name: ../roles/deploy_victoria
       when:
-        - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool or
+          hostvars['localhost']['victoria_logs_support'] | default(false) | bool
 
     - name: Include deploy_ome role
       ansible.builtin.include_role:
