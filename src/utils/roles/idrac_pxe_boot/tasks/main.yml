@@ -88,7 +88,11 @@
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "{{ lc_check_fail_msg }}"
-  when: idrac_status is failed or not (idrac_status.json.LCStatus | lower == "ready")
+  when: >
+    idrac_status is failed or
+    (idrac_status.json is not defined) or
+    (idrac_status.json.LCStatus is not defined) or
+    (idrac_status.json.LCStatus | lower != "ready")
 
 - name: Fail if PXE provisioning failed
   ansible.builtin.set_fact:

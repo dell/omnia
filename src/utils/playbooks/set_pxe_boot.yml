@@ -233,34 +233,68 @@
   gather_facts: false
   tags: [pxe_boot]
   tasks:
-    - name: Build final failure report
-      when: enable_phone_home | default(true) | bool
-      block:
-        - name: Build reverse map of admin IP to BMC IP for reporting
-          ansible.builtin.set_fact:
-            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
-          loop: "{{ groups['bmc'] }}"
-          when: hostvars[item]['admin_ip'] is defined
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+        state: directory
+        mode: "0755"
 
-        - name: Map phone-home failed admin IPs back to BMC IPs
-          ansible.builtin.set_fact:
-            phone_home_failed_bmc_ips: "{{ phone_home_failed_bmc_ips | default([]) + [admin_to_bmc_map[item]] }}"
-          loop: "{{ phone_home_failed_ips | default([]) }}"
-          when: item in admin_to_bmc_map
+    - name: Build reverse map of admin IP to BMC IP for reporting
+      ansible.builtin.set_fact:
+        admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
+      loop: "{{ groups['bmc'] }}"
+      when: hostvars[item]['admin_ip'] is defined
 
-        - name: Report total failures
-          ansible.builtin.debug:
-            msg: >-
-              PXE Boot Summary:
-              - Total nodes: {{ groups['bmc'] | length }}
-              - PXE boot failed: {{ pxe_boot_failed_bmc_ips | default([]) | length }}
-              - Phone-home failed: {{ phone_home_failed_bmc_ips | default([]) | length }}
-              - Success: {{ groups['bmc'] | length - (pxe_boot_failed_bmc_ips | default([]) | length) - (phone_home_failed_bmc_ips | default([]) | length) }}
+    - name: Map phone-home failed admin IPs back to BMC IPs
+      ansible.builtin.set_fact:
+        phone_home_failed_bmc_ips: "{{ phone_home_failed_bmc_ips | default([]) + [admin_to_bmc_map[item]] }}"
+      loop: "{{ phone_home_failed_ips | default([]) }}"
+      when:
+        - enable_phone_home | default(true) | bool
+        - item in admin_to_bmc_map
 
-        - name: Fail if any nodes failed PXE boot or phone-home
-          ansible.builtin.fail:
-            msg: >-
-              Node failures detected.
-              PXE boot failures: {{ pxe_boot_failed_bmc_ips | default([]) | join(', ') or 'none' }}
-              Phone-home failures: {{ phone_home_failed_bmc_ips | default([]) | join(', ') or 'none' }}
-          when: (pxe_boot_failed_bmc_ips | default([]) | length > 0) or (phone_home_failed_bmc_ips | default([]) | length > 0)
+    - name: Build failed nodes list with details
+      ansible.builtin.set_fact:
+        failed_nodes_list: "{{ failed_nodes_list | default([]) + [node_detail] }}"
+      loop: "{{ (pxe_boot_failed_bmc_ips | default([])) + (phone_home_failed_bmc_ips | default([])) }}"
+      vars:
+        node_detail:
+          bmc_ip: "{{ item }}"
+          admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
+          hostname: "{{ hostvars[item].hostname | default('N/A') }}"
+          service_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
+          failure_stage: "{{ 'pxe_boot' if item in (pxe_boot_failed_bmc_ips | default([])) else 'phone_home' }}"
+          status: "failed"
+          error: "{{ hostvars[item].reboot_status | default('Phone-home timeout') }}"
+
+    - name: Write failed_nodes.json output file
+      ansible.builtin.copy:
+        content: "{{ failed_nodes_report | to_nice_json }}"
+        dest: "{{ output_dir }}/failed_nodes.json"
+        mode: "0644"
+      vars:
+        output_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+        failed_nodes_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          total_nodes: "{{ groups['bmc'] | length }}"
+          failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+          success_count: "{{ groups['bmc'] | length - ((failed_nodes_list | default([])) | length) }}"
+          failed_nodes: "{{ failed_nodes_list | default([]) }}"
+
+    - name: Report total failures
+      ansible.builtin.debug:
+        msg: >-
+          PXE Boot Summary:
+          - Total nodes: {{ groups['bmc'] | length }}
+          - PXE boot failed: {{ pxe_boot_failed_bmc_ips | default([]) | length }}
+          - Phone-home failed: {{ phone_home_failed_bmc_ips | default([]) | length }}
+          - Success: {{ groups['bmc'] | length - (pxe_boot_failed_bmc_ips | default([]) | length) - (phone_home_failed_bmc_ips | default([]) | length) }}
+          - Output file: {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}/failed_nodes.json
+
+    - name: Fail if any nodes failed PXE boot or phone-home
+      ansible.builtin.fail:
+        msg: >-
+          Node failures detected.
+          PXE boot failures: {{ pxe_boot_failed_bmc_ips | default([]) | join(', ') or 'none' }}
+          Phone-home failures: {{ phone_home_failed_bmc_ips | default([]) | join(', ') or 'none' }}
+      when: (pxe_boot_failed_bmc_ips | default([]) | length > 0) or (phone_home_failed_bmc_ips | default([]) | length > 0)
