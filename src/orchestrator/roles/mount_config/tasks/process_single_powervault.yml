@@ -27,10 +27,10 @@
 
     - name: Add PowerVault rendered script to each target functional group
       ansible.builtin.set_fact:
-        cloud_init_groups_dict: >-
-          {{ cloud_init_groups_dict | combine({
-            item: (cloud_init_groups_dict[item] | default({}) | combine({
-              'powervault_scripts': (cloud_init_groups_dict[item].powervault_scripts | default([], true)) + [{
+        metadata_svc_groups_dict: >-
+          {{ metadata_svc_groups_dict | combine({
+            item: (metadata_svc_groups_dict[item] | default({}) | combine({
+              'powervault_scripts': (metadata_svc_groups_dict[item].powervault_scripts | default([], true)) + [{
                 'name': pv_item.name,
                 'content': pv_rendered_script
               }]

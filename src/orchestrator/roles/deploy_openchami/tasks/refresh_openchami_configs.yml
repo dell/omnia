@@ -16,6 +16,12 @@
 # This allows network_spec changes (e.g. additional_subnets) to be
 # reapplied on re-runs without triggering a full reinstall.
 
+- name: Set localhost vars on oim host
+  ansible.builtin.set_fact:
+    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+    domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+    dns_enabled: "{{ hostvars['localhost']['dns_enabled'] | default(false) }}"
+
 - name: Include orchestrator_config.yml
   block:
     - name: Include orchestrator_config.yml file
@@ -50,7 +56,7 @@
 - name: Set openchami cluster configuration facts
   ansible.builtin.set_fact:
     cluster_name: "{{ oim_node_name }}"
-    cluster_domain: "{{ domain_name }}"
+    cluster_domain: "{{ domain_name | regex_replace('^' + oim_node_name + '\\.', '') }}"
     cluster_boot_ip: "{{ admin_nic_ip }}"
     cluster_boot_interface: "{{ admin_nic }}"
     cluster_shortname: "nid"

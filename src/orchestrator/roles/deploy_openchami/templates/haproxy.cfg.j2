@@ -1,0 +1,54 @@
+global
+  stats socket /var/run/api.sock user haproxy group haproxy mode 660 level admin expose-fd listeners
+  log stdout format raw local0 info
+  fd-hard-limit 50000
+  ssl-default-bind-options ssl-min-ver TLSv1.3 no-tls-tickets
+
+defaults
+  mode http
+  timeout client 10s
+  timeout connect 5s
+  timeout server 10s
+  timeout http-request 10s
+  log global
+
+frontend stats
+  bind *:8404
+  stats enable
+  stats uri /
+  stats refresh 10s
+
+frontend openchami
+  bind :80
+  bind :443 ssl crt /etc/haproxy/certs/ strict-sni
+  option forwardfor
+
+  acl PATH_smd              path_beg -i /hsm/v2
+  acl PATH_configurator     path_beg -i /configurator /generate
+  acl PATH_boot-service     path_beg -i /boot-service/
+  acl PATH_metadata-service path_beg -i /metadata-service/
+  acl PATH_tokensmith       path_beg -i /tokensmith/
+
+  use_backend smd if PATH_smd
+  use_backend configurator if PATH_configurator
+  use_backend boot-service if PATH_boot-service
+  use_backend metadata-service if PATH_metadata-service
+  use_backend tokensmith if PATH_tokensmith
+
+backend smd
+  server smd smd:27779
+
+backend configurator
+  server configurator configurator:3334 init-addr none
+
+backend boot-service
+  http-request set-path %[path,regsub(^/boot-service/,/)]
+  server boot-service boot-service:8081
+
+backend metadata-service
+  http-request set-path %[path,regsub(^/metadata-service/,/)]
+  server metadata-service metadata-service:8080
+
+backend tokensmith
+  http-request set-path %[path,regsub(^/tokensmith/,/)]
+  server tokensmith tokensmith:8080

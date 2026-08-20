@@ -1,0 +1,99 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Configure boot-service boot params for a single functional group.
+# Extracted from configure_ochami/tasks/configure_boot_svc_group.yml.
+# Called in a loop with fg_name set by the caller.
+# Uses delete-then-set for idempotency.
+
+- name: Set functional_group_name for template compatibility
+  ansible.builtin.set_fact:
+    functional_group_name: "{{ fg_name }}"
+
+- name: Load nodes YAML for boot-service template - {{ fg_name }}
+  ansible.builtin.slurp:
+    src: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+  register: boot_svc_nodes_raw
+
+- name: Set nodes fact for boot-service template - {{ fg_name }}
+  ansible.builtin.set_fact:
+    nodes: "{{ (boot_svc_nodes_raw.content | b64decode | from_yaml).nodes }}"
+
+- name: Set kernel, initrd and image from validated images - {{ fg_name }}
+  ansible.builtin.set_fact:
+    kernel: "{{ validated_images[fg_name].kernel }}"
+    initrd: "{{ validated_images[fg_name].initrd }}"
+    image: "{{ validated_images[fg_name].image | default('') }}"
+
+- name: Create boot directory
+  ansible.builtin.file:
+    path: "{{ boot_svc_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+
+- name: Generate boot-service template - {{ fg_name }}
+  ansible.builtin.template:
+    src: "{{ boot_svc_template }}"
+    dest: "{{ boot_svc_dir }}/boot-svc-{{ fg_name }}.yaml"
+    mode: "{{ file_permissions_644 }}"
+
+- name: Load rendered boot-service config - {{ fg_name }}
+  ansible.builtin.slurp:
+    src: "{{ boot_svc_dir }}/boot-svc-{{ fg_name }}.yaml"
+  register: boot_svc_config_raw
+
+- name: Parse boot-service config YAML - {{ fg_name }}
+  ansible.builtin.set_fact:
+    boot_svc_config: "{{ boot_svc_config_raw.content | b64decode | from_yaml }}"
+
+- name: Find existing boot configuration by name - {{ fg_name }}
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: existing_boot_configs
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Delete existing boot configuration - {{ fg_name }}
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 404]
+    validate_certs: false
+  loop: >-
+    {{ existing_boot_configs.json | default([])
+       | selectattr('metadata.name', 'equalto', fg_name) | list }}
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Add boot configuration - {{ fg_name }}
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ boot_svc_config }}"
+    status_code: [200, 201]
+    validate_certs: false
+  changed_when: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

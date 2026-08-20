@@ -13,14 +13,14 @@
 # limitations under the License.
 ---
 
-# Paths
-omnia_input_dir: /opt/omnia/input
-omnia_output_dir: /opt/omnia/output
-omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
-omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
-upgrade_lock_file: "/opt/omnia/.data/upgrade_in_progress.lock"
-default_build_status_path: "/opt/omnia/output/project_default/image_build_manager/build_status.yml"
-default_repo_status_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+# Paths — resolved from environment variables at runtime (see tasks/main.yml)
+# These defaults are overridden by set_fact in the setup tasks.
+omnia_metadata_file_path: "{{ omnia_data_path | default('/opt/omnia') }}/.data/oim_metadata.yml"
+upgrade_lock_file: "{{ omnia_data_path | default('/opt/omnia') }}/.data/upgrade_in_progress.lock"
+default_build_status_path: >-
+  {{ omnia_data_path | default('/opt/omnia') }}/image_build_manager/output/{{ project_name | default('project_default') }}/build_status.yml
+default_repo_status_path: "{{ omnia_data_path | default('/opt/omnia') }}/repo_manager/output/{{ project_name | default('project_default') }}/repo_status.yml"
+default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path | default('/opt/omnia') + '/catalog/catalog_rhel.json', true) }}"
 
 # --- Tag validation ---
 supported_tags:
@@ -50,12 +50,6 @@ oim_host_port: "22"
 oim_host_group: "oim"
 
 # Error messages
-omnia_input_config_syntax_fail_msg: |
-  "Unable to load the Omnia project configuration file at {{ omnia_input_config_file }}.
-  Please ensure the file exists and has valid YAML syntax before re-running the playbook."
-project_dir_not_exist_fail_msg: |
-  "The project directory at {{ input_project_dir }} does not exist.
-  Please ensure the directory exists before re-running the playbook."
 upgrade_in_progress_msg: >-
   Upgrade is not completed fully.
   Please run upgrade.yml to complete upgrade before running any other playbook using the below command:

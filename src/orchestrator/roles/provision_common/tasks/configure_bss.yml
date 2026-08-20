@@ -21,15 +21,6 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
 
-- name: Compute naming suffix for image - {{ fg_name }}
-  ansible.builtin.set_fact:
-    naming_suffix: >-
-      {{ '_omnia_' + hostvars['localhost']['oim_metadata']['omnia_version']
-         if hostvars['localhost']['oim_metadata']['omnia_version'] | default('') | length > 0
-         else '' }}{{ '_k8s_' + hostvars['localhost']['service_k8s_version']
-         if (fg_name is match('service_kube_')) and (hostvars['localhost']['service_k8s_version'] | default('') | length > 0)
-         else '' }}
-
 - name: Set kernel and initrd from validated images - {{ fg_name }}
   ansible.builtin.set_fact:
     kernel: "{{ validated_images[fg_name].kernel }}"
