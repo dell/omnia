@@ -26,3 +26,150 @@ precheck_ssh_timeout: 10
 
 precheck_ping_count: 3
 precheck_ping_timeout: 5
+
+# =============================================================================
+# LDMS Slurm Validation Messages
+# =============================================================================
+
+ldms_error_messages:
+  file_not_found: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS VALIDATION FAILED: Cluster inventory file not found
+    ════════════════════════════════════════════════════════════════════════
+    LDMS telemetry is enabled (ldms.metrics_enabled: true) but the cluster
+    inventory file specified in telemetry_config.yml does not exist.
+
+    Configured value : {{ cluster_inventory_configured }}
+    Resolved path    : {{ cluster_inventory_resolved }}
+
+    Action required:
+      1. Verify cluster_inventory value in telemetry_config.yml
+      2. Ensure the inventory file exists under omnia/src/telemetry/input/
+      3. File must be a valid Ansible YAML inventory
+    ════════════════════════════════════════════════════════════════════════
+
+  invalid_yaml: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS VALIDATION FAILED: Invalid cluster inventory file
+    ════════════════════════════════════════════════════════════════════════
+    The cluster inventory file could not be parsed as valid YAML.
+
+    File path    : {{ cluster_inventory_resolved }}
+    Parse error  : {{ parse_error }}
+
+    Action required:
+      1. Verify the inventory file is valid YAML
+      2. Run: python3 -c "import yaml; yaml.safe_load(open('{{ cluster_inventory_resolved }}'))"
+    ════════════════════════════════════════════════════════════════════════
+
+  no_control_nodes: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS VALIDATION FAILED: No Slurm control nodes found
+    ════════════════════════════════════════════════════════════════════════
+    LDMS telemetry is enabled (ldms.metrics_enabled: true) but no Slurm
+    control nodes are defined in the cluster inventory.
+
+    Required: At least 1 host in 'slurm_control_node' group
+    Found: {{ control_node_count }} hosts
+
+    Action required:
+      1. Add Slurm control node(s) to cluster inventory under 'slurm_control_node' group
+      2. Ensure the inventory file path is correct in telemetry_config.yml:
+         cluster_inventory: {{ cluster_inventory_configured }}
+
+    Example inventory structure:
+      all:
+        children:
+          slurm_control_node:
+            hosts:
+              slurm-ctrl:
+                ansible_host: 172.10.0.20
+    ════════════════════════════════════════════════════════════════════════
+
+  no_compute_nodes: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS VALIDATION FAILED: No Slurm compute nodes found
+    ════════════════════════════════════════════════════════════════════════
+    LDMS telemetry is enabled (ldms.metrics_enabled: true) but no Slurm
+    compute nodes are defined in the cluster inventory.
+
+    Required: At least 1 host in 'slurm_node' group
+    Found: {{ compute_node_count }} hosts
+
+    Action required:
+      1. Add Slurm compute node(s) to cluster inventory under 'slurm_node' group
+      2. Ensure the inventory file path is correct in telemetry_config.yml:
+         cluster_inventory: {{ cluster_inventory_configured }}
+
+    Example inventory structure:
+      all:
+        children:
+          slurm_node:
+            hosts:
+              compute-node-1:
+                ansible_host: 172.10.0.21
+              compute-node-2:
+                ansible_host: 172.10.0.22
+    ════════════════════════════════════════════════════════════════════════
+
+  slurmctld_not_running: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS VALIDATION FAILED: slurmctld not running on control node
+    ════════════════════════════════════════════════════════════════════════
+    Node: {{ node_name }} ({{ node_ip }})
+    Service: slurmctld
+    Status: {{ service_status }}
+
+    LDMS requires slurmctld to be running on all Slurm control nodes.
+
+    Action required:
+      1. Start slurmctld service:
+         systemctl start slurmctld
+      2. Enable slurmctld to start on boot:
+         systemctl enable slurmctld
+      3. Verify service status:
+         systemctl status slurmctld
+    ════════════════════════════════════════════════════════════════════════
+
+  slurmd_not_running: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS VALIDATION FAILED: slurmd not running on compute nodes
+    ════════════════════════════════════════════════════════════════════════
+    LDMS requires slurmd to be running on all Slurm compute nodes.
+
+    Failed nodes ({{ failed_count }}/{{ total_count }}):
+    {% for node in failed_nodes %}
+      - {{ node.key }} ({{ node.value.ansible_host }})
+    {% endfor %}
+
+    Action required for each failed node:
+      1. Start slurmd service:
+         systemctl start slurmd
+      2. Enable slurmd to start on boot:
+         systemctl enable slurmd
+      3. Verify service status:
+         systemctl status slurmd
+      4. Check Slurm configuration:
+         scontrol show node <nodename>
+    ════════════════════════════════════════════════════════════════════════
+
+ldms_success_messages:
+  inventory_summary: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS Slurm Cluster Inventory Summary
+    ════════════════════════════════════════════════════════════════════════
+    Slurm control nodes : {{ control_count }}
+    Slurm compute nodes : {{ compute_count }}
+    Slurm login nodes   : {{ login_count }}
+    Slurm login compiler: {{ login_compiler_count }}
+    Total nodes to check: {{ total_count }}
+    ════════════════════════════════════════════════════════════════════════
+
+  validation_passed: |
+    ════════════════════════════════════════════════════════════════════════
+    LDMS Slurm Validation — PASSED
+    ════════════════════════════════════════════════════════════════════════
+    ✓ Slurm control nodes: {{ control_count }} (slurmctld running)
+    ✓ Slurm compute nodes: {{ compute_count }} (slurmd running)
+    ✓ Cluster is ready for LDMS telemetry deployment
+    ════════════════════════════════════════════════════════════════════════
