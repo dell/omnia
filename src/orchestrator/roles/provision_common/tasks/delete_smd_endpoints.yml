@@ -29,3 +29,103 @@
   ansible.builtin.command: /usr/bin/ochami smd iface delete --no-confirm --all
   changed_when: true
   failed_when: false
+
+- name: Fetch existing boot configurations
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: existing_boot_configs
+  failed_when: false
+
+- name: Delete existing boot configurations
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: "{{ existing_boot_configs.json | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when: existing_boot_configs.json | default([]) | length > 0
+
+- name: Fetch existing metadata-service instanceinfos
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: existing_instanceinfos
+  failed_when: false
+
+- name: Delete existing metadata-service instanceinfos
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: "{{ existing_instanceinfos.json | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when: existing_instanceinfos.json | default([]) | length > 0
+
+- name: Fetch existing metadata-service groups
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: existing_groups
+  failed_when: false
+
+- name: Delete existing metadata-service groups
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: "{{ existing_groups.json | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when: existing_groups.json | default([]) | length > 0
+
+- name: Fetch existing metadata-service clusterdefaults
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: existing_clusterdefaults
+  failed_when: false
+
+- name: Delete existing metadata-service clusterdefaults
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: "{{ existing_clusterdefaults.json | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when: existing_clusterdefaults.json | default([]) | length > 0

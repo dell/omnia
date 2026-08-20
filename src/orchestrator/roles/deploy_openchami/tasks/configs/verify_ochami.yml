@@ -39,24 +39,20 @@
       ansible.builtin.debug:
         msg: "{{ openchami_dependencies.stdout_lines }}"
 
-    - name: Verify ochami bss status
-      ansible.builtin.command:
-        ochami bss service status
-      register: openchami_bss_status
-      until: openchami_bss_status.rc == 0
+    - name: Verify boot-service is active
+      ansible.builtin.systemd:
+        name: boot-service.service
+      register: openchami_boot_service_status
+      until: openchami_boot_service_status.status.ActiveState == "active"
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
       changed_when: false
       failed_when: false
 
-    - name: Fail if ochami bss status check failed
+    - name: Fail if boot-service is not running
       ansible.builtin.fail:
-        msg: "ochami bss service is not running after {{ max_retries }} retries. {{ openchami_bss_status.stderr | default('') }}"
-      when: openchami_bss_status.rc != 0
-
-    - name: Openchami bss status output
-      ansible.builtin.debug:
-        msg: "{{ openchami_bss_status.stdout_lines }}"
+        msg: "boot-service is not running after {{ max_retries }} retries."
+      when: openchami_boot_service_status.status.ActiveState != "active"
 
     - name: Verify ochami smd status
       ansible.builtin.command:

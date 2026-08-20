@@ -1,0 +1,49 @@
+# {{ ansible_managed }}
+# slapd.conf — OpenLDAP server configuration for omnia_auth container
+
+include     /etc/openldap/schema/core.schema
+include     /etc/openldap/schema/cosine.schema
+include     /etc/openldap/schema/inetorgperson.schema
+include     /etc/openldap/schema/nis.schema
+
+pidfile     /run/openldap/slapd.pid
+argsfile    /run/openldap/slapd.args
+
+{% if ldap_connection_type | lower == 'tls' %}
+# TLS configuration (STARTTLS on port 389)
+TLSCACertificateFile  /etc/openldap/certs/{{ tls_cert_file }}
+TLSCertificateFile    /etc/openldap/certs/{{ tls_cert_file }}
+TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
+{% elif ldap_connection_type | lower == 'ssl' %}
+# SSL configuration (LDAPS on port 636)
+TLSCACertificateFile  /etc/openldap/certs/{{ tls_cert_file }}
+TLSCertificateFile    /etc/openldap/certs/{{ tls_cert_file }}
+TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
+{% endif %}
+
+# MDB backend
+database    mdb
+maxsize     1073741824
+suffix      "{{ ldap_search_base }}"
+rootdn      "cn={{ openldap_db_username }},{{ ldap_search_base }}"
+rootpw      {{ openldap_db_password }}
+
+directory   /var/lib/openldap/openldap-data
+
+# Indices for common queries
+index   objectClass eq
+index   uid         eq
+index   cn          eq
+index   gidNumber   eq
+index   uidNumber   eq
+index   memberUid   eq
+
+# ACL: allow rootdn full access, users can read/auth
+access to attrs=userPassword
+    by self write
+    by anonymous auth
+    by * none
+
+access to *
+    by self write
+    by * read

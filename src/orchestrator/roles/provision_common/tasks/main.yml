@@ -40,52 +40,74 @@
     - name: Fetch additional images
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/fetch_additional_images.yml"
 
-    - name: Validate additional cloud-init configuration
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_cloud_init.yml"
+    - name: Validate additional metadata-service configuration
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_metadata_svc.yml"
 
-    - name: Create SMD group for additional_cloud_init common
+    - name: Create SMD group for additional_metadata_svc common
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_common.yml"
       loop:
-        - "{{ additional_cloud_init_common_group_name }}"
-      when: additional_cloud_init_common_enabled | default(false) | bool
+        - "{{ additional_metadata_svc_common_group_name }}"
+      when: additional_metadata_svc_common_enabled | default(false) | bool
 
-    - name: Create SMD groups for per-FG additional cloud-init
+    - name: Create SMD groups for per-FG additional metadata-service
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_additional_fg.yml"
-      with_items: "{{ additional_cloud_init_fg_names | default([]) }}"
-      when: additional_cloud_init_groups_enabled | default(false) | bool
+      with_items: "{{ additional_metadata_svc_fg_names | default([]) }}"
+      when: additional_metadata_svc_groups_enabled | default(false) | bool
 
-    - name: Delete BSS boot params for target nodes
-      ansible.builtin.command: >
-        /usr/bin/ochami bss boot params delete --no-confirm
-        -d '{"macs":["{{ item }}"]}'
-      changed_when: false
-      failed_when: false
-      with_items: >-
-        {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-           | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
-           | map(attribute='value.ADMIN_MAC') | list }}
+    - name: Fetch existing boot configurations for cleanup
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: existing_boot_configs_cleanup
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Configure BSS boot params for each functional group
-      ansible.builtin.include_tasks: configure_bss.yml
+    - name: Delete boot configurations matching target functional groups
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
+        method: DELETE
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200, 404]
+        validate_certs: false
+      loop: >-
+        {{ existing_boot_configs_cleanup.json | default([])
+           | selectattr('metadata.name', 'in', target_fg_names) | list }}
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      failed_when: false
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Configure boot-service boot params for each functional group
+      ansible.builtin.include_tasks: configure_boot_svc.yml
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
 
-    - name: Verify boot params set
-      ansible.builtin.command: ochami bss boot params get -F yaml
-      changed_when: false
-      register: boot_params_output
+    - name: Verify boot configurations set
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: boot_configs_output
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Display boot params
+    - name: Display boot configurations
       ansible.builtin.debug:
-        msg: "{{ boot_params_output.stdout_lines }}"
+        msg: "{{ boot_configs_output.json | default([]) | map(attribute='metadata.name') | list }}"
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Create cloud-init directory
+    - name: Create metadata-service directory
       ansible.builtin.file:
-        path: "{{ cloud_init_dir }}"
+        path: "{{ metadata_svc_dir }}"
         state: directory
         mode: "{{ dir_permissions_755 }}"
 
@@ -107,36 +129,91 @@
       register: hashed_password_output
       no_log: true
 
-    - name: Render cloud-init defaults template
+    - name: Render metadata-service defaults template
       ansible.builtin.template:
-        src: "{{ ci_defaults_template }}"
-        dest: "{{ ci_defaults_dest }}"
+        src: "{{ ms_defaults_template }}"
+        dest: "{{ ms_defaults_dest }}"
         mode: "{{ file_permissions_644 }}"
 
-    - name: Set cloud-init defaults configuration
-      ansible.builtin.command: /usr/bin/ochami cloud-init defaults set -f yaml -d @{{ ci_defaults_dest }}
-      changed_when: true
+    - name: Load rendered metadata-service defaults
+      ansible.builtin.slurp:
+        src: "{{ ms_defaults_dest }}"
+      register: ms_defaults_raw
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Configure cloud-init common group
-      ansible.builtin.include_tasks: configure_cloud_init_common.yml
+    - name: Parse metadata-service defaults YAML
+      ansible.builtin.set_fact:
+        ms_defaults_data: "{{ ms_defaults_raw.content | b64decode | from_yaml }}"
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Configure cloud-init for each functional group
-      ansible.builtin.include_tasks: configure_cloud_init.yml
+    - name: Set metadata-service defaults via metadata-service API
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          metadata:
+            name: "{{ cluster_name }}-defaults"
+          spec:
+            description: "Cluster defaults for {{ cluster_name }}"
+            base_url: "{{ ms_defaults_data['base_url'] | default('') }}"
+            cluster_name: "{{ ms_defaults_data['cluster_name'] | default(cluster_name) }}"
+            short_name: "{{ ms_defaults_data['short_name'] | default(cluster_shortname) }}"
+            nid_length: "{{ ms_defaults_data['nid_length'] | default(cluster_nidlength) | int }}"
+            public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
+            cloud_provider: "OpenCHAMI"
+        status_code: [200, 201, 409]
+        validate_certs: false
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Configure metadata-service common group
+      ansible.builtin.include_tasks: configure_metadata_svc_common.yml
+
+    - name: Configure metadata-service for each functional group
+      ansible.builtin.include_tasks: configure_metadata_svc.yml
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
 
-    - name: Re-apply per-node hostname data into cloud-init-server
-      ansible.builtin.command: >
-        /usr/bin/ochami cloud-init node set -f yaml
-        -d @"{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
-      changed_when: true
+    - name: Load hostname YAML for re-apply
+      ansible.builtin.slurp:
+        src: "{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
+      register: reapply_hostname_raw
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Configure additional cloud-init
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_cloud_init_additional.yml"
-      when: additional_cloud_init_enabled | default(false) | bool
+    - name: Parse hostname entries for re-apply
+      ansible.builtin.set_fact:
+        reapply_hostname_entries: "{{ reapply_hostname_raw.content | b64decode | from_yaml }}"
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Re-apply per-node hostname data into metadata-service
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          metadata:
+            name: "{{ item.id }}"
+          spec:
+            instance_id: "{{ item.id }}"
+            hostname: "{{ item['local-hostname'] }}"
+            local_hostname: "{{ item['local-hostname'] }}"
+        status_code: [200, 201, 409]
+        validate_certs: false
+      loop: "{{ reapply_hostname_entries | default([]) }}"
+      loop_control:
+        label: "{{ item.id }}"
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Configure additional metadata-service
+      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_metadata_svc_additional.yml"
+      when: additional_metadata_svc_enabled | default(false) | bool
 
     - name: Final SELinux context for generated files
       ansible.builtin.include_tasks: set_selinux_context.yml

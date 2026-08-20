@@ -16,17 +16,10 @@
 - name: Configure the ochami
   environment: "{{ hostvars['oim']['ochami_env'] }}"
   block:
-    - name: Set openchami SELinux context for Local flow
+    - name: Set openchami SELinux context
       ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
       changed_when: true
       failed_when: false
-      when: hostvars['localhost']['omnia_share_option'] == 'Local'
-
-    - name: Set openchami SELinux context for NFS internal flow
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
-      changed_when: true
-      failed_when: false
-      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
 
     - name: Include openchami vars
       ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
@@ -44,12 +37,6 @@
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
       vars:
         nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
-
-    - name: Create telemetry directory
-      ansible.builtin.file:
-        path: "{{ telemetry_share_path }}"
-        state: directory
-        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
     - name: Create orchestrator output directory on OIM
       ansible.builtin.file:
@@ -155,30 +142,33 @@
     - name: Delete smd configuration
       ansible.builtin.include_tasks: delete_smd_config.yml
 
-    - name: Restart the cloud-init service to refresh node instance data
+    - name: Restart the metadata-service to refresh node instance data
       ansible.builtin.systemd:
-        name: cloud-init-server
+        name: metadata-service
         state: restarted
         daemon_reload: true
 
-    - name: Check if cloud-init-server is running
+    - name: Check if metadata-service is running
       ansible.builtin.systemd:
-        name: cloud-init-server
+        name: metadata-service
         state: started
-      register: cloud_init_server_status
+      register: metadata_svc_server_status
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"
-      until: cloud_init_server_status is success
+      until: metadata_svc_server_status is success
 
-    - name: Verify cloud-init-server is reachable
+    - name: Verify metadata-service is reachable
       block:
-        - name: Wait for cloud-init-server to be ready
-          ansible.builtin.command: /usr/bin/ochami cloud-init service status
-          register: cloud_init_status
+        - name: Wait for metadata-service readiness
+          ansible.builtin.uri:
+            url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
+            method: GET
+            status_code: 200
+            validate_certs: false
+          register: metadata_svc_health_status
           retries: "{{ service_retries }}"
           delay: "{{ service_retry_interval }}"
-          until: cloud_init_status.rc == 0
-          changed_when: false
+          until: metadata_svc_health_status.status == 200
       rescue:
         - name: Restart openchami.target to recover container networking
           ansible.builtin.systemd:
@@ -195,19 +185,22 @@
           delay: "{{ service_retry_interval }}"
           until: openchami_target_recovery is success
 
-        - name: Retry cloud-init-server readiness check after openchami restart
-          ansible.builtin.command: /usr/bin/ochami cloud-init service status
-          register: cloud_init_status
+        - name: Retry metadata-service readiness check after openchami restart
+          ansible.builtin.uri:
+            url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
+            method: GET
+            status_code: 200
+            validate_certs: false
+          register: metadata_svc_health_status
           retries: "{{ service_retries }}"
           delay: "{{ service_retry_interval }}"
-          until: cloud_init_status.rc == 0
+          until: metadata_svc_health_status.status == 200
           failed_when: false
-          changed_when: false
 
-        - name: Fail if cloud-init-server is still not reachable
+        - name: Fail if metadata-service is still not reachable
           ansible.builtin.fail:
-            msg: "{{ cloud_init_failed_msg }}"
-          when: cloud_init_status.rc != 0
+            msg: "{{ metadata_svc_failed_msg }}"
+          when: metadata_svc_health_status.status | default(0) != 200
 
     - name: Check whether openchami.target is up
       ansible.builtin.systemd:
@@ -291,11 +284,37 @@
       vars:
         nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
 
-    - name: Configure the hostname
-      ansible.builtin.command: /usr/bin/ochami cloud-init node set -f yaml -d @"{{ openchami_hostname_vars_path }}"
-      changed_when: true
+    - name: Load hostname YAML for metadata-service
+      ansible.builtin.slurp:
+        src: "{{ openchami_hostname_vars_path }}"
+      register: hostname_yaml_raw
 
-    - name: Create cloud-init groups dict
+    - name: Parse hostname entries
       ansible.builtin.set_fact:
-        cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: {}}) }}"
+        hostname_entries: "{{ hostname_yaml_raw.content | b64decode | from_yaml }}"
+
+    - name: Configure hostnames in metadata-service
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          metadata:
+            name: "{{ item.id }}"
+          spec:
+            instance_id: "{{ item.id }}"
+            hostname: "{{ item['local-hostname'] }}"
+            local_hostname: "{{ item['local-hostname'] }}"
+        status_code: [200, 201, 409]
+        validate_certs: false
+      loop: "{{ hostname_entries }}"
+      loop_control:
+        label: "{{ item.id }}"
+
+    - name: Create metadata-service groups dict
+      ansible.builtin.set_fact:
+        metadata_svc_groups_dict: "{{ metadata_svc_groups_dict | default({}) | combine({item: {}}) }}"
       with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"

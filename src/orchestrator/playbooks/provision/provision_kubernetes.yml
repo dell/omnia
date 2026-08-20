@@ -1,0 +1,84 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Provision Kubernetes — Register K8s FGs, configure BSS/metadata-service, run bolt-ons
+# Can be run standalone (after provision_preamble.yml) or imported by orchestrator.yml
+#
+# Prerequisites: provision_preamble.yml must have run first.
+
+- name: Provision Kubernetes cluster
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars:
+    target_category: kubernetes
+  pre_tasks:
+    - name: Load orchestrator state
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/.data') }}/orchestrator_state.yml"
+
+    - name: Load functional groups configuration
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+
+    - name: Load classification rules
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/vars/functional_group_classification.yml"
+
+    - name: Filter functional groups for kubernetes category
+      ansible.builtin.set_fact:
+        target_functional_groups: >-
+          {{ functional_groups
+             | selectattr('name', 'match', '^service_kube_')
+             | list }}
+
+    - name: Skip message when no kubernetes FGs found
+      ansible.builtin.debug:
+        msg: "No functional groups match kubernetes category. Skipping."
+      when: target_functional_groups | length == 0
+
+  roles:
+    - role: omnia.orchestrator.provision_common
+      when: target_functional_groups | length > 0
+
+  tasks:
+    - name: Run kubernetes bolt-on services
+      when:
+        - target_functional_groups | length > 0
+        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      block:
+        - name: Load bolt-on configuration
+          ansible.builtin.set_fact:
+            category_bolt_ons: >-
+              {{ (omnia_config | default({})).get('orchestrator', {}).get('bolt_ons', {}).get('kubernetes',
+                 default_bolt_ons.kubernetes) }}
+
+        - name: Configure mounts
+          ansible.builtin.include_role:
+            name: omnia.orchestrator.mount_config
+          when: "'mount_config' in category_bolt_ons"
+
+        - name: Configure Kubernetes
+          ansible.builtin.include_role:
+            name: omnia.orchestrator.k8s_config
+          when: "'k8s_config' in category_bolt_ons"
+
+
+        - name: Configure OpenLDAP
+          ansible.builtin.include_role:
+            name: omnia.orchestrator.openldap
+          when:
+            - "'openldap' in category_bolt_ons"
+            - openldap_support | default(false) | bool

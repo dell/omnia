@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# Process a single swap entry and add to cloud_init_groups_dict
+# Process a single swap entry and add to metadata_svc_groups_dict
 # Validates swap configuration and determines target functional groups
 
 - name: Process swap entry
@@ -44,10 +44,10 @@
 
     - name: Add swap entry to each target functional group
       ansible.builtin.set_fact:
-        cloud_init_groups_dict: >-
+        metadata_svc_groups_dict: >-
           {{
-            cloud_init_groups_dict | combine({
-              item: (cloud_init_groups_dict[item] | default({}) | combine({
+            metadata_svc_groups_dict | combine({
+              item: (metadata_svc_groups_dict[item] | default({}) | combine({
                 'swap': swap_config_entry
               }, recursive=True))
             }, recursive=True)

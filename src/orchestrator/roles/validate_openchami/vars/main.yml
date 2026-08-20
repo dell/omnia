@@ -1,0 +1,5 @@
+---
+# Variables for validate_openchami role
+# Uses cluster_name and cluster_domain facts set by deploy_openchami/refresh_openchami_configs.yml
+openchami_base_url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
+openchami_validate_certs: false

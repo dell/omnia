@@ -28,9 +28,9 @@
         resolved_mount_profile: {}
       when: mount_item.mount_params is not defined or mount_item.mount_params not in mount_params
 
-    - name: Build cloud-init mount array with explicit values taking priority
+    - name: Build metadata-service mount array with explicit values taking priority
       ansible.builtin.set_fact:
-        cloud_init_mount_array:
+        metadata_svc_mount_array:
           - "{{ mount_item.source }}"
           - "{{ mount_item.mount_point }}"
           - "{{ mount_item.fs_type | default(resolved_mount_profile.fs_type | default('auto')) }}"
@@ -38,10 +38,10 @@
           - "{{ mount_item.dump_freq | default(resolved_mount_profile.dump_freq | default('0')) }}"
           - "{{ mount_item.fsck_pass | default(resolved_mount_profile.fsck_pass | default('0')) }}"
 
-    - name: Add runcmd entries for this mount from cloud_init_mount_array
+    - name: Add runcmd entries for this mount from metadata_svc_mount_array
       ansible.builtin.set_fact:
         single_mnt_runcmd: >-
-          {{ single_mnt_runcmd + ['mkdir -pv ' + mount_item.mount_point] + ['echo "' + cloud_init_mount_array | join('
+          {{ single_mnt_runcmd + ['mkdir -pv ' + mount_item.mount_point] + ['echo "' + metadata_svc_mount_array | join('
           ') + '" >> /etc/fstab'] }}
 
     - name: Add permission runcmd entries if permissions specified
@@ -72,10 +72,10 @@
     - name: Add node_key bind mount runcmd entries if node_key specified
       when: mount_item.node_key is defined and mount_item.node_mount_point is defined
       block:
-        - name: Map node_key to cloud-init metadata variable
+        - name: Map node_key to metadata-service metadata variable
           ansible.builtin.set_fact:
-            # ci_data_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
-            ci_data_var: "$(cloud-init query {{ ci_ds_dict.get(mount_item.node_key | default('local_hostname')) }})"
+            # ms_data_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
+            ms_data_var: "$(cloud-init query {{ ms_ds_dict.get(mount_item.node_key | default('local_hostname')) }})"
 
         - name: Normalize node_mount_point to list
           ansible.builtin.set_fact:
@@ -91,9 +91,9 @@
             bind_fstab_runcmds: >-
               {{
                 ((bind_fstab_runcmds | default([])) + [
-                  (('mkdir -pv ' ~ mount_item.mount_point ~ '/' ~ ci_data_var ~ item)),
+                  (('mkdir -pv ' ~ mount_item.mount_point ~ '/' ~ ms_data_var ~ item)),
                   (('mkdir -pv ' ~ item)),
-                  (('echo "' ~ mount_item.mount_point ~ '/' ~ ci_data_var ~ item ~ ' ' ~ item ~ ' none bind,_netdev 0 0" >> /etc/fstab')),
+                  (('echo "' ~ mount_item.mount_point ~ '/' ~ ms_data_var ~ item ~ ' ' ~ item ~ ' none bind,_netdev 0 0" >> /etc/fstab')),
                   (('mount -av'))
                 ])
               }}
@@ -111,10 +111,10 @@
 
     - name: Add bind fstab commands to each target functional group (runcmd)
       ansible.builtin.set_fact:
-        cloud_init_groups_dict: >-
-          {{ cloud_init_groups_dict | combine({
-                item: (cloud_init_groups_dict[item] | default({}) | combine({
-                  'runcmd': (cloud_init_groups_dict[item].runcmd | default([])) + single_mnt_runcmd
+        metadata_svc_groups_dict: >-
+          {{ metadata_svc_groups_dict | combine({
+                item: (metadata_svc_groups_dict[item] | default({}) | combine({
+                  'runcmd': (metadata_svc_groups_dict[item].runcmd | default([])) + single_mnt_runcmd
                 }, recursive=True))
               }, recursive=True) }}
       loop: "{{ target_functional_groups }}"
@@ -137,7 +137,7 @@
               {{
                 host_mount_map | combine({
                   item: (host_mount_map[item] | default({}) | combine({
-                    'mounts': (host_mount_map[item].mounts | default([])) + [cloud_init_mount_array]
+                    'mounts': (host_mount_map[item].mounts | default([])) + [metadata_svc_mount_array]
                   }, recursive=True))
                 })
               }}
@@ -178,25 +178,25 @@
         - name: Add node_key runcmd entries to host_mount_map if node_key specified
           when: mount_item.node_key is defined and mount_item.node_mount_point is defined
           block:
-            - name: Map node_key to cloud-init metadata variable
+            - name: Map node_key to metadata-service metadata variable
               ansible.builtin.set_fact:
-                # host_cloud_init_node_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
-                host_cloud_init_node_var: "$(cloud-init query {{ ci_ds_dict.get(mount_item.node_key | default('local_hostname')) }})"
+                # host_metadata_svc_node_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
+                host_metadata_svc_node_var: "$(cloud-init query {{ ms_ds_dict.get(mount_item.node_key | default('local_hostname')) }})"
 
             - name: Concat the mount point with the node variable
               ansible.builtin.set_fact:
-                host_cloud_init_node_mount_point: "{{ mount_item.mount_point }}/{{ host_cloud_init_node_var }}"
+                host_metadata_svc_node_mount_point: "{{ mount_item.mount_point }}/{{ host_metadata_svc_node_var }}"
 
             - name: Build runcmd to create node-specific subdirectory and mount points
               ansible.builtin.set_fact:
                 host_node_mount_runcmds: >-
                   {{
                     [
-                      ('mkdir -pv ' ~ host_cloud_init_node_mount_point)
+                      ('mkdir -pv ' ~ host_metadata_svc_node_mount_point)
                     ] +
                     (
                       mount_item.node_mount_point | map('regex_replace', '^/(.*)$',
-                        'mkdir -pv ' ~ host_cloud_init_node_mount_point ~ '/\1'
+                        'mkdir -pv ' ~ host_metadata_svc_node_mount_point ~ '/\1'
                       ) | list
                       +
                       (
@@ -207,7 +207,7 @@
                       +
                       (
                         mount_item.node_mount_point | map('regex_replace', '^/(.*)$',
-                          'echo "' ~ host_cloud_init_node_mount_point ~ '/\1 /\1 none bind,_netdev 0 0" >> /etc/fstab'
+                          'echo "' ~ host_metadata_svc_node_mount_point ~ '/\1 /\1 none bind,_netdev 0 0" >> /etc/fstab'
                         ) | list
                       )
                     )
