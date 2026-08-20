@@ -16,15 +16,19 @@
 # This output file is consumed by the provision domain for BSS template
 # rendering (S3 paths for kernel, initrd, image per functional group).
 #
-# Expected build_completed_images structure (populated by image_creation role):
+# Expected build_completed_images structure (populated by main.yml):
 #   { "x86_64": [
 #       { "functional_group": "slurm_control_node_x86_64",
-#         "kernel": "boot-images/efi-images/.../vmlinuz",
-#         "initrd": "boot-images/efi-images/.../initramfs.img",
-#         "image": "boot-images/.../rhel-..." }
+#         "kernel": "boot-images/efi-images/.../vmlinuz-6.12.0-55.94.1.el10_0.x86_64",
+#         "initrd": "boot-images/efi-images/.../initramfs-6.12.0-55.94.1.el10_0.x86_64.img",
+#         "image": "boot-images/.../rhel-.../rhel10.0-rhel-...-imgbld-10.0" }
 #     ],
 #     "aarch64": [ ... ]
 #   }
+# NOTE: All artifact filenames (kernel, initrd, rootfs image) are discovered
+# via s3cmd ls after each build (see main.yml "Discover actual S3 artifact
+# filenames").  This ensures build_status.yml references the exact S3 object
+# keys, not assumed generic names.
 
 - name: Set output paths
   ansible.builtin.set_fact:
