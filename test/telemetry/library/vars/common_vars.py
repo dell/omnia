@@ -144,8 +144,8 @@ KAFKA_POD_PREFIXES = {
 KAFKA_BRIDGE_PREFIX = "kafka-bridge"
 KAFKA_CR_NAME = "kafka"
 
-# TLS secret name
-VICTORIA_TLS_SECRET = "victoria-tls"
+# TLS secret name (not a credential — this is a K8s Secret object name)
+VICTORIA_TLS_SECRET = "victoria-tls"  # nosec B105
 
 # Victoria cluster service names (from deploy_victoria vars)
 VM_SERVICES = {
@@ -296,7 +296,7 @@ CMDS = {
         "CLUSTER-IP:.spec.clusterIP,EXTERNAL-IP:.status.loadBalancer.ingress[0].ip,"
         "PORT:.spec.ports[0].port'"
     ),
-    "kubectl_get_secret": (
+    "kubectl_get_secret": (  # nosec B105 — dict key, not a credential
         "kubectl get secret {secret_name} -n {namespace}"
         " --no-headers 2>/dev/null && echo exists || echo missing"
     ),

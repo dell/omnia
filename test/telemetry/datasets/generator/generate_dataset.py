@@ -83,10 +83,11 @@ def generate_dataset(name, variables):
     input_dir = os.path.join(dest_dir, "input")
     os.makedirs(input_dir, exist_ok=True)
 
-    # Render templates
-    env = Environment(
+    # Render templates (YAML config output — no HTML, XSS not applicable)
+    env = Environment(  # nosec B701
         loader=FileSystemLoader(TEMPLATES_DIR),
         keep_trailing_newline=True,
+        autoescape=False,
     )
 
     for template_rel in _find_templates(TEMPLATES_DIR):
