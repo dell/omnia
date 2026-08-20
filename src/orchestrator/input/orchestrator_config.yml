@@ -24,7 +24,7 @@
 # Ensure that admin IPs given in mapping file are within the network defined in the network_spec.yml
 # A templates for mapping file exists in omnia/examples, namely, pxe_mapping_file.csv
 # Format of csv: FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
-pxe_mapping_file_path: "/opt/omnia/input/project_default/orchestrator/pxe_mapping_file.csv"
+pxe_mapping_file_path: "/opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv"
 
 #### Mandatory
 # Language that needs to be set during OS provisioning.
@@ -62,7 +62,23 @@ kernel_version_override: ""
 # Default: "" (disabled)
 additional_cloud_init_config_file: ""
 
-image_build_manager_output_path: "/opt/omnia/output/project_default/image_build_manager/build_status.yml"
+#### Optional
+# Additional kernel command-line parameters appended to the boot-service
+# boot configuration for all functional groups.
+# These are passed to the kernel during PXE/HTTP boot of stateless nodes.
+# Use this to set driver options, debugging flags, or site-specific tunables.
+# Example: boot_kernel_params: "crashkernel=auto audit=1 numa=off"
+# Default: "" (no additional parameters)
+boot_kernel_params: ""
+
+#### Optional
+# Path to the catalog JSON file produced by repo_manager.
+# Contains functionallayer, groups, and package definitions used to derive
+# feature flags (k8s, slurm, openldap, etc.) and OS metadata.
+# Default: "/opt/omnia/catalog/catalog_rhel.json" (from CATALOG_FILE_PATH env)
+catalog_file_path: ""
+
+image_build_manager_output_path: "/opt/omnia/image_build_manager/output/project_default/build_status.yml"
 
 #### Optional
 # Path to repo_status.yml produced by repo_manager.

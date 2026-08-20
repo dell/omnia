@@ -24,18 +24,52 @@
       omnia_cluster_ip_patterns: "{{ hostvars['localhost']['omnia_cluster_ip_patterns'] | default([]) }}"
       omnia_hosts_map: "{{ hostvars['localhost']['omnia_hosts_map'] | default({}) }}"
 
-- name: Set nodes.yaml path for nodes.yaml debugging
+- name: Set nodes directory path
   ansible.builtin.set_fact:
-    omnia_nodes_yaml_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+    omnia_nodes_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes"
 
-- name: Read nodes.yaml for group/host/IP data
-  ansible.builtin.slurp:
-    src: "{{ omnia_nodes_yaml_path }}"
-  register: omnia_nodes_yaml_raw
+- name: Find all per-category nodes files
+  ansible.builtin.find:
+    paths: "{{ omnia_nodes_dir }}"
+    patterns: "nodes_*.yaml"
+  register: omnia_nodes_files
 
-- name: Parse nodes.yaml content
+- name: Set consolidated nodes.yaml path (fallback)
   ansible.builtin.set_fact:
-    omnia_nodes_data: "{{ omnia_nodes_yaml_raw.content | b64decode | from_yaml }}"
+    omnia_nodes_yaml_path: "{{ omnia_nodes_dir }}/nodes.yaml"
+
+- name: Read and merge all per-category nodes files
+  when: omnia_nodes_files.files | length > 0
+  block:
+    - name: Slurp all per-category nodes files
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      loop: "{{ omnia_nodes_files.files }}"
+      register: omnia_nodes_slurped
+
+    - name: Merge all nodes from per-category files
+      ansible.builtin.set_fact:
+        omnia_nodes_data:
+          nodes: >-
+            {{ omnia_nodes_slurped.results
+               | map(attribute='content')
+               | map('b64decode')
+               | map('from_yaml')
+               | map(attribute='nodes')
+               | flatten
+               | list }}
+
+- name: Fall back to consolidated nodes.yaml
+  when: omnia_nodes_files.files | length == 0
+  block:
+    - name: Read consolidated nodes.yaml for group/host/IP data
+      ansible.builtin.slurp:
+        src: "{{ omnia_nodes_yaml_path }}"
+      register: omnia_nodes_yaml_raw
+
+    - name: Parse nodes.yaml content
+      ansible.builtin.set_fact:
+        omnia_nodes_data: "{{ omnia_nodes_yaml_raw.content | b64decode | from_yaml }}"
 
 - name: Build groups, hostnames and admin IPs from nodes.yaml
   ansible.builtin.set_fact:

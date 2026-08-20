@@ -4,3 +4,4 @@ ansible_collections/
 # Collection build artifacts
 *.tar.gz
 __pycache__/
+playbooks/output/

@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+# Quadlet container unit for omnia_auth (OpenLDAP)
+
+[Unit]
+Description=Omnia OpenLDAP Authentication Service
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image={{ omnia_auth_image }}:{{ omnia_auth_tag }}
+ContainerName={{ omnia_auth_container_name }}
+PublishPort={{ ldap_port }}:389
+PublishPort={{ ldaps_port }}:636
+Volume={{ auth_config_dir }}/slapd.conf:/etc/openldap/slapd.conf:ro,Z
+Volume={{ auth_init_dir }}/bootstrap.ldif:/container-init/bootstrap.ldif:ro,Z
+Volume={{ auth_certs_dir }}:/etc/openldap/certs:ro,Z
+Volume={{ auth_data_dir }}:/var/lib/openldap/openldap-data:Z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target default.target

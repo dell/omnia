@@ -39,8 +39,9 @@
   delay: 15
   until: smd_group_data.rc == 0
 
-- name: Parse existing SMD group names
+- name: Parse existing SMD groups
   ansible.builtin.set_fact:
+    existing_smd_groups: "{{ smd_group_data.stdout | from_json }}"
     existing_smd_group_names: "{{ (smd_group_data.stdout | from_json) | map(attribute='label') | list }}"
 
 - name: POST new SMD group - {{ fg_name }}

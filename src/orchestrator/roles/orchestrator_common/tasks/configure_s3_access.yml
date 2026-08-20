@@ -21,7 +21,7 @@
 #
 # This task bridges build_status.yml into facts used by:
 #   1. s3_configurations  (dict with endpoint_url + bucket)
-#      → used by BSS template (bss.yaml.j2) to construct PXE boot HTTP URLs
+#      → used by boot-service template (boot-svc.yaml.j2) to construct PXE boot HTTP URLs
 
 - name: Load orchestrator config for build_status path
   ansible.builtin.include_vars:

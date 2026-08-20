@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+- name: Ensure temp file parent directory exists
+  ansible.builtin.file:
+    path: "{{ temp_pxe_file_path | dirname }}"
+    state: directory
+    mode: "0755"
+
 - name: Delete temp_mapping_file
   ansible.builtin.file:
     path: "{{ temp_pxe_file_path }}"
@@ -23,7 +29,6 @@
     set -o pipefail && \
     sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > "{{ temp_pxe_file_path }}"
   changed_when: false
-  failed_when: false
 
 - name: Find and Replace
   ansible.builtin.lineinfile:

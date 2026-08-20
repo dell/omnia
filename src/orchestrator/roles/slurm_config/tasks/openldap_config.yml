@@ -38,6 +38,6 @@
     dest: "{{ openldap_config_path }}/certs"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
 
-- name: NFS path for cloud init
+- name: NFS path for metadata-service
   ansible.builtin.set_fact:
-    cloud_init_nfs_path_openldap: "{{ nfs_server_path }}/openldap"
+    metadata_svc_nfs_path_openldap: "{{ nfs_server_path }}/openldap"

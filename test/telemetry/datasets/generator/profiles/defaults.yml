@@ -1,0 +1,29 @@
+# Telemetry Dataset Generator — Default Profile
+# All sources enabled, all sinks enabled
+
+kube_vip: "10.0.0.100"
+bmc_group_data_path: "/opt/omnia/input/project_default/bmc_group_data.csv"
+
+# Sources
+idrac_metrics_enabled: true
+ldms_metrics_enabled: true
+dcgm_metrics_enabled: true
+powerscale_metrics_enabled: true
+ufm_metrics_enabled: true
+vast_metrics_enabled: true
+ome_metrics_enabled: true
+sfm_metrics_enabled: true
+
+# Sinks
+victoria_metrics_enabled: true
+victoria_logs_enabled: true
+kafka_enabled: true
+
+# Storage
+victoria_persistence_size: "8Gi"
+victoria_retention_period: "7d"
+kafka_persistence_size: "8Gi"
+cluster_mount: "/share_omnia_k8s"
+
+# Project
+project_name: "project_default"

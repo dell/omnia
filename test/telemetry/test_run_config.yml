@@ -1,0 +1,32 @@
+# Telemetry FVT — Batch Run Configuration
+# Used by: ./run_validation.sh --config
+
+# Each scenario entry defines a test run with optional overrides.
+# Fields:
+#   scenario     : FVT scenario directory name
+#   command      : deploy | verify | test
+#   dataset      : (optional) dataset name override
+#   sync_input   : (optional) override sync_telemetry_input
+#   marker       : (optional) marker filter expression
+#   enabled      : true/false to include in batch run
+
+scenarios:
+  - scenario: precheck
+    command: test
+    enabled: true
+
+  - scenario: validate
+    command: test
+    enabled: true
+
+  - scenario: deploy
+    command: test
+    enabled: false
+
+  - scenario: cleanup
+    command: test
+    enabled: false
+
+  - scenario: telemetry
+    command: test
+    enabled: false

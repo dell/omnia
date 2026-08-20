@@ -1,0 +1,14 @@
+# Telemetry Dataset Generator — iDRAC Only Profile
+# Only iDRAC source enabled (minimal deployment)
+
+# Sources — only iDRAC
+ldms_metrics_enabled: false
+dcgm_metrics_enabled: false
+powerscale_metrics_enabled: false
+ufm_metrics_enabled: false
+vast_metrics_enabled: false
+ome_metrics_enabled: false
+sfm_metrics_enabled: false
+
+# Sinks — keep VictoriaMetrics and Kafka for iDRAC
+victoria_logs_enabled: false

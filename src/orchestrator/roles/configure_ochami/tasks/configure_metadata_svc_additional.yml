@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Renders and sets additional metadata-service groups (common + per-functional-group).
+# Common group is applied to ALL nodes; per-FG groups target specific functional groups.
+# Uses merge_how with no_replace so platform defaults always take precedence.
+
+# --- Common additional metadata-service group ---
+- name: Render metadata-service group template - {{ additional_metadata_svc_common_group_name }}
+  ansible.builtin.template:
+    src: "{{ ms_group_additional_template }}"
+    dest: "{{ metadata_svc_dir }}/ms-group-{{ additional_metadata_svc_common_group_name }}.yaml"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  vars:
+    ms_additional_group_name: "{{ additional_metadata_svc_common_group_name }}"
+    ms_additional_data: "{{ additional_metadata_svc_common_data }}"
+  when: additional_metadata_svc_common_enabled | default(false) | bool
+
+- name: Load rendered additional common group YAML
+  ansible.builtin.slurp:
+    src: "{{ metadata_svc_dir }}/ms-group-{{ additional_metadata_svc_common_group_name }}.yaml"
+  register: ms_additional_common_raw
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Parse additional common group entries
+  ansible.builtin.set_fact:
+    ms_additional_common_entries: "{{ ms_additional_common_raw.content | b64decode | from_yaml }}"
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Build metadata-service group body for additional common entries
+  ansible.builtin.set_fact:
+    _ms_additional_bodies: >-
+      {{ _ms_additional_bodies | default([]) + [{
+        'metadata': {'name': entry.name},
+        'spec': ({'description': entry.description | default(''),
+                   'template': entry.file.content | default('')}
+                  | combine(
+                    {'metaData': dict(
+                       entry['meta-data'].keys() | list
+                       | zip(entry['meta-data'].values() | map('to_json') | list)
+                     )}
+                    if entry['meta-data'] is defined and entry['meta-data'] | length > 0
+                    else {}
+                  ))
+      }] }}
+  loop: "{{ ms_additional_common_entries | default([]) }}"
+  loop_control:
+    loop_var: entry
+    label: "{{ entry.name }}"
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Set metadata-service group configuration for common group (via metadata-service API)  # noqa: name[template]
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ item }}"
+    status_code: [200, 201, 409]
+    validate_certs: false
+  loop: "{{ _ms_additional_bodies | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+# --- Per-functional-group additional metadata-service groups ---
+- name: Configure per-FG additional metadata-service groups
+  ansible.builtin.include_tasks: configure_metadata_svc_additional_fg.yml
+  vars:
+    _ms_fg_name: "{{ item }}"
+  with_items: "{{ additional_metadata_svc_fg_names | default([]) }}"
+  when: additional_metadata_svc_groups_enabled | default(false) | bool
