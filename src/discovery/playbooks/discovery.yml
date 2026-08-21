@@ -25,6 +25,7 @@
 #   - bmc_discovery_report.csv
 #
 # Usage:
+#   cd src/discovery/playbooks
 #   ansible-playbook discovery.yml -e "discovery_mechanism=ome"
 #   ansible-playbook discovery.yml -e "discovery_mechanism=magellan"
 
