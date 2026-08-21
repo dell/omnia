@@ -38,8 +38,12 @@ src/discovery/
 ├── playbooks/
 │   ├── ansible.cfg                  # Ansible config (paths relative to playbooks/)
 │   ├── discovery.yml                # Top-level entrypoint
-│   ├── validate_discovery.yml       # Standalone validation
-│   └── discovery_credentials.yml    # Standalone credential management
+│   ├── credentials/
+│   │   ├── ansible.cfg              # Sub-playbook config (../../ paths)
+│   │   └── discovery_credentials.yml  # Standalone credential management
+│   └── validate/
+│       ├── ansible.cfg              # Sub-playbook config (../../ paths)
+│       └── validate_discovery.yml   # Standalone validation
 ├── plugins/
 │   ├── modules/                     # Python modules
 │   │   ├── ome_server_inventory.py  # OME device inventory collector
