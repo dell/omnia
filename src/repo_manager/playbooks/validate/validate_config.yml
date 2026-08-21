@@ -42,6 +42,10 @@
         state: directory
         mode: "0755"
 
+    - name: Validate required environment variables
+      ansible.builtin.include_role:
+        name: ../../roles/validate_environment
+
     - name: Enable subscription check when validate_config.yml is run directly
       ansible.builtin.set_fact:
         run_subscription_check: true
