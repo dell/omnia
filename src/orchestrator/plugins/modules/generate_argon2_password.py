@@ -48,7 +48,7 @@ options:
 
 EXAMPLES = r'''
 - name: Generate argon2 hash for a password
-  omnia.orchestrator.generate_argon2_password:
+  generate_argon2_password:
     password: "{{ admin_password }}"
   register: hash_result
   no_log: true

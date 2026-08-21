@@ -33,7 +33,7 @@ options:
 
 EXAMPLES = r'''
 - name: Generate xnames in mapping file
-  omnia.orchestrator.generate_xname_in_mapping_file:
+  generate_xname_in_mapping_file:
     mapping_file_path: /opt/omnia/input/project_default/pxe_mapping_file.csv
 '''
 

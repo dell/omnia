@@ -26,6 +26,6 @@
   tasks:
     - name: Validate OpenLDAP container is running
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_validations
+        name: orchestrator_validations
         tasks_from: validate_openldap_container.yml
       when: hostvars['localhost']['openldap_support'] | default(false) | bool

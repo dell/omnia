@@ -14,11 +14,13 @@ Primary configuration file for the telemetry stack.
 
 | Key | Type | Required | Description |
 |-----|------|----------|-------------|
-| `kube_vip` | string | Yes | Kubernetes control plane VIP address |
-| `bmc_group_data_path` | string | No | Path to BMC inventory CSV for iDRAC telemetry |
-| `collection_targets` | string | Yes | Comma-separated sink targets (e.g., `victoria_metrics,victoria_logs`) |
+| `cluster_inventory` | string | Yes | Path to the unified Ansible inventory file containing kube_vip_group |
 | `telemetry_sources.<source>.metrics_enabled` | bool | No | Enable/disable metrics for a telemetry source |
 | `telemetry_sources.<source>.logs_enabled` | bool | No | Enable/disable logs for a telemetry source |
+| `telemetry_sources.<source>.collection_targets` | list | No | Sink targets per source (e.g., `[kafka, victoria_metrics]`) |
+| `telemetry_bridges.vector_ome.metrics_enabled` | bool | No | Enable Vector-OME metrics bridge |
+| `telemetry_bridges.vector_ome.logs_enabled` | bool | No | Enable Vector-OME logs bridge |
+| `telemetry_bridges.vector_ldms.metrics_enabled` | bool | No | Enable Vector-LDMS metrics bridge |
 | `powerscale_configurations` | dict | No | PowerScale-specific configuration (required when PowerScale enabled) |
 
 ### telemetry_storage_config.yml
@@ -27,17 +29,28 @@ Storage backend configuration for telemetry data retention and persistence.
 
 | Key | Type | Required | Description |
 |-----|------|----------|-------------|
-| `storage_class` | string | No | Kubernetes StorageClass for persistent volumes |
-| `retention_period` | string | No | Data retention period |
+| `kafka_storage` | dict | Conditional | Kafka storage (required when any source targets Kafka) |
+| `victoria_cluster_storage` | dict | Conditional | VM cluster storage (required when any source targets victoria_metrics) |
+| `victoria_logs_cluster_storage` | dict | Conditional | VL cluster storage (required when any source targets victoria_logs) |
+| `vector_storage` | dict | Conditional | Vector bridge storage (required when any bridge is enabled) |
 
 ### telemetry_packages.yml
 
-Package and container image version references.
+Central package manifest for all telemetry stack dependencies.
 
 | Key | Type | Required | Description |
 |-----|------|----------|-------------|
-| `telemetry_packages.<component>.version` | string | Yes | Version of the telemetry component |
-| `telemetry_packages.<component>.image` | string | No | Container image reference |
+| `install_mode` | string | No | `"offline"` (default) or `"online"` |
+| `repo_url` | string | Conditional | Pulp base URL (required for offline mode) |
+| `cluster_mount` | string | Yes | NFS mount point on K8s cluster nodes |
+| `container_registry` | string | No | Registry override for air-gapped clusters |
+| `images.<subsystem>.<key>` | string | No | Container image references grouped by subsystem |
+| `helm_charts.<chart>.package` | string | No | Pulp directory name for Helm chart tarball |
+| `helm_charts.<chart>.filename` | string | No | Archive filename |
+| `helm_charts.<chart>.online_url` | string | No | Upstream download URL |
+| `git_repos.<repo>.package` | string | No | Pulp directory name for git archive |
+| `git_repos.<repo>.version` | string | No | Tag or branch for online clone |
+| `pip_modules.<module>.version` | string | No | Pip package version |
 
 ## Upstream Contracts
 
@@ -45,17 +58,17 @@ The telemetry domain may read the following upstream output files:
 
 | Source Domain | File | Purpose |
 |---------------|------|---------|
-| orchestrator | `orchestrator_status.yml` | Kubernetes cluster readiness confirmation |
+| orchestrator | `orchestrator_inventory.yml` | Kubernetes cluster inventory (kube_vip, slurm nodes) |
 
 ## File Location
 
 - **Source (repository)**: `src/telemetry/input/`
 - **Runtime (copied by domain-init.sh)**: `<OMNIA_DATA_PATH>/telemetry/input/<PROJECT_NAME>/`
 - **Default runtime path**: `/opt/omnia/telemetry/input/project_default/`
-- **Cluster Inventory**: Specified in `telemetry_config.yml` via `cluster_inventory` parameter. This unified inventory file from orchestrator contains both Kubernetes and Slurm node information (e.g., `/opt/omnia/input/project_default/orchestrator_inventory.yml`)
+- **Cluster Inventory**: Specified in `telemetry_config.yml` via `cluster_inventory` parameter
 
 ## Validation
 
 All input files are validated by the `validate_input` module using:
 - **L1 (Schema)**: JSON Schema validation against `plugins/module_utils/input_validation/schema/*.json`
-- **L2 (Logic)**: Cross-field logical validation via `plugins/module_utils/input_validation/validation_flows/`
+- **L2 (Logic)**: Cross-field logical validation via `plugins/module_utils/input_validation/validators/telemetry_validation.py`

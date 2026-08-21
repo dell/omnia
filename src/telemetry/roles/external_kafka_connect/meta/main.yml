@@ -13,21 +13,16 @@
 # limitations under the License.
 ---
 
-# Discovery Credentials — Standalone credential management
-# Can be run standalone or imported by discovery.yml
+galaxy_info:
+  author: Dell Inc.
+  description: >-
+    Fetches Kafka external connection details (endpoint, TLS certs)
+    from the Kubernetes cluster for external client integration (e.g., OME).
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+  platforms:
+    - name: EL
+      versions:
+        - "10"
 
-- name: Setup discovery environment
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - omnia.discovery.discovery_setup
-  tags: always
-
-- name: Create and update credential config files
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - omnia.discovery.discovery_credentials
-  tags: always
+dependencies: []
