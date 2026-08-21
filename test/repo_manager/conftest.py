@@ -37,7 +37,9 @@ if _TEST_DIR not in sys.path:
 # Ansible playbooks run by tests inherit this environment.
 _OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
 if os.path.exists(_OMNIA_ENV_FILE):
-    _env_output = subprocess.run(
+    # nosec B602: shell=True is required to source bash env file and expand variables
+    # The command is trusted (reads a local config file) and does not accept user input.
+    _env_output = subprocess.run(  # nosec B602
         f"bash -c 'set -a; source {_OMNIA_ENV_FILE}; set +a; env'",
         shell=True,
         capture_output=True,
