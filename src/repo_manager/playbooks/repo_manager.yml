@@ -88,6 +88,7 @@
   ansible.builtin.import_playbook: "{{ playbook_dir }}/repo_operations/download.yml"
   tags:
     - download
+    - execute
 
 # -------------------------------------------------------------------------
 # GENERATE STATUS
