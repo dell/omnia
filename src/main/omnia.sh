@@ -862,19 +862,51 @@ EXECUTION COMMANDS:
 RECOMMENDED EXECUTION ORDER:
   Domains should be run in this order (each reads the previous domain's output):
 
-    1. repo_manager          Mirror RPM packages (writes repo_status.yml)
-    2. image_build_manager   Build OS images    (reads repo_status.yml, writes build_status.yml)
-    3. discovery [optional]  Discover servers   (writes bmc_pxe_mapping_file.csv)
-    4. orchestrator          Deploy cluster     (reads build_status.yml + discovery output)
-    5. telemetry [optional]  Deploy telemetry   (independent, run when needed)
-    6. utils     [optional]  Utility playbooks  (independent, run anytime)
+    Step 1. repo_manager          Mirror packages, images, pip (writes repo_status.yml)
+    Step 2. image_build_manager   Build OS images              (reads repo_status.yml, writes build_status.yml)
+    Step 3. discovery [optional]  Discover servers             (writes bmc_pxe_mapping_file.csv)
+    Step 4. orchestrator          Deploy cluster + K8s/Slurm   (reads build_status.yml + discovery output)
+    Step 5. telemetry             Deploy telemetry on K8s      (requires K8s from step 4)
+    Step 6. utils     [optional]  Utility playbooks            (run anytime)
 
-  Per-domain tags (run granular stages):
-    --tags precheck          Environment and connectivity check
-    --tags validate          Config validation (safe dry-run, no credentials)
-    --tags prepare           Deploy infrastructure (S3, registry, etc.)
-    --tags build             Full build pipeline
-    --tags cleanup           Remove services, artifacts, credentials
+  WARNING: Running a later step without completing earlier steps may fail.
+           The CLI will warn you if prerequisite outputs are missing.
+
+  Tags by domain (use --tags <tag> to run a specific stage):
+
+    repo_manager:
+      execute         Full run (deploy + validate + download + status)
+      deploy          Deploy Pulp server
+      validate        Validate input configurations
+      download        Download and sync packages/repos
+      status          Generate repo_status.yml
+      cleanup_pulp    Remove Pulp server and all data     (never: explicit only)
+      cleanup_repos   Remove specific repositories        (never: explicit only)
+
+    image_build_manager:
+      execute         Full run (validate + prepare + build)
+      validate        Validate image build configuration
+      prepare         Deploy build infrastructure (MinIO + Registry)
+      build           Build OS images (x86_64 + aarch64)
+      x86_64          Build x86_64 images only
+      aarch64         Build aarch64 images only
+      precheck        Environment prerequisite check      (never: explicit only)
+      cleanup         Remove build infrastructure         (never: explicit only)
+
+    orchestrator:
+      execute         Full run (prepare + deploy + validate + provision)
+      check           Validate orchestrator prerequisites (never: explicit only)
+      update          Update orchestrator components      (never: explicit only)
+      cleanup         Remove orchestrator components      (never: explicit only)
+
+    telemetry:
+      execute/deploy  Deploy all telemetry sources + sinks
+      validate        Validate telemetry input files
+      precheck        Validate telemetry prerequisites    (never: explicit only)
+      cleanup         Remove telemetry components         (never: explicit only)
+
+  Tags marked "(never: explicit only)" require --tags <tag> to run;
+  they are skipped during a normal full domain run.
 
 DIAGNOSTIC COMMANDS:
   --check-deps          Audit all domain requirements.txt and requirements.yml
