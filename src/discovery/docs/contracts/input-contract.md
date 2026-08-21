@@ -92,6 +92,7 @@ This document defines all input files consumed by the `discovery` domain.
 ### Usage
 
 ```bash
+cd src/discovery/playbooks
 ansible-playbook discovery.yml -e "discovery_mechanism=ome"
 ansible-playbook discovery.yml -e "discovery_mechanism=ome" -e "project_name=my_project"
 ```

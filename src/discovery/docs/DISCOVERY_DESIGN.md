@@ -21,8 +21,8 @@ The discovery domain follows the same self-containment pattern as
 |-----------|---------------|
 | **Zero `../common/` references** | All modules, module_utils, vars, and callback plugins are local |
 | **Zero `../playbooks/` imports** | Validation and credential logic is absorbed into local roles |
-| **Local ansible.cfg** | All paths resolve within `src/discovery/` |
-| **Standalone execution** | `ansible-playbook discovery.yml -e discovery_mechanism=ome` |
+| **Local ansible.cfg** | All paths resolve from `src/discovery/playbooks/` |
+| **Standalone execution** | `cd playbooks && ansible-playbook discovery.yml -e discovery_mechanism=ome` |
 
 ---
 
@@ -30,40 +30,46 @@ The discovery domain follows the same self-containment pattern as
 
 ```
 src/discovery/
-├── discovery.yml                    # Top-level entrypoint
-├── ansible.cfg                      # Local-only paths
-├── DISCOVERY_DESIGN.md              # This document
-├── INPUT_CONTRACT.md                # Input contract
-├── OUTPUT_CONTRACT.md               # Output contract
-├── callback_plugins/
-│   └── omnia_default.py             # Local callback plugin
-├── library/
+├── docs/
+│   ├── DISCOVERY_DESIGN.md          # This document
+│   └── contracts/
+│       ├── input-contract.md        # Input contract
+│       └── output-contract.md       # Output contract
+├── playbooks/
+│   ├── ansible.cfg                  # Ansible config (paths relative to playbooks/)
+│   ├── discovery.yml                # Top-level entrypoint
+│   ├── validate_discovery.yml       # Standalone validation
+│   └── discovery_credentials.yml    # Standalone credential management
+├── plugins/
 │   ├── modules/                     # Python modules
 │   │   ├── ome_server_inventory.py  # OME device inventory collector
 │   │   ├── generate_pxe_mapping.py  # PXE mapping CSV generator
 │   │   ├── generate_discovery_report.py  # Discovery report generator
 │   │   └── validate_discovery_config.py  # Domain-specific validation (L1+L2)
-│   └── module_utils/
-│       └── discovery_validation/    # Domain-specific validation
-│           ├── discovery_validation_flow.py  # L2 cross-field logic
-│           └── schema/
-│               └── discovery_config.json        # L1 JSON schema
+│   ├── module_utils/
+│   │   └── discovery_validation/    # Domain-specific validation
+│   │       ├── discovery_validation_flow.py  # L2 cross-field logic
+│   │       └── schema/
+│   │           └── discovery_config.json        # L1 JSON schema
+│   └── callback/
+│       └── omnia_default.py         # Custom stdout callback
 ├── vars/
 │   ├── common_vars.yml              # Shared constants (retry, delay, permissions)
 │   └── encrypt_files_vars.yml       # Credential encrypt/decrypt error messages
-├── playbooks/
-│   ├── ansible.cfg                  # Sub-playbook config
-│   ├── validate_discovery.yml       # Standalone validation
-│   └── discovery_credentials.yml    # Standalone credential management
 ├── input/
 │   ├── discovery_config.yml         # Input template
 │   └── network_spec.yml             # Network spec template
-└── roles/
-    ├── discovery_setup/             # Path init, config loading, validation tags
-    ├── validate_discovery_input/    # L1/L2 input validation
-    ├── discovery_credentials/       # Credential management (decrypt/prompt/encrypt)
-    ├── discovery_common/            # Shared task library (decrypt_include_encrypt)
-    └── ome_discovery/               # OME-specific discovery logic
+├── roles/
+│   ├── discovery_setup/             # Path init, config loading, validation tags
+│   ├── validate_discovery_input/    # L1/L2 input validation
+│   ├── discovery_credentials/       # Credential management (decrypt/prompt/encrypt)
+│   ├── discovery_common/            # Shared task library (decrypt_include_encrypt)
+│   └── ome_discovery/               # OME-specific discovery logic
+├── domain-init.sh
+├── galaxy.yml
+├── README.md
+├── requirements.txt
+└── requirements.yml
 ```
 
 ---
@@ -234,8 +240,7 @@ Credential prompting is skipped for `cleanup` and `validate` tags.
 
 ```bash
 # Confirm zero external references in ansible.cfg
-grep -c '\.\./' src/discovery/ansible.cfg                    # expect: 0
-grep -c '\.\./' src/discovery/playbooks/ansible.cfg           # expect: 0 (except ../)
+grep -c '\.\./' src/discovery/playbooks/ansible.cfg           # expect: only ../ (parent-relative)
 grep -c 'playbooks/utils' src/discovery/**/*.yml              # expect: 0
 ```
 
