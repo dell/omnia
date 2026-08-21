@@ -873,40 +873,40 @@ RECOMMENDED EXECUTION ORDER:
            The CLI will warn you if prerequisite outputs are missing.
 
   Tags by domain (use --tags <tag> to run a specific stage):
+  Execution order: precheck -> validate -> prepare -> execute -> cleanup
 
     repo_manager:
-      execute         Full run (deploy + validate + download + status)
-      deploy          Deploy Pulp server
+      precheck        Environment prerequisite check      (never: explicit only)
       validate        Validate input configurations
-      download        Download and sync packages/repos
-      status          Generate repo_status.yml
-      cleanup_pulp    Remove Pulp server and all data     (never: explicit only)
-      cleanup_repos   Remove specific repositories        (never: explicit only)
+      prepare         Deploy Pulp server
+      execute         Deploy + download + status (full domain tasks)
+      cleanup         Remove Pulp server and all data     (never: explicit only)
 
     image_build_manager:
-      execute         Full run (validate + prepare + build)
+      precheck        Environment prerequisite check      (never: explicit only)
       validate        Validate image build configuration
       prepare         Deploy build infrastructure (MinIO + Registry)
-      build           Build OS images (x86_64 + aarch64)
-      x86_64          Build x86_64 images only
-      aarch64         Build aarch64 images only
-      precheck        Environment prerequisite check      (never: explicit only)
+      execute         Build OS images (full domain tasks)
       cleanup         Remove build infrastructure         (never: explicit only)
 
     orchestrator:
-      execute         Full run (prepare + deploy + validate + provision)
-      check           Validate orchestrator prerequisites (never: explicit only)
-      update          Update orchestrator components      (never: explicit only)
+      precheck        Validate orchestrator prerequisites (never: explicit only)
+      validate        Validate orchestrator configuration
+      prepare         Prepare orchestrator components
+      execute         Deploy + provision (full domain tasks)
       cleanup         Remove orchestrator components      (never: explicit only)
 
     telemetry:
-      execute/deploy  Deploy all telemetry sources + sinks
-      validate        Validate telemetry input files
       precheck        Validate telemetry prerequisites    (never: explicit only)
+      validate        Validate telemetry input files
+      prepare         Prepare telemetry components
+      execute         Deploy all telemetry sources + sinks (full domain tasks)
       cleanup         Remove telemetry components         (never: explicit only)
 
+  Without --tags, --run <domain> executes the full domain (equivalent to --tags execute).
   Tags marked "(never: explicit only)" require --tags <tag> to run;
   they are skipped during a normal full domain run.
+  Additional domain-specific tags are available — see domain help.
 
 DIAGNOSTIC COMMANDS:
   --check-deps          Audit all domain requirements.txt and requirements.yml
@@ -982,7 +982,7 @@ EXAMPLES:
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
-  ./omnia.sh -r repo_manager --tags build
+  ./omnia.sh -r repo_manager                   # Run all tags
   ./omnia.sh -r telemetry                      # Run all tags
 
   # Validate a domain (uses --tags validate):

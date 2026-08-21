@@ -29,6 +29,7 @@
     build_image_max_parallel: "{{ build_image.max_parallel | default(0) }}"
     build_image_force_rebuild: "{{ build_image.force_rebuild | default(false) | bool }}"
     build_image_backup_s3_images: "{{ build_image.backup_s3_images | default(false) | bool }}"
+    repo_ssl_verify: "{{ build_image.repo_ssl_verify | default(true) | bool }}"
     functional_groups_source: "{{ functional_groups_source | default('config') }}"
     image_build_type: "{{ image_build_type | default('image-builder') }}"
     catalog_file: "{{ lookup('ansible.builtin.env', 'CATALOG_FILE_PATH') | default('', true) }}"

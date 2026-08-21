@@ -606,27 +606,6 @@ _is_credential_file() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Utility: Find the vault password key file for a given credential file
-#   Convention: .{basename_without_ext}_key in the same directory
-#   e.g. image_build_credentials.yml → .image_build_credentials_key
-# ─────────────────────────────────────────────────────────────────────────────
-_find_vault_key_file() {
-    local target="$1"
-    local dir
-    dir=$(dirname "$target")
-    local fname
-    fname=$(basename "$target")
-    local base_no_ext="${fname%.*}"
-    local key_file="${dir}/.${base_no_ext}_key"
-
-    if [ -f "$key_file" ]; then
-        echo "$key_file"
-        return 0
-    fi
-    return 1
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Utility: Open a file with the right editor (ansible-vault for vault files)
 # ─────────────────────────────────────────────────────────────────────────────
 _edit_file() {
@@ -647,18 +626,20 @@ _edit_file() {
             return 1
         fi
 
-        # Look for vault password key file in the same directory
-        local key_file
-        if key_file=$(_find_vault_key_file "$target"); then
-            echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
-            echo -e "  Using vault key: ${DIM}${key_file}${NC}"
-            echo -e "  Opening with ${BOLD}ansible-vault edit --vault-password-file${NC}..."
-            ansible-vault edit "$target" --vault-password-file "$key_file"
+        echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
+        echo -e "  ${DIM}Provide the path to the vault password key file.${NC}"
+        echo -n "  Vault password file path (or Enter to prompt for password): "
+        read -r vault_key_path
+
+        if [ -n "$vault_key_path" ]; then
+            if [ -f "$vault_key_path" ]; then
+                echo -e "  Opening with ${BOLD}ansible-vault edit --vault-password-file${NC}..."
+                ansible-vault edit "$target" --vault-password-file "$vault_key_path"
+            else
+                echo -e "  ${FAIL} ${RED}File not found: ${vault_key_path}${NC}"
+                return 1
+            fi
         else
-            echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
-            local base_no_ext
-            base_no_ext="$(basename "${target%.*}")"
-            echo -e "  ${DIM}No vault key file found (expected .${base_no_ext}_key in same dir)${NC}"
             echo -e "  Opening with ${BOLD}ansible-vault edit${NC} (will prompt for password)..."
             ansible-vault edit "$target"
         fi
@@ -834,16 +815,18 @@ cmd_logs() {
     for alog_dir in "${ansible_log_dirs[@]}"; do
         if [ -d "$alog_dir" ]; then
             local ansible_logs
-            ansible_logs=$(find "$alog_dir" -name "*${domain}*" -o -name "ansible*.log" 2>/dev/null | sort -t/ -k1 -rn | head -5)
+            ansible_logs=$(find "$alog_dir" \( -name "*${domain}*" -o -name "ansible*.log" \) -type f 2>/dev/null | sort -rn | head -5)
             if [ -n "$ansible_logs" ]; then
                 found_logs=1
                 echo -e "  ${BOLD}Ansible logs${NC}  ${DIM}(${alog_dir})${NC}"
                 while IFS= read -r alog; do
+                    idx=$((idx + 1))
                     local aname
                     aname=$(basename "$alog")
                     local asize
                     asize=$(stat -c '%s' "$alog" 2>/dev/null || echo "?")
-                    echo -e "    ${DIM}${aname}${NC}  (${asize} bytes)"
+                    echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes)${NC}"
+                    log_arr+=("$alog")
                 done <<< "$ansible_logs"
                 echo ""
             fi
@@ -860,9 +843,13 @@ cmd_logs() {
             found_logs=1
             echo -e "  ${BOLD}Output logs${NC}  ${DIM}(${output_dir})${NC}"
             while IFS= read -r olog; do
+                idx=$((idx + 1))
                 local oname
                 oname=$(basename "$olog")
-                echo -e "    ${DIM}${oname}${NC}"
+                local osize
+                osize=$(stat -c '%s' "$olog" 2>/dev/null || echo "?")
+                echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes)${NC}"
+                log_arr+=("$olog")
             done <<< "$output_logs"
             echo ""
         fi
