@@ -33,8 +33,7 @@
 # Granular cleanup tags (opt-in — requires explicit --tags):
 #   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
 #   cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
-#   cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm,
-#   cleanup_skyway, cleanup_powervault
+#   cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm
 #
 # Internal steps (always):
 #   Step 0: Setup — load env vars (omnia.env), validate host, derive paths, create dirs
@@ -85,7 +84,7 @@
 - name: "Precheck | Validate telemetry prerequisites"
   ansible.builtin.import_playbook: precheck/precheck.yml
   tags:
-    - never
+    # - never
     - precheck
 
 # =========================================================================
@@ -109,8 +108,6 @@
     - cleanup_ufm
     - cleanup_vast
     - cleanup_sfm
-    - cleanup_skyway
-    - cleanup_powervault
 
 # =========================================================================
 # FLOW: upgrade — Upgrade telemetry (opt-in only, placeholder)
