@@ -486,9 +486,13 @@
         "csm_observability_values_file_path": {
           "type": "string",
           "description": "Path to the CSM Observability (Karavi) values.yaml file."
+        },
+        "csi_powerscale_secret_path": {
+          "type": "string",
+          "description": "Path to the CSI PowerScale driver secret YAML file. Required when PowerScale telemetry is enabled."
         }
       },
-      "required": ["otel_collector_storage_size", "csm_observability_values_file_path"]
+      "required": ["otel_collector_storage_size", "csm_observability_values_file_path", "csi_powerscale_secret_path"]
     },
     "ufm_configuration": {
       "type": "object",

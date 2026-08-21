@@ -45,6 +45,7 @@ playbooks/telemetry.yml (entry point)
   |     +-- sinks/deploy_sinks.yml     Phase 1: Kafka, VM, VL
   |     +-- sources/deploy_*.yml       Phase 2: per-source (conditional)
   |     +-- (kustomize apply)          Phase 3-4: root kustomization + apply
+  |     +-- write_telemetry_status     Phase 5: write output/telemetry_status.yml
   |
   |  OPT-IN FLOWS (require explicit --tags):
   |
@@ -91,7 +92,8 @@ Derived paths:
 | 1 | `deploy_sinks.yml` | Deploy Kafka, VictoriaMetrics, VictoriaLogs |
 | 2 | `sources/deploy_<source>.yml` | Per-source manifest generation (conditional) |
 | 3 | (inline play) | Generate root `kustomization.yaml` |
-| 4 | (inline play) | `kubectl apply -k deployments/` |
+| 4 | (inline play) | `kubectl apply -k deployments/` + pod stabilization |
+| 5 | `write_telemetry_status` | Write `telemetry_status.yml` to output dir |
 
 ## Configuration
 

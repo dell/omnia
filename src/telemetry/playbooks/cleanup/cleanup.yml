@@ -19,26 +19,26 @@
 # Removes telemetry components and all associated K8s resources.
 #
 # Usage:
-#   # Cleanup ALL telemetry components
+#   # Cleanup ALL telemetry components (sources + sinks)
 #   ansible-playbook telemetry.yml --tags cleanup
 #
-#   # Cleanup specific components
+#   # Cleanup specific sources only
 #   ansible-playbook telemetry.yml --tags cleanup_powerscale
 #   ansible-playbook telemetry.yml --tags cleanup_ome
-#   ansible-playbook telemetry.yml --tags cleanup_kafka
-#   ansible-playbook telemetry.yml --tags cleanup_victoria_metrics
-#   ansible-playbook telemetry.yml --tags cleanup_victoria_logs
 #   ansible-playbook telemetry.yml --tags cleanup_idrac
 #   ansible-playbook telemetry.yml --tags cleanup_ldms
 #
-#   # Cleanup multiple components
-#   ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_powerscale
+#   # Cleanup multiple sources
+#   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale
+#
+# Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
+# infrastructure that multiple sources depend on. They are ONLY cleaned
+# when --tags cleanup (all) is used, never individually.
 #
 # Resource ownership:
 #   OME cleanup includes Vector-OME bridge resources
 #   LDMS cleanup includes Vector-LDMS bridge resources
-#   VictoriaMetrics cleanup includes vmagent-vector (VM write-buffer)
-#   VictoriaLogs cleanup includes vlagent-vector (VL write-buffer)
+#   cleanup (all) includes sinks + vmagent-vector + vlagent-vector
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -76,9 +76,6 @@
         _cleanup_ldms: "{{ 'cleanup_ldms' in ansible_run_tags }}"
         _cleanup_ome: "{{ 'cleanup_ome' in ansible_run_tags }}"
         _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
-        _cleanup_kafka: "{{ 'cleanup_kafka' in ansible_run_tags }}"
-        _cleanup_victoria_metrics: "{{ 'cleanup_victoria_metrics' in ansible_run_tags }}"
-        _cleanup_victoria_logs: "{{ 'cleanup_victoria_logs' in ansible_run_tags }}"
         cacheable: true
 
 # ---------------------------------------------------------------------------
@@ -107,18 +104,56 @@
       ansible.builtin.include_tasks: sources/cleanup_powerscale_tasks.yml
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_powerscale'] | bool
 
-    # -- Sink cleanups --
-    - name: "Cleanup Kafka"
+    # -- Pre-sink guard: verify source pods have terminated --
+    - name: "Check for remaining source pods before sink cleanup"
+      vars:
+        _source_apps: >-
+          idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
+          karavi-metrics-powerscale,otel-collector,
+          csi-volume-exporter,dcgm-exporter,sfm-telemetry,
+          ufm-telemetry,vast-telemetry,skyway-telemetry,
+          powervault-telemetry
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        --no-headers --ignore-not-found
+        -l 'app in ({{ _source_apps | replace("\n", "") | trim }})'
+      register: _remaining_source_pods
+      changed_when: false
+      failed_when: false
+      when: hostvars['localhost']['_cleanup_all'] | bool
+
+    - name: "Warn if source pods are still terminating"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: {{ _remaining_source_pods.stdout_lines | length }} source pod(s) still
+          terminating. Waiting for them to drain before cleaning sinks.
+      when:
+        - hostvars['localhost']['_cleanup_all'] | bool
+        - _remaining_source_pods.stdout_lines | default([]) | length > 0
+
+    - name: "Wait for source pods to terminate before sink cleanup"
+      ansible.builtin.command: >
+        kubectl wait --for=delete pods
+        -l 'app in (idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,karavi-metrics-powerscale,otel-collector,csi-volume-exporter)'
+        -n {{ telemetry_namespace }} --timeout=60s
+      changed_when: false
+      failed_when: false
+      when:
+        - hostvars['localhost']['_cleanup_all'] | bool
+        - _remaining_source_pods.stdout_lines | default([]) | length > 0
+
+    # -- Sink cleanups (only on full cleanup — sinks are shared infrastructure) --
+    - name: "Cleanup Kafka (full cleanup only)"
       ansible.builtin.include_tasks: sinks/cleanup_kafka_tasks.yml
-      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_kafka'] | bool
+      when: hostvars['localhost']['_cleanup_all'] | bool
 
-    - name: "Cleanup VictoriaMetrics"
+    - name: "Cleanup VictoriaMetrics (full cleanup only)"
       ansible.builtin.include_tasks: sinks/cleanup_victoria_metrics_tasks.yml
-      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_victoria_metrics'] | bool
+      when: hostvars['localhost']['_cleanup_all'] | bool
 
-    - name: "Cleanup VictoriaLogs"
+    - name: "Cleanup VictoriaLogs (full cleanup only)"
       ansible.builtin.include_tasks: sinks/cleanup_victoria_logs_tasks.yml
-      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_victoria_logs'] | bool
+      when: hostvars['localhost']['_cleanup_all'] | bool
 
 # ---------------------------------------------------------------------------
 # Play 3: Final verification and summary
@@ -129,23 +164,23 @@
   vars:
     telemetry_namespace: "telemetry"
   tasks:
-    - name: "Final verification | Check remaining pods"
+    - name: "Final verification | Count remaining pods"
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
+        kubectl get pods -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_pods
       changed_when: false
       failed_when: false
 
-    - name: "Final verification | Check remaining PVCs"
+    - name: "Final verification | Count remaining PVCs"
       ansible.builtin.command: >
-        kubectl get pvc -n {{ telemetry_namespace }}
+        kubectl get pvc -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_pvcs
       changed_when: false
       failed_when: false
 
-    - name: "Final verification | Check remaining services"
+    - name: "Final verification | Count remaining services"
       ansible.builtin.command: >
-        kubectl get svc -n {{ telemetry_namespace }}
+        kubectl get svc -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_svcs
       changed_when: false
       failed_when: false
@@ -158,9 +193,12 @@
     - name: Display cleanup summary
       vars:
         kube_vip_host: "{{ kube_vip }}"
-        remaining_pods_output: "{{ hostvars[kube_vip_host]['remaining_pods']['stdout'] | default('No resources found') }}"
-        remaining_pvcs_output: "{{ hostvars[kube_vip_host]['remaining_pvcs']['stdout'] | default('No resources found') }}"
-        remaining_svcs_output: "{{ hostvars[kube_vip_host]['remaining_svcs']['stdout'] | default('No resources found') }}"
+        _pods_lines: "{{ hostvars[kube_vip_host]['remaining_pods']['stdout_lines'] | default([]) | select('match', '\\S') | list }}"
+        _pvcs_lines: "{{ hostvars[kube_vip_host]['remaining_pvcs']['stdout_lines'] | default([]) | select('match', '\\S') | list }}"
+        _svcs_lines: "{{ hostvars[kube_vip_host]['remaining_svcs']['stdout_lines'] | default([]) | select('match', '\\S') | list }}"
+        _pod_count: "{{ _pods_lines | length }}"
+        _pvc_count: "{{ _pvcs_lines | length }}"
+        _svc_count: "{{ _svcs_lines | length }}"
       ansible.builtin.debug:
         msg:
           - "======================================================"
@@ -168,14 +206,9 @@
           - "======================================================"
           - "Target Host: {{ kube_vip_host }}"
           - ""
-          - "Remaining pods:"
-          - "{{ remaining_pods_output }}"
-          - ""
-          - "Remaining PVCs:"
-          - "{{ remaining_pvcs_output }}"
-          - ""
-          - "Remaining services:"
-          - "{{ remaining_svcs_output }}"
+          - "Remaining pods:     {{ _pod_count }}"
+          - "Remaining PVCs:     {{ _pvc_count }}"
+          - "Remaining services: {{ _svc_count }}"
           - "======================================================"
           - ""
           - "To delete the entire namespace:"
