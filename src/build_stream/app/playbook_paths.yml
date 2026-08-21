@@ -39,7 +39,7 @@ playbook_paths:
   build_image_x86_64.yml: "/omnia/build_image_x86_64/build_image_x86_64.yml"
 
   # --- Discovery / Provisioning playbooks ---
-  discovery.yml: "/omnia/discovery/discovery.yml"
+  discovery.yml: "/omnia/discovery/playbooks/discovery.yml"
   provision.yml: "/omnia/provision/provision.yml"
 
   # --- Local Repository playbook ---
