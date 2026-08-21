@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Loads user-provided additional cloud-init config and sets facts for
+# configure_metadata_svc_additional.yml and create_groups_additional_fg.yml.
+# Input validation (prohibited keys, allowed keys, types, FG names) is
+# performed earlier in the L2 validation flow (orchestrator validation).
+# This file only parses the YAML and sets enabled/data facts.
+
+- name: Read additional_metadata_svc_config_file path
+  ansible.builtin.set_fact:
+    additional_metadata_svc_file_path: >-
+      {{ hostvars['localhost']['additional_metadata_svc_config_file'] | default('') | trim }}
+
+- name: Set defaults when additional metadata-service is disabled
+  ansible.builtin.set_fact:
+    additional_metadata_svc_enabled: false
+    additional_metadata_svc_common_enabled: false
+    additional_metadata_svc_groups_enabled: false
+    additional_metadata_svc_common_data: {}
+    additional_metadata_svc_groups_data: {}
+    additional_metadata_svc_fg_names: []
+  when: additional_metadata_svc_file_path == ''
+
+- name: Create metadata-service directory
+  ansible.builtin.file:
+    path: "{{ metadata_svc_dir }}"
+    state: directory
+    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
+- name: Load additional metadata-service config
+  when: additional_metadata_svc_file_path != ''
+  block:
+    - name: Set OIM-local path for additional metadata-service config
+      ansible.builtin.set_fact:
+        additional_metadata_svc_oim_path: "{{ metadata_svc_dir }}/additional_metadata_svc.yml"
+
+    - name: Copy additional metadata-service config file to OIM workdir
+      ansible.builtin.copy:
+        src: "{{ additional_metadata_svc_file_path }}"
+        dest: "{{ additional_metadata_svc_oim_path }}"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+
+    - name: Load additional metadata-service config file
+      ansible.builtin.slurp:
+        src: "{{ additional_metadata_svc_oim_path }}"
+      register: _aci_file_content
+
+    - name: Parse additional metadata-service config YAML
+      ansible.builtin.set_fact:
+        _aci_config: "{{ _aci_file_content.content | b64decode | from_yaml | default({}) }}"
+
+    - name: Extract common and groups data
+      ansible.builtin.set_fact:
+        additional_metadata_svc_common_data: "{{ _aci_config.common | default({}) }}"
+        additional_metadata_svc_groups_data: "{{ _aci_config.groups | default({}) }}"
+
+    - name: Set enabled flags and FG name list
+      ansible.builtin.set_fact:
+        additional_metadata_svc_common_enabled: "{{ additional_metadata_svc_common_data | length > 0 }}"
+        additional_metadata_svc_groups_enabled: "{{ additional_metadata_svc_groups_data | length > 0 }}"
+        additional_metadata_svc_fg_names: "{{ additional_metadata_svc_groups_data.keys() | list }}"
+        additional_metadata_svc_enabled: >-
+          {{ (additional_metadata_svc_common_data | length > 0) or
+             (additional_metadata_svc_groups_data | length > 0) }}
+
+    - name: Log additional metadata-service load result
+      ansible.builtin.debug:
+        msg: >-
+          additional_metadata_svc loaded.
+          File: {{ additional_metadata_svc_oim_path }}.
+          Common enabled: {{ additional_metadata_svc_common_enabled }}.
+          Groups enabled: {{ additional_metadata_svc_groups_enabled }}.
+          FG names: {{ additional_metadata_svc_fg_names }}.

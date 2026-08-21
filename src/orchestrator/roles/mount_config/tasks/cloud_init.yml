@@ -12,25 +12,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# Process each mount from storage_config.yml and add to cloud_init_groups_dict
+# Process each mount from storage_config.yml and add to metadata_svc_groups_dict
 # Mounts are converted to cloud-init format: [source, mount_point, fs_type, mnt_opts, dump_freq, fsck_pass]
 
 - name: Build host-specific mount map from PXE mapping
   ansible.builtin.include_tasks: build_host_mount_map.yml
   when: pxe_mapping_file_path is defined and pxe_mapping_file_path | length > 0
 
-- name: Process mounts and add to cloud_init_groups_dict
+- name: Process mounts and add to metadata_svc_groups_dict
   ansible.builtin.include_tasks: process_single_mount.yml
   loop: "{{ mounts | default([]) }}"
   loop_control:
     loop_var: mount_item
     label: "{{ mount_item.name | default('unnamed') }}"
 
-- name: Debug cloud_init_groups_dict
+- name: Debug metadata_svc_groups_dict
   ansible.builtin.debug:
-    var: cloud_init_groups_dict
+    var: metadata_svc_groups_dict
 
-- name: Process PowerVault iSCSI entries and add to cloud_init_groups_dict
+- name: Process PowerVault iSCSI entries and add to metadata_svc_groups_dict
   ansible.builtin.include_tasks: process_single_powervault.yml
   loop: "{{ powervault_config | default([]) }}"
   loop_control:

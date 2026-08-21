@@ -20,44 +20,6 @@
   changed_when: false
   failed_when: false
 
-- name: Read OIM metadata file
-  ansible.builtin.slurp:
-    path: "{{ oim_metadata_file_path }}"
-  register: oim_metadata_raw
-  failed_when: false
-
-- name: Parse OIM metadata YAML
+- name: Set current OIM timezone fact
   ansible.builtin.set_fact:
-    oim_metadata: >-
-      {{ (oim_metadata_raw.content | default('') | b64decode | from_yaml)
-         if oim_metadata_raw is defined and oim_metadata_raw.content is defined
-         else {} }}
-
-- name: Extract stored and current OIM timezone
-  ansible.builtin.set_fact:
-    stored_oim_timezone: "{{ oim_metadata.oim_timezone | default('') }}"
     current_oim_timezone: "{{ current_oim_tz_cmd.stdout | default('') }}"
-
-- name: Handle OIM timezone change
-  when:
-    - stored_oim_timezone | length > 0
-    - current_oim_timezone | length > 0
-    - (stored_oim_timezone | trim | lower)
-      != (current_oim_timezone | trim | lower)
-  block:
-    - name: Warn if OIM timezone changed after omnia_core deployment
-      ansible.builtin.pause:
-        seconds: "{{ pause_time_15 }}"
-        prompt: "{{ oim_timezone_changed_warning_msg }}"
-
-    - name: Update OIM metadata timezone if changed
-      ansible.builtin.lineinfile:
-        path: "{{ oim_metadata_file_path }}"
-        regexp: '^oim_timezone:'
-        line: "oim_timezone: {{ current_oim_timezone | trim }}"
-        create: false
-
-- name: Update OIM metadata vars
-  ansible.builtin.include_vars: "{{ oim_metadata_file_path }}"
-  register: include_oim_metadata
-  no_log: true

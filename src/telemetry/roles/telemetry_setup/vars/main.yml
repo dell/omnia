@@ -15,15 +15,9 @@
 # =============================================================================
 # TELEMETRY SETUP ROLE VARIABLES
 # =============================================================================
-# This file contains variables for the telemetry_setup role.
+# Paths are derived from environment variables in load_config.yml.
+# This file only contains static defaults and usage messages.
 # =============================================================================
-
-# -----------------------------------------------------------------------------
-# PATHS
-# -----------------------------------------------------------------------------
-telemetry_log_dir: "/var/log/omnia/telemetry"
-telemetry_output_dir: "{{ omnia_data_path | default('/opt/omnia') }}/telemetry/output"
-telemetry_config_file: "{{ input_project_dir | default('/opt/omnia') }}/telemetry_config.yml"
 
 # -----------------------------------------------------------------------------
 # USAGE INFORMATION
@@ -32,7 +26,7 @@ telemetry_usage_info_msg:
   - "========== TELEMETRY =========="
   - "Available tags:"
   - "  precheck   - Validate telemetry prerequisites"
-  - "  validation - Validate telemetry input configuration"
+  - "  validate   - Validate telemetry input configuration"
   - "  deploy     - Deploy all enabled telemetry sources"
   - "  cleanup    - Remove all telemetry components"
   - "  upgrade    - Upgrade telemetry components"
@@ -52,15 +46,7 @@ telemetry_usage_info_msg:
   - "  cleanup_powervault         - PowerVault only"
   - ""
   - "Examples:"
-  - "  ansible-playbook telemetry.yml --tags deploy"
-  - "  ansible-playbook telemetry.yml --tags precheck"
-  - "  ansible-playbook telemetry.yml --tags cleanup_kafka"
+  - "  ansible-playbook playbooks/telemetry.yml --tags deploy"
+  - "  ansible-playbook playbooks/telemetry.yml --tags precheck"
+  - "  ansible-playbook playbooks/telemetry.yml --tags cleanup_kafka"
   - "================================"
-
-# -----------------------------------------------------------------------------
-# ERROR MESSAGES
-# -----------------------------------------------------------------------------
-telemetry_config_missing_msg: >-
-  telemetry_config.yml not found at {{ telemetry_config_file }}.
-  Run domain-init.sh or copy input files to the data path before executing.
-log_dir_creation_fail_msg: "Failed to create log directory: {{ telemetry_log_dir }}"

@@ -13,23 +13,9 @@
 #  limitations under the License.
 ---
 
-- name: Load software_config.json
-  ansible.builtin.include_vars:
-    file: "{{ software_config_file_path }}"
-    name: software_config
-  delegate_to: localhost
-  run_once: true
-
-- name: Set dynamic additional_json_path
-  ansible.builtin.set_fact:
-    additional_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/additional_packages.json" # noqa: yaml[line-length]
-  delegate_to: localhost
-  run_once: true
-
-- name: Collect additional container images from additional_packages.json
+- name: Collect container images from catalog
   additional_images_collector:
-    additional_json_path: "{{ additional_json_path }}"
-    software_config_path: "{{ software_config_file_path }}"
+    catalog_file_path: "{{ hostvars['localhost']['catalog_file_path'] }}"
   delegate_to: localhost
   run_once: true
   register: additional_images_output
@@ -43,10 +29,16 @@
     var: additional_images_dict
     verbosity: 2
 
+- name: Check if local_repo_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ local_repo_config_path }}"
+  register: local_repo_config_stat
+
 - name: Read local_repo_config.yml
   ansible.builtin.include_vars:
     file: "{{ local_repo_config_path }}"
     name: local_repo_config
+  when: local_repo_config_stat.stat.exists
 
 - name: Set fact for user_registry
   ansible.builtin.set_fact:

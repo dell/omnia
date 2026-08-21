@@ -70,20 +70,20 @@ author:
 EXAMPLES = r'''
 - name: Validate telemetry input files
   omnia.telemetry.validate_input:
-    omnia_base_dir: "/opt/omnia/telemetry/input/project_default"
-    project_name: "telemetry"
+    omnia_base_dir: "/opt/omnia/telemetry/input"
+    project_name: "project_default"
     tag_names:
       - telemetry
     module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
 
 - name: Validate with CSV structure check
   omnia.telemetry.validate_input:
-    omnia_base_dir: "/opt/omnia/telemetry/input/project_default"
-    project_name: "telemetry"
+    omnia_base_dir: "/opt/omnia/telemetry/input"
+    project_name: "project_default"
     tag_names:
       - telemetry
     module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
-    csv_file_path: "/opt/omnia/telemetry/input/pxe_mapping.csv"
+    csv_file_path: "/opt/omnia/telemetry/input/project_default/pxe_mapping.csv"
 '''
 
 RETURN = r'''
@@ -118,7 +118,7 @@ valid_files:
   elements: str
   returned: always
   sample:
-    - "/opt/omnia/telemetry/input/project_default/telemetry/telemetry_config.yml"
+    - "/opt/omnia/telemetry/input/project_default/telemetry_config.yml"
 invalid_files:
   description: List of input file paths that failed validation.
   type: list

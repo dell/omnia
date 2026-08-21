@@ -53,58 +53,29 @@
     - upgrade_lock.stat.exists
     - not (upgrade_mode | default(false) | bool)
 
-# Step 2: Load project config and set input/output dirs
-- name: Load omnia project config
-  block:
-    - name: Include omnia project config file
-      ansible.builtin.include_vars: "{{ omnia_input_config_file }}"
-      register: include_omnia_config
-  rescue:
-    - name: Failed to include omnia project config file
-      ansible.builtin.fail:
-        msg: "{{ omnia_input_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
+# Step 2: Resolve configuration from environment variables
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+    host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
+    domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
+    cacheable: true
 
+- name: Set domain root directory
+  ansible.builtin.set_fact:
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
+    cacheable: true
+
+# Step 3: Set input/output dirs using domain-scoped paths
 - name: Set input_project_dir and output_project_dir
   ansible.builtin.set_fact:
-    input_project_dir: "{{ omnia_input_dir }}/{{ project_name }}"
-    output_project_dir: "{{ omnia_output_dir }}/{{ project_name }}"
-    cacheable: true
-
-- name: Verify the project directory exists
-  ansible.builtin.stat:
-    path: "{{ input_project_dir }}"
-  register: verify_project_dir
-
-- name: Fail if project directory does not exist
-  ansible.builtin.fail:
-    msg: "{{ project_dir_not_exist_fail_msg }}"
-  when: not verify_project_dir.stat.exists
-
-# Step 3: Include domain vars
-- name: Include common vars
-  ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"
-
-- name: Include openchami vars
-  ansible.builtin.include_vars: "{{ role_path }}/../../vars/openchami_vars.yml"
-  when: openchami_vars_support | default(false)
-
-# Step 4: Include OIM metadata vars
-- name: Include oim metadata vars
-  ansible.builtin.include_vars: "{{ omnia_metadata_file_path }}"
-  when: omnia_metadata_support | default(false)
-
-# Step 5: Save project-level input dir and scope to orchestrator subdir
-- name: Save original project-level input dir
-  ansible.builtin.set_fact:
-    omnia_project_input_dir: "{{ input_project_dir }}"
-    cacheable: true
-
-- name: Override input_project_dir to orchestrator subdirectory
-  ansible.builtin.set_fact:
-    input_project_dir: "{{ input_project_dir }}/orchestrator"
-    project_name: "orchestrator"
+    input_project_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
+    output_project_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
+    omnia_project_input_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
     orchestrator_config_file: "orchestrator_config.yml"
-    orchestrator_output_dir: "{{ output_project_dir }}/orchestrator"
+    orchestrator_output_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
     project_dir_status: true
     cacheable: true
 
@@ -113,13 +84,35 @@
     path: "{{ input_project_dir }}"
   register: orchestrator_input_stat
 
-- name: Fail if orchestrator input directory does not exist
-  ansible.builtin.fail:
-    msg: >-
-      Orchestrator input directory '{{ input_project_dir }}' does not exist.
-      Please create it and populate with orchestrator_config.yml, network_spec.yml,
-      and pxe_mapping_file.csv (from discovery output).
+- name: Auto-copy input files from source if runtime input dir is missing
   when: not orchestrator_input_stat.stat.exists
+  block:
+    - name: Check if source input directory exists
+      ansible.builtin.stat:
+        path: "{{ _domain_root_dir }}/input"
+      register: _source_dir_check
+
+    - name: Create runtime input directory
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}"
+        state: directory
+        mode: '0755'
+      when: _source_dir_check.stat.exists
+
+    - name: Copy input files from source to runtime directory
+      ansible.builtin.command:
+        cmd: "cp -a {{ _domain_root_dir }}/input/. {{ input_project_dir }}/"
+      when: _source_dir_check.stat.exists
+      changed_when: true
+
+    - name: Fail if no input files available
+      ansible.builtin.fail:
+        msg: >-
+          Orchestrator input directory '{{ input_project_dir }}' does not exist
+          and no source input files found at '{{ _domain_root_dir }}/input/'.
+          Run domain-init.sh or manually create the directory with orchestrator_config.yml
+          and network_spec.yml.
+      when: not _source_dir_check.stat.exists
 
 - name: Ensure orchestrator output directory exists
   ansible.builtin.file:
@@ -127,16 +120,59 @@
     state: directory
     mode: '0755'
 
-# Step 6: Load orchestrator config
-- name: Load orchestrator config for image_build_manager output path
+# Step 4: Include domain vars
+- name: Include common vars
+  ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"
+
+- name: Include openchami vars
+  ansible.builtin.include_vars: "{{ role_path }}/../../vars/openchami_vars.yml"
+  when: openchami_vars_support | default(false)
+
+# Step 5: Include OIM metadata vars (only if file exists)
+- name: Check if oim metadata file exists
+  ansible.builtin.stat:
+    path: "{{ omnia_metadata_file_path }}"
+  register: _oim_metadata_stat
+  when: omnia_metadata_support | default(false)
+
+- name: Include oim metadata vars
+  ansible.builtin.include_vars: "{{ omnia_metadata_file_path }}"
+  when:
+    - omnia_metadata_support | default(false)
+    - _oim_metadata_stat.stat.exists | default(false)
+
+- name: Warn if oim metadata file is missing
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: OIM metadata file not found at '{{ omnia_metadata_file_path }}'.
+      This is expected on first run. Run omnia.sh --init to generate it.
+  when:
+    - omnia_metadata_support | default(false)
+    - not (_oim_metadata_stat.stat.exists | default(false))
+
+- name: Set oim_node_name fallback from host_name
+  ansible.builtin.set_fact:
+    oim_node_name: "{{ host_name }}"
+    cacheable: true
+  when: oim_node_name is not defined or oim_node_name | length == 0
+
+- name: Set oim_shared_path fallback
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ omnia_data_path | default('/opt/omnia') }}"
+    cacheable: true
+  when: oim_shared_path is not defined or oim_shared_path | length == 0
+
+# Step 6: Load orchestrator config for upstream contract paths
+- name: Load orchestrator config
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/orchestrator_config.yml"
     name: _orch_config
   failed_when: false
 
-- name: Set image_build_manager_output_path on localhost
+- name: Set image_build_manager_output_path and boot params on localhost
   ansible.builtin.set_fact:
     image_build_manager_output_path: "{{ _orch_config.image_build_manager_output_path | default(default_build_status_path) }}"
+    boot_kernel_params: "{{ _orch_config.boot_kernel_params | default('') }}"
     cacheable: true
 
 # Step 7: Load repo_manager output (repo_status.yml)
@@ -173,7 +209,76 @@
       may fail without repo URLs.
   when: not _repo_status_stat.stat.exists
 
-# Step 8: Create OIM host group (only when oim_group is explicitly enabled)
+# Step 8: Load catalog file for feature detection and OS metadata
+- name: Resolve catalog file path
+  ansible.builtin.set_fact:
+    catalog_file_path: "{{ _orch_config.catalog_file_path | default('') | ternary(_orch_config.catalog_file_path | default(''), default_catalog_file_path) }}"
+    cacheable: true
+
+- name: Check if catalog file exists
+  ansible.builtin.stat:
+    path: "{{ catalog_file_path }}"
+  register: _catalog_stat
+
+- name: Load catalog file
+  ansible.builtin.set_fact:
+    catalog_data: "{{ lookup('file', catalog_file_path) | from_json }}"
+    cacheable: true
+  when: _catalog_stat.stat.exists
+
+- name: Derive OS metadata and feature flags from catalog
+  when: _catalog_stat.stat.exists
+  block:
+    - name: Extract base OS group from catalog
+      ansible.builtin.set_fact:
+        _base_os_group: >-
+          {{ catalog_data.catalog.groups | dict2items
+             | selectattr('value.type', 'equalto', 'base_os')
+             | map(attribute='value') | first | default({}) }}
+
+    - name: Set cluster OS metadata from catalog
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ _base_os_group.os | default('rhel') }}"
+        cluster_os_version: "{{ _base_os_group.os_version | default('10.0') }}"
+        cacheable: true
+
+    - name: Derive feature flags from catalog functionallayers and groups
+      ansible.builtin.set_fact:
+        _catalog_fl_names: "{{ catalog_data.catalog.functionallayer | map(attribute='name') | list }}"
+        _catalog_group_names: "{{ catalog_data.catalog.groups | list }}"
+        cacheable: true
+
+    - name: Set feature support flags from catalog
+      ansible.builtin.set_fact:
+        service_k8s_support: "{{ _catalog_fl_names | select('match', '.*kube.*|.*k8s.*') | list | length > 0 }}"
+        slurm_support: "{{ _catalog_fl_names | select('match', '.*slurm.*') | list | length > 0 }}"
+        openldap_support: "{{ _catalog_group_names | select('match', '.*openldap.*') | list | length > 0 }}"
+        ucx_support: "{{ _catalog_group_names | select('match', '.*ucx.*') | list | length > 0 }}"
+        openmpi_support: "{{ _catalog_group_names | select('match', '.*openmpi.*') | list | length > 0 }}"
+        csi_driver_powerscale_support: "{{ _catalog_group_names | select('match', '.*csi.*powerscale.*') | list | length > 0 }}"
+        cacheable: true
+
+- name: Warn if catalog file is missing
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Catalog file not found at '{{ catalog_file_path }}'.
+      Feature flags (k8s, slurm, openldap, etc.) will default to false.
+      Run repo_manager to generate the catalog, or set catalog_file_path
+      in orchestrator_config.yml.
+  when: not _catalog_stat.stat.exists
+
+- name: Set default feature flags when catalog is missing
+  ansible.builtin.set_fact:
+    service_k8s_support: false
+    slurm_support: false
+    openldap_support: false
+    ucx_support: false
+    openmpi_support: false
+    csi_driver_powerscale_support: false
+    cacheable: true
+  when: not _catalog_stat.stat.exists
+
+# Step 9: Create OIM host group (only when oim_group is explicitly enabled)
 - name: Create OIM host group {{ oim_host_group }}
   ansible.builtin.add_host:
     hostname: "{{ oim_host_group }}"

@@ -33,9 +33,11 @@ namespace: {{ telemetry_namespace }}
 
 resources:
 
-  # ── Common (always required) ──────────────────────────────────────────────
+{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool %}
+  # ── Common (iDRAC MySQL secrets) ──────────────────────────────────────────
   - telemetry_secret_creation.yaml
 
+{% endif %}
 {% if victoria_metrics_support | default(false) | bool %}
   # ── VictoriaMetrics (shared metrics storage) ───────────────────────────────
   - victoria-vmagent-rbac.yaml

@@ -1,0 +1,235 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Deploy Telemetry Sinks — Standalone Playbook
+# =============================================================================
+# Deploys telemetry sink infrastructure (Kafka, VictoriaMetrics, VictoriaLogs)
+# independently of telemetry source deployment.
+#
+# Usage:
+#   # Deploy all sinks (default)
+#   ansible-playbook deploy/sinks/deploy_sinks.yml
+#
+#   # Deploy only Kafka
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka"]'
+#
+#   # Deploy only VictoriaMetrics
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_metrics"]'
+#
+#   # Deploy only VictoriaLogs
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_logs"]'
+#
+#   # Deploy any combination
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_logs"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_metrics","victoria_logs"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics","victoria_logs"]'
+#
+# Extra Variables:
+#   sinks  - YAML list of sinks to deploy (default: all three)
+#            Valid values: kafka, victoria_metrics, victoria_logs
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Play 1: Prerequisites — Load config, validate sinks, resolve kube_vip
+# ---------------------------------------------------------------------------
+- name: "Deploy Sinks | Prerequisites"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    valid_sink_names:
+      - kafka
+      - victoria_metrics
+      - victoria_logs
+    sinks_default:
+      - kafka
+      - victoria_metrics
+      - victoria_logs
+  tasks:
+    # --- Load telemetry config files ---
+    - name: Load telemetry configuration
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+
+    # --- Parse and validate sinks variable ---
+    - name: Normalize sinks variable to a list
+      ansible.builtin.set_fact:
+        sinks_list: >-
+          {%- if sinks is defined -%}
+            {%- if sinks is string -%}
+              {{ sinks | from_yaml }}
+            {%- else -%}
+              {{ sinks }}
+            {%- endif -%}
+          {%- else -%}
+            {{ sinks_default }}
+          {%- endif -%}
+
+    - name: Ensure sinks is a valid non-empty list
+      ansible.builtin.assert:
+        that:
+          - sinks_list is iterable
+          - sinks_list is not string
+          - sinks_list | length > 0
+        fail_msg: >
+          Invalid 'sinks' variable. Must be a non-empty YAML list.
+          Valid values: ["kafka"], ["victoria_metrics"], ["victoria_logs"], or any combination.
+          Example: -e 'sinks=["kafka","victoria_metrics"]'
+
+    - name: Validate each sink name
+      ansible.builtin.assert:
+        that:
+          - item in valid_sink_names
+        fail_msg: >
+          Invalid sink '{{ item }}'. Valid sinks are: {{ valid_sink_names | join(', ') }}.
+      loop: "{{ sinks_list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # --- Set deployment flags from sinks list ---
+    - name: Set sink deployment flags
+      ansible.builtin.set_fact:
+        deploy_kafka: "{{ 'kafka' in sinks_list }}"
+        deploy_victoria_metrics: "{{ 'victoria_metrics' in sinks_list }}"
+        deploy_victoria_logs: "{{ 'victoria_logs' in sinks_list }}"
+        cacheable: true
+
+    - name: Display sink deployment plan
+      ansible.builtin.debug:
+        msg: >-
+          Sink deployment plan —
+          Kafka={{ deploy_kafka }},
+          VictoriaMetrics={{ deploy_victoria_metrics }},
+          VictoriaLogs={{ deploy_victoria_logs }}
+
+    # --- Validate kube_vip ---
+    - name: Validate kube_vip is set
+      ansible.builtin.assert:
+        that:
+          - kube_vip is defined
+          - kube_vip | length > 0
+        fail_msg: >
+          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+          All K8s tasks (kubectl, helm) execute on this host via SSH.
+
+    # --- Add kube_vip to in-memory inventory ---
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+
+    - name: Display kube_vip target
+      ansible.builtin.debug:
+        msg: "Sink deployment will execute on kube_vip: {{ kube_vip }}"
+
+# ---------------------------------------------------------------------------
+# Play 2: Deploy selected sinks on kube_vip
+# ---------------------------------------------------------------------------
+- name: "Deploy Sinks | Install on kube_vip"
+  hosts: kube_vip_group
+  gather_facts: true
+  any_errors_fatal: true
+  vars:
+    deploy_kafka: "{{ hostvars['localhost']['deploy_kafka'] | default(false) | bool }}"
+    deploy_victoria_metrics: "{{ hostvars['localhost']['deploy_victoria_metrics'] | default(false) | bool }}"
+    deploy_victoria_logs: "{{ hostvars['localhost']['deploy_victoria_logs'] | default(false) | bool }}"
+  tasks:
+    # ===========================================================================
+    # Phase 1: Deploy Kafka (Strimzi operator + Kafka cluster)
+    # ===========================================================================
+    - name: Deploy Kafka
+      when: deploy_kafka
+      block:
+        - name: "Kafka | Include deploy_kafka role (infrastructure only)"
+          ansible.builtin.include_role:
+            name: deploy_kafka
+          vars:
+            kafka_infra_only: true
+
+        - name: "Kafka | Record deployment result"
+          ansible.builtin.set_fact:
+            sink_kafka_result: "{{ 'DEPLOYED' if (kafka_deployed | default(false) | bool) else 'PENDING' }}"
+            cacheable: true
+
+    - name: Skip Kafka deployment (not requested)
+      ansible.builtin.debug:
+        msg: "Kafka deployment skipped (not in requested sinks list)"
+      when: not deploy_kafka
+
+    # ===========================================================================
+    # Phase 2: Deploy VictoriaMetrics (VM operator + VMCluster)
+    # ===========================================================================
+    - name: Deploy VictoriaMetrics
+      when: deploy_victoria_metrics
+      block:
+        - name: "VictoriaMetrics | Include deploy_victoria metrics role"
+          ansible.builtin.include_role:
+            name: deploy_victoria
+            tasks_from: metrics/tasks/main
+
+        - name: "VictoriaMetrics | Record deployment result"
+          ansible.builtin.set_fact:
+            sink_victoria_metrics_result: "{{ 'DEPLOYED' if (victoria_metrics_deployed | default(false) | bool) else 'PENDING' }}"
+            cacheable: true
+
+    - name: Skip VictoriaMetrics deployment (not requested)
+      ansible.builtin.debug:
+        msg: "VictoriaMetrics deployment skipped (not in requested sinks list)"
+      when: not deploy_victoria_metrics
+
+    # ===========================================================================
+    # Phase 3: Deploy VictoriaLogs (VLCluster + VLAgent)
+    # ===========================================================================
+    - name: Deploy VictoriaLogs
+      when: deploy_victoria_logs
+      block:
+        - name: "VictoriaLogs | Include deploy_victoria logs role"
+          ansible.builtin.include_role:
+            name: deploy_victoria
+            tasks_from: logs/tasks/main
+
+        - name: "VictoriaLogs | Record deployment result"
+          ansible.builtin.set_fact:
+            sink_victoria_logs_result: "{{ 'DEPLOYED' if (victoria_logs_deployed | default(false) | bool) else 'PENDING' }}"
+            cacheable: true
+
+    - name: Skip VictoriaLogs deployment (not requested)
+      ansible.builtin.debug:
+        msg: "VictoriaLogs deployment skipped (not in requested sinks list)"
+      when: not deploy_victoria_logs
+
+# ---------------------------------------------------------------------------
+# Play 3: Deployment Summary
+# ---------------------------------------------------------------------------
+- name: "Deploy Sinks | Summary"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../../vars/deploy_sinks.yml
+  tasks:
+    - name: Display deployment summary
+      vars:
+        kube_vip_host: "{{ kube_vip }}"
+        kafka_status: "{{ hostvars[kube_vip_host]['sink_kafka_result'] | default('SKIPPED') }}"
+        victoria_metrics_status: "{{ hostvars[kube_vip_host]['sink_victoria_metrics_result'] | default('SKIPPED') }}"
+        victoria_logs_status: "{{ hostvars[kube_vip_host]['sink_victoria_logs_result'] | default('SKIPPED') }}"
+      ansible.builtin.debug:
+        msg: "{{ sink_deployment_summary_lines.split('\n') }}"

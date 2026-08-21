@@ -14,22 +14,11 @@
 ---
 # Set SELinux context for orchestrator data directories.
 # Consolidated from duplicate tasks in orchestration_mapping_nodes.yml (lines 19-29)
-# and configure_bss_cloud_init.yml (lines 143-153).
+# and set_selinux_context.yml.
 
-- name: Set openchami SELinux context for Local flow
+- name: Set openchami SELinux context
   ansible.builtin.command: >
     chcon -R system_u:object_r:container_file_t:s0
     "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
   changed_when: true
   failed_when: false
-  when: hostvars['localhost']['omnia_share_option'] == 'Local'
-
-- name: Set openchami SELinux context for NFS internal flow
-  ansible.builtin.command: >
-    chcon -R system_u:object_r:container_file_t:s0
-    "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
-  changed_when: true
-  failed_when: false
-  when:
-    - hostvars['localhost']['omnia_share_option'] == 'NFS'
-    - hostvars['localhost']['nfs_type'] | default('') == 'internal'

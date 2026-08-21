@@ -51,9 +51,99 @@ def validate_telemetry_config(
     errors = []
 
     # =========================================================================
-    # L2: Validate kube_vip — IPv4 format + SSH reachability + cluster_mount path
+    # L2: Validate cluster_inventory — file existence under telemetry input dir
     # =========================================================================
-    kube_vip = data.get("kube_vip", "")
+    cluster_inventory = data.get("cluster_inventory", "")
+    if cluster_inventory:
+        # Determine the telemetry input directory
+        # module_utils_base = /path/to/omnia/src/telemetry/plugins/module_utils
+        # telemetry_root = /path/to/omnia/src/telemetry (2 levels up)
+        # telemetry_input_dir = /path/to/omnia/src/telemetry/input
+        telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
+        telemetry_input_dir = os.path.join(telemetry_root, "input")
+
+        # Normalize the cluster_inventory path
+        cluster_inv_path = cluster_inventory.strip()
+
+        # Check if path is absolute or relative
+        if not os.path.isabs(cluster_inv_path):
+            # If relative, prepend telemetry input dir
+            cluster_inv_full_path = os.path.join(telemetry_input_dir, cluster_inv_path)
+        else:
+            cluster_inv_full_path = cluster_inv_path
+
+        # Validate file exists
+        if not os.path.exists(cluster_inv_full_path):
+            # Extract just the filename for the example
+            example_filename = os.path.basename(cluster_inv_path)
+            errors.append(create_error_msg(
+                "cluster_inventory",
+                cluster_inventory,
+                f". Cluster inventory file not found as: {cluster_inv_full_path}. "
+                f"Ensure the file exists under omnia/src/telemetry/input/ directory. "
+                f"Example paths: '/omnia/src/telemetry/input/{example_filename}'"
+            ))
+            logger.error(f"cluster_inventory file not found: {cluster_inv_full_path}")
+        elif not os.path.isfile(cluster_inv_full_path):
+            errors.append(create_error_msg(
+                "cluster_inventory",
+                cluster_inventory,
+                f"cluster_inventory path exists but is not a file: {cluster_inv_full_path}. "
+                f"Provide a valid YAML inventory file path."
+            ))
+            logger.error(f"cluster_inventory is not a file: {cluster_inv_full_path}")
+        else:
+            # File exists and is a valid file - validation passed
+            # Note: cluster_inventory can be an absolute path anywhere on the system
+            # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
+            logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
+    else:
+        errors.append(create_error_msg(
+            "cluster_inventory",
+            "",
+            "cluster_inventory is required. Provide the path to the Ansible inventory file "
+            "(e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml' or 'orchestrator_inventory.yml')"
+        ))
+        logger.error("cluster_inventory is empty or not provided")
+
+    # =========================================================================
+    # L2: Validate kube_vip — extracted from cluster_inventory file
+    # kube_vip is defined in cluster_inventory (kube_vip_group.hosts[0].ansible_host or hostname)
+    # NOT in telemetry_config.yml directly
+    # =========================================================================
+    kube_vip = ""
+
+    # Extract kube_vip from cluster_inventory
+    if cluster_inventory:
+        cluster_inv_path = cluster_inventory.strip()
+        if not os.path.isabs(cluster_inv_path):
+            telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
+            telemetry_input_dir = os.path.join(telemetry_root, "input")
+            cluster_inv_full_path = os.path.join(telemetry_input_dir, cluster_inv_path)
+        else:
+            cluster_inv_full_path = cluster_inv_path
+
+        if os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
+            try:
+                with open(cluster_inv_full_path, "r", encoding="utf-8") as inv_file:
+                    cluster_inv_data = yaml.safe_load(inv_file)
+                # Extract kube_vip from cluster_inventory structure:
+                # all.children.kube_vip_group.hosts.<hostname>.ansible_host or <hostname>
+                if cluster_inv_data and "all" in cluster_inv_data:
+                    children = cluster_inv_data.get("all", {}).get("children", {})
+                    kube_vip_group = children.get("kube_vip_group", {})
+                    hosts = kube_vip_group.get("hosts", {})
+                    if hosts:
+                        first_host_name = list(hosts.keys())[0]
+                        first_host_data = hosts.get(first_host_name, {})
+                        if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
+                            kube_vip = first_host_data["ansible_host"]
+                        else:
+                            kube_vip = first_host_name
+                        logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory")
+            except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
+                logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
+
     kube_vip_valid = False
     if kube_vip and isinstance(kube_vip, str):
         octets = kube_vip.strip().split(".")
@@ -999,7 +1089,37 @@ def validate_telemetry_packages(
                     telemetry_config = yaml.safe_load(f)
                 
                 kube_vip = telemetry_config.get("kube_vip", "") if isinstance(telemetry_config, dict) else ""
-                
+
+                # If kube_vip not in telemetry_config, try to extract from cluster_inventory
+                if (not kube_vip or not isinstance(kube_vip, str) or not kube_vip.strip()):
+                    cluster_inventory = telemetry_config.get("cluster_inventory", "") if isinstance(telemetry_config, dict) else ""
+                    if cluster_inventory and isinstance(cluster_inventory, str) and cluster_inventory.strip():
+                        cluster_inv_path = cluster_inventory.strip()
+                        if not os.path.isabs(cluster_inv_path):
+                            cluster_inv_full_path = os.path.join(input_dir, cluster_inv_path)
+                        else:
+                            cluster_inv_full_path = cluster_inv_path
+
+                        if os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
+                            try:
+                                with open(cluster_inv_full_path, "r", encoding="utf-8") as inv_file:
+                                    cluster_inv_data = yaml.safe_load(inv_file)
+                                # Extract kube_vip from cluster_inventory structure
+                                if cluster_inv_data and "all" in cluster_inv_data:
+                                    children = cluster_inv_data.get("all", {}).get("children", {})
+                                    kube_vip_group = children.get("kube_vip_group", {})
+                                    hosts = kube_vip_group.get("hosts", {})
+                                    if hosts:
+                                        first_host_name = list(hosts.keys())[0]
+                                        first_host_data = hosts.get(first_host_name, {})
+                                        if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
+                                            kube_vip = first_host_data["ansible_host"]
+                                        else:
+                                            kube_vip = first_host_name
+                                        logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory for cluster_mount validation")
+                            except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
+                                logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
+
                 if kube_vip and isinstance(kube_vip, str) and kube_vip.strip():
                     # First, verify kube_vip is reachable via SSH
                     logger.info(f"Pre-checking SSH reachability to kube_vip '{kube_vip}' before cluster_mount path validation")
