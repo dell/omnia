@@ -587,6 +587,54 @@ cmd_domain_status() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Utility: Check if a file is Ansible Vault encrypted
+# ─────────────────────────────────────────────────────────────────────────────
+_is_vault_encrypted() {
+    local file="$1"
+    head -1 "$file" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT;' 2>/dev/null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utility: Check if a filename looks like a credential file
+# ─────────────────────────────────────────────────────────────────────────────
+_is_credential_file() {
+    local file="$1"
+    local fname
+    fname=$(basename "$file")
+    # Match common credential file naming patterns
+    [[ "$fname" == *credential* ]] || [[ "$fname" == *secret* ]] || [[ "$fname" == *vault* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utility: Open a file with the right editor (ansible-vault for vault files)
+# ─────────────────────────────────────────────────────────────────────────────
+_edit_file() {
+    local target="$1" editor="$2"
+
+    if _is_vault_encrypted "$target" || _is_credential_file "$target"; then
+        # Credential / vault-encrypted file — use ansible-vault edit
+        if ! command -v ansible-vault &>/dev/null; then
+            echo -e "  ${FAIL} ${RED}ansible-vault not found.${NC}"
+            echo ""
+            echo -e "  ${YELLOW}This file appears to be Ansible Vault encrypted.${NC}"
+            echo -e "  ${YELLOW}ansible-vault is only available inside the Omnia venv.${NC}"
+            echo ""
+            echo -e "  ${BOLD}Activate the venv first:${NC}"
+            echo -e "    source ${OMNIA_VENV_PATH:-/opt/omnia/venv}/bin/activate"
+            echo -e "  ${DIM}Then retry: omnia-cli edit <domain>${NC}"
+            echo ""
+            return 1
+        fi
+        echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
+        echo -e "  Opening with ${BOLD}ansible-vault edit${NC}..."
+        ansible-vault edit "$target"
+    else
+        echo -e "  Opening ${target} in ${editor}..."
+        $editor "$target"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Command: edit — Open or list input configuration files for a domain
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_edit() {
@@ -637,7 +685,14 @@ cmd_edit() {
         fsize=$(stat -c '%s' "$f" 2>/dev/null || echo "?")
         local fmod
         fmod=$(stat -c '%y' "$f" 2>/dev/null | cut -d. -f1 || echo "?")
-        echo -e "    ${CYAN}${idx})${NC} ${rel_path}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
+        # Mark vault/credential files with a lock indicator
+        local marker=""
+        if _is_vault_encrypted "$f"; then
+            marker="  ${YELLOW}[vault-encrypted]${NC}"
+        elif _is_credential_file "$f"; then
+            marker="  ${YELLOW}[credentials]${NC}"
+        fi
+        echo -e "    ${CYAN}${idx})${NC} ${rel_path}${marker}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
         file_arr+=("$f")
     done <<< "$files"
 
@@ -655,14 +710,30 @@ cmd_edit() {
                 echo -e "  ${DIM}No files opened.${NC}"
                 ;;
             a|A)
-                echo -e "  Opening all files in ${editor}..."
-                $editor "${file_arr[@]}"
+                # For 'open all', skip vault files — they need individual ansible-vault edit
+                local plain_files=()
+                local vault_count=0
+                for f in "${file_arr[@]}"; do
+                    if _is_vault_encrypted "$f" || _is_credential_file "$f"; then
+                        vault_count=$((vault_count + 1))
+                    else
+                        plain_files+=("$f")
+                    fi
+                done
+                if [ "$vault_count" -gt 0 ]; then
+                    echo -e "  ${YELLOW}Skipping ${vault_count} credential/vault file(s) — edit them individually.${NC}"
+                fi
+                if [ "${#plain_files[@]}" -gt 0 ]; then
+                    echo -e "  Opening ${#plain_files[@]} file(s) in ${editor}..."
+                    $editor "${plain_files[@]}"
+                else
+                    echo -e "  ${DIM}No plain-text files to open.${NC}"
+                fi
                 ;;
             *)
                 if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#file_arr[@]}" ]; then
                     local target="${file_arr[$((choice - 1))]}"
-                    echo -e "  Opening ${target} in ${editor}..."
-                    $editor "$target"
+                    _edit_file "$target" "$editor"
                 else
                     echo -e "  ${RED}Invalid selection: ${choice}${NC}"
                 fi
