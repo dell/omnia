@@ -1,0 +1,163 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Deploys karavi-observability Helm chart (CSM Metrics PowerScale + OTEL Collector)
+# This was previously done in cloud-init (telemetry.sh.j2); now runs directly via Ansible.
+
+# --- Apply cert-manager CRDs before Helm install ---
+
+- name: Check if cert-manager CRDs file exists
+  ansible.builtin.stat:
+    path: "{{ karavi_helm_chart_path }}/crds/cert-manager.crds.yaml"
+  register: _cert_manager_crds
+
+- name: Apply cert-manager CRDs
+  ansible.builtin.command: >
+    kubectl apply --validate=false -f {{ karavi_helm_chart_path }}/crds/cert-manager.crds.yaml
+  when: _cert_manager_crds.stat.exists | default(false)
+  changed_when: false
+  failed_when: false
+
+# --- Copy isilon-creds secret to telemetry namespace ---
+
+- name: Check if isilon-creds exists in isilon namespace
+  ansible.builtin.command: kubectl get secret isilon-creds -n isilon -o name
+  register: _isilon_creds_check
+  changed_when: false
+  failed_when: false
+
+- name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
+  ansible.builtin.shell: |
+    kubectl delete secret isilon-creds -n {{ csm_observability_namespace }} --ignore-not-found=true 2>/dev/null
+    kubectl get secret isilon-creds -n isilon -o json \
+      | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
+      | jq ".metadata.namespace = \"{{ csm_observability_namespace }}\"" \
+      | kubectl create -f -
+  when: _isilon_creds_check.rc == 0
+  changed_when: false
+  failed_when: false
+
+# --- Copy Karavi Authorization resources if enabled ---
+
+- name: Copy Karavi Authorization resources (Mode B)  # noqa: risky-shell-pipe
+  ansible.builtin.shell: |
+    kubectl get configmap isilon-config-params -n isilon -o yaml \
+      | sed "s/namespace: isilon/namespace: {{ csm_observability_namespace }}/" \
+      | kubectl apply -f - 2>/dev/null || true
+    kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
+      | sed "s/namespace: isilon/namespace: {{ csm_observability_namespace }}/" \
+      | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
+      | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
+      | kubectl apply -f - 2>/dev/null || true
+  when: karavi_enabled | bool
+  changed_when: false
+  failed_when: false
+
+# --- Helm install/upgrade karavi-observability ---
+
+- name: Check if karavi-observability Helm release exists  # noqa: risky-shell-pipe
+  ansible.builtin.shell: >
+    helm list -n {{ csm_observability_namespace }} --filter karavi-observability -q 2>/dev/null | grep -q karavi-observability
+  register: _karavi_helm_check
+  changed_when: false
+  failed_when: false
+
+- name: Set Helm values file path on NFS
+  ansible.builtin.set_fact:
+    _helm_values_nfs: "{{ telemetry_deploy_dir }}/karavi-observability/csm_metrics_values.yaml"
+
+- name: Upgrade existing karavi-observability release
+  ansible.builtin.command: >
+    helm upgrade karavi-observability {{ karavi_helm_chart_path }}
+    -n {{ csm_observability_namespace }}
+    -f {{ _helm_values_nfs }}
+    --timeout 10m
+  when: _karavi_helm_check.rc == 0
+  register: _helm_upgrade
+  changed_when: "'has been upgraded' in (_helm_upgrade.stdout | default(''))"
+
+- name: Install karavi-observability Helm chart
+  ansible.builtin.command: >
+    helm install karavi-observability {{ karavi_helm_chart_path }}
+    -n {{ csm_observability_namespace }}
+    -f {{ _helm_values_nfs }}
+    --timeout 10m
+  when: _karavi_helm_check.rc != 0
+  register: _helm_install
+  changed_when: "'deployed' in (_helm_install.stdout | default(''))"
+
+# --- Post-install: Patch OTEL Collector ---
+
+- name: Patch OTEL Collector service for Prometheus metrics port
+  ansible.builtin.command: >
+    kubectl patch svc otel-collector -n {{ csm_observability_namespace }}
+    --patch '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}'
+  changed_when: false
+  failed_when: false
+
+- name: Add labels to OTEL Collector service for vmagent discovery
+  ansible.builtin.command: >
+    kubectl label svc otel-collector -n {{ csm_observability_namespace }}
+    app.kubernetes.io/name=otel-collector app.kubernetes.io/component=collector --overwrite
+  changed_when: false
+  failed_when: false
+
+# --- Create OTEL Collector PVC for persistent buffering ---
+
+- name: Check if OTEL Collector PVC exists
+  ansible.builtin.command: >
+    kubectl get pvc otel-collector-data -n {{ csm_observability_namespace }} -o name
+  register: _otel_pvc_check
+  changed_when: false
+  failed_when: false
+
+- name: Create OTEL Collector PVC  # noqa: risky-shell-pipe
+  ansible.builtin.shell: |
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: otel-collector-data
+      namespace: {{ csm_observability_namespace }}
+      labels:
+        app.kubernetes.io/name: otel-collector
+        app.kubernetes.io/instance: karavi-observability
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: {{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}
+    EOF
+  when: _otel_pvc_check.rc != 0
+  changed_when: true
+
+- name: Patch OTEL Collector deployment with persistent volume
+  ansible.builtin.command: >
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    --type=json
+    -p=[{"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"otel-collector-data","persistentVolumeClaim":{"claimName":"otel-collector-data"}}},{"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"otel-collector-data","mountPath":"/data"}}]
+  changed_when: false
+  failed_when: false
+
+- name: Wait for OTEL Collector rollout
+  ansible.builtin.command: >
+    kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace }} --timeout=120s
+  changed_when: false
+  failed_when: false
+
+- name: Display karavi-observability deployment status
+  ansible.builtin.debug:
+    msg: "PowerScale telemetry (CSM Observability + OTEL Collector) deployed successfully"
