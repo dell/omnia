@@ -29,6 +29,7 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tags:
+    - precheck
     - local_repo
     - repo_manager
   tasks:

@@ -12,8 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+"""
+Ansible module for processing RPM repository configuration and Pulp operations.
+
+This module handles:
+- RPM repository creation, synchronization, and management
+- Pulp remote and distribution management
+- Publication creation and cleanup
+- Repository validation and status checking
+- YUM repository file generation
+"""
+
+
 #!/usr/bin/python
-# pylint: disable=import-error,no-name-in-module
+# pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments
 import subprocess
 import multiprocessing
 import os
@@ -155,9 +167,10 @@ def execute_command(cmd_string, log, type_json=None, seconds=None):
     Args:
         cmd_string (str): The shell command to execute.
         log (logging.Logger): Logger instance for logging the process and errors.
-        type_json (bool, optional): If set to `True`, the function will attempt to parse the
-        command's output as JSON.
-        seconds (float, optional): The maximum time allowed for the command to execute. If `None`,
+        type_json (bool, optional): If set to `True`, the function will attempt to
+            parse the command's output as JSON.
+        seconds (float, optional): The maximum time allowed for the command to execute.
+            If `None`,
         no timeout is enforced.
 
     Returns:
@@ -167,15 +180,29 @@ def execute_command(cmd_string, log, type_json=None, seconds=None):
     try:
         log.info("Executing Command: %s", cmd_string)
         # Use shlex.split to safely parse the command string into a list of arguments
-        # This prevents command injection by avoiding shell=True
+        # This prevents command injection by using list arguments with shell=False
         cmd_list = shlex.split(cmd_string)
-        cmd = subprocess.run(cmd_list, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=seconds, shell=False)
+        cmd = subprocess.run(
+            cmd_list,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=seconds,
+            shell=False,
+            check=False
+        )
         log.info(f"execute command return code : {cmd}")
         if cmd.returncode != 0:
             return False
         if type_json:
             return json.loads(cmd.stdout)
         return True
+    except subprocess.TimeoutExpired as e:
+        log.error("Command timeout: %s", str(e))
+        return False
+    except subprocess.SubprocessError as e:
+        log.error("Subprocess error: %s", str(e))
+        return False
     except Exception as e:
         log.error("Exception while executing command: %s", str(e))
         return False
@@ -207,8 +234,11 @@ def check_repository_synced(repo_name, log):
 
         log.info(f"{repo_name} not synced yet. Proceeding with sync.")
         return False
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
         log.info(f"Repository {repo_name} does not exist. Proceeding.")
+        return False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error(f"Subprocess error checking repository: {e}")
         return False
     except Exception as e:
         log.error(f"Error checking repository: {e}")
@@ -224,7 +254,8 @@ def create_rpm_repository(repo, log):
         log (logging.Logger): Logger instance for logging the process and errors.
 
     Returns:
-        bool: True if the repository was created successfully or already exists, False if there was an error.
+        bool: True if the repository was created successfully or already exists,
+            False if there was an error.
     """
     try:
         repo_name = repo["package"]
@@ -242,8 +273,23 @@ def create_rpm_repository(repo, log):
         log.info("Repository %s already exists.", repo_name)
         return True, repo_name
 
+    except subprocess.CalledProcessError as e:
+        log.error(
+            "CalledProcessError while creating repository '%s': %s",
+            repo.get('package', 'unknown'), e
+        )
+        return False, repo.get("package", "unknown")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error(
+            "Subprocess error while creating repository '%s': %s",
+            repo.get('package', 'unknown'), e
+        )
+        return False, repo.get("package", "unknown")
     except Exception as e:
-        log.error("Unexpected error while creating repository '%s': %s", repo.get('package', 'unknown'), e)
+        log.error(
+            "Unexpected error while creating repository '%s': %s",
+            repo.get('package', 'unknown'), e
+        )
         return False, repo.get("package", "unknown")
 
 
@@ -266,6 +312,12 @@ def show_rpm_repository(repo_name, log):
 
         return execute_command(command, log)
 
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError while checking repository '%s': %s", repo_name, str(e))
+        return False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error while checking repository '%s': %s", repo_name, str(e))
+        return False
     except Exception as e:
         log.error("Unexpected error while checking repository '%s': %s", repo_name, str(e))
         return False
@@ -308,9 +360,20 @@ def create_rpm_remote(repo, log):
             client_cert = f"@{repo['client_cert']}"
             client_key = f"@{repo['client_key']}"
             if not show_rpm_remote(remote_name, log):
-                command = pulp_rpm_commands["create_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
+                command = pulp_rpm_commands["create_remote_cert"] % (
+                    remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
+                )
                 log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
                 result = execute_command(command, log)
+                # Handle duplicate remote error - treat as success since remote already exists
+                if result is False:
+                    log.warning(
+                        "Remote creation command failed for '%s', checking if remote already exists",
+                        remote_name
+                    )
+                    if show_rpm_remote(remote_name, log):
+                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
+                        return True, repo_name
                 log.info("Remote %s created.", remote_name)
         else:
             log.info("Repository does not use SSL certificates for remote")
@@ -318,9 +381,22 @@ def create_rpm_remote(repo, log):
                 command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
                 log.info("Remote '%s' does not exist. Executing creation command.", remote_name)
                 result = execute_command(command, log)
+                # Handle duplicate remote error - treat as success since remote already exists
+                if result is False:
+                    log.warning("Remote creation command failed for '%s', checking if remote already exists", remote_name)
+                    if show_rpm_remote(remote_name, log):
+                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
+                        return True, repo_name
                 log.info("Remote %s created.", remote_name)
-        return result, repo_name
+        # Return True if result is truthy (success) or if remote exists, False otherwise
+        return bool(result), repo_name
 
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
     except Exception as e:
         log.error("Unexpected error while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
         return False, repo.get("package", "unknown")
@@ -347,6 +423,12 @@ def show_rpm_remote(remote_name, log):
 
         return execute_command(command, log)
 
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError while checking remote '%s': %s", remote_name, str(e))
+        return False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error while checking remote '%s': %s", remote_name, str(e))
+        return False
     except Exception as e:
         log.error("Unexpected error while checking remote '%s': %s", remote_name, str(e))
         return False
@@ -431,6 +513,12 @@ def sync_rpm_repository(repo, log, resync_repos=None):
             log.error("SYNC FAILED: %s (Duration: %.2f seconds)", repo_name, elapsed_time)
 
         return success, repo_name, success, version_changed  # Return version_changed flag
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError during synchronization of repository '%s': %s", repo_name, str(e))
+        return False, repo_name, False, False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error during synchronization of repository '%s': %s", repo_name, str(e))
+        return False, repo_name, False, False
     except Exception as e:
         log.error("Unexpected error during synchronization of repository '%s': %s", repo_name, str(e))
         return False, repo_name, False, False
@@ -479,7 +567,7 @@ def get_repo_version(repo_name, log):
     try:
         command = pulp_rpm_commands["get_repo_version"] % repo_name
         cmd_list = shlex.split(command)
-        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             return 0
@@ -494,6 +582,12 @@ def get_repo_version(repo_name, log):
                 return version
         except (json.JSONDecodeError, ValueError, IndexError):
             return 0
+        return 0
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError getting version for '%s': %s", repo_name, str(e))
+        return 0
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error getting version for '%s': %s", repo_name, str(e))
         return 0
     except Exception as e:
         log.error("Error getting version for '%s': %s", repo_name, str(e))
@@ -515,7 +609,7 @@ def check_publication_exists(repo_name, log):
         command = pulp_rpm_commands["check_publication"] % repo_name
         log.info("Checking if publication exists for repository '%s'", repo_name)
         cmd_list = shlex.split(command)
-        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True, check=False)
         log.info("check_publication_exists command return code: %s", result.returncode)
 
         if result.returncode != 0:
@@ -532,6 +626,12 @@ def check_publication_exists(repo_name, log):
             return False
     except (json.JSONDecodeError, ValueError) as e:
         log.error("Error parsing publication list for '%s': %s", repo_name, str(e))
+        return False
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError checking publication for '%s': %s", repo_name, str(e))
+        return False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error checking publication for '%s': %s", repo_name, str(e))
         return False
     except Exception as e:
         log.error("Error checking publication for '%s': %s", repo_name, str(e))
@@ -554,6 +654,12 @@ def check_distribution_exists(repo_name, log):
         log.info("Checking if distribution exists for repository '%s'", repo_name)
         result = execute_command(command, log)
         return bool(result)
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError checking distribution for '%s': %s", repo_name, str(e))
+        return False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error checking distribution for '%s': %s", repo_name, str(e))
+        return False
     except Exception as e:
         log.error("Error checking distribution for '%s': %s", repo_name, str(e))
         return False
@@ -573,7 +679,7 @@ def get_latest_publication_href(repo_name, log):
     try:
         command = pulp_rpm_commands["check_publication"] % repo_name
         cmd_list = shlex.split(command)
-        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             log.info("No publications found for '%s'", repo_name)
@@ -590,6 +696,12 @@ def get_latest_publication_href(repo_name, log):
             log.info("Latest publication href for '%s': %s", repo_name, validated_href)
             return validated_href
 
+        return None
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError getting latest publication for '%s': %s", repo_name, str(e))
+        return None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error getting latest publication for '%s': %s", repo_name, str(e))
         return None
     except Exception as e:
         log.error("Error getting latest publication for '%s': %s", repo_name, str(e))
@@ -611,7 +723,7 @@ def delete_old_publications(repo_name, log):
         # Get list of publications for this repo
         list_command = pulp_rpm_commands["check_publication"] % repo_name
         cmd_list = shlex.split(list_command)
-        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True)
+        result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             log.info("No existing publications found for '%s'", repo_name)
@@ -641,7 +753,7 @@ def delete_old_publications(repo_name, log):
                 log.info("Deleting publication: %s", validated_href)
                 delete_result = subprocess.run(
                     ["pulp", "rpm", "publication", "destroy", "--href", validated_href],
-                    shell=False, capture_output=True, text=True
+                    shell=False, capture_output=True, text=True, check=False
                 )
                 if delete_result.returncode != 0:
                     log.warning("Failed to delete publication %s: %s", pub_href, delete_result.stderr)
@@ -649,6 +761,12 @@ def delete_old_publications(repo_name, log):
                     log.info("Successfully deleted publication: %s", pub_href)
 
         return True
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError deleting publications for '%s': %s", repo_name, str(e))
+        return False
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error deleting publications for '%s': %s", repo_name, str(e))
+        return False
     except Exception as e:
         log.error("Error deleting publications for '%s': %s", repo_name, str(e))
         return False
@@ -717,6 +835,12 @@ def create_publication(repo, log, resync_repos=None):
             log.error("Failed to create publication for %s. Error: %s", repo_name, error_message or "Unknown error")
 
         return success, repo_name
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
     except Exception as e:
         log.error("Unexpected error during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
         return False, repo.get("package", "unknown")
@@ -781,6 +905,12 @@ def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0")
 
         return True, repo_name
 
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
     except Exception as e:
         log.error("Unexpected error during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))
         return False, repo.get("package", "unknown")
@@ -804,7 +934,7 @@ def get_base_urls(log):
     command = ['pulp', 'rpm', 'distribution', 'list', '--field', 'base_url,name']
     log.info(f"Executing command: {' '.join(command)}")
 
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
 
     if result.returncode != 0:
         log.info(f"Error fetching distributions: {result.stderr}")
@@ -930,10 +1060,12 @@ sslverify=0"""
         if sslcacert:
             log.info(f"SSL CA certificate configured: {sslcacert}")
 
-    except PermissionError:
+    except PermissionError as e:
         log.error("Permission denied while writing to /etc/yum.repos.d/. Run with elevated privileges.")
+    except (IOError, OSError) as e:
+        log.error("File system error while creating YUM repo file: %s", str(e))
     except Exception as e:
-        log.error(f"Unexpected error while creating YUM repo file: {e}")
+        log.error("Unexpected error while creating YUM repo file: %s", str(e))
 
 
 def validate_resync_repos(resync_repos, rpm_config, log):
@@ -1266,7 +1398,7 @@ def create_aggregated_publication(repo_name, log):
     try:
         cmd_list = shlex.split(command)
         cmd = subprocess.run(
-            cmd_list, shell=False, capture_output=True, text=True, timeout=3600
+            cmd_list, shell=False, capture_output=True, text=True, timeout=3600, check=False
         )
         log.info(f"Publication command return code: {cmd.returncode}")
 
@@ -1288,7 +1420,7 @@ def create_aggregated_publication(repo_name, log):
             list_cmd = pulp_rpm_commands["list_publications"] % repo_name
             list_cmd_list = shlex.split(list_cmd)
             list_result = subprocess.run(
-                list_cmd_list, shell=False, capture_output=True, text=True
+                list_cmd_list, shell=False, capture_output=True, text=True, check=False
             )
             if list_result.returncode == 0:
                 pubs = json.loads(list_result.stdout)
@@ -1301,8 +1433,14 @@ def create_aggregated_publication(repo_name, log):
                     return True, validated_href
             return True, None
 
+    except subprocess.CalledProcessError as e:
+        log.error("CalledProcessError during publication creation: %s", str(e))
+        return False, None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        log.error("Subprocess error during publication creation: %s", str(e))
+        return False, None
     except Exception as e:
-        log.error(f"Exception during publication creation: {e}")
+        log.error("Exception during publication creation: %s", str(e))
         return False, None
 
 
@@ -1337,7 +1475,7 @@ def create_aggregated_distribution(repo_name, base_path, pub_href, log):
             log.info(f"Updating distribution '{dist_name}' with publication href")
             update_result = subprocess.run(
                 ["pulp", "rpm", "distribution", "update", "--name", dist_name, "--publication", validated_href],
-                shell=False, capture_output=True, text=True
+                shell=False, capture_output=True, text=True, check=False
             )
             result = update_result.returncode == 0
         else:

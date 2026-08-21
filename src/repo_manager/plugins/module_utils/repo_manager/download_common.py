@@ -11,10 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-return-statements,too-many-statements,too-many-arguments,too-many-branches,too-many-locals
+# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-return-statements,too-many-statements,too-many-arguments,too-many-branches,too-many-locals,too-many-nested-blocks
 
 """
-Handle pulp file downloads for local repository
+Handle pulp file downloads for local repository.
+
+This module provides:
+- File download operations for various content types
+- Download task processing and management
+- Content validation and error handling
+- Download status tracking and reporting
 """
 import base64
 import json

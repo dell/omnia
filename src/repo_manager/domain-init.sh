@@ -46,7 +46,10 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+temp_dir
+temp_dir="$(dirname "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIR
+SCRIPT_DIR="$(cd "$temp_dir" && pwd)" || exit 1
 readonly DOMAIN_NAME="repo_manager"
 
 # Color definitions

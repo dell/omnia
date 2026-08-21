@@ -48,8 +48,8 @@ def execute_command(cmd_string, logger, type_json=False):  # pylint: disable=too
     """
     Executes a command and captures the output (both stdout and stderr).
 
-    Uses shell=False and shlex.split() for plain commands. Shell=True is only
-    used when the command string contains shell metacharacters (e.g. pipes).
+    Always uses shell=False with list arguments to avoid shell injection risks.
+    Commands are parsed using shlex.split() to handle proper argument separation.
 
     Args:
         cmd_string (str): The command to execute.
@@ -67,20 +67,16 @@ def execute_command(cmd_string, logger, type_json=False):  # pylint: disable=too
         safe_cmd_string = mask_sensitive_data(cmd_string)
         logger.info(f"Executing command: {safe_cmd_string}")
 
-        # Use shell=True only when the command contains shell metacharacters.
-        # Otherwise parse the string into an argument list and run shell=False.
-        shell_metacharacters = re.compile(r'[|&;<>$`\(\)\[\]\*\?\{\}]')
-        use_shell = bool(shell_metacharacters.search(cmd_string))
-        cmd_args = cmd_string if use_shell else shlex.split(cmd_string)
+        # Always use shell=False with list arguments to avoid shell injection
+        cmd_args = shlex.split(cmd_string)
 
-        # Run the command
-        # nosec B602 - shell=True is required for commands with shell metacharacters
+        # Run the command with list arguments
         cmd = subprocess.run(
             cmd_args,
             universal_newlines=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            shell=use_shell,  # nosec B602
+            shell=False,
             check=False
         )
         status["returncode"] = cmd.returncode

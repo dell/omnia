@@ -19,11 +19,12 @@
 # All tasks run on localhost (OIM).
 #
 # Usage:
-#   # Deploy Pulp server
-#   ansible-playbook repo_manager.yml --tags deploy
+#   # Prepare credentials and deploy Pulp server
+#   ansible-playbook repo_manager.yml --tags prepare
+#   ansible-playbook repo_manager.yml --tags prepare -e pulp_password='your_password'
 #
-#   # Validate inputs
-#   ansible-playbook repo_manager.yml --tags validate
+#   # Precheck inputs
+#   ansible-playbook repo_manager.yml --tags precheck
 #
 #   # Download and sync packages/repositories
 #   ansible-playbook repo_manager.yml --tags download
@@ -37,8 +38,8 @@
 #   # Cleanup specific repositories
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"
 #
-#   # Full workflow: validate -> deploy -> download -> status
-#   ansible-playbook repo_manager.yml --tags "validate,deploy,download,status"
+#   # Full workflow: precheck -> prepare -> download -> status
+#   ansible-playbook repo_manager.yml --tags "precheck,prepare,download,status"
 #
 #   # Run all operations (except cleanup)
 #   ansible-playbook repo_manager.yml --skip-tags cleanup
@@ -64,20 +65,21 @@
   tags: always
 
 # -------------------------------------------------------------------------
-# DEPLOY PULP
+# PREPARE CREDENTIALS AND DEPLOY PULP
 # -------------------------------------------------------------------------
-- name: Deploy Pulp server
+- name: Prepare credentials and deploy Pulp server
   ansible.builtin.import_playbook: "{{ playbook_dir }}/deploy/deploy_pulp.yml"
   tags:
+    - prepare
     - deploy
 
 # -------------------------------------------------------------------------
-# VALIDATE INPUTS
+# PRECHECK INPUTS
 # -------------------------------------------------------------------------
-- name: Validate input configurations
+- name: Precheck input configurations
   ansible.builtin.import_playbook: "{{ playbook_dir }}/validate/validate_config.yml"
   tags:
-    - validate
+    - precheck
 
 # -------------------------------------------------------------------------
 # DOWNLOAD PACKAGES

@@ -63,7 +63,7 @@ vi src/repo_manager/input/project_default/software_config.json
 
 # 4. Run playbooks (cd into the playbooks directory)
 cd src/repo_manager/playbooks
-ansible-playbook repo_manager.yml --tags validate   # Validate config
+ansible-playbook repo_manager.yml --tags precheck   # Precheck config
 ansible-playbook repo_manager.yml --tags deploy    # Deploy Pulp
 ansible-playbook repo_manager.yml --tags download   # Download content
 ansible-playbook repo_manager.yml --tags status     # Generate repo_status.yml
@@ -174,7 +174,7 @@ Supported content types: `rpm`, `tarball`, `manifest`, `git`, `pip_module`, `iso
 | Tag | Description |
 |-----|-------------|
 | `deploy` | Deploy Pulp content server using Podman |
-| `validate` | Validate configuration only (no credentials required) |
+| `precheck` | Precheck configuration only (no credentials required) |
 | `download` | Download content (RPM repos, containers, Python packages, etc.) |
 | `status` | Generate repo_status.yml with repository URLs |
 | `cleanup` | Remove Pulp containers, data, and configuration |
@@ -212,7 +212,7 @@ The `.github/workflows/ci.yml` runs on push/PR to `main`:
 - **lint** — `ansible-lint` on all playbooks
 - **bandit** — Security scanning on Python modules
 - **pylint** — Code quality checks on Python modules
-- **validate-standalone** — Sets env vars, creates input dirs, runs `--tags validate --check`
+- **validate-standalone** — Sets env vars, creates input dirs, runs `--tags precheck --check`
 
 ## Collection Structure
 

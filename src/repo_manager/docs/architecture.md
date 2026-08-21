@@ -35,12 +35,12 @@ directly on the RHEL host via `ansible-playbook`. All tasks execute locally
 - Create repositories for RPM, file, and Python distributions
 - Pre-flight checks to detect existing healthy Pulp deployment
 
-### 2. Validate Config (`--tags validate`)
+### 2. Precheck Config (`--tags precheck`)
 
 - Schema validation of `repo_manager_config.yml` against JSON schema
 - Logic validation (subscription URLs, user repositories, OS versions)
 - Validate RHEL subscription and OS URLs
-- No credentials required for basic validation
+- No credentials required for basic precheck
 
 ### 3. Download Content (`--tags download`)
 
@@ -181,7 +181,7 @@ Repo Manager supports the following content types in Pulp:
 1. **Localhost-only execution** — No SSH dependencies, all tasks run on localhost
 2. **Pulp as content server** — Uses Pulp for content management and distribution
 3. **System-wide Pulp CLI** — Creates `/usr/local/bin/pulp` symlink for easy access
-4. **Tag-based execution** — Supports selective execution via tags (deploy, validate, download, status, cleanup)
+4. **Tag-based execution** — Supports selective execution via tags (deploy, precheck, download, status, cleanup)
 5. **Parallel downloads** — Configurable concurrency for content downloads
 6. **Architecture support** — Supports both x86_64 and aarch64 architectures
 7. **Subscription validation** — Validates RHEL subscription before OS URL configuration
