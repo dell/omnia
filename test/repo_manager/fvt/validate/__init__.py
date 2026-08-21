@@ -1,0 +1,1 @@
+# Repo Manager validate scenario
