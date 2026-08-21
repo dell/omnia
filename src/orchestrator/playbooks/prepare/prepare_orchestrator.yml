@@ -33,7 +33,7 @@
   gather_facts: false
   tags: always
   roles:
-    - role: omnia.orchestrator.orchestrator_setup
+    - role: orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true
@@ -45,7 +45,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: omnia.orchestrator.validate_orchestrator_input
+    - role: validate_orchestrator_input
       when: not config_file_status | default(false) | bool
 
 # Step 3: Credential management (prompt, encrypt, vault)
@@ -54,7 +54,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: omnia.orchestrator.orchestrator_credentials
+    - role: orchestrator_credentials
       when:
         - not config_file_status | default(false) | bool
         - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
@@ -67,14 +67,14 @@
   gather_facts: false
   tags: always
   roles:
-    - omnia.orchestrator.orchestrator_functional_groups
+    - orchestrator_functional_groups
 
 # Step 5: Validate orchestrator parameters (mapping, software config, telemetry)
 - name: Validate orchestrator parameters
   hosts: localhost
   connection: local
   roles:
-    - omnia.orchestrator.orchestrator_validations
+    - orchestrator_validations
 
 # Step 6: Validate OIM timezone
 - name: Validate OIM timezone
@@ -83,7 +83,7 @@
   tasks:
     - name: Validate OIM timezone has not changed
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_validations
+        name: orchestrator_validations
         tasks_from: validate_oim_timezone.yml
 
 # Step 7: Validate boot images in S3 for each functional group
@@ -93,7 +93,7 @@
   tasks:
     - name: Image validation
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_validations
+        name: orchestrator_validations
         tasks_from: validate_image.yml
       with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
 

@@ -18,7 +18,7 @@
   when: username_status
   block:
     - name: Fetch credential rule for "{{ field.username | default('Username') }}" # noqa name[template]
-      omnia.orchestrator.fetch_credential_rule:
+      fetch_credential_rule:
         credential_field: "{{ field.username }}"
         module_utils_path: "{{ module_utils_path }}"
       register: credential_rule
@@ -50,7 +50,7 @@
         - username_input.user_input | length == 0
 
     - name: Validate input credential - "{{ field.username | default('Username') }}" # noqa name[template]
-      omnia.orchestrator.validate_credentials:
+      validate_credentials:
         credential_field: "{{ field.username }}"
         credential_input: "{{ username_input.user_input }}"
         module_utils_path: "{{ module_utils_path }}"
