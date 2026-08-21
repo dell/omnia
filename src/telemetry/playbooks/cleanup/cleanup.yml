@@ -76,6 +76,10 @@
         _cleanup_ldms: "{{ 'cleanup_ldms' in ansible_run_tags }}"
         _cleanup_ome: "{{ 'cleanup_ome' in ansible_run_tags }}"
         _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
+        _cleanup_ufm: "{{ 'cleanup_ufm' in ansible_run_tags }}"
+        _cleanup_vast: "{{ 'cleanup_vast' in ansible_run_tags }}"
+        _cleanup_dcgm: "{{ 'cleanup_dcgm' in ansible_run_tags }}"
+        _cleanup_sfm: "{{ 'cleanup_sfm' in ansible_run_tags }}"
         cacheable: true
 
 # ---------------------------------------------------------------------------
@@ -84,34 +88,65 @@
 - name: "Telemetry Cleanup | Remove selected components"
   hosts: kube_vip_group
   gather_facts: false
-  vars_files:
-    - ../../vars/cleanup.yml
   tasks:
     # -- Source cleanups --
     - name: "Cleanup iDRAC telemetry"
-      ansible.builtin.include_tasks: sources/cleanup_idrac_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: idrac
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_idrac'] | bool
 
     - name: "Cleanup LDMS telemetry (includes Vector-LDMS bridge)"
-      ansible.builtin.include_tasks: sources/cleanup_ldms_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: ldms
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_ldms'] | bool
 
     - name: "Cleanup OME telemetry (includes Vector-OME bridge)"
-      ansible.builtin.include_tasks: sources/cleanup_ome_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: ome
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_ome'] | bool
 
     - name: "Cleanup PowerScale telemetry"
-      ansible.builtin.include_tasks: sources/cleanup_powerscale_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: powerscale
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_powerscale'] | bool
+
+    - name: "Cleanup UFM telemetry"
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: ufm
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_ufm'] | bool
+
+    - name: "Cleanup VAST telemetry"
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: vast
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_vast'] | bool
+
+    - name: "Cleanup DCGM telemetry"
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: dcgm
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_dcgm'] | bool
+
+    - name: "Cleanup SFM telemetry"
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: sfm
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_sfm'] | bool
 
     # -- Pre-sink guard: verify source pods have terminated --
     - name: "Check for remaining source pods before sink cleanup"
       vars:
+        telemetry_namespace: "telemetry"
         _source_apps: >-
           idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
           karavi-metrics-powerscale,otel-collector,
           csi-volume-exporter,dcgm-exporter,sfm-telemetry,
-          ufm-telemetry,vast-telemetry,skyway-telemetry,
+          ufm-external,vast-external,skyway-telemetry,
           powervault-telemetry
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }}
@@ -132,6 +167,8 @@
         - _remaining_source_pods.stdout_lines | default([]) | length > 0
 
     - name: "Wait for source pods to terminate before sink cleanup"
+      vars:
+        telemetry_namespace: "telemetry"
       ansible.builtin.command: >
         kubectl wait --for=delete pods
         -l 'app in (idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,karavi-metrics-powerscale,otel-collector,csi-volume-exporter)'
@@ -144,15 +181,21 @@
 
     # -- Sink cleanups (only on full cleanup — sinks are shared infrastructure) --
     - name: "Cleanup Kafka (full cleanup only)"
-      ansible.builtin.include_tasks: sinks/cleanup_kafka_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: kafka
       when: hostvars['localhost']['_cleanup_all'] | bool
 
     - name: "Cleanup VictoriaMetrics (full cleanup only)"
-      ansible.builtin.include_tasks: sinks/cleanup_victoria_metrics_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: victoria_metrics
       when: hostvars['localhost']['_cleanup_all'] | bool
 
     - name: "Cleanup VictoriaLogs (full cleanup only)"
-      ansible.builtin.include_tasks: sinks/cleanup_victoria_logs_tasks.yml
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: victoria_logs
       when: hostvars['localhost']['_cleanup_all'] | bool
 
 # ---------------------------------------------------------------------------
