@@ -440,6 +440,38 @@ init_domains() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Stage-Order Warning (non-blocking)
+# ─────────────────────────────────────────────────────────────────────────────
+warn_stage_order() {
+    local domain="$1"
+    local project="${OMNIA_PROJECT_NAME:-project_default}"
+    local data_path="${OMNIA_DATA_PATH:-/opt/omnia}"
+
+    case "$domain" in
+        image_build_manager)
+            # image_build_manager reads repo_status.yml from repo_manager
+            local repo_status="$data_path/repo_manager/output/$project/repo_status.yml"
+            if [ ! -f "$repo_status" ]; then
+                echo -e "${YELLOW}WARNING: repo_manager has not been run yet (no repo_status.yml found).${NC}"
+                echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
+                echo -e "${YELLOW}  Run: ./omnia.sh --run repo_manager${NC}"
+                echo ""
+            fi
+            ;;
+        orchestrator)
+            # orchestrator reads build_status.yml from image_build_manager
+            local build_status="$data_path/image_build_manager/output/$project/build_status.yml"
+            if [ ! -f "$build_status" ]; then
+                echo -e "${YELLOW}WARNING: image_build_manager has not been run yet (no build_status.yml found).${NC}"
+                echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
+                echo -e "${YELLOW}  Run: ./omnia.sh --run image_build_manager${NC}"
+                echo ""
+            fi
+            ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Run Domain Playbook
 # ─────────────────────────────────────────────────────────────────────────────
 run_domain() {
@@ -499,6 +531,9 @@ run_domain() {
 
     # shellcheck disable=SC1091
     source "$OMNIA_VENV_PATH/bin/activate"
+
+    # --- Stage-order warnings (non-blocking) ---
+    warn_stage_order "$domain"
 
     # Build ansible-playbook command
     local cmd=("ansible-playbook" "$playbook")
@@ -806,7 +841,7 @@ PREREQUISITE:
 USAGE:
   $0 <command> [options]
 
-SETUP COMMANDS:
+SETUP COMMANDS (run once, in order):
   --setup-venv, -s      Create/update the shared Python venv, then run all
                         domain-init.sh scripts (pip deps, Galaxy collections,
                         log dirs, input file staging) and copy catalog files.
@@ -823,6 +858,23 @@ EXECUTION COMMANDS:
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
                         Passes --tags and any extra args to ansible-playbook.
+
+RECOMMENDED EXECUTION ORDER:
+  Domains should be run in this order (each reads the previous domain's output):
+
+    1. repo_manager          Mirror RPM packages (writes repo_status.yml)
+    2. image_build_manager   Build OS images    (reads repo_status.yml, writes build_status.yml)
+    3. discovery [optional]  Discover servers   (writes bmc_pxe_mapping_file.csv)
+    4. orchestrator          Deploy cluster     (reads build_status.yml + discovery output)
+    5. telemetry [optional]  Deploy telemetry   (independent, run when needed)
+    6. utils     [optional]  Utility playbooks  (independent, run anytime)
+
+  Per-domain tags (run granular stages):
+    --tags precheck          Environment and connectivity check
+    --tags validate          Config validation (safe dry-run, no credentials)
+    --tags prepare           Deploy infrastructure (S3, registry, etc.)
+    --tags build             Full build pipeline
+    --tags cleanup           Remove services, artifacts, credentials
 
 DIAGNOSTIC COMMANDS:
   --check-deps          Audit all domain requirements.txt and requirements.yml
