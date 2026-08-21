@@ -25,7 +25,7 @@ Provides:
 
 import sys
 import os
-import subprocess
+import re
 
 import pytest
 
@@ -37,20 +37,35 @@ if _TEST_DIR not in sys.path:
 # Ansible playbooks run by tests inherit this environment.
 _OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
 if os.path.exists(_OMNIA_ENV_FILE):
-    # nosec B602: shell=True is required to source bash env file and expand variables
-    # The command is trusted (reads a local config file) and does not accept user input.
-    _env_output = subprocess.run(  # nosec B602
-        f"bash -c 'set -a; source {_OMNIA_ENV_FILE}; set +a; env'",
-        shell=True,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    for _line in _env_output.stdout.splitlines():
-        if "=" in _line and not _line.startswith("_"):
-            _key, _val = _line.split("=", 1)
-            if _key not in os.environ:
-                os.environ[_key] = _val
+    try:
+        with open(_OMNIA_ENV_FILE, "r") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                # Skip comments and empty lines
+                if not _line or _line.startswith("#"):
+                    continue
+                # Parse KEY=VALUE pairs
+                if "=" in _line and not _line.startswith("_"):
+                    _key, _val = _line.split("=", 1)
+                    _key = _key.strip()
+                    _val = _val.strip()
+                    # Remove quotes if present
+                    if _val.startswith('"') and _val.endswith('"'):
+                        _val = _val[1:-1]
+                    elif _val.startswith("'") and _val.endswith("'"):
+                        _val = _val[1:-1]
+                    # Expand environment variables in the value (e.g., ${OMNIA_DATA_PATH})
+                    # This handles simple ${VAR} and $VAR expansions
+                    def _expand_vars(match):
+                        var_name = match.group(1) or match.group(2)
+                        return os.environ.get(var_name, match.group(0))
+                    _val = re.sub(r'\$\{([^}]+)\}|\$([a-zA-Z_][a-zA-Z0-9_]*)', _expand_vars, _val)
+                    # Only set if not already in environment
+                    if _key and _key not in os.environ:
+                        os.environ[_key] = _val
+    except (IOError, OSError):
+        # If file cannot be read, skip silently
+        pass
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
 import omnia_auto
