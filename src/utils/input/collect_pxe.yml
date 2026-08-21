@@ -16,36 +16,48 @@
 # collect_pxe.yml - Node Inventory for Log Collection
 # =============================================================================
 # Add admin IP addresses under each functional group.
-# Leave empty [] if no nodes for that group.
+#
+# Functional groups must match Omnia inventory naming:
+#   - service_kube_control_plane_x86_64
+#   - service_kube_node_x86_64
+#   - slurm_control_node_x86_64
+#   - slurm_node_x86_64
+#   - slurm_node_aarch64
+#   - login_node_x86_64
+#   - login_compiler_node_aarch64
 #
 # Example:
-#   k8s_masters:
+#   service_kube_control_plane_x86_64:
 #     - 192.168.1.10
 #     - 192.168.1.11
 # =============================================================================
 
-# Kubernetes control plane nodes
-k8s_masters: []
+# Kubernetes control plane nodes (x86_64)
+service_kube_control_plane_x86_64:
   # - 192.168.1.10
 
-# Kubernetes worker nodes
-k8s_workers: []
+# Kubernetes worker nodes (x86_64)
+service_kube_node_x86_64:
   # - 192.168.1.20
   # - 192.168.1.21
 
-# Slurm controller nodes
-slurm_controllers: []
+# Slurm controller nodes (x86_64)
+slurm_control_node_x86_64:
   # - 192.168.1.30
 
-# Slurm compute nodes
-slurm_nodes: []
+# Slurm compute nodes (x86_64)
+slurm_node_x86_64:
   # - 192.168.1.40
   # - 192.168.1.41
 
-# Login nodes
-login_nodes: []
+# Slurm compute nodes (aarch64)
+slurm_node_aarch64:
+  # - 192.168.1.42
+
+# Login nodes (x86_64)
+login_node_x86_64:
   # - 192.168.1.50
 
-# Login compiler nodes
-login_compiler_nodes: []
+# Login compiler nodes (aarch64)
+login_compiler_node_aarch64:
   # - 192.168.1.60

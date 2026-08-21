@@ -24,9 +24,7 @@
 
 - name: Fail if collect_pxe.yml missing
   ansible.builtin.fail:
-    msg: >-
-      Node inventory file not found: {{ collect_pxe_file }}.
-      Create this file with IP addresses under each functional group.
+    msg: "{{ error_msg_inventory_file_missing }}"
   when: not _collect_pxe_stat.stat.exists
 
 - name: Load node inventory from collect_pxe.yml
@@ -34,14 +32,16 @@
     file: "{{ collect_pxe_file }}"
     name: collect_pxe_data
 
-- name: Set node lists from YAML (direct IP lists per group)
+- name: Set node lists from YAML (functional groups with architecture)
   ansible.builtin.set_fact:
-    k8s_masters: "{{ collect_pxe_data.k8s_masters | default([]) }}"
-    k8s_workers: "{{ collect_pxe_data.k8s_workers | default([]) }}"
-    slurm_controllers: "{{ collect_pxe_data.slurm_controllers | default([]) }}"
-    slurm_nodes: "{{ collect_pxe_data.slurm_nodes | default([]) }}"
-    login_nodes: "{{ collect_pxe_data.login_nodes | default([]) }}"
-    login_compiler_nodes: "{{ collect_pxe_data.login_compiler_nodes | default([]) }}"
+    k8s_masters: "{{ collect_pxe_data.service_kube_control_plane_x86_64 | default([]) }}"
+    k8s_workers: "{{ collect_pxe_data.service_kube_node_x86_64 | default([]) }}"
+    slurm_controllers: "{{ collect_pxe_data.slurm_control_node_x86_64 | default([]) }}"
+    slurm_nodes_x86: "{{ collect_pxe_data.slurm_node_x86_64 | default([]) }}"
+    slurm_nodes_arm: "{{ collect_pxe_data.slurm_node_aarch64 | default([]) }}"
+    slurm_nodes: "{{ (collect_pxe_data.slurm_node_x86_64 | default([])) + (collect_pxe_data.slurm_node_aarch64 | default([])) }}"
+    login_nodes: "{{ collect_pxe_data.login_node_x86_64 | default([]) }}"
+    login_compiler_nodes: "{{ collect_pxe_data.login_compiler_node_aarch64 | default([]) }}"
 
 - name: Add dynamic hosts for k8s masters
   ansible.builtin.add_host:
