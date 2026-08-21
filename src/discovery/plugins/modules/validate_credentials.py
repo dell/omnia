@@ -48,7 +48,7 @@ options:
 
 EXAMPLES = r'''
 - name: Validate a credential field
-  omnia.discovery.validate_credentials:
+  validate_credentials:
     credential_field: ome_password
     credential_input: "{{ ome_password }}"
     module_utils_path: "{{ role_path }}/../../plugins/module_utils"

@@ -23,4 +23,4 @@
   connection: ssh
   gather_facts: false
   roles:
-    - omnia.orchestrator.deploy_openldap
+    - deploy_openldap
