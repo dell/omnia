@@ -13,65 +13,35 @@
 # limitations under the License.
 
 ---
+# =============================================================================
+# prepare.yml - Parse node inventory and build dynamic host groups
+# =============================================================================
 
-- name: Check inventory file exists
+- name: Check collect_pxe.yml exists
   ansible.builtin.stat:
-    path: "{{ collect_inventory_file }}"
-  register: _inventory_stat
+    path: "{{ collect_pxe_file }}"
+  register: _collect_pxe_stat
 
-- name: Fail if inventory file missing
+- name: Fail if collect_pxe.yml missing
   ansible.builtin.fail:
     msg: >-
-      Node inventory file not found: {{ collect_inventory_file }}.
-      Create this file with node groups and IP addresses.
-  when: not _inventory_stat.stat.exists
+      Node inventory file not found: {{ collect_pxe_file }}.
+      Create this file with IP addresses under each functional group.
+  when: not _collect_pxe_stat.stat.exists
 
-- name: Parse INI inventory file
-  ansible.builtin.shell: |
-    python3 << 'EOF'
-    import configparser
-    import json
+- name: Load node inventory from collect_pxe.yml
+  ansible.builtin.include_vars:
+    file: "{{ collect_pxe_file }}"
+    name: collect_pxe_data
 
-    config = configparser.ConfigParser(allow_no_value=True)
-    config.read('{{ collect_inventory_file }}')
-
-    inventory = {}
-    for section in config.sections():
-        ips = [key.strip() for key in config[section].keys() if key.strip() and not key.strip().startswith('#')]
-        inventory[section] = ips
-
-    print(json.dumps(inventory))
-    EOF
-  register: _ini_parse_result
-  changed_when: false
-
-- name: Set parsed inventory
+- name: Set node lists from YAML (direct IP lists per group)
   ansible.builtin.set_fact:
-    node_inventory: "{{ _ini_parse_result.stdout | from_json }}"
-
-- name: Build k8s masters list
-  ansible.builtin.set_fact:
-    k8s_masters: "{{ node_inventory['k8s_control_node'] | default([]) }}"
-
-- name: Build k8s workers list
-  ansible.builtin.set_fact:
-    k8s_workers: "{{ node_inventory['k8s_worker_node'] | default([]) }}"
-
-- name: Build slurm controllers list
-  ansible.builtin.set_fact:
-    slurm_controllers: "{{ node_inventory['slurm_control_node'] | default([]) }}"
-
-- name: Build slurm nodes list
-  ansible.builtin.set_fact:
-    slurm_nodes: "{{ node_inventory['slurm_node'] | default([]) }}"
-
-- name: Build login nodes list
-  ansible.builtin.set_fact:
-    login_nodes: "{{ node_inventory['login_node'] | default([]) }}"
-
-- name: Build login compiler nodes list
-  ansible.builtin.set_fact:
-    login_compiler_nodes: "{{ node_inventory['login_compiler_node'] | default([]) }}"
+    k8s_masters: "{{ collect_pxe_data.k8s_masters | default([]) }}"
+    k8s_workers: "{{ collect_pxe_data.k8s_workers | default([]) }}"
+    slurm_controllers: "{{ collect_pxe_data.slurm_controllers | default([]) }}"
+    slurm_nodes: "{{ collect_pxe_data.slurm_nodes | default([]) }}"
+    login_nodes: "{{ collect_pxe_data.login_nodes | default([]) }}"
+    login_compiler_nodes: "{{ collect_pxe_data.login_compiler_nodes | default([]) }}"
 
 - name: Add dynamic hosts for k8s masters
   ansible.builtin.add_host:
@@ -81,7 +51,7 @@
   loop: "{{ k8s_masters }}"
   when: k8s_masters | length > 0
 
-- name: Print all k8s_masters hostnames
+- name: Print all k8s_masters
   ansible.builtin.debug:
     msg: "K8s Masters Group - IP: {{ item }}"
   loop: "{{ k8s_masters }}"
@@ -95,6 +65,12 @@
   loop: "{{ k8s_workers }}"
   when: k8s_workers | length > 0
 
+- name: Print all k8s_workers
+  ansible.builtin.debug:
+    msg: "K8s Workers Group - IP: {{ item }}"
+  loop: "{{ k8s_workers }}"
+  when: k8s_workers | length > 0
+
 - name: Add dynamic hosts for slurm controllers
   ansible.builtin.add_host:
     name: "slurm_ctl_{{ item | replace('.', '_') }}"
@@ -103,7 +79,7 @@
   loop: "{{ slurm_controllers }}"
   when: slurm_controllers | length > 0
 
-- name: Print all slurm_controllers hostnames
+- name: Print all slurm_controllers
   ansible.builtin.debug:
     msg: "Slurm Controllers Group - IP: {{ item }}"
   loop: "{{ slurm_controllers }}"
@@ -117,7 +93,7 @@
   loop: "{{ slurm_nodes }}"
   when: slurm_nodes | length > 0
 
-- name: Print all slurm_nodes hostnames
+- name: Print all slurm_nodes
   ansible.builtin.debug:
     msg: "Slurm Nodes Group - IP: {{ item }}"
   loop: "{{ slurm_nodes }}"
@@ -131,7 +107,7 @@
   loop: "{{ login_nodes }}"
   when: login_nodes | length > 0
 
-- name: Print all login_nodes hostnames
+- name: Print all login_nodes
   ansible.builtin.debug:
     msg: "Login Nodes Group - IP: {{ item }}"
   loop: "{{ login_nodes }}"
@@ -145,7 +121,7 @@
   loop: "{{ login_compiler_nodes }}"
   when: login_compiler_nodes | length > 0
 
-- name: Print all login_compiler_nodes hostnames
+- name: Print all login_compiler_nodes
   ansible.builtin.debug:
     msg: "Login Compiler Nodes Group - IP: {{ item }}"
   loop: "{{ login_compiler_nodes }}"

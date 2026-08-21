@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# collect_pxe.yml - Node Inventory for Log Collection
+# =============================================================================
+# Add admin IP addresses under each functional group.
+# Leave empty [] if no nodes for that group.
+#
+# Example:
+#   k8s_masters:
+#     - 192.168.1.10
+#     - 192.168.1.11
+# =============================================================================
+
+# Kubernetes control plane nodes
+k8s_masters: []
+  # - 192.168.1.10
+
+# Kubernetes worker nodes
+k8s_workers: []
+  # - 192.168.1.20
+  # - 192.168.1.21
+
+# Slurm controller nodes
+slurm_controllers: []
+  # - 192.168.1.30
+
+# Slurm compute nodes
+slurm_nodes: []
+  # - 192.168.1.40
+  # - 192.168.1.41
+
+# Login nodes
+login_nodes: []
+  # - 192.168.1.50
+
+# Login compiler nodes
+login_compiler_nodes: []
+  # - 192.168.1.60

@@ -16,8 +16,9 @@
 # Log collection workspace root on OIM
 log_root: /opt/omnia/utils/output/project_default/collect
 
-# Node inventory file (INI format) - new structure
-collect_inventory_file: "/opt/omnia/utils/input/project_default/collect.ini"
+# Node inventory file (YAML format) for log collection
+# Contains IP addresses grouped by functional role
+collect_pxe_file: "/opt/omnia/utils/input/project_default/collect_pxe.yml"
 
 # K8s master log paths
 k8s_master_log_dirs:

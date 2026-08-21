@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+ 
 # =============================================================================
 # domain-init.sh — Initialize utils domain runtime environment
 # =============================================================================
@@ -31,6 +31,9 @@
 # project subdirectory.  The project directory (e.g. project_default) is
 # created ONLY at the runtime destination on the NFS share.
 #
+# Input files for utils domain:
+#   - collect_pxe.yml         (node inventory for log collection - YAML format)
+#
 # Usage:
 #   ./domain-init.sh                       # Uses env vars (must be exported)
 #   ./domain-init.sh --force               # Overwrite without prompting
@@ -41,24 +44,24 @@
 # Manual alternative (if not using this script):
 #   sudo mkdir -p /var/log/omnia/utils
 #   mkdir -p /opt/omnia/utils/input/project_default
-#   cp -a input/*.ini /opt/omnia/utils/input/project_default/
+#   cp -a input/*.yml /opt/omnia/utils/input/project_default/
 # =============================================================================
-
+ 
 set -euo pipefail
-
+ 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly DOMAIN_NAME="utils"
-
+ 
 # Color definitions
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[0;33m'
 readonly RED='\033[0;31m'
 readonly NC='\033[0m'
-
+ 
 FORCE_OVERWRITE=false
 DEPS_ONLY=false
 FORCE_DEPS=false
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parse arguments
 # ─────────────────────────────────────────────────────────────────────────────
@@ -83,7 +86,7 @@ _parse_args() {
         esac
     done
 }
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Read env vars (must be exported before running)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,31 +94,31 @@ _load_env() {
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
 }
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Check if destination has existing files and prompt user
 # Returns 0 if safe to proceed, 1 if user declined
 # ─────────────────────────────────────────────────────────────────────────────
 _check_existing_files() {
     local dest_dir="$1"
-
+ 
     # No destination — safe to proceed
     [ -d "$dest_dir" ] || return 0
-
+ 
     local existing_count
     existing_count=$(find "$dest_dir" -type f 2>/dev/null | wc -l)
     [ "$existing_count" -gt 0 ] || return 0
-
+ 
     # Files exist — check if force mode
     if [ "$FORCE_OVERWRITE" = true ]; then
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] Overwriting ${existing_count} existing file(s) in ${dest_dir} (--force)${NC}"
         return 0
     fi
-
+ 
     # Interactive prompt
     echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: ${existing_count} file(s) already exist in ${dest_dir}${NC}"
     echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
-
+ 
     # List files that would be overwritten
     local src_dir="$SCRIPT_DIR/input"
     local overwrite_list
@@ -125,13 +128,13 @@ _check_existing_files() {
             echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
         fi
     done
-
+ 
     # Non-interactive check (piped input, cron, etc.)
     if [ ! -t 0 ]; then
         echo -e "  ${RED}[${DOMAIN_NAME}] Non-interactive mode — skipping overwrite. Use --force to override.${NC}"
         return 1
     fi
-
+ 
     echo -en "  ${YELLOW}Overwrite existing files for project '${OMNIA_PROJECT_NAME}'? [y/N]: ${NC}"
     read -r response
     case "$response" in
@@ -142,7 +145,7 @@ _check_existing_files() {
             ;;
     esac
 }
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Copy flat input/ files to the runtime project directory
 # Source:  src/<domain>/input/            (flat — no project subdirectory)
@@ -151,12 +154,12 @@ _check_existing_files() {
 copy_input_files() {
     local src_dir="$SCRIPT_DIR/input"
     local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${OMNIA_PROJECT_NAME}"
-
+ 
     if [ ! -d "$src_dir" ]; then
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
         return 0
     fi
-
+ 
     # Check that source has files (ignore subdirectories)
     local src_count
     src_count=$(find "$src_dir" -maxdepth 1 -type f 2>/dev/null | wc -l)
@@ -164,26 +167,26 @@ copy_input_files() {
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input files in ${src_dir} — skipping${NC}"
         return 0
     fi
-
+ 
     # Check for existing files and prompt if needed
     if ! _check_existing_files "$dest_dir"; then
         return 0
     fi
-
+ 
     mkdir -p "$dest_dir"
-
+ 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
         rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
     else
         cp -a "$src_dir"/. "$dest_dir/"
     fi
-
+ 
     local count
     count=$(find "$dest_dir" -type f | wc -l)
     echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
 }
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Create Ansible log directory under /var/log/omnia/
 # ansible.cfg log_path points here — Ansible cannot create parent dirs.
@@ -198,7 +201,7 @@ create_log_directory() {
         echo -e "  ${GREEN}[${DOMAIN_NAME}] Ansible log directory exists: ${log_dir}${NC}"
     fi
 }
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Install domain-specific pip + Galaxy dependencies
 # Expects the shared Omnia venv to be activated before calling this script.
@@ -219,26 +222,26 @@ _checksum_file() {
         echo "no-md5"
     fi
 }
-
+ 
 _deps_cache_dir() {
     local cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
     mkdir -p "$cache_dir"
     echo "$cache_dir"
 }
-
+ 
 install_dependencies() {
     local req_txt="$SCRIPT_DIR/requirements.txt"
     local req_yml="$SCRIPT_DIR/requirements.yml"
     local cache_dir
     cache_dir="$(_deps_cache_dir)"
-
+ 
     # pip packages
     if [ -f "$req_txt" ]; then
         if command -v pip >/dev/null 2>&1; then
             local pip_hash pip_cache_file
             pip_hash="$(_checksum_file "$req_txt")"
             pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.md5"
-
+ 
             if [ "$FORCE_DEPS" = false ] && [ -f "$pip_cache_file" ] && [ "$(cat "$pip_cache_file")" = "$pip_hash" ]; then
                 echo -e "  ${GREEN}[${DOMAIN_NAME}] pip deps unchanged (cached) — skipped${NC}"
             else
@@ -253,14 +256,14 @@ install_dependencies() {
             echo -e "  ${YELLOW}[${DOMAIN_NAME}] pip not found (venv not activated?) — skipping pip install${NC}"
         fi
     fi
-
+ 
     # Galaxy collections
     if [ -f "$req_yml" ]; then
         if command -v ansible-galaxy >/dev/null 2>&1; then
             local galaxy_hash galaxy_cache_file
             galaxy_hash="$(_checksum_file "$req_yml")"
             galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.md5"
-
+ 
             if [ "$FORCE_DEPS" = false ] && [ -f "$galaxy_cache_file" ] && [ "$(cat "$galaxy_cache_file")" = "$galaxy_hash" ]; then
                 echo -e "  ${GREEN}[${DOMAIN_NAME}] Galaxy deps unchanged (cached) — skipped${NC}"
             else
@@ -276,30 +279,30 @@ install_dependencies() {
         fi
     fi
 }
-
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
     _parse_args "$@"
     _load_env
-
+ 
     echo -e "${GREEN}[${DOMAIN_NAME}] Initializing domain...${NC}"
-
+ 
     # 1. Install domain-specific dependencies
     install_dependencies
-
+ 
     # 2. Create Ansible log directory (ansible.cfg log_path)
     create_log_directory
-
+ 
     # 3. Copy flat input files to the runtime project directory (skip if --deps-only)
     if [ "$DEPS_ONLY" = false ]; then
         copy_input_files
     else
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipping input file staging (--deps-only)${NC}"
     fi
-
+ 
     echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }
-
+ 
 main "$@"
