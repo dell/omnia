@@ -12,39 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# =============================================================================
-# log_collector — Role Variables
-# =============================================================================
-# Following omnia-domain-repo-design.md standard path structure.
-# Paths are derived from environment variables by utils_setup role.
-# =============================================================================
 
-# -----------------------------------------------------------------------------
-# Input File Names (relative to input_project_dir)
-# -----------------------------------------------------------------------------
-# Node inventory file (INI format with node groups)
-collect_inventory_file: "collect.ini"
+# Log collection workspace root on OIM
+log_root: /opt/omnia/utils/output/project_default/collect
 
-# Configuration file (YAML format)
-collect_config_file: "collect_config.yml"
+# Node inventory file (INI format) - new structure
+collect_inventory_file: "/opt/omnia/utils/input/project_default/collect.ini"
 
-# -----------------------------------------------------------------------------
-# Output Paths (relative to output_project_dir)
-# -----------------------------------------------------------------------------
-# Log collection output directory
-collect_output_subdir: "collect"
-
-# Bundle filename prefix (timestamp appended automatically)
-bundle_prefix: "omnia_logs"
-
-# Summary filename
-summary_filename: "summary.txt"
-
-# -----------------------------------------------------------------------------
-# Default Log Paths (can be overridden in collect_config.yml)
-# -----------------------------------------------------------------------------
-
-# K8s control plane (master) log paths
+# K8s master log paths
 k8s_master_log_dirs:
   - /var/log/containers/
   - /var/log/pods/
@@ -65,8 +40,6 @@ k8s_master_log_files:
   - /var/log/spooler
 
 # K8s worker log paths
-k8s_worker_log_dirs: []
-
 k8s_worker_log_files:
   - /var/log/cloud-init.log
   - /var/log/cloud-init-output.log
@@ -125,10 +98,9 @@ login_compiler_log_files:
   - /var/log/secure
   - /var/log/messages
 
-# -----------------------------------------------------------------------------
-# Curated Support Mode Exclusions
-# -----------------------------------------------------------------------------
-# Patterns to exclude when collection_mode == 'curated_support'
+# Curated support mode: exclusion patterns to remove from workspace before bundling
+# These patterns are applied recursively in log_root when collection_mode == 'curated_support'
+# Customize per environment to match temp/stale/old log patterns
 exclude_patterns:
   - "*.tmp"
   - "*.temp"
@@ -140,24 +112,3 @@ exclude_patterns:
   - "*.3"
   - "*.4"
   - "*.5"
-
-# -----------------------------------------------------------------------------
-# Error Messages
-# -----------------------------------------------------------------------------
-collect_ini_missing_msg: >-
-  Node inventory file not found: {{ input_project_dir }}/{{ collect_inventory_file }}.
-  Create this file with node groups and IP addresses.
-  Example:
-    [slurm_control_node]
-    172.16.1.50
-    
-    [slurm_node]
-    172.16.1.60
-
-collect_ini_empty_msg: >-
-  Node inventory file is empty or has no valid sections.
-  Add node groups with IP addresses to {{ input_project_dir }}/{{ collect_inventory_file }}.
-
-collect_config_missing_msg: >-
-  Configuration file not found: {{ input_project_dir }}/{{ collect_config_file }}.
-  Run: domain-init.sh or omnia.sh --init
