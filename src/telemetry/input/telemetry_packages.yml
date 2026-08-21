@@ -12,94 +12,205 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ============================================================================
-# TELEMETRY REGISTRY CONFIGURATION
-# ============================================================================
-# Container registry for telemetry images.
-# If telemetry uses a different registry than the cluster-wide configuration,
-# specify it here. Otherwise, leave empty to use cluster-wide registry.
+# =============================================================================
+# Dell Omnia HPC Telemetry — Package Manifest
+# =============================================================================
+# Central package registry for ALL telemetry stack dependencies:
+#   container images, Helm chart tarballs, git repositories, pip modules.
 #
-# Fields:
-#   host       : Registry IP and port in format "IP:port"
-#   cert_path  : Path to SSL certificate file (.crt) - Required only if HTTPS
-#   key_path   : Path to SSL private key file (.key) - Required only if HTTPS
-#   username   : Registry username (if authentication required)
-
-telemetry_registry:
-  host: ""
-  cert_path: ""
-  key_path: ""
-  username: "admin"
-  images:
-    # VictoriaMetrics and VictoriaLogs
-    victoria:
-      # VictoriaMetrics cluster components (use -cluster suffix)
-      vmstorage: "victoriametrics/vmstorage:v1.149.0-cluster"
-      vmselect: "victoriametrics/vmselect:v1.149.0-cluster"
-      vminsert: "victoriametrics/vminsert:v1.149.0-cluster"
-      # VMAgent (standalone version)
-      vmagent: "victoriametrics/vmagent:v1.149.0"
-      # VictoriaLogs components (cluster mode uses victoria-logs binary)
-      vlstorage: "victoriametrics/victoria-logs:v1.50.0"
-      vlselect: "victoriametrics/victoria-logs:v1.50.0"
-      vlinsert: "victoriametrics/victoria-logs:v1.50.0"
-      vlagent: "victoriametrics/vlagent:v1.50.0"
-    # Support images for telemetry deployments
-    support:
-      busybox: "docker.io/library/busybox:1.36"
-      kubectl: "docker.io/alpine/kubectl:1.35.1"
-      curl: "docker.io/curlimages/curl:8.17.0"
-    # Kafka/Strimzi images
-    kafka:
-      kafka: "strimzi/kafka:1.1.0-kafka-4.3.0"
-      kafka_bridge: "strimzi/kafka-bridge:1.0.0"
-      operator: "strimzi/operator:1.1.0"
-    # VictoriaMetrics operator
-    victoria_operator:
-      operator: "victoriametrics/operator:v0.68.3"
-    # iDRAC telemetry images
-    idrac:
-      telemetry_receiver: "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.3"
-      kafka_pump: "docker.io/dellhpcomniaaisolution/kafkapump:1.3"
-      victoria_pump: "docker.io/dellhpcomniaaisolution/victoriapump:1.3"
-      activemq: "docker.io/apache/activemq:6.3.0"
-      mysql: "docker.io/library/mysql:9.7.2"
-
-# ============================================================================
-# TELEMETRY PACKAGES (Full Pulp / HTTP URLs)
-# ============================================================================
-# Full download URLs for telemetry Helm chart tarballs and pip modules.
-# These URLs are used to download packages to the cluster_mount NFS share.
-# Container images are pulled separately from telemetry_registry above.
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │ DESIGN                                                                  │
+# │                                                                         │
+# │  install_mode ──┬── offline ──► repo_url + package catalog = full URLs  │
+# │                 └── online  ──► upstream URLs from package catalog      │
+# │                                                                         │
+# │  Offline: all artifacts served from a single Pulp repository.           │
+# │    Set repo_url once — every tarball, git repo, pip module URL is       │
+# │    auto-derived as:                                                     │
+# │      <repo_url>/<type>/<package_name>/<filename>                        │
+# │                                                                         │
+# │  Online: artifacts fetched from upstream registries / GitHub / PyPI.    │
+# │    Each package entry includes its online_url for internet access.      │
+# └─────────────────────────────────────────────────────────────────────────┘
 #
-# Provide complete URL including the .tar.gz filename.
+# Usage:
+#   Offline (air-gapped HPC cluster — DEFAULT):
+#     install_mode: "offline"
+#     repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/10.0"
 #
+#   Online (internet-connected):
+#     install_mode: "online"
+#     repo_url: ""   # not needed
+# =============================================================================
 
-telemetry_packages:
-  # Helm chart tarballs (required for operator deployment)
-  strimzi_kafka_operator: ""
-  victoria_metrics_operator: ""
+# -----------------------------------------------------------------------------
+# Installation Mode
+# -----------------------------------------------------------------------------
+# "offline" — All packages fetched from local Pulp mirror (default, air-gapped)
+# "online"  — Packages fetched from upstream registries and URLs
+install_mode: "offline"
 
-  # Python pip modules (if any telemetry components need them)
-  cryptography: ""
-  omsdk: ""
-  cffi: ""
-  prometheus_client: ""
-  kubernetes: ""
-
-  # Cert-manager (ONLY if you use it for Kafka TLS)
-  cert_manager_tarball: ""
-
-# ============================================================================
-# TELEMETRY PACKAGES MOUNT CONFIGURATION
-# ============================================================================
-# Local mount point path where on kubernetes clsuter.
-# This should be an already-mounted NFS share.
-# A 'telemetry' subdirectory will be created here for package storage.
+# -----------------------------------------------------------------------------
+# Offline Repository Base URL (Pulp)
+# -----------------------------------------------------------------------------
+# Single entry point for all offline packages. Set this ONCE and every
+# Helm chart, git repo, and pip module URL is auto-derived.
 #
-# Example: /opt/omnia/k8s_mount (existing NFS mount from storage_config.yml)
+# Format: https://<ip_or_hostname>:<port>/pulp/content/opt/omnia/offline_repo/cluster/<arch>/<os>/<version>
 #
-# Packages will be stored at: <cluster_mount>/telemetry/<package_name>
-# For example: /opt/omnia/nfs/telemetry/strimzi-kafka-operator-1.0.1.tar.gz
+# The hostname/IP can be an FQDN (e.g., oim.lab.example.com) or IP address.
+# Leave empty when install_mode is "online".
+repo_url: ""
 
+# -----------------------------------------------------------------------------
+# NFS Cluster Mount
+# -----------------------------------------------------------------------------
+# Local mount point on Kubernetes cluster nodes (already-mounted NFS share).
+# Telemetry stages Helm charts and packages at: <cluster_mount>/telemetry/
 cluster_mount: "/share_omnia_k8s"
+
+# =============================================================================
+# Container Images
+# =============================================================================
+# All container images referenced by telemetry K8s manifests.
+# Images are grouped by subsystem for clarity.
+#
+# Container Registry Override:
+#   If your air-gapped cluster routes through a local registry mirror,
+#   set container_registry to that host. All image references will be
+#   prefixed with this host (e.g., "myregistry:5000/victoriametrics/vmagent:v1.149.0").
+#   Leave empty to use the default registry in each image reference.
+container_registry: ""
+
+images:
+  # -- Sink: VictoriaMetrics --------------------------------------------------
+  # Source: https://hub.docker.com/u/victoriametrics
+  victoria_metrics:
+    vmstorage: "docker.io/victoriametrics/vmstorage:v1.149.0-cluster"
+    vmselect: "docker.io/victoriametrics/vmselect:v1.149.0-cluster"
+    vminsert: "docker.io/victoriametrics/vminsert:v1.149.0-cluster"
+    vmagent: "docker.io/victoriametrics/vmagent:v1.149.0"
+    operator: "docker.io/victoriametrics/operator:v0.68.3"
+
+  # -- Sink: VictoriaLogs -----------------------------------------------------
+  # Source: https://hub.docker.com/u/victoriametrics
+  victoria_logs:
+    vlstorage: "docker.io/victoriametrics/victoria-logs:v1.50.0"
+    vlselect: "docker.io/victoriametrics/victoria-logs:v1.50.0"
+    vlinsert: "docker.io/victoriametrics/victoria-logs:v1.50.0"
+    vlagent: "docker.io/victoriametrics/vlagent:v1.50.0"
+
+  # -- Sink: Kafka (Strimzi) --------------------------------------------------
+  # Source: https://quay.io/organization/strimzi
+  kafka:
+    broker: "quay.io/strimzi/kafka:1.1.0-kafka-4.3.0"
+    bridge: "quay.io/strimzi/kafka-bridge:1.0.0"
+    operator: "quay.io/strimzi/operator:1.1.0"
+
+  # -- Source: iDRAC Telemetry ------------------------------------------------
+  # Source: https://hub.docker.com/u/dellhpcomniaaisolution
+  idrac:
+    telemetry_receiver: "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.3"
+    kafka_pump: "docker.io/dellhpcomniaaisolution/kafkapump:1.3"
+    victoria_pump: "docker.io/dellhpcomniaaisolution/victoriapump:1.3"
+    activemq: "docker.io/apache/activemq:6.3.0"
+    mysql: "docker.io/library/mysql:9.7.2"
+
+  # -- Source: PowerScale (CSM Observability) ---------------------------------
+  # Source: https://quay.io/organization/dell   https://github.com/dell/karavi-observability
+  powerscale:
+    csm_metrics: "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.12.0"
+    otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.150.1"
+    cert_manager_controller: "quay.io/jetstack/cert-manager-controller:v1.10.0"
+    cert_manager_cainjector: "quay.io/jetstack/cert-manager-cainjector:v1.10.0"
+    cert_manager_webhook: "quay.io/jetstack/cert-manager-webhook:v1.10.0"
+    nginx: "docker.io/nginxinc/nginx-unprivileged:1.29"
+    python: "docker.io/library/python:3.12-slim"
+
+  # -- Source: LDMS -----------------------------------------------------------
+  # Source: https://hub.docker.com/r/dellhpcomniaaisolution/ubuntu-ldms
+  ldms:
+    sampler: "docker.io/dellhpcomniaaisolution/ubuntu-ldms:1.1"
+
+  # -- Bridge: Vector (Kafka-to-Victoria pipelines) ---------------------------
+  # Source: https://hub.docker.com/r/timberio/vector
+  vector:
+    vector: "docker.io/timberio/vector:0.54.0-debian"
+
+  # -- Utility / Init Containers ----------------------------------------------
+  support:
+    busybox: "docker.io/library/busybox:1.36"
+    kubectl: "docker.io/alpine/kubectl:1.35.1"
+    curl: "docker.io/curlimages/curl:8.17.0"
+
+# =============================================================================
+# Helm Chart Tarballs
+# =============================================================================
+# Operator Helm charts required for sink infrastructure.
+# Offline: auto-resolved as <repo_url>/tarball/<package>/<filename>
+# Online:  downloaded from online_url
+#
+# Each entry has:
+#   package    — Pulp directory name (matches repo_manager catalog)
+#   filename   — archive file within that directory
+#   online_url — upstream download URL for online mode
+helm_charts:
+  # Source: https://github.com/strimzi/strimzi-kafka-operator
+  strimzi_kafka_operator:
+    package: "strimzi-kafka-operator-helm-3-chart-1.1.0"
+    filename: "strimzi-kafka-operator-helm-3-chart-1.1.0.tar.gz"
+    online_url: "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
+
+  # Source: https://github.com/VictoriaMetrics/helm-charts
+  victoria_metrics_operator:
+    package: "victoria-metrics-operator-0.59.3"
+    filename: "victoria-metrics-operator-0.59.3.tar.gz"
+    online_url: "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
+
+  # Source: https://charts.jetstack.io
+  cert_manager:
+    package: "cert-manager-v1.10.0"
+    filename: "cert-manager-v1.10.0.tar.gz"
+    online_url: "https://charts.jetstack.io/charts/cert-manager-v1.10.0.tgz"
+
+# =============================================================================
+# Git Repositories (archived as tarballs)
+# =============================================================================
+# Git repos used for PowerScale / CSM Observability deployment.
+# Offline: auto-resolved as <repo_url>/git/<package>/<filename>
+# Online:  cloned from online_url at the specified version tag
+#
+# Each entry has:
+#   package    — Pulp directory name
+#   filename   — archive file within that directory
+#   online_url — upstream git clone URL
+#   version    — tag or branch to checkout (online mode)
+git_repos:
+  # Source: https://github.com/dell/karavi-observability
+  karavi_observability:
+    package: "karavi-observability"
+    filename: "karavi-observability.tar.gz"
+    online_url: "https://github.com/dell/karavi-observability.git"
+    version: "v1.15.0"
+
+  # Source: https://github.com/dell/helm-charts
+  helm_charts:
+    package: "helm-charts"
+    filename: "helm-charts.tar.gz"
+    online_url: "https://github.com/dell/helm-charts.git"
+    version: "container-storage-modules-1.10.0"
+
+# =============================================================================
+# Python Pip Modules
+# =============================================================================
+# Pip packages installed at runtime (CSI volume-exporter, PowerScale scripts).
+# Offline: installed from <repo_url>/pip_module/<package>==<version>/
+# Online:  installed from PyPI (https://pypi.org)
+pip_modules:
+  # Source: https://pypi.org/project/kubernetes/
+  kubernetes:
+    version: "33.1.0"
+
+  # Source: https://pypi.org/project/prometheus-client/
+  prometheus_client:
+    version: "0.20.0"

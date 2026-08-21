@@ -48,6 +48,18 @@ POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
     "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
+POWERSCALE_CSI_SECRET_PATH_REQUIRED_MSG = (
+    "csi_powerscale_secret_path is required in telemetry_config.yml when "
+    "telemetry_sources.powerscale.metrics_enabled is true. "
+    "Please provide the path to the CSI PowerScale driver secret.yaml file."
+)
+def powerscale_csi_secret_not_found_msg(path):
+    """Returns error message when CSI PowerScale secret file is not found."""
+    return (
+        f"CSI PowerScale driver secret file not found at '{path}'. "
+        "Please verify the file path is correct in "
+        "telemetry_config.yml (csi_powerscale_secret_path)."
+    )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
     "csm_observability_values_file_path is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "

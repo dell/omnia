@@ -462,6 +462,11 @@ powerscale_configurations:
   # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.17.1/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
 
+  # Path to the CSI PowerScale driver secret.yaml file
+  # Contains isilonClusters with endpoint, username, and password for each PowerScale cluster
+  # Required when telemetry_sources.powerscale.metrics_enabled: true
+  csi_powerscale_secret_path: ""
+
 # --------------------------------------------------------------------------
 # UFM Telemetry Configuration
 # --------------------------------------------------------------------------

@@ -45,8 +45,8 @@ slurm_config_path: "/etc/slurm"
 # LDMS backup path for PXE change detection
 backup_pxe_mapping_ldms_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/backup_pxe_mapping_ldms.csv"
 
-# Dynamic image configuration from service_k8s_v<version>.json
-telemetry_images: "{{ service_k8s_images | default({}) }}"
+# Dynamic image configuration from telemetry_packages.yml
+telemetry_images: "{{ hostvars['localhost']['telemetry_registry'].images | default({}) }}"
 
 # Kafka topic names (FIXED - cannot be changed)
 kafka:

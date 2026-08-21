@@ -37,7 +37,7 @@ ome_victoria_logs_required_msg: >-
 
 # Vector configuration for OME telemetry bridge
 vector:
-  image: "docker.io/timberio/vector:0.54.0-debian"
+  image: "{{ hostvars['localhost']['telemetry_registry'].images.vector.vector | default('docker.io/timberio/vector:0.54.0-debian') }}"
   ome:
     app_name: "vector-ome"
     service_name: "vector-ome"

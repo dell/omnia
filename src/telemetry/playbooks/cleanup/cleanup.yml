@@ -14,27 +14,22 @@
 ---
 
 # =============================================================================
-# Telemetry Cleanup Playbook — Main Orchestrator
+# Telemetry Cleanup Playbook
 # =============================================================================
-# Completely removes telemetry components and all associated K8s resources.
-# Uses Ansible tags to control which components to clean up.
-# Each component's cleanup logic lives in its own playbook file.
+# Removes telemetry components and all associated K8s resources.
 #
 # Usage:
-#   # Cleanup ALL telemetry components
-#   ansible-playbook cleanup/cleanup.yml
+#   # Cleanup ALL telemetry components (sources + sinks)
 #   ansible-playbook telemetry.yml --tags cleanup
 #
-#   # Cleanup specific sinks
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_victoria_metrics
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_victoria_logs
+#   # Cleanup specific sources only
+#   ansible-playbook telemetry.yml --tags cleanup_powerscale
+#   ansible-playbook telemetry.yml --tags cleanup_ome
+#   ansible-playbook telemetry.yml --tags cleanup_idrac
+#   ansible-playbook telemetry.yml --tags cleanup_ldms
 #
-#   # Cleanup specific sources
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_idrac
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_ldms
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_ome
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_powerscale
+#   # Cleanup multiple sources
+#   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale
 #
 #   # Cleanup multiple components
 #   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_idrac
@@ -50,16 +45,18 @@
 #   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
 #   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
 #            cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm
+# Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
+# infrastructure that multiple sources depend on. They are ONLY cleaned
+# when --tags cleanup (all) is used, never individually.
 #
 # Resource ownership:
-#   LDMS cleanup includes Vector-LDMS bridge resources
 #   OME cleanup includes Vector-OME bridge resources
-#   VictoriaMetrics cleanup includes vmagent-vector (VM write-buffer)
-#   VictoriaLogs cleanup includes vlagent-vector (VL write-buffer)
+#   LDMS cleanup includes Vector-LDMS bridge resources
+#   cleanup (all) includes sinks + vmagent-vector + vlagent-vector
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Play 1: Prerequisites — Load config, resolve kube_vip (cleanup only)
+# Play 1: Prerequisites — Load config, resolve kube_vip
 # ---------------------------------------------------------------------------
 - name: "Telemetry Cleanup | Prerequisites"
   hosts: localhost
@@ -87,40 +84,40 @@
         groups: kube_vip_group
         ansible_user: root
 
+    - name: Derive cleanup scope from run tags
+      ansible.builtin.set_fact:
+        _cleanup_all: "{{ 'cleanup' in ansible_run_tags }}"
+        _cleanup_idrac: "{{ 'cleanup_idrac' in ansible_run_tags }}"
+        _cleanup_ldms: "{{ 'cleanup_ldms' in ansible_run_tags }}"
+        _cleanup_ome: "{{ 'cleanup_ome' in ansible_run_tags }}"
+        _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
+        cacheable: true
+
 # ---------------------------------------------------------------------------
-# Play 2: Source cleanups
+# Play 2: Component cleanups (conditional on run tags)
 # ---------------------------------------------------------------------------
-- name: "Cleanup iDRAC Telemetry"
-  import_playbook: sources/cleanup_idrac.yml
-  tags: [cleanup_idrac]
+- name: "Telemetry Cleanup | Remove selected components"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../../vars/cleanup.yml
+  tasks:
+    # -- Source cleanups --
+    - name: "Cleanup iDRAC telemetry"
+      ansible.builtin.include_tasks: sources/cleanup_idrac_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_idrac'] | bool
 
-- name: "Cleanup LDMS Telemetry (includes Vector-LDMS bridge)"
-  import_playbook: sources/cleanup_ldms.yml
-  tags: [cleanup_ldms]
+    - name: "Cleanup LDMS telemetry (includes Vector-LDMS bridge)"
+      ansible.builtin.include_tasks: sources/cleanup_ldms_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_ldms'] | bool
 
-- name: "Cleanup OME Telemetry (includes Vector-OME bridge)"
-  import_playbook: sources/cleanup_ome.yml
-  tags: [cleanup_ome]
+    - name: "Cleanup OME telemetry (includes Vector-OME bridge)"
+      ansible.builtin.include_tasks: sources/cleanup_ome_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_ome'] | bool
 
-- name: "Cleanup PowerScale Telemetry"
-  import_playbook: sources/cleanup_powerscale.yml
-  tags: [cleanup_powerscale]
-
-- name: "Cleanup DCGM Telemetry"
-  import_playbook: sources/cleanup_dcgm.yml
-  tags: [cleanup_dcgm]
-
-- name: "Cleanup UFM Telemetry"
-  import_playbook: sources/cleanup_ufm.yml
-  tags: [cleanup_ufm]
-
-- name: "Cleanup VAST Telemetry"
-  import_playbook: sources/cleanup_vast.yml
-  tags: [cleanup_vast]
-
-- name: "Cleanup SFM Telemetry"
-  import_playbook: sources/cleanup_sfm.yml
-  tags: [cleanup_sfm]
+    - name: "Cleanup PowerScale telemetry"
+      ansible.builtin.include_tasks: sources/cleanup_powerscale_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_powerscale'] | bool
 
 # ---------------------------------------------------------------------------
 # Play 3: Sink cleanups — Kafka, VictoriaMetrics, VictoriaLogs
@@ -128,17 +125,59 @@
 - name: "Cleanup Kafka"
   import_playbook: sinks/cleanup_kafka.yml
   tags: [cleanup_kafka]
+    # -- Pre-sink guard: verify source pods have terminated --
+    - name: "Check for remaining source pods before sink cleanup"
+      vars:
+        _source_apps: >-
+          idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
+          karavi-metrics-powerscale,otel-collector,
+          csi-volume-exporter,dcgm-exporter,sfm-telemetry,
+          ufm-telemetry,vast-telemetry,skyway-telemetry,
+          powervault-telemetry
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        --no-headers --ignore-not-found
+        -l 'app in ({{ _source_apps | replace("\n", "") | trim }})'
+      register: _remaining_source_pods
+      changed_when: false
+      failed_when: false
+      when: hostvars['localhost']['_cleanup_all'] | bool
 
-- name: "Cleanup VictoriaMetrics"
-  import_playbook: sinks/cleanup_victoria_metrics.yml
-  tags: [cleanup_victoria_metrics]
+    - name: "Warn if source pods are still terminating"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: {{ _remaining_source_pods.stdout_lines | length }} source pod(s) still
+          terminating. Waiting for them to drain before cleaning sinks.
+      when:
+        - hostvars['localhost']['_cleanup_all'] | bool
+        - _remaining_source_pods.stdout_lines | default([]) | length > 0
 
-- name: "Cleanup VictoriaLogs"
-  import_playbook: sinks/cleanup_victoria_logs.yml
-  tags: [cleanup_victoria_logs]
+    - name: "Wait for source pods to terminate before sink cleanup"
+      ansible.builtin.command: >
+        kubectl wait --for=delete pods
+        -l 'app in (idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,karavi-metrics-powerscale,otel-collector,csi-volume-exporter)'
+        -n {{ telemetry_namespace }} --timeout=60s
+      changed_when: false
+      failed_when: false
+      when:
+        - hostvars['localhost']['_cleanup_all'] | bool
+        - _remaining_source_pods.stdout_lines | default([]) | length > 0
+
+    # -- Sink cleanups (only on full cleanup — sinks are shared infrastructure) --
+    - name: "Cleanup Kafka (full cleanup only)"
+      ansible.builtin.include_tasks: sinks/cleanup_kafka_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool
+
+    - name: "Cleanup VictoriaMetrics (full cleanup only)"
+      ansible.builtin.include_tasks: sinks/cleanup_victoria_metrics_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool
+
+    - name: "Cleanup VictoriaLogs (full cleanup only)"
+      ansible.builtin.include_tasks: sinks/cleanup_victoria_logs_tasks.yml
+      when: hostvars['localhost']['_cleanup_all'] | bool
 
 # ---------------------------------------------------------------------------
-# Play 4: Final verification and summary (cleanup only)
+# Play 3: Final verification and summary
 # ---------------------------------------------------------------------------
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
@@ -147,23 +186,23 @@
   vars:
     telemetry_namespace: "telemetry"
   tasks:
-    - name: "Final verification | Check remaining pods"
+    - name: "Final verification | Count remaining pods"
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
+        kubectl get pods -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_pods
       changed_when: false
       failed_when: false
 
-    - name: "Final verification | Check remaining PVCs"
+    - name: "Final verification | Count remaining PVCs"
       ansible.builtin.command: >
-        kubectl get pvc -n {{ telemetry_namespace }}
+        kubectl get pvc -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_pvcs
       changed_when: false
       failed_when: false
 
-    - name: "Final verification | Check remaining services"
+    - name: "Final verification | Count remaining services"
       ansible.builtin.command: >
-        kubectl get svc -n {{ telemetry_namespace }}
+        kubectl get svc -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_svcs
       changed_when: false
       failed_when: false
@@ -177,9 +216,12 @@
     - name: Display cleanup summary
       vars:
         kube_vip_host: "{{ kube_vip }}"
-        remaining_pods_output: "{{ hostvars[kube_vip_host]['remaining_pods']['stdout'] | default('No resources found') }}"
-        remaining_pvcs_output: "{{ hostvars[kube_vip_host]['remaining_pvcs']['stdout'] | default('No resources found') }}"
-        remaining_svcs_output: "{{ hostvars[kube_vip_host]['remaining_svcs']['stdout'] | default('No resources found') }}"
+        _pods_lines: "{{ hostvars[kube_vip_host]['remaining_pods']['stdout_lines'] | default([]) | select('match', '\\S') | list }}"
+        _pvcs_lines: "{{ hostvars[kube_vip_host]['remaining_pvcs']['stdout_lines'] | default([]) | select('match', '\\S') | list }}"
+        _svcs_lines: "{{ hostvars[kube_vip_host]['remaining_svcs']['stdout_lines'] | default([]) | select('match', '\\S') | list }}"
+        _pod_count: "{{ _pods_lines | length }}"
+        _pvc_count: "{{ _pvcs_lines | length }}"
+        _svc_count: "{{ _svcs_lines | length }}"
       ansible.builtin.debug:
         msg:
           - "======================================================"
@@ -187,14 +229,9 @@
           - "======================================================"
           - "Target Host: {{ kube_vip_host }}"
           - ""
-          - "Remaining pods:"
-          - "{{ remaining_pods_output }}"
-          - ""
-          - "Remaining PVCs:"
-          - "{{ remaining_pvcs_output }}"
-          - ""
-          - "Remaining services:"
-          - "{{ remaining_svcs_output }}"
+          - "Remaining pods:     {{ _pod_count }}"
+          - "Remaining PVCs:     {{ _pvc_count }}"
+          - "Remaining services: {{ _svc_count }}"
           - "======================================================"
           - ""
           - "To delete the entire namespace:"

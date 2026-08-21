@@ -19,11 +19,8 @@
 
 telemetry_namespace: "telemetry"
 
-# Valid cleanup component tags
+# Valid cleanup component tags (sources only — sinks are cleaned via --tags cleanup)
 valid_cleanup_components:
-  - cleanup_kafka
-  - cleanup_victoria_metrics
-  - cleanup_victoria_logs
   - cleanup_idrac
   - cleanup_ldms
   - cleanup_ome
@@ -32,10 +29,6 @@ valid_cleanup_components:
   - cleanup_ufm
   - cleanup_vast
   - cleanup_sfm
-
-# Default: clean all components
-cleanup_default:
-  - all
 
 # Timeouts
 cleanup_kafka_wait_timeout: "300s"
@@ -278,15 +271,26 @@ powerscale_label_resources:
 
 powerscale_named_resources:
   - { type: "vmservicescrape", name: "otel-collector-powerscale-scrape" }
+  - { type: "vmservicescrape", name: "otel-collector-powerscale" }
   - { type: "configmap", name: "karavi-authorization-config" }
   - { type: "secret", name: "karavi-authorization-ca-cert" }
   - { type: "secret", name: "isilon-creds" }
   - { type: "pvc", name: "otel-collector-data" }
+  # CSI Volume Exporter resources (deployed by deploy_powerscale role)
+  - { type: "deployment", name: "csi-volume-exporter" }
+  - { type: "service", name: "csi-volume-exporter" }
+  - { type: "serviceaccount", name: "csi-volume-exporter" }
+
+# CSI Volume Exporter cluster-scoped resources (not namespaced)
+powerscale_cluster_resources:
+  - { type: "clusterrole", name: "csi-volume-exporter" }
+  - { type: "clusterrolebinding", name: "csi-volume-exporter" }
 
 powerscale_pod_labels:
   - "app.kubernetes.io/name=karavi-metrics-powerscale"
   - "app.kubernetes.io/name=otel-collector"
   - "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
+  - "app=csi-volume-exporter"
 
 # ---------------------------------------------------------------------------
 # DCGM cleanup resources

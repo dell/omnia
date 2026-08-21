@@ -140,7 +140,7 @@ victoria_logs_cluster:
   tls_enabled: false
   vlstorage:
     replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.replicas | default(3) }}"
-    image: "{{ _victoria_images.vlstorage | default('victoriametrics/vlstorage:v1.50.0') }}"
+    image: "{{ _victoria_images.vlstorage | default('victoriametrics/victoria-logs:v1.50.0') }}"
     resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlstorage.resources }}"
     termination_grace_period: 120
     toleration_seconds: 300
@@ -156,12 +156,12 @@ victoria_logs_cluster:
       timeout: 5
   vlinsert:
     replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.replicas | default(2) }}"
-    image: "{{ _victoria_images.vlinsert | default('victoriametrics/vlinsert:v1.50.0') }}"
+    image: "{{ _victoria_images.vlinsert | default('victoriametrics/victoria-logs:v1.50.0') }}"
     resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlinsert.resources }}"
     external_access: false
   vlselect:
     replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.replicas | default(2) }}"
-    image: "{{ _victoria_images.vlselect | default('victoriametrics/vlselect:v1.50.0') }}"
+    image: "{{ _victoria_images.vlselect | default('victoriametrics/victoria-logs:v1.50.0') }}"
     resources: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlselect.resources }}"
   vlagent:
     replicas: "{{ telemetry_storage_config.victoria_logs_cluster_storage.vlagent.replicas | default(2) }}"
