@@ -810,8 +810,8 @@ cmd_logs() {
         fi
     fi
 
-    # 2. Ansible logs (under /var/log/omnia/ or OMNIA_DATA_PATH/log/)
-    local ansible_log_dirs=("${ANSIBLE_LOG_DEFAULT}" "${base}/log")
+    # 2. Ansible logs (under /var/log/omnia/)
+    local ansible_log_dirs=("${ANSIBLE_LOG_DEFAULT}")
     for alog_dir in "${ansible_log_dirs[@]}"; do
         if [ -d "$alog_dir" ]; then
             local ansible_logs

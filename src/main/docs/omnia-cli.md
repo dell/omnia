@@ -30,6 +30,8 @@ omnia-cli version
 | `discovery [--project <name>]` | Discovery domain status |
 | `telemetry [--project <name>]` | Telemetry stack status |
 | `build-stream [--project <name>]` | Build stream (GitLab) status |
+| `logs <domain>` | Browse and tail domain log files |
+| `vault edit <domain>` | Edit domain credentials file (Ansible Vault) |
 | `version` | Show Omnia version info |
 | `help [<domain>]` | Show help (or domain-specific help) |
 
@@ -122,6 +124,29 @@ Detailed diagnostics for the image_build_manager domain:
 
 ```bash
 ./omnia-cli image-build
+```
+
+### logs
+
+Browse and tail domain log files interactively. Searches the following locations:
+
+1. Domain log directory: `$OMNIA_DATA_PATH/<domain>/log/<project>/`
+2. Ansible logs: `/var/log/omnia/`
+3. Domain output directory: `$OMNIA_DATA_PATH/<domain>/output/<project>/*.log`
+
+```bash
+./omnia-cli logs image_build_manager
+./omnia-cli logs repo_manager --project prod
+```
+
+### vault edit
+
+Edit domain credentials files using Ansible Vault. Prompts for the vault
+password and opens the credentials file in `$EDITOR` (defaults to `vi`).
+
+```bash
+./omnia-cli vault edit image_build_manager
+./omnia-cli vault edit repo_manager
 ```
 
 ## Output Directory Resolution

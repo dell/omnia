@@ -38,6 +38,7 @@
 #   prepare                 Prepare tag tests
 #   build                   Build tag tests
 #   cleanup                 Cleanup tag tests
+#   cleanup_images          Cleanup images from S3 + registry
 #
 # NFT Scenarios:
 #   nft                     Non-functional tests (performance + idempotency)
@@ -111,11 +112,22 @@ fi
 # =============================================================================
 # Helper functions
 # =============================================================================
+# Destructive scenarios excluded from 'all' — must be run explicitly.
+EXCLUDE_FROM_ALL="cleanup cleanup_images"
+
 get_scenarios() {
     for dir in "$FVT_DIR"/*/; do
         name=$(basename "$dir")
         [[ "$name" == __pycache__ ]] && continue
         echo "$name"
+    done
+}
+
+get_safe_scenarios() {
+    for name in $(get_scenarios); do
+        if ! echo " ${EXCLUDE_FROM_ALL} " | grep -q " ${name} "; then
+            echo "$name"
+        fi
     done
 }
 
@@ -399,9 +411,10 @@ COMPLETION_EOF
         echo -e "${BLUE}=================================================================${NC}"
         echo -e "${BLUE}  Running ALL Scenarios: ${COMMAND}${NC}"
         echo -e "${BLUE}=================================================================${NC}"
+        echo -e "${YELLOW}  (excluding destructive: ${EXCLUDE_FROM_ALL})${NC}"
         echo ""
         total=0; pass_count=0; fail_count=0
-        for name in $(get_scenarios); do
+        for name in $(get_safe_scenarios); do
             total=$((total + 1))
             echo -e "${YELLOW}[${total}] ${name}${NC}"
             extra=""
@@ -431,7 +444,7 @@ COMPLETION_EOF
         echo ""
         echo -e "${YELLOW}USAGE${NC}"
         echo "  $0 <scenario> <command> [options]"
-        echo "  $0 all <command>                  Run all scenarios"
+        echo "  $0 all <command>                  Run all non-destructive scenarios"
         echo "  $0 list                           List available scenarios"
         echo "  $0 --config                       Batch run from test_run_config.yml"
         echo ""
@@ -453,7 +466,8 @@ COMPLETION_EOF
         echo "  validate             --tags validate   (verify inputs + config)"
         echo "  prepare              --tags prepare    (build infrastructure setup)"
         echo "  build                --tags build      (build OS images)"
-        echo "  cleanup              --tags cleanup    (remove build artifacts)"
+        echo "  cleanup              --tags cleanup    (remove build artifacts)  [excluded from all]"
+        echo "  cleanup_images       --tags cleanup_images (delete S3 + registry images)  [excluded from all]"
         echo ""
         echo -e "${YELLOW}MARKERS${NC}"
         echo "  sanity       Baseline must-pass tests"

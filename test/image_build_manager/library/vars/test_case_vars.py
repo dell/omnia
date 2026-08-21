@@ -210,7 +210,29 @@ TEST_CASES = {
         "title": "Verify omnia.sh setup completed on target",
     },
 
+    # ── Validate — repo_ssl_verify ──────────────────────────────────────
+    "repo_ssl_verify_config": {
+        "id": "TC_VL_004",
+        "title": "Verify repo_ssl_verify is configured in image_build_config",
+    },
+    "repo_ssl_verify_applied": {
+        "id": "TC_BD_012",
+        "title": "Verify repo_ssl_verify is applied in build templates",
+    },
+
     # ── Cleanup ───────────────────────────────────────────────────────────
+    "deploy_cleanup_images": {
+        "id": "TC_CI_001",
+        "title": "Deploy image_build_manager (cleanup_images)",
+    },
+    "s3_images_cleaned": {
+        "id": "TC_CI_002",
+        "title": "Verify S3 images deleted after cleanup_images",
+    },
+    "registry_images_cleaned": {
+        "id": "TC_CI_003",
+        "title": "Verify registry images deleted after cleanup_images",
+    },
     "containers_removed": {
         "id": "TC_CL_002",
         "title": "Verify containers removed after cleanup",

@@ -1,0 +1,59 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# cleanup_images.yml — Delete built OS images from S3 and OCI registry.
+#
+# Usage:
+#   cd src/image_build_manager/playbooks
+#   ansible-playbook image_build_manager.yml --tags cleanup_images               # Delete ALL images
+#   ansible-playbook image_build_manager.yml --tags cleanup_images \
+#     -e cleanup_image_pattern="rhel-slurm_*"                                   # Delete by pattern
+#   ansible-playbook image_build_manager.yml --tags cleanup_images \
+#     -e cleanup_image_pattern="rhel-os_x86_64*"                                # Delete specific group
+#
+# When imported from image_build_manager.yml, image_build_setup is already done.
+# When run standalone, image_build_setup handles upgrade guard, input dir, oim group.
+
+# Standalone: run image_build_setup
+- name: Standalone setup for image cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run image_build_setup role (standalone only)
+      ansible.builtin.include_role:
+        name: image_build_setup
+      when: not (image_build_setup_done | default(false) | bool)
+
+# Load image_build_config.yml for S3 and registry configuration
+- name: Load image_build_manager configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load image_build_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/image_build_config.yml"
+      failed_when: false
+
+# Execute image cleanup on localhost
+- name: Cleanup built images from S3 and registry # noqa:role-name[path]
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run image cleanup tasks
+      ansible.builtin.include_role:
+        name: cleanup_build_artifacts
+        tasks_from: cleanup_images.yml
