@@ -95,19 +95,19 @@ victoria_cluster:
   vmstorage:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.replicas | default(3) }}"
     replication_factor: 1
-    image: "{{ _victoria_images.vmstorage | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
+    image: "{{ _victoria_images.vmstorage | default('victoriametrics/vmstorage:v1.149.0-cluster') }}"
     resources: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources }}"
     dedup_min_scrape_interval: ""
   vmselect:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.replicas | default(2) }}"
-    image: "{{ _victoria_images.vmselect | default('victoriametrics/vmselect:v1.128.0-cluster') }}"
+    image: "{{ _victoria_images.vmselect | default('victoriametrics/vmselect:v1.149.0-cluster') }}"
     resources: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources }}"
     max_query_duration: ""
     max_concurrent_requests: ""
     cache_data_path: ""
   vminsert:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.replicas | default(2) }}"
-    image: "{{ _victoria_images.vminsert | default('victoriametrics/vminsert:v1.128.0-cluster') }}"
+    image: "{{ _victoria_images.vminsert | default('victoriametrics/vminsert:v1.149.0-cluster') }}"
     resources: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources }}"
     external_access: true
   vmagent:
@@ -121,7 +121,7 @@ vmagent:
   service_account_name: "vmagent"
   role_name: "vmagent-role"
   rolebinding_name: "vmagent-rolebinding"
-  image: "{{ _victoria_images.vmagent | default('victoriametrics/vmagent:v1.128.0') }}"
+  image: "{{ _victoria_images.vmagent | default('victoriametrics/vmagent:v1.149.0') }}"
   remote_write_url_cluster: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
   remote_write_url: "http://victoria-metrics-single-server.{{ telemetry_namespace }}.svc:8428/api/v1/write"
   target_pod_label: "idrac-telemetry"

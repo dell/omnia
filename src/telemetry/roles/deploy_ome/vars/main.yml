@@ -60,7 +60,7 @@ vector:
     service_name: "vmagent-vector"
     port: 8429
     replicas: 2
-    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.128.0')) }}"
+    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0')) }}"
     remote_write_url: "http://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
     tmp_data_path: "/tmp/vmagent-buffer"
     resources:

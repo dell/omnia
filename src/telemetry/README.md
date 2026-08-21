@@ -2,7 +2,7 @@
 
 Dell Omnia Telemetry deploys and manages a comprehensive telemetry stack for
 HPC and AI clusters. It collects metrics and logs from multiple sources
-(iDRAC, LDMS, DCGM, OME, UFM, PowerScale, VAST, SFM, Skyway, PowerVault)
+(iDRAC, LDMS, DCGM, OME, UFM, PowerScale, VAST, SFM)
 and stores them in sink backends (Kafka, VictoriaMetrics, VictoriaLogs).
 
 ## Prerequisites
@@ -86,8 +86,6 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
 | `cleanup_sfm` | SFM network telemetry |
-| `cleanup_skyway` | Skyway telemetry |
-| `cleanup_powervault` | PowerVault storage telemetry |
 
 **Tag safety**: `cleanup`, `precheck`, `upgrade`, `rollback` use Ansible's `never`
 tag — they NEVER execute unless explicitly requested with `--tags`.
@@ -107,8 +105,6 @@ tag — they NEVER execute unless explicitly requested with `--tags`.
 | | SFM | Smart Fabric Manager (network) |
 | **Storage** | PowerScale | Dell PowerScale (Isilon) |
 | | VAST | VAST Data storage |
-| | PowerVault | Dell PowerVault storage |
-| | Skyway | Skyway telemetry |
 
 ## Directory Structure
 
@@ -147,9 +143,7 @@ telemetry/
 │   │       ├── deploy_ufm.yml
 │   │       ├── deploy_powerscale.yml
 │   │       ├── deploy_vast.yml
-│   │       ├── deploy_sfm.yml
-│   │       ├── deploy_skyway.yml
-│   │       └── deploy_powervault.yml
+│   │       └── deploy_sfm.yml
 │   ├── cleanup/
 │   │   ├── cleanup.yml            # Cleanup orchestrator
 │   │   ├── sinks/                 # Sink cleanup playbooks

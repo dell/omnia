@@ -40,14 +40,6 @@ telemetry_state:
   sfm:
     deployed: false
     version: ""
-  skyway:
-    deployed: false
-    version: ""
-
-
-  powervault:
-    deployed: false
-    version: ""
 
 # Telemetry deployment results - success/failure/""status
 telemetry_results:
@@ -74,8 +66,4 @@ telemetry_results:
     dcgm:
       status: ""
     sfm:
-      status: ""
-    skyway:
-      status: ""
-    powervault:
       status: ""

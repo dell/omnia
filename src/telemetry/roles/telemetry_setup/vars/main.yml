@@ -42,8 +42,6 @@ telemetry_usage_info_msg:
   - "  cleanup_ufm                - UFM only"
   - "  cleanup_vast               - VAST only"
   - "  cleanup_sfm                - SFM only"
-  - "  cleanup_skyway             - Skyway only"
-  - "  cleanup_powervault         - PowerVault only"
   - ""
   - "Examples:"
   - "  ansible-playbook playbooks/telemetry.yml --tags deploy"
