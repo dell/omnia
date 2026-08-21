@@ -37,7 +37,7 @@ invalid_nfs_share_path_msg: >-
 nfs_share_not_available_msg: >-
   NFS share path not available.
   Either provide 'nfs_share_path' in iso_config.yml (format: 'server:/path')
-  or ensure /opt/omnia is backed by an NFS mount for iDRAC virtual media.
+  or ensure OMNIA_DATA_PATH is backed by an NFS mount for iDRAC virtual media.
 
 arm_params_fetched_msg: >-
   AArch64 parameters fetched for node '{{ ks_hostname }}'.

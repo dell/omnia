@@ -21,7 +21,7 @@ bmc_username: "{{ hostvars['localhost']['bmc_username'] | default('') }}"
 bmc_password: "{{ hostvars['localhost']['bmc_password'] | default('') }}"
 force_reinstall: false
 
-# NFS share base path (server:/path mapping to /opt/omnia)
+# NFS share base path (server:/path mapping to OMNIA_DATA_PATH)
 # Auto-detected from container mount by fetch_arm_params role
 iso_nfs_share: ""
 

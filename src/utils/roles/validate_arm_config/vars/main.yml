@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# OMNIA_DATA_PATH with fallback
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
 # Configuration file paths
-pxe_mapping_file_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/pxe_mapping_file.csv"
-network_spec_file: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/network_spec.yml"
+pxe_mapping_file_path: "{{ input_project_dir | default(omnia_data_path + '/input/project_default') }}/pxe_mapping_file.csv"
+network_spec_file: "{{ input_project_dir | default(omnia_data_path + '/input/project_default') }}/network_spec.yml"
 
 # OIM SSH key
 oim_ssh_key_path: "/root/.ssh/id_rsa.pub"
 
 # Default ISO config values
-default_iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
-default_iso_target_directory: "/opt/omnia/iso_output"
+default_iso_source_path: "{{ omnia_data_path }}/rhel_10.0_aarch64.iso"
+default_iso_target_directory: "{{ omnia_data_path }}/iso_output"
 default_kickstart_template: "rhel10"
 
 # Error messages

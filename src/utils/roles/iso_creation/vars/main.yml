@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# OMNIA_DATA_PATH with fallback
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
 # NFS-hosted kickstart configuration
-# iso_nfs_share format: "server:/nfs_path" mapping to /opt/omnia
+# iso_nfs_share format: "server:/nfs_path" mapping to OMNIA_DATA_PATH
 nfs_server_ip: "{{ iso_nfs_share.split(':')[0] }}"
 nfs_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
 nfs_kickstart_filename: "kickstart.cfg"
-# Compute the sub-path of iso_target_directory relative to /opt/omnia
-nfs_iso_output_dir: "{{ nfs_base_dir }}/{{ iso_target_directory | regex_replace('^/opt/omnia/?', '') }}"
+# Compute the sub-path of iso_target_directory relative to OMNIA_DATA_PATH
+nfs_iso_output_dir: "{{ nfs_base_dir }}/{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}"
 nfs_kickstart_path: "{{ nfs_iso_output_dir }}/{{ nfs_kickstart_filename }}"
 
 # Temporary files for ISO modification
