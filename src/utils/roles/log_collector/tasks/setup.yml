@@ -11,81 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-# =============================================================================
-# setup.yml — Initialize log collection globals and load configuration
-# =============================================================================
 
-- name: Verify utils_setup completed
-  ansible.builtin.assert:
-    that:
-      - utils_setup_done | default(false) | bool
-    fail_msg: "utils_setup role must run before log_collector"
-    quiet: true
+---
 
 - name: Set timestamp (IST)
   run_once: true
   ansible.builtin.set_fact:
     log_ts: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y%m%dT%H%M%S') }}"
     missing_source_warnings: []
-    cacheable: true
-
-# Derive log_root from output_project_dir (set by utils_setup)
-- name: Set log collection workspace
-  run_once: true
-  ansible.builtin.set_fact:
-    log_root: "{{ output_project_dir }}/{{ collect_output_subdir }}"
-    cacheable: true
-
-# Check if collect_config.yml exists
-- name: Check collect_config.yml exists
-  ansible.builtin.stat:
-    path: "{{ input_project_dir }}/{{ collect_config_file }}"
-  register: _collect_config_stat
-
-# Load collect_config.yml if it exists
-- name: Load collect configuration
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/{{ collect_config_file }}"
-    name: collect_config
-  when: _collect_config_stat.stat.exists
-
-# Set defaults if config not loaded
-- name: Set default collect configuration
-  ansible.builtin.set_fact:
-    collect_config:
-      collection_mode: "full"
-      node_inventory_file: "collect.ini"
-      bundle_prefix: "omnia_logs"
-      compression_format: "gz"
-      generate_summary: true
-  when: not _collect_config_stat.stat.exists
-
-# Override log paths from config if specified
-- name: Apply log path overrides from config
-  run_once: true
-  ansible.builtin.set_fact:
-    k8s_master_log_dirs: "{{ collect_config.k8s_control_log_dirs | default(k8s_master_log_dirs) }}"
-    k8s_master_log_files: "{{ collect_config.k8s_control_log_files | default(k8s_master_log_files) }}"
-    k8s_worker_log_dirs: "{{ collect_config.k8s_worker_log_dirs | default([]) }}"
-    k8s_worker_log_files: "{{ collect_config.k8s_worker_log_files | default(k8s_worker_log_files) }}"
-    slurm_ctl_log_dirs: "{{ collect_config.slurm_control_log_dirs | default(slurm_ctl_log_dirs) }}"
-    slurm_ctl_log_files: "{{ collect_config.slurm_control_log_files | default(slurm_ctl_log_files) }}"
-    slurm_node_log_dirs: "{{ collect_config.slurm_node_log_dirs | default(slurm_node_log_dirs) }}"
-    slurm_node_log_files: "{{ collect_config.slurm_node_log_files | default(slurm_node_log_files) }}"
-    login_node_log_dirs: "{{ collect_config.login_node_log_dirs | default(login_node_log_dirs) }}"
-    login_node_log_files: "{{ collect_config.login_node_log_files | default(login_node_log_files) }}"
-    login_compiler_log_dirs: "{{ collect_config.login_compiler_log_dirs | default(login_compiler_log_dirs) }}"
-    login_compiler_log_files: "{{ collect_config.login_compiler_log_files | default(login_compiler_log_files) }}"
-    cacheable: true
-
-- name: Display setup configuration
-  ansible.builtin.debug:
-    msg: |
-      Log collection setup:
-        Timestamp:          {{ log_ts }}
-        Log root:           {{ log_root }}
-        Input directory:    {{ input_project_dir }}
-        Inventory file:     {{ collect_config.node_inventory_file | default(collect_inventory_file) }}
-        Collection mode:    {{ collect_config.collection_mode | default('full') }}
-    verbosity: 1
+    log_root: "{{ log_root }}"
+    k8s_master_log_dirs: "{{ k8s_master_log_dirs }}"
+    k8s_master_log_files: "{{ k8s_master_log_files }}"
+    k8s_worker_log_files: "{{ k8s_worker_log_files }}"
+    slurm_ctl_log_dirs: "{{ slurm_ctl_log_dirs }}"
+    slurm_ctl_log_files: "{{ slurm_ctl_log_files }}"
+    slurm_node_log_dirs: "{{ slurm_node_log_dirs }}"
+    slurm_node_log_files: "{{ slurm_node_log_files }}"
+    login_node_log_dirs: "{{ login_node_log_dirs }}"
+    login_node_log_files: "{{ login_node_log_files }}"
+    login_compiler_log_dirs: "{{ login_compiler_log_dirs }}"
+    login_compiler_log_files: "{{ login_compiler_log_files }}"

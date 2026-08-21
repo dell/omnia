@@ -12,46 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =============================================================================
-# collect.yml — Log Collection Playbook
-# =============================================================================
-# Collects logs from K8s and Slurm cluster nodes.
-#
-# Input:
-#   - collect.ini (INI format with node groups and IPs)
-#   - collect_config.yml (optional configuration)
-#
-# Output:
-#   - {{ output_project_dir }}/collect/omnia_logs_<timestamp>.tar.gz
-#   - {{ output_project_dir }}/collect/<run>/metadata.json
-#
-# Tags:
-#   setup   — Initialize globals and load configuration
-#   prepare — Parse node inventory and prepare workspace
-#   k8s     — Collect K8s node logs
-#   slurm   — Collect Slurm node logs
-#   bundle  — Bundle collected logs and publish summary
-#
-# Usage:
-#   ansible-playbook collect.yml                    # Full collection
-#   ansible-playbook collect.yml --tags setup       # Setup only
-#   ansible-playbook collect.yml --tags k8s         # K8s logs only
-#   ansible-playbook collect.yml --tags slurm       # Slurm logs only
-# =============================================================================
 
-# Step 0: Domain Setup (always runs first)
-- name: Domain setup
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  roles:
-    - role: utils_setup
-
-# Step 1: Initialize log collection
 - name: Stage globals
   hosts: localhost
-  connection: local
   gather_facts: false
   tags:
     - setup
@@ -60,10 +23,8 @@
     - role: log_collector
       stage: setup
 
-# Step 2: Parse inventory and prepare workspace
 - name: Prepare targets and inventory
   hosts: localhost
-  connection: local
   gather_facts: false
   tags:
     - prepare
@@ -72,7 +33,6 @@
     - role: log_collector
       stage: prepare
 
-# Step 3: Collect K8s master logs
 - name: Collect k8s master logs
   hosts: k8s_masters
   gather_facts: false
@@ -84,7 +44,6 @@
     - role: log_collector
       stage: k8s_master
 
-# Step 4: Collect K8s worker logs
 - name: Collect k8s worker logs
   hosts: k8s_workers
   gather_facts: false
@@ -96,7 +55,6 @@
     - role: log_collector
       stage: k8s_worker
 
-# Step 5: Collect Slurm controller logs
 - name: Collect slurm controller logs
   hosts: slurm_controllers
   gather_facts: false
@@ -108,7 +66,6 @@
     - role: log_collector
       stage: slurm_ctl
 
-# Step 6: Collect Slurm node logs
 - name: Collect slurm node logs
   hosts: slurm_nodes
   gather_facts: false
@@ -120,7 +77,6 @@
     - role: log_collector
       stage: slurm_node
 
-# Step 7: Collect login node logs
 - name: Collect login node logs
   hosts: login_nodes
   gather_facts: false
@@ -132,7 +88,6 @@
     - role: log_collector
       stage: login_node
 
-# Step 8: Collect login compiler node logs
 - name: Collect login compiler node logs
   hosts: login_compiler_nodes
   gather_facts: false
@@ -144,10 +99,8 @@
     - role: log_collector
       stage: login_compiler_node
 
-# Step 9: Bundle collected logs and publish summary
 - name: Bundle collected logs and publish summary
   hosts: localhost
-  connection: local
   gather_facts: false
   tags:
     - bundle
