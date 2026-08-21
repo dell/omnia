@@ -34,17 +34,17 @@
 
 - name: Set node lists from YAML (functional groups with architecture)
   ansible.builtin.set_fact:
-    k8s_masters: "{{ collect_pxe_data.get('service_kube_control_plane_x86_64', []) }}"
-    k8s_workers: "{{ collect_pxe_data.get('service_kube_node_x86_64', []) }}"
-    slurm_controllers: "{{ collect_pxe_data.get('slurm_control_node_x86_64', []) }}"
-    slurm_nodes_x86: "{{ collect_pxe_data.get('slurm_node_x86_64', []) }}"
-    slurm_nodes_arm: "{{ collect_pxe_data.get('slurm_node_aarch64', []) }}"
-    login_nodes: "{{ collect_pxe_data.get('login_node_x86_64', []) }}"
-    login_compiler_nodes: "{{ collect_pxe_data.get('login_compiler_node_aarch64', []) }}"
+    k8s_masters: "{{ collect_pxe_data.get('service_kube_control_plane_x86_64', []) | default([], true) }}"
+    k8s_workers: "{{ collect_pxe_data.get('service_kube_node_x86_64', []) | default([], true) }}"
+    slurm_controllers: "{{ collect_pxe_data.get('slurm_control_node_x86_64', []) | default([], true) }}"
+    slurm_nodes_x86: "{{ collect_pxe_data.get('slurm_node_x86_64', []) | default([], true) }}"
+    slurm_nodes_arm: "{{ collect_pxe_data.get('slurm_node_aarch64', []) | default([], true) }}"
+    login_nodes: "{{ collect_pxe_data.get('login_node_x86_64', []) | default([], true) }}"
+    login_compiler_nodes: "{{ collect_pxe_data.get('login_compiler_node_aarch64', []) | default([], true) }}"
 
 - name: Combine slurm nodes from both architectures
   ansible.builtin.set_fact:
-    slurm_nodes: "{{ (slurm_nodes_x86 if slurm_nodes_x86 is defined else []) + (slurm_nodes_arm if slurm_nodes_arm is defined else []) }}"
+    slurm_nodes: "{{ (slurm_nodes_x86 | default([], true)) + (slurm_nodes_arm | default([], true)) }}"
 
 - name: Add dynamic hosts for k8s masters
   ansible.builtin.add_host:
