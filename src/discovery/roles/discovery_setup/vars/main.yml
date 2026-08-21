@@ -23,8 +23,8 @@ upgrade_in_progress_msg: >-
   "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
 
 # --- Base paths ---
-omnia_input_dir: /opt/omnia/input
-omnia_output_dir: /opt/omnia/output
+# Domain-scoped paths: /opt/omnia/discovery/input/<project>/
+# (resolved from OMNIA_DATA_PATH env var in tasks/main.yml)
 
 # --- Tag validation ---
 supported_tags:
