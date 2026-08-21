@@ -25,10 +25,12 @@
     nfs_iso_filename: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
 
 - name: Set full NFS ISO URI for iDRAC virtual media
+  vars:
+    iso_target_relative_dir: "{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}"
   ansible.builtin.set_fact:
-    nfs_iso_output_dir: "{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}"
-    nfs_iso_uri: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}/{{ nfs_iso_filename }}"
-    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}"
+    nfs_iso_output_dir: "{{ nfs_iso_base_dir }}/{{ iso_target_relative_dir }}"
+    nfs_iso_uri: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_relative_dir }}/{{ nfs_iso_filename }}"
+    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_relative_dir }}"
 
 
 # ── Step 2: Eject existing virtual media, boot ISO ────

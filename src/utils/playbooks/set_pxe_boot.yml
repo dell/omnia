@@ -234,8 +234,13 @@
   tags: [pxe_boot]
   tasks:
     - name: Ensure output directory exists
+      vars:
+        output_dir: >-
+          {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{
+             lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)
+          }}
       ansible.builtin.file:
-        path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+        path: "{{ output_dir }}"
         state: directory
         mode: "0755"
 
@@ -273,7 +278,11 @@
         dest: "{{ output_dir }}/failed_nodes.json"
         mode: "0644"
       vars:
-        output_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+        omnia_data_path: >-
+          {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}
+        project_name: >-
+          {{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}
+        output_dir: "{{ omnia_data_path }}/utils/output/{{ project_name }}"
         failed_nodes_report:
           timestamp: "{{ ansible_date_time.iso8601 }}"
           total_nodes: "{{ groups['bmc'] | length }}"
@@ -288,8 +297,12 @@
           - Total nodes: {{ groups['bmc'] | length }}
           - PXE boot failed: {{ pxe_boot_failed_bmc_ips | default([]) | length }}
           - Phone-home failed: {{ phone_home_failed_bmc_ips | default([]) | length }}
-          - Success: {{ groups['bmc'] | length - (pxe_boot_failed_bmc_ips | default([]) | length) - (phone_home_failed_bmc_ips | default([]) | length) }}
-          - Output file: {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}/failed_nodes.json
+          - Success: {{
+              groups['bmc'] | length
+              - (pxe_boot_failed_bmc_ips | default([]) | length)
+              - (phone_home_failed_bmc_ips | default([]) | length)
+            }}
+          - Output file: {{ output_dir }}/failed_nodes.json
 
     - name: Fail if any nodes failed PXE boot or phone-home
       ansible.builtin.fail:

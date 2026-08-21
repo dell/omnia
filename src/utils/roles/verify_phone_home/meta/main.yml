@@ -17,7 +17,7 @@ galaxy_info:
 
   galaxy_tags:
     - hpc
-    - cloud-init
+    - cloudinit
     - verification
 
 dependencies: []

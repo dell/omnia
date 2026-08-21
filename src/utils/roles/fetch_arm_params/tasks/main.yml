@@ -65,7 +65,14 @@
   ansible.builtin.set_fact:
     nfs_mount_result:
       stdout: >-
-        {{ (ansible_mounts | selectattr('mount', 'equalto', lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)) | list | first | default({}))['device'] | default('') }}
+        {{ (
+             ansible_mounts
+             | selectattr(
+               'mount', 'equalto',
+               lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
+             )
+             | list | first | default({})
+           )['device'] | default('') }}
   changed_when: false
   when: user_nfs_share_path | length == 0
 
