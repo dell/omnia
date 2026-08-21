@@ -606,6 +606,27 @@ _is_credential_file() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Utility: Find the vault password key file for a given credential file
+#   Convention: .{basename_without_ext}_key in the same directory
+#   e.g. image_build_credentials.yml → .image_build_credentials_key
+# ─────────────────────────────────────────────────────────────────────────────
+_find_vault_key_file() {
+    local target="$1"
+    local dir
+    dir=$(dirname "$target")
+    local fname
+    fname=$(basename "$target")
+    local base_no_ext="${fname%.*}"
+    local key_file="${dir}/.${base_no_ext}_key"
+
+    if [ -f "$key_file" ]; then
+        echo "$key_file"
+        return 0
+    fi
+    return 1
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Utility: Open a file with the right editor (ansible-vault for vault files)
 # ─────────────────────────────────────────────────────────────────────────────
 _edit_file() {
@@ -625,9 +646,22 @@ _edit_file() {
             echo ""
             return 1
         fi
-        echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
-        echo -e "  Opening with ${BOLD}ansible-vault edit${NC}..."
-        ansible-vault edit "$target"
+
+        # Look for vault password key file in the same directory
+        local key_file
+        if key_file=$(_find_vault_key_file "$target"); then
+            echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
+            echo -e "  Using vault key: ${DIM}${key_file}${NC}"
+            echo -e "  Opening with ${BOLD}ansible-vault edit --vault-password-file${NC}..."
+            ansible-vault edit "$target" --vault-password-file "$key_file"
+        else
+            echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
+            local base_no_ext
+            base_no_ext="$(basename "${target%.*}")"
+            echo -e "  ${DIM}No vault key file found (expected .${base_no_ext}_key in same dir)${NC}"
+            echo -e "  Opening with ${BOLD}ansible-vault edit${NC} (will prompt for password)..."
+            ansible-vault edit "$target"
+        fi
     else
         echo -e "  Opening ${target} in ${editor}..."
         $editor "$target"
