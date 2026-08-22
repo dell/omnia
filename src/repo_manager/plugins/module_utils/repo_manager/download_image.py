@@ -33,6 +33,72 @@ from ansible.module_utils.repo_manager.container_repo_utils import (
 
 file_lock = Lock()
 
+# Per-tag lock manager to allow parallel processing of different versions
+_tag_locks = {}
+_tag_locks_lock = Lock()
+
+def _get_tag_lock(tag):
+    """
+    Get or create a lock for a specific tag.
+    
+    This allows different versions of the same image to be processed in parallel
+    while preventing race conditions for the same tag.
+    
+    Args:
+        tag (str): The tag to get a lock for.
+    
+    Returns:
+        Lock: The lock for this specific tag.
+    """
+    with _tag_locks_lock:
+        if tag not in _tag_locks:
+            _tag_locks[tag] = Lock()
+        return _tag_locks[tag]
+
+
+def _image_already_synced(repository_name, tag, logger):
+    """
+    Check if a specific tag already exists in the Pulp repository.
+    
+    Args:
+        repository_name (str): Name of the Pulp repository.
+        tag (str): Specific tag to check.
+        logger: Logger instance.
+    
+    Returns:
+        bool: True if the specific tag exists, False otherwise.
+    """
+    try:
+        # Check if repository has any content
+        cmd = f"pulp container repository show --name {repository_name}"
+        result = execute_command(cmd, logger, type_json=True)
+        
+        if result and "stdout" in result:
+            repo_data = result["stdout"]
+            version_href = repo_data.get("latest_version_href")
+            
+            # If repository has no content (version 0), tag doesn't exist
+            if not version_href or version_href.endswith("/versions/0/"):
+                return False
+            
+            # Check if SPECIFIC tag exists in repository content
+            tags_cmd = f"pulp show --href '/pulp/api/v3/content/container/tags/?repository_version={version_href}&name={tag}'"
+            tags_result = execute_command(tags_cmd, logger, type_json=True)
+            
+            if tags_result and "stdout" in tags_result:
+                tags_data = tags_result["stdout"]
+                results = tags_data.get("results", [])
+                
+                # Check if SPECIFIC tag exists
+                if len(results) > 0:
+                    logger.info(f"Tag '{tag}' already exists in repository {repository_name}. Skipping sync.")
+                    return True
+        
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking if image synced: {e}")
+        return False
+
 
 def create_container_remote_with_auth(remote_name, remote_url, package, policy_type,
                                      tag, logger, docker_username, docker_secret_token):
@@ -282,6 +348,7 @@ def process_image(package, status_file_path, version_variables,
     policy_type = "immediate"
     base_url, package_content = get_repo_url_and_content(package['package'])
     package_identifier = None
+    tag_val = None
 
     # Only check user registries for additional_packages
     if user_registries and "additional_packages" in status_file_path:
@@ -309,7 +376,7 @@ def process_image(package, status_file_path, version_variables,
         remote_name = f"remote_{package['package'].replace('/', '_').replace(':', '_')}"
         package_identifier = package['package']
 
-        # Create container repository
+        # Create container repository first (must exist before idempotency check)
         with repository_creation_lock:
             result = create_container_repository(repository_name, logger)
         if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
@@ -318,18 +385,43 @@ def process_image(package, status_file_path, version_variables,
         # Process digest or tag
         if "digest" in package:
             package_identifier += f":{package['digest']}"
-            result = create_container_remote_digest(
-                remote_name, base_url, package_content, policy_type, logger
-            )
-            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                raise Exception(f"Failed to create remote digest: {remote_name}")
+            tag_val = package['digest']  # Use digest as tag for idempotency check
+            
+            # Get per-tag lock for this digest
+            tag_lock = _get_tag_lock(tag_val)
+            
+            with tag_lock:
+                # Check idempotency for digest
+                if _image_already_synced(repository_name, tag_val, logger):
+                    logger.info(f"Image {package_identifier} already synced. Skipping.")
+                    write_status_to_file(
+                        status_file_path, package_identifier, package['type'], "Success", logger, file_lock
+                    )
+                    return "Success"
+                
+                result = create_container_remote_digest(
+                    remote_name, base_url, package_content, policy_type, logger
+                )
+                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                    raise Exception(f"Failed to create remote digest: {remote_name}")
 
         elif "tag" in package:
             tag_template = Template(package['tag'])
             tag_val = tag_template.render(**version_variables)
             package_identifier += f":{package['tag']}"
+            
+            # Get per-tag lock for this tag
+            tag_lock = _get_tag_lock(tag_val)
+            
+            with tag_lock:
+                # Check idempotency for tag
+                if _image_already_synced(repository_name, tag_val, logger):
+                    logger.info(f"Image {package_identifier} already synced. Skipping.")
+                    write_status_to_file(
+                        status_file_path, package_identifier, package['type'], "Success", logger, file_lock
+                    )
+                    return "Success"
 
-            with remote_creation_lock:
                 if package['package'].startswith('docker.io/') and docker_username and docker_secret_token:
                     result = create_container_remote_with_auth(
                         remote_name, base_url, package_content, policy_type,
@@ -340,8 +432,8 @@ def process_image(package, status_file_path, version_variables,
                         remote_name, base_url, package_content, policy_type, tag_val, logger
                     )
 
-            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                raise Exception(f"Failed to create remote: {remote_name}")
+                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                    raise Exception(f"Failed to create remote: {remote_name}")
 
         # Sync and distribute
         # Pass tag_val if it exists (for tag-based images), otherwise None (for digest-based images)

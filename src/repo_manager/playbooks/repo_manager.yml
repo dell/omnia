@@ -52,6 +52,21 @@
 # =============================================================================
 
 # -------------------------------------------------------------------------
+# PRECHECK
+# -------------------------------------------------------------------------
+- name: Repo Manager Orchestrator - Precheck
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  roles:
+    - role: precheck_environment
+  tags:
+    - precheck
+    - always
+
+# -------------------------------------------------------------------------
 # SETUP
 # -------------------------------------------------------------------------
 - name: Repo Manager Orchestrator - Setup
@@ -87,6 +102,7 @@
 - name: Download and sync packages/repositories
   ansible.builtin.import_playbook: "{{ playbook_dir }}/repo_operations/download.yml"
   tags:
+    - execute
     - download
     - execute
 

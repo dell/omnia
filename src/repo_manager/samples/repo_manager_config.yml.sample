@@ -1,0 +1,78 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# REPO MANAGER CONFIGURATION SAMPLE
+# =============================================================================
+# This is a sample configuration file for repo_manager.
+# Copy this file to your input directory and modify according to your needs.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# BASIC CONFIGURATION
+# -----------------------------------------------------------------------------
+cluster_os_type: "rhel"
+cluster_os_version: "10.0"
+
+# -----------------------------------------------------------------------------
+# PULP SERVER CONFIGURATION
+# -----------------------------------------------------------------------------
+pulp_protocol: "https"
+
+# -----------------------------------------------------------------------------
+# REPOSITORY CONFIGURATION
+# -----------------------------------------------------------------------------
+repositories:
+  x86_64_rhel_10.0_epel:
+    name: "x86_64_rhel_10.0_epel"
+    baseurl: "https://download.fedoraproject.org/pub/epel/10/Everything/x86_64/"
+    enabled: true
+    gpgcheck: false
+
+  x86_64_rhel_10.0_appstream:
+    name: "x86_64_rhel_10.0_appstream"
+    baseurl: "https://cdn.redhat.com/content/dist/rhel10/10/x86_64/appstream/os"
+    enabled: true
+    gpgcheck: true
+
+# -----------------------------------------------------------------------------
+# CUSTOM REPOSITORY URLS (OPTIONAL)
+# -----------------------------------------------------------------------------
+# Add custom repository URLs for specific architectures
+# user_repo_url_x86_64:
+#   - name: "custom_repo_x86_64"
+#     baseurl: "https://your-custom-repo.com/x86_64/"
+#     enabled: true
+#     gpgcheck: false
+
+# user_repo_url_aarch64:
+#   - name: "custom_repo_aarch64"
+#     baseurl: "https://your-custom-repo.com/aarch64/"
+#     enabled: true
+#     gpgcheck: false
+
+# -----------------------------------------------------------------------------
+# ADDITIONAL REPOSITORIES (OPTIONAL)
+# -----------------------------------------------------------------------------
+# additional_repos_x86_64:
+#   - name: "additional_repo_x86_64"
+#     baseurl: "https://additional-repo.com/x86_64/"
+#     enabled: true
+#     gpgcheck: false
+
+# additional_repos_aarch64:
+#   - name: "additional_repo_aarch64"
+#     baseurl: "https://additional-repo.com/aarch64/"
+#     enabled: true
+#     gpgcheck: false

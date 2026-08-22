@@ -42,9 +42,10 @@
         state: directory
         mode: "0755"
 
-    - name: Validate required environment variables
+    - name: Validate required environment variables using setup role
       ansible.builtin.include_role:
-        name: ../../roles/validate_environment
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_config.yml
 
     - name: Enable subscription check when validate_config.yml is run directly
       ansible.builtin.set_fact:

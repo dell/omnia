@@ -76,7 +76,7 @@ author:
 EXAMPLES = r"""
 - name: Process RPM configuration
   process_rpm_config:
-    config_path: /opt/omnia/input/repo_manager_config.yml
+    config_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/input/repo_manager_config.yml"
     arch: x86_64
     os_version: "9.4"
   register: rpm_config
@@ -1753,8 +1753,10 @@ def main():
     """
     module_args = {
         "local_config": {"type": "list", "required": True},
-        # nosec B108 - Default path, actual path is configurable via parameter
-        "log_dir": {"type": "str", "required": False, "default": "/opt/omnia/log/repo_manager/thread_logs"},
+        # nosec B108 - Default path uses OMNIA_DATA_PATH env var for portability
+        "log_dir": {"type": "str", "required": False, 
+                   "default": os.path.join(os.environ.get('OMNIA_DATA_PATH', '/opt/omnia'), 
+                                          'log/repo_manager/thread_logs')},
         "additional_repos_config": {"type": "dict", "required": False, "default": None},
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},

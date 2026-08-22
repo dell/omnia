@@ -108,6 +108,38 @@ file_permissions_600: "0600"
 max_retries: 10
 
 # -----------------------------------------------------------------------------
+# PARALLEL EXECUTION CONFIGURATION
+# -----------------------------------------------------------------------------
+parallel_config:
+  default_nthreads: 4
+  default_timeout_seconds: 60
+  task_poll_interval_seconds: 10
+
+# -----------------------------------------------------------------------------
+# DOWNLOAD CONFIGURATION
+# -----------------------------------------------------------------------------
+download_config:
+  tarball_timeout_minutes: 45
+  file_timeout_minutes: 1
+  iso_timeout_minutes: 45
+
+# -----------------------------------------------------------------------------
+# PULP CONFIGURATION
+# -----------------------------------------------------------------------------
+pulp_config:
+  concurrency: 1
+
+# -----------------------------------------------------------------------------
+# CLEANUP CONFIGURATION
+# -----------------------------------------------------------------------------
+cleanup_config:
+  delete_remote: true
+  delete_distribution: true
+  cleanup_orphans: true
+  list_only: false
+  force: false
+
+# -----------------------------------------------------------------------------
 # OIM SHARED PATH CONFIGURATION (for NFS scenarios)
 # -----------------------------------------------------------------------------
 oim_shared_path: "{{ (oim_shared_path_from_metadata | default({})).get('oim_shared_path', omnia_base_dir) }}"

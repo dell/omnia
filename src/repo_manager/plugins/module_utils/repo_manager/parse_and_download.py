@@ -272,46 +272,60 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
 
 def _update_existing_file(status_file_path, package_name, package_type, status,
                            repo_name, catalog_name=""):
-    """Update existing status file with new package status."""
-    with open(status_file_path, "r", encoding='utf-8') as f:
-        lines = f.readlines()
+    """Update existing status file with new package status using atomic write."""
+    # Read existing content
+    if os.path.exists(status_file_path):
+        with open(status_file_path, "r", encoding='utf-8') as f:
+            lines = f.readlines()
+    else:
+        lines = [STATUS_CSV_HEADER]
 
+    # Update in memory
     updated = False
-    with open(status_file_path, "w", encoding='utf-8') as f:
-        # Write header
-        if lines:
-            f.write(lines[0])
+    for i, line in enumerate(lines):
+        if line.startswith(f"{package_name},"):
+            lines[i] = _update_existing_line(
+                line, package_name, package_type, status, repo_name,
+                status_file_path, catalog_name
+            )
+            updated = True
+            break
 
-        # Write data lines
-        for line in lines[1:]:  # Skip header
-            if line.startswith(f"{package_name},"):
-                updated_line = _update_existing_line(
-                    line, package_name, package_type, status, repo_name,
-                    status_file_path, catalog_name
-                )
-                f.write(updated_line)
-                updated = True
-            else:
-                f.write(line)
+    if not updated:
+        final_repo_name = _prefix_repo_name_with_arch(
+            repo_name, status_file_path, None)
+        repo_val = final_repo_name if final_repo_name else ''
+        lines.append(
+            f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n")
 
-        if not updated:
-            final_repo_name = _prefix_repo_name_with_arch(
-                repo_name, status_file_path, None)
-            repo_val = final_repo_name if final_repo_name else ''
-            f.write(
-                f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n")
+    # Write to temp file first (atomic write)
+    temp_path = status_file_path + ".tmp"
+    with open(temp_path, "w", encoding='utf-8') as f:
+        f.writelines(lines)
+
+    # Atomic rename
+    os.replace(temp_path, status_file_path)
 
 
 def _create_new_file(status_file_path, package_name, package_type, status,
                       repo_name, catalog_name=""):
-    """Create new status file with package status."""
-    with open(status_file_path, "w", encoding='utf-8') as f:
-        f.write(STATUS_CSV_HEADER)
-        final_repo_name = _prefix_repo_name_with_arch(
-            repo_name, status_file_path, None)
-        repo_val = final_repo_name if final_repo_name else ''
-        f.write(
-            f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n")
+    """Create new status file with package status using atomic write."""
+    # Build content in memory
+    final_repo_name = _prefix_repo_name_with_arch(
+        repo_name, status_file_path, None)
+    repo_val = final_repo_name if final_repo_name else ''
+    lines = [
+        STATUS_CSV_HEADER,
+        f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n"
+    ]
+
+    # Write to temp file first (atomic write)
+    temp_path = status_file_path + ".tmp"
+    with open(temp_path, "w", encoding='utf-8') as f:
+        f.writelines(lines)
+
+    # Atomic rename
+    os.replace(temp_path, status_file_path)
 
 
 def _update_mirror_index_for_package(status_file_path, package_name, package_type,

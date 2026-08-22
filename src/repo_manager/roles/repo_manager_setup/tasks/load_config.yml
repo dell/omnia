@@ -1,0 +1,165 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# LOAD CONFIGURATION FROM ENVIRONMENT VARIABLES
+# =============================================================================
+# This task file loads configuration from environment variables following
+# the image_build_manager pattern for consistency across Omnia domains.
+#
+# Environment Variables Required:
+#   - SYSTEM_ADMIN_NIC_IPV4: Admin NIC IP address
+#   - CATALOG_FILE_PATH: Path to catalog JSON file
+#   - OMNIA_DATA_PATH: Base data directory (default: /opt/omnia, uses env var)
+# =============================================================================
+
+# --- Resolve domain root directory (works from any playbook location) ---
+- name: Set domain root directory
+  ansible.builtin.set_fact:
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
+    cacheable: true
+
+# --- Resolve configuration from environment variables ---
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+    catalog_file: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    cacheable: true
+
+# --- Validate required variables via module (single source of truth) ---
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - CATALOG_FILE_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: true
+    validate_paths: true
+  register: _env_validation
+
+# --- Validate configured environment ---
+- name: Display environment configuration
+  ansible.builtin.debug:
+    msg:
+      - "SYSTEM_ADMIN_NIC_IPV4: {{ admin_nic_ip }}"
+      - "CATALOG_FILE_PATH: {{ catalog_file }}"
+      - "OMNIA_DATA_PATH: {{ omnia_data_path }}"
+      - "OMNIA_PROJECT_NAME: {{ project_name }}"
+    verbosity: 1
+
+# --- Set all derived paths in a single set_fact ---
+- name: Set project dirs and derived paths
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ omnia_data_path }}/repo_manager/input/{{ project_name }}"
+    output_project_dir: "{{ omnia_data_path }}/repo_manager/output/{{ project_name }}"
+    log_dir: "{{ omnia_data_path }}/repo_manager/log/{{ project_name }}"
+    shared_path: "{{ omnia_data_path }}/repo_manager"
+    cacheable: true
+
+# --- Load repo_manager_config.yml to determine catalog usage ---
+- name: Load repo_manager_config.yml to determine catalog usage
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/repo_manager_config.yml"
+  register: _repo_config
+  failed_when: false
+
+- name: Set catalog source mode
+  ansible.builtin.set_fact:
+    catalog_source_mode: "{{ catalog_config.source | default('config') }}"
+    cacheable: true
+
+# --- Conditional catalog file validation ---
+- name: Validate catalog file exists (catalog mode)
+  when: catalog_source_mode == 'catalog'
+  block:
+    - name: Fail if CATALOG_FILE_PATH env var is not set
+      ansible.builtin.fail:
+        msg: >-
+          CATALOG_FILE_PATH environment variable is not set.
+          When catalog source is 'catalog', set CATALOG_FILE_PATH.
+          Example: export CATALOG_FILE_PATH=/path/to/catalog.json
+      when: catalog_file | length == 0
+
+    - name: Stat catalog file
+      ansible.builtin.stat:
+        path: "{{ catalog_file }}"
+      register: _catalog_check
+
+    - name: Validate catalog file is a regular file
+      ansible.builtin.assert:
+        that:
+          - _catalog_check.stat.exists
+          - _catalog_check.stat.isreg
+        fail_msg: >-
+          Catalog file not found or not a regular file: {{ catalog_file }}
+          Please ensure the catalog file exists at the specified path.
+
+    - name: Validate catalog file has .json extension
+      ansible.builtin.assert:
+        that:
+          - catalog_file | regex_search('\\.json$')
+        fail_msg: >-
+          CATALOG_FILE_PATH must be a .json file: {{ catalog_file }}
+          Please ensure the catalog file has a .json extension.
+
+# --- Verify project input directory exists ---
+- name: Verify project input directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: _project_dir_check
+
+# --- Create runtime directories ---
+- name: Ensure base OMNIA_DATA_PATH directory exists
+  ansible.builtin.file:
+    path: "{{ omnia_data_path }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Ensure domain-specific directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ shared_path }}"
+    - "{{ output_project_dir }}"
+    - "{{ log_dir }}"
+  become: true
+
+# --- Validate domain directories were created ---
+- name: Validate domain directories were created
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ omnia_data_path }}"
+    - "{{ shared_path }}"
+    - "{{ output_project_dir }}"
+    - "{{ log_dir }}"
+  register: _dir_checks
+
+- name: Fail if any required directory is missing
+  ansible.builtin.fail:
+    msg: "Required directory does not exist: {{ item.item }}"
+  when: not item.stat.exists
+  loop: "{{ _dir_checks.results }}"
+
+# --- Set configuration loaded guard ---
+- name: Set configuration loaded guard
+  ansible.builtin.set_fact:
+    repo_manager_config_loaded: true
+    cacheable: true

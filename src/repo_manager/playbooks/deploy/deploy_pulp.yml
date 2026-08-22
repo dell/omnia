@@ -59,7 +59,7 @@
     # -------------------------------------------------------------------------
     # CREDENTIAL MANAGEMENT
     # -------------------------------------------------------------------------
-    # Always run credential role with 'all' action - it handles:
+    # Always run collect_repo_credentials role - it handles:
     #   1. If file doesn't exist: create from template and prompt for values
     #   2. If file exists: load values and prompt only if mandatory fields are empty
     # -------------------------------------------------------------------------
@@ -75,11 +75,9 @@
       ansible.builtin.debug:
         msg: "Credential mode: {{ 'Using provided password' if pulp_password_provided else 'Will prompt for password' }}"
 
-    - name: Manage credentials (create if missing, prompt if empty)
+    - name: Collect repo manager credentials (create if missing, prompt if empty)
       ansible.builtin.include_role:
-        name: ../../roles/credential
-      vars:
-        credential_action: all
+        name: ../../roles/collect_repo_credentials
       when: not pulp_password_provided
 
     - name: Verify pulp_password is set after credential management

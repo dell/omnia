@@ -11,10 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
+
 galaxy_info:
+  role_name: precheck_environment
   author: Dell Technologies
-  description: Validate required environment variables for repo_manager
-  company: Dell Technologies
+  description: Validates system environment before repo_manager operations
+  company: Dell Inc.
   license: Apache-2.0
   min_ansible_version: "2.9"
+
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+        - "10"
+
+  galaxy_tags:
+    - system
+    - validation
+    - precheck
+    - environment
+
+dependencies: []

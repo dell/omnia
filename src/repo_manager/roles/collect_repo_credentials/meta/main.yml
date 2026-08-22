@@ -11,22 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-- name: Set mandatory credentials status
-  ansible.builtin.set_fact:
-    mandatory_credentials_status: true
+galaxy_info:
+  role_name: collect_repo_credentials
+  author: Dell Technologies
+  description: Collects and manages repository manager credentials with encryption support
+  company: Dell Inc.
+  license: Apache-2.0
+  min_ansible_version: "2.9"
 
-- name: Notify user about mandatory inputs
-  ansible.builtin.debug:
-    msg: "{{ mandatory_warning_msg }}"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+        - "10"
 
-- name: Fetch mandatory credentials
-  ansible.builtin.include_tasks: prompt_credentials.yml
-  loop: "{{ type.value }}"
-  loop_control:
-    loop_var: field
+  galaxy_tags:
+    - credentials
+    - authentication
+    - security
+    - vault
+    - repository
 
-- name: Reset mandatory credentials status
-  ansible.builtin.set_fact:
-    mandatory_credentials_status: false
+dependencies:
+  - role: repo_manager_setup
