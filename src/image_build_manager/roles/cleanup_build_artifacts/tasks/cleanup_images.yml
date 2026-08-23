@@ -233,6 +233,7 @@
 
     - name: Verify tags removed from each repo
       ansible.builtin.shell: |
+        set -o pipefail
         REGISTRY="{{ _cleanup_registry_host }}:5000"
         REMAINING=$(/usr/local/bin/regctl tag ls "${REGISTRY}/{{ item }}" 2>/dev/null | wc -l)
         if [ "${REMAINING}" -eq 0 ]; then

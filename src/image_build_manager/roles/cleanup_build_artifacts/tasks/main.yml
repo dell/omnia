@@ -45,4 +45,3 @@
 - name: Cleanup image_build_manager logs
   ansible.builtin.include_tasks: cleanup_logs.yml
   tags: logs
-
