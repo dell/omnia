@@ -13,41 +13,92 @@
 # limitations under the License.
 ---
 
-- name: Download the openchami RPM file
+- name: Check if OpenCHAMI RPM already downloaded
+  ansible.builtin.stat:
+    path: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
+  register: _openchami_rpm_stat
+
+- name: Fetch latest OpenCHAMI release metadata
+  ansible.builtin.uri:
+    url: "{{ openchami_release_api_url }}"
+    return_content: true
+  register: openchami_release_info
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: openchami_release_info.status == 200
+  when: not _openchami_rpm_stat.stat.exists
+
+- name: Determine RPM download URL from release assets
+  ansible.builtin.set_fact:
+    openchami_rpm_url: >-
+      https://github.com/{{ openchami_release_repo }}/releases/download/{{ openchami_release_info.json.tag_name }}/{{ openchami_rpm_name }}
+  when: not _openchami_rpm_stat.stat.exists
+
+- name: Download the OpenCHAMI RPM from GitHub releases
   ansible.builtin.get_url:
     url: "{{ openchami_rpm_url }}"
     dest: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
     mode: "{{ file_perm_rwx }}"
-  register: download_openchami
-  until: download_openchami is not failed
+  register: download_openchami_rpm
+  until: download_openchami_rpm is not failed
   retries: "{{ max_retries }}"
   delay: "{{ max_delay }}"
+  when: not _openchami_rpm_stat.stat.exists
 
-- name: Install the openchami
-  ansible.builtin.dnf:
-    name: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
-    state: present
-    disable_gpg_check: true
-
-- name: Check if OpenCHAMI quadlet files exist
-  ansible.builtin.stat:
-    path: /etc/containers/systemd/opaal.container
-  register: openchami_quadlet_check
-  when: additional_subnets | default([]) | length > 0
-
-- name: Reinstall openchami RPM to restore missing quadlet files
+- name: Install or upgrade the OpenCHAMI RPM
   ansible.builtin.command: >-
-    dnf reinstall -y
+    dnf install -y --nogpgcheck --allowerasing
     {{ openchami_work_dir }}/{{ openchami_rpm_name }}
-    --nogpgcheck
-  changed_when: true
-  when:
-    - additional_subnets | default([]) | length > 0
-    - not (openchami_quadlet_check.stat.exists | default(true))
+  register: openchami_rpm_install
+  changed_when: "'Nothing to do' not in openchami_rpm_install.stdout"
 
-- name: Configure cluster FQDN for certificates
-  ansible.builtin.command: sudo openchami-certificate-update update {{ cluster_name }}.{{ cluster_domain }}
+- name: Update openchami.env with cluster settings
+  ansible.builtin.lineinfile:
+    path: /etc/openchami/configs/openchami.env
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^DOCKER_STEPCA_INIT_DNS_NAMES=', line: 'DOCKER_STEPCA_INIT_DNS_NAMES=step-ca,step-ca.{{ cluster_domain }}' }
+    - { regexp: '^TOKENSMITH_CLUSTER_ID=', line: 'TOKENSMITH_CLUSTER_ID={{ cluster_name }}-cluster' }
+    - { regexp: '^TOKENSMITH_OPENCHAMI_ID=', line: 'TOKENSMITH_OPENCHAMI_ID={{ cluster_name }}-openchami' }
+  loop_control:
+    label: "{{ item.regexp }}"
+
+- name: Create tokensmith quadlet override directory
+  ansible.builtin.file:
+    path: "{{ openchami_quadlet_override_dir }}/tokensmith.container.d"
+    state: directory
+    mode: "{{ file_perm_rwx }}"
+
+- name: Set tokensmith FQDN via systemd drop-in override
+  ansible.builtin.copy:
+    dest: "{{ openchami_quadlet_override_dir }}/tokensmith.container.d/99-site-override.conf"
+    mode: "{{ file_perm_rw }}"
+    content: |
+      [Container]
+      PodmanArgs=--add-host='{{ cluster_name }}.{{ cluster_domain }}:{{ cluster_boot_ip }}'
+
+- name: Configure ACME certificate FQDN
+  ansible.builtin.command: >
+    openchami-certificate-update update {{ cluster_name }}.{{ cluster_domain }}
   changed_when: true
+
+- name: Template boot-service config
+  ansible.builtin.template:
+    src: boot-service.yaml.j2
+    dest: "{{ openchami_config_dir }}/boot-service.yaml"
+    mode: "{{ file_perm_rw }}"
+
+- name: Template haproxy config
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: "{{ openchami_config_dir }}/haproxy.cfg"
+    mode: "{{ file_perm_rw }}"
+
+- name: Check if ochami client RPM already downloaded
+  ansible.builtin.stat:
+    path: "{{ openchami_work_dir }}/{{ ochami_client_rpm_name }}"
+  register: _ochami_rpm_stat
 
 - name: Download the ochami client RPM file
   ansible.builtin.get_url:
@@ -58,6 +109,7 @@
   until: download_ochami is not failed
   retries: "{{ max_retries }}"
   delay: "{{ max_delay }}"
+  when: not _ochami_rpm_stat.stat.exists
 
 - name: Install ochami CLI
   ansible.builtin.dnf:

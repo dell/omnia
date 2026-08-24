@@ -1,0 +1,222 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Configure metadata-service for a single functional group.
+# Extracted from configure_ochami/tasks/configure_metadata_svc_group.yml.
+# Called in a loop with fg_name set by the caller.
+# Uses delete-then-set for idempotency.
+
+- name: Include vars from slurm defaults
+  ansible.builtin.include_vars: "{{ default_file_path }}"
+
+- name: Include vars from slurm_config role
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../slurm_config/vars/main.yml"
+  failed_when: false
+
+- name: Include vars from configure_ochami role
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../configure_ochami/vars/main.yml"
+  failed_when: false
+
+- name: Initialize apply_config from slurm defaults
+  ansible.builtin.set_fact:
+    apply_config: "{{ __default_config }}"
+  when: apply_config is not defined
+
+- name: Initialize slurm_conf_dict from defaults
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __default_config.slurm }}"
+  when: slurm_conf_dict is not defined
+
+- name: Set nodes_yaml path for slurm_config tasks
+  ansible.builtin.set_fact:
+    nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+  when: nodes_yaml is not defined
+
+- name: Read slurm hostnames to set ip_name_map
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../slurm_config/tasks/read_slurm_hostnames.yml"
+
+- name: Load storage config for NFS paths
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/storage_config.yml"
+  failed_when: false
+
+- name: Load omnia config for slurm_cluster settings
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/omnia_config.yml"
+  failed_when: false
+
+- name: Compute NFS paths from slurm_cluster and mounts
+  ansible.builtin.set_fact:
+    nfs_server_path: >-
+      {{ (mounts | default([])
+          | selectattr('name', 'equalto',
+              (slurm_cluster | default([{}]))[0].nfs_storage_name | default(''))
+          | list | first | default({})).source | default('') }}
+    share_path: >-
+      {{ (mounts | default([])
+          | selectattr('name', 'equalto',
+              (slurm_cluster | default([{}]))[0].nfs_storage_name | default(''))
+          | list | first | default({})).mount_point | default('/share_omnia') }}
+    vast_mount_point: >-
+      {{ (mounts | default([])
+          | selectattr('name', 'equalto',
+              (slurm_cluster | default([{}]))[0].vast_storage_name | default(''))
+          | list | first | default({})).mount_point | default('') }}
+  when: mounts is defined
+
+- name: Set derived NFS paths for metadata-service templates
+  ansible.builtin.set_fact:
+    metadata_svc_nfs_path: "{{ nfs_server_path | default('') }}/slurm"
+    trackfile_nfs_path: "{{ nfs_server_path | default('') }}/ctld_track"
+    metadata_svc_nfs_path_openldap: "{{ nfs_server_path | default('') }}/openldap"
+    metadata_svc_slurm_nfs_path: "{{ nfs_server_path | default('') }}"
+    client_mount_path: "{{ share_path | default('/share_omnia') }}"
+  when: metadata_svc_nfs_path is not defined
+
+- name: Set default effective directories for slurm paths
+  ansible.builtin.set_fact:
+    slurm_ctld_log_dir_effective: "{{ slurm_ctld_log_dir_effective | default('/var/log/slurm') }}"
+    slurmdbd_log_dir_effective: "{{ slurmdbd_log_dir_effective | default('/var/log/slurm') }}"
+    slurm_ctld_pid_dir_effective: "{{ slurm_ctld_pid_dir_effective | default('/var/run') }}"
+    slurmdbd_pid_dir_effective: "{{ slurmdbd_pid_dir_effective | default('/var/run') }}"
+    slurm_state_save_location_effective: "{{ slurm_state_save_location_effective | default('/var/spool/slurmctld') }}"
+    slurm_sched_log_dir_effective: "{{ slurm_sched_log_dir_effective | default('') }}"
+    slurm_slurmd_log_dir_effective: "{{ slurm_slurmd_log_dir_effective | default('/var/log/slurm') }}"
+    slurm_slurmd_spool_dir_effective: "{{ slurm_slurmd_spool_dir_effective | default('/var/spool/slurmd') }}"
+    slurm_slurmd_pid_dir_effective: "{{ slurm_slurmd_pid_dir_effective | default('/var/run') }}"
+    slurm_epilog_dirs_all: "{{ slurm_epilog_dirs_all | default(['/etc/slurm/epilog.d']) }}"
+    slurm_epilog_custom_paths: "{{ slurm_epilog_custom_paths | default([]) }}"
+    slurm_epilog_paths_all: "{{ slurm_epilog_paths_all | default(['/etc/slurm/epilog.d/logout_user.sh']) }}"
+    slurm_prolog_custom_paths: "{{ slurm_prolog_custom_paths | default([]) }}"
+    slurm_prolog_dirs_all: "{{ slurm_prolog_dirs_all | default([]) }}"
+    slurm_prolog_paths_all: "{{ slurm_prolog_paths_all | default([]) }}"
+    slurm_plugin_dir_effective: "{{ slurm_plugin_dir_effective | default('/usr/lib64/slurm') }}"
+    slurm_epilog_dir_effective: "{{ slurm_epilog_dir_effective | default('/etc/slurm/epilog.d') }}"
+    slurm_prolog_dir_effective: "{{ slurm_prolog_dir_effective | default('') }}"
+    file_mode: "{{ file_mode | default('0644') }}"
+    file_mode_400: "{{ file_mode_400 | default('0400') }}"
+    file_mode_600: "{{ file_mode_600 | default('0600') }}"
+    file_mode_755: "{{ file_mode_755 | default('0755') }}"
+    openldap_dir_name: "{{ openldap_dir_name | default('openldap') }}"
+    ldap_ssl_port: "{{ ldap_ssl_port | default(636) }}"
+    ldap_starttls_port: "{{ ldap_starttls_port | default(389) }}"
+    connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
+    ldap_search_base: >-
+      {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
+      | select | map('regex_replace', '^', 'dc=') | join(',') }}
+    ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
+    password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+    ldap_default_bind_dn: >-
+      cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+      (hostvars['localhost']['domain_name'] | default('')).split('.')
+      | select | map('regex_replace', '^', 'dc=') | join(',') }}
+
+- name: Set functional_group_name for template compatibility
+  ansible.builtin.set_fact:
+    functional_group_name: "{{ fg_name }}"
+
+- name: Load metadata-service group template - {{ fg_name }}
+  block:
+    - name: Render metadata-service group template - {{ fg_name }}
+      ansible.builtin.template:
+        src: "{{ ochami_template_dir }}/metadata_svc/ms-group-{{ fg_name }}.yaml.j2"
+        dest: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
+        mode: "{{ file_permissions_644 }}"
+      vars:
+        connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
+        ldap_search_base: >-
+          {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
+          | select | map('regex_replace', '^', 'dc=') | join(',') }}
+        ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
+        password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+        ldap_default_bind_dn: >-
+          cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+          (hostvars['localhost']['domain_name'] | default('')).split('.')
+          | select | map('regex_replace', '^', 'dc=') | join(',') }}
+  rescue:
+    - name: Failed to load metadata-service group template
+      ansible.builtin.fail:
+        msg: "{{ ms_group_load_fail_msg }}"
+
+- name: Load rendered FG group YAML - {{ fg_name }}
+  ansible.builtin.slurp:
+    src: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
+  register: ms_fg_group_raw
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Parse FG group entries - {{ fg_name }}
+  ansible.builtin.set_fact:
+    ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Build metadata-service group body for FG entries - {{ fg_name }}
+  ansible.builtin.set_fact:
+    _ms_fg_bodies: >-
+      {{ _ms_fg_bodies | default([]) + [{
+        'metadata': {'name': entry.name},
+        'spec': ({'description': entry.description | default(''),
+                   'template': entry.file.content | default('')}
+                  | combine(
+                    {'metaData': dict(
+                       entry['meta-data'].keys() | list
+                       | zip(entry['meta-data'].values() | map('to_json') | list)
+                     )}
+                    if entry['meta-data'] is defined and entry['meta-data'] | length > 0
+                    else {}
+                  ))
+      }] }}
+  loop: "{{ ms_fg_group_entries | default([]) }}"
+  loop_control:
+    loop_var: entry
+    label: "{{ entry.name }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Set metadata-service group configuration for functional group (via metadata-service API)  # noqa: name[template]
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ item }}"
+    status_code: [200, 201, 409]
+    validate_certs: false
+  loop: "{{ _ms_fg_bodies | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Verify metadata-service group configuration - {{ fg_name }}
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: ms_group_output
+  no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Verify metadata-service group output - {{ fg_name }}
+  ansible.builtin.debug:
+    msg: "{{ ms_group_output.json | default([]) | selectattr('metadata.name', 'equalto', fg_name) | list }}"
+    verbosity: 2
+  no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

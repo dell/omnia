@@ -48,6 +48,18 @@ POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
     "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
+POWERSCALE_CSI_SECRET_PATH_REQUIRED_MSG = (
+    "csi_powerscale_secret_path is required in telemetry_config.yml when "
+    "telemetry_sources.powerscale.metrics_enabled is true. "
+    "Please provide the path to the CSI PowerScale driver secret.yaml file."
+)
+def powerscale_csi_secret_not_found_msg(path):
+    """Returns error message when CSI PowerScale secret file is not found."""
+    return (
+        f"CSI PowerScale driver secret file not found at '{path}'. "
+        "Please verify the file path is correct in "
+        "telemetry_config.yml (csi_powerscale_secret_path)."
+    )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
     "csm_observability_values_file_path is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "
@@ -119,18 +131,14 @@ def get_footer():
     """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
-# kube_vip validation messages (telemetry standalone design)
-KUBE_VIP_REQUIRED_MSG = (
-    "kube_vip is required in telemetry_config.yml. "
-    "Set 'kube_vip: <IP_ADDRESS>' to the Kubernetes control plane virtual IP address. "
-    "All K8s tasks (kubectl, helm) execute on this host via SSH."
-)
+# kube_vip validation messages (extracted from cluster_inventory)
 KUBE_VIP_INVALID_IPV4_MSG = (
-    "kube_vip must be a valid IPv4 address with each octet in the range 0-255 "
-    "(e.g., '10.0.0.1'). Update the kube_vip value in telemetry_config.yml."
+    "kube_vip extracted from cluster_inventory must be a valid IPv4 address "
+    "with each octet in the range 0-255 (e.g., '10.0.0.1'). "
+    "Check the kube_vip_group.hosts entry in your cluster_inventory file."
 )
 KUBE_VIP_SSH_UNREACHABLE_MSG = (
-    "kube_vip is not reachable via SSH. "
+    "kube_vip (from cluster_inventory) is not reachable via SSH. "
     "Ensure the Kubernetes control plane VIP is online and SSH access is configured "
     "from this host before running telemetry operations."
 )
@@ -165,8 +173,9 @@ CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
 )
 CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
     "Cannot validate cluster_mount path existence: kube_vip "
-    "is not defined in telemetry_config.yml. "
-    "Set kube_vip in telemetry_config.yml first."
+    "could not be extracted from cluster_inventory. "
+    "Ensure cluster_inventory in telemetry_config.yml points to a valid inventory file "
+    "with kube_vip_group.hosts defined containing the Kubernetes control plane VIP."
 )
 CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
     "Failed to verify cluster_mount path on kube_vip via SSH. "

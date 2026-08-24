@@ -59,7 +59,7 @@ test/main/
 │   │   └── domain_init/     # Domain-specific init tests (incl. orchestrator, discovery)
 │   ├── cli/                 # CLI argument tests
 │   │   ├── test_deploy_cli.py
-│   │   └── commands/        # Command error handling + --cleanup/--catalog help tests
+│   │   └── commands/        # Command error handling + --cleanup/--check-deps/--force-deps help tests
 │   └── omnia_cli/           # omnia-cli diagnostics tests
 │       ├── test_deploy_omnia_cli.py
 │       ├── diagnostics/     # status, check, domain commands
@@ -77,7 +77,7 @@ test/main/
 |----------|--------------|----------------|
 | `setup` | Environment install, venv creation, directory setup | `omnia.sh --setup-venv --deps-only` |
 | `init` | Domain log directories, input file staging (all 6 domains incl. orchestrator + discovery) | `omnia.sh --init` |
-| `cli` | Help output, error handling, --cleanup/--catalog in help, argument parsing | `omnia.sh --help` |
+| `cli` | Help output, error handling, --cleanup/--check-deps/--force-deps/--skip-catalog in help, argument parsing | `omnia.sh --help` |
 | `omnia_cli` | Diagnostics CLI: status, check, version, domain queries | `omnia-cli help` |
 | `nft` | Performance thresholds, idempotency (run twice) | `omnia.sh --setup-venv`, `--init` |
 

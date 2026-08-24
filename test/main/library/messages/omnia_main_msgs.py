@@ -104,12 +104,31 @@ TEST_NAMES: Dict[str, str] = {
         "Verify domain input files staged for discovery"
     ),
 
-    # CLI verification — --cleanup / --catalog
+    # CLI verification — --cleanup / --check-deps / --force-deps
     "cleanup_in_help": (
         "Verify --cleanup flag appears in help output"
     ),
-    "catalog_in_help": (
-        "Verify --catalog flag appears in help output"
+    "check_deps_in_help": (
+        "Verify --check-deps flag appears in help output"
+    ),
+    "force_deps_in_help": (
+        "Verify --force-deps flag appears in help output"
+    ),
+    "skip_catalog_in_help": (
+        "Verify --skip-catalog flag appears in help output"
+    ),
+
+    # Init domain filtering
+    "init_domain_filter": (
+        "Verify --init <domain> filters to specific domains"
+    ),
+
+    # Check deps
+    "check_deps_runs": (
+        "Verify --check-deps runs successfully"
+    ),
+    "force_deps_invalid": (
+        "Verify --force-deps without -s/-i exits with error"
     ),
 
     # omnia-cli verification
@@ -142,6 +161,19 @@ TEST_NAMES: Dict[str, str] = {
     ),
     "cli_unknown_command": (
         "Verify omnia-cli unknown command exits with error"
+    ),
+
+    # omnia-cli logs verification
+    "cli_logs_help": (
+        "Verify omnia-cli logs --help runs"
+    ),
+
+    # omnia.sh tags verification
+    "sh_generic_tags_in_help": (
+        "Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup)"
+    ),
+    "sh_tags_run": (
+        "Verify omnia.sh --run <domain> --tags <tag> accepts generic tags"
     ),
 }
 
@@ -225,18 +257,42 @@ TEST_LOG_MSGS: Dict[str, str] = {
         "No input files staged for {domain}"
     ),
 
-    # Cleanup / Catalog CLI
+    # Cleanup / check-deps / force-deps CLI
     "cleanup_in_help_ok": (
         "--cleanup flag found in help output"
     ),
     "cleanup_not_in_help": (
         "--cleanup flag NOT found in help output"
     ),
-    "catalog_in_help_ok": (
-        "--catalog flag found in help output"
+    "check_deps_in_help_ok": (
+        "--check-deps flag found in help output"
     ),
-    "catalog_not_in_help": (
-        "--catalog flag NOT found in help output"
+    "check_deps_not_in_help": (
+        "--check-deps flag NOT found in help output"
+    ),
+    "force_deps_in_help_ok": (
+        "--force-deps flag found in help output"
+    ),
+    "force_deps_not_in_help": (
+        "--force-deps flag NOT found in help output"
+    ),
+    "skip_catalog_in_help_ok": (
+        "--skip-catalog flag found in help output"
+    ),
+    "skip_catalog_not_in_help": (
+        "--skip-catalog flag NOT found in help output"
+    ),
+    "check_deps_ok": (
+        "--check-deps completed successfully"
+    ),
+    "check_deps_failed": (
+        "--check-deps failed (rc={rc})"
+    ),
+    "init_domain_ok": (
+        "Domain-filtered init completed for {domain}"
+    ),
+    "init_domain_failed": (
+        "Domain-filtered init failed for {domain} (rc={rc})"
     ),
 
     # CLI
@@ -301,6 +357,22 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "cli_unknown_error_ok": (
         "omnia-cli unknown command exited with error (rc={rc})"
+    ),
+
+    # omnia-cli logs
+    "cli_logs_help_ok": (
+        "omnia-cli logs --help ran successfully"
+    ),
+    "cli_logs_help_failed": (
+        "omnia-cli logs --help failed"
+    ),
+
+    # omnia.sh tags
+    "sh_generic_tags_ok": (
+        "Help shows all 5 generic tags per domain"
+    ),
+    "sh_generic_tags_missing": (
+        "Help missing generic tags: {missing}"
     ),
 }
 
@@ -534,14 +606,57 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
-    "catalog_not_in_help": (
+    "check_deps_not_in_help": (
         "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 --CATALOG FLAG MISSING FROM HELP\n"
+        "\u2551 --CHECK-DEPS FLAG MISSING FROM HELP\n"
         "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 Expected '--catalog' to appear in omnia.sh --help\n"
+        "\u2551 Expected '--check-deps' to appear in omnia.sh --help\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Add --catalog to omnia.sh show_help()\n"
+        "\u2551   1. Add --check-deps to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "force_deps_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --FORCE-DEPS FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--force-deps' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --force-deps to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_catalog_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-CATALOG FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--skip-catalog' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --skip-catalog to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "check_deps_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --CHECK-DEPS COMMAND FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check that domain requirements files exist\n"
+        "\u2551   2. Align versions across domains\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "force_deps_invalid": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --FORCE-DEPS USED WITHOUT -S/-I\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --force-deps requires --setup-venv or --init\n"
+        "\u2551 Got: rc={rc}\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

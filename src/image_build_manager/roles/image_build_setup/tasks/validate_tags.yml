@@ -51,3 +51,8 @@
   when:
     - provided_tags | length > 0
     - (provided_tags | intersect(skip_credential_tags)) | length > 0
+
+- name: Determine if repo_status.yml is needed (build-related tags or default flow)
+  ansible.builtin.set_fact:
+    needs_repo_status: "{{ (provided_tags | length == 0) or ((provided_tags | intersect(build_related_tags)) | length > 0) }}"
+    cacheable: true

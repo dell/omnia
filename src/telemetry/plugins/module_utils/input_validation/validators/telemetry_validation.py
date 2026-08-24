@@ -51,9 +51,99 @@ def validate_telemetry_config(
     errors = []
 
     # =========================================================================
-    # L2: Validate kube_vip — IPv4 format + SSH reachability + cluster_mount path
+    # L2: Validate cluster_inventory — file existence under telemetry input dir
     # =========================================================================
-    kube_vip = data.get("kube_vip", "")
+    cluster_inventory = data.get("cluster_inventory", "")
+    if cluster_inventory:
+        # Determine the telemetry input directory
+        # module_utils_base = /path/to/omnia/src/telemetry/plugins/module_utils
+        # telemetry_root = /path/to/omnia/src/telemetry (2 levels up)
+        # telemetry_input_dir = /path/to/omnia/src/telemetry/input
+        telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
+        telemetry_input_dir = os.path.join(telemetry_root, "input")
+
+        # Normalize the cluster_inventory path
+        cluster_inv_path = cluster_inventory.strip()
+
+        # Check if path is absolute or relative
+        if not os.path.isabs(cluster_inv_path):
+            # If relative, prepend telemetry input dir
+            cluster_inv_full_path = os.path.join(telemetry_input_dir, cluster_inv_path)
+        else:
+            cluster_inv_full_path = cluster_inv_path
+
+        # Validate file exists
+        if not os.path.exists(cluster_inv_full_path):
+            # Extract just the filename for the example
+            example_filename = os.path.basename(cluster_inv_path)
+            errors.append(create_error_msg(
+                "cluster_inventory",
+                cluster_inventory,
+                f". Cluster inventory file not found as: {cluster_inv_full_path}. "
+                f"Ensure the file exists under omnia/src/telemetry/input/ directory. "
+                f"Example paths: '/omnia/src/telemetry/input/{example_filename}'"
+            ))
+            logger.error(f"cluster_inventory file not found: {cluster_inv_full_path}")
+        elif not os.path.isfile(cluster_inv_full_path):
+            errors.append(create_error_msg(
+                "cluster_inventory",
+                cluster_inventory,
+                f"cluster_inventory path exists but is not a file: {cluster_inv_full_path}. "
+                f"Provide a valid YAML inventory file path."
+            ))
+            logger.error(f"cluster_inventory is not a file: {cluster_inv_full_path}")
+        else:
+            # File exists and is a valid file - validation passed
+            # Note: cluster_inventory can be an absolute path anywhere on the system
+            # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
+            logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
+    else:
+        errors.append(create_error_msg(
+            "cluster_inventory",
+            "",
+            "cluster_inventory is required. Provide the path to the Ansible inventory file "
+            "(e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml' or 'orchestrator_inventory.yml')"
+        ))
+        logger.error("cluster_inventory is empty or not provided")
+
+    # =========================================================================
+    # L2: Validate kube_vip — extracted from cluster_inventory file
+    # kube_vip is defined in cluster_inventory (kube_vip_group.hosts[0].ansible_host or hostname)
+    # NOT in telemetry_config.yml directly
+    # =========================================================================
+    kube_vip = ""
+
+    # Extract kube_vip from cluster_inventory
+    if cluster_inventory:
+        cluster_inv_path = cluster_inventory.strip()
+        if not os.path.isabs(cluster_inv_path):
+            telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
+            telemetry_input_dir = os.path.join(telemetry_root, "input")
+            cluster_inv_full_path = os.path.join(telemetry_input_dir, cluster_inv_path)
+        else:
+            cluster_inv_full_path = cluster_inv_path
+
+        if os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
+            try:
+                with open(cluster_inv_full_path, "r", encoding="utf-8") as inv_file:
+                    cluster_inv_data = yaml.safe_load(inv_file)
+                # Extract kube_vip from cluster_inventory structure:
+                # all.children.kube_vip_group.hosts.<hostname>.ansible_host or <hostname>
+                if cluster_inv_data and "all" in cluster_inv_data:
+                    children = cluster_inv_data.get("all", {}).get("children", {})
+                    kube_vip_group = children.get("kube_vip_group", {})
+                    hosts = kube_vip_group.get("hosts", {})
+                    if hosts:
+                        first_host_name = list(hosts.keys())[0]
+                        first_host_data = hosts.get(first_host_name, {})
+                        if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
+                            kube_vip = first_host_data["ansible_host"]
+                        else:
+                            kube_vip = first_host_name
+                        logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory")
+            except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
+                logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
+
     kube_vip_valid = False
     if kube_vip and isinstance(kube_vip, str):
         octets = kube_vip.strip().split(".")
@@ -468,70 +558,6 @@ def validate_telemetry_config(
                 ))
 
     # =========================================================================
-    # Validate additional_metric_remote_write_endpoints (victoria_metrics)
-    # =========================================================================
-    victoria_metrics_sink = telemetry_sinks.get("victoria_metrics", {})
-    additional_metric_endpoints = victoria_metrics_sink.get(
-        "additional_metric_remote_write_endpoints", []
-    )
-    if additional_metric_endpoints and isinstance(additional_metric_endpoints, list):
-        if len(additional_metric_endpoints) > 5:
-            logger.warning(
-                f"More than 5 additional_metric_remote_write_endpoints "
-                f"configured ({len(additional_metric_endpoints)}). "
-                "This may impact performance."
-            )
-        for idx, endpoint in enumerate(additional_metric_endpoints):
-            if not isinstance(endpoint, dict):
-                continue
-            url = endpoint.get("url", "")
-            if not url or not isinstance(url, str):
-                errors.append(create_error_msg(
-                    f"telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG
-                ))
-            elif (not url.startswith("http://") and
-                  not url.startswith("https://")):
-                errors.append(create_error_msg(
-                    f"telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG
-                ))
-
-    # =========================================================================
-    # Validate additional_log_write_endpoints (victoria_logs)
-    # =========================================================================
-    victoria_logs_sink = telemetry_sinks.get("victoria_logs", {})
-    additional_log_endpoints = victoria_logs_sink.get(
-        "additional_log_write_endpoints", []
-    )
-    if additional_log_endpoints and isinstance(additional_log_endpoints, list):
-        if len(additional_log_endpoints) > 5:
-            logger.warning(
-                f"More than 5 additional_log_write_endpoints "
-                f"configured ({len(additional_log_endpoints)}). "
-                "This may impact performance."
-            )
-        for idx, endpoint in enumerate(additional_log_endpoints):
-            if not isinstance(endpoint, dict):
-                continue
-            url = endpoint.get("url", "")
-            if not url or not isinstance(url, str):
-                errors.append(create_error_msg(
-                    f"telemetry_sinks.victoria_logs.additional_log_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG
-                ))
-            elif (not url.startswith("http://") and
-                  not url.startswith("https://")):
-                errors.append(create_error_msg(
-                    f"telemetry_sinks.victoria_logs.additional_log_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG
-                ))
-
-    # =========================================================================
     # Validate PowerScale telemetry configuration (standalone design)
     # =========================================================================
     powerscale_enabled = powerscale_source.get("metrics_enabled", False)
@@ -565,6 +591,21 @@ def validate_telemetry_config(
                     "powerscale_configurations.otel_collector_storage_size",
                     otel_storage,
                     en_us_validation_msg.POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG
+                ))
+
+            # csi_powerscale_secret_path must be set and file must exist
+            csi_secret_path = powerscale_configs.get("csi_powerscale_secret_path", "")
+            if not csi_secret_path or (isinstance(csi_secret_path, str) and csi_secret_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.csi_powerscale_secret_path",
+                    csi_secret_path,
+                    en_us_validation_msg.POWERSCALE_CSI_SECRET_PATH_REQUIRED_MSG
+                ))
+            elif not os.path.exists(csi_secret_path):
+                errors.append(create_error_msg(
+                    "powerscale_configurations.csi_powerscale_secret_path",
+                    csi_secret_path,
+                    en_us_validation_msg.powerscale_csi_secret_not_found_msg(csi_secret_path)
                 ))
 
             # csm_observability_values_file_path must be set and exist
@@ -999,7 +1040,37 @@ def validate_telemetry_packages(
                     telemetry_config = yaml.safe_load(f)
                 
                 kube_vip = telemetry_config.get("kube_vip", "") if isinstance(telemetry_config, dict) else ""
-                
+
+                # If kube_vip not in telemetry_config, try to extract from cluster_inventory
+                if (not kube_vip or not isinstance(kube_vip, str) or not kube_vip.strip()):
+                    cluster_inventory = telemetry_config.get("cluster_inventory", "") if isinstance(telemetry_config, dict) else ""
+                    if cluster_inventory and isinstance(cluster_inventory, str) and cluster_inventory.strip():
+                        cluster_inv_path = cluster_inventory.strip()
+                        if not os.path.isabs(cluster_inv_path):
+                            cluster_inv_full_path = os.path.join(input_dir, cluster_inv_path)
+                        else:
+                            cluster_inv_full_path = cluster_inv_path
+
+                        if os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
+                            try:
+                                with open(cluster_inv_full_path, "r", encoding="utf-8") as inv_file:
+                                    cluster_inv_data = yaml.safe_load(inv_file)
+                                # Extract kube_vip from cluster_inventory structure
+                                if cluster_inv_data and "all" in cluster_inv_data:
+                                    children = cluster_inv_data.get("all", {}).get("children", {})
+                                    kube_vip_group = children.get("kube_vip_group", {})
+                                    hosts = kube_vip_group.get("hosts", {})
+                                    if hosts:
+                                        first_host_name = list(hosts.keys())[0]
+                                        first_host_data = hosts.get(first_host_name, {})
+                                        if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
+                                            kube_vip = first_host_data["ansible_host"]
+                                        else:
+                                            kube_vip = first_host_name
+                                        logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory for cluster_mount validation")
+                            except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
+                                logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
+
                 if kube_vip and isinstance(kube_vip, str) and kube_vip.strip():
                     # First, verify kube_vip is reachable via SSH
                     logger.info(f"Pre-checking SSH reachability to kube_vip '{kube_vip}' before cluster_mount path validation")
@@ -1081,52 +1152,58 @@ def validate_telemetry_packages(
             logger.warning(f"telemetry_config.yml not found at {telemetry_config_path}, skipping cluster_mount path check")
 
     # =========================================================================
-    # Validate telemetry_registry (when host is configured)
+    # Validate install_mode
     # =========================================================================
-    registry = data.get("telemetry_registry", {})
-    registry_host = registry.get("host", "") if isinstance(registry, dict) else ""
-    if registry_host and isinstance(registry_host, str) and registry_host.strip():
-        if ":" not in registry_host:
-            errors.append(create_error_msg(
-                "telemetry_registry.host",
-                registry_host,
-                en_us_validation_msg.REGISTRY_HOST_FORMAT_MSG
-            ))
+    install_mode = data.get("install_mode", "offline")
+    if install_mode not in ("offline", "online"):
+        errors.append(create_error_msg(
+            "install_mode",
+            install_mode,
+            "install_mode must be 'offline' or 'online'."
+        ))
+    else:
+        logger.info(f"install_mode validation PASSED: {install_mode}")
+
+    # =========================================================================
+    # Validate repo_url (required for offline mode)
+    # =========================================================================
+    repo_url = data.get("repo_url", "")
+    if install_mode == "offline":
+        if repo_url and isinstance(repo_url, str) and repo_url.strip():
+            if not (repo_url.startswith("http://") or repo_url.startswith("https://")):
+                errors.append(create_error_msg(
+                    "repo_url",
+                    repo_url,
+                    en_us_validation_msg.PACKAGE_URL_INVALID_MSG
+                ))
+            else:
+                logger.info(f"repo_url validation PASSED: {repo_url}")
         else:
-            logger.info(f"telemetry_registry.host format validation PASSED: {registry_host}")
-
-        cert_path = registry.get("cert_path", "")
-        if cert_path and isinstance(cert_path, str) and cert_path.strip():
-            if not os.path.exists(cert_path):
-                errors.append(create_error_msg(
-                    "telemetry_registry.cert_path",
-                    cert_path,
-                    en_us_validation_msg.REGISTRY_CERT_NOT_FOUND_MSG
-                ))
-
-        key_path = registry.get("key_path", "")
-        if key_path and isinstance(key_path, str) and key_path.strip():
-            if not os.path.exists(key_path):
-                errors.append(create_error_msg(
-                    "telemetry_registry.key_path",
-                    key_path,
-                    en_us_validation_msg.REGISTRY_KEY_NOT_FOUND_MSG
-                ))
+            logger.warning("repo_url is empty in offline mode — package downloads may fail")
 
     # =========================================================================
-    # Validate telemetry_packages URL format (when URLs are provided)
+    # Validate container_registry format (when provided)
     # =========================================================================
-    packages = data.get("telemetry_packages", {})
-    if isinstance(packages, dict):
-        for pkg_name, pkg_url in packages.items():
-            if pkg_url and isinstance(pkg_url, str) and pkg_url.strip():
-                if not (pkg_url.startswith("http://") or pkg_url.startswith("https://")):
-                    errors.append(create_error_msg(
-                        f"telemetry_packages.{pkg_name}",
-                        pkg_url,
-                        en_us_validation_msg.PACKAGE_URL_INVALID_MSG
-                    ))
-                else:
-                    logger.info(f"telemetry_packages.{pkg_name} URL validation PASSED")
+    container_registry = data.get("container_registry", "")
+    if container_registry and isinstance(container_registry, str) and container_registry.strip():
+        logger.info(f"container_registry validation PASSED: {container_registry}")
+
+    # =========================================================================
+    # Validate helm_charts online_url format
+    # =========================================================================
+    helm_charts = data.get("helm_charts", {})
+    if isinstance(helm_charts, dict):
+        for chart_name, chart_data in helm_charts.items():
+            if isinstance(chart_data, dict):
+                online_url = chart_data.get("online_url", "")
+                if online_url and isinstance(online_url, str) and online_url.strip():
+                    if not (online_url.startswith("http://") or online_url.startswith("https://")):
+                        errors.append(create_error_msg(
+                            f"helm_charts.{chart_name}.online_url",
+                            online_url,
+                            en_us_validation_msg.PACKAGE_URL_INVALID_MSG
+                        ))
+                    else:
+                        logger.info(f"helm_charts.{chart_name}.online_url validation PASSED")
 
     return errors

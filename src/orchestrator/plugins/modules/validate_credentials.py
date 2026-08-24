@@ -48,7 +48,7 @@ options:
 
 EXAMPLES = r'''
 - name: Validate a credential field
-  omnia.orchestrator.validate_credentials:
+  validate_credentials:
     credential_field: admin_password
     credential_input: "{{ admin_password }}"
     module_utils_path: "{{ role_path }}/../../plugins/module_utils"

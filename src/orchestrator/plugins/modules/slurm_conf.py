@@ -16,7 +16,7 @@
 import os
 from collections import OrderedDict
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.omnia.orchestrator.plugins.module_utils.slurm.slurm_conf_utils import (
+from ansible.module_utils.slurm.slurm_conf_utils import (
     SlurmParserEnum,
     all_confs,
     parse_slurm_conf

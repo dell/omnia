@@ -257,6 +257,34 @@ TEST_LOG_MSGS = {
     "input_config_ok": "image_build_config.yml present",
     "input_config_missing": "image_build_config.yml not found",
 
+    # repo_ssl_verify
+    "repo_ssl_verify_ok": (
+        "repo_ssl_verify is configured (value: {value})"
+    ),
+    "repo_ssl_verify_missing": (
+        "repo_ssl_verify is NOT configured in build_image section"
+    ),
+    "repo_ssl_verify_applied_ok": (
+        "repo_ssl_verify setting applied in all build templates"
+    ),
+    "repo_ssl_verify_not_applied": (
+        "repo_ssl_verify NOT applied in {count} template(s)"
+    ),
+
+    # cleanup_images
+    "cleanup_images_s3_ok": (
+        "All S3 images deleted after cleanup_images"
+    ),
+    "cleanup_images_s3_still_exist": (
+        "S3 images still present after cleanup_images"
+    ),
+    "cleanup_images_registry_ok": (
+        "All registry images deleted after cleanup_images"
+    ),
+    "cleanup_images_registry_still_exist": (
+        "Registry images still present after cleanup_images"
+    ),
+
     # Build status
     "build_status_not_found": (
         "build_status.yml not found (build tag not run yet)"

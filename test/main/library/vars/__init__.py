@@ -41,6 +41,7 @@ from .common_vars import (
     VALID_CLI_OPTIONS,
     OMNIA_CLI_COMMANDS,
     OMNIA_CLI_DOMAINS,
+    OMNIA_SH_GENERIC_TAGS,
     OMNIA_CLI_HELP_SECTIONS,
     CMDS,
 )
@@ -68,6 +69,7 @@ __all__ = [
     "VALID_CLI_OPTIONS",
     "OMNIA_CLI_COMMANDS",
     "OMNIA_CLI_DOMAINS",
+    "OMNIA_SH_GENERIC_TAGS",
     "OMNIA_CLI_HELP_SECTIONS",
     "CMDS",
 ]

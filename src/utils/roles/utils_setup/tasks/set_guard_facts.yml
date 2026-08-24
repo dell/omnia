@@ -1,4 +1,23 @@
 ---
+# Set project directory paths
+- name: Set OMNIA_DATA_PATH fact
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+  changed_when: false
+
+- name: Set project directory paths
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ omnia_data_path }}/input/{{ project_name }}"
+    output_project_dir: "{{ omnia_data_path }}/utils/output/{{ project_name }}"
+  changed_when: false
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ output_project_dir }}"
+    state: directory
+    mode: '0755'
+
 - name: Set utils domain ready fact
   ansible.builtin.set_fact:
     utils_domain_ready: true
@@ -12,4 +31,6 @@
       - Ansible version: {{ ansible_version.full }}
       - Python version: {{ ansible_python_version }}
       - Available disk space: {{ available_disk_gb | default('unknown') }}GB
+      - Input directory: {{ input_project_dir }}
+      - Output directory: {{ output_project_dir }}
       - Setup timestamp: {{ utils_setup_timestamp }}

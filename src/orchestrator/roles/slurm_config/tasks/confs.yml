@@ -159,7 +159,7 @@
   register: ctld_conf_files
 
 - name: Parse configs_input files from localhost (if they are paths)
-  omnia.orchestrator.slurm_conf:
+  slurm_conf:
     op: parse
     conf_name: "{{ item.key }}"
     path: "{{ item.value }}"
@@ -227,7 +227,7 @@
   no_log: "{{ _no_log }}"
 
 - name: Merge the confs
-  omnia.orchestrator.slurm_conf:
+  slurm_conf:
     op: merge
     conf_sources: "{{ item.value }}"
     conf_name: "{{ item.key }}"
@@ -235,7 +235,7 @@
   register: merged_conf
   no_log: "{{ _no_log }}"
 
-- name: Update slurm_conf_dict with merged configuration for cloud_init read. # TODO: Remove cloud init dependency
+- name: Update slurm_conf_dict with merged configuration for metadata_svc read. # TODO: Remove metadata-service dependency
   ansible.builtin.set_fact:
     slurm_conf_dict: "{{ (merged_conf.results | selectattr('item.key', 'equalto', 'slurm') | first).conf_dict }}"
   when: "'slurm' in conf_merge_dict"

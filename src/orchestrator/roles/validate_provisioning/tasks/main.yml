@@ -14,11 +14,11 @@
 ---
 # validate_provisioning — Post-provisioning validation.
 # Called after all provision_*.yml playbooks have completed.
-# Verifies SMD state, BSS params, cloud-init data, and generates reports.
+# Verifies SMD state, boot-service params, metadata-service data, and generates reports.
 
 - name: Load functional groups configuration
   ansible.builtin.include_vars:
-    file: "{{ functional_groups_config_path }}"
+    file: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
     name: fg_config
 
 - name: Load classification rules
@@ -28,7 +28,7 @@
 
 - name: Query SMD for all registered components
   ansible.builtin.uri:
-    url: "{{ openchami_base_url }}/smd/v2/State/Components"
+    url: "{{ openchami_base_url }}/hsm/v2/State/Components"
     method: GET
     status_code: 200
     validate_certs: "{{ openchami_validate_certs | default(true) }}"

@@ -27,10 +27,11 @@
 #   SOURCES (Collectors) → BRIDGES (Vector) → SINKS (Storage)
 #
 # SECTIONS:
-#   1. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST)
-#   2. Telemetry Bridges    : Data routers (Vector pipelines)
-#   3. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
-#   4. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
+#   1. Cluster Inventory    : Path to Ansible inventory for telemetry deployment
+#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST)
+#   3. Telemetry Bridges    : Data routers (Vector pipelines)
+#   4. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
+#   5. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
 #
 # ============================================================================
 # STORAGE REQUIREMENTS SUMMARY
@@ -69,6 +70,23 @@
 # COMBINED STORAGE EXAMPLES:
 #   Default (8Gi each): victoria_metrics (24Gi) + victoria_logs (29Gi) + Kafka (48Gi) = 101Gi total
 # ============================================================================
+
+# ============================================================================
+# CLUSTER INVENTORY
+# ============================================================================
+# Path to the Ansible inventory file used for telemetry deployment.
+# This inventory defines all cluster nodes including:
+#   - kube_vip_group: Kubernetes control plane VIP
+#   - service_kube_control_plane_*: Kubernetes control plane nodes
+#   - service_kube_node_*: Kubernetes worker nodes
+#   - slurm_control_node: Slurm controller nodes (required for LDMS)
+#   - slurm_node: Slurm compute nodes (required for LDMS)
+#   - slurm_login_node: Slurm login nodes (optional for LDMS)
+#   - slurm_login_compiler_node: Slurm login compiler nodes (optional for LDMS)
+#
+# Required format: Ansible YAML inventory
+# Example: /omnia/src/telemetry/input/orchestrator_inventory.yml
+cluster_inventory: ""
 
 # ============================================================================
 # TELEMETRY SOURCES (Data Collectors)
@@ -443,6 +461,11 @@ powerscale_configurations:
   # Required when telemetry_sources.powerscale.metrics_enabled: true
   # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.17.1/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
+
+  # Path to the CSI PowerScale driver secret.yaml file
+  # Contains isilonClusters with endpoint, username, and password for each PowerScale cluster
+  # Required when telemetry_sources.powerscale.metrics_enabled: true
+  csi_powerscale_secret_path: ""
 
 # --------------------------------------------------------------------------
 # UFM Telemetry Configuration

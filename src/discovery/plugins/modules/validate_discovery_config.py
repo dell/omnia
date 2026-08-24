@@ -34,7 +34,7 @@ import os
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.omnia.discovery.plugins.module_utils.discovery_validation.discovery_validation_flow import (
+from ansible.module_utils.discovery_validation.discovery_validation_flow import (
     validate_discovery_config,
 )
 
@@ -58,7 +58,7 @@ options:
 
 EXAMPLES = r'''
 - name: Validate discovery configuration files
-  omnia.discovery.validate_discovery_config:
+  validate_discovery_config:
     input_project_dir: /opt/omnia/input/project_default
     schema_dir: "{{ role_path }}/../../plugins/module_utils/discovery_validation/schema"
   register: validation_result

@@ -54,29 +54,40 @@
         telemetry_config: "{{ telemetry_config }}"
         cacheable: true
 
+    - name: Resolve cluster inventory path
+      ansible.builtin.set_fact:
+        _cluster_inv_path: "{{ telemetry_config.cluster_inventory | default('') }}"
+
     - name: Check if cluster inventory file exists (from telemetry_config)
       ansible.builtin.stat:
-        path: "{{ telemetry_config.cluster_inventory }}"
+        path: "{{ _cluster_inv_path }}"
       register: cluster_inv_file_stat
-      when: telemetry_config.cluster_inventory is defined and telemetry_config.cluster_inventory | length > 0
+      when: _cluster_inv_path | length > 0
 
     - name: Load cluster inventory for kube_vip and slurm nodes
       ansible.builtin.include_vars:
-        file: "{{ telemetry_config.cluster_inventory }}"
+        file: "{{ _cluster_inv_path }}"
         name: cluster_inv
       when:
-        - telemetry_config.cluster_inventory is defined
-        - telemetry_config.cluster_inventory | length > 0
+        - _cluster_inv_path | length > 0
+        - cluster_inv_file_stat is not skipped
         - cluster_inv_file_stat.stat.exists
 
-    - name: Set kube_vip from cluster inventory
+    - name: Set kube_vip from cluster inventory (ansible_host or hostname key)
       ansible.builtin.set_fact:
-        kube_vip: "{{ (cluster_inv.all.children.kube_vip_group.hosts | dict2items | first).key }}"
+        kube_vip: >-
+          {%- set hosts = cluster_inv.all.children.kube_vip_group.hosts -%}
+          {%- set first_entry = hosts | dict2items | first -%}
+          {%- if first_entry.value.ansible_host is defined -%}
+            {{ first_entry.value.ansible_host }}
+          {%- else -%}
+            {{ first_entry.key }}
+          {%- endif -%}
         cacheable: true
       when:
-        - cluster_inv_file_stat is defined
-        - cluster_inv_file_stat.stat.exists
+        - cluster_inv is defined
         - cluster_inv.all.children.kube_vip_group.hosts is defined
+        - cluster_inv.all.children.kube_vip_group.hosts | length > 0
 
     - name: Set kube_vip from telemetry_config (fallback)
       ansible.builtin.set_fact:
@@ -96,20 +107,95 @@
         telemetry_storage_config: "{{ telemetry_storage_config }}"
         cacheable: true
 
-    - name: Load telemetry packages configuration
+    - name: Load telemetry packages manifest
       ansible.builtin.include_vars:
         file: "{{ input_project_dir + '/telemetry_packages.yml' }}"
-        name: telemetry_packages_config_loaded
+        name: _pkg_raw
       register: packages_load_result
       failed_when: false
 
-    - name: Set telemetry_packages_config as cacheable fact
+    # -----------------------------------------------------------------------
+    # Resolve telemetry_packages URLs from repo_url + package catalog
+    # -----------------------------------------------------------------------
+    # The new telemetry_packages.yml provides repo_url (Pulp base) and a
+    # structured catalog (helm_charts, git_repos, pip_modules).  We resolve
+    # these into the flat URL variables that downstream roles expect.
+    - name: Resolve package URLs from repo_url and catalog
+      vars:
+        _mode: "{{ _pkg_raw.install_mode | default('offline') }}"
+        _base: "{{ _pkg_raw.repo_url | default('') }}"
+        _hc: "{{ _pkg_raw.helm_charts | default({}) }}"
+        _gr: "{{ _pkg_raw.git_repos | default({}) }}"
       ansible.builtin.set_fact:
-        telemetry_packages_config: "{{ telemetry_packages_config_loaded | default({}) }}"
+        telemetry_packages_config:
+          install_mode: "{{ _mode }}"
+          repo_url: "{{ _base }}"
+          cluster_mount: "{{ _pkg_raw.cluster_mount | default('') }}"
+          images: "{{ _pkg_raw.images | default({}) }}"
+          container_registry: "{{ _pkg_raw.container_registry | default('') }}"
+          helm_charts: "{{ _hc }}"
+          git_repos: "{{ _gr }}"
+          pip_modules: "{{ _pkg_raw.pip_modules | default({}) }}"
+          telemetry_packages:
+            strimzi_kafka_operator: >-
+              {% if _mode == 'online' -%}
+              {{ _hc.strimzi_kafka_operator.online_url | default('') }}{%- else -%}
+              {{ _base }}/tarball/{{
+              _hc.strimzi_kafka_operator.package | default('') }}/{{
+              _hc.strimzi_kafka_operator.filename | default('') }}{%- endif %}
+            victoria_metrics_operator: >-
+              {% if _mode == 'online' -%}
+              {{ _hc.victoria_metrics_operator.online_url | default('') }}{%- else -%}
+              {{ _base }}/tarball/{{
+              _hc.victoria_metrics_operator.package | default('') }}/{{
+              _hc.victoria_metrics_operator.filename | default('') }}{%- endif %}
+            cert_manager_tarball: >-
+              {% if _mode == 'online' -%}
+              {{ _hc.cert_manager.online_url | default('') }}{%- else -%}
+              {{ _base }}/tarball/{{
+              _hc.cert_manager.package | default('') }}/{{
+              _hc.cert_manager.filename | default('') }}{%- endif %}
+            karavi_observability_git: >-
+              {% if _mode == 'online' -%}
+              {{ _gr.karavi_observability.online_url | default('') }}{%- else -%}
+              {{ _base }}/git/{{
+              _gr.karavi_observability.package | default('') }}/{{
+              _gr.karavi_observability.filename | default('') }}{%- endif %}
+            karavi_helm_charts_git: >-
+              {% if _mode == 'online' -%}
+              {{ _gr.helm_charts.online_url | default('') }}{%- else -%}
+              {{ _base }}/git/{{
+              _gr.helm_charts.package | default('') }}/{{
+              _gr.helm_charts.filename | default('') }}{%- endif %}
+            offline_tarball_path: "{{ _base }}/tarball"
+            offline_pip_module_path: "{{ _base }}/pip_module"
+            offline_git_path: "{{ _base }}/git"
         cacheable: true
 
-    - name: Set telemetry config variables from telemetry_packages_config
+    # -----------------------------------------------------------------------
+    # Build backward-compatible telemetry_registry from images catalog
+    # -----------------------------------------------------------------------
+    # Downstream roles reference telemetry_registry.images.victoria.*,
+    # telemetry_registry.images.kafka.*, etc. Map the new flat catalog
+    # to the expected nested structure.
+    - name: Build telemetry_registry from package manifest
+      vars:
+        _images: "{{ _pkg_raw.images | default({}) }}"
+        _reg: "{{ _pkg_raw.container_registry | default('') }}"
+        # Merge VM + VL images into one dict (downstream expects all under .victoria)
+        _all_victoria: "{{ (_images.victoria_metrics | default({})) | combine(_images.victoria_logs | default({})) }}"
       ansible.builtin.set_fact:
-        telemetry_registry: "{{ telemetry_packages_config.telemetry_registry | default({}) }}"
-        cluster_mount: "{{ telemetry_packages_config.cluster_mount | default('') }}"
+        telemetry_registry:
+          host: "{{ _reg }}"
+          images:
+            victoria: "{{ _all_victoria }}"
+            kafka: "{{ _images.kafka | default({}) }}"
+            victoria_operator:
+              operator: "{{ (_images.victoria_metrics | default({})).operator | default('') }}"
+            idrac: "{{ _images.idrac | default({}) }}"
+            powerscale: "{{ _images.powerscale | default({}) }}"
+            ldms: "{{ _images.ldms | default({}) }}"
+            vector: "{{ _images.vector | default({}) }}"
+            support: "{{ _images.support | default({}) }}"
+        cluster_mount: "{{ _pkg_raw.cluster_mount | default('') }}"
         cacheable: true

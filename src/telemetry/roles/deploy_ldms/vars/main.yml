@@ -13,15 +13,11 @@
 # limitations under the License.
 ---
 
-# Paths — relative to telemetry repo root
-telemetry_repo_root: "{{ playbook_dir }}/.."
-telemetry_input_dir: "{{ telemetry_repo_root }}/input"
-telemetry_output_dir: "{{ telemetry_repo_root }}/output"
+# Paths — derived from telemetry_setup role (Step 0, tags: always)
+# input_project_dir, output_project_dir, and telemetry_data_path are set by telemetry_setup.
+# telemetry_config_file and telemetry_storage_config_file are defined in common/vars/main.yml.
+telemetry_output_dir: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}"
 telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
-
-# Input files
-telemetry_config_file: "{{ telemetry_input_dir }}/telemetry_config.yml"
-telemetry_storage_config_file: "{{ telemetry_input_dir }}/telemetry_storage_config.yml"
 
 # Namespace
 telemetry_namespace: "telemetry"
@@ -47,10 +43,10 @@ ldms_store_name: "nersc-ldms-store"
 slurm_config_path: "/etc/slurm"
 
 # LDMS backup path for PXE change detection
-backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+backup_pxe_mapping_ldms_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/backup_pxe_mapping_ldms.csv"
 
-# Dynamic image configuration from service_k8s_v<version>.json
-telemetry_images: "{{ service_k8s_images | default({}) }}"
+# Dynamic image configuration from telemetry_packages.yml
+telemetry_images: "{{ hostvars['localhost']['telemetry_registry'].images | default({}) }}"
 
 # Kafka topic names (FIXED - cannot be changed)
 kafka:
@@ -60,8 +56,16 @@ kafka:
       consumer_group: "ldms-consumer-group"
 
 # Vector-LDMS configuration
+# Note: When a private registry host is set, strip the 'docker.io/' prefix from image names
+# since private registries store images without the docker.io prefix.
 vector:
-  image: "{{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}"
+  image: >-
+    {% if telemetry_registry.host | default('') %}
+    {{ telemetry_registry.host }}/{{ (telemetry_images['timberio/vector'] |
+    default('docker.io/timberio/vector:0.54.0-debian')) | regex_replace('^docker\\.io/', '') }}
+    {% else %}
+    {{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}
+    {% endif %}
   ldms:
     app_name: "vector-ldms"
     service_name: "vector-ldms"
@@ -79,10 +83,31 @@ vector:
       limits:
         cpu: "{{ telemetry_storage_config.vector_storage.ldms.resources.limits.cpu | default('500m') }}"
         memory: "{{ telemetry_storage_config.vector_storage.ldms.resources.limits.memory | default('512Mi') }}"
-  # vmagent-vector reference (shared write-buffer agent)
+  # vmagent-vector: dedicated write-buffer for Vector → vminsert (metrics)
   vmagent_vector:
     service_name: "vmagent-vector"
     port: 8429
+    replicas: 2
+    image: >-
+      {% if telemetry_registry.host | default('') %}
+      {{ telemetry_registry.host }}/{{ (telemetry_registry.images.victoria.vmagent |
+      default('victoriametrics/vmagent:v1.149.0')) | regex_replace('^docker\\.io/', '') }}
+      {% else %}
+      {{ telemetry_registry.images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0') }}
+      {% endif %}
+    remote_write_url: "http://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
+    tmp_data_path: "/tmp/vmagent-buffer"
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "256Mi"
+
+# Victoria cluster TLS setting (used by vmagent-vector template)
+victoria_cluster:
+  tls_enabled: false
 
 # Verification timeouts
 ldms_deploy_timeout: "600s"

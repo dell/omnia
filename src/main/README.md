@@ -50,10 +50,15 @@ omnia-cli status
 ## Setup (`omnia.sh`)
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + deps + input copy
+./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
-./omnia.sh --init                  # Stage input files only (run all domain-init.sh)
-./omnia.sh --catalog               # Copy catalog files to $OMNIA_DATA_PATH/catalog/
+./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
+./omnia.sh --init                  # Init all domains (stage input files + deps)
+./omnia.sh -i telemetry            # Init single domain
+./omnia.sh -i repo_manager,telemetry  # Init specific domains
+./omnia.sh -i --force-deps         # Force reinstall deps for all domains
+./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --cleanup               # Remove venv + env (preserve data)
 ./omnia.sh --cleanup --all         # Full reset (remove everything including data)
 ./omnia.sh -h                      # Help
@@ -70,12 +75,19 @@ omnia-cli status
    - Installs Ansible Galaxy collections from the domain's `requirements.yml`
    - Creates Ansible log directories
    - Copies input files from flat `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+6. Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
 
 After setup, all new login shells automatically have the environment variables.
 Step 5 ensures each domain's dependencies are installed and Ansible roles read
 input from a stable runtime location (`/opt/omnia/<domain>/input/<project>/`)
 rather than the git checkout. Use `--deps-only` to skip input file staging in this step (e.g., in CI
 or if you manage input files externally). Dependencies are still installed.
+
+**Dependency caching:** On first run, each domain's `requirements.txt` and
+`requirements.yml` are hashed (MD5). On subsequent runs, if the file hasn't
+changed the install step is skipped entirely — saving 10-30s per domain.
+Use `--force-deps` to bypass the cache. Cache files live at
+`$OMNIA_DATA_PATH/.data/deps-cache/`.
 
 Each domain provides a `domain-init.sh` script that handles the copy. Input files
 live flat in the source `input/` directory (no project subdirectory); the project
@@ -88,6 +100,9 @@ bash src/image_build_manager/domain-init.sh
 
 # Run with --deps-only (deps only, no input staging)
 bash src/image_build_manager/domain-init.sh --deps-only
+
+# Run with --force-deps (force reinstall even if cached)
+bash src/image_build_manager/domain-init.sh --force-deps
 
 # Run with --force (overwrite without prompting)
 bash src/image_build_manager/domain-init.sh --force
@@ -115,6 +130,8 @@ omnia-cli image-build                     # Image build details
 omnia-cli status --project prod           # Specific project
 omnia-cli version                         # Version info
 omnia-cli help                            # Full help
+omnia-cli logs <domain>                   # Browse & tail domain logs
+omnia-cli vault edit <domain>             # Edit domain credentials (Vault)
 ```
 
 ### Install to PATH
@@ -182,7 +199,9 @@ All domain playbooks support these common tags:
 | `upgrade` | Upgrade (placeholder — future) |
 | `rollback` | Rollback (placeholder — future) |
 
-Domains may define additional sub-tags (e.g., `x86_64`, `aarch64`, `deploy`, `download`).
+Domains may define additional sub-tags (e.g., `x86_64`, `aarch64`, `cleanup_images`, `deploy`, `download`).
+
+Execution order: `precheck` -> `validate` -> `prepare` -> `execute` -> `cleanup`
 
 ---
 

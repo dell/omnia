@@ -25,6 +25,11 @@
 #   ansible-playbook image_build_manager.yml --tags execute         # Build images (alias for build)
 #   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
 #   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup (no credentials)
+#   ansible-playbook image_build_manager.yml --tags cleanup_images  # Delete images (prompts for approval)
+#   ansible-playbook image_build_manager.yml --tags cleanup_images \
+#     -e cleanup_image_pattern="rhel-slurm_*"                      # Delete by pattern
+#   ansible-playbook image_build_manager.yml --tags cleanup_images \
+#     -e skip_approval=true                                        # Skip approval (automation)
 #   ansible-playbook image_build_manager.yml --tags upgrade         # Upgrade flow (placeholder)
 #   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
 #
@@ -36,6 +41,7 @@
 #   execute   — Build OS images (alias for 'build') (with credentials)
 #   build     — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
 #   cleanup   — Remove MinIO, registry, build artifacts (skips credentials)
+#   cleanup_images — Delete built images from S3 + registry (by pattern or all)
 #   upgrade   — Upgrade flow (placeholder — future release)
 #   rollback  — Rollback flow (placeholder — future release)
 #
@@ -45,7 +51,8 @@
 #   - precheck, cleanup, and validate tags skip credential prompting
 #
 # Internal steps (always):
-#   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs, load repo_status.yml
+#   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs
+#           repo_status.yml is loaded only for build-related tags (build/execute/default)
 #   Step 1: Input validation (schema + logic)
 #   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 
@@ -135,6 +142,15 @@
   tags:
     - never
     - cleanup
+
+# =========================================================================
+# FLOW: cleanup_images — Delete built images from S3 + registry (opt-in only)
+# =========================================================================
+- name: Cleanup built images
+  ansible.builtin.import_playbook: cleanup/cleanup_images.yml
+  tags:
+    - never
+    - cleanup_images
 
 # =========================================================================
 # FLOW: upgrade — Upgrade flow placeholder (opt-in only)

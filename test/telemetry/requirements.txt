@@ -1,0 +1,16 @@
+# Telemetry FVT — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Core test framework
+pytest>=9.0
+pytest-testinfra>=10.0
+pytest-html>=4.0
+
+# YAML parsing
+PyYAML>=6.0
+
+# Ansible for playbook execution
+ansible-core>=2.15
+
+# omnia_auto shared plugin (local wheel — build from test/plugins/)
+../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

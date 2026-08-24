@@ -31,6 +31,8 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_IN_004 | `test_domain_input_staged_repo_manager` | domain_init/ | sanity | Verify input files staged for repo_manager |
 | TC_IN_005 | `test_domain_input_staged_orchestrator` | domain_init/ | sanity | Verify input files staged for orchestrator |
 | TC_IN_006 | `test_domain_input_staged_discovery` | domain_init/ | sanity | Verify input files staged for discovery |
+| TC_IN_007 | `test_init_domain_filter` | domain_init/ | sanity | Verify --init with domain filter runs for single domain |
+| TC_IN_008 | `test_init_force_deps` | domain_init/ | sanity | Verify --init --force-deps forces reinstall |
 
 ---
 
@@ -45,7 +47,11 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_005 | `test_deps_only_in_help` | commands/ | sanity | Verify --deps-only flag appears in help output |
 | TC_CL_006 | `test_unknown_option` | commands/ | sanity | Verify unknown option exits with error |
 | TC_CL_007 | `test_cleanup_in_help` | commands/ | sanity | Verify --cleanup flag appears in help output |
-| TC_CL_008 | `test_catalog_in_help` | commands/ | sanity | Verify --catalog flag appears in help output |
+| TC_CL_008 | `test_check_deps_in_help` | commands/ | sanity | Verify --check-deps flag appears in help output |
+| TC_CL_009 | `test_force_deps_in_help` | commands/ | sanity | Verify --force-deps flag appears in help output |
+| TC_CL_010 | `test_skip_catalog_in_help` | commands/ | sanity | Verify --skip-catalog flag appears in help output |
+| TC_CL_011 | `test_force_deps_invalid` | commands/ | sanity | Verify --force-deps without -s/-i exits with error |
+| TC_CL_012 | `test_check_deps_runs` | commands/ | sanity | Verify --check-deps command runs |
 
 ---
 
@@ -75,3 +81,4 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | NFT_MA_002 | `test_init_performance` | nft/test_performance.py | nft | --init completes within 120s threshold |
 | NFT_MA_003 | `test_setup_venv_idempotent` | nft/test_idempotency.py | nft | Running --setup-venv twice produces no errors; venv and env file stable |
 | NFT_MA_004 | `test_init_idempotent` | nft/test_idempotency.py | nft | Running --init twice leaves domain log dirs and input files unchanged |
+| NFT_MA_005 | `test_check_deps_performance` | nft/test_performance.py | nft | --check-deps completes within 10s threshold |

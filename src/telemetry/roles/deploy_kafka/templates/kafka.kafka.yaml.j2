@@ -52,7 +52,7 @@ spec:
   kafka:
     version: 4.3.0
     metadataVersion: 4.3-IV0
-    image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{% endif %}{{ telemetry_registry.images.kafka.kafka | default('quay.io/strimzi/kafka:1.1.0-kafka-4.3.0') }}"
+    image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{% endif %}{{ telemetry_registry.images.kafka.broker | default('quay.io/strimzi/kafka:1.1.0-kafka-4.3.0') }}"
     listeners:
       - name: internal
         port: 9092

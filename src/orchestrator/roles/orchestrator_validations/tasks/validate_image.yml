@@ -12,132 +12,135 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# validate_image.yml — Validate boot images for each functional group
+# using build_status.yml from image_build_manager output.
+#
+# FG names in the mapping file (e.g. slurm_control_node_x86_64) may not
+# exactly match those in build_status.yml (e.g. slurm_control_node_rhel_10_0_x86_64)
+# because build_status includes OS type/version.  We therefore match by
+# prefix (role name) + arch suffix.
 
 - name: Set the functional_group_name
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
-- name: Normalize build stream inputs
+- name: Compute FG name components for matching
   ansible.builtin.set_fact:
-    enable_build_stream: "{{ enable_build_stream | default(hostvars['localhost']['enable_build_stream'] | default(false)) }}"
-    build_stream_job_id: "{{ build_stream_job_id | default(hostvars['localhost']['build_stream_job_id'] | default('')) }}"
-    image_key: "{{ image_key | default(hostvars['localhost']['image_key'] | default('')) }}"
-    compute_image_suffix: ""
-    s3_boot_bucket: "{{ hostvars['localhost']['s3_boot_images_bucket'] | default('boot-images') }}"
+    _fg_arch: "{{ functional_group_name | regex_search('(x86_64|aarch64)$') | default('x86_64') }}"
+    _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') }}"
 
-- name: Set compute image suffix when build stream inputs present
-  ansible.builtin.set_fact:
-    compute_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
-  when:
-    - enable_build_stream | bool
-    - (build_stream_job_id | default('') | length) > 0
-    - (image_key | default('') | length) > 0
-
-- name: Compute naming suffix for image validation
-  ansible.builtin.set_fact:
-    naming_suffix: >-
-      {{ '_omnia_' + hostvars['localhost']['oim_metadata']['omnia_version']
-         if hostvars['localhost']['oim_metadata'] is defined
-         and hostvars['localhost']['oim_metadata']['omnia_version'] | default('') | length > 0
-         else '' }}{{ '_k8s_' + hostvars['localhost']['service_k8s_version']
-         if (item is match('service_kube_'))
-         and (hostvars['localhost']['service_k8s_version'] | default('') | length > 0)
-         else '' }}
-
-- name: Build image search pattern for S3 validation
-  ansible.builtin.set_fact:
-    image_search_pattern: >-
-      rhel-{{ functional_group_name }}{{ naming_suffix }}{{ compute_image_suffix }}
-
-- name: Verify image, kernel and initramfs in S3
-  ansible.builtin.shell: |
-    set -o pipefail && \
-    s3cmd ls -Hr s3://{{ s3_boot_bucket }} | \
-    grep "{{ image_search_pattern }}" | \
-    grep {{ hostvars['localhost']['cluster_os_version'] }} | sort -k1,2r | awk '{print $4}' | sed 's|s3://||'
-  changed_when: false
-  failed_when: false
-  register: verify_s3_image
-
-- name: Verify s3 image output
-  ansible.builtin.debug:
-    msg: "{{ verify_s3_image.stdout_lines }}"
-    verbosity: 2
-
-- name: Initialize kernel and initrd
+- name: Initialize kernel, initrd and image
   ansible.builtin.set_fact:
     kernel: ""
     initrd: ""
+    image: ""
     validated_images: "{{ validated_images | default({}) }}"
+    _fg_image_entry: {}
 
-- name: Set kernel and initrd variables
+# Load build_status.yml if not already loaded (first iteration only)
+- name: Load build_status.yml for image validation
+  when: _build_status_data is not defined
+  block:
+    - name: Resolve build_status path
+      ansible.builtin.set_fact:
+        _build_status_path: "{{ hostvars['localhost']['image_build_manager_output_path'] }}"
+
+    - name: Check build_status.yml exists
+      ansible.builtin.stat:
+        path: "{{ _build_status_path }}"
+      register: _bs_stat
+
+    - name: Fail if build_status.yml is missing
+      ansible.builtin.fail:
+        msg: >-
+          build_status.yml not found at '{{ _build_status_path }}'.
+          Run image_build_manager before orchestrator to generate build_status.yml.
+      when: not _bs_stat.stat.exists
+
+    - name: Read build_status.yml
+      ansible.builtin.include_vars:
+        file: "{{ _build_status_path }}"
+        name: _build_status_data
+
+- name: Extract FG entries from build_status (nested arch format)
   ansible.builtin.set_fact:
-    kernel: "{{ verify_s3_image.stdout_lines | select('search', 'vmlinuz') | list | first }}"
-    initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initramfs') | list | first }}"
-  when:
-    - verify_s3_image.stdout_lines | length > 1
-    - hostvars['localhost']['kernel_version_override'] | default('') | length == 0
-
-- name: Set kernel and initrd variables (kernel override)
-  vars:
-    _kvo: "{{ hostvars['localhost']['kernel_version_override'] }}"
-    _s3_lines: "{{ verify_s3_image.stdout_lines }}"
-  ansible.builtin.set_fact:
-    kernel: "{{ _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | first }}"
-    initrd: "{{ _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | first }}"
-  when:
-    - verify_s3_image.stdout_lines | length > 1
-    - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | length > 0
-    - _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | length > 0
-
-- name: Retry S3 search without OS version filter (kernel override cross-version)
-  ansible.builtin.shell: |
-    set -o pipefail && \
-    s3cmd ls -Hr s3://{{ s3_boot_bucket }} | \
-    grep "{{ image_search_pattern }}" | awk '{print $4}' | sed 's|s3://||'
-  changed_when: false
+    _all_fg_entries: >-
+      {{ _build_status_data.functional_group_images
+         | map('dict2items') | flatten
+         | selectattr('key', 'equalto', _fg_arch)
+         | map(attribute='value') | flatten
+         | list }}
   failed_when: false
-  register: verify_s3_image_retry
-  when:
-    - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - kernel | length < 1 or initrd | length < 1
 
-- name: Set kernel and initrd from retry results (kernel override cross-version)
-  vars:
-    _kvo: "{{ hostvars['localhost']['kernel_version_override'] }}"
-    _s3_lines: "{{ verify_s3_image_retry.stdout_lines }}"
+- name: Try flat format if nested produced empty results
   ansible.builtin.set_fact:
-    kernel: "{{ _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | first }}"
-    initrd: "{{ _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | first }}"
+    _all_fg_entries: >-
+      {{ _build_status_data.functional_group_images
+         | selectattr('functional_group', 'defined')
+         | list }}
+  when: _all_fg_entries | default([]) | length == 0
+  failed_when: false
+
+- name: Find matching FG entry (exact match)
+  ansible.builtin.set_fact:
+    _fg_image_entry: >-
+      {{ _all_fg_entries
+         | selectattr('functional_group', 'equalto', functional_group_name)
+         | list | first | default({}) }}
+  when: _all_fg_entries | default([]) | length > 0
+
+- name: Find matching FG entry (prefix + arch match)
+  ansible.builtin.set_fact:
+    _fg_image_entry: >-
+      {{ _all_fg_entries
+         | selectattr('functional_group', 'search', '^' + _fg_prefix + '_.*' + _fg_arch + '$')
+         | list | first | default({}) }}
+  when:
+    - _all_fg_entries | default([]) | length > 0
+    - _fg_image_entry | default({}) | length == 0
+
+- name: Set kernel, initrd and image from build_status
+  ansible.builtin.set_fact:
+    kernel: "{{ _fg_image_entry.kernel | default('') }}"
+    initrd: "{{ _fg_image_entry.initrd | default('') }}"
+    image: "{{ _fg_image_entry.image | default('') }}"
+  when: _fg_image_entry | default({}) | length > 0
+
+- name: Apply kernel_version_override filter
   when:
     - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - kernel | length < 1 or initrd | length < 1
-    - verify_s3_image_retry.stdout_lines | default([]) | length > 1
-    - _s3_lines | select('search', 'vmlinuz') | select('search', _kvo) | list | length > 0
-    - _s3_lines | select('search', 'initramfs') | select('search', _kvo) | list | length > 0
+    - kernel | length > 0
+  block:
+    - name: Check if kernel matches override version
+      ansible.builtin.set_fact:
+        _kernel_matches_override: "{{ hostvars['localhost']['kernel_version_override'] in kernel }}"
 
-- name: Store validated kernel and initrd for functional group
+    - name: Clear kernel/initrd if override version does not match
+      ansible.builtin.set_fact:
+        kernel: ""
+        initrd: ""
+      when: not _kernel_matches_override | bool
+
+- name: Store validated kernel, initrd and image for functional group
   ansible.builtin.set_fact:
     validated_images: >-
       {{ validated_images | default({}) | combine({
-           functional_group_name: {'kernel': kernel, 'initrd': initrd}
+           functional_group_name: {'kernel': kernel, 'initrd': initrd, 'image': image | default('')}
          })
       }}
   when: kernel | length > 0 and initrd | length > 0
 
-- name: Fail if kernel override did not match any S3 image
+- name: Fail if kernel override did not match any image
   ansible.builtin.fail:
     msg: >-
       {{ kernel_override_no_match_msg }}
       Specified: '{{ hostvars['localhost']['kernel_version_override'] }}'.
-      Pattern: '{{ image_search_pattern }}'.
-      Verify the kernel version exists in s3://{{ s3_boot_bucket }}.
+      Verify the kernel version exists in build_status.yml.
   when:
     - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
     - kernel | length < 1 or initrd | length < 1
 
-- name: Fail if kernel or initrd length less than 1
+- name: Fail if kernel or initrd not found in build_status
   ansible.builtin.fail:
     msg: "{{ image_missing_fail_msg.splitlines() | join(' ') }}"
   when: kernel | length < 1 or initrd | length < 1

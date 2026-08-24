@@ -23,6 +23,9 @@
 #
 # Usage:
 #   ./omnia-cli status [--project <name>]
+#   ./omnia-cli check [--project <name>]
+#   ./omnia-cli edit <domain> [--project <name>]
+#   ./omnia-cli logs <domain> [--project <name>]
 #   ./omnia-cli repo-manager [--project <name>]
 #   ./omnia-cli image-build [--project <name>]
 #   ./omnia-cli <domain> [--project <name>]
@@ -93,6 +96,19 @@ readonly DOMAIN_ORDER=(
     telemetry
     build_stream
 )
+
+# Known log directory patterns (relative to OMNIA_DATA_PATH/<domain>/)
+declare -A DOMAIN_LOG_DIRS=(
+    [repo_manager]="log"
+    [image_build_manager]="log"
+    [orchestrator]="log"
+    [discovery]="log"
+    [telemetry]="log"
+    [build_stream]="log"
+)
+
+# Ansible log default location
+readonly ANSIBLE_LOG_DEFAULT="/var/log/omnia"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Environment Loading
@@ -571,6 +587,317 @@ cmd_domain_status() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Utility: Check if a file is Ansible Vault encrypted
+# ─────────────────────────────────────────────────────────────────────────────
+_is_vault_encrypted() {
+    local file="$1"
+    head -1 "$file" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT;' 2>/dev/null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utility: Check if a filename looks like a credential file
+# ─────────────────────────────────────────────────────────────────────────────
+_is_credential_file() {
+    local file="$1"
+    local fname
+    fname=$(basename "$file")
+    # Match common credential file naming patterns
+    [[ "$fname" == *credential* ]] || [[ "$fname" == *secret* ]] || [[ "$fname" == *vault* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utility: Open a file with the right editor (ansible-vault for vault files)
+# ─────────────────────────────────────────────────────────────────────────────
+_edit_file() {
+    local target="$1" editor="$2"
+
+    if _is_vault_encrypted "$target" || _is_credential_file "$target"; then
+        # Credential / vault-encrypted file — use ansible-vault edit
+        if ! command -v ansible-vault &>/dev/null; then
+            echo -e "  ${FAIL} ${RED}ansible-vault not found.${NC}"
+            echo ""
+            echo -e "  ${YELLOW}This file appears to be Ansible Vault encrypted.${NC}"
+            echo -e "  ${YELLOW}ansible-vault is only available inside the Omnia venv.${NC}"
+            echo ""
+            echo -e "  ${BOLD}Activate the venv first:${NC}"
+            echo -e "    source ${OMNIA_VENV_PATH:-/opt/omnia/venv}/bin/activate"
+            echo -e "  ${DIM}Then retry: omnia-cli edit <domain>${NC}"
+            echo ""
+            return 1
+        fi
+
+        echo -e "  ${YELLOW}Vault-encrypted credential file detected.${NC}"
+        echo -e "  ${DIM}Provide the path to the vault password key file.${NC}"
+        echo -n "  Vault password file path (or Enter to prompt for password): "
+        read -r vault_key_path
+
+        if [ -n "$vault_key_path" ]; then
+            if [ -f "$vault_key_path" ]; then
+                echo -e "  Opening with ${BOLD}ansible-vault edit --vault-password-file${NC}..."
+                ansible-vault edit "$target" --vault-password-file "$vault_key_path"
+            else
+                echo -e "  ${FAIL} ${RED}File not found: ${vault_key_path}${NC}"
+                return 1
+            fi
+        else
+            echo -e "  Opening with ${BOLD}ansible-vault edit${NC} (will prompt for password)..."
+            ansible-vault edit "$target"
+        fi
+    else
+        echo -e "  Opening ${target} in ${editor}..."
+        $editor "$target"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: edit — Open or list input configuration files for a domain
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_edit() {
+    local domain="$1" project="$2"
+    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
+    local input_dir
+    input_dir=$(_resolve_input_dir "$domain" "$project")
+    local display_name
+    display_name=$(echo "$domain" | tr '_' ' ')
+
+    echo ""
+    echo -e "${BOLD}${BLUE}Edit ${display_name} Input Files${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+    echo -e "  Input dir: ${DIM}${input_dir}${NC}"
+    echo ""
+
+    if [ ! -d "$input_dir" ]; then
+        echo -e "  ${FAIL} Input directory not found"
+        echo ""
+        echo -e "  ${YELLOW}Run omnia.sh --setup-venv first to stage input files,${NC}"
+        echo -e "  ${YELLOW}or create the directory manually:${NC}"
+        echo -e "    mkdir -p ${input_dir}"
+        echo ""
+        return 1
+    fi
+
+    # List all files in the input directory
+    local files
+    files=$(find "$input_dir" -maxdepth 2 -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.cfg" -o -name "*.conf" -o -name "*.ini" \) 2>/dev/null | sort)
+
+    if [ -z "$files" ]; then
+        echo -e "  ${WARN} No configuration files found in input directory"
+        echo ""
+        return 0
+    fi
+
+    echo -e "  ${BOLD}Configuration files:${NC}"
+    echo ""
+
+    local idx=0
+    local file_arr=()
+    while IFS= read -r f; do
+        idx=$((idx + 1))
+        local rel_path
+        rel_path="${f#"$input_dir/"}"
+        local fsize
+        fsize=$(stat -c '%s' "$f" 2>/dev/null || echo "?")
+        local fmod
+        fmod=$(stat -c '%y' "$f" 2>/dev/null | cut -d. -f1 || echo "?")
+        # Mark vault/credential files with a lock indicator
+        local marker=""
+        if _is_vault_encrypted "$f"; then
+            marker="  ${YELLOW}[vault-encrypted]${NC}"
+        elif _is_credential_file "$f"; then
+            marker="  ${YELLOW}[credentials]${NC}"
+        fi
+        echo -e "    ${CYAN}${idx})${NC} ${rel_path}${marker}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
+        file_arr+=("$f")
+    done <<< "$files"
+
+    echo ""
+
+    # Check if we have an interactive TTY and an editor
+    local editor="${EDITOR:-${VISUAL:-vi}}"
+    if [ -t 0 ] && [ -t 1 ]; then
+        echo -e "  ${DIM}Enter file number to edit (or 'q' to quit, 'a' for all in ${editor}):${NC}"
+        echo -n "  > "
+        read -r choice
+
+        case "$choice" in
+            q|Q|"")
+                echo -e "  ${DIM}No files opened.${NC}"
+                ;;
+            a|A)
+                # For 'open all', skip vault files — they need individual ansible-vault edit
+                local plain_files=()
+                local vault_count=0
+                for f in "${file_arr[@]}"; do
+                    if _is_vault_encrypted "$f" || _is_credential_file "$f"; then
+                        vault_count=$((vault_count + 1))
+                    else
+                        plain_files+=("$f")
+                    fi
+                done
+                if [ "$vault_count" -gt 0 ]; then
+                    echo -e "  ${YELLOW}Skipping ${vault_count} credential/vault file(s) — edit them individually.${NC}"
+                fi
+                if [ "${#plain_files[@]}" -gt 0 ]; then
+                    echo -e "  Opening ${#plain_files[@]} file(s) in ${editor}..."
+                    $editor "${plain_files[@]}"
+                else
+                    echo -e "  ${DIM}No plain-text files to open.${NC}"
+                fi
+                ;;
+            *)
+                if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#file_arr[@]}" ]; then
+                    local target="${file_arr[$((choice - 1))]}"
+                    _edit_file "$target" "$editor"
+                else
+                    echo -e "  ${RED}Invalid selection: ${choice}${NC}"
+                fi
+                ;;
+        esac
+    else
+        echo -e "  ${DIM}Set \$EDITOR and run interactively to edit files.${NC}"
+        echo -e "  ${DIM}Example: EDITOR=vim omnia-cli edit ${display_name}${NC}"
+    fi
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command: logs — View domain execution logs or ansible logs
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_logs() {
+    local domain="$1" project="$2" follow="${3:-false}"
+    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
+    local display_name
+    display_name=$(echo "$domain" | tr '_' ' ')
+
+    echo ""
+    echo -e "${BOLD}${BLUE}${display_name} Logs${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+
+    local found_logs=0
+    local log_arr=()
+    local idx=0
+
+    # 1. Domain-specific logs (under <base>/<domain>/log/<project>/)
+    local domain_log_dir="${base}/${domain}/log/${project}"
+    if [ -d "$domain_log_dir" ]; then
+        local log_files
+        log_files=$(find "$domain_log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn)
+        if [ -n "$log_files" ]; then
+            found_logs=1
+            local count
+            count=$(echo "$log_files" | wc -l)
+            echo -e "  ${BOLD}Domain logs${NC}  ${DIM}(${domain_log_dir})${NC}"
+            echo -e "  ${DIM}Found ${count} log file(s) — most recent first:${NC}"
+            echo ""
+
+            while IFS= read -r line; do
+                idx=$((idx + 1))
+                local fpath
+                fpath=$(echo "$line" | cut -d' ' -f2-)
+                local fname
+                fname=$(basename "$fpath")
+                local fsize
+                fsize=$(stat -c '%s' "$fpath" 2>/dev/null || echo "?")
+                local fmod
+                fmod=$(stat -c '%y' "$fpath" 2>/dev/null | cut -d. -f1 || echo "?")
+                echo -e "    ${CYAN}${idx})${NC} ${fname}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
+                log_arr+=("$fpath")
+                [ "$idx" -ge 10 ] && break
+            done <<< "$log_files"
+            echo ""
+        fi
+    fi
+
+    # 2. Ansible logs (under /var/log/omnia/)
+    local ansible_log_dirs=("${ANSIBLE_LOG_DEFAULT}")
+    for alog_dir in "${ansible_log_dirs[@]}"; do
+        if [ -d "$alog_dir" ]; then
+            local ansible_logs
+            ansible_logs=$(find "$alog_dir" \( -name "*${domain}*" -o -name "ansible*.log" \) -type f 2>/dev/null | sort -rn | head -5)
+            if [ -n "$ansible_logs" ]; then
+                found_logs=1
+                echo -e "  ${BOLD}Ansible logs${NC}  ${DIM}(${alog_dir})${NC}"
+                while IFS= read -r alog; do
+                    idx=$((idx + 1))
+                    local aname
+                    aname=$(basename "$alog")
+                    local asize
+                    asize=$(stat -c '%s' "$alog" 2>/dev/null || echo "?")
+                    echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes)${NC}"
+                    log_arr+=("$alog")
+                done <<< "$ansible_logs"
+                echo ""
+            fi
+        fi
+    done
+
+    # 3. Domain output directory for any .log files
+    local output_dir
+    output_dir=$(_resolve_output_dir "$domain" "$project")
+    if [ -d "$output_dir" ]; then
+        local output_logs
+        output_logs=$(find "$output_dir" -name "*.log" -type f 2>/dev/null | sort -rn | head -5)
+        if [ -n "$output_logs" ]; then
+            found_logs=1
+            echo -e "  ${BOLD}Output logs${NC}  ${DIM}(${output_dir})${NC}"
+            while IFS= read -r olog; do
+                idx=$((idx + 1))
+                local oname
+                oname=$(basename "$olog")
+                local osize
+                osize=$(stat -c '%s' "$olog" 2>/dev/null || echo "?")
+                echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes)${NC}"
+                log_arr+=("$olog")
+            done <<< "$output_logs"
+            echo ""
+        fi
+    fi
+
+    if [ "$found_logs" -eq 0 ]; then
+        echo -e "  ${WARN} No log files found for ${display_name}"
+        echo ""
+        echo -e "  ${DIM}Logs are created when you run the domain via omnia.sh --run ${domain}${NC}"
+        echo -e "  ${DIM}Expected locations:${NC}"
+        echo -e "    ${DIM}${domain_log_dir}/*.log${NC}"
+        echo -e "    ${DIM}${ANSIBLE_LOG_DEFAULT}/*${domain}*.log${NC}"
+        echo ""
+        return 1
+    fi
+
+    # Interactive mode: offer to tail the latest log
+    if [ -t 0 ] && [ -t 1 ] && [ "${#log_arr[@]}" -gt 0 ]; then
+        echo -e "  ${DIM}Enter log number to view (or 't' to tail latest, 'q' to quit):${NC}"
+        echo -n "  > "
+        read -r choice
+
+        case "$choice" in
+            q|Q|"")
+                echo -e "  ${DIM}No logs opened.${NC}"
+                ;;
+            t|T)
+                local latest="${log_arr[0]}"
+                echo -e "  ${DIM}Tailing ${latest} (Ctrl+C to stop)...${NC}"
+                echo ""
+                tail -f "$latest"
+                ;;
+            *)
+                if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#log_arr[@]}" ]; then
+                    local target="${log_arr[$((choice - 1))]}"
+                    local pager="${PAGER:-less}"
+                    echo -e "  Opening ${target} in ${pager}..."
+                    $pager "$target"
+                else
+                    echo -e "  ${RED}Invalid selection: ${choice}${NC}"
+                fi
+                ;;
+        esac
+    fi
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Command: version
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_version() {
@@ -652,11 +979,22 @@ ${BOLD}omnia-cli ${display_name}${NC} — ${DOMAIN_DESCRIPTIONS[$domain]:-$domai
 
 USAGE:
   omnia-cli ${display_name} [--project <name>]
+  omnia-cli edit ${display_name} [--project <name>]
+  omnia-cli logs ${display_name} [--project <name>]
 
 CHECKS:
   - Output directory exists at \${OMNIA_DATA_PATH}/${domain}/output/<project>/
   - Status file: ${DOMAIN_STATUS_FILES[$domain]:-<domain>_status.yml}
   - overall_status validation
+
+EDIT:
+  Lists input config files in \${OMNIA_DATA_PATH}/${domain}/input/<project>/
+  Opens selected file in \$EDITOR (default: vi)
+
+LOGS:
+  Shows domain logs from \${OMNIA_DATA_PATH}/${domain}/log/<project>/
+  Shows ansible logs from /var/log/omnia/
+  Offers to tail or view selected log in \$PAGER (default: less)
 EOF
             ;;
     esac
@@ -675,6 +1013,8 @@ USAGE:
 COMMANDS:
   ${BOLD}status${NC}              Show all domain statuses for a project
   ${BOLD}check${NC}               Validate input files and output existence for all domains
+  ${BOLD}edit${NC} <domain>        List and edit input configuration files for a domain
+  ${BOLD}logs${NC} <domain>        View domain execution logs and ansible logs
   ${BOLD}repo-manager${NC}        Detailed repo_manager diagnostics
   ${BOLD}image-build${NC}         Detailed image_build_manager diagnostics
   ${BOLD}orchestrator${NC}        Orchestrator status
@@ -700,6 +1040,9 @@ EXAMPLES:
   omnia-cli status --project my_cluster     # All domains, custom project
   omnia-cli repo-manager                    # Detailed repo check
   omnia-cli image-build --project prod      # Image build status for 'prod'
+  omnia-cli edit repo-manager               # Edit repo_manager input config files
+  omnia-cli logs image-build                # View image_build_manager logs
+  omnia-cli logs orchestrator --project prod # View orchestrator logs for 'prod'
   omnia-cli help repo-manager               # Domain-specific help
 
 SEE ALSO:
@@ -732,8 +1075,9 @@ main() {
     local command="${1:-help}"
     shift || true
 
-    # Parse --project flag from remaining args
+    # Parse --project flag and positional args from remaining args
     local project="${OMNIA_PROJECT_NAME:-project_default}"
+    local positional_args=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --project|-p)
@@ -741,37 +1085,74 @@ main() {
                 shift 2 || { echo -e "${RED}--project requires a value${NC}"; exit 1; }
                 ;;
             *)
-                # Positional arg — treat as project for backward compat
-                project="$1"
+                positional_args+=("$1")
                 shift
                 ;;
         esac
     done
 
+    # For commands that don't need a domain arg, first positional is project
+    # For edit/logs, first positional is domain
     case "$command" in
         status)
+            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
             cmd_status "$project"
             ;;
         check)
+            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
             cmd_check "$project"
             ;;
         repo-manager|repo_manager)
+            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
             cmd_repo_manager "$project"
             ;;
         image-build|image_build|image-build-manager|image_build_manager)
+            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
             cmd_image_build "$project"
+            ;;
+        edit)
+            if [ "${#positional_args[@]}" -eq 0 ]; then
+                echo -e "${RED}edit requires a domain argument${NC}"
+                echo -e "Usage: omnia-cli edit <domain> [--project <name>]"
+                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream"
+                exit 1
+            fi
+            local domain
+            domain=$(_domain_from_arg "${positional_args[0]}")
+            if [ -z "$domain" ]; then
+                echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
+                exit 1
+            fi
+            [ "${#positional_args[@]}" -gt 1 ] && project="${positional_args[1]}"
+            cmd_edit "$domain" "$project"
+            ;;
+        logs|log)
+            if [ "${#positional_args[@]}" -eq 0 ]; then
+                echo -e "${RED}logs requires a domain argument${NC}"
+                echo -e "Usage: omnia-cli logs <domain> [--project <name>]"
+                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream"
+                exit 1
+            fi
+            local domain
+            domain=$(_domain_from_arg "${positional_args[0]}")
+            if [ -z "$domain" ]; then
+                echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
+                exit 1
+            fi
+            [ "${#positional_args[@]}" -gt 1 ] && project="${positional_args[1]}"
+            cmd_logs "$domain" "$project"
             ;;
         version|--version|-v)
             cmd_version
             ;;
         help|--help|-h)
-            if [ -n "${1:-}" ]; then
+            if [ "${#positional_args[@]}" -gt 0 ]; then
                 local domain
-                domain=$(_domain_from_arg "$1")
+                domain=$(_domain_from_arg "${positional_args[0]}")
                 if [ -n "$domain" ]; then
                     show_domain_help "$domain"
                 else
-                    echo -e "${RED}Unknown domain: $1${NC}"
+                    echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
                     show_help
                 fi
             else
@@ -783,6 +1164,7 @@ main() {
             local domain
             domain=$(_domain_from_arg "$command")
             if [ -n "$domain" ]; then
+                [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
                 cmd_domain_status "$domain" "$project"
             else
                 echo -e "${RED}Unknown command: ${command}${NC}"

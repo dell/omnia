@@ -6,7 +6,7 @@
 .PHONY: run build publish clean
 
 run:
-	ansible-playbook orchestrator.yml
+	cd playbooks && ansible-playbook orchestrator.yml
 
 build:
 	ansible-galaxy collection build --force

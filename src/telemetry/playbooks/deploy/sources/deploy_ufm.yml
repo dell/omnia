@@ -1,0 +1,78 @@
+---
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Enable UFM InfiniBand Telemetry
+# Usage: Called from telemetry.yml or standalone with kube_vip
+#   ansible-playbook deploy/sources/deploy_ufm.yml -e kube_vip=<VIP_IP>
+#
+# Deploys shared infrastructure (VictoriaMetrics) if not present,
+# then validates UFM endpoint configuration, creates K8s Secret with
+# UFM credentials, and generates UFM scrape config manifests.
+# All K8s tasks execute on the kube_vip host.
+
+- name: Deploy UFM Telemetry
+  hosts: kube_vip_group
+  gather_facts: true
+  any_errors_fatal: true
+  vars_files:
+    - ../../../roles/common/vars/main.yml
+  pre_tasks:
+    - name: Load telemetry config (only if not already loaded)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+      when: telemetry_config is not defined
+
+    - name: Derive sink support flags (only if not already derived)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: derive_sink_support_flags
+      when: kafka_support is not defined
+
+    - name: Add kube_vip to inventory (only if not already added)
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+      when: kube_vip_group is not defined
+  tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
+    - name: Check if VictoriaMetrics is needed for UFM telemetry
+      ansible.builtin.set_fact:
+        victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([])) }}"
+      when: telemetry_config is defined
+
+    - name: Set victoria_deployment_mode
+      ansible.builtin.set_fact:
+        victoria_deployment_mode: "cluster"
+      when:
+        - victoria_metrics_needed | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Deploy VictoriaMetrics if needed and not already deployed
+      ansible.builtin.include_role:
+        name: deploy_victoria
+      when:
+        - victoria_metrics_needed | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Include deploy_ufm role
+      ansible.builtin.include_role:
+        name: deploy_ufm

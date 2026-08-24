@@ -110,6 +110,43 @@ def check_s3_artifacts_removed(host) -> Dict[str, Any]:
     }
 
 
+def check_s3_images_removed(host) -> Dict[str, Any]:
+    """Verify S3 bucket contents are empty after cleanup_images.
+
+    Unlike ``check_s3_artifacts_removed`` (which checks if buckets
+    themselves exist after a full cleanup), this checks that the
+    *contents* of boot-images are empty — the bucket itself may
+    still exist.
+
+    Returns:
+        Dict with 'success', 'remaining_objects', 'details'.
+    """
+    cmd = host.run(CMDS["s3cmd_ls_recursive"].format(
+        bucket="s3://boot-images/"
+    ))
+    if cmd.rc != 0:
+        return {
+            "success": True,
+            "remaining_objects": 0,
+            "details": "s3cmd not available (expected after cleanup)",
+        }
+
+    objects = [
+        line.strip() for line in cmd.stdout.strip().splitlines()
+        if line.strip()
+    ]
+
+    return {
+        "success": len(objects) == 0,
+        "remaining_objects": len(objects),
+        "details": (
+            "S3 boot-images bucket is empty"
+            if not objects
+            else f"S3 still has {len(objects)} object(s)"
+        ),
+    }
+
+
 # =============================================================================
 # CLEANUP VERIFICATION — EXTENDED
 # =============================================================================
@@ -271,10 +308,16 @@ def check_build_output_removed(host) -> Dict[str, Any]:
 
 
 def check_registry_cleaned(host) -> Dict[str, Any]:
-    """Verify registry has no images after cleanup.
+    """Verify registry has no tagged images after cleanup.
+
+    Docker Distribution keeps repository metadata even after all
+    manifests are deleted, so ``regctl repo ls`` may still list repo
+    names.  This function checks each repo for remaining *tags* —
+    a repo with zero tags is considered cleaned.
 
     Returns:
-        Dict with 'success', 'registry_reachable', 'repos', 'details'.
+        Dict with 'success', 'registry_reachable', 'repos',
+        'repos_with_tags', 'details'.
     """
     cmd = host.run(
         CMDS["curl_registry_catalog_http"].format(port=REGISTRY_PORT)
@@ -284,6 +327,7 @@ def check_registry_cleaned(host) -> Dict[str, Any]:
             "success": True,
             "registry_reachable": False,
             "repos": [],
+            "repos_with_tags": [],
             "details": (
                 "Registry not reachable (expected after cleanup)"
             ),
@@ -295,14 +339,34 @@ def check_registry_cleaned(host) -> Dict[str, Any]:
     except (json.JSONDecodeError, ValueError):
         repos = []
 
+    # Check each repo for remaining tags
+    repos_with_tags = []
+    for repo in repos:
+        tags_cmd = host.run(
+            CMDS["curl_registry_catalog_http"].format(
+                port=REGISTRY_PORT
+            ).replace("/v2/_catalog", f"/v2/{repo}/tags/list")
+        )
+        if tags_cmd.rc == 0:
+            try:
+                tag_data = json.loads(tags_cmd.stdout)
+                tags = tag_data.get("tags") or []
+                if tags:
+                    repos_with_tags.append(
+                        f"{repo} ({len(tags)} tags)"
+                    )
+            except (json.JSONDecodeError, ValueError):
+                pass
+
     return {
-        "success": len(repos) == 0,
+        "success": len(repos_with_tags) == 0,
         "registry_reachable": True,
         "repos": repos,
+        "repos_with_tags": repos_with_tags,
         "details": (
-            "Registry empty (no images)"
-            if not repos
-            else f"Registry still has {len(repos)} repos: "
-                 f"{', '.join(repos)}"
+            "All registry images deleted (no tagged images remain)"
+            if not repos_with_tags
+            else f"Registry still has tagged repos: "
+                 f"{', '.join(repos_with_tags)}"
         ),
     }

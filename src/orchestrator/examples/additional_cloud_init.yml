@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-# Additional cloud-init configuration for stateless node provisioning.
+# Additional metadata-service configuration for stateless node provisioning.
 #
 # Structure:
 #   common:    Applied to ALL nodes (common cloud-init group)

@@ -15,7 +15,7 @@
 
 - name: Refresh SMD access token before ochami operations
   ansible.builtin.include_role:
-    name: omnia.orchestrator.orchestrator_common
+    name: orchestrator_common
     tasks_from: openchami_auth.yml
   vars:
     oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
@@ -32,24 +32,24 @@
 
     - name: Create groups common
       ansible.builtin.include_tasks: create_groups_common.yml
-      loop: "{{ common_cloud_init_groups }}"
+      loop: "{{ common_metadata_svc_groups }}"
 
-    - name: Validate additional cloud-init configuration
-      ansible.builtin.include_tasks: validate_additional_cloud_init.yml
+    - name: Validate additional metadata-service configuration
+      ansible.builtin.include_tasks: validate_additional_metadata_svc.yml
 
-    - name: Create SMD group for additional_cloud_init common
+    - name: Create SMD group for additional_metadata_svc common
       ansible.builtin.include_tasks: create_groups_common.yml
       loop:
-        - "{{ additional_cloud_init_common_group_name }}"
-      when: additional_cloud_init_common_enabled | default(false) | bool
+        - "{{ additional_metadata_svc_common_group_name }}"
+      when: additional_metadata_svc_common_enabled | default(false) | bool
 
-    - name: Create SMD groups for per-FG additional cloud-init
+    - name: Create SMD groups for per-FG additional metadata-service
       ansible.builtin.include_tasks: create_groups_additional_fg.yml
-      with_items: "{{ additional_cloud_init_fg_names | default([]) }}"
-      when: additional_cloud_init_groups_enabled | default(false) | bool
+      with_items: "{{ additional_metadata_svc_fg_names | default([]) }}"
+      when: additional_metadata_svc_groups_enabled | default(false) | bool
 
-    - name: Configure bss and cloud-init
-      ansible.builtin.include_tasks: configure_bss_cloud_init.yml
+    - name: Configure boot-service and metadata-service
+      ansible.builtin.include_tasks: configure_boot_svc_metadata_svc.yml
 
     - name: Orchestration completion
       ansible.builtin.include_tasks: orchestration_completion.yml

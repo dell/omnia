@@ -53,6 +53,39 @@
     - _cert_path | length > 0
     - not (_repo_cert_check.stat.exists | default(false))
 
+# --- Validate repo URLs are reachable ---
+- name: Build list of repo base URLs to validate
+  ansible.builtin.set_fact:
+    _repo_urls_to_check: >-
+      {{ (repo_manager_repos_x86_64 | default([]) | map(attribute='base_url') | list
+          + repo_manager_repos_aarch64 | default([]) | map(attribute='base_url') | list)
+         | unique }}
+
+- name: Check repo URL reachability
+  ansible.builtin.uri:
+    url: "{{ item }}"
+    method: GET
+    status_code: [200, 301, 302, 403]
+    timeout: 10
+    validate_certs: false
+  loop: "{{ _repo_urls_to_check }}"
+  register: _repo_url_checks
+  ignore_errors: true
+
+- name: Identify unreachable repo URLs
+  ansible.builtin.set_fact:
+    _unreachable_repos: >-
+      {{ _repo_url_checks.results
+         | selectattr('failed', 'defined')
+         | selectattr('failed')
+         | map(attribute='item')
+         | list }}
+
+- name: Fail if any repo URLs are unreachable
+  ansible.builtin.fail:
+    msg: "{{ repo_url_unreachable_fail_msg }}"
+  when: _unreachable_repos | length > 0
+
 # --- Set S3 and cert facts ---
 - name: Set S3 and cert facts
   ansible.builtin.set_fact:

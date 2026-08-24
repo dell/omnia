@@ -123,6 +123,10 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
                 node_list = json.load(fh)
             split = ldmsd_conf.get("agg_count", 1)
             midpoint = len(node_list) // split
+            # Handle empty node list or zero midpoint
+            if len(node_list) == 0 or midpoint == 0:
+                logging.warning("Empty node list or zero midpoint, skipping aggregator config generation for %s", ldmsd_name)
+                continue
             for index, sub_list in enumerate(self.split_list(node_list, midpoint)):
                 sub_host_map_file = host_map_file.replace(".json", f"-{index}.json")
                 with open(sub_host_map_file, 'w', encoding='utf-8') as fh:
@@ -187,9 +191,16 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
 
             store_pod_index = 0
             host_map_file = ldmsd_conf["host_map_file"]
+            # Skip store config if no aggregators were configured (empty node list)
+            if ldmsd_name not in self.env or 'agg' not in self.env[ldmsd_name] or len(self.env[ldmsd_name]['agg']) == 0:
+                logging.warning("No aggregators configured for %s, skipping store config generation", ldmsd_name)
+                continue
             for agg_index in range(len(self.env[ldmsd_name]['agg'])):
-                with open(host_map_file.replace(".json", f"-{agg_index}.json"),
-                          encoding='utf-8') as fh:
+                split_host_map_file = host_map_file.replace(".json", f"-{agg_index}.json")
+                if not os.path.exists(split_host_map_file):
+                    logging.warning("Split host map file %s does not exist, skipping", split_host_map_file)
+                    continue
+                with open(split_host_map_file, encoding='utf-8') as fh:
                     node_list = json.load(fh)
                 nid_names = [x['hostname'] for x in node_list]
                 split = ldmsd_conf.get("store_split", 99999999)

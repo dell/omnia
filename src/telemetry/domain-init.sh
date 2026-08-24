@@ -61,6 +61,7 @@ readonly NC='\033[0m'
 
 FORCE_OVERWRITE=false
 DEPS_ONLY=false
+FORCE_DEPS=false
 
 # -----------------------------------------------------------------------------
 # Parse arguments
@@ -70,15 +71,17 @@ _parse_args() {
         case "$arg" in
             --force|-f) FORCE_OVERWRITE=true ;;
             --deps-only) DEPS_ONLY=true ;;
+            --force-deps) FORCE_DEPS=true ;;
             --help|-h)
-                echo "Usage: $0 [--force|-f] [--deps-only]"
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps]"
                 echo "  --force, -f     Overwrite existing files without prompting"
                 echo "  --deps-only     Skip input file staging (only install deps)"
+                echo "  --force-deps    Bypass dep cache and force reinstall of pip/Galaxy deps"
                 exit 0
                 ;;
             *)
                 echo -e "${RED}Unknown argument: $arg${NC}" >&2
-                echo "Usage: $0 [--force|-f] [--deps-only]" >&2
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps]" >&2
                 exit 1
                 ;;
         esac
@@ -205,15 +208,43 @@ create_log_directory() {
 # Install domain-specific pip + Galaxy dependencies
 # Expects the shared Omnia venv to be activated before calling this script.
 # -----------------------------------------------------------------------------
+_checksum_file() {
+    if command -v md5sum >/dev/null 2>&1; then
+        md5sum "$1" | awk '{print $1}'
+    elif command -v md5 >/dev/null 2>&1; then
+        md5 -q "$1"
+    else
+        echo "no-md5"
+    fi
+}
+
+_deps_cache_dir() {
+    local cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
+    mkdir -p "$cache_dir"
+    echo "$cache_dir"
+}
+
 install_dependencies() {
     local req_txt="$SCRIPT_DIR/requirements.txt"
     local req_yml="$SCRIPT_DIR/requirements.yml"
+    local cache_dir
+    cache_dir="$(_deps_cache_dir)"
 
     if [ -f "$req_txt" ]; then
         if command -v pip >/dev/null 2>&1; then
-            echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
-            if ! pip install -r "$req_txt" --quiet; then
-                echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+            local pip_hash pip_cache_file
+            pip_hash="$(_checksum_file "$req_txt")"
+            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.md5"
+
+            if [ "$FORCE_DEPS" = false ] && [ -f "$pip_cache_file" ] && [ "$(cat "$pip_cache_file")" = "$pip_hash" ]; then
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] pip deps unchanged (cached) — skipped${NC}"
+            else
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
+                if pip install -r "$req_txt" --quiet; then
+                    echo "$pip_hash" > "$pip_cache_file"
+                else
+                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+                fi
             fi
         else
             echo -e "  ${YELLOW}[${DOMAIN_NAME}] pip not found (venv not activated?) — skipping pip install${NC}"
@@ -222,9 +253,19 @@ install_dependencies() {
 
     if [ -f "$req_yml" ]; then
         if command -v ansible-galaxy >/dev/null 2>&1; then
-            echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
-            if ! ansible-galaxy collection install -r "$req_yml" --force 2>&1 | tail -1; then
-                echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+            local galaxy_hash galaxy_cache_file
+            galaxy_hash="$(_checksum_file "$req_yml")"
+            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.md5"
+
+            if [ "$FORCE_DEPS" = false ] && [ -f "$galaxy_cache_file" ] && [ "$(cat "$galaxy_cache_file")" = "$galaxy_hash" ]; then
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Galaxy deps unchanged (cached) — skipped${NC}"
+            else
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
+                if ansible-galaxy collection install -r "$req_yml" --force 2>&1 | tail -1; then
+                    echo "$galaxy_hash" > "$galaxy_cache_file"
+                else
+                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+                fi
             fi
         else
             echo -e "  ${YELLOW}[${DOMAIN_NAME}] ansible-galaxy not found — skipping Galaxy install${NC}"

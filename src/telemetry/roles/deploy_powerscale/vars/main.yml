@@ -24,6 +24,12 @@ telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 # Internal namespace constants (not user-configurable)
 csm_namespace: "telemetry"
 
+# Offline pip paths for air-gapped CSI volume exporter deployment
+# Read from telemetry_packages_config.telemetry_packages (populated from telemetry_packages.yml)
+# pip install falls back to online if the offline path is unreachable
+offline_pip_module_path: "{{ telemetry_packages_config.telemetry_packages.offline_pip_module_path | default('') }}"
+pulp_server_ip: "{{ telemetry_packages_config.telemetry_packages.offline_pip_module_path | default('') | urlsplit('hostname') | default('localhost') }}"
+
 # Karavi Observability offline installer variables
 karavi_observability_git: "karavi-observability.tar.gz"
 karavi_helm_charts_git: "helm-charts.tar.gz"
@@ -42,6 +48,11 @@ csm_metrics_powerscale_resources:
 file_permissions_644: "0644"
 
 # Validation messages
+ps_csi_secret_path_missing_msg: >-
+  csi_powerscale_secret_path is required in telemetry_config.yml (powerscale_configurations section)
+  when telemetry_sources.powerscale.metrics_enabled is true.
+  Provide the path to the CSI PowerScale driver secret.yaml file containing isilonClusters.
+
 ps_helm_values_path_missing_msg: >-
   csm_observability_values_file_path is required in telemetry_config.yml when telemetry_sources.powerscale.metrics_enabled is true.
   Provide the path to your customized karavi-observability Helm values file.
@@ -76,7 +87,7 @@ ps_clusters_found_msg: >-
 
 ps_telemetry_prepared_msg: >-
   PowerScale telemetry files prepared on NFS share.
-  Deployment will occur during cloud-init on the control plane node.
+  Proceeding with karavi-observability Helm deployment.
 
 # CSI Volume Exporter Configuration
 # ============================================================================
@@ -89,7 +100,7 @@ csi_volume_exporter:
   service_account_name: "csi-volume-exporter"
   cluster_role_name: "csi-volume-exporter"
   cluster_role_binding_name: "csi-volume-exporter"
-  image: "{{ telemetry_registry['library/python'] | default('docker.io/library/python:3.11-slim') }}"
+  image: "{{ telemetry_registry.images.powerscale.python | default('docker.io/library/python:3.12-slim') }}"
   metrics_port: 9090
   scrape_interval: "30s"
   scrape_interval_seconds: 30
