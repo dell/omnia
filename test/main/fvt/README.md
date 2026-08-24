@@ -81,26 +81,12 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_OC_009 | `test_cli_help_repo_manager` | diagnostics/ | sanity | Verify omnia-cli help repo-manager shows domain help |
 | TC_OC_010 | `test_cli_help_discovery` | diagnostics/ | sanity | Verify omnia-cli help discovery shows domain help |
 | TC_OC_011 | `test_cli_unknown_command` | errors/ | sanity | Verify omnia-cli unknown command exits with error |
-| TC_OC_012 | `test_cli_logs_no_domain` | logs/ | sanity | Verify omnia-cli logs without domain shows error |
-| TC_OC_013 | `test_cli_logs_domain` | logs/ | sanity | Verify omnia-cli logs with domain runs |
+| TC_OC_012 | `test_cli_logs_help` | logs/ | sanity | Verify omnia-cli logs --help runs |
+| TC_OC_013 | `test_cli_logs_no_opt_omnia_log` | logs/ | sanity | Verify omnia-cli logs searches /var/log/omnia only |
 | TC_OC_014 | `test_cli_orchestrator` | diagnostics/ | sanity | Verify omnia-cli orchestrator runs |
 | TC_OC_015 | `test_cli_telemetry` | diagnostics/ | sanity | Verify omnia-cli telemetry runs |
 | TC_OC_016 | `test_cli_build_stream` | diagnostics/ | sanity | Verify omnia-cli build-stream runs |
 
 ---
 
-## nft (Non-Functional Tests)
-
-| TC ID | Test | File | Markers | Description |
-|-------|------|------|---------|-------------|
-| NFT_MA_001 | `test_setup_venv_performance` | nft/test_performance.py | nft | --setup-venv --deps-only completes within 300s threshold |
-| NFT_MA_002 | `test_init_performance` | nft/test_performance.py | nft | --init completes within 120s threshold |
-| NFT_MA_003 | `test_setup_venv_idempotent` | nft/test_idempotency.py | nft | Running --setup-venv twice produces no errors; venv and env file stable |
-| NFT_MA_004 | `test_init_idempotent` | nft/test_idempotency.py | nft | Running --init twice leaves domain log dirs and input files unchanged |
-| NFT_MA_005 | `test_check_deps_performance` | nft/test_performance.py | nft | --check-deps completes within 10s threshold |
-| NFT_MA_006 | `test_env_file_permissions` | nft/test_permissions.py | nft | /etc/omnia/omnia.env has 0644 permissions |
-| NFT_MA_007 | `test_cli_status_performance` | nft/test_cli_performance.py | nft | omnia-cli status completes within 30s threshold |
-| NFT_MA_008 | `test_omnia_sh_executable` | nft/test_permissions.py | nft | omnia.sh is executable |
-| NFT_MA_009 | `test_omnia_cli_executable` | nft/test_permissions.py | nft | omnia-cli is executable |
-| NFT_MA_010 | `test_domain_init_scripts_executable` | nft/test_permissions.py | nft | All domain-init.sh scripts are executable |
-| NFT_MA_011 | `test_cli_help_performance` | nft/test_cli_performance.py | nft | omnia-cli help completes within 5s threshold |
+> **NFT tests** are documented separately in [`nft/README.md`](../nft/README.md) (11 tests: performance, idempotency, permissions).

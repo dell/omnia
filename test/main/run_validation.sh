@@ -534,7 +534,7 @@ case "$COMMAND" in
         export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
 
         # Check if scenario has deploy tests (grep for @pytest.mark.deploy)
-        has_deploy=$(grep -rl '@pytest\.mark\.deploy\|pytest\.mark\.deploy' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1)
+        has_deploy=$(grep -rl '@pytest\.mark\.deploy\|pytest\.mark\.deploy' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1 || true)
 
         # Step 1: Deploy (skip if no deploy-marked tests in this scenario)
         if [[ -n "$has_deploy" ]]; then

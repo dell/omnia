@@ -1,7 +1,8 @@
-# Omnia Main — Functional Verification Tests (FVT)
+# Omnia Main — Test Automation (FVT + NFT)
 
-Automated FVT for `omnia.sh` and `omnia-cli` — verifies environment setup,
-domain initialization, and CLI argument handling.
+Automated FVT and NFT for `omnia.sh` and `omnia-cli` — verifies environment
+setup, domain initialization, CLI argument handling, performance, idempotency,
+and file permissions.
 
 ## Quick Start
 
@@ -48,7 +49,7 @@ test/main/
 │       ├── __init__.py
 │       └── omnia_main_msgs.py
 ├── fvt/                     # Functional Verification Tests
-│   ├── README.md            # Test case registry (FVT + NFT)
+│   ├── README.md            # FVT test case registry
 │   ├── setup/               # omnia.sh --setup-venv tests
 │   │   ├── test_deploy_setup.py
 │   │   ├── environment/     # Env file, variable, and source validation tests
@@ -92,7 +93,27 @@ test/main/
 | `sanity` | Baseline must-pass tests |
 | `functional` | Functional verification tests |
 | `deploy` | Script execution tests |
-| `nft` | Non-functional tests (performance, idempotency) |
+| `nft` | Non-functional tests (performance, idempotency, permissions) |
+
+### Filtering by Marker
+
+```bash
+# Run only sanity tests across all scenarios
+./run_validation.sh all verify --marker sanity
+
+# Run only sanity tests for a specific scenario
+./run_validation.sh setup verify --marker sanity
+./run_validation.sh cli verify --marker sanity
+
+# Run only NFT-marked tests
+./run_validation.sh nft verify --marker nft
+
+# Combine markers with AND (all must match)
+./run_validation.sh setup verify --marker "sanity+functional"
+
+# Combine markers with OR (any must match)
+./run_validation.sh setup verify --marker "sanity,functional"
+```
 
 ## Configuration
 
