@@ -41,6 +41,55 @@ from pathlib import Path
 from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List
 
+
+def _resolve_omnia_env():
+    """Read /etc/omnia/omnia.env and resolve variable references.
+
+    systemd ``EnvironmentFile`` does not expand ``${VAR}`` references,
+    so values like ``CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/...``
+    remain literal.  This function parses the file, resolves references
+    against already-set environment variables (including those set by the
+    systemd ``Environment=`` directives), and exports the resolved values
+    into ``os.environ``.
+
+    Called once at module load time, before any playbook is executed.
+    """
+    env_file = Path("/etc/omnia/omnia.env")
+    if not env_file.exists():
+        return
+
+    # Collect raw key=value pairs (preserve order for forward references)
+    raw_vars: Dict[str, str] = {}
+    try:
+        with open(env_file, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                raw_vars[key] = value
+    except OSError:
+        return
+
+    # Build a resolution context: start with current os.environ, then
+    # layer the raw vars on top so later entries can reference earlier ones.
+    context: Dict[str, str] = dict(os.environ)
+    for key, value in raw_vars.items():
+        resolved = os.path.expandvars(value)
+        # os.path.expandvars uses os.environ; update context progressively
+        os.environ[key] = resolved
+        context[key] = resolved
+
+    # Log key variables for debugging (stderr goes to journalctl)
+    catalog = os.environ.get("CATALOG_FILE_PATH", "<not set>")
+    print(f"INFO: [omnia.env] CATALOG_FILE_PATH={catalog}", file=sys.stderr)
+
+
+_resolve_omnia_env()
+
+
 # Implicit logging utilities for secure logging
 def log_secure_info(
     level: str,
@@ -807,9 +856,8 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     log_secure_info("info", "Added extra_vars with job_id for playbook", job_id)
 
     # Add tags if present (for selective playbook execution)
-    # TODO: Temporary workaround for cross-domain playbook invocation.
-    # Once build_stream fully integrates with repo_manager's credential collection,
-    # this tag filtering logic can be removed.
+    # Note: Tags are used to skip credential collection in domain playbooks
+    # since credentials are pre-configured via domain prepare step (prerequisite).
     if "tags" in request_data and request_data["tags"]:
         tags_str = str(request_data["tags"])
         cmd.extend(["--tags", tags_str])

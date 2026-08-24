@@ -29,10 +29,9 @@
 # This playbook orchestrates the full BuildStream domain:
 #   1. Upgrade check + input directory resolution (shared utilities)
 #   2. Build Stream credential validation, creation, and update
-#   3. Domain credential collection (repo_manager, image_build_manager)
-#   4. Postgres + GitLab + BSM deployment (prepare_build_stream)
-#   5. GitLab CI/CD configuration (setup_gitlab)
-#   6. Output: build_stream_status.yml
+#   3. Postgres + GitLab + BSM deployment (prepare_build_stream)
+#   4. GitLab CI/CD configuration (setup_gitlab)
+#   5. Output: build_stream_status.yml
 #
 # Input contract:  see INPUT_CONTRACT.md
 # Output contract: see OUTPUT_CONTRACT.md
@@ -50,14 +49,6 @@
   connection: local
   roles:
     - credential_utility
-  tags: always
-
-# Collect credentials for downstream domains so their playbooks can run
-# non-interactively when invoked by the GitLab CI/CD pipeline.
-# Credentials are placed at each domain's runtime input directory and
-# are NOT pushed to GitLab.
-- name: Collect domain credentials (repo_manager, image_build_manager)
-  ansible.builtin.import_playbook: credentials/get_domain_credentials.yml
   tags: always
 
 - name: Prepare BuildStream infrastructure (Postgres + GitLab + BSM)

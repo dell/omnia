@@ -28,7 +28,11 @@ RestartSec={{ watcher_restart_sec }}
 StandardOutput=journal
 StandardError=journal
 
-# Environment variables
+# Load Omnia environment (CATALOG_FILE_PATH, OMNIA_DATA_PATH, etc.)
+# This file is updated by the BSM API when the GitLab pipeline uploads omnia.env.
+EnvironmentFile=-/etc/omnia/omnia.env
+
+# Environment variables (override omnia.env defaults for watcher-specific settings)
 Environment="PLAYBOOK_QUEUE_BASE={{ build_stream_watcher_playbook_queue_base }}"
 Environment="NFS_SHARE_PATH={{ oim_shared_path }}"
 Environment="POLL_INTERVAL_SECONDS={{ watcher_poll_interval_seconds }}"

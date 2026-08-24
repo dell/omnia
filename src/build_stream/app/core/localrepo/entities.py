@@ -38,11 +38,10 @@ class PlaybookRequest:
         timeout: Execution timeout configuration.
         submitted_at: Request submission timestamp.
         request_id: Unique request identifier.
-        tags: Optional Ansible tags to filter playbook execution (e.g., "validate,deploy,download,status").
+        tags: Optional Ansible tags to filter playbook execution (e.g., "validate,download,status").
 
-    TODO: The `tags` field is a temporary addition for cross-domain playbook invocation.
-    Once build_stream fully integrates with repo_manager's credential collection, this field
-    can be removed and playbooks can be invoked without tag filtering.
+    Note: Tags are used to skip credential collection in domain playbooks since
+    credentials are pre-configured via domain prepare step (prerequisite to BuildStream).
     """
 
     job_id: str

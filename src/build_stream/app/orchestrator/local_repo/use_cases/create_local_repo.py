@@ -291,11 +291,9 @@ class CreateLocalRepoUseCase:
     ) -> PlaybookRequest:
         """Build a PlaybookRequest entity from the command.
 
-        TODO: Temporary workaround - tags are set to skip credential collection
-        since build_stream handles all credential collection centrally via
-        get_domain_credentials.yml. Once repo_manager is fully integrated with
-        build_stream's centralized credential collection, remove the `tags` parameter
-        and revert to invoking repo_manager.yml without tag filtering.
+        Note: Tags are set to skip credential collection since repo_manager
+        credentials are expected to be pre-configured via domain prepare step
+        (prerequisite to BuildStream execution).
         """
         return PlaybookRequest(
             job_id=str(command.job_id),
@@ -309,7 +307,7 @@ class CreateLocalRepoUseCase:
             timeout=ExecutionTimeout.default(),
             submitted_at=datetime.now(timezone.utc).isoformat() + "Z",
             request_id=str(self._uuid_generator.generate()),
-            tags="validate,deploy,download,status",
+            tags="validate,download,status",
         )
 
     def _submit_to_queue(
