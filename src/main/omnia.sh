@@ -1176,6 +1176,7 @@ main() {
                 fi
                 if [ -f "$completion_src" ]; then
                     cp "$completion_src" /etc/bash_completion.d/omnia-cli
+                    source /etc/bash_completion.d/omnia-cli
                     echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
                 fi
             else

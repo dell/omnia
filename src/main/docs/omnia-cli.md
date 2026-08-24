@@ -4,11 +4,19 @@ The `omnia-cli` script provides status checking and diagnostics for all Omnia do
 
 ## Install to PATH
 
-To use `omnia-cli` from anywhere on the system:
+`omnia-cli` is installed automatically during `./omnia.sh -s` to `/usr/local/bin/omnia-cli`. Bash completion is installed to `/etc/bash_completion.d/omnia-cli`.
 
+To skip the install:
+```bash
+./omnia.sh -s --skip-omnia-cli
+```
+
+Manual install (if needed):
 ```bash
 sudo cp omnia-cli /usr/local/bin/
 sudo chmod +x /usr/local/bin/omnia-cli
+sudo cp omnia-cli-completion.bash /etc/bash_completion.d/omnia-cli
+source /etc/bash_completion.d/omnia-cli  # or re-login
 ```
 
 After installation, run `omnia-cli` directly without `./` or path prefix:

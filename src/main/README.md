@@ -30,11 +30,11 @@ vi omnia.env                         # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
 # 2. Set up env + venv + copy input files (one-time)
 #    Installs env to /etc/omnia/omnia.env (system-wide)
 #    Creates /etc/profile.d/omnia-env.sh (auto-loaded on login)
+#    Installs omnia-cli + bash completion to /usr/local/bin/ and /etc/bash_completion.d/
 ./omnia.sh -s
 
-# 3. Install omnia-cli to PATH (optional, one-time)
-sudo cp omnia-cli /usr/local/bin/
-sudo chmod +x /usr/local/bin/omnia-cli
+# 3. (Optional) Skip omnia-cli install during setup
+./omnia.sh -s --skip-omnia-cli
 
 # 4. Check domain status
 omnia-cli status
@@ -50,9 +50,10 @@ omnia-cli status
 ## Setup (`omnia.sh`)
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog
+./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog + omnia-cli
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
 ./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
 ./omnia.sh --init                  # Init all domains (stage input files + deps)
 ./omnia.sh -i telemetry            # Init single domain
@@ -77,6 +78,7 @@ omnia-cli status
    - Creates Ansible log directories
    - Copies input files from flat `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 7. Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
+8. Installs `omnia-cli` to `/usr/local/bin/omnia-cli` and bash completion to `/etc/bash_completion.d/omnia-cli` (use `--skip-omnia-cli` to suppress)
 
 After setup, all new login shells automatically have the environment variables.
 Step 6 ensures each domain's dependencies are installed and Ansible roles read
@@ -137,11 +139,18 @@ omnia-cli vault edit <domain>             # Edit domain credentials (Vault)
 
 ### Install to PATH
 
+`omnia-cli` is installed automatically during `./omnia.sh -s` to `/usr/local/bin/omnia-cli`. Bash completion is installed to `/etc/bash_completion.d/omnia-cli`.
+
+To skip the install:
+```bash
+./omnia.sh -s --skip-omnia-cli
+```
+
+Manual install (if needed):
 ```bash
 sudo cp omnia-cli /usr/local/bin/
 sudo chmod +x /usr/local/bin/omnia-cli
-# Now use from anywhere:
-omnia-cli status
+sudo cp omnia-cli-completion.bash /etc/bash_completion.d/omnia-cli
 ```
 
 ---
