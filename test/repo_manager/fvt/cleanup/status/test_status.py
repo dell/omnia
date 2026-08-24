@@ -33,6 +33,14 @@ from library.messages import (
 @pytest.mark.order(100)
 def test_deploy_cleanup(host):
     """TC_RM_CL_000: Deploy repo_manager --tags cleanup."""
+    # Check if cleanup input configuration exists
+    input_path = "/opt/omnia/repo_manager/input/project_default"
+    cleanup_input = f"{input_path}/cleanup_input.yml"
+    
+    result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
+    if "missing" in result.stdout:
+        pytest.skip("Cleanup input configuration not found - cleanup test skipped")
+    
     tl = TestLogger(TEST_NAMES["pulp_container_removed"], "TC_RM_CL_000")
     result = run_playbook(tag="cleanup")
 
@@ -49,6 +57,14 @@ def test_deploy_cleanup(host):
 @pytest.mark.order(101)
 def test_pulp_container_removed(host):
     """TC_RM_CL_001: Verify Pulp container removed."""
+    # Skip if cleanup input doesn't exist
+    input_path = "/opt/omnia/repo_manager/input/project_default"
+    cleanup_input = f"{input_path}/cleanup_input.yml"
+    
+    result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
+    if "missing" in result.stdout:
+        pytest.skip("Cleanup input configuration not found - cleanup test skipped")
+    
     tl = TestLogger(TEST_NAMES["pulp_container_removed"], "TC_RM_CL_001")
     result = check_pulp_container_removed(host)
 
@@ -65,6 +81,14 @@ def test_pulp_container_removed(host):
 @pytest.mark.order(102)
 def test_pulp_cli_removed(host):
     """TC_RM_CL_002: Verify Pulp CLI removed."""
+    # Skip if cleanup input doesn't exist
+    input_path = "/opt/omnia/repo_manager/input/project_default"
+    cleanup_input = f"{input_path}/cleanup_input.yml"
+    
+    result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
+    if "missing" in result.stdout:
+        pytest.skip("Cleanup input configuration not found - cleanup test skipped")
+    
     tl = TestLogger(TEST_NAMES["pulp_cli_removed"], "TC_RM_CL_002")
     result = check_pulp_cli_removed(host)
 
@@ -81,6 +105,14 @@ def test_pulp_cli_removed(host):
 @pytest.mark.order(103)
 def test_pulp_directories_removed(host):
     """TC_RM_CL_003: Verify Pulp directories removed."""
+    # Skip if cleanup input doesn't exist
+    input_path = "/opt/omnia/repo_manager/input/project_default"
+    cleanup_input = f"{input_path}/cleanup_input.yml"
+    
+    result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
+    if "missing" in result.stdout:
+        pytest.skip("Cleanup input configuration not found - cleanup test skipped")
+    
     tl = TestLogger(TEST_NAMES["pulp_directories_removed"], "TC_RM_CL_003")
     result = check_pulp_directories_removed(host)
 

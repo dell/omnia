@@ -11,7 +11,7 @@ All verification functions return a dict with keys:
 """
 
 from typing import Any, Dict
-import os
+import json
 import yaml
 
 from omnia_auto import load_test_config, run_on_host, run_playbook as _run_playbook
@@ -25,8 +25,6 @@ from ..vars.common_vars import (
     PULP_PORT,
     PULP_CLI_SYMLINK,
     PULP_CERTS_DIR,
-    PULP_SYSTEMD_UNIT,
-    PULP_YUM_REPO_FILE,
 )
 
 
@@ -137,7 +135,7 @@ def check_pulp_container_running(host) -> Dict[str, Any]:
         }
     return {
         "success": False,
-        "details": f"Container status: {result.stdout.strip()}",
+        "details": "Container status: {}".format(result.stdout.strip()),
         "error": "Pulp container is not running",
     }
 
@@ -401,11 +399,10 @@ def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
             "details": f"Exit code: {result.rc}",
             "error": "Pulp status command failed",
         }
-    
+
     try:
-        import json
         status_data = json.loads(result.stdout)
-        
+
         # Check key components based on actual Pulp status structure
         checks = {
             "database": status_data.get("database_connection", {}).get("connected", False),
@@ -414,7 +411,7 @@ def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
             "api_apps": len(status_data.get("online_api_apps", [])) > 0,
             "storage": status_data.get("storage", {}).get("total", 0) > 0,
         }
-        
+
         failed_checks = [k for k, v in checks.items() if not v]
         if failed_checks:
             return {
@@ -422,14 +419,14 @@ def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
                 "details": f"Failed components: {', '.join(failed_checks)}",
                 "error": "Pulp API health check failed for some components",
             }
-        
+
         # Get component counts for details
         details = f"Workers: {len(status_data.get('online_workers', []))}, " \
                   f"Content Apps: {len(status_data.get('online_content_apps', []))}, " \
                   f"API Apps: {len(status_data.get('online_api_apps', []))}, " \
                   f"DB Connected: {checks['database']}, " \
                   f"Storage: {status_data.get('storage', {}).get('total', 0) / (1024**3):.1f}GB"
-        
+
         return {
             "success": True,
             "details": details,
@@ -449,17 +446,17 @@ def check_software_download_status(host) -> Dict[str, Any]:
     log_path = "/opt/omnia/repo_manager/log/rhel/10.0"
     cmd = f"find {log_path} -name 'status.csv' -type f"
     result = run_on_host(host, cmd)
-    
+
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": False,
             "details": f"No status.csv files found in {log_path}",
             "error": "Software download status files missing",
         }
-    
+
     status_files = result.stdout.strip().split('\n')
     failed_downloads = []
-    
+
     for status_file in status_files:
         result = run_on_host(host, f"cat {status_file}")
         if result.rc == 0:
@@ -467,14 +464,14 @@ def check_software_download_status(host) -> Dict[str, Any]:
             for line in lines[1:]:  # Skip header
                 if "failed" in line.lower() or "error" in line.lower():
                     failed_downloads.append(f"{status_file}: {line}")
-    
+
     if failed_downloads:
         return {
             "success": False,
             "details": f"Found {len(failed_downloads)} failed downloads",
             "error": f"Failed downloads: {'; '.join(failed_downloads[:3])}",
         }
-    
+
     return {
         "success": True,
         "details": f"All software downloads successful ({len(status_files)} status files)",
@@ -488,18 +485,18 @@ def check_per_software_package_status(host) -> Dict[str, Any]:
     log_path = "/opt/omnia/repo_manager/log/rhel/10.0"
     cmd = f"find {log_path} -name 'status.csv' -type f"
     result = run_on_host(host, cmd)
-    
+
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": False,
             "details": f"No status.csv files found in {log_path}",
             "error": "Per-software status files missing",
         }
-    
+
     status_files = result.stdout.strip().split('\n')
     failed_packages = []
     total_packages = 0
-    
+
     for status_file in status_files:
         result = run_on_host(host, f"cat {status_file}")
         if result.rc == 0:
@@ -508,17 +505,19 @@ def check_per_software_package_status(host) -> Dict[str, Any]:
                 total_packages += 1
                 if "failed" in line.lower() or "error" in line.lower():
                     failed_packages.append(f"{status_file}: {line}")
-    
+
     if failed_packages:
         return {
             "success": False,
             "details": f"Found {len(failed_packages)} failed package downloads out of {total_packages}",
             "error": f"Failed packages: {'; '.join(failed_packages[:3])}",
         }
-    
+
     return {
         "success": True,
-        "details": f"All per-software packages successful ({total_packages} packages across {len(status_files)} status files)",
+        "details": "All per-software packages successful ({} packages across {} status files)".format(
+            total_packages, len(status_files)
+        ),
         "error": "",
     }
 
@@ -533,7 +532,7 @@ def check_pulp_repositories_synced(host) -> Dict[str, Any]:
             "details": "Could not read repo_status.yml",
             "error": repo_status["error"],
         }
-    
+
     # Check if repositories exist in Pulp by checking their URLs are accessible
     repo_data = repo_status["details"]
     if "repositories" not in repo_data:
@@ -542,20 +541,20 @@ def check_pulp_repositories_synced(host) -> Dict[str, Any]:
             "details": "No repositories found in repo_status.yml",
             "error": "Repository data missing",
         }
-    
+
     # Check if at least some repositories are configured
     total_repos = 0
-    for os_version, archs in repo_data["repositories"].items():
-        for arch, repos in archs.items():
+    for _os_version, archs in repo_data["repositories"].items():
+        for _arch, repos in archs.items():
             total_repos += len(repos)
-    
+
     if total_repos == 0:
         return {
             "success": False,
             "details": "No repositories configured in repo_status.yml",
             "error": "No repositories found",
         }
-    
+
     return {
         "success": True,
         "details": f"Found {total_repos} repositories configured in repo_status.yml",
@@ -573,7 +572,7 @@ def check_pulp_distributions_published(host) -> Dict[str, Any]:
             "details": "Could not read repo_status.yml",
             "error": repo_status["error"],
         }
-    
+
     repo_data = repo_status["details"]
     if "repositories" not in repo_data:
         return {
@@ -581,24 +580,24 @@ def check_pulp_distributions_published(host) -> Dict[str, Any]:
             "details": "No repositories found in repo_status.yml",
             "error": "Repository data missing",
         }
-    
+
     # Check if repositories have URLs (indicates they're published)
     total_repos = 0
     repos_with_urls = 0
-    for os_version, archs in repo_data["repositories"].items():
-        for arch, repos in archs.items():
-            for repo_name, repo_info in repos.items():
+    for _os_version, archs in repo_data["repositories"].items():
+        for _arch, repos in archs.items():
+            for _repo_name, repo_info in repos.items():
                 total_repos += 1
                 if isinstance(repo_info, dict) and "url" in repo_info:
                     repos_with_urls += 1
-    
+
     if repos_with_urls == 0:
         return {
             "success": False,
             "details": f"No repositories have URLs (0/{total_repos})",
             "error": "No published repositories found",
         }
-    
+
     return {
         "success": True,
         "details": f"Found {repos_with_urls}/{total_repos} repositories with URLs (published)",
@@ -612,17 +611,17 @@ def check_container_repos_synced(host) -> Dict[str, Any]:
     log_path = "/opt/omnia/repo_manager/log/rhel/10.0"
     cmd = f"find {log_path} -name 'status.csv' -type f"
     result = run_on_host(host, cmd)
-    
+
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": False,
             "details": f"No status.csv files found in {log_path}",
             "error": "Container status files missing",
         }
-    
+
     status_files = result.stdout.strip().split('\n')
     container_images = []
-    
+
     for status_file in status_files:
         result = run_on_host(host, f"cat {status_file}")
         if result.rc == 0:
@@ -630,27 +629,27 @@ def check_container_repos_synced(host) -> Dict[str, Any]:
             for line in lines[1:]:  # Skip header
                 if "image" in line.lower():
                     container_images.append(line)
-    
+
     if len(container_images) == 0:
         return {
             "success": False,
             "details": "No container images found in status files",
             "error": "No container repositories synced",
         }
-    
+
     # Check if all container images show Success status
     failed_containers = []
     for line in container_images:
         if "failed" in line.lower() or "error" in line.lower():
             failed_containers.append(line)
-    
+
     if failed_containers:
         return {
             "success": False,
             "details": f"Found {len(failed_containers)} failed container downloads",
             "error": f"Failed containers: {'; '.join(failed_containers[:3])}",
         }
-    
+
     return {
         "success": True,
         "details": f"All {len(container_images)} container repositories synced successfully",
@@ -668,7 +667,7 @@ def check_file_repos_synced(host) -> Dict[str, Any]:
             "details": "Could not read repo_status.yml",
             "error": repo_status["error"],
         }
-    
+
     repo_data = repo_status["details"]
     if "file_repos" not in repo_data:
         return {
@@ -676,20 +675,20 @@ def check_file_repos_synced(host) -> Dict[str, Any]:
             "details": "No file_repos found in repo_status.yml",
             "error": "File repository data missing",
         }
-    
+
     # Check if file repos are configured
     total_file_repos = 0
-    for arch, file_types in repo_data["file_repos"].items():
-        for file_type, repos in file_types.items():
+    for _arch, file_types in repo_data["file_repos"].items():
+        for _file_type, repos in file_types.items():
             total_file_repos += len(repos)
-    
+
     if total_file_repos == 0:
         return {
             "success": False,
             "details": "No file repositories configured in repo_status.yml",
             "error": "No file repositories found",
         }
-    
+
     return {
         "success": True,
         "details": f"Found {total_file_repos} file repositories configured in repo_status.yml",
@@ -706,7 +705,7 @@ def check_pulp_content_accessible(host) -> Dict[str, Any]:
             "details": "Could not read repo_status.yml",
             "error": repo_status["error"],
         }
-    
+
     repo_data = repo_status["details"]
     if "repositories" not in repo_data:
         return {
@@ -714,13 +713,13 @@ def check_pulp_content_accessible(host) -> Dict[str, Any]:
             "details": "No repositories found in repo_status.yml",
             "error": "Repository data missing",
         }
-    
+
     # Check if at least one repository URL is accessible
     accessible_repos = 0
     total_repos = 0
-    for os_version, archs in repo_data["repositories"].items():
-        for arch, repos in archs.items():
-            for repo_name, repo_info in repos.items():
+    for _os_version, archs in repo_data["repositories"].items():
+        for _arch, repos in archs.items():
+            for _repo_name, repo_info in repos.items():
                 total_repos += 1
                 if isinstance(repo_info, dict) and "url" in repo_info:
                     # Try to access the repository URL
@@ -728,14 +727,14 @@ def check_pulp_content_accessible(host) -> Dict[str, Any]:
                     result = run_on_host(host, f"curl -k -s -o /dev/null -w '%{{http_code}}' {repo_url}/repomd.xml")
                     if result.rc == 0 and ("200" in result.stdout or "404" in result.stdout):
                         accessible_repos += 1
-    
+
     if accessible_repos == 0:
         return {
             "success": False,
             "details": f"No repositories accessible via HTTPS (0/{total_repos})",
             "error": "No accessible repositories found",
         }
-    
+
     return {
         "success": True,
         "details": f"Found {accessible_repos}/{total_repos} repositories accessible via HTTPS",
@@ -752,20 +751,20 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
         "/opt/omnia/repo_manager/input/project_default/software_config.json",
         "/opt/omnia/repo_manager/input/software_config.json",
     ]
-    
+
     config_path = None
     for path in possible_paths:
         result = _cmd_file_exists(host, path)
         if result.rc == 0 and "exists" in result.stdout:
             config_path = path
             break
-    
+
     if not config_path:
         # If software_config.json doesn't exist, check if we have status.csv files with package info
         log_path = "/opt/omnia/repo_manager/log/rhel/10.0"
         cmd = f"find {log_path} -name 'status.csv' -type f"
         result = run_on_host(host, cmd)
-        
+
         if result.rc == 0 and result.stdout.strip():
             status_files = result.stdout.strip().split('\n')
             total_packages = 0
@@ -774,20 +773,20 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
                 if result.rc == 0:
                     lines = result.stdout.strip().split('\n')
                     total_packages += len(lines) - 1  # Exclude header
-            
+
             if total_packages > 0:
                 return {
                     "success": True,
                     "details": f"Found {total_packages} packages in status.csv files (software_config.json not required)",
                     "error": "",
                 }
-        
+
         return {
             "success": False,
             "details": "software_config.json not found and no status.csv files available",
             "error": "Software configuration data missing",
         }
-    
+
     # Read and parse software_config.json
     result = run_on_host(host, f"cat {config_path}")
     if result.rc != 0:
@@ -796,9 +795,8 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
             "details": f"Could not read {config_path}",
             "error": "Failed to read software_config.json",
         }
-    
+
     try:
-        import json
         software_config = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         return {
@@ -806,7 +804,7 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
             "details": f"Invalid JSON in {config_path}",
             "error": f"Failed to parse software_config.json: {str(exc)}",
         }
-    
+
     # Check if at least some software packages are defined
     if "software" not in software_config:
         return {
@@ -814,21 +812,21 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
             "details": "No software packages defined in software_config.json",
             "error": "Software packages missing",
         }
-    
+
     total_packages = 0
-    for arch, packages in software_config["software"].items():
-        for package in packages:
+    for _arch, packages in software_config["software"].items():
+        for _package in packages:
             total_packages += 1
-    
+
     if total_packages == 0:
         return {
             "success": False,
             "details": "No software packages found in software_config.json",
             "error": "No packages defined",
         }
-    
+
     return {
         "success": True,
-        "details": f"Found {total_packages} software packages defined in software_config.json",
+        "details": "Found {} software packages defined in software_config.json".format(total_packages),
         "error": "",
     }
