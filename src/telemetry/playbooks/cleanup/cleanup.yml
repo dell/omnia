@@ -122,9 +122,13 @@
 # ---------------------------------------------------------------------------
 # Play 3: Sink cleanups — Kafka, VictoriaMetrics, VictoriaLogs
 # ---------------------------------------------------------------------------
-- name: "Cleanup Kafka"
-  import_playbook: sinks/cleanup_kafka.yml
-  tags: [cleanup_kafka]
+- name: "Telemetry Cleanup | Remove sinks"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../../vars/cleanup.yml
+  tags: [cleanup, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]
+  tasks:
     # -- Pre-sink guard: verify source pods have terminated --
     - name: "Check for remaining source pods before sink cleanup"
       vars:
@@ -177,7 +181,7 @@
       when: hostvars['localhost']['_cleanup_all'] | bool
 
 # ---------------------------------------------------------------------------
-# Play 3: Final verification and summary
+# Play 4: Final verification and summary
 # ---------------------------------------------------------------------------
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
