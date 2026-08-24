@@ -12,7 +12,79 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Telemetry test module — vars sub-package."""
+"""
+Telemetry — Variables
 
-from library.vars.common_vars import *  # noqa: F401,F403
-from library.vars.test_case_vars import TEST_CASES  # noqa: F401
+Common constants, paths, component names, and command templates.
+"""
+
+from .common_vars import (
+    MODULE_ROOT,
+    MONOREPO_ROOT,
+    SRC_INPUT_DIR,
+    DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    TELEMETRY_NAMESPACE,
+    PLAYBOOK_ENTRY_POINT,
+    PLAYBOOK_WORKDIR,
+    PLAYBOOK_TAGS,
+    IDRAC_STS_NAME,
+    IDRAC_SERVICE_NAME,
+    IDRAC_CONTAINERS,
+    IDRAC_KAFKA_TOPIC,
+    LDMS_AGG_STS_NAME,
+    LDMS_STORE_NAME,
+    LDMS_KAFKA_TOPIC,
+    VECTOR_LDMS_APP_NAME,
+    VECTOR_OME_APP_NAME,
+    OME_KAFKA_USER,
+    KAFKA_CR_NAME,
+    VM_POD_PREFIXES,
+    VL_POD_PREFIXES,
+    VMAGENT_POD_PREFIX,
+    VLAGENT_POD_PREFIX,
+    TELEMETRY_SOURCES,
+    TELEMETRY_SINKS,
+    IPV4_PATTERN,
+    REQUIRED_CONFIG_FIELDS,
+    REQUIRED_SRC_FILES,
+    CMDS,
+)
+
+from .test_case_vars import TEST_CASES
+
+__all__ = [
+    "MODULE_ROOT",
+    "MONOREPO_ROOT",
+    "SRC_INPUT_DIR",
+    "DOMAIN_NAME",
+    "ENV_OMNIA_DATA_PATH",
+    "ENV_OMNIA_PROJECT_NAME",
+    "TELEMETRY_NAMESPACE",
+    "PLAYBOOK_ENTRY_POINT",
+    "PLAYBOOK_WORKDIR",
+    "PLAYBOOK_TAGS",
+    "IDRAC_STS_NAME",
+    "IDRAC_SERVICE_NAME",
+    "IDRAC_CONTAINERS",
+    "IDRAC_KAFKA_TOPIC",
+    "LDMS_AGG_STS_NAME",
+    "LDMS_STORE_NAME",
+    "LDMS_KAFKA_TOPIC",
+    "VECTOR_LDMS_APP_NAME",
+    "VECTOR_OME_APP_NAME",
+    "OME_KAFKA_USER",
+    "KAFKA_CR_NAME",
+    "VM_POD_PREFIXES",
+    "VL_POD_PREFIXES",
+    "VMAGENT_POD_PREFIX",
+    "VLAGENT_POD_PREFIX",
+    "TELEMETRY_SOURCES",
+    "TELEMETRY_SINKS",
+    "IPV4_PATTERN",
+    "REQUIRED_CONFIG_FIELDS",
+    "REQUIRED_SRC_FILES",
+    "CMDS",
+    "TEST_CASES",
+]

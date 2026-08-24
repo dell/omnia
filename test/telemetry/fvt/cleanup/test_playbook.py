@@ -13,53 +13,34 @@
 # limitations under the License.
 
 """
-Telemetry Deploy — Playbook Execution.
+Telemetry Cleanup — Playbook Execution.
 
 Test cases:
-    TC_DP_001: Deploy telemetry (full stack, no tags)
-    TC_DP_002: Deploy telemetry (--tags deploy)
+    TC_CL_001: Deploy telemetry (--tags cleanup)
 """
-
-import os
 
 import pytest
 
-from library.functions import TestLogger, run_playbook
+from library.functions import TestLogger
+
 from library.vars.test_case_vars import TEST_CASES as TC
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
-
-
-def _get_deploy_tag():
-    """Get deploy tag from OMNIA_DEPLOY_TAG env var.
-
-    When run_validation.sh executes with a specific tag (e.g. deploy),
-    it sets OMNIA_DEPLOY_TAG so the test knows which ansible tag to use.
-    When empty, the playbook runs without tags (full stack).
-    """
-    return os.environ.get("OMNIA_DEPLOY_TAG", "")
+from library.functions import run_playbook
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_telemetry(host):
-    """Deploy telemetry playbook with the configured tag."""
-    tag = _get_deploy_tag()
-    if tag:
-        tc = TC["deploy_deploy"]
-        tl = TestLogger(tc["title"], tc["id"])
-        tl.check(f"Running telemetry playbook --tags {tag}")
-        result = run_playbook(tag=tag)
-        tag_label = tag
-    else:
-        tc = TC["deploy_telemetry"]
-        tl = TestLogger(tc["title"], tc["id"])
-        tl.check("Running telemetry playbook (full stack)")
-        result = run_playbook()
-        tag_label = "(none)"
+def test_deploy_cleanup(host):
+    """TC_CL_001: Deploy telemetry (--tags cleanup)."""
+    tc = TC["deploy_cleanup"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Running telemetry playbook --tags cleanup")
+    result = run_playbook(tag="cleanup")
 
     if result["success"]:
         tl.passed(
@@ -79,6 +60,6 @@ def test_deploy_telemetry(host):
 
     assert result["success"], ASSERT_MSGS["playbook_failed"].format(
         playbook="telemetry.yml",
-        tag=tag_label,
+        tag="cleanup",
         rc=result["rc"],
     )

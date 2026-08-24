@@ -13,183 +13,233 @@
 # limitations under the License.
 
 """
-Telemetry — Centralized Log and Assert Messages.
+Telemetry — Log and Assertion Messages.
 
-All user-facing messages used in test output and assertions.
-Test files import these instead of hardcoding strings.
+Centralized message templates for consistent test output.
 """
 
-# =============================================================================
-# LOG MESSAGES (for TestLogger.passed / .failed / .check)
-# =============================================================================
-
+# --- Log Messages ---
 TEST_LOG_MSGS = {
-    # ── Precheck ──────────────────────────────────────────────────────────
-    "precheck_passed": "Telemetry precheck playbook completed successfully",
-    "precheck_failed": "Telemetry precheck playbook failed",
-    "kube_vip_defined": "kube_vip is defined: {kube_vip}",
-    "kube_vip_not_defined": "kube_vip is not defined in telemetry_config.yml",
-    "kube_vip_reachable": "kube_vip {kube_vip} is reachable (ping + SSH)",
-    "kube_vip_not_reachable": "kube_vip {kube_vip} is not reachable",
-    "ping_ok": "Ping to {host} succeeded",
-    "ping_failed": "Ping to {host} failed",
-    "ssh_ok": "SSH to {host} succeeded",
-    "ssh_failed": "SSH to {host} failed",
-    "control_plane_ready": "All {count} control plane nodes are Ready",
-    "control_plane_not_ready": (
-        "{not_ready} of {total} control plane nodes are NOT Ready"
-    ),
-    "workers_ready": "Worker nodes meet readiness threshold ({ready}/{total})",
-    "workers_not_ready": (
-        "Worker nodes below readiness threshold ({ready}/{total})"
-    ),
-    "pods_healthy": "All {count} pods (outside telemetry ns) are healthy",
-    "pods_unhealthy": "{unhealthy} of {total} pods are NOT healthy",
-    "kubectl_available": "kubectl is available on kube_vip",
-    "kubectl_not_available": "kubectl is not available on kube_vip",
+    # Playbook
+    "playbook_success": "Playbook completed in {duration}",
+    "playbook_failed": "Playbook failed (rc={rc}, duration={duration})",
 
-    # ── Validate ──────────────────────────────────────────────────────────
-    "validate_passed": "Telemetry validation playbook completed successfully",
-    "validate_failed": "Telemetry validation playbook failed",
-    "file_exists": "{filename} exists on target at {path}",
-    "file_missing": "{filename} NOT found on target at {path}",
-    "l1_valid": "L1 schema validation passed for all input files",
-    "l1_invalid": "L1 schema validation failed",
-    "l2_valid": "L2 logic validation passed",
-    "l2_invalid": "L2 logic validation failed",
+    # Pods
+    "pods_running": "{component}: {count}/{expected} pods running",
+    "pods_not_running": "{component}: only {running}/{expected} pods running",
 
-    # ── Deploy ────────────────────────────────────────────────────────────
-    "deploy_passed": "Telemetry deploy playbook completed successfully",
-    "deploy_failed": "Telemetry deploy playbook failed",
+    # Containers
+    "containers_ready": "Pod {pod}: all {count} containers ready",
+    "containers_not_ready": "Pod {pod}: containers not ready: {not_ready}",
 
-    # ── Sinks ─────────────────────────────────────────────────────────────
-    "pods_running": "All {component} pods are running ({count}/{expected})",
-    "pods_not_running": (
-        "{component} pods not fully running ({running}/{expected})"
-    ),
-    "pvc_size_match": "PVC sizes match config: {size}",
-    "pvc_size_mismatch": "PVC size mismatch detected",
-    "tls_secret_exists": "TLS secret '{secret}' exists in {namespace}",
-    "tls_secret_missing": "TLS secret '{secret}' NOT found in {namespace}",
-    "health_ok": "{component} health endpoint responded OK",
-    "health_failed": "{component} health endpoint did not respond",
-    "services_ok": "{component} services have endpoints",
-    "services_missing": "{component} services missing endpoints",
-    "kafka_topics_ok": "Expected Kafka topics found: {topics}",
-    "kafka_topics_missing": "Kafka topics missing: {missing}",
+    # Topics
+    "topic_exists": "Kafka topic '{topic}' exists and is ready",
+    "topic_missing": "Kafka topic '{topic}' not found or not ready",
+    "topic_ready": "Kafka topic '{topic}' Ready condition: {status}",
 
-    # ── Sources ────────────────────────────────────────────────────────────
-    "containers_ready": "All containers in pod '{pod}' are ready ({count} containers)",
-    "containers_not_ready": (
-        "Containers not ready in pod '{pod}': {not_ready}"
-    ),
-    "topic_exists": "Kafka topic '{topic}' exists",
-    "topic_missing": "Kafka topic '{topic}' NOT found",
+    # Services
+    "services_ok": "{component} service exists",
+    "services_missing": "{component} service not found",
 
-    # ── Cleanup ───────────────────────────────────────────────────────────
-    "cleanup_passed": "Telemetry cleanup playbook completed successfully",
-    "cleanup_failed": "Telemetry cleanup playbook failed",
-    "component_cleaned": "{component} resources removed successfully",
-    "component_not_cleaned": "{component} resources still present after cleanup",
-    "no_pods_remaining": "No pods remain in telemetry namespace",
-    "pods_remaining": "{count} pods still present in telemetry namespace",
-    "no_pvcs_remaining": "No PVCs remain in telemetry namespace",
-    "pvcs_remaining": "{count} PVCs still present in telemetry namespace",
+    # Health
+    "health_ok": "{component} health check passed",
+    "health_failed": "{component} health check failed",
+
+    # Kafka cluster
+    "kafka_ready": "Kafka cluster is Ready",
+    "kafka_not_ready": "Kafka cluster is not Ready: {status}",
+
+    # Env vars
+    "env_vars_ok": "All required omnia.env variables present",
+    "env_vars_missing": "{count} omnia.env variable(s) missing",
+
+    # K8s nodes
+    "nodes_ready": "All {count} K8s nodes are Ready",
+    "nodes_not_ready": "{not_ready_count} node(s) not Ready",
+
+    # Cleanup
+    "cleanup_pods_ok": "All telemetry pods removed",
+    "cleanup_pods_remaining": "{count} pod(s) still running after cleanup",
+    "cleanup_topics_ok": "All Kafka topics removed",
+    "cleanup_topics_remaining": "{count} topic(s) still present after cleanup",
+
+    # All pods running
+    "all_pods_running": "All {total} pods running in telemetry namespace",
+    "some_pods_not_running": "{not_running}/{total} pod(s) not in Running state",
+
+    # iDRAC VM data
+    "idrac_vm_data_found": "iDRAC data found for all {count} service tag(s)",
+    "idrac_vm_data_missing": "iDRAC data missing for {count} service tag(s)",
+
+    # OME Kafka connectivity
+    "ome_kafka_connected": "OME Kafka forwarder '{name}' status: Connected",
+    "ome_kafka_disconnected": "OME Kafka forwarder status: {status}",
+
+    # Config skip
+    "source_disabled": "{source} source not enabled in telemetry_config.yml",
+
+    # UFM
+    "ufm_svc_exists": "UFM external service '{service}' exists with endpoint {endpoint}",
+    "ufm_svc_missing": "UFM external service '{service}' not found",
+    "ufm_vmscrape_exists": "UFM VMServiceScrape '{name}' exists",
+    "ufm_vmscrape_missing": "UFM VMServiceScrape '{name}' not found",
+    "ufm_secret_exists": "UFM credentials secret '{secret}' exists",
+    "ufm_secret_missing": "UFM credentials secret '{secret}' not found",
+    "ufm_metrics_found": "{count} UFM metric(s) found in VictoriaMetrics",
+    "ufm_metrics_missing": "Missing UFM metrics in VictoriaMetrics: {missing}",
+
+    # PowerScale / VictoriaMetrics / VictoriaLogs
+    "secret_valid": "Secret '{secret}' has correct endpoint: {endpoint}",
+    "secret_invalid": "Secret '{secret}' has wrong endpoint: {actual} (expected {expected})",
+    "metrics_found": "{count} metric(s) found in VictoriaMetrics: {metrics}",
+    "metrics_missing": "Missing metrics in VictoriaMetrics: {missing}",
+    "metric_value": "{metric}: {value}",
+    "logs_found": "{count} log entries found in VictoriaLogs",
+    "logs_missing": "No log entries found in VictoriaLogs for {source}",
+    "syslog_configured": "PowerScale syslog forwarding configured to {target}",
+    "syslog_not_configured": "PowerScale syslog not forwarding to {target}",
 }
 
-# =============================================================================
-# ASSERT MESSAGES (for pytest assert statements)
-# =============================================================================
-
+# --- Assertion Messages ---
 TEST_ASSERT_MSGS = {
-    # ── Precheck ──────────────────────────────────────────────────────────
-    "precheck_failed": (
-        "Telemetry precheck failed with exit code {rc}. "
-        "Check the playbook output for details."
-    ),
-    "kube_vip_not_defined": (
-        "kube_vip is not defined in telemetry_config.yml. "
-        "Add 'kube_vip: <VIP_IP>' to the config file."
-    ),
-    "kube_vip_not_reachable": (
-        "kube_vip {kube_vip} is not reachable. "
-        "Verify the IP is correct and the host is up."
-    ),
-    "control_plane_not_ready": (
-        "K8s control plane nodes not all Ready: "
-        "{not_ready} of {total} are NOT Ready. "
-        "Check node status with: kubectl get nodes"
-    ),
-    "workers_not_ready": (
-        "Worker nodes below minimum readiness threshold: "
-        "{ready}/{total} Ready (need at least {minimum}). "
-        "Check node status with: kubectl get nodes"
-    ),
-    "pods_unhealthy": (
-        "Pods outside telemetry namespace are unhealthy: "
-        "{unhealthy} of {total} are NOT Running/Succeeded."
-    ),
-    "kubectl_not_available": (
-        "kubectl is not available on kube_vip. "
-        "Ensure K8s is properly installed."
+    # Playbook
+    "playbook_failed": (
+        "Playbook {playbook} --tags {tag} failed (rc={rc})\n"
+        "HOW TO FIX:\n"
+        "  1. Check logs on the OIM server\n"
+        "  2. Run manually: cd src/telemetry && "
+        "ansible-playbook playbooks/telemetry.yml --tags {tag} -v\n"
     ),
 
-    # ── Validate ──────────────────────────────────────────────────────────
-    "validate_failed": (
-        "Telemetry validation failed with exit code {rc}. "
-        "Check the playbook output for validation errors."
-    ),
-    "file_missing": (
-        "{filename} not found at {path}. "
-        "Run domain-init.sh to stage input files."
-    ),
-    "l1_invalid": (
-        "L1 schema validation failed: {errors}. "
-        "Fix the input files to match the JSON schema."
-    ),
-    "l2_invalid": (
-        "L2 logic validation failed: {errors}. "
-        "Fix cross-field validation errors in the input files."
-    ),
-
-    # ── Deploy ────────────────────────────────────────────────────────────
-    "deploy_failed": (
-        "Telemetry deploy failed with exit code {rc}."
-    ),
-
-    # ── Sinks ─────────────────────────────────────────────────────────────
+    # Pods
     "pods_not_running": (
-        "{component} pods not running: {running}/{expected}. "
-        "Check: kubectl get pods -n telemetry"
-    ),
-    "pvc_size_mismatch": (
-        "PVC size mismatch for {component}: "
-        "expected {expected}, actual {actual}."
-    ),
-    "tls_secret_missing": (
-        "TLS secret '{secret}' not found in namespace {namespace}."
-    ),
-    "health_failed": (
-        "{component} health check failed. Service may not be ready."
-    ),
-    "kafka_topics_missing": (
-        "Expected Kafka topics missing: {missing}."
-    ),
-    "topic_missing": (
-        "Kafka topic '{topic}' not found."
+        "{component}: expected {expected} ready, got {running}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry\n"
+        "  2. kubectl describe pod <pod-name> -n telemetry\n"
+        "  3. kubectl logs <pod-name> -n telemetry\n"
     ),
 
-    # ── Cleanup ───────────────────────────────────────────────────────────
-    "cleanup_failed": (
-        "Telemetry cleanup failed with exit code {rc}."
+    # Topics
+    "topic_missing": (
+        "Kafka topic '{topic}' not found or not ready\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get kafkatopic -n telemetry\n"
+        "  2. kubectl describe kafkatopic {topic} -n telemetry\n"
     ),
-    "component_not_cleaned": (
-        "{component} resources still present after cleanup."
+
+    # Services
+    "service_missing": (
+        "Service '{service}' not found in namespace {namespace}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get svc -n telemetry\n"
     ),
-    "pods_remaining": (
-        "{count} pods still present in telemetry namespace after cleanup."
+
+    # Containers
+    "containers_not_ready": (
+        "iDRAC containers not ready: {not_ready}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl describe pod {pod} -n telemetry\n"
+        "  2. kubectl logs {pod} -c <container> -n telemetry\n"
     ),
-    "pvcs_remaining": (
-        "{count} PVCs still present in telemetry namespace after cleanup."
+
+    # Env vars
+    "env_vars_missing": (
+        "Required omnia.env variables missing: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Check /etc/omnia/omnia.env on the OIM server\n"
+        "  2. Run: omnia.sh --setup-venv\n"
+    ),
+
+    # All pods running
+    "telemetry_pods_not_running": (
+        "{not_running}/{total} pod(s) not in Running/Ready state\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry -o wide\n"
+        "  2. kubectl describe pod <failing-pod> -n telemetry\n"
+        "  3. kubectl logs <failing-pod> -n telemetry\n"
+    ),
+
+    # iDRAC VM data
+    "idrac_vm_data_missing": (
+        "iDRAC telemetry data missing for service tags: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. Check iDRAC telemetry receiver logs\n"
+        "  2. Check victoria-pump container logs\n"
+        "  3. Check vmagent scrape targets\n"
+    ),
+
+    # OME Kafka connectivity
+    "ome_kafka_not_connected": (
+        "OME Kafka forwarder is {status}\n"
+        "HOW TO FIX:\n"
+        "  1. Check OME Data Forwarding Service configuration\n"
+        "  2. Upload Kafka CA certificate via OME UI\n"
+        "  3. Verify Kafka bootstrap endpoint is reachable from OME\n"
+    ),
+
+    # Cleanup
+    "cleanup_pods_remaining": (
+        "{count} pod(s) still running after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+
+    # UFM
+    "ufm_svc_missing": (
+        "UFM external service '{service}' not found\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get svc -n telemetry | grep ufm\n"
+        "  2. Re-run telemetry deploy with UFM enabled\n"
+    ),
+    "ufm_vmscrape_missing": (
+        "UFM VMServiceScrape '{name}' not found\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get vmservicescrape -n telemetry | grep ufm\n"
+        "  2. Re-run telemetry deploy with UFM enabled\n"
+    ),
+    "ufm_secret_missing": (
+        "UFM credentials secret '{secret}' not found\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get secret -n telemetry | grep ufm\n"
+        "  2. Re-run telemetry deploy with UFM credentials\n"
+    ),
+    "ufm_metrics_missing": (
+        "UFM metrics not found in VictoriaMetrics: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. Check vmagent scrape targets for UFM\n"
+        "  2. Verify UFM endpoint is reachable: curl -sk https://<ufm-ip>:9001/metrics\n"
+        "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
+    ),
+
+    # PowerScale
+    "secret_invalid": (
+        "Secret '{secret}' endpoint mismatch: got '{actual}', expected '{expected}'\n"
+        "HOW TO FIX:\n"
+        "  1. Update isilon-creds secret with correct PowerScale endpoint\n"
+        "  2. kubectl get secret isilon-creds -n telemetry -o jsonpath='{{.data.config}}' | base64 -d\n"
+    ),
+    "metrics_missing": (
+        "PowerScale metrics not found in VictoriaMetrics: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl logs deployment/karavi-metrics-powerscale -n telemetry\n"
+        "  2. Check OTEL collector: kubectl logs deployment/otel-collector -n telemetry\n"
+        "  3. Check vmagent scrape targets\n"
+    ),
+    "logs_missing": (
+        "No {source} logs found in VictoriaLogs\n"
+        "HOW TO FIX:\n"
+        "  1. Check PowerScale syslog config: isi audit settings global view\n"
+        "  2. Verify VLAgent is listening: kubectl get svc vlagent-vlagent -n telemetry\n"
+        "  3. Check VLAgent logs: kubectl logs vlagent-vlagent-0 -n telemetry\n"
+    ),
+    "syslog_not_configured": (
+        "PowerScale syslog not forwarding to {target}\n"
+        "HOW TO FIX:\n"
+        "  1. SSH to PowerScale and run:\n"
+        "     isi audit settings global modify --config-syslog-servers={target}:514\n"
+        "     isi audit settings global modify --system-syslog-servers={target}:514\n"
+        "     isi audit settings global modify --protocol-syslog-servers={target}:514\n"
     ),
 }

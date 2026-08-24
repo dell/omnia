@@ -39,6 +39,8 @@ from .host_func import (
     connection_params,
     read_remote_env,
     ensure_remote_dir,
+    read_remote_yaml,
+    read_yaml_key,
     resolve_domain_input_path,
 )
 

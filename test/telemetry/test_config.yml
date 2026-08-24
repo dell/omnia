@@ -1,58 +1,129 @@
-# Telemetry FVT — Test Configuration
-# Non-sensitive settings for the test runner.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 # =============================================================================
-# TARGET SERVER
+# Telemetry — Test Configuration
+# =============================================================================
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where telemetry playbook runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files to the target server
+#     before running tests.
+#   - Sensitive credentials (SSH password) go in test_creds.yml
+#     (auto-encrypted with Ansible Vault on first run).
 # =============================================================================
 
-# IP address of the target OIM server (kube_vip host)
-target_host: ""
-
-# SSH username for target connection
-target_user: "root"
-
-# SSH port
-target_port: 22
+---
 
 # =============================================================================
-# PROJECT SETTINGS
+# TARGET SERVER CONNECTION
 # =============================================================================
+# IP address of the server where telemetry playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Sync telemetry input files to the env-var-based input path
+#   3. Run all verification tests via SSH/Testinfra
+oim_server_ip: ""
 
-# Omnia project name on the target
-project_name: "project_default"
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
 
-# Omnia data path on the target
-omnia_data_path: "/opt/omnia"
-
-# Path where omnia repo is cloned on the target
-clone_path: "/root/omnia"
-
-# Repo URL for cloning (if sync_project: true)
-repo_url: ""
-
-# Branch to clone
-branch: "main"
+# SSH port for remote server (only needed for remote mode).
+oim_ssh_port: 22
 
 # =============================================================================
-# DATASET
+# PROJECT SYNC SETTINGS (remote execution)
 # =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/src/telemetry/playbooks/
+#
+# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
+clone_path: "/root/monorepo/omnia"
 
-# Dataset name (directory under datasets/)
-# Empty = use src/telemetry/input/ directly (or target server files)
+# venv_path:    Path to Python virtual environment on the target server.
+#               If set, the venv is activated before running ansible-playbook.
+#               Leave empty to use system-wide ansible.
+venv_path: ""
+
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# Controls where input files are loaded from for test execution.
+#
+# Default (empty):
+#   Uses files directly from the target server at:
+#     $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/
+#   This is the recommended mode -- always uses the deployed config.
+#
+# Custom dataset:
+#   Set to a folder name under test/telemetry/datasets/<name>/.
+#   Generate one with: cd datasets/generator && python generate_dataset.py <name> <profile>
+#   Each dataset folder must contain:
+#     input/telemetry_config.yml
+#     input/telemetry_storage_config.yml  (optional)
+#     input/telemetry_packages.yml
 dataset: ""
 
-# Sync telemetry input files to target before tests
+# Project name on the target server.
+# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
+# Input read from: <OMNIA_DATA_PATH>/telemetry/input/<project_name>/
+# Output read from: <OMNIA_DATA_PATH>/telemetry/output/<project_name>/
+project_name: "project_default"
+
+# =============================================================================
+# SYNC — TELEMETRY INPUT
+# =============================================================================
+# When true, pushes the local dataset input/ files to the target server.
+# Syncs: datasets/<dataset>/input/ -> <OMNIA_DATA_PATH>/telemetry/input/<project_name>/
+#
+# This ensures the target server has the correct telemetry_config.yml
+# and packages before running the playbook.
 sync_telemetry_input: false
 
-# Sync omnia project to target before tests
-sync_project: false
+# =============================================================================
+# EXTERNAL APPLIANCE SETTINGS
+# =============================================================================
+# OME (OpenManage Enterprise) appliance IP for Kafka forwarder connectivity
+# tests. Leave empty to skip OME connectivity tests.
+# The OME REST API at /api/DataForwardingService/Forwarders is used to verify
+# the Kafka forwarding pipeline is connected.
+ome_ip: ""
 
 # =============================================================================
-# REPORT
+# REPORT CONFIGURATION
 # =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - An absolute path: /opt/omnia/reports
+# No spaces allowed in the path.
+report_path: /opt/omnia/reports
 
-# Report output directory (relative to test module root)
-report_path: "reports"
+# Base name for report files (without extension).
+# Generates: telemetry_test_report.json, telemetry_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_name: telemetry_test_report
 
-# Report file name (without extension)
-report_name: "telemetry_test_report"
+# Custom report ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_id: ""
