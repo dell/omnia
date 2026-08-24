@@ -89,7 +89,7 @@ def _discover_s3_image_paths(
     try:
         # Run s3cmd ls -Hr without shell=True (Checkmarx-safe)
         # Filter for job_id in Python instead of using shell pipe
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B602 - using list args, not shell=True
             ["s3cmd", "ls", "-Hr", bucket],
             capture_output=True,
             text=True,
