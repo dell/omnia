@@ -46,10 +46,7 @@
 
 set -euo pipefail
 
-temp_dir
-temp_dir="$(dirname "${BASH_SOURCE[0]}")"
-readonly SCRIPT_DIR
-SCRIPT_DIR="$(cd "$temp_dir" && pwd)" || exit 1
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly DOMAIN_NAME="repo_manager"
 
 # Color definitions
@@ -191,19 +188,19 @@ copy_input_files() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Create Ansible log directory under /var/log/omnia/
-# ansible.cfg log_path points here — Ansible cannot create parent dirs.
-# All ansible.cfg log files are flat (no subfolders).
+# Create runtime data directories (output + log) and Ansible log directory
 # ─────────────────────────────────────────────────────────────────────────────
-create_log_directory() {
-    local log_dir="/var/log/omnia/${DOMAIN_NAME}"
-    if [ ! -d "$log_dir" ]; then
-        mkdir -p "$log_dir"
-        chmod 755 "$log_dir"
-        echo -e "  ${GREEN}[${DOMAIN_NAME}] Created Ansible log directory: ${log_dir}${NC}"
-    else
-        echo -e "  ${GREEN}[${DOMAIN_NAME}] Ansible log directory exists: ${log_dir}${NC}"
-    fi
+create_runtime_directories() {
+    local output_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/output/${OMNIA_PROJECT_NAME}"
+    local runtime_log_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/log/${OMNIA_PROJECT_NAME}"
+    local ansible_log_dir="/var/log/omnia/${DOMAIN_NAME}"
+
+    for dir in "$output_dir" "$runtime_log_dir" "$ansible_log_dir"; do
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
+        fi
+    done
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -287,8 +284,8 @@ main() {
     # 1. Install domain-specific dependencies
     install_dependencies
 
-    # 2. Create Ansible log directory (ansible.cfg log_path)
-    create_log_directory
+    # 2. Create runtime directories (output, log, ansible log)
+    create_runtime_directories
 
     # 3. Copy flat input files to the runtime project directory (skip if --deps-only)
     if [ "$DEPS_ONLY" = false ]; then

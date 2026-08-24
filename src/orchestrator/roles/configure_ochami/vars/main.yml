@@ -122,7 +122,7 @@ all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | defaul
 login_compiler_node_present: "{{ hostvars['oim']['login_compiler_node_present'] | default(false) }}"
 slurm_node_present: "{{ hostvars['oim']['slurm_node_present'] | default(false) }}"
 # Usage: ci-group-slurm_node_x86_64.yaml.j2, ci-group-slurm_node_aarch64.yaml.j2
-dcgm_support: "{{ hostvars['localhost'].get('telemetry_sources', {}).get('dcgm', {}).get('metrics_enabled', true) | bool }}"
+dcgm_support: "{{ hostvars['localhost'].get('dcgm_support', true) | bool }}"
 # NVIDIA DCGM (Data Center GPU Manager) configuration
 dcgm_service_name: "nvidia-dcgm"
 dcgm_health_check_retries: 3

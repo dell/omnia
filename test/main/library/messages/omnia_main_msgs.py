@@ -64,6 +64,9 @@ TEST_NAMES: Dict[str, str] = {
     "domain_log_dirs": (
         "Verify domain log directories created"
     ),
+    "domain_output_dirs": (
+        "Verify domain output directories created"
+    ),
     "domain_input_staged": (
         "Verify domain input files staged to data path"
     ),
@@ -249,6 +252,12 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "log_dirs_missing": (
         "{count} domain log directory(ies) missing"
+    ),
+    "output_dirs_ok": (
+        "All {count} domain output directories exist"
+    ),
+    "output_dirs_missing": (
+        "{count} domain output directory(ies) missing"
     ),
     "input_staged_ok": (
         "Input files staged for {domain}: {count} file(s)"
@@ -499,6 +508,19 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Run: ./omnia.sh --init\n"
         "\u2551   2. Check /var/log/omnia/ permissions\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "output_dirs_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN OUTPUT DIRECTORIES MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing:\n"
+        "{missing_list}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: ./omnia.sh --init\n"
+        "\u2551   2. Check OMNIA_DATA_PATH permissions\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
