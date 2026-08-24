@@ -87,9 +87,9 @@ def _discover_s3_image_paths(
     role_to_paths = {role: [] for role in role_names}
 
     try:
-        # Run s3cmd ls -Hr without shell=True (Checkmarx-safe)
+        # Run s3cmd ls -Hr using safe subprocess with list args (Checkmarx-safe)
         # Filter for job_id in Python instead of using shell pipe
-        result = subprocess.run(  # nosec B602 - using list args, not shell=True
+        result = subprocess.run(  # nosec B602 - using list args, no shell
             ["s3cmd", "ls", "-Hr", bucket],
             capture_output=True,
             text=True,
