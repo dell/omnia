@@ -25,10 +25,10 @@ UFM Architecture:
         UFM Prometheus Exporter (HTTPS) -> vmagent(shared) -> VictoriaMetrics
 
 Test cases:
-    TC_SR_016: Verify UFM external service exists with correct endpoint
-    TC_SR_017: Verify UFM VMServiceScrape CR exists
-    TC_SR_018: Verify UFM credentials K8s secret exists
-    TC_SR_019: Verify UFM InfiniBand metrics in VictoriaMetrics
+    TC_SR_040: Verify UFM external service exists with correct endpoint
+    TC_SR_041: Verify UFM VMServiceScrape CR exists
+    TC_SR_042: Verify UFM credentials K8s secret exists
+    TC_SR_043: Verify UFM InfiniBand metrics in VictoriaMetrics
 """
 
 from datetime import datetime
@@ -58,7 +58,7 @@ def _skip_if_ufm_disabled(host):
 
 
 def _format_metric_lines(metric_details):
-    """Format metrics into ✓ lines with value and timestamp."""
+    """Format metrics into lines with value and timestamp."""
     if not metric_details:
         return "  (no metrics found)"
 
@@ -75,11 +75,15 @@ def _format_metric_lines(metric_details):
     return "\n".join(lines)
 
 
+# =========================================================================
+# TC_SR_040: Verify UFM external service exists with correct endpoint
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(70)
 def test_ufm_external_service(host):
-    """TC_SR_016: Verify UFM external service exists with correct endpoint."""
+    """TC_SR_040: Verify UFM external service exists with correct endpoint."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_external_svc"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -111,11 +115,15 @@ def test_ufm_external_service(host):
     )
 
 
+# =========================================================================
+# TC_SR_041: Verify UFM VMServiceScrape CR exists
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(71)
 def test_ufm_vmscrape(host):
-    """TC_SR_017: Verify UFM VMServiceScrape CR exists."""
+    """TC_SR_041: Verify UFM VMServiceScrape CR exists."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_vmscrape"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -144,11 +152,15 @@ def test_ufm_vmscrape(host):
     )
 
 
+# =========================================================================
+# TC_SR_042: Verify UFM credentials K8s secret exists
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(72)
 def test_ufm_credentials_secret(host):
-    """TC_SR_018: Verify UFM credentials K8s secret exists."""
+    """TC_SR_042: Verify UFM credentials K8s secret exists."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_credentials_secret"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -172,11 +184,15 @@ def test_ufm_credentials_secret(host):
     )
 
 
+# =========================================================================
+# TC_SR_043: Verify UFM InfiniBand metrics in VictoriaMetrics
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(73)
 def test_ufm_metrics_in_vm(host):
-    """TC_SR_019: Verify UFM InfiniBand metrics in VictoriaMetrics."""
+    """TC_SR_043: Verify UFM InfiniBand metrics in VictoriaMetrics."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])

@@ -48,7 +48,7 @@ def test_cleanup_pods_removed(host):
     pod_count = 0
     if result.rc == 0 and result.stdout.strip():
         lines = [
-            l for l in result.stdout.strip().split("\n") if l.strip()
+            ln for ln in result.stdout.strip().split("\n") if ln.strip()
         ]
         pod_count = len(lines)
 
@@ -82,7 +82,7 @@ def test_cleanup_topics_removed(host):
     topic_count = 0
     if result.rc == 0 and result.stdout.strip():
         lines = [
-            l for l in result.stdout.strip().split("\n") if l.strip()
+            ln for ln in result.stdout.strip().split("\n") if ln.strip()
         ]
         topic_count = len(lines)
 

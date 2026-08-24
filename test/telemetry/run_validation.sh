@@ -543,6 +543,7 @@ fi
 
 export OMNIA_SUITE="${SUITE:-all}"
 export OMNIA_MARKER="${MARKER:-}"
+[[ -n "$VERBOSE" ]] && export OMNIA_VERBOSE="true"
 [[ -n "$DEBUG" ]] && export OMNIA_DEBUG="true"
 LOG_DIR="${SCRIPT_DIR}/reports/logs"
 mkdir -p "${LOG_DIR}"

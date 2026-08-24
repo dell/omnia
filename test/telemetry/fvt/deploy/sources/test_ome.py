@@ -24,9 +24,9 @@ OME Architecture:
         OME -> Kafka (DataForwardingService) -> Vector-OME -> VictoriaMetrics
 
 Test cases:
-    TC_SR_014: Verify Vector-OME bridge deployment ready
-    TC_SR_015: Verify OME KafkaUser CR exists
-    TC_SR_021: Verify OME Kafka forwarder connectivity status
+    TC_SR_050: Verify Vector-OME bridge deployment ready
+    TC_SR_051: Verify OME KafkaUser CR exists
+    TC_SR_052: Verify OME Kafka forwarder connectivity status
 """
 
 import pytest
@@ -57,11 +57,15 @@ def _skip_if_ome_disabled(host):
         pytest.skip("OME source not enabled in config")
 
 
+# =========================================================================
+# TC_SR_050: Verify Vector-OME bridge deployment ready
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(60)
 def test_ome_vector_bridge(host):
-    """TC_SR_014: Verify Vector-OME bridge deployment ready."""
+    """TC_SR_050: Verify Vector-OME bridge deployment ready."""
     _skip_if_ome_disabled(host)
     tc = TC["ome_vector_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -95,11 +99,15 @@ def test_ome_vector_bridge(host):
     )
 
 
+# =========================================================================
+# TC_SR_051: Verify OME KafkaUser CR exists
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(61)
 def test_ome_kafka_user(host):
-    """TC_SR_015: Verify OME KafkaUser CR exists."""
+    """TC_SR_051: Verify OME KafkaUser CR exists."""
     _skip_if_ome_disabled(host)
     tc = TC["ome_kafka_user"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -128,11 +136,15 @@ def test_ome_kafka_user(host):
     )
 
 
+# =========================================================================
+# TC_SR_052: Verify OME Kafka forwarder connectivity status
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(62)
 def test_ome_kafka_connectivity(host):
-    """TC_SR_021: Verify OME Kafka forwarder connectivity status.
+    """TC_SR_052: Verify OME Kafka forwarder connectivity status.
 
     Uses the OME REST API:
     GET /api/DataForwardingService/Forwarders({id})/ConnectivityStatus
@@ -172,7 +184,9 @@ def test_ome_kafka_connectivity(host):
     result = verify_ome_kafka_connectivity(host, ome_ip, ome_user, ome_password)
 
     # Build details
+    status_icon = "\u2713" if result["success"] else "\u2717"
     details_lines = [
+        f"{status_icon} Kafka connectivity: {result.get('status')}",
         f"OME endpoint: https://{ome_ip}",
         f"Forwarder: {result.get('forwarder_name', 'N/A')}",
         f"Enabled: {result.get('forwarder_enabled', 'N/A')}",
@@ -181,12 +195,8 @@ def test_ome_kafka_connectivity(host):
     time_connected = result.get("time_last_connected", "")
     if time_connected:
         details_lines.append(f"Last connected: {time_connected}")
-
     if result.get("error"):
         details_lines.append(f"Error: {result['error']}")
-
-    status_icon = "\u2713" if result["success"] else "\u2717"
-    details_lines.insert(0, f"{status_icon} Kafka connectivity: {result.get('status')}")
     details = "\n".join(details_lines)
 
     if result["success"]:

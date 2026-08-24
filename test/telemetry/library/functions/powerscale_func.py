@@ -227,7 +227,7 @@ def get_vlagent_endpoint(host):
 
 
 def verify_powerscale_syslog(host, ps_user, ps_password, ps_host,
-                              expected_target, expected_port):
+                             expected_target, expected_port):
     """Verify PowerScale syslog is forwarding to the VLAgent.
 
     Args:
@@ -287,7 +287,7 @@ def verify_powerscale_syslog(host, ps_user, ps_password, ps_host,
 
 
 def configure_powerscale_syslog(host, ps_user, ps_password, ps_host,
-                                 target_ip, target_port):
+                                target_ip, target_port):
     """Configure PowerScale syslog servers to forward to the VLAgent.
 
     Runs ``isi audit settings global modify`` for config, system,

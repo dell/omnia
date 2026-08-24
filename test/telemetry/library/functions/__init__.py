@@ -80,6 +80,13 @@ from .k8s_func import (
     verify_services_detail,
 )
 
+# --- iDRAC verification ---
+from .idrac_func import (
+    verify_idrac_pod_count,
+    verify_mysql_data_in_pods,
+    verify_receiver_collecting,
+)
+
 # --- OME verification ---
 from .ome_func import (
     verify_ome_kafka_connectivity,
@@ -150,6 +157,10 @@ __all__ = [
     "verify_kafka_topic_ready",
     "verify_services_exist",
     "verify_services_detail",
+    # idrac
+    "verify_idrac_pod_count",
+    "verify_mysql_data_in_pods",
+    "verify_receiver_collecting",
     # ome
     "verify_ome_kafka_connectivity",
     "get_ome_forwarders",

@@ -34,7 +34,7 @@ if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -43,7 +43,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -54,23 +54,24 @@ from omnia_auto import (
     get_last_tc_id,
     encrypt_test_credentials,
     log,
+    set_verbose_mode,
     add_session_result,
     print_summary_table,
 )
 
 # --- Module-specific functions ---
-from library.functions.host_func import (
+from library.functions.host_func import (  # noqa: E402
     sync_project_to_remote,
     sync_telemetry_input,
 )
-from library.functions.telemetry_func import (
+from library.functions.telemetry_func import (  # noqa: E402
     check_target_connectivity,
 )
-from library.functions.validation_func import (
+from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES
+from library.vars import TEST_CASES  # noqa: E402
 
 # Build test-function-name -> TC ID map for summary table fallback
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
@@ -100,7 +101,10 @@ def pytest_addoption(parser):
 # =============================================================================
 
 def pytest_configure(config):
-    """Register custom markers."""
+    """Register custom markers and set verbose mode."""
+    # Enable verbose logging when pytest -v is used or OMNIA_VERBOSE is set
+    if config.option.verbose > 0 or os.environ.get("OMNIA_VERBOSE"):
+        set_verbose_mode(True)
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
@@ -155,9 +159,11 @@ def pytest_collection_modifyitems(session, config, items):
                 match = _item_has_marker(item, markers[0])
 
             if not match:
-                item.add_marker(pytest.mark.skip(
-                    reason=f"Marker filter: {'+'.join(markers) if mode == 'and' else ','.join(markers)}"
-                ))
+                reason = (
+                    f"Marker filter: "
+                    f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
+                )
+                item.add_marker(pytest.mark.skip(reason=reason))
             filtered.append(item)
         items[:] = filtered
 
@@ -189,7 +195,7 @@ def _apply_dataset_overrides(config):
 
 
 def pytest_sessionstart(session):
-    """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
+    """Session startup: validate, encrypt, clone, sync, init report."""
     # Validate config first
     try:
         result = validate_all()

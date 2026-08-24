@@ -29,14 +29,11 @@ from typing import Dict, Any
 
 from omnia_auto import (
     load_test_config,
-    is_local_execution,
     get_module_root,
     sync_files,
-    log,
     connection_params,
     resolve_domain_input_path,
     ensure_remote_dir,
-    run_on_host,
 )
 
 from ..vars.common_vars import (

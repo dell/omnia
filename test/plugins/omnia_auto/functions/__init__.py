@@ -20,6 +20,7 @@ from .formatting_func import (
     Symbols,
     log,
     set_debug_mode,
+    set_verbose_mode,
     TestLogger,
     get_test_output,
     add_session_result,

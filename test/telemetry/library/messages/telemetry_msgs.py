@@ -67,6 +67,18 @@ TEST_LOG_MSGS = {
     "all_pods_running": "All {total} pods running in telemetry namespace",
     "some_pods_not_running": "{not_running}/{total} pod(s) not in Running state",
 
+    # iDRAC pod count
+    "idrac_pod_count_match": "iDRAC pod count matches expected: {expected}",
+    "idrac_pod_count_mismatch": "iDRAC pod count mismatch",
+
+    # iDRAC MySQL data
+    "idrac_mysql_verified": "MySQL data verified in all {count} iDRAC pods",
+    "idrac_mysql_missing": "MySQL data missing in {count} iDRAC pod(s)",
+
+    # iDRAC receiver
+    "idrac_receiver_collecting": "All {count} iDRAC receivers collecting metrics",
+    "idrac_receiver_not_collecting": "{count} iDRAC receiver(s) not collecting",
+
     # iDRAC VM data
     "idrac_vm_data_found": "iDRAC data found for all {count} service tag(s)",
     "idrac_vm_data_missing": "iDRAC data missing for {count} service tag(s)",
@@ -160,6 +172,32 @@ TEST_ASSERT_MSGS = {
         "  3. kubectl logs <failing-pod> -n telemetry\n"
     ),
 
+    # iDRAC pod count
+    "idrac_pod_count_mismatch": (
+        "iDRAC pod count: expected {expected}, got {actual}\n"
+        "HOW TO FIX:\n"
+        "  1. Check bmc_group_data.csv for BMC entries\n"
+        "  2. kubectl get pods -n telemetry | grep idrac\n"
+        "  3. Re-run telemetry deploy\n"
+    ),
+
+    # iDRAC MySQL data
+    "idrac_mysql_missing": (
+        "MySQL data missing in {count} iDRAC pod(s)\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl exec <pod> -n telemetry -c mysqldb -- "
+        "mysql -e 'SELECT * FROM idrac_telemetry.services'\n"
+        "  2. Check idrac-telemetry-receiver logs\n"
+    ),
+
+    # iDRAC receiver
+    "idrac_receiver_not_collecting": (
+        "{count} iDRAC receiver(s) not collecting metrics\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl logs <pod> -n telemetry -c idrac-telemetry-receiver\n"
+        "  2. Verify iDRAC BMC endpoints are reachable\n"
+    ),
+
     # iDRAC VM data
     "idrac_vm_data_missing": (
         "iDRAC telemetry data missing for service tags: {missing}\n"
@@ -218,7 +256,8 @@ TEST_ASSERT_MSGS = {
         "Secret '{secret}' endpoint mismatch: got '{actual}', expected '{expected}'\n"
         "HOW TO FIX:\n"
         "  1. Update isilon-creds secret with correct PowerScale endpoint\n"
-        "  2. kubectl get secret isilon-creds -n telemetry -o jsonpath='{{.data.config}}' | base64 -d\n"
+        "  2. kubectl get secret isilon-creds -n telemetry"
+        " -o jsonpath='{{.data.config}}' | base64 -d\n"
     ),
     "metrics_missing": (
         "PowerScale metrics not found in VictoriaMetrics: {missing}\n"

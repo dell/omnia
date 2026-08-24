@@ -52,21 +52,22 @@ def test_kafka_pods(host):
         tl.check(f"Checking Kafka {role} pods (prefix: {prefix})")
         result = verify_pods_by_prefix(host, prefix, min_count=1)
 
+        pod_count = result["running_count"]
         if result["success"]:
             tl.passed(
                 LOG_MSGS["pods_running"].format(
                     component=f"Kafka {role}",
-                    count=result["running_count"],
-                    expected=1,
+                    count=pod_count,
+                    expected=pod_count,
                 ),
-                f"Running: {result['running_count']}",
+                f"Running: {pod_count}",
             )
         else:
             tl.failed(
                 LOG_MSGS["pods_not_running"].format(
                     component=f"Kafka {role}",
-                    running=result["running_count"],
-                    expected=1,
+                    running=pod_count,
+                    expected=result["total_count"],
                 ),
                 "",
             )
@@ -74,7 +75,7 @@ def test_kafka_pods(host):
 
     assert all_ok, ASSERT_MSGS["pods_not_running"].format(
         component="Kafka broker/controller",
-        expected=1,
+        expected=">=1",
         running=0,
     )
 

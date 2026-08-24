@@ -15,13 +15,24 @@
 """
 Telemetry Deploy — PowerScale Source Verification Tests.
 
+PowerScale Architecture:
+    CSM Metrics PowerScale (karavi-metrics-powerscale) collects metrics
+    from PowerScale storage clusters via REST API. The OTEL Collector
+    exports metrics to VictoriaMetrics. Syslog logs are forwarded from
+    PowerScale OneFS to VLAgent for ingestion into VictoriaLogs.
+
+    Data pipeline (metrics):
+        PowerScale API -> CSM Metrics -> OTEL Collector -> VictoriaMetrics
+    Data pipeline (logs):
+        PowerScale OneFS syslog -> VLAgent -> VictoriaLogs
+
 Test cases:
-    TC_SR_008: Verify CSM Metrics PowerScale deployment ready
-    TC_SR_009: Verify OTEL Collector deployment ready
-    TC_SR_010: Verify isilon-creds secret has correct endpoint
-    TC_SR_011: Verify PowerScale metrics in VictoriaMetrics
-    TC_SR_012: Verify PowerScale logs in VictoriaLogs
-    TC_SR_013: Verify PowerScale syslog forwarding configured
+    TC_SR_030: Verify CSM Metrics PowerScale deployment ready
+    TC_SR_031: Verify OTEL Collector deployment ready
+    TC_SR_032: Verify isilon-creds secret has correct endpoint
+    TC_SR_033: Verify PowerScale metrics in VictoriaMetrics
+    TC_SR_034: Verify PowerScale logs in VictoriaLogs
+    TC_SR_035: Verify PowerScale syslog forwarding configured
 """
 
 from datetime import datetime
@@ -40,9 +51,7 @@ from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
-from library.functions.k8s_func import (
-    verify_deploy_pods_detail,
-)
+from library.functions.k8s_func import verify_deploy_pods_detail
 from library.functions.telemetry_func import (
     is_source_enabled,
     is_logs_enabled,
@@ -58,13 +67,6 @@ from library.functions.powerscale_func import (
 )
 
 
-# -- Constants for service names related to PowerScale --
-POWERSCALE_SERVICES = [
-    POWERSCALE_DEPLOY_NAME,
-    POWERSCALE_OTEL_DEPLOY_NAME,
-]
-
-
 def _skip_if_powerscale_disabled(host):
     """Skip test if PowerScale source is not enabled."""
     if not is_source_enabled(host, "powerscale"):
@@ -76,7 +78,6 @@ def _format_pod_table(pods):
     if not pods:
         return "  (no pods found)"
 
-    # Calculate column widths
     headers = ["POD", "STATUS", "NODE", "RESTARTS"]
     rows = []
     for p in pods:
@@ -100,43 +101,8 @@ def _format_pod_table(pods):
     return "\n".join(lines)
 
 
-def _format_svc_table(services):
-    """Format services into an aligned table string."""
-    if not services:
-        return "  (no services found)"
-
-    headers = ["SERVICE", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORTS"]
-    rows = []
-    for s in services:
-        port_strs = []
-        for p in s.get("ports", []):
-            name = p.get("name", "")
-            port = p.get("port", "")
-            proto = p.get("protocol", "TCP")
-            port_strs.append(f"{port}/{proto}" + (f"({name})" if name else ""))
-        rows.append([
-            s["name"],
-            s.get("type", ""),
-            s.get("clusterIP", ""),
-            s.get("externalIP", "") or "<none>",
-            ", ".join(port_strs) if port_strs else "<none>",
-        ])
-
-    widths = [len(h) for h in headers]
-    for row in rows:
-        for i, cell in enumerate(row):
-            widths[i] = max(widths[i], len(cell))
-
-    fmt = "  ".join(f"{{:<{w}}}" for w in widths)
-    lines = [fmt.format(*headers)]
-    lines.append("  ".join("-" * w for w in widths))
-    for row in rows:
-        lines.append(fmt.format(*row))
-    return "\n".join(lines)
-
-
 def _format_metric_lines(metric_details):
-    """Format metrics into ✓/✗ lines with value and timestamp."""
+    """Format metrics into lines with value and timestamp."""
     if not metric_details:
         return "  (no metrics found)"
 
@@ -153,11 +119,15 @@ def _format_metric_lines(metric_details):
     return "\n".join(lines)
 
 
+# =========================================================================
+# TC_SR_030: Verify CSM Metrics PowerScale deployment ready
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(60)
 def test_powerscale_csm_deploy(host):
-    """TC_SR_008: Verify CSM Metrics PowerScale deployment ready."""
+    """TC_SR_030: Verify CSM Metrics PowerScale deployment ready."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_csm_deploy"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -197,11 +167,15 @@ def test_powerscale_csm_deploy(host):
     )
 
 
+# =========================================================================
+# TC_SR_031: Verify OTEL Collector deployment ready
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(61)
 def test_powerscale_otel_deploy(host):
-    """TC_SR_009: Verify OTEL Collector deployment ready."""
+    """TC_SR_031: Verify OTEL Collector deployment ready."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_otel_deploy"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -241,16 +215,15 @@ def test_powerscale_otel_deploy(host):
     )
 
 
+# =========================================================================
+# TC_SR_032: Verify isilon-creds secret has correct endpoint
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(62)
 def test_powerscale_secret_valid(host):
-    """TC_SR_010: Verify isilon-creds secret has correct endpoint.
-
-    Reads the expected values from the csi_powerscale_secret_path
-    referenced in telemetry_config.yml, then compares against the
-    deployed K8s secret.
-    """
+    """TC_SR_032: Verify isilon-creds secret has correct endpoint."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_secret_valid"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -292,7 +265,6 @@ def test_powerscale_secret_valid(host):
         f"cluster={deployed['clusterName']}"
     )
 
-    # Compare endpoint
     match = deployed["endpoint"] == expected["endpoint"]
     if match:
         tl.passed(
@@ -319,11 +291,15 @@ def test_powerscale_secret_valid(host):
     )
 
 
+# =========================================================================
+# TC_SR_033: Verify PowerScale metrics in VictoriaMetrics
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(63)
 def test_powerscale_metrics_in_vm(host):
-    """TC_SR_011: Verify PowerScale metrics in VictoriaMetrics."""
+    """TC_SR_033: Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -366,11 +342,15 @@ def test_powerscale_metrics_in_vm(host):
     )
 
 
+# =========================================================================
+# TC_SR_034: Verify PowerScale logs in VictoriaLogs
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(64)
 def test_powerscale_logs_in_vl(host):
-    """TC_SR_012: Verify PowerScale logs in VictoriaLogs."""
+    """TC_SR_034: Verify PowerScale logs in VictoriaLogs."""
     _skip_if_powerscale_disabled(host)
     if not is_logs_enabled(host, "powerscale"):
         pytest.skip("PowerScale logs not enabled in config")
@@ -378,7 +358,6 @@ def test_powerscale_logs_in_vl(host):
     tc = TC["powerscale_logs_in_vl"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Read cluster name from config-referenced secret for hostname matching
     cfg_result = load_powerscale_secret_from_config(host)
     if not cfg_result["success"]:
         tl.failed("Cannot read PowerScale secret for cluster name", "")
@@ -405,11 +384,15 @@ def test_powerscale_logs_in_vl(host):
     )
 
 
+# =========================================================================
+# TC_SR_035: Verify PowerScale syslog forwarding configured
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(65)
 def test_powerscale_syslog_config(host):
-    """TC_SR_013: Verify PowerScale syslog forwarding configured.
+    """TC_SR_035: Verify PowerScale syslog forwarding configured.
 
     If syslog is not correctly configured, this test will reconfigure
     it automatically and report the commands executed.
@@ -421,7 +404,6 @@ def test_powerscale_syslog_config(host):
     tc = TC["powerscale_syslog_config"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Get PowerScale credentials from config-referenced secret
     cfg_result = load_powerscale_secret_from_config(host)
     if not cfg_result["success"]:
         tl.failed("Cannot read PowerScale credentials from config", "")
@@ -437,7 +419,6 @@ def test_powerscale_syslog_config(host):
     if not vlagent_ip:
         tl.failed("Cannot get VLAgent LoadBalancer IP from service", "")
         pytest.fail("VLAgent service not found")
-    # Use the syslog port from the service (first port), fall back to constant
     syslog_port = vlagent_port or str(POWERSCALE_SYSLOG_PORT)
 
     target_str = f"{vlagent_ip}:{syslog_port}"
@@ -461,18 +442,18 @@ def test_powerscale_syslog_config(host):
 
     # Syslog not configured correctly — reconfigure it
     tl.check(f"Syslog misconfigured — reconfiguring to {target_str}")
-    cfg_result = configure_powerscale_syslog(
+    cfg_result2 = configure_powerscale_syslog(
         host, ps_user, ps_password, ps_host,
         vlagent_ip, syslog_port,
     )
 
     cmds_detail = "\n".join(
-        f"  > {cmd}" for cmd in cfg_result["commands_run"]
+        f"  > {cmd}" for cmd in cfg_result2["commands_run"]
     )
-    if not cfg_result["success"]:
+    if not cfg_result2["success"]:
         tl.failed(
             LOG_MSGS["syslog_not_configured"].format(target=target_str),
-            f"Commands run:\n{cmds_detail}\nError: {cfg_result['error']}",
+            f"Commands run:\n{cmds_detail}\nError: {cfg_result2['error']}",
         )
         assert False, ASSERT_MSGS["syslog_not_configured"].format(
             target=vlagent_ip,

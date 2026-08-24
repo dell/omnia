@@ -15,13 +15,25 @@
 """
 Telemetry Deploy — iDRAC Source Verification Tests.
 
+iDRAC Architecture:
+    The iDRAC telemetry StatefulSet is scaled based on bmc_group_data.csv.
+    Each pod runs 5 containers: receiver, kafka-pump, victoria-pump,
+    mysqldb, and activemq.
+
+    Data pipeline:
+        iDRAC BMC (SSE) -> Receiver -> MySQL -> VictoriaPump -> VictoriaMetrics
+                                     -> KafkaPump -> Kafka topic 'idrac'
+
 Test cases:
-    TC_SR_001: Verify iDRAC StatefulSet pods ready
-    TC_SR_002: Verify all iDRAC containers running
-    TC_SR_003: Verify iDRAC Kafka topic exists
-    TC_SR_004: Verify iDRAC VictoriaPump metrics endpoint
-    TC_SR_005: Verify iDRAC telemetry service exists
-    TC_SR_020: Verify iDRAC telemetry data in VictoriaMetrics
+    TC_SR_001: Verify iDRAC pod count matches bmc_group_data.csv
+    TC_SR_002: Verify iDRAC StatefulSet pods ready
+    TC_SR_003: Verify all iDRAC containers running
+    TC_SR_004: Verify MySQL data in iDRAC telemetry pods
+    TC_SR_005: Verify iDRAC receiver is collecting metrics
+    TC_SR_006: Verify iDRAC Kafka topic exists
+    TC_SR_007: Verify iDRAC VictoriaPump metrics endpoint
+    TC_SR_008: Verify iDRAC telemetry service exists
+    TC_SR_009: Verify iDRAC telemetry data in VictoriaMetrics
 """
 
 from datetime import datetime
@@ -55,23 +67,83 @@ from library.functions.telemetry_func import (
     verify_idrac_vm_data,
     get_idrac_service_tags,
 )
+from library.functions.idrac_func import (
+    verify_idrac_pod_count,
+    verify_mysql_data_in_pods,
+    verify_receiver_collecting,
+)
 
 
 def _skip_if_idrac_disabled(host):
     """Skip test if iDRAC source is not enabled or not deployed."""
     if not is_source_enabled(host, "idrac"):
         pytest.skip("iDRAC source not enabled in config")
-    # Also skip if the StatefulSet doesn't exist (no BMC inventory)
     result = verify_sts_ready(host, IDRAC_STS_NAME)
     if result.get("not_found"):
         pytest.skip("iDRAC StatefulSet not found (no BMC inventory configured)")
 
 
+# =========================================================================
+# TC_SR_001: Verify iDRAC pod count matches bmc_group_data.csv
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(40)
+def test_idrac_pod_count(host):
+    """TC_SR_001: Verify iDRAC pod count matches bmc_group_data.csv."""
+    _skip_if_idrac_disabled(host)
+    tc = TC["idrac_pod_count"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Reading bmc_group_data.csv for expected pod count")
+    result = verify_idrac_pod_count(host)
+
+    if result.get("skip"):
+        tl.skipped(result["skip_reason"], "")
+        pytest.skip(result["skip_reason"])
+
+    details_lines = [
+        f"BMC entries      : {result.get('bmc_entries', 0)}",
+        f"Parent nodes     : {len(result.get('parents', []))}",
+        f"Expected pods    : {result['expected_count']}"
+        f" ({len(result.get('parents', []))} parents + 1 MGMT)",
+        f"Actual pods      : {result['actual_count']}",
+    ]
+    if result.get("pods"):
+        details_lines.append("")
+        for pod in result["pods"]:
+            details_lines.append(f"  {pod}")
+    details = "\n".join(details_lines)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["idrac_pod_count_match"].format(
+                expected=result["expected_count"],
+            ),
+            details,
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["idrac_pod_count_mismatch"],
+            details,
+        )
+
+    assert result["success"], ASSERT_MSGS["idrac_pod_count_mismatch"].format(
+        expected=result["expected_count"],
+        actual=result["actual_count"],
+    )
+
+
+# =========================================================================
+# TC_SR_002: Verify iDRAC StatefulSet pods ready
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.sanity
+@pytest.mark.order(41)
 def test_idrac_sts_ready(host):
-    """TC_SR_001: Verify iDRAC StatefulSet pods ready."""
+    """TC_SR_002: Verify iDRAC StatefulSet pods ready."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_sts_ready"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -105,17 +177,21 @@ def test_idrac_sts_ready(host):
     )
 
 
+# =========================================================================
+# TC_SR_003: Verify all iDRAC containers running
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
-@pytest.mark.order(41)
+@pytest.mark.order(42)
 def test_idrac_containers(host):
-    """TC_SR_002: Verify all iDRAC containers running."""
+    """TC_SR_003: Verify all iDRAC containers running."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_containers"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Find iDRAC pod name first
-    tl.check("Finding iDRAC pod")
+    # Find all iDRAC pods and check containers in each
+    tl.check("Finding iDRAC pods")
     pods_result = verify_pods_by_prefix(host, IDRAC_POD_PREFIX, min_count=1)
     if not pods_result["success"] or not pods_result["pods"]:
         tl.failed(
@@ -126,47 +202,169 @@ def test_idrac_containers(host):
         )
         pytest.fail("No iDRAC pods found")
 
-    pod_name = pods_result["pods"][0]["name"]
-    tl.check(f"Checking containers in pod {pod_name}")
-    result = verify_pod_containers(host, pod_name)
+    all_details = []
+    all_ok = True
 
-    # Build ✓/✗ detail lines for each container
-    details_lines = []
-    for c in result["containers"]:
-        status = "\u2713" if c["ready"] else "\u2717"
-        details_lines.append(
-            f"{status} {c['name']}: {'Ready' if c['ready'] else c.get('state', 'NotReady')}"
-        )
-    details = "\n".join(details_lines)
+    for pod_info in pods_result["pods"]:
+        pod_name = pod_info["name"]
+        tl.check(f"Checking containers in pod {pod_name}")
+        result = verify_pod_containers(host, pod_name)
 
-    if result["success"]:
+        pod_lines = [f"Pod: {pod_name}"]
+        for c in result["containers"]:
+            icon = "\u2713" if c["ready"] else "\u2717"
+            status = "Ready" if c["ready"] else c.get("state", "NotReady")
+            pod_lines.append(f"  {icon} {c['name']}: {status}")
+        all_details.extend(pod_lines)
+        all_details.append("")
+
+        if not result["success"]:
+            all_ok = False
+
+    details = "\n".join(all_details).rstrip()
+
+    if all_ok:
         tl.passed(
             LOG_MSGS["containers_ready"].format(
-                pod=pod_name,
-                count=len(result["containers"]),
+                pod=f"{len(pods_result['pods'])} pod(s)",
+                count="all",
             ),
             details,
         )
     else:
         tl.failed(
             LOG_MSGS["containers_not_ready"].format(
-                pod=pod_name,
-                not_ready=", ".join(result["not_ready"]),
+                pod=f"{len(pods_result['pods'])} pod(s)",
+                not_ready="see details",
             ),
             details,
         )
 
-    assert result["success"], ASSERT_MSGS["containers_not_ready"].format(
-        not_ready=", ".join(result["not_ready"]),
-        pod=pod_name,
+    assert all_ok, ASSERT_MSGS["containers_not_ready"].format(
+        not_ready="containers not ready in one or more pods",
+        pod="iDRAC",
     )
 
 
+# =========================================================================
+# TC_SR_004: Verify MySQL data in iDRAC telemetry pods
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(43)
+def test_idrac_mysql_data(host):
+    """TC_SR_004: Verify MySQL data in iDRAC telemetry pods."""
+    _skip_if_idrac_disabled(host)
+    tc = TC["idrac_mysql_data"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Querying MySQL services table in each iDRAC pod")
+    result = verify_mysql_data_in_pods(host)
+
+    if result.get("error") and not result.get("pod_results"):
+        tl.failed(result["error"], "")
+        pytest.fail(result["error"])
+
+    details_lines = []
+    pods_missing = 0
+    for pr in result.get("pod_results", []):
+        icon = "\u2713" if pr["has_data"] else "\u2717"
+        details_lines.append(
+            f"  {icon} {pr['pod_name']}: {pr['ip_count']} IP(s) in MySQL"
+        )
+        if pr["mysql_ips"]:
+            for ip in pr["mysql_ips"][:5]:
+                details_lines.append(f"      - {ip}")
+            if len(pr["mysql_ips"]) > 5:
+                details_lines.append(
+                    f"      ... and {len(pr['mysql_ips']) - 5} more"
+                )
+        if not pr["has_data"]:
+            pods_missing += 1
+    details = "\n".join(details_lines)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["idrac_mysql_verified"].format(
+                count=result.get("total_pods", 0),
+            ),
+            details,
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["idrac_mysql_missing"].format(count=pods_missing),
+            details,
+        )
+
+    assert result["success"], ASSERT_MSGS["idrac_mysql_missing"].format(
+        count=pods_missing,
+    )
+
+
+# =========================================================================
+# TC_SR_005: Verify iDRAC receiver is collecting metrics
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(44)
+def test_idrac_receiver_collecting(host):
+    """TC_SR_005: Verify iDRAC receiver is collecting metrics."""
+    _skip_if_idrac_disabled(host)
+    tc = TC["idrac_receiver_collecting"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Checking iDRAC receiver container logs for metric reports")
+    result = verify_receiver_collecting(host)
+
+    details_lines = []
+    not_collecting = 0
+    for pr in result.get("pod_results", []):
+        icon = "\u2713" if pr["collecting"] else "\u2717"
+        details_lines.append(
+            f"  {icon} {pr['pod_name']}: {pr['report_count']} report(s)"
+        )
+        if pr["sample_reports"]:
+            for report in pr["sample_reports"]:
+                details_lines.append(f"      - {report}")
+        if pr["service_tags"]:
+            details_lines.append(
+                f"      ServiceTags: {', '.join(pr['service_tags'])}"
+            )
+        if not pr["collecting"]:
+            not_collecting += 1
+    details = "\n".join(details_lines)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["idrac_receiver_collecting"].format(
+                count=result.get("total_pods", 0),
+            ),
+            details,
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["idrac_receiver_not_collecting"].format(
+                count=not_collecting,
+            ),
+            details,
+        )
+
+    assert result["success"], ASSERT_MSGS["idrac_receiver_not_collecting"].format(
+        count=not_collecting,
+    )
+
+
+# =========================================================================
+# TC_SR_006: Verify iDRAC Kafka topic exists
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
-@pytest.mark.order(42)
+@pytest.mark.order(45)
 def test_idrac_kafka_topic(host):
-    """TC_SR_003: Verify iDRAC Kafka topic exists."""
+    """TC_SR_006: Verify iDRAC Kafka topic exists."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_kafka_topic"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -190,16 +388,19 @@ def test_idrac_kafka_topic(host):
     )
 
 
+# =========================================================================
+# TC_SR_007: Verify iDRAC VictoriaPump container
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
-@pytest.mark.order(43)
+@pytest.mark.order(46)
 def test_idrac_victoria_pump(host):
-    """TC_SR_004: Verify iDRAC VictoriaPump container is running."""
+    """TC_SR_007: Verify iDRAC VictoriaPump container is running."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_victoria_pump"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Find iDRAC pod
     pods_result = verify_pods_by_prefix(host, IDRAC_POD_PREFIX, min_count=1)
     if not pods_result["success"] or not pods_result["pods"]:
         tl.failed(
@@ -210,37 +411,52 @@ def test_idrac_victoria_pump(host):
         )
         pytest.fail("No iDRAC pods found")
 
-    pod_name = pods_result["pods"][0]["name"]
-    tl.check(f"Checking VictoriaPump container in {pod_name}")
-    cmd = CMDS["victoriapump_container_running"].format(
-        namespace=TELEMETRY_NAMESPACE, pod_name=pod_name,
-    )
-    result = run_on_kube_vip(host, cmd)
-    is_ready = result.rc == 0 and result.stdout.strip().lower() == "true"
+    # Check victoria-pump in all pods
+    details_lines = []
+    all_ready = True
+    for pod_info in pods_result["pods"]:
+        pod_name = pod_info["name"]
+        cmd = CMDS["victoriapump_container_running"].format(
+            namespace=TELEMETRY_NAMESPACE, pod_name=pod_name,
+        )
+        result = run_on_kube_vip(host, cmd)
+        is_ready = result.rc == 0 and result.stdout.strip().lower() == "true"
+        icon = "\u2713" if is_ready else "\u2717"
+        details_lines.append(
+            f"  {icon} {pod_name}: {'Ready' if is_ready else result.stdout.strip()}"
+        )
+        if not is_ready:
+            all_ready = False
 
-    if is_ready:
+    details = "\n".join(details_lines)
+
+    if all_ready:
         tl.passed(
             LOG_MSGS["health_ok"].format(component="iDRAC VictoriaPump"),
-            "\u2713 victoria-pump: Ready",
+            details,
         )
     else:
         tl.failed(
             LOG_MSGS["health_failed"].format(component="iDRAC VictoriaPump"),
-            f"\u2717 victoria-pump: {result.stdout.strip()}",
+            details,
         )
 
-    assert is_ready, ASSERT_MSGS["pods_not_running"].format(
+    assert all_ready, ASSERT_MSGS["pods_not_running"].format(
         component="iDRAC VictoriaPump container",
         expected="ready",
-        running=result.stdout.strip(),
+        running="not ready in some pods",
     )
 
 
+# =========================================================================
+# TC_SR_008: Verify iDRAC telemetry service exists
+# =========================================================================
+
 @pytest.mark.source
 @pytest.mark.sanity
-@pytest.mark.order(44)
+@pytest.mark.order(47)
 def test_idrac_service(host):
-    """TC_SR_005: Verify iDRAC telemetry service exists."""
+    """TC_SR_008: Verify iDRAC telemetry service exists."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_service"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -265,8 +481,12 @@ def test_idrac_service(host):
     )
 
 
+# =========================================================================
+# TC_SR_009: Verify iDRAC telemetry data in VictoriaMetrics
+# =========================================================================
+
 def _build_service_tag_lines(tag_result):
-    """Build ✓/✗ detail lines for a single service tag result."""
+    """Build detail lines for a single service tag result."""
     lines = []
     stag = tag_result["service_tag"]
     if tag_result["found"]:
@@ -290,9 +510,9 @@ def _build_service_tag_lines(tag_result):
 
 @pytest.mark.source
 @pytest.mark.functional
-@pytest.mark.order(45)
+@pytest.mark.order(48)
 def test_idrac_vm_data(host):
-    """TC_SR_020: Verify iDRAC telemetry data in VictoriaMetrics."""
+    """TC_SR_009: Verify iDRAC telemetry data in VictoriaMetrics."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_vm_data"]
     tl = TestLogger(tc["title"], tc["id"])

@@ -105,96 +105,116 @@ TEST_CASES = {
     },
 
     # -- Sources: iDRAC -----------------------------------------------------
-    "idrac_sts_ready": {
+    "idrac_pod_count": {
         "id": "TC_SR_001",
+        "title": "Verify iDRAC pod count matches bmc_group_data.csv",
+    },
+    "idrac_sts_ready": {
+        "id": "TC_SR_002",
         "title": "Verify iDRAC StatefulSet pods ready",
     },
     "idrac_containers": {
-        "id": "TC_SR_002",
+        "id": "TC_SR_003",
         "title": "Verify all iDRAC containers running",
     },
+    "idrac_mysql_data": {
+        "id": "TC_SR_004",
+        "title": "Verify MySQL data in iDRAC telemetry pods",
+    },
+    "idrac_receiver_collecting": {
+        "id": "TC_SR_005",
+        "title": "Verify iDRAC receiver is collecting metrics",
+    },
     "idrac_kafka_topic": {
-        "id": "TC_SR_003",
+        "id": "TC_SR_006",
         "title": "Verify iDRAC Kafka topic exists",
     },
     "idrac_victoria_pump": {
-        "id": "TC_SR_004",
+        "id": "TC_SR_007",
         "title": "Verify iDRAC VictoriaPump metrics endpoint",
     },
     "idrac_service": {
-        "id": "TC_SR_005",
+        "id": "TC_SR_008",
         "title": "Verify iDRAC telemetry service exists",
     },
     "idrac_vm_data": {
-        "id": "TC_SR_020",
+        "id": "TC_SR_009",
         "title": "Verify iDRAC telemetry data in VictoriaMetrics",
     },
 
     # -- Sources: LDMS ------------------------------------------------------
+    "ldms_aggr_pod": {
+        "id": "TC_SR_020",
+        "title": "Verify LDMS aggregator pod running",
+    },
+    "ldms_store_pod": {
+        "id": "TC_SR_021",
+        "title": "Verify LDMS store pod running",
+    },
     "ldms_vector_bridge": {
-        "id": "TC_SR_006",
+        "id": "TC_SR_022",
         "title": "Verify Vector-LDMS bridge deployment ready",
     },
     "ldms_kafka_topic": {
-        "id": "TC_SR_007",
+        "id": "TC_SR_023",
         "title": "Verify LDMS Kafka topic exists",
     },
 
     # -- Sources: PowerScale ------------------------------------------------
     "powerscale_csm_deploy": {
-        "id": "TC_SR_008",
+        "id": "TC_SR_030",
         "title": "Verify CSM Metrics PowerScale deployment ready",
     },
     "powerscale_otel_deploy": {
-        "id": "TC_SR_009",
+        "id": "TC_SR_031",
         "title": "Verify OTEL Collector deployment ready",
     },
     "powerscale_secret_valid": {
-        "id": "TC_SR_010",
+        "id": "TC_SR_032",
         "title": "Verify isilon-creds secret has correct endpoint",
     },
     "powerscale_metrics_in_vm": {
-        "id": "TC_SR_011",
+        "id": "TC_SR_033",
         "title": "Verify PowerScale metrics in VictoriaMetrics",
     },
     "powerscale_logs_in_vl": {
-        "id": "TC_SR_012",
+        "id": "TC_SR_034",
         "title": "Verify PowerScale logs in VictoriaLogs",
     },
     "powerscale_syslog_config": {
-        "id": "TC_SR_013",
+        "id": "TC_SR_035",
         "title": "Verify PowerScale syslog forwarding configured",
     },
 
     # -- Sources: UFM --------------------------------------------------------
     "ufm_external_svc": {
-        "id": "TC_SR_016",
+        "id": "TC_SR_040",
         "title": "Verify UFM external service exists with correct endpoint",
     },
     "ufm_vmscrape": {
-        "id": "TC_SR_017",
+        "id": "TC_SR_041",
         "title": "Verify UFM VMServiceScrape CR exists",
     },
     "ufm_credentials_secret": {
-        "id": "TC_SR_018",
+        "id": "TC_SR_042",
         "title": "Verify UFM credentials K8s secret exists",
     },
     "ufm_metrics_in_vm": {
-        "id": "TC_SR_019",
+        "id": "TC_SR_043",
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
 
     # -- Sources: OME -------------------------------------------------------
     "ome_vector_bridge": {
-        "id": "TC_SR_014",
+        "id": "TC_SR_050",
         "title": "Verify Vector-OME bridge deployment ready",
     },
     "ome_kafka_user": {
-        "id": "TC_SR_015",
+        "id": "TC_SR_051",
         "title": "Verify OME KafkaUser CR exists",
     },
     "ome_kafka_connectivity": {
-        "id": "TC_SR_021",
+        "id": "TC_SR_052",
         "title": "Verify OME Kafka forwarder connectivity status",
     },
 
