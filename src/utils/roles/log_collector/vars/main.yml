@@ -15,11 +15,11 @@
 # OMNIA_DATA_PATH with fallback
 omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
-# Log collection workspace root on OIM
-log_root: "{{ omnia_data_path }}/collector_logs"
+# Error messages
+error_msg_inventory_file_missing: "Node inventory file not found: {{ collect_pxe_file }}. Create this file with IP addresses under each functional group."
 
-# PXE mapping file used to build dynamic node inventory
-pxe_mapping_file_path: "{{ omnia_data_path }}/input/project_default/pxe_mapping_file.csv"
+# Domain name
+domain_name: "utils"
 
 # K8s master log paths
 k8s_master_log_dirs:
