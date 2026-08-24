@@ -35,6 +35,11 @@
     apply_config: "{{ __default_config }}"
   when: apply_config is not defined
 
+- name: Initialize slurm_conf_dict from defaults
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __default_config.slurm }}"
+  when: slurm_conf_dict is not defined
+
 - name: Set nodes_yaml path for slurm_config tasks
   ansible.builtin.set_fact:
     nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
