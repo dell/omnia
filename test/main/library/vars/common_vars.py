@@ -134,6 +134,7 @@ VALID_CLI_OPTIONS: List[str] = [
     "--deps-only",
     "--force-deps",
     "--skip-catalog",
+    "--skip-omnia-cli",
     "--tags", "-t",
     "--all",
 ]
@@ -254,6 +255,23 @@ CMDS: Dict[str, str] = {
     "omnia_sh_force_deps_invalid": (
         "cd {clone_path} && bash {omnia_sh}"
         " --force-deps 2>&1"
+    ),
+    # --- Execution: actual omnia.sh operations ---
+    "omnia_sh_run_domain_tag": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --run {domain} --tags {tag} 2>&1"
+    ),
+    "omnia_sh_cleanup_yes": (
+        "cd {clone_path} && echo yes"
+        " | bash {omnia_sh} --cleanup 2>&1"
+    ),
+    "omnia_sh_cleanup_all_yes": (
+        "cd {clone_path} && echo yes"
+        " | bash {omnia_sh} --cleanup --all 2>&1"
+    ),
+    "omnia_sh_cleanup_no": (
+        "cd {clone_path} && echo no"
+        " | bash {omnia_sh} --cleanup 2>&1"
     ),
     # --- Files ---
     "file_exists": "test -f {path} && echo exists",

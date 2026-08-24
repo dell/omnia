@@ -208,6 +208,35 @@ TEST_NAMES: Dict[str, str] = {
     "skip_omnia_cli_accepted": (
         "Verify --setup-venv --skip-omnia-cli accepted"
     ),
+
+    # Execution — actual omnia.sh operations
+    "exec_setup_full": (
+        "Execute omnia.sh --setup-venv (full setup)"
+    ),
+    "exec_init_domain": (
+        "Execute omnia.sh --init for single domain"
+    ),
+    "exec_run_validate": (
+        "Execute omnia.sh --run with --tags validate"
+    ),
+    "exec_run_precheck": (
+        "Execute omnia.sh --run with --tags precheck"
+    ),
+    "exec_cleanup": (
+        "Execute omnia.sh --cleanup"
+    ),
+    "exec_cleanup_cancel": (
+        "Execute omnia.sh --cleanup with 'no' confirmation"
+    ),
+    "exec_cleanup_verify_removed": (
+        "Verify cleanup removed venv and env files"
+    ),
+    "exec_cleanup_verify_data": (
+        "Verify cleanup preserved runtime data"
+    ),
+    "exec_re_setup": (
+        "Re-deploy omnia.sh --setup-venv after cleanup"
+    ),
 }
 
 # =============================================================================
@@ -461,6 +490,50 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "skip_omnia_cli_failed": (
         "--setup-venv --skip-omnia-cli failed (rc={rc})"
+    ),
+
+    # Execution — actual operations
+    "exec_setup_ok": (
+        "Full setup completed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_setup_failed": (
+        "Full setup failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_init_domain_ok": (
+        "--init {domain} completed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_init_domain_failed": (
+        "--init {domain} failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_run_ok": (
+        "--run {domain} --tags {tag} completed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_run_failed": (
+        "--run {domain} --tags {tag} failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_cleanup_ok": (
+        "--cleanup completed (rc={rc})"
+    ),
+    "exec_cleanup_failed": (
+        "--cleanup failed (rc={rc})"
+    ),
+    "exec_cleanup_cancelled_ok": (
+        "--cleanup cancelled correctly when user says 'no' (rc={rc})"
+    ),
+    "exec_cleanup_verify_ok": (
+        "Cleanup removed expected artifacts"
+    ),
+    "exec_cleanup_verify_data_ok": (
+        "Cleanup preserved runtime data at {data_path}"
+    ),
+    "exec_cleanup_verify_failed": (
+        "Cleanup did not remove: {remaining}"
+    ),
+    "exec_re_setup_ok": (
+        "Re-setup after cleanup succeeded (rc={rc})"
+    ),
+    "exec_re_setup_failed": (
+        "Re-setup after cleanup failed (rc={rc})"
     ),
 }
 
@@ -805,6 +878,98 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check --skip-omnia-cli parsing in omnia.sh main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    # Execution tests
+    "exec_setup_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 FULL SETUP EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check omnia.env has valid SYSTEM_ADMIN_NIC_IPV4\n"
+        "\u2551   2. Verify Python >= 3.11 is installed\n"
+        "\u2551   3. Check domain-init.sh scripts exist\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_init_domain_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN INIT EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --init {domain} failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check domain-init.sh exists for {domain}\n"
+        "\u2551   2. Verify venv is set up first (omnia.sh -s)\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_run_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN RUN EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --run {domain} --tags {tag} failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify venv + domain init completed\n"
+        "\u2551   2. Check domain playbook supports --tags {tag}\n"
+        "\u2551   3. Review ansible-playbook output for errors\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_cleanup_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 CLEANUP EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --cleanup failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check cleanup_omnia() in omnia.sh\n"
+        "\u2551   2. Verify file permissions on /etc/omnia/, /etc/profile.d/\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_cleanup_cancel_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 CLEANUP CANCELLATION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --cleanup should cancel when user enters 'no'.\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check cleanup_omnia() confirmation prompt\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_cleanup_verify_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 CLEANUP DID NOT REMOVE EXPECTED FILES\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 After cleanup, these should NOT exist: {remaining}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check cleanup_omnia() in omnia.sh removes all artifacts\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_cleanup_data_lost": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 CLEANUP DELETED RUNTIME DATA (should preserve)\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Runtime data at {data_path} was removed by --cleanup\n"
+        "\u2551 without --all. Data should be preserved.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check cleanup_omnia() only removes venv+env (not data)\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_re_setup_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 RE-SETUP AFTER CLEANUP FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv --deps-only failed after cleanup.\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify cleanup was clean (no stale artifacts)\n"
+        "\u2551   2. Check setup_venv() in omnia.sh\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

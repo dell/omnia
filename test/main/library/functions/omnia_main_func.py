@@ -409,19 +409,24 @@ def check_activate_helper(host) -> Dict[str, Any]:
 # DOMAIN INIT VERIFICATION
 # =============================================================================
 
-def check_domain_log_dirs(host) -> Dict[str, Any]:
+def check_domain_log_dirs(
+    host, domains: List[str] = None
+) -> Dict[str, Any]:
     """Verify domain log directories created under /var/log/omnia/.
 
     Args:
         host: Testinfra host connection.
+        domains: Optional list of domains to check.
+                 Defaults to DOMAINS_WITH_INIT (all domains).
 
     Returns:
-        Dict with keys: success, details, error, missing.
+        Dict with keys: success, details, error, missing, found.
     """
     missing: List[str] = []
     present: List[str] = []
 
-    for domain in DOMAINS_WITH_INIT:
+    check_domains = domains if domains is not None else DOMAINS_WITH_INIT
+    for domain in check_domains:
         cmd = CMDS["domain_log_dir_exists"].format(domain=domain)
         result = run_on_host(host, cmd)
         log_dir = f"/var/log/omnia/{domain}"
@@ -436,12 +441,14 @@ def check_domain_log_dirs(host) -> Dict[str, Any]:
             "details": f"{len(present)} log directories present",
             "error": "",
             "missing": [],
+            "found": present,
         }
     return {
         "success": False,
         "details": f"{len(present)} present, {len(missing)} missing",
         "error": f"Missing: {', '.join(missing)}",
         "missing": missing,
+        "found": present,
     }
 
 
@@ -483,11 +490,13 @@ def check_domain_input_staged(
             "success": True,
             "details": f"{file_count} file(s) for {domain}",
             "error": "",
+            "file_count": file_count,
         }
     return {
         "success": False,
         "details": "",
         "error": f"No input files staged for {domain}",
+        "file_count": 0,
     }
 
 

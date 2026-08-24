@@ -121,6 +121,27 @@ scenarios:
     marker: "sanity"
 
   # =========================================================================
+  # execution — Actual omnia.sh operations (setup, init, run, cleanup)
+  # =========================================================================
+  # Tests actual execution of omnia.sh commands — not just help/flags.
+  # Includes full lifecycle: setup -> init -> run --tags -> cleanup.
+  #
+  # Supported suites (subfolders inside fvt/execution/):
+  #   setup_exec    — Full setup + init execution and verification
+  #   run_exec      — Run domain with tags (precheck, validate, etc.)
+  #   cleanup_exec  — Cleanup and full-reset lifecycle
+  #
+  # Supported markers:
+  #   sanity     — Baseline must-pass tests
+  #   functional — Domain execution tests
+  #   deploy     — Playbook deployment test
+  execution:
+    order: 25
+    run: true
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
   # setup — Environment install, venv creation, directory setup
   # =========================================================================
   # Verifies environment file installation, venv creation, directory

@@ -21,6 +21,7 @@ run_validation setup test        # Setup + verify
 run_validation init test         # Init + verify
 run_validation cli verify        # CLI argument tests
 run_validation omnia_cli test    # omnia-cli diagnostics
+run_validation execution test    # Actual execution: setup, run --tags, cleanup
 run_validation nft test          # Performance + idempotency NFT
 run_validation all test          # Run all scenarios
 ```
@@ -62,11 +63,16 @@ test/main/
 │   │   ├── test_deploy_cli.py
 │   │   ├── commands/        # Command error handling + flag verification + skip-catalog
 │   │   └── tags/            # Tag verification tests (precheck, validate, prepare, execute, cleanup)
-│   └── omnia_cli/           # omnia-cli diagnostics tests
-│       ├── test_deploy_omnia_cli.py
-│       ├── diagnostics/     # status, check, domain commands (incl. orchestrator, telemetry, build-stream)
-│       ├── errors/          # Unknown command error tests
-│       └── logs/            # Log command tests
+│   ├── omnia_cli/           # omnia-cli diagnostics tests
+│   │   ├── test_deploy_omnia_cli.py
+│   │   ├── diagnostics/     # status, check, domain commands (incl. orchestrator, telemetry, build-stream)
+│   │   ├── errors/          # Unknown command error tests
+│   │   └── logs/            # Log command tests
+│   └── execution/           # Actual omnia.sh operations (setup, init, run --tags, cleanup)
+│       ├── test_deploy_execution.py
+│       ├── setup_exec/      # Full setup + domain init execution + verification
+│       ├── run_exec/        # Run domain with all tags (precheck, validate, prepare, execute, cleanup)
+│       └── cleanup_exec/    # Cleanup lifecycle, cancel, verify, re-setup
 └── nft/                     # Non-Functional Tests
     ├── README.md            # NFT test cases and thresholds
     ├── __init__.py
@@ -84,6 +90,7 @@ test/main/
 | `init` | Domain log directories, input file staging (all 7 domains incl. orchestrator, discovery, utils) | `omnia.sh --init` |
 | `cli` | Help output, error handling, flag verification (--cleanup, --check-deps, --force-deps, --skip-catalog, --skip-omnia-cli), generic tags, argument parsing | `omnia.sh --help` |
 | `omnia_cli` | Diagnostics CLI: status, check, version, domain queries (all 7 domains incl. orchestrator, telemetry, build-stream, utils), logs, errors | `omnia-cli help` |
+| `execution` | **Actual execution** of all omnia.sh operations: full setup, domain init, `--run --tags` (precheck/validate/prepare/execute/cleanup), cleanup cancel/execute/verify, `--all` full reset, re-setup idempotency | `omnia.sh --setup-venv`, `--init`, `--run`, `--cleanup` |
 | `nft` | Performance thresholds, idempotency, file permissions, CLI performance | `omnia.sh --setup-venv`, `--init`, `omnia-cli status` |
 
 ## Markers

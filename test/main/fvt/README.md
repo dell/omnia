@@ -91,4 +91,45 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ---
 
+## execution (actual omnia.sh operations)
+
+Tests actual execution of omnia.sh commands — not just help output or flag parsing.
+Covers the full lifecycle: setup -> init -> run --tags -> cleanup -> re-setup.
+
+### setup_exec — Full setup and init execution
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_001 | `test_deploy_full_setup` | *(root)* | deploy, sanity | Deploy omnia.sh --setup-venv (full setup, not deps-only) |
+| TC_EX_002 | `test_full_setup_venv_exists` | setup_exec/ | sanity | Verify full setup created venv with ansible |
+| TC_EX_003 | `test_full_setup_env_installed` | setup_exec/ | sanity | Verify full setup installed system env files |
+| TC_EX_004 | `test_init_domain_exec` | setup_exec/ | sanity | Execute omnia.sh --init for image_build_manager |
+| TC_EX_005 | `test_init_domain_log_dirs` | setup_exec/ | sanity | Verify domain init created log directories |
+| TC_EX_006 | `test_init_domain_input_staged` | setup_exec/ | sanity | Verify domain init staged input files |
+
+### run_exec — Run domain with tags
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_007 | `test_run_precheck` | run_exec/ | sanity, functional | Execute --run image_build_manager --tags precheck |
+| TC_EX_008 | `test_run_validate` | run_exec/ | sanity, functional | Execute --run image_build_manager --tags validate |
+| TC_EX_009 | `test_run_prepare` | run_exec/ | sanity, functional | Execute --run image_build_manager --tags prepare |
+| TC_EX_010 | `test_run_execute` | run_exec/ | sanity, functional | Execute --run image_build_manager --tags execute |
+| TC_EX_011 | `test_run_cleanup` | run_exec/ | sanity, functional | Execute --run image_build_manager --tags cleanup |
+
+### cleanup_exec — Cleanup lifecycle
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_012 | `test_cleanup_cancel` | cleanup_exec/ | sanity | Execute --cleanup with 'no' — verify cancel |
+| TC_EX_013 | `test_cleanup_exec` | cleanup_exec/ | sanity | Execute --cleanup with 'yes' — verify success |
+| TC_EX_014 | `test_cleanup_verify_removed` | cleanup_exec/ | sanity | Verify cleanup removed venv, env files, omnia-cli |
+| TC_EX_015 | `test_cleanup_verify_data_preserved` | cleanup_exec/ | sanity | Verify cleanup preserved runtime data (/opt/omnia/) |
+| TC_EX_016 | `test_re_setup_after_cleanup` | cleanup_exec/ | sanity | Re-deploy --setup-venv --deps-only after cleanup |
+| TC_EX_017 | `test_cleanup_all_exec` | cleanup_exec/ | sanity | Execute --cleanup --all with 'yes' — full reset |
+| TC_EX_018 | `test_cleanup_all_verify_removed` | cleanup_exec/ | sanity | Verify --cleanup --all removed data directory |
+| TC_EX_019 | `test_re_setup_after_full_cleanup` | cleanup_exec/ | sanity | Re-deploy --setup-venv --deps-only after full cleanup |
+
+---
+
 > **NFT tests** are documented separately in [`nft/README.md`](../nft/README.md) (11 tests: performance, idempotency, permissions).

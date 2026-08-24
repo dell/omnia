@@ -276,8 +276,6 @@ PROFILE_EOF
 create_base_dirs() {
     echo -e "${BLUE}Creating base directory structure at ${OMNIA_DATA_PATH}...${NC}"
     mkdir -p "${OMNIA_DATA_PATH}"
-    mkdir -p "${OMNIA_DATA_PATH}/log"
-    mkdir -p "${OMNIA_DATA_PATH}/input"
     mkdir -p "${OMNIA_DATA_PATH}/.data"
     echo -e "${GREEN}Base directories created. Domain directories will be created by respective playbooks.${NC}"
 }
@@ -621,7 +619,7 @@ cleanup_omnia() {
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
-        echo -e "  - omnia-cli:           /usr/local/bin/omnia-cli"
+        echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
         echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
@@ -630,7 +628,7 @@ cleanup_omnia() {
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
-        echo -e "  - omnia-cli:           /usr/local/bin/omnia-cli"
+        echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
         echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
