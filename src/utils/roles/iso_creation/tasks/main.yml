@@ -13,56 +13,102 @@
 # limitations under the License.
 ---
 
-# Step 1: Check if custom ISO already exists and prompt for action
+# Step 1: Resolve NFS path to local mount point
+- name: Find local mount point for NFS server
+  ansible.builtin.shell: |
+    set -o pipefail
+    mount | grep '{{ _nfs_server }}:' | awk '{print $1 " " $3}'
+  register: _nfs_mounts
+  changed_when: false
+  failed_when: false
+
+- name: Fail if NFS mount not found
+  ansible.builtin.fail:
+    msg: "{{ nfs_mount_not_found_msg }}"
+  when: _nfs_mounts.stdout | trim | length == 0
+
+- name: Resolve local path from NFS mount
+  ansible.builtin.set_fact:
+    _local_iso_dir: >-
+      {% set mounts = _nfs_mounts.stdout_lines %}
+      {% set target_nfs_dir = _nfs_dir %}
+      {% set result = '' %}
+      {% for line in mounts %}
+      {% set parts = line.split() %}
+      {% set nfs_export = parts[0].split(':')[1] %}
+      {% set local_mount = parts[1] %}
+      {% if target_nfs_dir.startswith(nfs_export) %}
+      {% set rel_path = target_nfs_dir[nfs_export | length:].lstrip('/') %}
+      {% if rel_path | length > 0 %}
+      {{ local_mount }}/{{ rel_path }}
+      {% else %}
+      {{ local_mount }}
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+    cacheable: true
+
+- name: Clean up local ISO directory path
+  ansible.builtin.set_fact:
+    _local_iso_dir: "{{ _local_iso_dir | trim }}"
+    _local_iso_path: "{{ _local_iso_dir | trim }}/{{ _nfs_iso_filename }}"
+    _local_ks_path: "{{ _local_iso_dir | trim }}/{{ nfs_kickstart_filename }}"
+    _local_manifest_path: "{{ _local_iso_dir | trim }}/{{ manifest_filename }}"
+    cacheable: true
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ _local_iso_dir }}"
+    state: directory
+    mode: "0755"
+
+# Step 2: Check if custom ISO already exists
 - name: Check if custom ISO already exists
   ansible.builtin.stat:
-    path: "{{ repacked_iso_path }}"
-  register: custom_iso_stat
+    path: "{{ _local_iso_path }}"
+  register: _custom_iso_stat
 
-- name: Prompt to use existing custom ISO or rebuild
-  ansible.builtin.pause:
-    prompt: |-
-      ==============================================================
-      Custom ISO already exists at:
-        {{ repacked_iso_path }}
+- name: Log ISO status
+  ansible.builtin.debug:
+    msg: >-
+      {% if _custom_iso_stat.stat.exists and not (rebuild_iso | bool) %}
+      Custom ISO already exists at {{ _local_iso_path }}. Skipping build (set rebuild_iso: true to force).
+      {% elif _custom_iso_stat.stat.exists and rebuild_iso | bool %}
+      Custom ISO exists but rebuild_iso is true — will rebuild.
+      {% else %}
+      Custom ISO does not exist — will build.
+      {% endif %}
 
-      Press ENTER to use the existing ISO.
-      Type 'r' then ENTER to rebuild the ISO.
-      ==============================================================
-  register: iso_reuse_prompt
-  when:
-    - custom_iso_stat.stat.exists
-    - not (silent_install | bool)
-
-- name: Set rebuild flag from user input
-  ansible.builtin.set_fact:
-    rebuild_iso: true
-  when:
-    - custom_iso_stat.stat.exists
-    - not (silent_install | bool)
-    - iso_reuse_prompt.user_input | default('') | lower in ['r', 'rebuild']
-
-# Step 2: Render kickstart file to iso_output directory
+# Step 3: Render kickstart file
 - name: Render kickstart file
+  when: not _custom_iso_stat.stat.exists or rebuild_iso | bool
   block:
     - name: Render Kickstart from template
       ansible.builtin.template:
         src: "{{ kickstart_template }}.ks.j2"
-        dest: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+        dest: "{{ _local_ks_path }}"
         mode: "0644"
-      when: kickstart_file | length == 0
+      when: kickstart_file | default('') | length == 0
 
     - name: Process user-provided Kickstart
       ansible.builtin.include_tasks: inject_user_kickstart.yml
       vars:
-        kickstart_output_path: "{{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
-      when: kickstart_file | length > 0
+        kickstart_output_path: "{{ _local_ks_path }}"
+      when: kickstart_file | default('') | length > 0
 
     - name: Log kickstart creation
       ansible.builtin.debug:
-        msg: "Kickstart file created at {{ iso_target_directory }}/{{ nfs_kickstart_filename }}"
+        msg: "Kickstart file created at {{ _local_ks_path }}"
 
-# Step 3: Build custom ISO (if missing or rebuild requested)
+# Step 4: Build custom ISO
+- name: Build custom ISO with embedded kickstart
+  ansible.builtin.include_tasks: build_embedded_iso.yml
+  when:
+    - not _custom_iso_stat.stat.exists or rebuild_iso | bool
+    - kickstart_delivery_method | default('embedded') == 'embedded'
+
 - name: Build custom ISO with NFS kickstart reference
   ansible.builtin.include_tasks: build_nfs_iso.yml
-  when: not custom_iso_stat.stat.exists or (rebuild_iso | bool)
+  when:
+    - not _custom_iso_stat.stat.exists or rebuild_iso | bool
+    - kickstart_delivery_method | default('embedded') == 'nfs'

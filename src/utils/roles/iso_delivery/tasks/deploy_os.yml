@@ -13,27 +13,16 @@
 # limitations under the License.
 ---
 
-# ── Step 1: Compute NFS ISO path ────────────────────────────────────────
-- name: Set OMNIA_DATA_PATH for path calculations
+# ── Step 1: Compute NFS ISO URI for iDRAC ───────────────────────────────
+- name: Set NFS ISO URI for iDRAC virtual media
   ansible.builtin.set_fact:
-    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    _nfs_iso_uri: "{{ _nfs_server }}:{{ _nfs_full_path }}"
 
-- name: Set NFS share path for custom ISO
-  ansible.builtin.set_fact:
-    nfs_iso_server: "{{ iso_nfs_share.split(':')[0] }}"
-    nfs_iso_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
-    nfs_iso_filename: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
+- name: Log NFS ISO URI
+  ansible.builtin.debug:
+    msg: "iDRAC virtual media will mount ISO from NFS: {{ _nfs_iso_uri }}"
 
-- name: Set full NFS ISO URI for iDRAC virtual media
-  vars:
-    iso_target_relative_dir: "{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}"
-  ansible.builtin.set_fact:
-    nfs_iso_output_dir: "{{ nfs_iso_base_dir }}/{{ iso_target_relative_dir }}"
-    nfs_iso_uri: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_relative_dir }}/{{ nfs_iso_filename }}"
-    nfs_iso_share_dir: "{{ nfs_iso_server }}:{{ nfs_iso_base_dir }}/{{ iso_target_relative_dir }}"
-
-
-# ── Step 2: Eject existing virtual media, boot ISO ────
+# ── Step 2: Eject existing virtual media ────────────────────────────────
 - name: Eject existing virtual media if mounted
   dellemc.openmanage.idrac_virtual_media:
     idrac_ip: "{{ target_bmc_ip }}"
@@ -56,9 +45,9 @@
     force: true
     virtual_media:
       - insert: true
-        image: "{{ nfs_iso_uri }}"
-  register: insert_result
-  # no_log: true
+        image: "{{ _nfs_iso_uri }}"
+  register: _insert_result
+  no_log: true
 
 - name: Set boot override to CD (one-time)
   dellemc.openmanage.idrac_boot:
@@ -68,7 +57,10 @@
     validate_certs: false
     boot_source_override_enabled: "once"
     boot_source_override_target: "cd"
-  register: boot_override_result
+    boot_source_override_mode: uefi
+    resource_id: "System.Embedded.1"
+    reset_type: "none"
+  register: _boot_override_result
   no_log: true
 
 - name: Reboot server to boot from ISO
@@ -78,129 +70,49 @@
     password: "{{ bmc_password }}"
     validate_certs: false
     reset_type: "ForceRestart"
-  register: reboot_result
+    resource_id: "System.Embedded.1"
+  register: _reboot_result
   no_log: true
 
-# ── Step 3: Wait for OS installation to complete ────────────────────────
+# ── Step 4: Wait for OS installation to complete ────────────────────────
 - name: Wait for target node to become offline (reboot in progress)
   ansible.builtin.wait_for:
-    host: "{{ target_node_ip }}"
+    host: "{{ target_admin_ip }}"
     port: 22
     state: stopped
     timeout: 300
-  when: target_node_ip is defined and target_node_ip | length > 0
+  when: target_admin_ip | default('') | length > 0
   failed_when: false
-
-- name: Get iDRAC current time for accurate timestamp filtering
-  ansible.builtin.uri:
-    url: "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1"
-    method: GET
-    user: "{{ bmc_username }}"
-    password: "{{ bmc_password }}"
-    force_basic_auth: true
-    validate_certs: false
-    return_content: true
-  register: idrac_time
-  failed_when: false
-
-- name: Extract iDRAC time
-  ansible.builtin.set_fact:
-    idrac_current_time: "{{ idrac_time.json.DateTime | default('') }}"
-
-- name: Record installation start time
-  ansible.builtin.set_fact:
-    install_start_time_iso: "{{ idrac_current_time if idrac_current_time != '' else ansible_date_time.iso8601 }}"
-
-- name: Poll iDRAC System Event Log for OS installation progress
-  ansible.builtin.uri:
-    url: "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries"
-    method: GET
-    user: "{{ bmc_username }}"
-    password: "{{ bmc_password }}"
-    force_basic_auth: true
-    validate_certs: false
-    return_content: true
-  register: idrac_sel_logs
-  until: >
-    idrac_sel_logs.json.Members | default([])
-    | selectattr('Created', 'defined')
-    | selectattr('Created', 'ge', install_start_time_iso)
-    | selectattr('Message', 'search', 'installing')
-    | selectattr('Message', 'search', 'started')
-    | list | length > 0
-  retries: 20
-  delay: 15
-  failed_when: false
-  no_log: true
 
 - name: OS installation in progress
   ansible.builtin.debug:
     msg: >-
       Target node is offline. OS installation in progress via iDRAC virtual media.
-      Monitoring iDRAC System Event Log for completion...
+      Waiting for SSH to become available on {{ target_admin_ip }}...
 
-- name: Wait for OS installation to complete (monitor iDRAC SEL and SSH)
-  block:
-    - name: Poll iDRAC SEL for installation completion
-      ansible.builtin.uri:
-        url: "https://{{ target_bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries"
-        method: GET
-        user: "{{ bmc_username }}"
-        password: "{{ bmc_password }}"
-        force_basic_auth: true
-        validate_certs: false
-        return_content: true
-      register: idrac_sel_completion
-      until: >
-        idrac_sel_completion.json.Members | default([])
-        | selectattr('Created', 'defined')
-        | selectattr('Created', 'ge', install_start_time_iso)
-        | selectattr('Message', 'search', 'installing')
-        | selectattr('Message', 'search', 'successfully completed')
-        | list | length > 0
-        or
-        idrac_sel_completion.json.Members | default([])
-        | selectattr('Created', 'defined')
-        | selectattr('Created', 'ge', install_start_time_iso)
-        | selectattr('Message', 'search', 'installing')
-        | selectattr('Message', 'search', 'abruptly stopped|failed')
-        | list | length > 0
-      retries: 120
-      delay: 30
-      failed_when: false
-      no_log: true
+# ── Step 5: Wait for SSH to come up ─────────────────────────────────────
+- name: Wait for target node SSH to become available
+  ansible.builtin.wait_for:
+    host: "{{ target_admin_ip }}"
+    port: 22
+    state: started
+    delay: "{{ ssh_verify_delay | default(30) }}"
+    timeout: "{{ (ssh_verify_retries | default(60) | int) * (ssh_verify_delay | default(30) | int) }}"
+  register: _ssh_wait
+  when:
+    - target_admin_ip | default('') | length > 0
+    - ssh_verify_enabled | default(true) | bool
+  failed_when: false
 
-    - name: Check for installation errors in iDRAC SEL
-      ansible.builtin.set_fact:
-        install_error_detected: >-
-          {{ idrac_sel_completion.json.Members | default([])
-             | selectattr('Created', 'defined')
-             | selectattr('Created', 'ge', install_start_time_iso)
-             | selectattr('Message', 'search', 'installing')
-             | selectattr('Message', 'search', 'abruptly stopped|failed|error')
-             | list | length > 0 }}
+- name: Fail if SSH wait timed out
+  ansible.builtin.fail:
+    msg: "{{ ssh_wait_fail_msg }}"
+  when:
+    - ssh_verify_enabled | default(true) | bool
+    - _ssh_wait is defined
+    - _ssh_wait is failed
 
-    - name: Log warning if installation errors detected in iDRAC SEL
-      ansible.builtin.debug:
-        msg: "{{ sel_error_warning_msg }}"
-      when: install_error_detected | bool
-
-    - name: Wait for target node SSH to become available
-      ansible.builtin.wait_for:
-        host: "{{ target_node_ip }}"
-        port: 22
-        state: started
-        delay: 30
-        timeout: 600
-      register: ssh_wait
-      when: target_node_ip is defined and target_node_ip | length > 0
-
-  rescue:
-    - name: Fail if SSH wait failed
-      ansible.builtin.fail:
-        msg: "{{ ssh_wait_fail_msg }}"
-
-# ── Step 4: Verify installed OS and passwordless SSH ────────────────────
+# ── Step 6: Verify installed OS ─────────────────────────────────────────
 - name: Verify passwordless SSH access with injected key
   ansible.builtin.command:
     cmd: >-
@@ -208,20 +120,23 @@
       -o ConnectTimeout=10
       -o BatchMode=yes
       -o PasswordAuthentication=no
-      root@{{ target_node_ip }}
+      root@{{ target_admin_ip }}
       'hostname'
-  register: ssh_key_verify
+  register: _ssh_key_verify
   changed_when: false
   failed_when: false
-  when: target_node_ip is defined and target_node_ip | length > 0
+  when:
+    - target_admin_ip | default('') | length > 0
+    - ssh_verify_enabled | default(true) | bool
   delegate_to: localhost
 
 - name: Fail if passwordless SSH is not working
   ansible.builtin.fail:
     msg: "{{ passwordless_ssh_fail_msg }}"
   when:
-    - target_node_ip is defined and target_node_ip | length > 0
-    - ssh_key_verify.rc != 0
+    - ssh_verify_enabled | default(true) | bool
+    - _ssh_key_verify is defined
+    - _ssh_key_verify.rc | default(1) != 0
 
 - name: Verify installed OS details
   ansible.builtin.command:
@@ -229,20 +144,22 @@
       ssh -o StrictHostKeyChecking=no
       -o ConnectTimeout=10
       -o BatchMode=yes
-      root@{{ target_node_ip }}
+      root@{{ target_admin_ip }}
       'hostname && cat /etc/redhat-release && cat /root/.ks-complete 2>/dev/null || echo "Kickstart marker not found"'
-  register: os_verify
+  register: _os_verify
   changed_when: false
   failed_when: false
-  when: target_node_ip is defined and target_node_ip | length > 0
+  when:
+    - target_admin_ip | default('') | length > 0
+    - ssh_verify_enabled | default(true) | bool
   delegate_to: localhost
 
 - name: Log OS installation result
   ansible.builtin.debug:
     msg: "{{ os_install_success_msg }}"
   when:
-    - os_verify is defined
-    - os_verify.rc == 0
+    - _os_verify is defined
+    - _os_verify.rc | default(1) == 0
 
 # ── Step 7: Cleanup — eject virtual media ───────────────────────────────
 - name: Eject virtual media after installation
