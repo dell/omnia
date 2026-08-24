@@ -19,7 +19,9 @@ TEST_NAMES = {
     "pulp_cli_configured": "Verify Pulp CLI configured",
     "pulp_certificates_exist": "Verify Pulp SSL certificates exist",
     "pulp_cli_repository_list": "Verify Pulp CLI can list RPM repositories",
-    "pulp_api_detailed_status": "Verify Pulp API detailed health (DB, workers, content apps, storage)",
+    "pulp_api_detailed_status": (
+        "Verify Pulp API detailed health (DB, workers, content apps, storage)"
+    ),
     # Download
     "repo_status_exists": "Verify repo_status.yml generated",
     "repo_status_success": "Verify overall_status is success",
@@ -28,13 +30,21 @@ TEST_NAMES = {
     "x86_64_repos_present": "Verify x86_64 repositories present",
     "file_repos_present": "Verify file repositories present",
     "software_download_status": "Verify software.csv download status per architecture",
-    "per_software_package_status": "Verify per-software status.csv for individual package download results",
-    "pulp_repositories_synced": "Verify all RPM repositories have latest_version_href (sync indicator)",
-    "pulp_distributions_published": "Verify all RPM distributions are published with repository attachment",
+    "per_software_package_status": (
+        "Verify per-software status.csv for individual package download results"
+    ),
+    "pulp_repositories_synced": (
+        "Verify all RPM repositories have latest_version_href (sync indicator)"
+    ),
+    "pulp_distributions_published": (
+        "Verify all RPM distributions are published with repository attachment"
+    ),
     "container_repos_synced": "Verify all container image repositories are synced",
     "file_repos_synced": "Verify all file repositories (tarball, git, etc.) are synced",
     "pulp_content_accessible": "Verify RPM content is reachable via HTTPS (repomd.xml check)",
-    "software_packages_in_pulp": "Verify all RPM packages from software_config.json are present in Pulp",
+    "software_packages_in_pulp": (
+        "Verify all RPM packages from software_config.json are present in Pulp"
+    ),
     # Status
     "repo_status_regenerated": "Verify repo_status.yml regenerated",
     # Cleanup
