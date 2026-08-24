@@ -31,9 +31,7 @@
 - name: Determine RPM download URL from release assets
   ansible.builtin.set_fact:
     openchami_rpm_url: >-
-      {{ (openchami_release_info.json.assets
-          | selectattr('name', 'match', '.*\\.rpm$')
-          | first).browser_download_url }}
+      https://github.com/{{ openchami_release_repo }}/releases/download/{{ openchami_release_info.json.tag_name }}/{{ openchami_rpm_name }}
   when: not _openchami_rpm_stat.stat.exists
 
 - name: Download the OpenCHAMI RPM from GitHub releases
