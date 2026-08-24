@@ -425,7 +425,7 @@ playbook_paths:
   provision.yml: "/omnia/provision/provision.yml"
   local_repo.yml: "/omnia/local_repo/local_repo.yml"
   set_pxe_boot.yml: "/omnia/utils/set_pxe_boot.yml"
-  discovery.yml: "/omnia/discovery/discovery.yml"
+  discovery.yml: "/omnia/discovery/playbooks/discovery.yml"
   include_input_dir.yml: "/omnia/utils/include_input_dir.yml"
 ```
 

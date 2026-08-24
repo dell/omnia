@@ -41,7 +41,7 @@ options:
 
 EXAMPLES = r'''
 - name: Fetch credential rule for admin password
-  omnia.orchestrator.fetch_credential_rule:
+  fetch_credential_rule:
     credential_field: admin_password
     module_utils_path: "{{ role_path }}/../../plugins/module_utils"
   register: rule_result

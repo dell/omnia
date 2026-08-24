@@ -74,9 +74,9 @@
           {%- if sinks is defined -%}
             {%- if sinks is string -%}
               {{ sinks | from_yaml }}
-            {%- else -%}
+          {%- else -%}
               {{ sinks }}
-            {%- endif -%}
+          {%- endif -%}
           {%- else -%}
             {{ sinks_default }}
           {%- endif -%}

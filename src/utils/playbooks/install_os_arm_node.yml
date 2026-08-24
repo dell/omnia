@@ -54,7 +54,7 @@
   tasks:
     - name: Determine iso_config path
       ansible.builtin.set_fact:
-        iso_config_file: "{{ iso_config_path | default((input_project_dir | default('/opt/omnia/input/project_default')) + '/iso_config.yml') }}"
+        iso_config_file: "{{ iso_config_path | default((input_project_dir | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) + '/input/project_default')) + '/iso_config.yml') }}"
 
     - name: Check if iso_config.yml exists
       ansible.builtin.stat:

@@ -20,7 +20,7 @@
 - name: Set node results directory from job_id
   ansible.builtin.set_fact:
     bsm_job_id: "{{ job_id }}"
-    node_results_dir: "/opt/omnia/build_stream_root/artifacts/{{ job_id }}"
+    node_results_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/build_stream_root/artifacts/{{ job_id }}"
 
 - name: Build reverse map of ADMIN_IP to BMC_IP for phone-home failure lookup
   ansible.builtin.set_fact:

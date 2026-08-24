@@ -30,5 +30,6 @@ kind: Kustomization
 namespace: {{ telemetry_namespace }}
 
 resources:
+  - telemetry_secret_creation.yaml
   - activemq-config.yaml
   - idrac_telemetry_statefulset.yaml

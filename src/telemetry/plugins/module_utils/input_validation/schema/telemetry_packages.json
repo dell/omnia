@@ -1,88 +1,73 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Telemetry Packages Configuration",
-  "description": "Container registry and package download URLs for telemetry components.",
+  "title": "Telemetry Package Manifest",
+  "description": "HPC telemetry stack package registry: container images, Helm charts, git repos, pip modules.",
   "type": "object",
   "properties": {
-    "telemetry_registry": {
-      "type": "object",
-      "description": "Container registry configuration. Leave host empty to use the cluster-wide registry.",
-      "properties": {
-        "host": {
-          "type": "string",
-          "default": "",
-          "description": "Registry IP and port in format 'IP:port' or 'hostname:port'. Leave empty to use cluster-wide registry."
-        },
-        "cert_path": {
-          "type": "string",
-          "default": "",
-          "description": "Path to SSL certificate file (.crt). Required only when using HTTPS with a custom CA."
-        },
-        "key_path": {
-          "type": "string",
-          "default": "",
-          "description": "Path to SSL private key file (.key). Required only when using HTTPS with a custom CA."
-        },
-        "username": {
-          "type": "string",
-          "default": "",
-          "description": "Registry username for authenticated pull. Leave empty if no authentication is required."
-        }
-      },
-      "additionalProperties": true
+    "install_mode": {
+      "type": "string",
+      "enum": ["offline", "online"],
+      "default": "offline",
+      "description": "Package fetch mode. 'offline' uses Pulp local mirror; 'online' uses upstream URLs."
     },
-    "telemetry_packages": {
-      "type": "object",
-      "description": "Full HTTP/HTTPS download URLs for telemetry Helm chart tarballs and pip modules.",
-      "properties": {
-        "strimzi_kafka_operator": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for Strimzi Kafka Operator Helm chart tarball (.tar.gz). Required when any source targets kafka."
-        },
-        "victoria_metrics_operator": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for VictoriaMetrics Operator Helm chart tarball (.tar.gz). Required when victoria_metrics sink is enabled."
-        },
-        "cryptography": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for the 'cryptography' Python pip module."
-        },
-        "omsdk": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for the 'omsdk' Python pip module. Required when iDRAC telemetry is enabled."
-        },
-        "cffi": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for the 'cffi' Python pip module."
-        },
-        "prometheus_client": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for the 'prometheus_client' Python pip module."
-        },
-        "kubernetes": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for the 'kubernetes' Python pip module."
-        },
-        "cert_manager_tarball": {
-          "type": "string",
-          "default": "",
-          "description": "Full URL for cert-manager Helm chart tarball. Required only when using cert-manager for Kafka TLS."
-        }
-      },
-      "additionalProperties": true
+    "repo_url": {
+      "type": "string",
+      "default": "",
+      "description": "Pulp repository base URL for offline mode. All package URLs are auto-derived from this base."
     },
     "cluster_mount": {
       "type": "string",
       "minLength": 1,
-      "description": "Local mount point path on the Kubernetes cluster where telemetry packages will be staged. Must be an already-mounted NFS share path.",
-      "errorMessage": "cluster_mount is required and must be a non-empty path (e.g., '/opt/omnia/k8s_mount')."
+      "description": "NFS mount point on Kubernetes cluster nodes where telemetry packages are staged.",
+      "errorMessage": "cluster_mount is required and must be a non-empty path (e.g., '/share_omnia_k8s')."
+    },
+    "container_registry": {
+      "type": "string",
+      "default": "",
+      "description": "Container registry override for air-gapped clusters. Leave empty to use default registries."
+    },
+    "images": {
+      "type": "object",
+      "description": "Container images grouped by subsystem.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "helm_charts": {
+      "type": "object",
+      "description": "Helm chart tarballs with package name, filename, and upstream URL.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "package": { "type": "string" },
+          "filename": { "type": "string" },
+          "online_url": { "type": "string" }
+        }
+      }
+    },
+    "git_repos": {
+      "type": "object",
+      "description": "Git repositories archived as tarballs.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "package": { "type": "string" },
+          "filename": { "type": "string" },
+          "online_url": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      }
+    },
+    "pip_modules": {
+      "type": "object",
+      "description": "Python pip packages with version constraints.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" }
+        }
+      }
     }
   },
   "required": ["cluster_mount"]

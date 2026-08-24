@@ -13,8 +13,9 @@
 # limitations under the License.
 ---
 # BuildStream Manager Configuration
-restart_state_dir: "/opt/omnia/build_stream_root/restart_state"
-input_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+restart_state_dir: "{{ omnia_data_path }}/build_stream_root/restart_state"
+input_dir: "{{ hostvars['localhost']['input_project_dir'] | default(omnia_data_path + '/input/project_default') }}"
 bsm_enabled: "{{ enable_build_stream | default(false) | bool }}"
 
 # GitLab Configuration
