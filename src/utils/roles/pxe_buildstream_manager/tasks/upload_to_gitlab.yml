@@ -98,7 +98,7 @@
 - name: Set node results directory from job_id
   ansible.builtin.set_fact:
     bsm_job_id: "{{ job_id }}"
-    restart_state_dir_job_id: "/opt/omnia/build_stream_root/restart_state/{{ job_id }}"
+    restart_state_dir_job_id: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/build_stream_root/restart_state/{{ job_id }}"
 
 - name: Copy failed_nodes.json to gitlab root folder
   ansible.builtin.copy:
