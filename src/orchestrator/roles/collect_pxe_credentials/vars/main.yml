@@ -19,7 +19,7 @@
 pxe_credentials_dir: >-
   {{ input_project_dir
      | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-               + '/utils/input/'
+               + '/orchestrator/input/'
                + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)) }}
 
 # Credential file definition (standalone — no dependency on credential_utility index)

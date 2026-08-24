@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,19 +14,20 @@
 ---
 # ─────────────────────────────────────────────────────────────────────────
 # PXE Boot Utility — Set PXE boot on Dell iDRAC nodes and restart
+# Can be run standalone or imported by orchestrator.yml
 #
 # Usage:
 #   # Collect credentials only (exits after saving):
-#   ansible-playbook playbooks/set_pxe_boot.yml --tags credentials
+#   ansible-playbook setpxe/set_pxe_boot.yml --tags credentials
 #
 #   # Full PXE boot with phone-home verification:
-#   ansible-playbook playbooks/set_pxe_boot.yml -i inventory.ini
+#   ansible-playbook setpxe/set_pxe_boot.yml -i inventory.ini
 #
 #   # Skip credential prompting (use pre-provisioned credentials):
-#   ansible-playbook playbooks/set_pxe_boot.yml -i inventory.ini --skip-tags credentials
+#   ansible-playbook setpxe/set_pxe_boot.yml -i inventory.ini --skip-tags credentials
 #
 #   # Disable phone-home verification:
-#   ansible-playbook playbooks/set_pxe_boot.yml -i inventory.ini -e enable_phone_home=false
+#   ansible-playbook setpxe/set_pxe_boot.yml -i inventory.ini -e enable_phone_home=false
 #
 # Inventory format (INI with host vars):
 #   [bmc]
@@ -59,7 +60,7 @@
         input_config_dir: >-
           {{ input_project_dir
              | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-                       + '/utils/input/'
+                       + '/orchestrator/input/'
                        + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)) }}
         cacheable: true
 
@@ -126,7 +127,7 @@
         - target_node_admin_ips | length != groups['bmc'] | length
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 3: Reboot hosts via PXE
+# Play 4: Reboot hosts via PXE
 # ─────────────────────────────────────────────────────────────────────────
 - name: Reboot hosts via PXE
   hosts: bmc
@@ -138,7 +139,7 @@
     - role: idrac_pxe_boot
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 4: Report PXE boot results
+# Play 5: Report PXE boot results
 # ─────────────────────────────────────────────────────────────────────────
 - name: Report PXE boot results
   hosts: bmc
@@ -171,7 +172,7 @@
         - not (enable_phone_home | default(true) | bool)
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 5: Filter phone-home target list (exclude failed PXE boots)
+# Play 6: Filter phone-home target list (exclude failed PXE boots)
 # ─────────────────────────────────────────────────────────────────────────
 - name: Filter phone-home target list
   hosts: localhost
@@ -207,7 +208,7 @@
           when: target_node_admin_ips | default([]) | length == 0
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 6: Phone-home verification (runs on OIM server)
+# Play 7: Phone-home verification (runs on OIM server)
 # ─────────────────────────────────────────────────────────────────────────
 - name: Verify cloud-init phone-home
   hosts: localhost
@@ -225,7 +226,7 @@
             name: verify_phone_home
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 7: Final reporting (includes phone-home failures)
+# Play 8: Final reporting (includes phone-home failures)
 # ─────────────────────────────────────────────────────────────────────────
 - name: Final PXE boot and phone-home report
   hosts: localhost
@@ -236,7 +237,7 @@
     - name: Ensure output directory exists
       vars:
         output_dir: >-
-          {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{
+          {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/orchestrator/output/{{
              lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)
           }}
       ansible.builtin.file:
@@ -282,7 +283,7 @@
           {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}
         project_name: >-
           {{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}
-        output_dir: "{{ omnia_data_path }}/utils/output/{{ project_name }}"
+        output_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
         failed_nodes_report:
           timestamp: "{{ ansible_date_time.iso8601 }}"
           total_nodes: "{{ groups['bmc'] | length }}"
