@@ -58,6 +58,16 @@ openchami_images:
 # Usage: verify_openchami.yml
 cluster_env_key: "{{ oim_node_name | upper }}_ACCESS_TOKEN"
 
+# SMD (State Management Database) postgres connection settings
+# These must match the values in smd-init.container from the OpenCHAMI RPM.
+# They are injected into openchami.env so smd.container can reach postgres
+# via the Podman DNS name instead of defaulting to localhost.
+smd_dbhost: postgres
+smd_dbport: 5432
+smd_dbname: hmsds
+smd_dbuser: smd-user
+smd_dbopts: "sslmode=disable"
+
 # --- OpenCHAMI configs role variables ---
 # Directory paths
 ochami_dir: /etc/ochami
