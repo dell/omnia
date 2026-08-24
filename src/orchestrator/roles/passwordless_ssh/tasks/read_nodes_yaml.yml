@@ -139,6 +139,8 @@
       Host *
           IdentityFile ~/.ssh/oim_rsa
           IdentitiesOnly yes
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
   when: all_group_names_present
 
 - name: Configure SSH on OIM with derived hostname/IP patterns when groups are incomplete
@@ -155,6 +157,8 @@
                | join(' ') }}
           IdentityFile ~/.ssh/oim_rsa
           IdentitiesOnly yes
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
   when:
     - not all_group_names_present | default(false) | bool
     - omnia_cluster_ssh_matches | default([]) | length > 0
