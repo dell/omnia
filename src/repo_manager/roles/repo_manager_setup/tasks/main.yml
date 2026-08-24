@@ -16,10 +16,14 @@
 # REPO MANAGER SETUP ROLE - MAIN ENTRY POINT
 # =============================================================================
 # This role handles initial setup tasks for repo_manager:
+# - Load configuration from environment variables
 # - Create log directories
 # - Display usage information
 # - Set guard fact
 # =============================================================================
+
+- name: Load configuration from environment
+  ansible.builtin.include_tasks: load_config.yml
 
 - name: Create directories
   ansible.builtin.include_tasks: create_directories.yml
@@ -30,4 +34,5 @@
 - name: Set setup guard fact
   ansible.builtin.set_fact:
     repo_manager_setup_done: true
+    repo_manager_config_loaded: true
     cacheable: true

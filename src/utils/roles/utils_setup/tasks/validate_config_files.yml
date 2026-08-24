@@ -1,14 +1,14 @@
 ---
 - name: Check if input directory exists
   ansible.builtin.stat:
-    path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
+    path: "{{ input_project_dir | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) + '/input/project_default') }}"
   register: input_dir_stat
   failed_when: not input_dir_stat.stat.exists
   changed_when: false
 
 - name: Validate configuration files exist
   ansible.builtin.stat:
-    path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/{{ item }}"
+    path: "{{ input_project_dir | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) + '/input/project_default') }}/{{ item }}"
   loop: "{{ config_files_to_validate }}"
   register: config_file_stat
   changed_when: false

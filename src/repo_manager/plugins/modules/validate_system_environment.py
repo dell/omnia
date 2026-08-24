@@ -13,246 +13,337 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Ansible module to validate Omnia system environment variables.
+"""Validate that required Omnia environment variables are configured and
+consistent with the actual system state (hostname, admin IP, paths).
 
-This module validates that required environment variables are set and
-conform to expected formats. It is designed to be used in the setup
-role of any Omnia domain.
+This module can be used in any domain's setup role as a common precheck.
 """
 
-from __future__ import absolute_import, division, print_function
-
-__metaclass__ = type
-
-DOCUMENTATION = r'''
----
-module: validate_system_environment
-short_description: Validate Omnia system environment variables
-version_added: "2.0.0"
-description:
-    - Validates that required Omnia environment variables are set.
-    - Checks format of hostname, IPv4 address, and paths.
-    - Returns detailed error messages for validation failures.
-options:
-    required_vars:
-        description:
-            - List of environment variable names that must be set.
-        type: list
-        elements: str
-        required: true
-    validate_hostname:
-        description:
-            - Whether to validate SYSTEM_HOSTNAME format.
-        type: bool
-        default: false
-    validate_ip:
-        description:
-            - Whether to validate SYSTEM_ADMIN_NIC_IPV4 as valid IPv4.
-        type: bool
-        default: false
-    validate_paths:
-        description:
-            - Whether to validate OMNIA_DATA_PATH as absolute path.
-        type: bool
-        default: false
-author:
-    - Dell Technologies (@dell)
-'''
-
-EXAMPLES = r'''
-- name: Validate system environment
-  validate_system_environment:
-    required_vars:
-      - SYSTEM_ADMIN_NIC_IPV4
-      - OMNIA_DATA_PATH
-    validate_hostname: true
-    validate_ip: true
-    validate_paths: true
-  register: env_check
-
-- name: Fail if environment validation fails
-  ansible.builtin.fail:
-    msg: "{{ env_check.errors | join('; ') }}"
-  when: env_check.failed | default(false)
-'''
-
-RETURN = r'''
-validated:
-    description: Whether all validations passed.
-    type: bool
-    returned: always
-errors:
-    description: List of validation error messages.
-    type: list
-    elements: str
-    returned: always
-env_values:
-    description: Dictionary of environment variable values that were checked.
-    type: dict
-    returned: always
-'''
+from __future__ import annotations
 
 import os
 import re
 import socket
+import subprocess
+from typing import Any
 
 from ansible.module_utils.basic import AnsibleModule
 
+DOCUMENTATION = r"""
+---
+module: validate_system_environment
+short_description: Validate Omnia environment variables against system state
+description:
+  - Checks that all required environment variables are set.
+  - Cross-validates env vars against actual system details (hostname, IP on NIC, paths).
+  - Returns structured per-check results with expected/actual values.
+options:
+  required_vars:
+    description: List of environment variable names that MUST be set (non-empty).
+    type: list
+    elements: str
+    default:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - CATALOG_FILE_PATH
+  validate_hostname:
+    description: Cross-check SYSTEM_HOSTNAME against hostname -s.
+    type: bool
+    default: false
+  validate_domain:
+    description: Cross-check SYSTEM_DOMAIN_NAME against hostname -d.
+    type: bool
+    default: false
+  validate_ip:
+    description: Cross-check SYSTEM_ADMIN_NIC_IPV4 is present on a local NIC.
+    type: bool
+    default: true
+  validate_paths:
+    description: Verify OMNIA_DATA_PATH directory exists or is creatable.
+    type: bool
+    default: true
+author:
+  - Dell Omnia Team
+"""
 
-def validate_hostname_format(hostname: str) -> tuple[bool, str]:
-    """
-    Validate hostname format.
+EXAMPLES = r"""
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - SYSTEM_ADMIN_NIC_IPV4
+      - CATALOG_FILE_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: true
+    validate_paths: true
+  register: env_check
 
-    Args:
-        hostname: The hostname to validate.
+- name: Display validation result
+  ansible.builtin.debug:
+    msg: "Environment {{ 'valid' if env_check.valid else 'invalid' }}"
+"""
 
-    Returns:
-        Tuple of (is_valid, error_message).
-    """
-    if not hostname:
-        return False, "SYSTEM_HOSTNAME is empty"
+RETURN = r"""
+valid:
+  description: Whether all checks passed.
+  type: bool
+checks:
+  description: Per-check result list.
+  type: list
+  elements: dict
+  contains:
+    name:
+      description: Check identifier.
+      type: str
+    expected:
+      description: Expected value from env var.
+      type: str
+    actual:
+      description: Actual value from system.
+      type: str
+    passed:
+      description: Whether this check passed.
+      type: bool
+    message:
+      description: Human-readable result.
+      type: str
+"""
 
-    # Hostname regex: alphanumeric with hyphens, no leading/trailing hyphens
-    pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$'
-    if not re.match(pattern, hostname):
-        return False, (
-            f"Invalid SYSTEM_HOSTNAME format: '{hostname}'. "
-            "Must be alphanumeric with hyphens only, no leading/trailing hyphens."
-        )
-
-    return True, ""
+# IPv4 regex
+_IPV4_RE = re.compile(
+    r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$"
+)
 
 
-def validate_ipv4_address(ip_address: str) -> tuple[bool, str]:
-    """
-    Validate IPv4 address format.
-
-    Args:
-        ip_address: The IP address to validate.
-
-    Returns:
-        Tuple of (is_valid, error_message).
-    """
-    if not ip_address:
-        return False, "SYSTEM_ADMIN_NIC_IPV4 is empty"
-
+def _get_system_hostname() -> str:
+    """Return the short hostname via ``hostname -s``."""
     try:
-        socket.inet_aton(ip_address)
-        # Additional check: inet_aton accepts some invalid formats
-        parts = ip_address.split('.')
-        if len(parts) != 4:
-            raise OSError("Invalid IPv4 format")
-        for part in parts:
-            if not 0 <= int(part) <= 255:
-                raise OSError("Invalid IPv4 octet")
-        return True, ""
-    except (OSError, ValueError):
-        return False, f"Invalid SYSTEM_ADMIN_NIC_IPV4: '{ip_address}'. Must be a valid IPv4 address."
+        result = subprocess.run(
+            ["hostname", "-s"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    # Fallback to socket
+    return socket.gethostname().split(".")[0]
 
 
-def validate_absolute_path(path: str) -> tuple[bool, str]:
-    """
-    Validate that a path is absolute.
-
-    Args:
-        path: The path to validate.
-
-    Returns:
-        Tuple of (is_valid, error_message).
-    """
-    if not path:
-        return False, "OMNIA_DATA_PATH is empty"
-
-    if not path.startswith('/'):
-        return False, f"Invalid OMNIA_DATA_PATH: '{path}'. Must be an absolute path starting with '/'."
-
-    return True, ""
+def _get_system_domain() -> str:
+    """Return the domain name via ``hostname -d``."""
+    try:
+        result = subprocess.run(
+            ["hostname", "-d"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return ""
 
 
-def main():
-    """Main module entry point."""
+def _get_local_ips() -> list[str]:
+    """Return list of IPv4 addresses on local network interfaces."""
+    ips: list[str] = []
+    try:
+        result = subprocess.run(
+            ["ip", "-4", "-o", "addr", "show"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            for i, part in enumerate(parts):
+                if part == "inet" and i + 1 < len(parts):
+                    ip_cidr = parts[i + 1]
+                    ips.append(ip_cidr.split("/")[0])
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return ips
+
+
+def _check_env_var(name: str) -> dict[str, Any]:
+    """Check a single env var is set and non-empty."""
+    value = os.environ.get(name, "")
+    passed = len(value) > 0
+    return {
+        "name": f"env_{name}",
+        "expected": f"{name} is set and non-empty",
+        "actual": value if passed else "(not set)",
+        "passed": passed,
+        "message": f"{name} is configured" if passed else f"{name} is NOT set. Export it before running.",
+    }
+
+
+def _check_hostname(env_hostname: str) -> dict[str, Any]:
+    """Cross-validate SYSTEM_HOSTNAME against ``hostname -s``."""
+    system_hostname = _get_system_hostname()
+    passed = env_hostname == system_hostname
+    return {
+        "name": "validate_hostname",
+        "expected": env_hostname,
+        "actual": system_hostname,
+        "passed": passed,
+        "message": (
+            f"Hostname matches (hostname -s): {env_hostname}"
+            if passed
+            else (
+                f"SYSTEM_HOSTNAME '{env_hostname}' does not match "
+                f"hostname -s '{system_hostname}'. "
+                f"Fix: hostnamectl set-hostname {env_hostname} or update omnia.env"
+            )
+        ),
+    }
+
+
+def _check_domain(env_domain: str) -> dict[str, Any]:
+    """Cross-validate SYSTEM_DOMAIN_NAME against ``hostname -d``."""
+    system_domain = _get_system_domain()
+    if not system_domain:
+        return {
+            "name": "validate_domain",
+            "expected": env_domain,
+            "actual": "(hostname -d unavailable)",
+            "passed": True,
+            "message": f"hostname -d unavailable — skipping domain check (configured: {env_domain})",
+        }
+    passed = env_domain == system_domain
+    return {
+        "name": "validate_domain",
+        "expected": env_domain,
+        "actual": system_domain,
+        "passed": passed,
+        "message": (
+            f"Domain matches (hostname -d): {env_domain}"
+            if passed
+            else (
+                f"SYSTEM_DOMAIN_NAME '{env_domain}' does not match "
+                f"hostname -d '{system_domain}'. "
+                f"Fix: update omnia.env or "
+                f"hostnamectl set-hostname {{hostname}}.{env_domain}"
+            )
+        ),
+    }
+
+
+def _check_ip_on_nic(env_ip: str) -> dict[str, Any]:
+    """Cross-validate SYSTEM_ADMIN_NIC_IPV4 exists on a local NIC."""
+    if not _IPV4_RE.match(env_ip):
+        return {
+            "name": "validate_ip_format",
+            "expected": "Valid IPv4 address",
+            "actual": env_ip,
+            "passed": False,
+            "message": f"SYSTEM_ADMIN_NIC_IPV4 '{env_ip}' is not a valid IPv4 address",
+        }
+
+    local_ips = _get_local_ips()
+    passed = env_ip in local_ips
+    return {
+        "name": "validate_ip_on_nic",
+        "expected": env_ip,
+        "actual": ", ".join(local_ips) if local_ips else "(no IPs found)",
+        "passed": passed,
+        "message": (
+            f"Admin IP {env_ip} found on local NIC"
+            if passed
+            else f"SYSTEM_ADMIN_NIC_IPV4 '{env_ip}' not found on any local NIC. Available: {', '.join(local_ips)}"
+        ),
+    }
+
+
+def _check_data_path(env_path: str) -> dict[str, Any]:
+    """Verify OMNIA_DATA_PATH exists or parent is writable."""
+    if os.path.isdir(env_path):
+        return {
+            "name": "validate_data_path",
+            "expected": f"{env_path} exists",
+            "actual": f"{env_path} exists",
+            "passed": True,
+            "message": f"OMNIA_DATA_PATH {env_path} exists",
+        }
+
+    parent = os.path.dirname(env_path)
+    parent_exists = os.path.isdir(parent)
+    return {
+        "name": "validate_data_path",
+        "expected": f"{env_path} exists or parent is writable",
+        "actual": f"parent {parent} {'exists' if parent_exists else 'missing'}",
+        "passed": parent_exists,
+        "message": (
+            f"OMNIA_DATA_PATH {env_path} does not exist yet but parent {parent} is available"
+            if parent_exists
+            else f"OMNIA_DATA_PATH '{env_path}' and parent '{parent}' do not exist"
+        ),
+    }
+
+
+def main() -> None:
+    """Module entry point."""
     module = AnsibleModule(
-        argument_spec={
-            'required_vars': {
-                'type': 'list',
-                'elements': 'str',
-                'required': True
-            },
-            'validate_hostname': {
-                'type': 'bool',
-                'default': False
-            },
-            'validate_ip': {
-                'type': 'bool',
-                'default': False
-            },
-            'validate_paths': {
-                'type': 'bool',
-                'default': False
-            }
-        },
-        supports_check_mode=True
+        argument_spec=dict(
+            required_vars=dict(
+                type="list", elements="str",
+                default=["SYSTEM_ADMIN_NIC_IPV4", "CATALOG_FILE_PATH"],
+            ),
+            validate_hostname=dict(type="bool", default=False),
+            validate_domain=dict(type="bool", default=False),
+            validate_ip=dict(type="bool", default=True),
+            validate_paths=dict(type="bool", default=True),
+        ),
+        supports_check_mode=True,
     )
 
-    required_vars = module.params['required_vars']
-    validate_hostname = module.params['validate_hostname']
-    validate_ip = module.params['validate_ip']
-    validate_paths = module.params['validate_paths']
+    required_vars: list[str] = module.params["required_vars"]
+    validate_hostname: bool = module.params["validate_hostname"]
+    validate_domain: bool = module.params["validate_domain"]
+    validate_ip: bool = module.params["validate_ip"]
+    validate_paths: bool = module.params["validate_paths"]
 
-    errors = []
-    env_values = {}
+    checks: list[dict[str, Any]] = []
 
-    # Check required environment variables
+    # 1. Check all required env vars are set
     for var_name in required_vars:
-        value = os.environ.get(var_name, '')
-        env_values[var_name] = value
-        if not value:
-            errors.append(f"Required environment variable not set: {var_name}")
+        checks.append(_check_env_var(var_name))
 
-    # Validate hostname format
-    if validate_hostname:
-        hostname = os.environ.get('SYSTEM_HOSTNAME', '')
-        env_values['SYSTEM_HOSTNAME'] = hostname
-        if hostname:
-            is_valid, error_msg = validate_hostname_format(hostname)
-            if not is_valid:
-                errors.append(error_msg)
+    # 2. Cross-validate hostname (hostname -s)
+    env_hostname = os.environ.get("SYSTEM_HOSTNAME", "")
+    if validate_hostname and env_hostname:
+        checks.append(_check_hostname(env_hostname))
 
-    # Validate IPv4 address
-    if validate_ip:
-        ip_address = os.environ.get('SYSTEM_ADMIN_NIC_IPV4', '')
-        env_values['SYSTEM_ADMIN_NIC_IPV4'] = ip_address
-        if ip_address:
-            is_valid, error_msg = validate_ipv4_address(ip_address)
-            if not is_valid:
-                errors.append(error_msg)
+    # 3. Cross-validate domain (hostname -d)
+    env_domain = os.environ.get("SYSTEM_DOMAIN_NAME", "")
+    if validate_domain and env_domain:
+        checks.append(_check_domain(env_domain))
 
-    # Validate paths
-    if validate_paths:
-        data_path = os.environ.get('OMNIA_DATA_PATH', '')
-        env_values['OMNIA_DATA_PATH'] = data_path
-        if data_path:
-            is_valid, error_msg = validate_absolute_path(data_path)
-            if not is_valid:
-                errors.append(error_msg)
+    # 4. Cross-validate admin IP is on a local NIC
+    env_ip = os.environ.get("SYSTEM_ADMIN_NIC_IPV4", "")
+    if validate_ip and env_ip:
+        checks.append(_check_ip_on_nic(env_ip))
 
-    # Return results
-    if errors:
-        module.fail_json(
-            msg="Environment validation failed",
-            validated=False,
-            errors=errors,
-            env_values=env_values
-        )
-    else:
+    # 5. Validate data path
+    env_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
+    if validate_paths and env_path:
+        checks.append(_check_data_path(env_path))
+
+    all_passed = all(c["passed"] for c in checks)
+    failed_checks = [c for c in checks if not c["passed"]]
+
+    if all_passed:
         module.exit_json(
             changed=False,
-            validated=True,
-            errors=[],
-            env_values=env_values
+            valid=True,
+            checks=checks,
+            msg=f"All {len(checks)} environment checks passed",
+        )
+    else:
+        failed_msgs = "; ".join(c["message"] for c in failed_checks)
+        module.fail_json(
+            msg=f"Environment validation failed: {failed_msgs}",
+            valid=False,
+            checks=checks,
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

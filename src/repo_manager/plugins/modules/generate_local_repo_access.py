@@ -103,7 +103,7 @@ EXAMPLES = r'''
     cluster_os_type: rhel
     cluster_os_version: "9.4"
     repo_config: partial
-    output_path: /opt/omnia/output/repo_status.yml
+    output_path: "{{ output_dir }}/repo_status.yml"
     certs_dir: /opt/omnia/pulp_config/settings/certs
     local_repo_config_path: /opt/omnia/input/repo_manager_config.yml
 '''

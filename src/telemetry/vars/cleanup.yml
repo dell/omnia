@@ -29,8 +29,6 @@ valid_cleanup_components:
   - cleanup_ufm
   - cleanup_vast
   - cleanup_sfm
-  - cleanup_skyway
-  - cleanup_powervault
 
 # Timeouts
 cleanup_kafka_wait_timeout: "300s"
@@ -336,28 +334,6 @@ sfm_resources:
   - { type: "configmap", name: "sfm-scrape-config" }
 
 sfm_pod_label: "app=sfm-telemetry"
-
-# ---------------------------------------------------------------------------
-# Skyway cleanup resources
-# ---------------------------------------------------------------------------
-skyway_resources:
-  - { type: "deployment", name: "skyway-telemetry" }
-  - { type: "service", name: "skyway-telemetry" }
-  - { type: "configmap", name: "skyway-scrape-config" }
-  - { type: "secret", name: "skyway-telemetry-credentials" }
-
-skyway_pod_label: "app=skyway-telemetry"
-
-# ---------------------------------------------------------------------------
-# PowerVault cleanup resources
-# ---------------------------------------------------------------------------
-powervault_resources:
-  - { type: "deployment", name: "powervault-telemetry" }
-  - { type: "service", name: "powervault-telemetry" }
-  - { type: "configmap", name: "powervault-scrape-config" }
-  - { type: "secret", name: "powervault-telemetry-credentials" }
-
-powervault_pod_label: "app=powervault-telemetry"
 
 # ---------------------------------------------------------------------------
 # Victoria Operator cleanup (shared between VictoriaMetrics and VictoriaLogs)

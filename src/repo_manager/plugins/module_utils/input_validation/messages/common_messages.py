@@ -84,6 +84,17 @@ BMC_PASSWORD_FAIL_MSG = (
 
 DOCKER_PASSWORD_FAIL_MSG = "Docker password must not be empty."
 
+# =============================================================================
+# REPO MANAGER VALIDATION MESSAGES
+# =============================================================================
+
+CERTIFICATE_FILE_NOT_FOUND_MSG = "Certificate file not found"
+KEY_FILE_NOT_FOUND_MSG = "Key file not found"
+EMPTY_REPO_NAME_FIELD_MSG = "Each user repo entry must have a non-empty 'name' field."
+DUPLICATE_REPO_NAMES_MSG = "Duplicate repo names found."
+REPO_NAME_DUPLICATE_MSG = "Repo with name {name} found more than once."
+NO_REQUIRED_REPO_URLS_MSG = "No required repo URLs found"
+
 
 def bmc_username_fail_msg(min_username_length, max_length):
     """Returns a formatted message indicating bmc_username_fail_msg."""

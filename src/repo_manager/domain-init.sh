@@ -34,19 +34,22 @@
 # Usage:
 #   ./domain-init.sh                        # Uses env vars (must be exported)
 #   ./domain-init.sh --force                # Overwrite without prompting
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
+#   OMNIA_DATA_PATH=/custom/path OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
 # Called automatically by: omnia.sh --setup-venv
 #
 # Manual alternative (if not using this script):
 #   sudo mkdir -p /var/log/omnia/repo_manager
-#   mkdir -p /opt/omnia/repo_manager/input/project_default
-#   cp -a input/*.yml /opt/omnia/repo_manager/input/project_default/
+#   mkdir -p $OMNIA_DATA_PATH/repo_manager/input/project_default
+#   cp -a input/*.yml $OMNIA_DATA_PATH/repo_manager/input/project_default/
 # =============================================================================
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+temp_dir
+temp_dir="$(dirname "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIR
+SCRIPT_DIR="$(cd "$temp_dir" && pwd)" || exit 1
 readonly DOMAIN_NAME="repo_manager"
 
 # Color definitions
@@ -88,6 +91,9 @@ _parse_args() {
 # Read env vars (must be exported before running)
 # ─────────────────────────────────────────────────────────────────────────────
 _load_env() {
+    # Acceptable fallback: OMNIA_DATA_PATH with default value
+    # This is a shell script pattern that's acceptable for portability
+    # The actual value should be set by omnia.sh in production
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
 }

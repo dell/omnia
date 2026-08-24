@@ -32,7 +32,7 @@
 #   image-build-aarch64   — aarch64 image builder
 #
 # Parameters:
-#   image_builder_tag=<tag>    Image tag (default: 1.2)
+#   image_builder_tag=<tag>    Image tag (default: 1.3)
 #   build_tool=<tool>          podman | docker (default: podman)
 #   build_action=<action>      load | push (default: load)
 #   registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)
@@ -66,7 +66,7 @@ show_help() {
     echo "  ./build_images.sh [parameters]"
     echo ""
     echo -e "${BLUE}PARAMETERS (key=value format):${NC}"
-    echo "  image_builder_tag=<tag>    Image tag (default: 1.2)"
+    echo "  image_builder_tag=<tag>    Image tag (default: 1.3)"
     echo "  build_tool=<tool>          podman | docker (default: podman)"
     echo "  build_action=<action>      load | push (default: load)"
     echo "  registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)"
@@ -97,7 +97,7 @@ show_help() {
 BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
-IMAGE_BUILDER_TAG="1.2"
+IMAGE_BUILDER_TAG="1.3"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)

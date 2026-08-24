@@ -25,7 +25,7 @@
   gather_facts: false
   tags: always
   roles:
-    - role: omnia.orchestrator.orchestrator_setup
+    - role: orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true
@@ -37,7 +37,7 @@
   tasks:
     - name: OpenCHAMI authentication
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
+        name: orchestrator_common
         tasks_from: openchami_auth.yml
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
@@ -46,4 +46,4 @@
   hosts: oim
   connection: ssh
   roles:
-    - omnia.orchestrator.validate_openchami
+    - validate_openchami

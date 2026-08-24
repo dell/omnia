@@ -165,6 +165,7 @@ def createlogger(project_name, log_dir, tag_name=None):
         log_filename = f"validation_omnia_{project_name}.log"
 
     log_file_path = os.path.join(log_dir, log_filename)
+    os.makedirs(log_dir, exist_ok=True)
     logging.basicConfig(
         filename=log_file_path,
         format="%(asctime)s %(message)s",

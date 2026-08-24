@@ -444,7 +444,7 @@ def check_help_output(host) -> Dict[str, Any]:
 
     expected_sections = [
         "USAGE:",
-        "SETUP COMMANDS:",
+        "SETUP COMMANDS",
         "EXECUTION COMMANDS:",
         "OPTIONS:",
         "DOMAINS:",

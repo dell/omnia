@@ -55,7 +55,7 @@
       when: target_functional_groups | length == 0
 
   roles:
-    - role: omnia.orchestrator.provision_common
+    - role: provision_common
       when: target_functional_groups | length > 0
 
   tasks:
@@ -72,17 +72,17 @@
 
         - name: Configure mounts
           ansible.builtin.include_role:
-            name: omnia.orchestrator.mount_config
+            name: mount_config
           when: "'mount_config' in category_bolt_ons"
 
         - name: Configure Slurm
           ansible.builtin.include_role:
-            name: omnia.orchestrator.slurm_config
+            name: slurm_config
           when: "'slurm_config' in category_bolt_ons"
 
         - name: Configure OpenLDAP
           ansible.builtin.include_role:
-            name: omnia.orchestrator.openldap
+            name: openldap
           when:
             - "'openldap' in category_bolt_ons"
             - openldap_support | default(false) | bool

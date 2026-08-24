@@ -21,7 +21,7 @@
   connection: local
   gather_facts: false
   roles:
-    - omnia.discovery.discovery_setup
+    - discovery_setup
   tags: always
 
 - name: Validate discovery input configuration
@@ -29,5 +29,5 @@
   connection: local
   gather_facts: false
   roles:
-    - omnia.discovery.validate_discovery_input
+    - validate_discovery_input
   tags: always

@@ -60,27 +60,24 @@ s3_configurations:
 # ---------------------------------------------------------------------------
 # image_build_type: Which OpenCHAMI image builder to use.
 #   "image-builder"     — Standard OpenCHAMI image-builder (default).
-#                         Container: dellhpcomniaaisolution/image-build-el10:1.2
 #                         Config format: options/repos/packages/cmds
 #   "image-thrillhouse" — Next-gen OpenCHAMI builder with extended features.
-#                         Container: ghcr.io/openchami/image-thrillhouse:latest
 #                         Config format: meta/layer (inline repos, script commands)
 # Each type uses its own config templates and container image.
 image_build_type: "image-builder"
 
-# build_image: Concurrency, timing, and caching controls for the build phase.
-#   max_parallel  — Max concurrent image builds. 0 = unlimited (all at once).
-#   build_timeout — Max time per image build in seconds (default: 7200 = 2 hours).
-#                   Passed as timeout to the Python image_build_orchestrator.
-#   force_rebuild    — Bypass package hash cache and rebuild all images.
-#                      Set to true to ignore cached hashes. Default: false.
-#   backup_s3_images — Copy existing S3 compute image artifacts to *_prev
-#                      before rebuilding. Enables rollback. Default: false.
+# build_image: Controls for the build phase.
+#   max_parallel     — Max concurrent image builds. 0 = unlimited.
+#   build_timeout    — Per-build timeout in seconds.
+#   force_rebuild    — Bypass package hash cache.
+#   backup_s3_images — Copy S3 artifacts to *_prev before rebuild.
+#   repo_ssl_verify  — SSL + GPG check on RPM repos. Set false for self-signed certs.
 build_image:
   max_parallel: 0
   build_timeout: 7200
   force_rebuild: false
   backup_s3_images: false
+  repo_ssl_verify: true
 
 
 # ---------------------------------------------------------------------------

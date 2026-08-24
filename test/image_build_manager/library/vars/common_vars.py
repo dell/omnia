@@ -82,6 +82,7 @@ PLAYBOOK_TAGS = [
     "prepare",
     "build",
     "cleanup",
+    "cleanup_images",
     "upgrade",
     "rollback",
 ]
@@ -304,6 +305,13 @@ CMDS = {
     # --- Registry (regctl) ---
     "regctl_repo_ls": (
         "regctl repo ls --limit 500 {registry} 2>/dev/null"
+    ),
+    "regctl_tag_ls": (
+        "regctl tag ls {registry}/{repo} 2>/dev/null"
+    ),
+    # --- S3 (recursive list) ---
+    "s3cmd_ls_recursive": (
+        "s3cmd ls -Hr {bucket} 2>/dev/null"
     ),
     # --- Registry (curl, scheme-agnostic) ---
     "curl_registry_catalog_scheme": (

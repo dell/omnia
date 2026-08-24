@@ -19,8 +19,6 @@ cluster. It consists of:
    - PowerScale (Dell Isilon storage)
    - VAST (VAST Data storage)
    - SFM (Smart Fabric Manager, network)
-   - Skyway
-   - PowerVault (Dell PowerVault storage)
 
 3. **Bridges** — Data ingestion pipelines:
    - Vector-LDMS (Kafka-to-VictoriaMetrics for LDMS)

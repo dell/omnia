@@ -24,7 +24,7 @@ etc.) is unchanged.
 Usage — add to every ``ansible.cfg``::
 
     [defaults]
-    stdout_callback = omnia.discovery.omnia_default
+    stdout_callback = omnia_default
 """
 from __future__ import annotations
 

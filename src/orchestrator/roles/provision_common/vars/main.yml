@@ -38,8 +38,8 @@ ms_defaults_dest: "{{ metadata_svc_dir }}/ms-defaults.yaml"
 ms_group_common_dest: "{{ metadata_svc_dir }}/ms-group-common.yaml"
 
 # SSH keys
-ssh_key_path: /root/.ssh/oim_rsa.pub
-ssh_private_key_path: /root/.ssh/oim_rsa
+ssh_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa.pub"
+ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"
 
 # Service retry settings
 service_retries: 16
