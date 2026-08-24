@@ -31,8 +31,27 @@
     - name: Verify openchami service
       ansible.builtin.include_tasks: verify_ochami.yml
       vars:
-        max_retries: 1
+        max_retries: 3
   rescue:
+    - name: Collect openchami service statuses before restart # noqa: command-instead-of-module
+      ansible.builtin.shell: |
+        echo "=== systemctl status openchami.target ==="
+        systemctl status openchami.target --no-pager 2>&1 || true
+        echo "=== Failed services ==="
+        systemctl list-dependencies openchami.target --plain 2>/dev/null | while read svc; do
+          state=$(systemctl is-active "$svc" 2>/dev/null)
+          if [ "$state" != "active" ]; then
+            echo "$svc: $state"
+          fi
+        done
+      register: pre_restart_diag
+      changed_when: false
+      failed_when: false
+
+    - name: Display pre-restart diagnostics
+      ansible.builtin.debug:
+        msg: "{{ pre_restart_diag.stdout_lines | default([]) }}"
+
     - name: Restart openchami in case of error
       ansible.builtin.systemd:
         name: openchami.target
