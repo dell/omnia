@@ -78,6 +78,8 @@
             Host {{ slurm_control_ssh_patterns }}
                 IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
                 IdentitiesOnly yes
+                StrictHostKeyChecking no
+                UserKnownHostsFile /dev/null
 
 {% if hostvars['localhost']['openldap_support'] %}
         - path: /etc/sssd/sssd.conf
