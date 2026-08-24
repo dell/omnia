@@ -152,6 +152,19 @@
   changed_when: false
   failed_when: false
 
+- name: Wait for cert-manager pods to be ready
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get pods -n {{ csm_observability_namespace }} -l app.kubernetes.io/instance=karavi-observability \
+        --no-headers --field-selector=status.phase!=Succeeded \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
+        | xargs -I {} kubectl wait pod/{} -n {{ csm_observability_namespace }} \
+          --for=condition=Ready --timeout=300s 2>&1 || true
+    executable: /bin/bash
+  changed_when: false
+  failed_when: false
+
 - name: Wait for OTEL Collector rollout
   ansible.builtin.command: >
     kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace }} --timeout=120s

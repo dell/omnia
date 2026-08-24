@@ -13,20 +13,23 @@
 # limitations under the License.
 ---
 
-# Generate PowerScale telemetry manifests to NFS deployments/ (root level)
-
-- name: Render CSI Volume Exporter manifest
-  ansible.builtin.template:
-    src: "csi-volume-exporter.yaml.j2"
-    dest: "{{ telemetry_deployments_dir }}/csi-volume-exporter.yaml"
-    mode: '0644'
-
-- name: Apply CSI Volume Exporter manifest
+- name: "DCGM | Delete resources"
   ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/csi-volume-exporter.yaml
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ dcgm_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
+  failed_when: false
 
-- name: Display PowerScale manifest generation complete
+- name: "DCGM | Force delete pods"
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l {{ dcgm_pod_label }}
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  changed_when: false
+  failed_when: false
+
+- name: "DCGM | Cleanup complete"
   ansible.builtin.debug:
-    msg: "PowerScale telemetry manifests generated and applied"
-    verbosity: 2
+    msg: "DCGM telemetry cleanup completed"
