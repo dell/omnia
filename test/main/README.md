@@ -60,7 +60,7 @@ test/main/
 │   ├── cli/                 # CLI argument tests
 │   │   ├── test_deploy_cli.py
 │   │   ├── commands/        # Command error handling + flag verification + skip-catalog
-│   │   └── generic_tags/    # Tag verification tests
+│   │   └── tags/            # Tag verification tests (precheck, validate, prepare, execute, cleanup)
 │   └── omnia_cli/           # omnia-cli diagnostics tests
 │       ├── test_deploy_omnia_cli.py
 │       ├── diagnostics/     # status, check, domain commands (incl. orchestrator, telemetry, build-stream)

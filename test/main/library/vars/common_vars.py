@@ -145,6 +145,7 @@ VALID_CLI_OPTIONS: List[str] = [
 OMNIA_CLI_COMMANDS: List[str] = [
     "status",
     "check",
+    "edit",
     "repo-manager",
     "image-build",
     "version",

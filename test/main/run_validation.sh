@@ -368,8 +368,8 @@ case "$SCENARIO" in
         echo -e "${BLUE}  Omnia Main — Validation Runner${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
-        echo -e "  Tests for ${GREEN}omnia.sh${NC} (setup, init, CLI) and ${GREEN}omnia-cli${NC} diagnostics."
-        echo -e "  Module: ${CYAN}main${NC}   Test dir: ${CYAN}test/main/fvt/${NC}"
+        echo -e "  Tests for ${GREEN}omnia.sh${NC} (setup, init, CLI args) and ${GREEN}omnia-cli${NC} diagnostics."
+        echo -e "  Module: ${CYAN}main${NC}   FVT: ${CYAN}test/main/fvt/${NC}   NFT: ${CYAN}test/main/nft/${NC}"
         echo ""
         echo -e "${YELLOW}USAGE${NC}"
         echo "  $0 <scenario> <command> [options]"
@@ -388,12 +388,14 @@ case "$SCENARIO" in
         echo "  -v, --verbose     Increase pytest verbosity"
         echo "  --debug           Full debug output (pytest -vvs)"
         echo ""
-        echo -e "${YELLOW}SCENARIOS${NC}"
-        echo "  setup      Tests for omnia.sh --setup-venv (env install, venv, dirs)"
-        echo "  init       Tests for omnia.sh --init (domain-init.sh scripts, input staging)"
-        echo "  cli        Tests for CLI argument parsing (help output, error handling)"
-        echo "  omnia_cli  Tests for omnia-cli diagnostic commands (status, check, help)"
-        echo "  nft        Non-functional tests (performance, idempotency, permissions)"
+        echo -e "${YELLOW}SCENARIOS (FVT)${NC}"
+        echo "  setup      omnia.sh --setup-venv: env install, venv, dirs, env validation"
+        echo "  init       omnia.sh --init: domain-init.sh scripts, input staging (7 domains)"
+        echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog"
+        echo "  omnia_cli  omnia-cli diagnostics: status, check, domain cmds, logs, help, errors"
+        echo ""
+        echo -e "${YELLOW}SCENARIOS (NFT)${NC}"
+        echo "  nft        Performance, idempotency, file permissions, CLI performance"
         echo ""
         echo -e "${YELLOW}MARKERS${NC}"
         echo "  sanity       Baseline must-pass tests"
@@ -526,28 +528,40 @@ case "$COMMAND" in
         export OMNIA_SUPPRESS_SUMMARY="true"
         export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
 
-        # Step 1: Deploy
-        export OMNIA_COMMAND_TYPE="deploy"
-        echo -e "${YELLOW}=================================================================${NC}"
-        echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
-        echo -e "${YELLOW}=================================================================${NC}"
-        echo ""
+        # Check if scenario has deploy tests (grep for @pytest.mark.deploy)
+        has_deploy=$(grep -rl '@pytest\.mark\.deploy\|pytest\.mark\.deploy' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1)
 
-        deploy_args="-m deploy"
-        [[ -n "$MARKER" ]] && deploy_args="${deploy_args} --marker ${MARKER}"
-        if run_pytest "${SCENARIO_DIR}" "${deploy_args}" "Running deployment"; then
-            echo -e "${GREEN}Deployment succeeded${NC}"
+        # Step 1: Deploy (skip if no deploy-marked tests in this scenario)
+        if [[ -n "$has_deploy" ]]; then
+            export OMNIA_COMMAND_TYPE="deploy"
+            echo -e "${YELLOW}=================================================================${NC}"
+            echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
+            echo -e "${YELLOW}=================================================================${NC}"
+            echo ""
+
+            deploy_args="-m deploy"
+            [[ -n "$MARKER" ]] && deploy_args="${deploy_args} --marker ${MARKER}"
+            if run_pytest "${SCENARIO_DIR}" "${deploy_args}" "Running deployment"; then
+                echo -e "${GREEN}Deployment succeeded${NC}"
+            else
+                echo -e "${RED}Deployment failed${NC}"
+                FAILED=1
+            fi
+            echo ""
         else
-            echo -e "${RED}Deployment failed${NC}"
-            FAILED=1
+            echo -e "${YELLOW}No deploy tests in ${SCENARIO} — skipping deploy step${NC}"
+            echo ""
         fi
-        echo ""
 
-        # Step 2: Verify (only if deploy succeeded)
+        # Step 2: Verify (only if deploy succeeded or was skipped)
         if [[ $FAILED -eq 0 ]]; then
             export OMNIA_COMMAND_TYPE="verify"
             echo -e "${YELLOW}=================================================================${NC}"
-            echo -e "${YELLOW}  Step 2/2: Verify${NC}"
+            if [[ -n "$has_deploy" ]]; then
+                echo -e "${YELLOW}  Step 2/2: Verify${NC}"
+            else
+                echo -e "${YELLOW}  Running: Verify${NC}"
+            fi
             echo -e "${YELLOW}=================================================================${NC}"
             echo ""
 

@@ -52,8 +52,8 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_010 | `test_skip_catalog_in_help` | commands/ | sanity | Verify --skip-catalog flag appears in help output |
 | TC_CL_011 | `test_force_deps_invalid` | commands/ | sanity | Verify --force-deps without -s/-i exits with error |
 | TC_CL_012 | `test_check_deps_runs` | commands/ | sanity | Verify --check-deps command runs |
-| TC_CL_013 | `test_generic_tags_in_help` | generic_tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
-| TC_CL_014 | `test_execution_order_in_help` | generic_tags/ | sanity | Verify execution order in help text |
+| TC_CL_013 | `test_generic_tags_in_help` | tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
+| TC_CL_014 | `test_execution_order_in_help` | tags/ | sanity | Verify execution order in help text |
 | TC_CL_015 | `test_skip_catalog_accepted` | commands/ | sanity | Verify --setup-venv --skip-catalog --deps-only is accepted |
 
 ---
