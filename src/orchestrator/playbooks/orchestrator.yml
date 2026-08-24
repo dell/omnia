@@ -69,6 +69,3 @@
 
 - name: Validate provisioning
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
-
-- name: Set PXE boot on iDRAC nodes
-  ansible.builtin.import_playbook: setpxe/set_pxe_boot.yml
