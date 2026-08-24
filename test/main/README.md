@@ -82,7 +82,7 @@ test/main/
 |----------|--------------|----------------|
 | `setup` | Environment install, venv creation, directory setup, env source validation | `omnia.sh --setup-venv --deps-only` |
 | `init` | Domain log directories, input file staging (all 7 domains incl. orchestrator, discovery, utils) | `omnia.sh --init` |
-| `cli` | Help output, error handling, flag verification (--cleanup, --check-deps, --force-deps, --skip-catalog), generic tags, argument parsing | `omnia.sh --help` |
+| `cli` | Help output, error handling, flag verification (--cleanup, --check-deps, --force-deps, --skip-catalog, --skip-omnia-cli), generic tags, argument parsing | `omnia.sh --help` |
 | `omnia_cli` | Diagnostics CLI: status, check, version, domain queries (all 7 domains incl. orchestrator, telemetry, build-stream, utils), logs, errors | `omnia-cli help` |
 | `nft` | Performance thresholds, idempotency, file permissions, CLI performance | `omnia.sh --setup-venv`, `--init`, `omnia-cli status` |
 

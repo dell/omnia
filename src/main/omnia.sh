@@ -968,6 +968,8 @@ OPTIONS:
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
   --skip-catalog        With -s: skip the automatic catalog copy.
+  --skip-omnia-cli      With -s: skip installing omnia-cli and bash completion
+                        to /usr/local/bin/ and /etc/bash_completion.d/.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -987,9 +989,10 @@ DIAGNOSTICS (see omnia-cli):
   omnia-cli version                           Version info
   omnia-cli help [<domain>]                   CLI help
 
-INSTALL omnia-cli TO PATH:
-  sudo cp omnia-cli /usr/local/bin/
-  sudo chmod +x /usr/local/bin/omnia-cli
+INSTALL omnia-cli TO PATH (automatic during --setup-venv):
+  omnia-cli and bash completion are installed automatically.
+  To skip: omnia.sh -s --skip-omnia-cli
+  Manual: sudo cp omnia-cli /usr/local/bin/ && sudo chmod +x /usr/local/bin/omnia-cli
 
 SYSTEM ENVIRONMENT:
   After --setup-venv, omnia.env is installed to:
@@ -1050,6 +1053,7 @@ main() {
     FORCE_DEPS=false   # Global — passed to domain-init.sh
     local CLEANUP_ALL=false
     local SKIP_CATALOG=false
+    local SKIP_OMNIA_CLI=false
     local command=""
     local init_domain_filter=""
     local run_domain_name=""
@@ -1077,6 +1081,10 @@ main() {
                 ;;
             --skip-catalog)
                 SKIP_CATALOG=true
+                shift
+                ;;
+            --skip-omnia-cli)
+                SKIP_OMNIA_CLI=true
                 shift
                 ;;
             --init|-i)
@@ -1150,6 +1158,23 @@ main() {
             # Auto-copy catalog unless --skip-catalog
             if [ "$SKIP_CATALOG" = false ]; then
                 copy_catalog
+            fi
+
+            # Install omnia-cli and bash completion unless --skip-omnia-cli
+            if [ "$SKIP_OMNIA_CLI" = false ]; then
+                local cli_src="${SCRIPT_DIR}/omnia-cli"
+                local completion_src="${SCRIPT_DIR}/omnia-cli-completion.bash"
+                if [ -f "$cli_src" ]; then
+                    cp "$cli_src" /usr/local/bin/omnia-cli
+                    chmod +x /usr/local/bin/omnia-cli
+                    echo -e "${GREEN}Installed omnia-cli to /usr/local/bin/omnia-cli${NC}"
+                fi
+                if [ -f "$completion_src" ]; then
+                    cp "$completion_src" /etc/bash_completion.d/omnia-cli
+                    echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
+                fi
+            else
+                echo -e "${DIM}Skipping omnia-cli install (--skip-omnia-cli)${NC}"
             fi
 
             # ── Post-setup activation instructions (shown LAST) ──

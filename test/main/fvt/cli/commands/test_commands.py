@@ -27,6 +27,8 @@ TC_CL_010: Verify --skip-catalog flag appears in help output
 TC_CL_011: Verify --force-deps without -s/-i exits with error
 TC_CL_012: Verify --check-deps runs
 TC_CL_015: Verify --setup-venv --skip-catalog --deps-only accepted
+TC_CL_016: Verify --skip-omnia-cli flag appears in help output
+TC_CL_017: Verify --setup-venv --skip-omnia-cli --deps-only accepted
 """
 
 import pytest
@@ -334,5 +336,62 @@ def test_skip_catalog_accepted(host):
         ))
 
     assert accepted, ASSERT["skip_catalog_failed"].format(
+        rc=result["rc"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(13)
+def test_skip_omnia_cli_in_help(host):
+    """TC_CL_016: Verify --skip-omnia-cli flag appears in help output."""
+    tl = TestLogger(
+        TEST_NAMES["skip_omnia_cli_in_help"], "TC_CL_016"
+    )
+    result = run_omnia_cmd(host, "omnia_sh_help")
+
+    found = "--skip-omnia-cli" in result.get("output", "")
+
+    if found:
+        tl.passed(LOG["skip_omnia_cli_in_help_ok"])
+    else:
+        tl.failed(LOG["skip_omnia_cli_not_in_help"])
+
+    assert found, ASSERT["skip_omnia_cli_not_in_help"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(14)
+def test_skip_omnia_cli_accepted(host):
+    """TC_CL_017: Verify --setup-venv --skip-omnia-cli --deps-only is accepted.
+
+    This test verifies the option is parsed correctly (not rejected
+    as an unknown option). The setup itself may fail for environment
+    reasons -- that is OK; we only assert the flag is accepted.
+    """
+    tl = TestLogger(
+        TEST_NAMES["skip_omnia_cli_accepted"], "TC_CL_017"
+    )
+    result = run_omnia_cmd(
+        host, "omnia_sh_setup_skip_omnia_cli"
+    )
+    output = result.get("output", "")
+
+    rejected = (
+        "unknown option" in output.lower()
+        or "unrecognized" in output.lower()
+        or "invalid option" in output.lower()
+    )
+    accepted = not rejected
+
+    if accepted:
+        tl.passed(LOG["skip_omnia_cli_ok"].format(
+            rc=result["rc"]
+        ))
+    else:
+        tl.failed(LOG["skip_omnia_cli_failed"].format(
+            rc=result["rc"]
+        ))
+
+    assert accepted, ASSERT["skip_omnia_cli_failed"].format(
         rc=result["rc"],
     )

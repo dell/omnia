@@ -21,6 +21,9 @@
 # Separated from omnia.sh to keep the main entrypoint clean.
 # omnia.sh handles setup (venv, env). This CLI handles status & diagnostics.
 #
+# NOTE: This script requires GNU coreutils (find -printf, stat -c)
+#       and is designed for RHEL/Rocky Linux on Dell infrastructure.
+#
 # Usage:
 #   ./omnia-cli status [--project <name>]
 #   ./omnia-cli check [--project <name>]
@@ -33,7 +36,13 @@
 #   ./omnia-cli help [<domain>]
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
+
+# Require Bash 4.4+ for safe empty-array expansion under set -u
+if ((BASH_VERSINFO[0] < 4)) || { ((BASH_VERSINFO[0] == 4)) && ((BASH_VERSINFO[1] < 4)); }; then
+    echo "Error: omnia-cli requires Bash 4.4+. Current: ${BASH_VERSION}" >&2
+    exit 1
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -50,11 +59,19 @@ readonly BOLD=$'\033[1m'
 readonly DIM=$'\033[2m'
 readonly NC=$'\033[0m'
 
-# Status symbols
-readonly PASS="${GREEN}✔${NC}"
-readonly FAIL="${RED}✗${NC}"
-readonly WARN="${YELLOW}⚠${NC}"
-readonly SKIP="${DIM}–${NC}"
+# Status symbols (with ASCII fallback for non-UTF-8 terminals)
+if [[ "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" != *UTF-8* ]] && \
+   [[ "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" != *utf8* ]]; then
+    readonly PASS="${GREEN}[OK]${NC}"
+    readonly FAIL="${RED}[FAIL]${NC}"
+    readonly WARN="${YELLOW}[WARN]${NC}"
+    readonly SKIP="${DIM}[--]${NC}"
+else
+    readonly PASS="${GREEN}✔${NC}"
+    readonly FAIL="${RED}✗${NC}"
+    readonly WARN="${YELLOW}⚠${NC}"
+    readonly SKIP="${DIM}–${NC}"
+fi
 
 # Omnia release metadata
 readonly OMNIA_RELEASE="2.3.0.0"
@@ -101,17 +118,6 @@ readonly DOMAIN_ORDER=(
     utils
 )
 
-# Known log directory patterns (relative to OMNIA_DATA_PATH/<domain>/)
-declare -A DOMAIN_LOG_DIRS=(
-    [repo_manager]="log"
-    [image_build_manager]="log"
-    [orchestrator]="log"
-    [discovery]="log"
-    [telemetry]="log"
-    [build_stream]="log"
-    [utils]="log"
-)
-
 # Ansible log default location
 readonly ANSIBLE_LOG_DEFAULT="/var/log/omnia"
 
@@ -137,16 +143,16 @@ load_env() {
 _parse_status() {
     local file="$1"
     grep -E '^\s*overall_status:' "$file" 2>/dev/null \
-        | head -1 \
-        | sed 's/.*: *"\?\([^"]*\)"\?/\1/' \
+        | head -n 1 \
+        | sed -E 's/.*: *"?([^"]*)"?/\1/' \
         | tr -d '[:space:]'
 }
 
 _parse_yaml_key() {
     local file="$1" key="$2"
     grep -E "^\s*${key}:" "$file" 2>/dev/null \
-        | head -1 \
-        | sed 's/.*: *"\?\([^"]*\)"\?/\1/' \
+        | head -n 1 \
+        | sed -E 's/.*: *"?([^"]*)"?/\1/' \
         | tr -d '[:space:]'
 }
 
@@ -171,7 +177,7 @@ _resolve_input_dir() {
 _last_modified() {
     local dir="$1"
     local newest
-    newest=$(find "$dir" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+    newest=$(find "$dir" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)
     if [ -n "$newest" ]; then
         local mod_time
         mod_time=$(stat -c '%y' "$newest" 2>/dev/null | cut -d. -f1)
@@ -304,10 +310,9 @@ cmd_status() {
             echo -e "  ${PASS} ${BOLD}${display_name}${NC}  ${GREEN}completed${NC}"
         elif [ -n "$overall_status" ]; then
             echo -e "  ${FAIL} ${BOLD}${display_name}${NC}  ${RED}${overall_status}${NC}"
-        elif [ -d "$output_dir" ]; then
-            echo -e "  ${WARN} ${BOLD}${display_name}${NC}  ${YELLOW}output exists, no status${NC}"
         else
-            echo -e "  ${SKIP} ${BOLD}${display_name}${NC}"
+            # output_dir exists (guaranteed by continue above) but no status parsed
+            echo -e "  ${WARN} ${BOLD}${display_name}${NC}  ${YELLOW}output exists, no status${NC}"
         fi
 
         echo -e "    ${DIM}${desc}${NC}"
@@ -384,7 +389,7 @@ cmd_repo_manager() {
 
     # Check functional_group_packages.yml (from package_list or default)
     local pkg_list_path
-    pkg_list_path=$(grep -E '^\s*package_list:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+    pkg_list_path=$(grep -E '^\s*package_list:' "$status_file" 2>/dev/null | head -n 1 | sed 's/.*: *//' | tr -d '[:space:]')
     if [ -n "$pkg_list_path" ] && [ -f "$pkg_list_path" ]; then
         echo -e "  ${PASS} functional_group_packages  (from package_list: ${DIM}${pkg_list_path}${NC})"
     elif [ -f "$pkg_file" ]; then
@@ -395,7 +400,7 @@ cmd_repo_manager() {
 
     # Check certificates
     local cert_path
-    cert_path=$(grep -E '^\s*server_crt:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+    cert_path=$(grep -E '^\s*server_crt:' "$status_file" 2>/dev/null | head -n 1 | sed 's/.*: *//' | tr -d '[:space:]')
     if [ -n "$cert_path" ]; then
         if [ -f "$cert_path" ]; then
             echo -e "  ${PASS} Repo manager certificate  (${DIM}${cert_path}${NC})"
@@ -492,7 +497,7 @@ cmd_image_build() {
     local log_dir="${image_build_base}/log/${project}"
     if [ -d "$log_dir" ]; then
         local latest_log
-        latest_log=$(find "$log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        latest_log=$(find "$log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)
         if [ -n "$latest_log" ]; then
             echo ""
             echo -e "  Latest log: ${DIM}${latest_log}${NC}"
@@ -612,7 +617,7 @@ cmd_domain_status() {
 # ─────────────────────────────────────────────────────────────────────────────
 _is_vault_encrypted() {
     local file="$1"
-    head -1 "$file" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT;' 2>/dev/null
+    head -n 1 "$file" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT;' 2>/dev/null
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -666,7 +671,7 @@ _edit_file() {
         fi
     else
         echo -e "  Opening ${target} in ${editor}..."
-        $editor "$target"
+        "$editor" "$target"
     fi
 }
 
@@ -761,7 +766,7 @@ cmd_edit() {
                 fi
                 if [ "${#plain_files[@]}" -gt 0 ]; then
                     echo -e "  Opening ${#plain_files[@]} file(s) in ${editor}..."
-                    $editor "${plain_files[@]}"
+                    "$editor" "${plain_files[@]}"
                 else
                     echo -e "  ${DIM}No plain-text files to open.${NC}"
                 fi
@@ -786,7 +791,7 @@ cmd_edit() {
 # Command: logs — View domain execution logs or ansible logs
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_logs() {
-    local domain="$1" project="$2" follow="${3:-false}"
+    local domain="$1" project="$2"
     local base="${OMNIA_DATA_PATH:-/opt/omnia}"
     local display_name
     display_name=$(echo "$domain" | tr '_' ' ')
@@ -812,8 +817,14 @@ cmd_logs() {
 
     for domain_log_dir in "${domain_log_dirs_to_check[@]}"; do
         if [ -d "$domain_log_dir" ]; then
-            local log_files
-            log_files=$(find "$domain_log_dir" -maxdepth 1 -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn)
+            local log_files find_args
+            # Use -maxdepth 6 to catch deeply nested structures (e.g., rhel/10.0/x86_64/group/logs/)
+            find_args=("$domain_log_dir" -maxdepth 6 -name "*.log" -type f)
+            # When scanning the flat dir, exclude the project subdir (already scanned)
+            if [ "$domain_log_dir" = "$domain_log_flat" ] && [ -d "$domain_log_project" ]; then
+                find_args+=(-not -path "${domain_log_project}/*")
+            fi
+            log_files=$(find "${find_args[@]}" -printf '%T@ %p\n' 2>/dev/null | sort -rn)
             if [ -n "$log_files" ]; then
                 found_logs=1
                 local count
@@ -846,18 +857,26 @@ cmd_logs() {
     for alog_dir in "${ansible_log_dirs[@]}"; do
         if [ -d "$alog_dir" ]; then
             local ansible_logs
-            ansible_logs=$(find "$alog_dir" \( -name "*${domain}*" -o -name "ansible*.log" \) -type f 2>/dev/null | sort -rn | head -5)
+            ansible_logs=$(find "$alog_dir" -maxdepth 3 \
+                \( -name "*${domain}*" -o -name "ansible*.log" \) \
+                -type f -printf '%T@ %p\n' 2>/dev/null \
+                | sort -rn | head -n 10)
             if [ -n "$ansible_logs" ]; then
                 found_logs=1
                 echo -e "  ${BOLD}Ansible logs${NC}  ${DIM}(${alog_dir})${NC}"
-                while IFS= read -r alog; do
+                while IFS= read -r line; do
                     idx=$((idx + 1))
+                    local alog
+                    alog=$(echo "$line" | cut -d' ' -f2-)
                     local aname
                     aname=$(basename "$alog")
                     local asize
                     asize=$(stat -c '%s' "$alog" 2>/dev/null || echo "?")
-                    echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes)${NC}"
+                    local amod
+                    amod=$(stat -c '%y' "$alog" 2>/dev/null | cut -d. -f1 || echo "?")
+                    echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes, ${amod})${NC}"
                     log_arr+=("$alog")
+                    [ "$idx" -ge 20 ] && break
                 done <<< "$ansible_logs"
                 echo ""
             fi
@@ -869,18 +888,24 @@ cmd_logs() {
     output_dir=$(_resolve_output_dir "$domain" "$project")
     if [ -d "$output_dir" ]; then
         local output_logs
-        output_logs=$(find "$output_dir" -name "*.log" -type f 2>/dev/null | sort -rn | head -5)
+        output_logs=$(find "$output_dir" -maxdepth 3 -name "*.log" -type f \
+            -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 10)
         if [ -n "$output_logs" ]; then
             found_logs=1
             echo -e "  ${BOLD}Output logs${NC}  ${DIM}(${output_dir})${NC}"
-            while IFS= read -r olog; do
+            while IFS= read -r line; do
                 idx=$((idx + 1))
+                local olog
+                olog=$(echo "$line" | cut -d' ' -f2-)
                 local oname
                 oname=$(basename "$olog")
                 local osize
                 osize=$(stat -c '%s' "$olog" 2>/dev/null || echo "?")
-                echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes)${NC}"
+                local omod
+                omod=$(stat -c '%y' "$olog" 2>/dev/null | cut -d. -f1 || echo "?")
+                echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes, ${omod})${NC}"
                 log_arr+=("$olog")
+                [ "$idx" -ge 30 ] && break
             done <<< "$output_logs"
             echo ""
         fi
@@ -919,7 +944,7 @@ cmd_logs() {
                     local target="${log_arr[$((choice - 1))]}"
                     local pager="${PAGER:-less}"
                     echo -e "  Opening ${target} in ${pager}..."
-                    $pager "$target"
+                    "$pager" "$target"
                 else
                     echo -e "  ${RED}Invalid selection: ${choice}${NC}"
                 fi
@@ -1111,12 +1136,13 @@ main() {
     shift || true
 
     # Parse --project flag and positional args from remaining args
-    local project="${OMNIA_PROJECT_NAME:-project_default}"
+    local project_flag=""
+    local project=""
     local positional_args=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --project|-p)
-                project="${2:-project_default}"
+                project_flag="${2:-project_default}"
                 shift 2 || { echo -e "${RED}--project requires a value${NC}"; exit 1; }
                 ;;
             *)
@@ -1126,24 +1152,29 @@ main() {
         esac
     done
 
-    # For commands that don't need a domain arg, first positional is project
-    # For edit/logs, first positional is domain
+    # --project flag takes priority over env var; positional args never override --project
+    project="${project_flag:-${OMNIA_PROJECT_NAME:-project_default}}"
+
+    # Validate project name (prevent path traversal)
+    if [[ ! "$project" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]]; then
+        echo -e "${RED}Invalid project name: '${project}'${NC}" >&2
+        echo -e "${DIM}Allowed: letters, digits, underscore, hyphen, dot${NC}" >&2
+        exit 1
+    fi
+
+    # Dispatch: edit/logs use first positional as domain; others ignore positional args
     case "$command" in
         status)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_status "$project"
+            cmd_status "$project" || true
             ;;
         check)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_check "$project"
+            cmd_check "$project" || true
             ;;
         repo-manager|repo_manager)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_repo_manager "$project"
+            cmd_repo_manager "$project" || true
             ;;
         image-build|image_build|image-build-manager|image_build_manager)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_image_build "$project"
+            cmd_image_build "$project" || true
             ;;
         edit)
             if [ "${#positional_args[@]}" -eq 0 ]; then
@@ -1158,8 +1189,7 @@ main() {
                 echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
                 exit 1
             fi
-            [ "${#positional_args[@]}" -gt 1 ] && project="${positional_args[1]}"
-            cmd_edit "$domain" "$project"
+            cmd_edit "$domain" "$project" || true
             ;;
         logs|log)
             if [ "${#positional_args[@]}" -eq 0 ]; then
@@ -1174,8 +1204,7 @@ main() {
                 echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
                 exit 1
             fi
-            [ "${#positional_args[@]}" -gt 1 ] && project="${positional_args[1]}"
-            cmd_logs "$domain" "$project"
+            cmd_logs "$domain" "$project" || true
             ;;
         version|--version|-v)
             cmd_version
@@ -1199,8 +1228,7 @@ main() {
             local domain
             domain=$(_domain_from_arg "$command")
             if [ -n "$domain" ]; then
-                [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-                cmd_domain_status "$domain" "$project"
+                cmd_domain_status "$domain" "$project" || true
             else
                 echo -e "${RED}Unknown command: ${command}${NC}"
                 echo ""

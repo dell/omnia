@@ -120,6 +120,9 @@ TEST_NAMES: Dict[str, str] = {
     "skip_catalog_in_help": (
         "Verify --skip-catalog flag appears in help output"
     ),
+    "skip_omnia_cli_in_help": (
+        "Verify --skip-omnia-cli flag appears in help output"
+    ),
 
     # Init domain filtering
     "init_domain_filter": (
@@ -198,9 +201,12 @@ TEST_NAMES: Dict[str, str] = {
         "Verify updated omnia.env propagates to /etc/omnia/omnia.env"
     ),
 
-    # CLI — skip-catalog
+    # CLI — skip-catalog / skip-omnia-cli
     "skip_catalog_accepted": (
         "Verify --setup-venv --skip-catalog accepted"
+    ),
+    "skip_omnia_cli_accepted": (
+        "Verify --setup-venv --skip-omnia-cli accepted"
     ),
 }
 
@@ -314,6 +320,12 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "skip_catalog_not_in_help": (
         "--skip-catalog flag NOT found in help output"
+    ),
+    "skip_omnia_cli_in_help_ok": (
+        "--skip-omnia-cli flag found in help output"
+    ),
+    "skip_omnia_cli_not_in_help": (
+        "--skip-omnia-cli flag NOT found in help output"
     ),
     "check_deps_ok": (
         "--check-deps completed successfully"
@@ -437,12 +449,18 @@ TEST_LOG_MSGS: Dict[str, str] = {
         "Source omnia.env update did NOT propagate to system copy"
     ),
 
-    # skip-catalog
+    # skip-catalog / skip-omnia-cli
     "skip_catalog_ok": (
         "--setup-venv --skip-catalog completed (rc={rc})"
     ),
     "skip_catalog_failed": (
         "--setup-venv --skip-catalog failed (rc={rc})"
+    ),
+    "skip_omnia_cli_ok": (
+        "--setup-venv --skip-omnia-cli completed (rc={rc})"
+    ),
+    "skip_omnia_cli_failed": (
+        "--setup-venv --skip-omnia-cli failed (rc={rc})"
     ),
 }
 
@@ -764,6 +782,29 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check --skip-catalog parsing in omnia.sh main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_omnia_cli_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-OMNIA-CLI FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--skip-omnia-cli' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --skip-omnia-cli to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_omnia_cli_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-OMNIA-CLI NOT ACCEPTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv --skip-omnia-cli should be\n"
+        "\u2551 accepted without error (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check --skip-omnia-cli parsing in omnia.sh main()\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

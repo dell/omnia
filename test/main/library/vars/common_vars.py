@@ -247,6 +247,10 @@ CMDS: Dict[str, str] = {
         "cd {clone_path} && bash {omnia_sh}"
         " --setup-venv --deps-only --skip-catalog 2>&1"
     ),
+    "omnia_sh_setup_skip_omnia_cli": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --setup-venv --deps-only --skip-omnia-cli 2>&1"
+    ),
     "omnia_sh_force_deps_invalid": (
         "cd {clone_path} && bash {omnia_sh}"
         " --force-deps 2>&1"

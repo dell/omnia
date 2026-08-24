@@ -55,6 +55,8 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_013 | `test_generic_tags_in_help` | tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
 | TC_CL_014 | `test_execution_order_in_help` | tags/ | sanity | Verify execution order in help text |
 | TC_CL_015 | `test_skip_catalog_accepted` | commands/ | sanity | Verify --setup-venv --skip-catalog --deps-only is accepted |
+| TC_CL_016 | `test_skip_omnia_cli_in_help` | commands/ | sanity | Verify --skip-omnia-cli flag appears in help output |
+| TC_CL_017 | `test_skip_omnia_cli_accepted` | commands/ | sanity | Verify --setup-venv --skip-omnia-cli --deps-only is accepted |
 
 ---
 
