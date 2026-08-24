@@ -62,6 +62,7 @@ class FakeUUIDGenerator:
         self._counter = 0
 
     def generate(self):
+        """Generate a deterministic UUID for testing."""
         self._counter += 1
         return uuid.UUID(f"00000000-0000-4000-8000-{self._counter:012d}")
 
@@ -159,43 +160,51 @@ class TestExtractImageGroupId:
         )
 
     def test_valid_identifier(self):
+        """Test valid identifier extraction."""
         uc = self._get_use_case()
         catalog = {"Catalog": {"Identifier": "image-build"}}
         result = uc._extract_image_group_id(catalog)
         assert result == ImageGroupId("image-build")
 
     def test_missing_catalog_key_raises(self):
+        """Test missing catalog key raises error."""
         uc = self._get_use_case()
         with pytest.raises(InvalidCatalogFormatError, match="Catalog"):
             uc._extract_image_group_id({})
 
     def test_catalog_not_dict_raises(self):
+        """Test catalog not being a dict raises error."""
         uc = self._get_use_case()
         with pytest.raises(InvalidCatalogFormatError, match="Catalog"):
             uc._extract_image_group_id({"Catalog": "not-a-dict"})
 
     def test_missing_identifier_raises(self):
+        """Test missing identifier raises error."""
         uc = self._get_use_case()
         with pytest.raises(InvalidCatalogFormatError, match="Identifier"):
             uc._extract_image_group_id({"Catalog": {"Name": "test"}})
 
     def test_empty_identifier_raises(self):
+        """Test empty identifier raises error."""
         uc = self._get_use_case()
         with pytest.raises(InvalidCatalogFormatError, match="Identifier"):
             uc._extract_image_group_id({"Catalog": {"Identifier": ""}})
 
     def test_whitespace_identifier_raises(self):
+        """Test whitespace-only identifier raises error."""
         uc = self._get_use_case()
         with pytest.raises(InvalidCatalogFormatError, match="Identifier"):
             uc._extract_image_group_id({"Catalog": {"Identifier": "   "}})
 
     def test_identifier_exceeds_128_chars_raises(self):
+        """Test identifier exceeding 128 chars raises error."""
         uc = self._get_use_case()
         long_id = "x" * 129
         with pytest.raises(InvalidCatalogFormatError, match="cannot exceed 128"):
             uc._extract_image_group_id({"Catalog": {"Identifier": long_id}})
 
     def test_identifier_exactly_128_chars_ok(self):
+        """Test identifier exactly 128 chars is valid."""
         uc = self._get_use_case()
         valid_id = "x" * 128
         result = uc._extract_image_group_id({"Catalog": {"Identifier": valid_id}})
@@ -207,6 +216,7 @@ class TestCheckImageGroupUniqueness:
     """Tests for _check_image_group_uniqueness()."""
 
     def test_unique_id_passes(self):
+        """Test unique image group ID passes validation."""
         ig_repo = InMemoryImageGroupRepository()
         uc = _build_use_case(
             InMemoryJobRepository(),
@@ -221,6 +231,7 @@ class TestCheckImageGroupUniqueness:
         uc._check_image_group_uniqueness(ImageGroupId("new-group-id"))
 
     def test_duplicate_id_raises_409(self):
+        """Test duplicate image group ID raises error."""
         ig_repo = InMemoryImageGroupRepository()
         # Pre-seed an existing ImageGroup
         from core.image_group.entities import ImageGroup
@@ -244,6 +255,7 @@ class TestCheckImageGroupUniqueness:
             uc._check_image_group_uniqueness(ImageGroupId("existing-group"))
 
     def test_no_repo_skips_check(self):
+        """Test that check is skipped when no repo is provided."""
         uc = _build_use_case(
             InMemoryJobRepository(),
             InMemoryStageRepository(),
@@ -262,6 +274,7 @@ class TestExtractCatalogMetadata:
     """Tests for _extract_catalog_metadata() — reads Catalog.FunctionalLayer."""
 
     def _get_use_case(self):
+        """Helper to build a use case instance."""
         return _build_use_case(
             InMemoryJobRepository(),
             InMemoryStageRepository(),
@@ -272,6 +285,7 @@ class TestExtractCatalogMetadata:
         )
 
     def test_extracts_roles_and_images(self):
+        """Test extraction of roles and images from catalog."""
         uc = self._get_use_case()
         catalog = _make_catalog_json()
         meta = uc._extract_catalog_metadata(catalog, ImageGroupId("omnia-cluster-v1.2"))
@@ -283,6 +297,7 @@ class TestExtractCatalogMetadata:
         assert meta["version"] == "1.0"
 
     def test_default_image_name_derived_from_role(self):
+        """Test default image name is derived from role name."""
         uc = self._get_use_case()
         catalog = {
             "Catalog": {
@@ -296,6 +311,7 @@ class TestExtractCatalogMetadata:
         assert meta["role_images"]["worker"] == "worker.img"
 
     def test_empty_functional_layer(self):
+        """Test empty functional layer is handled correctly."""
         uc = self._get_use_case()
         catalog = {"Catalog": {"Identifier": "my-group", "Version": "1.0"}}
         meta = uc._extract_catalog_metadata(catalog, ImageGroupId("my-group"))
@@ -303,6 +319,7 @@ class TestExtractCatalogMetadata:
         assert meta["role_images"] == {}
 
     def test_skips_invalid_layer_entries(self):
+        """Test that invalid layer entries are skipped."""
         uc = self._get_use_case()
         catalog = {
             "Catalog": {
@@ -438,6 +455,7 @@ class TestResultPollerBuildImageCompletion:
     """Tests for build-image completion handler in ResultPoller."""
 
     def test_is_build_image_stage(self):
+        """Test build-image stage detection."""
         from orchestrator.common.result_poller import ResultPoller
         # Unified design (Omnia 2.3+): only "build-image" stage exists
         assert ResultPoller._is_build_image_stage("build-image")
@@ -451,7 +469,6 @@ class TestResultPollerBuildImageCompletion:
     @patch("orchestrator.common.result_poller._discover_s3_image_paths")
     def test_on_build_image_success_creates_records(self, mock_discover):
         """Build-image success should create ImageGroup + Images."""
-        from orchestrator.common.result_poller import ResultPoller
 
         # Mock S3 discovery to return fake paths (no real s3cmd needed)
         mock_discover.return_value = {
@@ -498,6 +515,7 @@ class TestResultPollerBuildImageCompletion:
         )
         metadata_repo.save(record)
 
+        from orchestrator.common.result_poller import ResultPoller
         poller = ResultPoller(
             result_service=MagicMock(),
             job_repo=InMemoryJobRepository(),
