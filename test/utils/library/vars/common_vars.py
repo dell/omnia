@@ -69,8 +69,8 @@ SET_PXE_BOOT_INVENTORY_FILE = "set_pxe_boot.ini"
 SET_PXE_BOOT_CREDENTIALS_FILE = "set_pxe_boot_credentials.yml"
 
 # Install OS input files
-ISO_CONFIG_FILE = "iso_config.yml"
-OS_INSTALL_CREDENTIALS_FILE = "os_install_credentials.yml"
+INSTALL_OS_CONFIG_FILE = "install_os_config.yml"
+INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 
 # =============================================================================
 # PLAYBOOK CONFIGURATION (module-specific)
@@ -99,10 +99,10 @@ SET_PXE_BOOT_TAGS = [
 
 # Valid playbook tags for install_os.yml
 INSTALL_OS_TAGS = [
-    "validate",
-    "fetch",
-    "create",
-    "deliver",
+    "credentials",
+    "build_iso",
+    "deploy",
+    "generate_ks",
 ]
 
 # =============================================================================
@@ -145,9 +145,10 @@ PHONE_HOME_DELAY = 15
 FAILED_NODES_FILE = "failed_nodes.json"
 
 # Install OS constants
-ISO_OUTPUT_DIR = "/opt/omnia/iso_output"
-CUSTOM_ISO_PATTERN = r"omnia_custom_.*\.iso"
-KICKSTART_FILE = "ks.cfg"
+INSTALL_OS_OUTPUT_DIR = "/opt/omnia/utils/output"
+INSTALL_OS_STATUS_FILE = "install_os_status.yml"
+CUSTOM_ISO_PATTERN = r".*-omnia\.iso"
+KICKSTART_FILE = "kickstart.ks"
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS

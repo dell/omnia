@@ -166,18 +166,19 @@ bmc_password: ""
 
 | ID | Test | Description |
 |----|------|-------------|
-| TC_IO_001 | deploy_install_os_validate | Deploy with validate tag |
-| TC_IO_002 | deploy_install_os_fetch | Deploy with fetch tag |
-| TC_IO_003 | deploy_install_os_create | Deploy with create tag |
-| TC_IO_004 | deploy_install_os_deliver | Deploy with deliver tag |
+| TC_IO_001 | deploy_install_os_credentials | Deploy with credentials tag |
+| TC_IO_002 | deploy_install_os_build_iso | Deploy with build_iso tag |
+| TC_IO_003 | deploy_install_os_deploy | Deploy with deploy tag |
+| TC_IO_004 | deploy_install_os_generate_ks | Deploy with generate_ks tag |
 | TC_IO_005 | deploy_install_os_full | Full deployment |
 | TC_IO_010 | install_os_config_file_exists | Config file exists |
 | TC_IO_011 | install_os_config_valid | Config file valid |
 | TC_IO_012 | install_os_credentials_file_exists | Credentials file exists |
 | TC_IO_020 | install_os_output_dir_exists | Output directory exists |
-| TC_IO_021 | install_os_custom_iso_created | Custom ISO created |
-| TC_IO_022 | install_os_iso_checksum_valid | ISO checksum valid |
-| TC_IO_023 | install_os_kickstart_injected | Kickstart injected |
+| TC_IO_021 | install_os_status_file_exists | Status file created |
+| TC_IO_022 | install_os_status_valid | Status file valid |
+| TC_IO_030 | install_os_custom_iso_created | Custom ISO created (optional) |
+| TC_IO_031 | install_os_kickstart_generated | Kickstart generated (optional) |
 
 ## Reports
 

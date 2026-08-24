@@ -81,10 +81,10 @@ Complete registry of all Functional Verification Tests for the utils domain.
 
 | TC ID | Test Function | File | Markers |
 |-------|---------------|------|---------|
-| TC_IO_001 | test_deploy_install_os_validate | test_playbook.py | deploy, sanity |
-| TC_IO_002 | test_deploy_install_os_fetch | test_playbook.py | deploy, functional |
-| TC_IO_003 | test_deploy_install_os_create | test_playbook.py | deploy, functional |
-| TC_IO_004 | test_deploy_install_os_deliver | test_playbook.py | deploy, functional |
+| TC_IO_001 | test_deploy_install_os_credentials | test_playbook.py | deploy, sanity |
+| TC_IO_002 | test_deploy_install_os_build_iso | test_playbook.py | deploy, functional |
+| TC_IO_003 | test_deploy_install_os_deploy | test_playbook.py | deploy, functional |
+| TC_IO_004 | test_deploy_install_os_generate_ks | test_playbook.py | deploy, functional |
 | TC_IO_005 | test_deploy_install_os_full | test_playbook.py | deploy, functional |
 
 #### Verification Tests
@@ -95,9 +95,10 @@ Complete registry of all Functional Verification Tests for the utils domain.
 | TC_IO_011 | test_install_os_config_valid | iso/test_iso.py | sanity |
 | TC_IO_012 | test_install_os_credentials_file_exists | iso/test_iso.py | sanity |
 | TC_IO_020 | test_install_os_output_dir_exists | iso/test_iso.py | functional |
-| TC_IO_021 | test_install_os_custom_iso_created | iso/test_iso.py | functional |
-| TC_IO_022 | test_install_os_iso_checksum_valid | iso/test_iso.py | functional |
-| TC_IO_023 | test_install_os_kickstart_injected | iso/test_iso.py | functional |
+| TC_IO_021 | test_install_os_status_file_exists | iso/test_iso.py | functional |
+| TC_IO_022 | test_install_os_status_valid | iso/test_iso.py | functional |
+| TC_IO_030 | test_install_os_custom_iso_created | iso/test_iso.py | functional |
+| TC_IO_031 | test_install_os_kickstart_generated | iso/test_iso.py | functional |
 
 ## Markers
 

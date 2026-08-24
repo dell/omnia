@@ -208,39 +208,30 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     ),
 
     # --- Install OS failures ---
-    "iso_config_invalid": (
-        "ISO configuration is invalid: {error}\n"
+    "install_os_config_invalid": (
+        "install_os configuration is invalid: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Check iso_config.yml syntax\n"
-        "  2. Verify all required fields are present\n"
-        "  3. Compare with template in src/utils/input/\n"
+        "  1. Check install_os_config.yml syntax\n"
+        "  2. Verify required fields are present for your tag (credentials/build_iso/deploy/generate_ks)\n"
+        "  3. Compare with template in src/utils/input/install_os_config.yml\n"
     ),
-    "iso_credentials_invalid": (
-        "OS install credentials are invalid: {error}\n"
+    "install_os_credentials_invalid": (
+        "install_os credentials are invalid: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Check os_install_credentials.yml syntax\n"
+        "  1. Check install_os_credentials.yml syntax\n"
         "  2. Verify bmc_username, bmc_password, os_root_password are set\n"
-        "  3. Ensure file is encrypted with ansible-vault if using encrypted mode\n"
+        "  3. If playbook manages vault, plaintext sync is acceptable for automation\n"
     ),
-    "custom_iso_missing": (
-        "Custom ISO not created in output directory: {path}\n"
+    "install_os_status_invalid": (
+        "install_os_status.yml is invalid: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Run install_os.yml with --tags create\n"
-        "  2. Check source ISO path is valid\n"
-        "  3. Verify output directory permissions\n"
-    ),
-    "iso_checksum_invalid": (
-        "ISO checksum mismatch: expected {expected}, got {actual}\n"
-        "HOW TO FIX:\n"
-        "  1. Verify source ISO integrity\n"
-        "  2. Re-download or regenerate source ISO\n"
-        "  3. Check iso_source_checksum in config\n"
+        "  1. Re-run install_os.yml --tags build_iso or --tags deploy\n"
+        "  2. Check /opt/omnia/utils/output/<project>/install_os_status.yml\n"
     ),
     "kickstart_missing": (
-        "Kickstart configuration not found in ISO\n"
+        "Kickstart file not found where expected\n"
         "HOW TO FIX:\n"
-        "  1. Verify kickstart template is valid\n"
-        "  2. Check kickstart_file path in config\n"
-        "  3. Re-run ISO creation\n"
+        "  1. Run install_os.yml --tags build_iso or --tags generate_ks\n"
+        "  2. Verify NFS mount is present on the build host\n"
     ),
 }

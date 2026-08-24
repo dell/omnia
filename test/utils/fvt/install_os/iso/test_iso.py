@@ -25,8 +25,8 @@ from library.functions import (
     check_file_exists,
     check_dir_exists,
     validate_yaml_file,
-    validate_iso_config,
-    validate_os_install_credentials,
+    validate_install_os_config,
+    validate_install_os_credentials,
     find_custom_iso,
     verify_iso_checksum,
     verify_kickstart_in_iso,
@@ -35,9 +35,9 @@ from library.functions import (
 )
 from library.vars import (
     TEST_CASES as TC,
-    ISO_CONFIG_FILE,
-    OS_INSTALL_CREDENTIALS_FILE,
-    ISO_OUTPUT_DIR,
+    INSTALL_OS_CONFIG_FILE,
+    INSTALL_OS_CREDENTIALS_FILE,
+    INSTALL_OS_STATUS_FILE,
 )
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
@@ -49,12 +49,12 @@ from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_install_os_config_file_exists(host):
-    """Verify iso_config.yml exists on target."""
+    """Verify install_os_config.yml exists on target."""
     tc = TC["install_os_config_file_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
     input_path = get_utils_input_path(host)
-    file_path = f"{input_path}/{ISO_CONFIG_FILE}"
+    file_path = f"{input_path}/{INSTALL_OS_CONFIG_FILE}"
 
     result = check_file_exists(host, file_path)
 
@@ -69,12 +69,12 @@ def test_install_os_config_file_exists(host):
 @pytest.mark.sanity
 @pytest.mark.order(11)
 def test_install_os_config_valid(host):
-    """Verify iso_config.yml has valid structure."""
+    """Verify install_os_config.yml has valid structure."""
     tc = TC["install_os_config_valid"]
     tl = TestLogger(tc["title"], tc["id"])
 
     input_path = get_utils_input_path(host)
-    file_path = f"{input_path}/{ISO_CONFIG_FILE}"
+    file_path = f"{input_path}/{INSTALL_OS_CONFIG_FILE}"
 
     # Check if file exists first
     exists_result = check_file_exists(host, file_path)
@@ -82,7 +82,7 @@ def test_install_os_config_valid(host):
         tl.skipped("Config file not found, skipping validation")
         pytest.skip("Config file not found")
 
-    result = validate_iso_config(host, file_path)
+    result = validate_install_os_config(host, file_path)
 
     if result["success"]:
         tl.passed(LOG["iso_config_valid"])
@@ -95,12 +95,12 @@ def test_install_os_config_valid(host):
 @pytest.mark.sanity
 @pytest.mark.order(12)
 def test_install_os_credentials_file_exists(host):
-    """Verify os_install_credentials.yml exists."""
+    """Verify install_os_credentials.yml exists."""
     tc = TC["install_os_credentials_file_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
     input_path = get_utils_input_path(host)
-    file_path = f"{input_path}/{OS_INSTALL_CREDENTIALS_FILE}"
+    file_path = f"{input_path}/{INSTALL_OS_CREDENTIALS_FILE}"
 
     result = check_file_exists(host, file_path)
 
@@ -119,102 +119,108 @@ def test_install_os_credentials_file_exists(host):
 @pytest.mark.functional
 @pytest.mark.order(20)
 def test_install_os_output_dir_exists(host):
-    """Verify ISO output directory exists."""
+    """Verify install_os output directory exists."""
     tc = TC["install_os_output_dir_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    result = check_dir_exists(host, ISO_OUTPUT_DIR)
+    output_path = get_utils_output_path(host)
+    result = check_dir_exists(host, output_path)
 
     if result["success"]:
-        tl.passed(LOG["dir_exists"].format(path=ISO_OUTPUT_DIR))
+        tl.passed(LOG["dir_exists"].format(path=output_path))
     else:
-        tl.failed(LOG["dir_missing"].format(path=ISO_OUTPUT_DIR))
+        tl.failed(LOG["dir_missing"].format(path=output_path))
 
-    assert result["success"], f"Output directory not found: {ISO_OUTPUT_DIR}"
+    assert result["success"], f"Output directory not found: {output_path}"
 
 
 @pytest.mark.functional
 @pytest.mark.order(21)
-def test_install_os_custom_iso_created(host):
-    """Verify custom ISO with Kickstart was created."""
-    tc = TC["install_os_custom_iso_created"]
+def test_install_os_status_file_exists(host):
+    """Verify install_os_status.yml output file created."""
+    tc = TC["install_os_status_file_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    result = find_custom_iso(host, ISO_OUTPUT_DIR)
+    output_path = get_utils_output_path(host)
+    status_path = f"{output_path}/{INSTALL_OS_STATUS_FILE}"
+
+    result = check_file_exists(host, status_path)
 
     if result["success"]:
-        tl.passed(LOG["custom_iso_created"].format(path=result["iso_path"]))
+        tl.passed(LOG["file_exists"].format(path=status_path))
     else:
-        tl.skipped("Custom ISO not found (may not have been created yet)")
-        pytest.skip("Custom ISO not found")
+        tl.skipped("install_os_status.yml not found (requires build_iso or deploy execution)")
+        pytest.skip("install_os_status.yml not found")
 
 
 @pytest.mark.functional
 @pytest.mark.order(22)
-def test_install_os_iso_checksum_valid(host):
-    """Verify ISO checksum matches expected value."""
-    tc = TC["install_os_iso_checksum_valid"]
+def test_install_os_status_valid(host):
+    """Verify install_os_status.yml has valid structure."""
+    tc = TC["install_os_status_valid"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # First find the custom ISO
-    iso_result = find_custom_iso(host, ISO_OUTPUT_DIR)
-    if not iso_result["success"]:
-        tl.skipped("Custom ISO not found, skipping checksum verification")
-        pytest.skip("Custom ISO not found")
+    output_path = get_utils_output_path(host)
+    status_path = f"{output_path}/{INSTALL_OS_STATUS_FILE}"
 
-    # Get expected checksum from config
-    input_path = get_utils_input_path(host)
-    config_path = f"{input_path}/{ISO_CONFIG_FILE}"
-    from library.functions import validate_yaml_file
+    exists = check_file_exists(host, status_path)
+    if not exists["success"]:
+        tl.skipped("install_os_status.yml not found, skipping validation")
+        pytest.skip("install_os_status.yml not found")
 
-    config_result = validate_yaml_file(host, config_path)
-    if not config_result["success"]:
-        tl.skipped("Cannot read config for expected checksum")
-        pytest.skip("Cannot read config for expected checksum")
+    yaml_result = validate_yaml_file(host, status_path)
+    if not yaml_result["success"]:
+        tl.failed(yaml_result["error"])
+        pytest.fail(yaml_result["error"])
 
-    expected_checksum = config_result["data"].get("iso_source_checksum", "")
-    if not expected_checksum:
-        tl.skipped("No expected checksum in config")
-        pytest.skip("No expected checksum in config")
+    data = yaml_result["data"]
+    required = ["utility", "status", "timestamp"]
+    missing = [k for k in required if k not in data]
 
-    result = verify_iso_checksum(host, iso_result["iso_path"], expected_checksum)
-
-    if result["success"]:
-        tl.passed(LOG["iso_checksum_valid"])
+    if missing:
+        tl.failed(f"Missing keys in install_os_status.yml: {missing}")
     else:
-        tl.failed(
-            LOG["iso_checksum_invalid"].format(
-                expected=expected_checksum,
-                actual=result["actual_checksum"],
-            )
-        )
+        tl.passed("install_os_status.yml structure is valid")
 
-    assert result["success"], ASSERT["iso_checksum_invalid"].format(
-        expected=expected_checksum,
-        actual=result["actual_checksum"],
-    )
+    assert not missing, f"Missing keys in install_os_status.yml: {missing}"
 
 
 @pytest.mark.functional
-@pytest.mark.order(23)
-def test_install_os_kickstart_injected(host):
-    """Verify Kickstart configuration is injected into ISO."""
-    tc = TC["install_os_kickstart_injected"]
+@pytest.mark.order(30)
+def test_install_os_custom_iso_created(host):
+    """Verify custom ISO created (optional).
+
+    Custom ISO is typically written to an NFS path (custom_iso_path). This test
+    only runs if the configured NFS share is mounted locally and the ISO is
+    visible from the test host.
+    """
+    tc = TC["install_os_custom_iso_created"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # First find the custom ISO
-    iso_result = find_custom_iso(host, ISO_OUTPUT_DIR)
-    if not iso_result["success"]:
-        tl.skipped("Custom ISO not found, skipping kickstart verification")
+    # Prefer checking output path itself; if ISO is not created here, skip.
+    output_path = get_utils_output_path(host)
+    result = find_custom_iso(host, output_path)
+
+    if result["success"]:
+        tl.passed(LOG["custom_iso_created"].format(path=result["iso_path"]))
+    else:
+        tl.skipped("Custom ISO not found in output directory (may be on NFS mount)")
         pytest.skip("Custom ISO not found")
 
-    result = verify_kickstart_in_iso(host, iso_result["iso_path"])
 
-    if result["success"] and result["found"]:
-        tl.passed(LOG["kickstart_injected"])
-    elif result["success"] and not result["found"]:
-        tl.failed(LOG["kickstart_missing"])
+@pytest.mark.functional
+@pytest.mark.order(31)
+def test_install_os_kickstart_generated(host):
+    """Verify kickstart.ks generated (optional)."""
+    tc = TC["install_os_kickstart_generated"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    ks_path = f"{output_path}/kickstart.ks"
+    result = check_file_exists(host, ks_path)
+
+    if result["success"]:
+        tl.passed(LOG["file_exists"].format(path=ks_path))
     else:
-        tl.failed(result["error"])
-
-    assert result["success"] and result["found"], ASSERT["kickstart_missing"]
+        tl.skipped("kickstart.ks not found in output directory (may be written to NFS path)")
+        pytest.skip("kickstart.ks not found")

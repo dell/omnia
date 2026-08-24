@@ -199,21 +199,21 @@ TEST_CASES = {
     # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO — Deploy Tests
     # ══════════════════════════════════════════════════════════════════════════
-    "deploy_install_os_validate": {
+    "deploy_install_os_credentials": {
         "id": "TC_IO_001",
-        "title": "Deploy install_os.yml (validate parameters)",
+        "title": "Deploy install_os.yml (credentials tag)",
     },
-    "deploy_install_os_fetch": {
+    "deploy_install_os_build_iso": {
         "id": "TC_IO_002",
-        "title": "Deploy install_os.yml (fetch ISO)",
+        "title": "Deploy install_os.yml (build_iso tag)",
     },
-    "deploy_install_os_create": {
+    "deploy_install_os_deploy": {
         "id": "TC_IO_003",
-        "title": "Deploy install_os.yml (create custom ISO)",
+        "title": "Deploy install_os.yml (deploy tag)",
     },
-    "deploy_install_os_deliver": {
+    "deploy_install_os_generate_ks": {
         "id": "TC_IO_004",
-        "title": "Deploy install_os.yml (deliver ISO via iDRAC)",
+        "title": "Deploy install_os.yml (generate_ks tag)",
     },
     "deploy_install_os_full": {
         "id": "TC_IO_005",
@@ -225,31 +225,35 @@ TEST_CASES = {
     # ══════════════════════════════════════════════════════════════════════════
     "install_os_config_file_exists": {
         "id": "TC_IO_010",
-        "title": "Verify iso_config.yml exists on target",
+        "title": "Verify install_os_config.yml exists on target",
     },
     "install_os_config_valid": {
         "id": "TC_IO_011",
-        "title": "Verify iso_config.yml has valid structure",
+        "title": "Verify install_os_config.yml has valid structure",
     },
     "install_os_credentials_file_exists": {
         "id": "TC_IO_012",
-        "title": "Verify os_install_credentials.yml exists",
+        "title": "Verify install_os_credentials.yml exists",
     },
     "install_os_output_dir_exists": {
         "id": "TC_IO_020",
-        "title": "Verify ISO output directory exists",
+        "title": "Verify install_os output directory exists",
+    },
+    "install_os_status_file_exists": {
+        "id": "TC_IO_021",
+        "title": "Verify install_os_status.yml output file created",
+    },
+    "install_os_status_valid": {
+        "id": "TC_IO_022",
+        "title": "Verify install_os_status.yml has valid structure",
     },
     "install_os_custom_iso_created": {
-        "id": "TC_IO_021",
+        "id": "TC_IO_030",
         "title": "Verify custom ISO with Kickstart created",
     },
-    "install_os_iso_checksum_valid": {
-        "id": "TC_IO_022",
-        "title": "Verify ISO checksum matches expected value",
-    },
-    "install_os_kickstart_injected": {
-        "id": "TC_IO_023",
-        "title": "Verify Kickstart configuration injected into ISO",
+    "install_os_kickstart_generated": {
+        "id": "TC_IO_031",
+        "title": "Verify kickstart.ks file generated",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -287,12 +291,20 @@ TEST_CASES = {
         "id": "TC_NEG_014",
         "title": "Verify set_pxe_boot.yml fails with invalid configuration parameters",
     },
-    "install_os_missing_iso_fails": {
+    "install_os_missing_config_fails": {
         "id": "TC_NEG_020",
-        "title": "Verify install_os.yml fails when ISO path missing",
+        "title": "Verify install_os.yml fails when config file missing",
     },
-    "install_os_invalid_params_fails": {
+    "install_os_invalid_config_params_fails": {
         "id": "TC_NEG_021",
-        "title": "Verify install_os.yml fails with invalid parameters",
+        "title": "Verify install_os.yml fails with invalid configuration parameters",
+    },
+    "install_os_missing_iso_path_fails": {
+        "id": "TC_NEG_022",
+        "title": "Verify install_os.yml fails when source ISO path missing",
+    },
+    "install_os_missing_bmc_ip_fails": {
+        "id": "TC_NEG_023",
+        "title": "Verify install_os.yml fails when BMC IP missing for deploy",
     },
 }

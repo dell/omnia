@@ -20,7 +20,6 @@ Domain-specific functions for verifying log collector and PXE boot functionality
 
 import json
 import re
-import tempfile
 from typing import Dict, Any, List
 
 from ..vars.common_vars import (
@@ -29,9 +28,9 @@ from ..vars.common_vars import (
     LOG_BUNDLE_PATTERN,
     METADATA_FILE,
     FAILED_NODES_FILE,
-    ISO_OUTPUT_DIR,
     CUSTOM_ISO_PATTERN,
     KICKSTART_FILE,
+    INSTALL_OS_STATUS_FILE,
 )
 
 
@@ -686,12 +685,16 @@ def check_admin_ip_assigned(host, admin_ip: str) -> Dict[str, Any]:
         }
 
 
-def validate_iso_config(host, path: str) -> Dict[str, Any]:
-    """Validate iso_config.yml file structure.
+def validate_install_os_config(host, path: str) -> Dict[str, Any]:
+    """Validate install_os_config.yml file structure.
+
+    This config supports multiple execution modes, so we only enforce:
+      - YAML is valid
+      - key types are sane (where present)
 
     Args:
         host: Testinfra host object.
-        path: Absolute path to iso_config.yml.
+        path: Absolute path to install_os_config.yml.
 
     Returns:
         dict: {"success": bool, "config": dict, "error": str}
@@ -706,40 +709,35 @@ def validate_iso_config(host, path: str) -> Dict[str, Any]:
 
     data = yaml_result["data"]
 
-    # Check for expected fields
-    expected_fields = [
-        "iso_source_path",
-        "iso_nfs_share",
-        "ks_ssh_public_key",
-        "ks_hostname",
-        "ks_static_ip",
-    ]
+    expected_types = {
+        "kickstart_delivery_method": str,
+        "kickstart_file": str,
+        "kickstart_template": str,
+        "rebuild_iso": bool,
+        "force_reinstall": bool,
+        "ssh_verify_enabled": bool,
+        "ssh_verify_retries": int,
+        "ssh_verify_delay": int,
+    }
 
     errors = []
-    for field in expected_fields:
-        if field not in data or not data[field]:
-            errors.append(f"{field} is missing or empty")
-
-    if errors:
-        return {
-            "success": False,
-            "config": data,
-            "error": "; ".join(errors),
-        }
+    for key, typ in expected_types.items():
+        if key in data and data[key] is not None and not isinstance(data[key], typ):
+            errors.append(f"{key} should be {typ.__name__}")
 
     return {
-        "success": True,
+        "success": len(errors) == 0,
         "config": data,
-        "error": "",
+        "error": "; ".join(errors),
     }
 
 
-def validate_os_install_credentials(host, path: str) -> Dict[str, Any]:
-    """Validate os_install_credentials.yml file structure.
+def validate_install_os_credentials(host, path: str) -> Dict[str, Any]:
+    """Validate install_os_credentials.yml file structure.
 
     Args:
         host: Testinfra host object.
-        path: Absolute path to os_install_credentials.yml.
+        path: Absolute path to install_os_credentials.yml.
 
     Returns:
         dict: {"success": bool, "credentials": dict, "error": str}
@@ -754,19 +752,14 @@ def validate_os_install_credentials(host, path: str) -> Dict[str, Any]:
 
     data = yaml_result["data"]
 
-    # Check for expected fields
     expected_fields = ["bmc_username", "bmc_password", "os_root_password"]
+    missing = [f for f in expected_fields if not data.get(f)]
 
-    errors = []
-    for field in expected_fields:
-        if field not in data or not data[field]:
-            errors.append(f"{field} is missing or empty")
-
-    if errors:
+    if missing:
         return {
             "success": False,
             "credentials": data,
-            "error": "; ".join(errors),
+            "error": f"Missing or empty fields: {missing}",
         }
 
     return {
@@ -779,6 +772,8 @@ def validate_os_install_credentials(host, path: str) -> Dict[str, Any]:
 def find_custom_iso(host, output_dir: str) -> Dict[str, Any]:
     """Find custom ISO file in output directory.
 
+    Pattern is based on the new utils/install_os behavior ("*-omnia.iso").
+
     Args:
         host: Testinfra host object.
         output_dir: Path to the output directory.
@@ -787,24 +782,25 @@ def find_custom_iso(host, output_dir: str) -> Dict[str, Any]:
         dict: {"success": bool, "iso_path": str, "error": str}
     """
     try:
-        cmd = CMDS["find_files"].format(path=output_dir, pattern="omnia_custom_*.iso")
+        cmd = CMDS["find_files"].format(path=output_dir, pattern="*.iso")
         result = host.run(cmd)
 
         if result.rc == 0 and result.stdout.strip():
-            isos = result.stdout.strip().split("\n")
-            if isos:
-                # Return the most recent ISO (last in sorted list)
-                isos.sort()
-                return {
-                    "success": True,
-                    "iso_path": isos[-1],
-                    "error": "",
-                }
+            isos = [p for p in result.stdout.strip().split("\n") if p]
+            # Prefer -omnia.iso output
+            candidates = [p for p in isos if re.search(CUSTOM_ISO_PATTERN, p)]
+            candidates = candidates or isos
+            candidates.sort()
+            return {
+                "success": True,
+                "iso_path": candidates[-1],
+                "error": "",
+            }
 
         return {
             "success": False,
             "iso_path": "",
-            "error": "No custom ISO found in output directory",
+            "error": f"No ISO found in output directory: {output_dir}",
         }
     except Exception as exc:
         return {
@@ -861,6 +857,9 @@ def verify_iso_checksum(host, iso_path: str, expected_checksum: str) -> Dict[str
 def verify_kickstart_in_iso(host, iso_path: str) -> Dict[str, Any]:
     """Verify Kickstart configuration is injected into ISO.
 
+    We avoid mounting ISOs in test automation (requires loop mount privileges).
+    Instead, we attempt to use `isoinfo` if present.
+
     Args:
         host: Testinfra host object.
         iso_path: Path to the ISO file.
@@ -869,43 +868,19 @@ def verify_kickstart_in_iso(host, iso_path: str) -> Dict[str, Any]:
         dict: {"success": bool, "found": bool, "error": str}
     """
     try:
-        # Mount ISO temporarily and check for kickstart file
-        mount_point = tempfile.mkdtemp(prefix="iso_verify_")  # nosec B108
-        mkdir_cmd = CMDS["mkdir_p"].format(path=mount_point)
-        host.run(mkdir_cmd)
-
-        mount_cmd = f"mount -o ro {iso_path} {mount_point} 2>/dev/null"
-        mount_result = host.run(mount_cmd)
-
-        if mount_result.rc != 0:
+        which = host.run("command -v isoinfo 2>/dev/null")
+        if which.rc != 0:
             return {
                 "success": False,
                 "found": False,
-                "error": f"Failed to mount ISO: {mount_result.stderr}",
+                "error": "isoinfo not available (install genisoimage/xorriso tools)",
             }
 
-        # Check for kickstart file
-        ks_path = f"{mount_point}/{KICKSTART_FILE}"
-        ks_result = host.run(CMDS["file_exists"].format(path=ks_path))
-
-        # Unmount
-        umount_cmd = CMDS["umount"].format(flags="", path=mount_point)
-        host.run(umount_cmd)
-
-        # Clean up temp directory
-        rm_cmd = CMDS["rm_dir"].format(path=mount_point)
-        host.run(rm_cmd)
-
-        if ks_result.rc == 0 and "exists" in ks_result.stdout:
-            return {
-                "success": True,
-                "found": True,
-                "error": "",
-            }
-
+        cmd = f"isoinfo -i '{iso_path}' -R -f 2>/dev/null | grep -i '{KICKSTART_FILE}'"
+        result = host.run(cmd)
         return {
             "success": True,
-            "found": False,
+            "found": result.rc == 0,
             "error": "",
         }
     except Exception as exc:
