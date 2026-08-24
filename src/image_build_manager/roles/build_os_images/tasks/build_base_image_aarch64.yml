@@ -135,6 +135,24 @@
     (host_name + '/' + rhel_arch_base_image_name) not in
     verify_base_osimage.stdout_lines
 
+- name: Verify aarch64 base image has tags in registry
+  ansible.builtin.shell: |
+    /usr/local/bin/regctl tag ls \
+      {{ registry_host }}:5000/{{ host_name }}/{{ rhel_arch_base_image_name }} \
+      2>/dev/null
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+  changed_when: false
+  failed_when: false
+  register: _base_tag_check
+
+- name: Fail if aarch64 base image has no tags
+  ansible.builtin.fail:
+    msg: >-
+      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} exists in registry
+      but has no tags. Check log: {{ image_build__base_image_log_path }}
+  when: _base_tag_check.stdout_lines | default([]) | length == 0
+
 - name: Display verified aarch64 base osimage
   ansible.builtin.debug:
     msg: "{{ verify_base_osimage.stdout_lines }}"

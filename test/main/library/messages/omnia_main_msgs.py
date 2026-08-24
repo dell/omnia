@@ -162,6 +162,19 @@ TEST_NAMES: Dict[str, str] = {
     "cli_unknown_command": (
         "Verify omnia-cli unknown command exits with error"
     ),
+
+    # omnia-cli logs verification
+    "cli_logs_help": (
+        "Verify omnia-cli logs --help runs"
+    ),
+
+    # omnia.sh tags verification
+    "sh_generic_tags_in_help": (
+        "Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup)"
+    ),
+    "sh_tags_run": (
+        "Verify omnia.sh --run <domain> --tags <tag> accepts generic tags"
+    ),
 }
 
 # =============================================================================
@@ -344,6 +357,22 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "cli_unknown_error_ok": (
         "omnia-cli unknown command exited with error (rc={rc})"
+    ),
+
+    # omnia-cli logs
+    "cli_logs_help_ok": (
+        "omnia-cli logs --help ran successfully"
+    ),
+    "cli_logs_help_failed": (
+        "omnia-cli logs --help failed"
+    ),
+
+    # omnia.sh tags
+    "sh_generic_tags_ok": (
+        "Help shows all 5 generic tags per domain"
+    ),
+    "sh_generic_tags_missing": (
+        "Help missing generic tags: {missing}"
     ),
 }
 

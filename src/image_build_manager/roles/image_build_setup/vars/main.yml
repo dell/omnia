@@ -35,11 +35,13 @@ supported_tags:
   - execute
   - build
   - cleanup
+  - cleanup_images
   - upgrade
   - rollback
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_images
   - validate
 # Tags that require repo_status.yml (build-related operations)
 build_related_tags:
@@ -60,10 +62,17 @@ invalid_tag_combinations:
   - [execute, rollback]
   - [cleanup, rollback]
   - [upgrade, rollback]
+  - [prepare, cleanup_images]
+  - [build, cleanup_images]
+  - [execute, cleanup_images]
+  - [cleanup, cleanup_images]
+  - [upgrade, cleanup_images]
+  - [rollback, cleanup_images]
   - [precheck, prepare]
   - [precheck, build]
   - [precheck, execute]
   - [precheck, cleanup]
+  - [precheck, cleanup_images]
   - [precheck, upgrade]
   - [precheck, rollback]
 # --- Tag validation messages ---

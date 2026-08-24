@@ -38,7 +38,10 @@
 
 - name: Display validation success message
   ansible.builtin.debug:
-    msg: "{{ validation_success_msg }}"
+    msg: >-
+      {{ validation_success_msg }}
+      Note: There might be warnings - please review the log file at
+      {{ validation_status.log_file }} for details.
   when: validation_status.validation_failed is defined and not validation_status.validation_failed
 
 - name: Fail on validation errors

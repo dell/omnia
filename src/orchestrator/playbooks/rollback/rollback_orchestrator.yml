@@ -28,7 +28,7 @@
   connection: local
   gather_facts: false
   roles:
-    - role: omnia.orchestrator.orchestrator_setup
+    - role: orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true
@@ -113,7 +113,7 @@
   tasks:
     - name: Authenticate to OpenCHAMI
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
+        name: orchestrator_common
         tasks_from: openchami_auth.yml
 
     - name: Check if SMD components backup exists
@@ -152,7 +152,7 @@
   tasks:
     - name: Authenticate to OpenCHAMI
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
+        name: orchestrator_common
         tasks_from: openchami_auth.yml
 
     - name: Verify openchami.target is active

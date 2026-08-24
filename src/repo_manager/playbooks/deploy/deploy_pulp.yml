@@ -18,9 +18,9 @@
 # This playbook deploys and configures the Pulp repository server container.
 # All tasks run on localhost (OIM).
 #
-# NOTE: Input validation is NOT included in this playbook.
-#       Run validation separately before deployment:
-#       ansible-playbook playbooks/validate/validate_config.yml --tags local_repo
+# NOTE: Input precheck is NOT included in this playbook.
+#       Run precheck separately before deployment:
+#       ansible-playbook playbooks/validate/validate_config.yml --tags precheck
 #
 # PREREQUISITES:
 #   - Credentials: Will be prompted automatically if not already configured
@@ -56,32 +56,41 @@
           - "Project: {{ project_name | default(project_default) }}"
           - "======================================"
 
-    - name: Check if credentials already exist
-      ansible.builtin.stat:
-        path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
-      register: credentials_file_check
-
-    - name: Set credential existence fact
+    # -------------------------------------------------------------------------
+    # CREDENTIAL MANAGEMENT
+    # -------------------------------------------------------------------------
+    # Always run collect_repo_credentials role - it handles:
+    #   1. If file doesn't exist: create from template and prompt for values
+    #   2. If file exists: load values and prompt only if mandatory fields are empty
+    # -------------------------------------------------------------------------
+    - name: Set omnia_run_tags for credential prompting
       ansible.builtin.set_fact:
-        credentials_exist: "{{ credentials_file_check.stat.exists }}"
+        omnia_run_tags: []
+
+    - name: Check if pulp_password is provided via command line
+      ansible.builtin.set_fact:
+        pulp_password_provided: "{{ pulp_password is defined and (pulp_password | default('') | length > 0) }}"
+
+    - name: Display credential mode
+      ansible.builtin.debug:
+        msg: "Credential mode: {{ 'Using provided password' if pulp_password_provided else 'Will prompt for password' }}"
+
+    - name: Collect repo manager credentials (create if missing, prompt if empty)
+      ansible.builtin.include_role:
+        name: ../../roles/collect_repo_credentials
+      when: not pulp_password_provided
+
+    - name: Verify pulp_password is set after credential management
+      ansible.builtin.fail:
+        msg: |
+          Pulp password is required but not provided.
+          Please run the playbook again and enter the pulp_password when prompted,
+          or pass it via command line: -e pulp_password='your_password'
+      when: (pulp_password | default('') | length) == 0
 
     - name: Display credential status
       ansible.builtin.debug:
-        msg: "Credentials {{ 'already exist - skipping credential prompt' if credentials_exist else 'not found - will prompt for credentials' }}"
-
-    - name: Get credentials (prompt user)
-      ansible.builtin.include_role:
-        name: ../../roles/credential
-      vars:
-        credential_action: all
-      when: not credentials_exist
-
-    - name: Load existing credentials
-      ansible.builtin.include_role:
-        name: ../../roles/credential
-      vars:
-        credential_action: create
-      when: credentials_exist
+        msg: "Credentials loaded successfully"
 
     - name: Read endpoint configuration
       ansible.builtin.include_role:

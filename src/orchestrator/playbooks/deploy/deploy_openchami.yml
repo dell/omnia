@@ -25,7 +25,7 @@
   tasks:
     - name: Include S3 access configuration
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
+        name: orchestrator_common
         tasks_from: configure_s3_access.yml
 
 - name: Deploy OpenCHAMI containers on OIM
@@ -33,4 +33,4 @@
   connection: ssh
   gather_facts: true
   roles:
-    - omnia.orchestrator.deploy_openchami
+    - deploy_openchami

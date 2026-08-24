@@ -25,8 +25,8 @@ pulp_protocol: "https"
 cluster_os_type: "rhel"
 cluster_os_version: "10.0"
 
-# Output configuration
-repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default"
+# Output configuration (optional - defaults to {{ output_project_dir }})
+# repo_manager_output_path: "{{ output_project_dir }}"
 
 # User repositories (optional)
 user_repo_url_x86_64:
@@ -187,7 +187,7 @@ pulp_server_port: 24817
 pulp_protocol: "https"
 cluster_os_type: "rhel"
 cluster_os_version: "10.0"
-repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default"
+# repo_manager_output_path: "{{ output_project_dir }}"  # Optional - defaults to {{ output_project_dir }}
 ```
 
 ### Minimal software_config.json

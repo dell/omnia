@@ -33,11 +33,6 @@ namespace: {{ telemetry_namespace }}
 
 resources:
 
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool %}
-  # ── Common (iDRAC MySQL secrets) ──────────────────────────────────────────
-  - telemetry_secret_creation.yaml
-
-{% endif %}
 {% if victoria_metrics_support | default(false) | bool %}
   # ── VictoriaMetrics (shared metrics storage) ───────────────────────────────
   - victoria-vmagent-rbac.yaml
@@ -53,7 +48,7 @@ resources:
   - victoria-operator-vmscrape.yaml
 
 {% endif %}
-{% if powerscale_volume_health_enabled | default(false) and telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
   # ── CSI Volume Exporter — PowerScale PV status metrics ────────────────────
   - csi-volume-exporter.yaml
 

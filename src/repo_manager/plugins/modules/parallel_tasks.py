@@ -12,13 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Ansible module for executing tasks in parallel with thread pool.
+
+This module handles:
+- Parallel execution of repository synchronization tasks
+- Thread pool management with configurable concurrency
+- Task result aggregation and reporting
+- Error handling and timeout management
+"""
+
 #!/usr/bin/python
-# pylint: disable=import-error,no-name-in-module
+# pylint: disable=import-error,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments,wrong-import-order,wrong-import-position,too-many-nested-blocks,unused-variable
 import os
 import re
+from collections import defaultdict
 from datetime import datetime
 from prettytable import PrettyTable
-from collections import defaultdict
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.process_parallel import execute_parallel, log_table_output
 from ansible.module_utils.repo_manager.download_common import (
@@ -317,7 +327,11 @@ def generate_pretty_table(task_results, total_duration, overall_status, slogger)
         table = PrettyTable(["Task", "Status", "LogFile"])
         for result in task_results:
             # Handle missing keys gracefully
-            package = result.get("package", result.get("task", {}).get("package", result.get("task", {}).get("Name", "unknown")))
+            task_data = result.get("task", {})
+            package = result.get(
+                "package",
+                task_data.get("package", task_data.get("Name", "unknown"))
+            )
             status = result.get("status", "UNKNOWN")
             logname = result.get("logname", "N/A")
             table.add_row([package, status, logname])

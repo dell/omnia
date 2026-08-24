@@ -17,8 +17,8 @@ layer:
         [{{ repo.name }}]
         name={{ repo.name }}
         baseurl={{ repo.base_url }}
-        gpgcheck=0
-        sslverify=0
+        gpgcheck={{ '0' if not (repo_ssl_verify | default(true) | bool) else '1' }}
+        sslverify={{ '0' if not (repo_ssl_verify | default(true) | bool) else '1' }}
         priority={{ repo.priority | default("99") }}
 {% endif %}
 {% endfor %}

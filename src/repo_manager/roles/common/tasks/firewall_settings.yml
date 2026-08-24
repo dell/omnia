@@ -39,6 +39,7 @@
     permanent: true
     state: enabled
     immediate: true
+  when: ntp_firewall_service is defined
 
 - name: Enable NFS-related services
   ansible.posix.firewalld:
@@ -46,6 +47,7 @@
     state: enabled
     permanent: true
   loop: "{{ internal_nfs_services }}"
+  when: internal_nfs_services is defined
   tags: always
 
 - name: Reload firewalld to apply changes

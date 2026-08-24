@@ -1,0 +1,44 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# REPO MANAGER ENDPOINT CONFIGURATION SAMPLE
+# =============================================================================
+# This is a sample endpoint configuration file for Pulp server.
+# Copy this file to your input directory and modify according to your needs.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# PULP SERVER ENDPOINT
+# -----------------------------------------------------------------------------
+# Pulp server port
+pulp_server_port: 2225
+
+# Pulp protocol: "https"
+pulp_protocol: "https"
+
+# Enable HTTPS
+pulp_https_enabled: true
+
+# -----------------------------------------------------------------------------
+# SSL CERTIFICATES
+# -----------------------------------------------------------------------------
+# These paths are under OMNIA_DATA_PATH/repo_manager/pulp_config/
+# Use OMNIA_DATA_PATH environment variable for portability.
+# Modify only if using a custom OMNIA_DATA_PATH or certificate location.
+
+ssl_certificates:
+  server_crt: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+  server_key: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
+  certs_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/repo_manager/pulp_config/settings/certs"

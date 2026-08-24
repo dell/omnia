@@ -18,6 +18,7 @@ General settings and constants for Ansible repo_manager module utilities.
 """
 
 import os
+import yaml
 
 from ansible.module_utils.repo_manager.repo_paths import (
     OMNIA_BASE_DIR,
@@ -25,11 +26,78 @@ from ansible.module_utils.repo_manager.repo_paths import (
     REPO_MANAGER_LOG_DIR,
 )
 
+# Configuration file path
+CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "vars", "default.yml")
+
+def load_config():
+    """
+    Load configuration from vars/default.yml.
+    
+    Returns:
+        dict: Configuration dictionary, empty dict if file not found or invalid.
+    """
+    try:
+        if os.path.exists(CONFIG_FILE_PATH):
+            with open(CONFIG_FILE_PATH, 'r') as f:
+                return yaml.safe_load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+# Load configuration
+_config = load_config()
+
+# Helper function to get config value with environment variable fallback
+def get_config_value(config_key, default_value, env_var=None):
+    """
+    Get configuration value from YAML config or environment variable.
+    
+    Args:
+        config_key (str): Dot-separated key path in config (e.g., 'parallel_config.default_nthreads')
+        default_value: Default value if not found in config
+        env_var (str): Environment variable name to check as fallback
+    
+    Returns:
+        Configuration value or default
+    """
+    # Try environment variable first
+    if env_var and env_var in os.environ:
+        value = os.environ[env_var]
+        # Convert to appropriate type
+        if isinstance(default_value, int):
+            try:
+                return int(value)
+            except ValueError:
+                pass
+        elif isinstance(default_value, bool):
+            return value.lower() in ('true', '1', 'yes')
+        return value
+    
+    # Try YAML config
+    keys = config_key.split('.')
+    value = _config
+    for key in keys:
+        if isinstance(value, dict) and key in value:
+            value = value[key]
+        else:
+            return default_value
+    
+    return value if value is not None else default_value
+
+def _get_nested_value(dct, keys):
+    """Helper to get nested dictionary value."""
+    for key in keys:
+        if isinstance(dct, dict) and key in dct:
+            dct = dct[key]
+        else:
+            return None
+    return dct
+
 # ----------------------------
 # Parallel Tasks Defaults
 # ----------------------------
-DEFAULT_NTHREADS = 4
-DEFAULT_TIMEOUT = 60
+DEFAULT_NTHREADS = get_config_value('parallel_config.default_nthreads', 4, 'REPO_MANAGER_NTHREADS')
+DEFAULT_TIMEOUT = get_config_value('parallel_config.default_timeout_seconds', 60, 'REPO_MANAGER_TIMEOUT')
 # nosec B108 - These are default paths, actual paths are configurable via parameters
 LOG_DIR_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")  # nosec B108
 DEFAULT_LOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "task_results_table.log")  # nosec B108
@@ -107,16 +175,16 @@ CLEANUP_FILE_TYPES = ["iso", "manifest", "pip_module", "tarball", "git", "ansibl
 # ----------------------------
 # Timeouts and Polling
 # ----------------------------
-TAR_TIMEOUT_MIN = 45    # minutes
-FILE_TIMEOUT_MIN = 1    # minutes
-ISO_TIMEOUT_MIN = 45    # minutes
-TASK_POLL_INTERVAL = 10  # seconds
+TAR_TIMEOUT_MIN = get_config_value('download_config.tarball_timeout_minutes', 45, 'REPO_MANAGER_TAR_TIMEOUT')
+FILE_TIMEOUT_MIN = get_config_value('download_config.file_timeout_minutes', 1, 'REPO_MANAGER_FILE_TIMEOUT')
+ISO_TIMEOUT_MIN = get_config_value('download_config.iso_timeout_minutes', 45, 'REPO_MANAGER_ISO_TIMEOUT')
+TASK_POLL_INTERVAL = get_config_value('parallel_config.task_poll_interval_seconds', 10, 'REPO_MANAGER_TASK_POLL_INTERVAL')
 FILE_URI = "/pulp/api/v3/content/file/files/"
 
 # ----------------------------
 # Pulp Concurrency Settings
 # ----------------------------
-PULP_CONCURRENCY = 1  # Default: 1 (most reliable for NFS)
+PULP_CONCURRENCY = get_config_value('pulp_config.concurrency', 1, 'REPO_MANAGER_PULP_CONCURRENCY')
 
 # ----------------------------
 # Cleanup Configuration
@@ -125,11 +193,11 @@ CLEANUP_BASE_PATH_DEFAULT = REPO_MANAGER_LOG_DIR
 CLEANUP_STATUS_FILE_PATH_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "cleanup_status.csv")
 CLEANUP_LOG_PATH_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "cleanup.log")
 
-CLEANUP_DELETE_REMOTE_DEFAULT = True
-CLEANUP_DELETE_DISTRIBUTION_DEFAULT = True
-CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT = True
-CLEANUP_LIST_ONLY_DEFAULT = False
-CLEANUP_FORCE_DEFAULT = False
+CLEANUP_DELETE_REMOTE_DEFAULT = get_config_value('cleanup_config.delete_remote', True, 'REPO_MANAGER_CLEANUP_DELETE_REMOTE')
+CLEANUP_DELETE_DISTRIBUTION_DEFAULT = get_config_value('cleanup_config.delete_distribution', True, 'REPO_MANAGER_CLEANUP_DELETE_DISTRIBUTION')
+CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT = get_config_value('cleanup_config.cleanup_orphans', True, 'REPO_MANAGER_CLEANUP_ORPHANS')
+CLEANUP_LIST_ONLY_DEFAULT = get_config_value('cleanup_config.list_only', False, 'REPO_MANAGER_CLEANUP_LIST_ONLY')
+CLEANUP_FORCE_DEFAULT = get_config_value('cleanup_config.force', False, 'REPO_MANAGER_CLEANUP_FORCE')
 
 CLEANUP_STATUS_SUCCESS = "Success"
 CLEANUP_STATUS_FAILED = "Failed"

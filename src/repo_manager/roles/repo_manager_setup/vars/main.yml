@@ -24,8 +24,9 @@
 repo_manager_usage_info_msg:
   - "========== REPO MANAGER =========="
   - "Available tags:"
-  - "  deploy       - Deploy Pulp server"
-  - "  validate     - Validate input configurations"
+  - "  prepare      - Prepare credentials and deploy Pulp server"
+  - "  deploy       - Prepare credentials and deploy Pulp server (same as prepare)"
+  - "  precheck     - Precheck input configurations"
   - "  download     - Download and sync packages/repositories"
   - "  status       - Generate repo_status.yml"
   - "  cleanup_pulp - Cleanup Pulp server and data"
@@ -34,8 +35,9 @@ repo_manager_usage_info_msg:
   - "  rollback     - Rollback Repo Manager (placeholder)"
   - ""
   - "Examples:"
-  - "  ansible-playbook repo_manager.yml --tags deploy"
-  - "  ansible-playbook repo_manager.yml --tags validate,deploy,download,status"
+  - "  ansible-playbook repo_manager.yml --tags prepare"
+  - "  ansible-playbook repo_manager.yml --tags prepare -e pulp_password='your_password'"
+  - "  ansible-playbook repo_manager.yml --tags precheck,prepare,download,status"
   - "  ansible-playbook repo_manager.yml --tags cleanup_pulp"
   - "=================================="
 

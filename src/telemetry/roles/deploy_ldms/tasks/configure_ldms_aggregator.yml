@@ -73,12 +73,23 @@
     dest: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
     mode: "{{ file_permissions_644 }}"
 
+- name: Check if munge key exists
+  ansible.builtin.stat:
+    path: "{{ slurm_config_path }}/munge.key"
+  register: munge_key_check
+
 - name: Copy munge key from slurm config
   ansible.builtin.copy:
     src: "{{ slurm_config_path }}/munge.key"
     dest: "{{ ldms_share_path }}/munge.key"
     mode: "{{ file_permissions_400 }}"
     remote_src: true
+  when: munge_key_check.stat.exists
+
+- name: Warn if munge key not found
+  ansible.builtin.debug:
+    msg: "WARNING: Munge key not found at {{ slurm_config_path }}/munge.key. LDMS authentication may not work properly."
+  when: not munge_key_check.stat.exists
 
 - name: Render ldmsauth.conf to LDMS directory
   ansible.builtin.template:
@@ -89,3 +100,92 @@
 - name: Log LDMS aggregator configuration complete
   ansible.builtin.debug:
     msg: "LDMS aggregator configuration rendered to {{ ldms_share_path }}/nersc-ldms-aggr/"
+
+# =============================================================================
+# Deploy LDMS aggregator Helm chart to Kubernetes
+# =============================================================================
+
+- name: Check if host map has nodes (non-empty)
+  ansible.builtin.shell: >
+    cat {{ ldms_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json | jq '. | length'
+  register: host_map_count
+  changed_when: false
+  failed_when: false
+  # noqa: risky-shell-pipe
+
+- name: Skip Helm deploy if no nodes configured
+  ansible.builtin.debug:
+    msg: "No Slurm nodes configured in host map. Skipping LDMS aggregator Helm deployment."
+  when: host_map_count.stdout | default('0') | int == 0
+
+- name: Check if nersc-ldms-aggr Helm release exists
+  ansible.builtin.command: >
+    helm status nersc-ldms-aggr -n {{ telemetry_namespace }}
+  register: ldms_helm_status
+  changed_when: false
+  failed_when: false
+  when: host_map_count.stdout | default('0') | int > 0
+
+- name: Install nersc-ldms-aggr Helm chart (fresh install)
+  ansible.builtin.command: >
+    helm install nersc-ldms-aggr
+    {{ ldms_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr
+    --namespace {{ telemetry_namespace }}
+    --values {{ ldms_share_path }}/nersc-ldms-aggr/values.yaml
+  register: ldms_helm_install
+  changed_when: "'deployed' in ldms_helm_install.stdout | default('')"
+  when:
+    - host_map_count.stdout | default('0') | int > 0
+    - ldms_helm_status.rc != 0
+
+- name: Upgrade nersc-ldms-aggr Helm chart (existing release)
+  ansible.builtin.command: >
+    helm upgrade nersc-ldms-aggr
+    {{ ldms_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr
+    --namespace {{ telemetry_namespace }}
+    --values {{ ldms_share_path }}/nersc-ldms-aggr/values.yaml
+  register: ldms_helm_upgrade
+  changed_when: "'deployed' in ldms_helm_upgrade.stdout | default('')"
+  when:
+    - host_map_count.stdout | default('0') | int > 0
+    - ldms_helm_status.rc == 0
+
+- name: Wait for LDMS aggregator StatefulSet rollout
+  ansible.builtin.command: >
+    kubectl rollout status statefulset/{{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    --timeout={{ ldms_deploy_timeout }}
+  register: ldms_agg_rollout
+  changed_when: false
+  when: host_map_count.stdout | default('0') | int > 0
+
+- name: Wait for LDMS aggregator pods to be ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready
+    pod -l app={{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    --timeout={{ ldms_verify_timeout }}
+  register: ldms_agg_pods_ready
+  changed_when: false
+  retries: "{{ pod_ready_retries }}"
+  delay: "{{ pod_ready_delay }}"
+  until: ldms_agg_pods_ready.rc == 0
+  when: host_map_count.stdout | default('0') | int > 0
+
+- name: Wait for LDMS store daemon pods to be ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready
+    pod -l app={{ ldms_store_name }}
+    -n {{ telemetry_namespace }}
+    --timeout={{ ldms_verify_timeout }}
+  register: ldms_store_pods_ready
+  changed_when: false
+  retries: "{{ pod_ready_retries }}"
+  delay: "{{ pod_ready_delay }}"
+  until: ldms_store_pods_ready.rc == 0
+  when: host_map_count.stdout | default('0') | int > 0
+
+- name: Log LDMS aggregator deployment complete
+  ansible.builtin.debug:
+    msg: "LDMS aggregator Helm chart deployed successfully in namespace {{ telemetry_namespace }}"
+  when: host_map_count.stdout | default('0') | int > 0

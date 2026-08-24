@@ -114,8 +114,10 @@ def main():
     module = AnsibleModule(
     argument_spec={
         'mode': {'type': 'str', 'required': True, 'choices': ['encrypt', 'decrypt']},
-        # nosec B108 - Default path, actual path is configurable via parameter
-        'log_dir': {'type': 'str', 'required': False, 'default': '/opt/omnia/log/repo_manager/thread_logs'},
+        # nosec B108 - Default path uses OMNIA_DATA_PATH env var for portability
+        'log_dir': {'type': 'str', 'required': False, 
+                   'default': os.path.join(os.environ.get('OMNIA_DATA_PATH', '/opt/omnia'), 
+                                          'log/repo_manager/thread_logs')},
         'key_path': {'type': 'str', 'required': True}
     },
     supports_check_mode=False

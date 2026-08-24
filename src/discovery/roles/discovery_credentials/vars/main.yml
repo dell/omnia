@@ -18,9 +18,9 @@
 credential_file:
   credential_type: "Discovery"
   template: "{{ role_path }}/templates/omnia_credential.j2"
-  file_path: "{{ input_project_dir }}/discovery/discovery_credentials.yml"
+  file_path: "{{ input_project_dir }}/discovery_credentials.yml"
   file_mode: "0600"
-  vault_path: "{{ input_project_dir }}/discovery/.discovery_credentials_key"
+  vault_path: "{{ input_project_dir }}/.discovery_credentials_key"
 
 # Module utils path for credential validation
 module_utils_path: "{{ role_path }}/../../plugins/module_utils"

@@ -57,5 +57,5 @@
       when: target_functional_groups | length == 0
 
   roles:
-    - role: omnia.orchestrator.provision_common
+    - role: provision_common
       when: target_functional_groups | length > 0

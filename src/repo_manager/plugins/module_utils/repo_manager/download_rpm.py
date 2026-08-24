@@ -28,6 +28,28 @@ from ansible.module_utils.repo_manager.parse_and_download import write_status_to
 
 file_lock = Lock()
 
+# Per-repository locks for RPM operations
+_rpm_repository_locks = {}
+_rpm_locks_lock = Lock()
+
+def get_rpm_repository_lock(repo_name):
+    """
+    Get or create lock for specific RPM repository.
+    
+    This allows different RPM repositories to be processed in parallel
+    while preventing race conditions for the same repository.
+    
+    Args:
+        repo_name (str): The repository name to get a lock for.
+    
+    Returns:
+        Lock: The lock for this specific repository.
+    """
+    with _rpm_locks_lock:
+        if repo_name not in _rpm_repository_locks:
+            _rpm_repository_locks[repo_name] = Lock()
+        return _rpm_repository_locks[repo_name]
+
 # Cache for repo existence checks to avoid repeated Pulp API calls
 _repo_exists_cache = {}
 

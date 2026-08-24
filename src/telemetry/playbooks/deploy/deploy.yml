@@ -105,13 +105,28 @@
       ansible.builtin.debug:
         msg: "Full-stack kustomize apply result: {{ fullstack_kustomize_result.stdout_lines | default([]) }}"
 
-    - name: Wait for telemetry pods to stabilize
-      ansible.builtin.command: >
-        kubectl wait pods --all -n {{ telemetry_namespace }}
-        --for=condition=Ready --timeout=300s
+    - name: Wait for newly created pods to be scheduled
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Wait for all telemetry pods to reach Ready state
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          kubectl get pods -n {{ telemetry_namespace }} --no-headers \
+            --field-selector=status.phase!=Succeeded \
+            -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
+            | xargs -I {} kubectl wait pod/{} -n {{ telemetry_namespace }} \
+              --for=condition=Ready --timeout=300s 2>&1 || true
+        executable: /bin/bash
       register: pod_wait_result
       changed_when: false
       failed_when: false
+
+    - name: Display pod stabilization result
+      ansible.builtin.debug:
+        msg: "All telemetry pods have been checked for Ready state"
+        verbosity: 1
 
     - name: Collect pod status in telemetry namespace
       ansible.builtin.command: >
@@ -137,3 +152,17 @@
           {{ failed_pods | join('\n') }}
           Check pod logs with: kubectl logs -n {{ telemetry_namespace }} <pod-name>
       when: failed_pods | length > 0
+
+# ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────
+- name: "Write telemetry deployment status"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - ../../roles/common/vars/main.yml
+  tags: deploy
+  tasks:
+    - name: Write telemetry_status.yml
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: write_telemetry_status

@@ -68,6 +68,7 @@ from .image_content_func import (                    # noqa: F401
 from .cleanup_func import (                          # noqa: F401
     check_containers_removed,
     check_s3_artifacts_removed,
+    check_s3_images_removed,
     check_services_removed,
     check_firewall_ports_removed,
     check_s3cfg_removed,
@@ -90,6 +91,8 @@ from .precheck_func import (                         # noqa: F401
     check_hostname_domain,
     check_admin_ip,
     check_omnia_setup,
+    check_repo_ssl_verify_config,
+    check_repo_ssl_verify_applied,
 )
 
 # --- Log collection ----------------------------------------------------------
@@ -116,6 +119,7 @@ __all__ = [
     # Cleanup verification
     "check_containers_removed",
     "check_s3_artifacts_removed",
+    "check_s3_images_removed",
     "check_services_removed",
     "check_firewall_ports_removed",
     "check_s3cfg_removed",
@@ -135,6 +139,8 @@ __all__ = [
     "check_hostname_domain",
     "check_admin_ip",
     "check_omnia_setup",
+    "check_repo_ssl_verify_config",
+    "check_repo_ssl_verify_applied",
     # Log collection
     "collect_build_logs",
 ]

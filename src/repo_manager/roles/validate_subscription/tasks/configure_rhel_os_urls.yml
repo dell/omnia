@@ -293,11 +293,29 @@
 - name: Process and validate repo configs when subscription is disabled
   when: not subscription_status_flag
   block:
-    # 1️ Set facts from local_config
-    - name: Set facts for cluster
+    # 1️ Set facts from local_config - read RHEL OS URLs from repositories section
+    - name: Set facts for cluster from repositories section
       ansible.builtin.set_fact:
-        rhel_url_x86_64: "{{ local_config.rhel_os_url_x86_64 }}"
-        rhel_url_aarch64: "{{ local_config.rhel_os_url_aarch64 }}"
+        rhel_url_x86_64: []
+        rhel_url_aarch64: []
+
+    - name: Build x86_64 RHEL repo list from config
+      ansible.builtin.set_fact:
+        rhel_url_x86_64: "{{ rhel_url_x86_64 + [{'name': item.key, 'url': item.value.url}] }}"
+      loop: "{{ local_config.repositories[cluster_os_version].x86_64 | dict2items }}"
+      when:
+        - item.key in ['baseos', 'appstream', 'codeready-builder']
+        - item.value.url is defined
+        - item.value.url | length > 0
+
+    - name: Build aarch64 RHEL repo list from config
+      ansible.builtin.set_fact:
+        rhel_url_aarch64: "{{ rhel_url_aarch64 + [{'name': item.key, 'url': item.value.url}] }}"
+      loop: "{{ local_config.repositories[cluster_os_version].aarch64 | dict2items }}"
+      when:
+        - item.key in ['baseos', 'appstream', 'codeready-builder']
+        - item.value.url is defined
+        - item.value.url | length > 0
 
     # 2 Validate required repos
     - name: Ensure required repos are present , fail if not
@@ -317,8 +335,8 @@
     - name: Build final repo dict for non-subscription scenario
       ansible.builtin.set_fact:
         sub_final_repo_urls:
-          x86_64: "{{ local_config.rhel_os_url_x86_64 | default([]) }}"
-          aarch64: "{{ local_config.rhel_os_url_aarch64 | default([]) }}"
+          x86_64: "{{ rhel_url_x86_64 | default([]) }}"
+          aarch64: "{{ rhel_url_aarch64 | default([]) }}"
 
     - name: Debug final repo urls (non-subscription)
       ansible.builtin.debug:
