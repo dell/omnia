@@ -13,12 +13,15 @@ options:
   registry_opts_push:
     - '--tls-verify={{ registry_tls_verify | default(false) | lower }}'
 
+{% set _ssl = '1' if (repo_ssl_verify | default(true) | bool) else '0' %}
 repos:
 {% for repo in rhel_arch_repos %}
 {% if repo.base_url | length > 1 %}
   - alias: '{{ repo.name }}'
     url: '{{ repo.base_url }}'
     priority: '{{ repo.priority | default("99") }}'
+    sslverify: '{{ _ssl }}'
+    gpgcheck: '{{ _ssl }}'
 {% endif %}
 {% if repo.gpg | length > 1 %}
     gpg: '{{ repo.gpg }}'
@@ -30,7 +33,8 @@ packages:
   - {{ pkg }}
 {% endfor %}
 
-{% set command_var = functional_group + '_compute_commands' %}
+{% set _fg_base = functional_group | regex_replace('_rhel_[0-9]+_[0-9]+', '') %}
+{% set command_var = _fg_base + '_compute_commands' %}
 {% set commands_list = lookup('vars', command_var, default=[]) %}
 cmds:
 {% if commands_list | length > 0 %}

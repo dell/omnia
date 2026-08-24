@@ -130,6 +130,8 @@ omnia-cli image-build                     # Image build details
 omnia-cli status --project prod           # Specific project
 omnia-cli version                         # Version info
 omnia-cli help                            # Full help
+omnia-cli logs <domain>                   # Browse & tail domain logs
+omnia-cli vault edit <domain>             # Edit domain credentials (Vault)
 ```
 
 ### Install to PATH
@@ -197,7 +199,9 @@ All domain playbooks support these common tags:
 | `upgrade` | Upgrade (placeholder — future) |
 | `rollback` | Rollback (placeholder — future) |
 
-Domains may define additional sub-tags (e.g., `x86_64`, `aarch64`, `deploy`, `download`).
+Domains may define additional sub-tags (e.g., `x86_64`, `aarch64`, `cleanup_images`, `deploy`, `download`).
+
+Execution order: `precheck` -> `validate` -> `prepare` -> `execute` -> `cleanup`
 
 ---
 

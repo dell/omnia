@@ -48,11 +48,10 @@ class Installer:
             )
 
     def _install_dnf_repo(self, repo, repo_dest, proxy):
-        """Write a .repo file directly for DNF with priority support.
+        """Write a .repo file directly for DNF with priority and SSL support.
 
-        Priority key is optional in repo_status.yml:
-          - key absent or empty -> default 99
-          - key present with value -> use that value
+        Reads optional keys from the repo dict: priority, sslverify, gpgcheck.
+        Values are set by the Jinja2 config template based on build_image settings.
         """
         repo_dir = os.path.join(self.mname, pathmod.sep_strip(repo_dest))
         os.makedirs(repo_dir, exist_ok=True)
@@ -62,12 +61,16 @@ class Installer:
         _raw_priority = str(repo.get('priority', '') or '').strip()
         priority_val = _raw_priority if _raw_priority else '99'
 
+        # Read sslverify/gpgcheck from repo dict (set by config template).
+        ssl_val = str(repo.get('sslverify', '1') or '1').strip()
+        gpg_val = str(repo.get('gpgcheck', '1') or '1').strip()
+
         repo_content = "[%s]\n" % repo_id
         repo_content += "name=added from: %s\n" % repo['url']
         repo_content += "baseurl=%s\n" % repo['url']
         repo_content += "enabled=1\n"
-        repo_content += "gpgcheck=0\n"
-        repo_content += "sslverify=0\n"
+        repo_content += "gpgcheck=%s\n" % gpg_val
+        repo_content += "sslverify=%s\n" % ssl_val
         repo_content += "priority=%s\n" % priority_val
         if proxy != "":
             repo_content += "proxy=%s\n" % proxy
@@ -75,7 +78,8 @@ class Installer:
         with open(repo_file_path, 'w', encoding='utf-8') as rf:
             rf.write(repo_content)
         logging.info(
-            "Created repo file: %s (priority=%s)", repo_file_path, priority_val,
+            "Created repo file: %s (priority=%s, sslverify=%s)",
+            repo_file_path, priority_val, ssl_val,
         )
 
     def install_repos(self, repos, repo_dest, proxy):

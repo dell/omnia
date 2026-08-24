@@ -1,0 +1,266 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# cleanup_images.yml — Delete built OS images from S3 buckets and OCI registry.
+#
+# Production-safe approach:
+#   Registry: regctl repo ls → tag ls → image digest → image delete → verify
+#   S3:       s3cmd ls → s3cmd del (per object or recursive)
+#
+# Does NOT remove registry repository directories. Docker Distribution
+# keeps repository metadata after all manifests are deleted — this is
+# expected and harmless. Use periodic garbage-collection to reclaim
+# storage (podman exec registry registry garbage-collect ...).
+#
+# Supports:
+#   cleanup_image_pattern: "*"       → delete ALL images (default)
+#   cleanup_image_pattern: "rhel-*"  → delete images matching the glob
+#   skip_approval: false             → prompt for confirmation (default)
+#   skip_approval: true              → skip prompt (for automation)
+#
+# Usage (interactive):
+#   ansible-playbook image_build_manager.yml --tags cleanup_images
+#   ansible-playbook image_build_manager.yml --tags cleanup_images \
+#     -e cleanup_image_pattern="rhel-slurm_*"
+#
+# Usage (automated):
+#   ansible-playbook image_build_manager.yml --tags cleanup_images \
+#     -e skip_approval=true
+
+# ── 1. Check tool availability ─────────────────────────────────────────────
+
+- name: Check if s3cmd is available
+  ansible.builtin.command: which s3cmd
+  register: _s3cmd_available
+  failed_when: false
+  changed_when: false
+
+- name: Check if regctl is available
+  ansible.builtin.stat:
+    path: /usr/local/bin/regctl
+  register: _regctl_available
+
+# ── 2. Discover S3 objects ─────────────────────────────────────────────────
+
+- name: Discover S3 images to delete
+  when: _s3cmd_available.rc == 0
+  block:
+    - name: "List S3 objects in boot-images bucket (pattern: {{ cleanup_image_pattern }})"
+      ansible.builtin.shell: |
+        set -o pipefail
+        s3cmd ls -r s3://boot-images/ 2>/dev/null | awk '{print $NF}' | grep -E '{{ cleanup_image_s3_regex }}' || true
+      args:
+        executable: /bin/bash
+      register: _s3_boot_objects
+      changed_when: false
+
+- name: Set S3 object count
+  ansible.builtin.set_fact:
+    _s3_object_count: "{{ _s3_boot_objects.stdout_lines | default([]) | length }}"
+
+# ── 3. Discover registry repos and tags ────────────────────────────────────
+
+- name: Discover registry images to delete
+  when: _regctl_available.stat.exists | default(false)
+  block:
+    - name: Compute registry host for image cleanup
+      ansible.builtin.set_fact:
+        _cleanup_registry_host: >-
+          {{ hostvars['localhost']['admin_nic_ip']
+             if hostvars['localhost']['standalone_mode'] | default(false)
+             else (hostvars['localhost']['host_name'] | default('localhost')) + '.'
+                  + (hostvars['localhost']['domain_name'] | default('omnia.cluster')) }}
+
+    - name: List registry repositories
+      ansible.builtin.shell: |
+        /usr/local/bin/regctl repo ls {{ _cleanup_registry_host }}:5000 2>/dev/null || true
+      register: _registry_repos
+      changed_when: false
+
+    - name: Filter repos matching pattern
+      ansible.builtin.set_fact:
+        _repos_to_delete: >-
+          {%- set result = [] -%}
+          {%- for repo in (_registry_repos.stdout_lines | default([])) -%}
+            {%- if cleanup_image_pattern == '*' or repo is search(cleanup_image_registry_regex) -%}
+              {%- set _ = result.append(repo) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Enumerate tags for each matching repo
+      ansible.builtin.shell: |
+        /usr/local/bin/regctl tag ls {{ _cleanup_registry_host }}:5000/{{ item }} 2>/dev/null || true
+      register: _repo_tags
+      loop: "{{ _repos_to_delete }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+      when: _repos_to_delete | length > 0
+
+- name: Set registry counts
+  ansible.builtin.set_fact:
+    _registry_repo_count: "{{ _repos_to_delete | default([]) | length }}"
+    _registry_tag_count: >-
+      {{ _repo_tags.results | default([])
+         | map(attribute='stdout_lines', default=[])
+         | map('length') | sum }}
+
+# ── 4. Display summary and prompt for approval ────────────────────────────
+
+- name: Display cleanup summary
+  ansible.builtin.debug:
+    msg:
+      - "{{ cleanup_images_summary_header }}"
+      - "  Pattern: '{{ cleanup_image_pattern }}'"
+      - "  S3 objects to delete: {{ _s3_object_count }}"
+      - "  Registry repos with tags: {{ _registry_repo_count }}"
+      - "  Registry tags to delete: {{ _registry_tag_count }}"
+      - ""
+      - "{{ cleanup_images_approval_msg if not (skip_approval | default(false) | bool) else cleanup_images_skip_approval_msg }}"
+
+- name: Prompt for approval before deleting images
+  ansible.builtin.pause:
+    prompt: "{{ cleanup_images_approval_prompt }}"
+  register: _approval_response
+  when: not (skip_approval | default(false) | bool)
+
+- name: Evaluate approval
+  ansible.builtin.set_fact:
+    _cleanup_approved: >-
+      {{ (skip_approval | default(false) | bool) or
+         (_approval_response.user_input | default('') | lower in ['y', 'yes']) }}
+
+- name: Abort cleanup (not approved)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_abort_msg }}"
+  when: not (_cleanup_approved | bool)
+
+# ── 5. S3 image cleanup ───────────────────────────────────────────────────
+
+- name: Cleanup S3 images
+  when:
+    - _cleanup_approved | bool
+    - _s3cmd_available.rc == 0
+  block:
+    - name: Delete matching S3 boot-images objects
+      ansible.builtin.command: "s3cmd del {{ item }}"
+      loop: "{{ _s3_boot_objects.stdout_lines | default([]) }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: true
+      failed_when: false
+      when: _s3_boot_objects.stdout_lines | default([]) | length > 0
+
+    - name: "Delete all S3 boot-images recursively (clean all)"
+      ansible.builtin.command: "s3cmd del -r s3://boot-images/ --force"
+      changed_when: true
+      failed_when: false
+      when: cleanup_image_pattern == '*'
+
+    - name: Display S3 image cleanup result
+      ansible.builtin.debug:
+        msg: "{{ cleanup_images_s3_done_msg }}"
+
+- name: Skip S3 image cleanup (s3cmd not available)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_s3_skip_msg }}"
+  when: _s3cmd_available.rc != 0
+
+# ── 6. Registry image cleanup (digest-based, tag-only) ────────────────────
+#
+# Production flow per repo:
+#   regctl tag ls          → enumerate tags
+#   regctl image digest    → resolve digest for each tag
+#   regctl image delete    → delete manifest by digest
+#   regctl tag ls          → verify tags are gone
+#
+# Repository metadata is preserved — no filesystem hacks.
+
+- name: Cleanup registry images
+  when:
+    - _cleanup_approved | bool
+    - _regctl_available.stat.exists | default(false)
+    - _repos_to_delete | default([]) | length > 0
+  block:
+    - name: Display registry cleanup plan
+      ansible.builtin.debug:
+        msg: >-
+          Cleaning {{ _registry_tag_count }} tag(s) across
+          {{ _repos_to_delete | length }} repo(s) matching
+          '{{ cleanup_image_pattern }}'
+
+    - name: Resolve digest and delete manifest for each tag
+      ansible.builtin.shell: |
+        set -o pipefail
+        REGISTRY="{{ _cleanup_registry_host }}:5000"
+        REPO="{{ item.0.item }}"
+        TAG="{{ item.1 }}"
+        DIGEST=$(/usr/local/bin/regctl image digest "${REGISTRY}/${REPO}:${TAG}" 2>/dev/null)
+        if [ -z "${DIGEST}" ]; then
+          echo "SKIP ${REPO}:${TAG} (no digest)"
+          exit 0
+        fi
+        if /usr/local/bin/regctl image delete "${REGISTRY}/${REPO}@${DIGEST}" 2>&1; then
+          echo "DELETED ${REPO}:${TAG} (${DIGEST})"
+        else
+          echo "FAILED ${REPO}:${TAG} (${DIGEST})"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      loop: >-
+        {{ _repo_tags.results | default([])
+           | subelements('stdout_lines', skip_missing=True) }}
+      loop_control:
+        label: "{{ item.0.item }}:{{ item.1 }}"
+      register: _delete_results
+      changed_when: "'DELETED' in _delete_results.stdout"
+      failed_when: "'FAILED' in _delete_results.stdout"
+
+    # ── 7. Verify deletion ───────────────────────────────────────────────
+
+    - name: Verify tags removed from each repo
+      ansible.builtin.shell: |
+        set -o pipefail
+        REGISTRY="{{ _cleanup_registry_host }}:5000"
+        REMAINING=$(/usr/local/bin/regctl tag ls "${REGISTRY}/{{ item }}" 2>/dev/null | wc -l)
+        if [ "${REMAINING}" -eq 0 ]; then
+          echo "VERIFIED {{ item }}: no tags remaining"
+        else
+          echo "WARNING {{ item }}: ${REMAINING} tag(s) still present"
+        fi
+      loop: "{{ _repos_to_delete }}"
+      loop_control:
+        label: "{{ item }}"
+      register: _verify_results
+      changed_when: false
+      failed_when: false
+
+    - name: Display registry verification results
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ _verify_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: _verify_results.results is defined
+
+    - name: Display registry image cleanup result
+      ansible.builtin.debug:
+        msg: "{{ cleanup_images_registry_done_msg }}"
+
+- name: Skip registry image cleanup (regctl not available)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_registry_skip_msg }}"
+  when: not (_regctl_available.stat.exists | default(false))

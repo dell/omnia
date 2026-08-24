@@ -447,7 +447,7 @@ The `image_build_type` field in `image_build_config.yml` selects the OpenCHAMI b
 
 | Aspect | `image-builder` (default) | `image-thrillhouse` |
 |--------|---------------------------|---------------------|
-| **Container** | `dellhpcomniaaisolution/image-build-el10:1.2` (x86), `-aarch64:1.1` (ARM) | `ghcr.io/openchami/image-thrillhouse:latest` |
+| **Container** | `dellhpcomniaaisolution/image-build-el10:1.3` (x86), `-aarch64:1.1` (ARM) | `ghcr.io/openchami/image-thrillhouse:latest` |
 | **Config schema** | `options/repos/packages/cmds` | `meta/layer` (inline repos, script commands) |
 | **Config mount** | `/home/builder/config.yaml` | `/config.yaml` |
 | **Entrypoint** | `--entrypoint /bin/bash -c 'image-build --config ...'` | Direct: `image-thrillhouse build --config ...` |
