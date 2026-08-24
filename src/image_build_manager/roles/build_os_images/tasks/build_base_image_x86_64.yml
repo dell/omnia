@@ -123,7 +123,9 @@
 
 - name: Verify x86_64 base image has tags in registry
   ansible.builtin.shell: |
-    /usr/local/bin/regctl tag ls {{ registry_host }}:5000/{{ host_name }}/{{ rhel_arch_base_image_name }} 2>/dev/null
+    /usr/local/bin/regctl tag ls \
+      {{ registry_host }}:5000/{{ host_name }}/{{ rhel_arch_base_image_name }} \
+      2>/dev/null
   changed_when: false
   failed_when: false
   register: _base_tag_check
@@ -131,8 +133,8 @@
 - name: Fail if x86_64 base image has no tags
   ansible.builtin.fail:
     msg: >-
-      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} exists in registry but has no tags.
-      Check log: {{ image_build__base_image_log_path }}
+      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} exists in registry
+      but has no tags. Check log: {{ image_build__base_image_log_path }}
   when: _base_tag_check.stdout_lines | default([]) | length == 0
 
 - name: Display verified x86_64 base osimage
