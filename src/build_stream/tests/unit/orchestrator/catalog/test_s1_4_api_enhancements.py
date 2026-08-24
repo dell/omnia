@@ -321,6 +321,7 @@ class TestExtractCatalogMetadata:
 
 
 @pytest.mark.unit
+@pytest.mark.skip(reason="PARSE_CATALOG stage removed in unified design (Omnia 2.3+)")
 class TestParseCatalogWithImageGroup:
     """Integration tests for full parse-catalog flow with ImageGroup features."""
 
@@ -439,10 +440,13 @@ class TestResultPollerBuildImageCompletion:
 
     def test_is_build_image_stage(self):
         from orchestrator.common.result_poller import ResultPoller
+        # Unified design (Omnia 2.3+): only "build-image" stage exists
+        assert ResultPoller._is_build_image_stage("build-image")
+        # Legacy stage names should also be recognized for backward compatibility
         assert ResultPoller._is_build_image_stage("build-image-x86_64")
         assert ResultPoller._is_build_image_stage("build-image-aarch64")
-        assert ResultPoller._is_build_image_stage("build-image")
-        assert not ResultPoller._is_build_image_stage("parse-catalog")
+        # Other stages should not be recognized
+        assert not ResultPoller._is_build_image_stage("create-local-repository")
         assert not ResultPoller._is_build_image_stage("deploy")
 
     @patch("orchestrator.common.result_poller._discover_s3_image_paths")
@@ -486,7 +490,7 @@ class TestResultPollerBuildImageCompletion:
         record = ArtifactRecord(
             id="test-record-id",
             job_id=JobId(VALID_JOB_ID),
-            stage_name=StageName("parse-catalog"),
+            stage_name=StageName("create-local-repository"),
             label="catalog-metadata",
             artifact_ref=ref,
             kind=ArtifactKind.FILE,

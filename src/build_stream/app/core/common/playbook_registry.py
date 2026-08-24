@@ -38,7 +38,7 @@ from api.logging_utils import log_secure_info
 
 _PLAYBOOK_PATHS_FILE = Path(os.getenv(
     "PLAYBOOK_PATHS_CONFIG",
-    str(Path(__file__).resolve().parent.parent.parent / "playbook_paths.yml"),
+    str(Path(__file__).resolve().parent.parent.parent / "playbook_paths.yaml"),
 ))
 
 # Auto-detect: this file is at src/build_stream/app/core/common/playbook_registry.py

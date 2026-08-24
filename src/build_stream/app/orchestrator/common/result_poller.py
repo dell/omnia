@@ -585,10 +585,13 @@ class ResultPoller:
             )
 
     def _load_catalog_metadata(self, job_id) -> dict:
-        """Load catalog metadata artifact persisted by parse-catalog.
+        """Load catalog metadata artifact persisted by create-local-repository.
 
         Retrieves the catalog-metadata artifact from the artifact store
         to get image_group_id and role-to-image mappings.
+
+        In unified design (Omnia 2.3+), catalog metadata is stored by the
+        create-local-repository stage which reads the catalog.
 
         Args:
             job_id: Job identifier.
@@ -602,7 +605,7 @@ class ResultPoller:
         try:
             record = self._artifact_metadata_repo.find_by_job_stage_and_label(
                 job_id=job_id,
-                stage_name=StageName("parse-catalog"),
+                stage_name=StageName("create-local-repository"),
                 label="catalog-metadata",
             )
             if record is None:
