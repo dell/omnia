@@ -26,6 +26,7 @@ TC_CL_009: Verify --force-deps flag appears in help output
 TC_CL_010: Verify --skip-catalog flag appears in help output
 TC_CL_011: Verify --force-deps without -s/-i exits with error
 TC_CL_012: Verify --check-deps runs
+TC_CL_015: Verify --setup-venv --skip-catalog --deps-only accepted
 """
 
 import pytest
@@ -292,5 +293,30 @@ def test_check_deps_runs(host):
         ))
 
     assert ran, ASSERT["check_deps_failed"].format(
+        rc=result["rc"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(12)
+def test_skip_catalog_accepted(host):
+    """TC_CL_015: Verify --setup-venv --skip-catalog --deps-only is accepted."""
+    tl = TestLogger(
+        TEST_NAMES["skip_catalog_accepted"], "TC_CL_015"
+    )
+    result = run_omnia_cmd(
+        host, "omnia_sh_setup_skip_catalog"
+    )
+
+    if result["success"]:
+        tl.passed(LOG["skip_catalog_ok"].format(
+            rc=result["rc"]
+        ))
+    else:
+        tl.failed(LOG["skip_catalog_failed"].format(
+            rc=result["rc"]
+        ))
+
+    assert result["success"], ASSERT["skip_catalog_failed"].format(
         rc=result["rc"],
     )

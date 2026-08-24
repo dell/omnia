@@ -178,6 +178,30 @@ TEST_NAMES: Dict[str, str] = {
     "sh_tags_run": (
         "Verify omnia.sh --run <domain> --tags <tag> accepts generic tags"
     ),
+
+    # omnia-cli remaining domain status
+    "cli_orchestrator": (
+        "Verify omnia-cli orchestrator runs"
+    ),
+    "cli_telemetry": (
+        "Verify omnia-cli telemetry runs"
+    ),
+    "cli_build_stream": (
+        "Verify omnia-cli build-stream runs"
+    ),
+
+    # Setup — env source validation
+    "env_source_validation": (
+        "Verify env validation rejects missing SYSTEM_ADMIN_NIC_IPV4"
+    ),
+    "env_source_update": (
+        "Verify updated omnia.env propagates to /etc/omnia/omnia.env"
+    ),
+
+    # CLI — skip-catalog
+    "skip_catalog_accepted": (
+        "Verify --setup-venv --skip-catalog accepted"
+    ),
 }
 
 # =============================================================================
@@ -382,6 +406,43 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "sh_generic_tags_missing": (
         "Help missing generic tags: {missing}"
+    ),
+
+    # omnia-cli remaining domains
+    "cli_orchestrator_ok": (
+        "omnia-cli orchestrator ran (rc={rc})"
+    ),
+    "cli_telemetry_ok": (
+        "omnia-cli telemetry ran (rc={rc})"
+    ),
+    "cli_build_stream_ok": (
+        "omnia-cli build-stream ran (rc={rc})"
+    ),
+
+    # Env source validation
+    "env_source_validation_ok": (
+        "validate_env_source correctly rejected "
+        "missing SYSTEM_ADMIN_NIC_IPV4"
+    ),
+    "env_source_validation_failed": (
+        "validate_env_source did NOT reject "
+        "missing SYSTEM_ADMIN_NIC_IPV4 (rc={rc})"
+    ),
+
+    # Env update propagation
+    "env_update_ok": (
+        "Source omnia.env update propagated to system copy"
+    ),
+    "env_update_failed": (
+        "Source omnia.env update did NOT propagate to system copy"
+    ),
+
+    # skip-catalog
+    "skip_catalog_ok": (
+        "--setup-venv --skip-catalog completed (rc={rc})"
+    ),
+    "skip_catalog_failed": (
+        "--setup-venv --skip-catalog failed (rc={rc})"
     ),
 }
 
@@ -679,6 +740,30 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2560" + _BORDER + "\u2563\n"
         "\u2551 --force-deps requires --setup-venv or --init\n"
         "\u2551 Got: rc={rc}\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "env_source_validation_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 ENV SOURCE VALIDATION DID NOT REJECT BAD INPUT\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 validate_env_source should exit non-zero when\n"
+        "\u2551 SYSTEM_ADMIN_NIC_IPV4 is missing or invalid.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check validate_env_source() in omnia.sh\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_catalog_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-CATALOG NOT ACCEPTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv --skip-catalog should be\n"
+        "\u2551 accepted without error (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check --skip-catalog parsing in omnia.sh main()\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

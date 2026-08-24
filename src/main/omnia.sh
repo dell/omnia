@@ -181,21 +181,62 @@ readonly SYSTEM_ENV_DIR="/etc/omnia"
 readonly SYSTEM_ENV_FILE="${SYSTEM_ENV_DIR}/omnia.env"
 readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 
+validate_env_source() {
+    local env_file="$1"
+    local errors=0
+
+    # Source env file in a subshell to validate without polluting current env
+    local ip_value
+    ip_value="$(bash -c "set -a; . \"$env_file\"; echo \"\$SYSTEM_ADMIN_NIC_IPV4\"")"
+
+    if [ -z "$ip_value" ]; then
+        echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set in ${env_file}${NC}"
+        echo -e "${YELLOW}  Edit ${env_file} and set SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>${NC}"
+        errors=$((errors + 1))
+    fi
+
+    # Validate IP format (basic IPv4 check)
+    if [ -n "$ip_value" ]; then
+        if ! echo "$ip_value" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
+            echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo -e "${RED}Environment file validation failed. Fix ${env_file} before running setup.${NC}"
+        exit 1
+    fi
+}
+
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
     echo -e "${BLUE}Installing environment to system...${NC}"
 
+    if [ ! -f "$env_file" ]; then
+        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+        return 0
+    fi
+
+    # Validate source env file BEFORE installing to system
+    validate_env_source "$env_file"
+
     mkdir -p "$SYSTEM_ENV_DIR"
 
     if [ -f "$SYSTEM_ENV_FILE" ]; then
-        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
-        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
-    else
-        if [ ! -f "$env_file" ]; then
-            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
-            return 0
+        # Compare source with installed — update if source has changed
+        if ! diff -q "$env_file" "$SYSTEM_ENV_FILE" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}Source omnia.env differs from installed copy.${NC}"
+            echo -e "  ${BLUE}Updating: ${SYSTEM_ENV_FILE}${NC}"
+            cp -f "$env_file" "$SYSTEM_ENV_FILE"
+            chmod 0644 "$SYSTEM_ENV_FILE"
+            echo -e "  ${GREEN}Updated: ${SYSTEM_ENV_FILE}${NC}"
+        else
+            echo -e "  ${GREEN}Existing: ${SYSTEM_ENV_FILE} (matches source)${NC}"
         fi
+    else
         cp -f "$env_file" "$SYSTEM_ENV_FILE"
         chmod 0644 "$SYSTEM_ENV_FILE"
         echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"

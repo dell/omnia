@@ -110,6 +110,71 @@ def run_omnia_cmd_expect_error(
 
 
 # =============================================================================
+# ENVIRONMENT VALIDATION (source-level)
+# =============================================================================
+
+def check_env_source_validation(host) -> Dict[str, Any]:
+    """Verify validate_env_source rejects a bad env file.
+
+    Creates a temp copy of omnia.env with SYSTEM_ADMIN_NIC_IPV4
+    blanked out, then calls validate_env_source on it.
+    Expects a non-zero exit code.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, rc.
+    """
+    config = load_test_config()
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        import os
+        clone_path = os.getcwd()
+
+    omnia_sh = f"{clone_path}/{OMNIA_SH_PATH}"
+    omnia_env = f"{clone_path}/src/main/omnia.env"
+
+    # Create a temp env file with empty SYSTEM_ADMIN_NIC_IPV4,
+    # then source omnia.sh functions and call validate_env_source
+    cmd = (
+        f"bash -c '"
+        f"tmp=$(mktemp); "
+        f"sed \"s/^SYSTEM_ADMIN_NIC_IPV4=.*/SYSTEM_ADMIN_NIC_IPV4=/\" "
+        f"{omnia_env} > \"$tmp\"; "
+        f"source <(grep -A100 \"^validate_env_source()\" {omnia_sh}"
+        f" | head -30); "
+        f"validate_env_source \"$tmp\"; "
+        f"rc=$?; rm -f \"$tmp\"; exit $rc"
+        f"' 2>&1"
+    )
+    result = run_on_host(host, cmd)
+
+    # validate_env_source should exit 1 for a blank IP
+    rejected = result.rc != 0
+
+    if rejected:
+        return {
+            "success": True,
+            "details": (
+                "validate_env_source correctly rejected "
+                "empty SYSTEM_ADMIN_NIC_IPV4"
+            ),
+            "error": "",
+            "rc": result.rc,
+        }
+    return {
+        "success": False,
+        "details": "",
+        "error": (
+            "validate_env_source accepted empty "
+            "SYSTEM_ADMIN_NIC_IPV4 (should have failed)"
+        ),
+        "rc": result.rc,
+    }
+
+
+# =============================================================================
 # ENVIRONMENT VERIFICATION
 # =============================================================================
 

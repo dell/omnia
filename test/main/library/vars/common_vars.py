@@ -348,4 +348,30 @@ CMDS: Dict[str, str] = {
         "cd {clone_path} && bash {omnia_sh}"
         " --run {domain} --tags {tag} 2>&1"
     ),
+    # --- env source validation ---
+    "omnia_sh_validate_env_bad_ip": (
+        "cd {clone_path} && bash -c '"
+        "env_file=$(mktemp);"
+        " sed \"s/^SYSTEM_ADMIN_NIC_IPV4=.*/SYSTEM_ADMIN_NIC_IPV4=/\""
+        " {omnia_env} > $env_file;"
+        " source {omnia_sh_dir}/omnia.sh --help >/dev/null 2>&1;"
+        " bash -c \"set -a; . $env_file; set +a;"
+        " if [ -z \\\"\\$SYSTEM_ADMIN_NIC_IPV4\\\" ]; then"
+        " exit 1; fi\";"
+        " rc=$?; rm -f $env_file; exit $rc"
+        "' 2>&1"
+    ),
+    # --- omnia-cli remaining domains ---
+    "omnia_cli_orchestrator": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " orchestrator 2>&1"
+    ),
+    "omnia_cli_telemetry": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " telemetry 2>&1"
+    ),
+    "omnia_cli_build_stream": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " build-stream 2>&1"
+    ),
 }
