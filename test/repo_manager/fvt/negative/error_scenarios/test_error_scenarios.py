@@ -28,7 +28,7 @@ from library.functions import (
 
 @pytest.mark.negative
 @pytest.mark.order(1)
-def test_deploy_fails_missing_credentials(_host):
+def test_deploy_fails_missing_credentials(host):
     """TC_RM_NEG_001: Verify deployment fails with missing credentials."""
     # This test would require temporarily removing credentials
     # For now, we'll skip it as it would interfere with other tests
@@ -37,7 +37,7 @@ def test_deploy_fails_missing_credentials(_host):
 
 @pytest.mark.negative
 @pytest.mark.order(2)
-def test_deploy_fails_invalid_endpoint_config(_host):
+def test_deploy_fails_invalid_endpoint_config(host):
     """TC_RM_NEG_002: Verify deployment fails with invalid endpoint config."""
     # This test would require creating invalid endpoint configuration
     # For now, we'll skip it as it would interfere with other tests
@@ -46,7 +46,7 @@ def test_deploy_fails_invalid_endpoint_config(_host):
 
 @pytest.mark.negative
 @pytest.mark.order(3)
-def test_download_fails_invalid_repo_url(_host):
+def test_download_fails_invalid_repo_url(host):
     """TC_RM_NEG_003: Verify download fails with invalid repository URL."""
     # This test would require modifying repo_manager_config.yml with invalid URLs
     # For now, we'll skip it as it would interfere with other tests
@@ -84,7 +84,7 @@ def test_cleanup_fails_pulp_not_running(host):
 
 @pytest.mark.negative
 @pytest.mark.order(6)
-def test_pulp_cli_fails_invalid_auth(_host):
+def test_pulp_cli_fails_invalid_auth(host):
     """TC_RM_NEG_006: Verify Pulp CLI fails with invalid authentication."""
     # This test would require modifying Pulp authentication
     # For now, we'll skip it as it would interfere with other tests
@@ -93,7 +93,7 @@ def test_pulp_cli_fails_invalid_auth(_host):
 
 @pytest.mark.negative
 @pytest.mark.order(7)
-def test_repo_sync_fails_network_issues(_host):
+def test_repo_sync_fails_network_issues(host):
     """TC_RM_NEG_007: Verify repository sync fails with network connectivity issues."""
     # This test would require simulating network failures
     # For now, we'll skip it as it would interfere with other tests
@@ -102,7 +102,7 @@ def test_repo_sync_fails_network_issues(_host):
 
 @pytest.mark.negative
 @pytest.mark.order(8)
-def test_catalog_generation_fails_invalid_config(_host):
+def test_catalog_generation_fails_invalid_config(host):
     """TC_RM_NEG_008: Verify catalog generation fails with invalid software_config.json."""
     # This test would require creating invalid software_config.json
     # For now, we'll skip it as it would interfere with other tests
@@ -125,7 +125,7 @@ def test_validate_fails_missing_config(host):
 
 @pytest.mark.negative
 @pytest.mark.order(10)
-def test_pulp_api_unreachable_port_closed(_host):
+def test_pulp_api_unreachable_port_closed(host):
     """TC_RM_NEG_010: Verify Pulp API unreachable when port is closed."""
     # This test would require closing the Pulp port
     # For now, we'll skip it as it would interfere with other tests

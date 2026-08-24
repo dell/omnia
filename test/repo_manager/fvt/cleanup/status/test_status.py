@@ -30,7 +30,7 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(0)
+@pytest.mark.order(100)
 def test_deploy_cleanup(host):
     """TC_RM_CL_000: Deploy repo_manager --tags cleanup."""
     tl = TestLogger(TEST_NAMES["pulp_container_removed"], "TC_RM_CL_000")
@@ -46,7 +46,7 @@ def test_deploy_cleanup(host):
 
 @pytest.mark.sanity
 @pytest.mark.positive
-@pytest.mark.order(1)
+@pytest.mark.order(101)
 def test_pulp_container_removed(host):
     """TC_RM_CL_001: Verify Pulp container removed."""
     tl = TestLogger(TEST_NAMES["pulp_container_removed"], "TC_RM_CL_001")
@@ -62,7 +62,7 @@ def test_pulp_container_removed(host):
 
 @pytest.mark.sanity
 @pytest.mark.positive
-@pytest.mark.order(2)
+@pytest.mark.order(102)
 def test_pulp_cli_removed(host):
     """TC_RM_CL_002: Verify Pulp CLI removed."""
     tl = TestLogger(TEST_NAMES["pulp_cli_removed"], "TC_RM_CL_002")
@@ -78,7 +78,7 @@ def test_pulp_cli_removed(host):
 
 @pytest.mark.functional
 @pytest.mark.positive
-@pytest.mark.order(3)
+@pytest.mark.order(103)
 def test_pulp_directories_removed(host):
     """TC_RM_CL_003: Verify Pulp directories removed."""
     tl = TestLogger(TEST_NAMES["pulp_directories_removed"], "TC_RM_CL_003")
