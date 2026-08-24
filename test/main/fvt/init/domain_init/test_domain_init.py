@@ -16,6 +16,7 @@
 Omnia Main Init — Domain Init Verification.
 
 TC_IN_002: Verify domain log directories created
+TC_IN_002b: Verify domain output directories created
 TC_IN_003: Verify domain input files staged for image_build_manager
 TC_IN_004: Verify domain input files staged for repo_manager
 TC_IN_005: Verify domain input files staged for orchestrator
@@ -30,6 +31,7 @@ from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import (
     check_domain_log_dirs,
     check_domain_input_staged,
+    check_domain_output_dirs,
     run_omnia_cmd,
 )
 from library.messages import (
@@ -68,6 +70,32 @@ def test_domain_log_dirs(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(2)
+def test_domain_output_dirs(host):
+    """TC_IN_002b: Verify domain output directories created."""
+    tl = TestLogger(
+        TEST_NAMES["domain_output_dirs"], "TC_IN_002b"
+    )
+    result = check_domain_output_dirs(host)
+
+    if result["success"]:
+        tl.passed(LOG["output_dirs_ok"].format(
+            count=result["details"].split()[0]
+        ))
+    else:
+        missing = result.get("missing", [])
+        tl.failed(LOG["output_dirs_missing"].format(
+            count=len(missing)
+        ))
+
+    assert result["success"], ASSERT["output_dirs_missing"].format(
+        missing_list="\n".join(
+            f"\u2551   - {d}" for d in result.get("missing", [])
+        ),
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(3)
 def test_domain_input_staged_image_build_manager(host):
     """TC_IN_003: Verify domain input files staged for image_build_manager."""
     domain = "image_build_manager"
@@ -104,7 +132,7 @@ def test_domain_input_staged_image_build_manager(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(3)
+@pytest.mark.order(4)
 def test_domain_input_staged_repo_manager(host):
     """TC_IN_004: Verify domain input files staged for repo_manager."""
     domain = "repo_manager"
@@ -141,7 +169,7 @@ def test_domain_input_staged_repo_manager(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(4)
+@pytest.mark.order(5)
 def test_domain_input_staged_orchestrator(host):
     """TC_IN_005: Verify domain input files staged for orchestrator."""
     domain = "orchestrator"
@@ -178,7 +206,7 @@ def test_domain_input_staged_orchestrator(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(5)
+@pytest.mark.order(6)
 def test_domain_input_staged_discovery(host):
     """TC_IN_006: Verify domain input files staged for discovery."""
     domain = "discovery"
@@ -215,7 +243,7 @@ def test_domain_input_staged_discovery(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(6)
+@pytest.mark.order(7)
 def test_init_domain_filter(host):
     """TC_IN_007: Verify --init with domain filter inits a single domain."""
     tl = TestLogger(
@@ -243,7 +271,7 @@ def test_init_domain_filter(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(7)
+@pytest.mark.order(8)
 def test_init_force_deps(host):
     """TC_IN_008: Verify --init --force-deps forces reinstall."""
     tl = TestLogger(
