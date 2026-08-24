@@ -52,6 +52,17 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_010 | `test_skip_catalog_in_help` | commands/ | sanity | Verify --skip-catalog flag appears in help output |
 | TC_CL_011 | `test_force_deps_invalid` | commands/ | sanity | Verify --force-deps without -s/-i exits with error |
 | TC_CL_012 | `test_check_deps_runs` | commands/ | sanity | Verify --check-deps command runs |
+| TC_CL_013 | `test_generic_tags_in_help` | generic_tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
+| TC_CL_014 | `test_execution_order_in_help` | generic_tags/ | sanity | Verify execution order in help text |
+| TC_CL_015 | `test_skip_catalog_accepted` | commands/ | sanity | Verify --setup-venv --skip-catalog --deps-only is accepted |
+
+---
+
+## setup — environment
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_SU_011 | `test_env_source_validation` | environment/ | sanity | Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4 |
 
 ---
 
@@ -70,6 +81,11 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_OC_009 | `test_cli_help_repo_manager` | diagnostics/ | sanity | Verify omnia-cli help repo-manager shows domain help |
 | TC_OC_010 | `test_cli_help_discovery` | diagnostics/ | sanity | Verify omnia-cli help discovery shows domain help |
 | TC_OC_011 | `test_cli_unknown_command` | errors/ | sanity | Verify omnia-cli unknown command exits with error |
+| TC_OC_012 | `test_cli_logs_no_domain` | logs/ | sanity | Verify omnia-cli logs without domain shows error |
+| TC_OC_013 | `test_cli_logs_domain` | logs/ | sanity | Verify omnia-cli logs with domain runs |
+| TC_OC_014 | `test_cli_orchestrator` | diagnostics/ | sanity | Verify omnia-cli orchestrator runs |
+| TC_OC_015 | `test_cli_telemetry` | diagnostics/ | sanity | Verify omnia-cli telemetry runs |
+| TC_OC_016 | `test_cli_build_stream` | diagnostics/ | sanity | Verify omnia-cli build-stream runs |
 
 ---
 
@@ -82,3 +98,9 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | NFT_MA_003 | `test_setup_venv_idempotent` | nft/test_idempotency.py | nft | Running --setup-venv twice produces no errors; venv and env file stable |
 | NFT_MA_004 | `test_init_idempotent` | nft/test_idempotency.py | nft | Running --init twice leaves domain log dirs and input files unchanged |
 | NFT_MA_005 | `test_check_deps_performance` | nft/test_performance.py | nft | --check-deps completes within 10s threshold |
+| NFT_MA_006 | `test_env_file_permissions` | nft/test_permissions.py | nft | /etc/omnia/omnia.env has 0644 permissions |
+| NFT_MA_007 | `test_cli_status_performance` | nft/test_cli_performance.py | nft | omnia-cli status completes within 30s threshold |
+| NFT_MA_008 | `test_omnia_sh_executable` | nft/test_permissions.py | nft | omnia.sh is executable |
+| NFT_MA_009 | `test_omnia_cli_executable` | nft/test_permissions.py | nft | omnia-cli is executable |
+| NFT_MA_010 | `test_domain_init_scripts_executable` | nft/test_permissions.py | nft | All domain-init.sh scripts are executable |
+| NFT_MA_011 | `test_cli_help_performance` | nft/test_cli_performance.py | nft | omnia-cli help completes within 5s threshold |

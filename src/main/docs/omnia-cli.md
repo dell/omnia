@@ -30,6 +30,7 @@ omnia-cli version
 | `discovery [--project <name>]` | Discovery domain status |
 | `telemetry [--project <name>]` | Telemetry stack status |
 | `build-stream [--project <name>]` | Build stream (GitLab) status |
+| `utils [--project <name>]` | Shared utilities status |
 | `logs <domain>` | Browse and tail domain log files |
 | `vault edit <domain>` | Edit domain credentials file (Ansible Vault) |
 | `version` | Show Omnia version info |
@@ -131,8 +132,9 @@ Detailed diagnostics for the image_build_manager domain:
 Browse and tail domain log files interactively. Searches the following locations:
 
 1. Domain log directory: `$OMNIA_DATA_PATH/<domain>/log/<project>/`
-2. Ansible logs: `/var/log/omnia/`
-3. Domain output directory: `$OMNIA_DATA_PATH/<domain>/output/<project>/*.log`
+2. Domain log directory (flat): `$OMNIA_DATA_PATH/<domain>/log/` (logs directly in the log folder)
+3. Ansible logs: `/var/log/omnia/`
+4. Domain output directory: `$OMNIA_DATA_PATH/<domain>/output/<project>/*.log`
 
 ```bash
 ./omnia-cli logs image_build_manager
@@ -168,5 +170,9 @@ Each domain has a known status file pattern:
 | discovery | `discovery_status.yml` |
 | telemetry | `telemetry_status.yml` |
 | build_stream | `build_stream_status.yml` |
+| utils | `utils_status.yml` |
 
-The CLI will also search for any `*status*.yml` or `*status*.yaml` files if the expected file is not found.
+The CLI will also search for any `*status*.yml` or `*status*.yaml` files
+if the expected file is not found. Additionally, domain-specific status
+commands list all output files (`.yml`, `.yaml`, `.json`, `.log`, `.txt`)
+found in the output directory.

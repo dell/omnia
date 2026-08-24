@@ -67,6 +67,7 @@ declare -A DOMAIN_STATUS_FILES=(
     [discovery]="discovery_status.yml"
     [telemetry]="telemetry_status.yml"
     [build_stream]="build_stream_status.yml"
+    [utils]="utils_status.yml"
 )
 
 declare -A DOMAIN_DESCRIPTIONS=(
@@ -76,6 +77,7 @@ declare -A DOMAIN_DESCRIPTIONS=(
     [discovery]="Hardware discovery and inventory"
     [telemetry]="Monitoring and telemetry stack"
     [build_stream]="CI/CD build pipeline (GitLab)"
+    [utils]="Shared utilities and helper roles"
 )
 
 # Known domain input config file names (relative to input/<project>/)
@@ -86,6 +88,7 @@ declare -A DOMAIN_INPUT_FILES=(
     [discovery]="discovery_config.yml"
     [telemetry]="telemetry_config.yml"
     [build_stream]="build_stream_config.yml"
+    [utils]="utils_config.yml"
 )
 
 readonly DOMAIN_ORDER=(
@@ -95,6 +98,7 @@ readonly DOMAIN_ORDER=(
     discovery
     telemetry
     build_stream
+    utils
 )
 
 # Known log directory patterns (relative to OMNIA_DATA_PATH/<domain>/)
@@ -105,6 +109,7 @@ declare -A DOMAIN_LOG_DIRS=(
     [discovery]="log"
     [telemetry]="log"
     [build_stream]="log"
+    [utils]="log"
 )
 
 # Ansible log default location
@@ -576,6 +581,22 @@ cmd_domain_status() {
         echo -e "  ${WARN} No status files found in output directory"
     fi
 
+    # List any output files in the directory
+    local output_files
+    output_files=$(find "$output_dir" -maxdepth 1 -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.log" -o -name "*.txt" \) 2>/dev/null | sort)
+    if [ -n "$output_files" ]; then
+        local file_count
+        file_count=$(echo "$output_files" | wc -l)
+        echo ""
+        echo -e "  ${BOLD}Output files${NC}  ${DIM}(${file_count} file(s))${NC}"
+        while IFS= read -r ofile; do
+            local ofname ofsize
+            ofname=$(basename "$ofile")
+            ofsize=$(stat -c '%s' "$ofile" 2>/dev/null || echo "?")
+            echo -e "    ${DIM}${ofname}  (${ofsize} bytes)${NC}"
+        done <<< "$output_files"
+    fi
+
     # Last modified
     local last_mod
     last_mod=$(_last_modified "$output_dir")
@@ -779,36 +800,46 @@ cmd_logs() {
     local log_arr=()
     local idx=0
 
-    # 1. Domain-specific logs (under <base>/<domain>/log/<project>/)
-    local domain_log_dir="${base}/${domain}/log/${project}"
-    if [ -d "$domain_log_dir" ]; then
-        local log_files
-        log_files=$(find "$domain_log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn)
-        if [ -n "$log_files" ]; then
-            found_logs=1
-            local count
-            count=$(echo "$log_files" | wc -l)
-            echo -e "  ${BOLD}Domain logs${NC}  ${DIM}(${domain_log_dir})${NC}"
-            echo -e "  ${DIM}Found ${count} log file(s) — most recent first:${NC}"
-            echo ""
-
-            while IFS= read -r line; do
-                idx=$((idx + 1))
-                local fpath
-                fpath=$(echo "$line" | cut -d' ' -f2-)
-                local fname
-                fname=$(basename "$fpath")
-                local fsize
-                fsize=$(stat -c '%s' "$fpath" 2>/dev/null || echo "?")
-                local fmod
-                fmod=$(stat -c '%y' "$fpath" 2>/dev/null | cut -d. -f1 || echo "?")
-                echo -e "    ${CYAN}${idx})${NC} ${fname}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
-                log_arr+=("$fpath")
-                [ "$idx" -ge 10 ] && break
-            done <<< "$log_files"
-            echo ""
-        fi
+    # 1. Domain-specific logs
+    #    Search both <base>/<domain>/log/<project>/ and <base>/<domain>/log/
+    local domain_log_project="${base}/${domain}/log/${project}"
+    local domain_log_flat="${base}/${domain}/log"
+    local domain_log_dirs_to_check=("$domain_log_project")
+    # Also check the flat log dir (logs may live directly under log/)
+    if [ "$domain_log_flat" != "$domain_log_project" ] && [ -d "$domain_log_flat" ]; then
+        domain_log_dirs_to_check+=("$domain_log_flat")
     fi
+
+    for domain_log_dir in "${domain_log_dirs_to_check[@]}"; do
+        if [ -d "$domain_log_dir" ]; then
+            local log_files
+            log_files=$(find "$domain_log_dir" -maxdepth 1 -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn)
+            if [ -n "$log_files" ]; then
+                found_logs=1
+                local count
+                count=$(echo "$log_files" | wc -l)
+                echo -e "  ${BOLD}Domain logs${NC}  ${DIM}(${domain_log_dir})${NC}"
+                echo -e "  ${DIM}Found ${count} log file(s) — most recent first:${NC}"
+                echo ""
+
+                while IFS= read -r line; do
+                    idx=$((idx + 1))
+                    local fpath
+                    fpath=$(echo "$line" | cut -d' ' -f2-)
+                    local fname
+                    fname=$(basename "$fpath")
+                    local fsize
+                    fsize=$(stat -c '%s' "$fpath" 2>/dev/null || echo "?")
+                    local fmod
+                    fmod=$(stat -c '%y' "$fpath" 2>/dev/null | cut -d. -f1 || echo "?")
+                    echo -e "    ${CYAN}${idx})${NC} ${fname}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
+                    log_arr+=("$fpath")
+                    [ "$idx" -ge 10 ] && break
+                done <<< "$log_files"
+                echo ""
+            fi
+        fi
+    done
 
     # 2. Ansible logs (under /var/log/omnia/)
     local ansible_log_dirs=("${ANSIBLE_LOG_DEFAULT}")
@@ -860,7 +891,8 @@ cmd_logs() {
         echo ""
         echo -e "  ${DIM}Logs are created when you run the domain via omnia.sh --run ${domain}${NC}"
         echo -e "  ${DIM}Expected locations:${NC}"
-        echo -e "    ${DIM}${domain_log_dir}/*.log${NC}"
+        echo -e "    ${DIM}${domain_log_project}/*.log${NC}"
+        echo -e "    ${DIM}${domain_log_flat}/*.log${NC}"
         echo -e "    ${DIM}${ANSIBLE_LOG_DEFAULT}/*${domain}*.log${NC}"
         echo ""
         return 1
@@ -993,6 +1025,7 @@ EDIT:
 
 LOGS:
   Shows domain logs from \${OMNIA_DATA_PATH}/${domain}/log/<project>/
+  Also checks \${OMNIA_DATA_PATH}/${domain}/log/ directly
   Shows ansible logs from /var/log/omnia/
   Offers to tail or view selected log in \$PAGER (default: less)
 EOF
@@ -1021,6 +1054,7 @@ COMMANDS:
   ${BOLD}discovery${NC}           Discovery domain status
   ${BOLD}telemetry${NC}           Telemetry stack status
   ${BOLD}build-stream${NC}        Build stream (GitLab) status
+  ${BOLD}utils${NC}               Shared utilities status
   ${BOLD}version${NC}             Show Omnia version info
   ${BOLD}help${NC} [<domain>]     Show help (or domain-specific help)
 
@@ -1062,6 +1096,7 @@ _domain_from_arg() {
         discovery)                   echo "discovery" ;;
         telemetry)                   echo "telemetry" ;;
         build-stream|build_stream)   echo "build_stream" ;;
+        utils)                       echo "utils" ;;
         *)                           echo "" ;;
     esac
 }
@@ -1114,7 +1149,7 @@ main() {
             if [ "${#positional_args[@]}" -eq 0 ]; then
                 echo -e "${RED}edit requires a domain argument${NC}"
                 echo -e "Usage: omnia-cli edit <domain> [--project <name>]"
-                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream"
+                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream, utils"
                 exit 1
             fi
             local domain
@@ -1130,7 +1165,7 @@ main() {
             if [ "${#positional_args[@]}" -eq 0 ]; then
                 echo -e "${RED}logs requires a domain argument${NC}"
                 echo -e "Usage: omnia-cli logs <domain> [--project <name>]"
-                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream"
+                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream, utils"
                 exit 1
             fi
             local domain

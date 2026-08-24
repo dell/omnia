@@ -51,7 +51,7 @@ test/main/
 │   ├── README.md            # Test case registry (FVT + NFT)
 │   ├── setup/               # omnia.sh --setup-venv tests
 │   │   ├── test_deploy_setup.py
-│   │   ├── environment/     # Env file and variable tests
+│   │   ├── environment/     # Env file, variable, and source validation tests
 │   │   ├── venv/            # Python venv tests
 │   │   └── directories/     # Base directory tests
 │   ├── init/                # omnia.sh --init tests
@@ -59,27 +59,31 @@ test/main/
 │   │   └── domain_init/     # Domain-specific init tests (incl. orchestrator, discovery)
 │   ├── cli/                 # CLI argument tests
 │   │   ├── test_deploy_cli.py
-│   │   └── commands/        # Command error handling + --cleanup/--check-deps/--force-deps help tests
+│   │   ├── commands/        # Command error handling + flag verification + skip-catalog
+│   │   └── generic_tags/    # Tag verification tests
 │   └── omnia_cli/           # omnia-cli diagnostics tests
 │       ├── test_deploy_omnia_cli.py
-│       ├── diagnostics/     # status, check, domain commands
-│       └── errors/          # Unknown command error tests
+│       ├── diagnostics/     # status, check, domain commands (incl. orchestrator, telemetry, build-stream)
+│       ├── errors/          # Unknown command error tests
+│       └── logs/            # Log command tests
 └── nft/                     # Non-Functional Tests
     ├── README.md            # NFT test cases and thresholds
     ├── __init__.py
-    ├── test_performance.py  # Performance threshold tests
-    └── test_idempotency.py  # Idempotency tests
+    ├── test_performance.py      # Performance threshold tests (setup, init, check-deps)
+    ├── test_idempotency.py      # Idempotency tests (setup, init)
+    ├── test_permissions.py      # File permission tests (env, omnia.sh, omnia-cli, domain-init)
+    └── test_cli_performance.py  # CLI performance tests (status, help)
 ```
 
 ## Scenarios
 
 | Scenario | What It Tests | Deploy Command |
 |----------|--------------|----------------|
-| `setup` | Environment install, venv creation, directory setup | `omnia.sh --setup-venv --deps-only` |
-| `init` | Domain log directories, input file staging (all 6 domains incl. orchestrator + discovery) | `omnia.sh --init` |
-| `cli` | Help output, error handling, --cleanup/--check-deps/--force-deps/--skip-catalog in help, argument parsing | `omnia.sh --help` |
-| `omnia_cli` | Diagnostics CLI: status, check, version, domain queries | `omnia-cli help` |
-| `nft` | Performance thresholds, idempotency (run twice) | `omnia.sh --setup-venv`, `--init` |
+| `setup` | Environment install, venv creation, directory setup, env source validation | `omnia.sh --setup-venv --deps-only` |
+| `init` | Domain log directories, input file staging (all 7 domains incl. orchestrator, discovery, utils) | `omnia.sh --init` |
+| `cli` | Help output, error handling, flag verification (--cleanup, --check-deps, --force-deps, --skip-catalog), generic tags, argument parsing | `omnia.sh --help` |
+| `omnia_cli` | Diagnostics CLI: status, check, version, domain queries (all 7 domains incl. orchestrator, telemetry, build-stream, utils), logs, errors | `omnia-cli help` |
+| `nft` | Performance thresholds, idempotency, file permissions, CLI performance | `omnia.sh --setup-venv`, `--init`, `omnia-cli status` |
 
 ## Markers
 

@@ -42,6 +42,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FVT_DIR="${SCRIPT_DIR}/fvt"
+NFT_DIR="${SCRIPT_DIR}/nft"
 CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
 
 RED='\033[0;31m'
@@ -110,6 +111,10 @@ get_scenarios() {
         [[ "$name" == __pycache__ ]] && continue
         echo "$name"
     done
+    # NFT lives in nft/ (sibling of fvt/)
+    if [ -d "$NFT_DIR" ]; then
+        echo "nft"
+    fi
 }
 
 build_test_path() {
@@ -304,7 +309,11 @@ case "$SCENARIO" in
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
         for name in $(get_scenarios); do
-            scenario_dir="${FVT_DIR}/${name}"
+            if [[ "$name" == "nft" ]]; then
+                scenario_dir="${NFT_DIR}"
+            else
+                scenario_dir="${FVT_DIR}/${name}"
+            fi
             if [ -d "$scenario_dir" ]; then
                 test_count=$(find "$scenario_dir" -name 'test_*.py' 2>/dev/null | wc -l)
                 suites=$(find "$scenario_dir" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f ' 2>/dev/null)
@@ -384,6 +393,7 @@ case "$SCENARIO" in
         echo "  init       Tests for omnia.sh --init (domain-init.sh scripts, input staging)"
         echo "  cli        Tests for CLI argument parsing (help output, error handling)"
         echo "  omnia_cli  Tests for omnia-cli diagnostic commands (status, check, help)"
+        echo "  nft        Non-functional tests (performance, idempotency, permissions)"
         echo ""
         echo -e "${YELLOW}MARKERS${NC}"
         echo "  sanity       Baseline must-pass tests"
@@ -406,6 +416,7 @@ case "$SCENARIO" in
         echo "  $0 init test                     # 2. Stage domain input files + verify"
         echo "  $0 cli verify                    # 3. Verify CLI argument handling"
         echo "  $0 omnia_cli verify              # 4. Verify omnia-cli diagnostics"
+        echo "  $0 nft test                      # 5. Performance + idempotency + permissions"
         echo "  $0 all verify                    # Or: verify everything at once"
         echo ""
         echo -e "${YELLOW}CONFIGURATION${NC}"
@@ -419,10 +430,14 @@ esac
 # =============================================================================
 # Validate scenario
 # =============================================================================
-SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+if [[ "$SCENARIO" == "nft" ]]; then
+    SCENARIO_DIR="${NFT_DIR}"
+else
+    SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+fi
 
 if [[ ! -d "$SCENARIO_DIR" ]]; then
-    echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
+    echo -e "${RED}Error: Scenario '${SCENARIO}' not found${NC}"
     echo ""
     echo -e "${YELLOW}Available scenarios:${NC}"
     get_scenarios | while read -r s; do echo "  $s"; done

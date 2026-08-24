@@ -161,6 +161,7 @@ OMNIA_CLI_DOMAINS: List[str] = [
     "discovery",
     "telemetry",
     "build-stream",
+    "utils",
 ]
 
 # Generic tags shown in omnia.sh help (per domain)
