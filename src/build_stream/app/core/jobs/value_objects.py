@@ -99,12 +99,11 @@ class StageType(str, Enum):
     """
 
     # Build Pipeline stages (Release 2.3 — domain-segregated)
-    # NOTE: PARSE_CATALOG and GENERATE_INPUT_FILES have been retired in 2.3.
-    # With domain segregation, the catalog is consumed directly by each domain
-    # and input files are domain-specific (no central generation needed).
+    # With domain segregation, each domain playbook (repo_manager.yml,
+    # image_build_manager.yml) consumes the catalog directly and handles
+    # all architecture-specific logic internally.
     CREATE_LOCAL_REPOSITORY = "create-local-repository"
-    BUILD_IMAGE_X86_64 = "build-image-x86_64"
-    BUILD_IMAGE_AARCH64 = "build-image-aarch64"
+    BUILD_IMAGE = "build-image"
     VALIDATE = "validate"
     RESTART = "restart"
 

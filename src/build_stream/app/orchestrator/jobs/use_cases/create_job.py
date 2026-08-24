@@ -240,20 +240,33 @@ class CreateJobUseCase:
     def _create_initial_stages(self, job_id: JobId) -> List[Stage]:
         """Create initial stages for the job.
 
-        Creates all 7 stages in PENDING state (Omnia 2.3+ domain-segregated):
+        Creates active pipeline stages in PENDING state (Omnia 2.3+ domain-segregated):
         - CREATE_LOCAL_REPOSITORY
-        - BUILD_IMAGE_X86_64
-        - BUILD_IMAGE_AARCH64
+        - BUILD_IMAGE (unified, handles all architectures)
         - VALIDATE
         - RESTART
         - UPLOAD
         - DEPLOY
 
+        Deprecated stages (PARSE_CATALOG, GENERATE_INPUT_FILES, BUILD_IMAGE_X86_64,
+        BUILD_IMAGE_AARCH64) are retained in StageType enum for backward compatibility
+        but are not created for new jobs.
+
         Returns:
             List of Stage entities in PENDING state.
         """
+        # Active stages for domain-segregated architecture
+        active_stages = [
+            StageType.CREATE_LOCAL_REPOSITORY,
+            StageType.BUILD_IMAGE,
+            StageType.VALIDATE,
+            StageType.RESTART,
+            StageType.UPLOAD,
+            StageType.DEPLOY,
+        ]
+        
         stages = []
-        for stage_type in StageType:
+        for stage_type in active_stages:
             stage = Stage(
                 job_id=job_id,
                 stage_name=StageName(stage_type.value),

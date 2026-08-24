@@ -29,13 +29,6 @@ from core.build_image.exceptions import (
     InvalidFunctionalGroupsError,
     InventoryHostMissingError,
 )
-from core.cleanup.exceptions import RetentionLimitExceededError
-from core.image_group.repositories import ImageGroupRepository
-from core.build_image.repositories import (
-    BuildStreamConfigRepository,
-    BuildImageInventoryRepository,
-)
-from infra.repositories import NfsInputRepository
 from core.build_image.services import (
     BuildImageConfigService,
     BuildImageQueueService,
@@ -46,17 +39,16 @@ from core.build_image.value_objects import (
     FunctionalGroups,
     InventoryHost,
 )
-from core.localrepo.value_objects import (
-    ExecutionTimeout,
-    ExtraVars,
-    PlaybookPath,
-)
+from core.cleanup.exceptions import RetentionLimitExceededError
+from core.common.playbook_registry import get_playbook_path
+from core.image_group.repositories import ImageGroupRepository
 from core.jobs.entities import AuditEvent, Stage
 from core.jobs.exceptions import (
     JobNotFoundError,
     StageNotFoundError,
     StageAlreadyCompletedError,
     InvalidStateTransitionError,
+    TerminalStateViolationError,
     UpstreamStageNotCompletedError,
 )
 from core.jobs.repositories import (
@@ -68,13 +60,17 @@ from core.jobs.repositories import (
 from core.jobs.services import JobStateHelper
 from core.jobs.value_objects import (
     StageName,
-    StageType,
     StageState,
+    StageType,
 )
-
+from core.localrepo.value_objects import (
+    ExecutionTimeout,
+    ExtraVars,
+    PlaybookPath,
+)
+from infra.repositories import NfsInputRepository
 from orchestrator.build_image.commands import CreateBuildImageCommand
 from orchestrator.build_image.dtos import BuildImageResponse
-from core.common.playbook_registry import get_playbook_path
 
 
 # Domain-segregated (Omnia 2.3+): both architectures use the single
@@ -166,8 +162,11 @@ class CreateBuildImageUseCase:
     def execute(self, command: CreateBuildImageCommand) -> BuildImageResponse:
         """Execute the build-image stage.
 
+        Domain-segregated (Omnia 2.3+): The image_build_manager.yml playbook
+        reads the catalog directly and builds all images for all architectures.
+
         Args:
-            command: CreateBuildImage command with job details.
+            command: CreateBuildImage command with job_id only.
 
         Returns:
             BuildImageResponse DTO with acceptance details.
@@ -175,51 +174,14 @@ class CreateBuildImageUseCase:
         Raises:
             JobNotFoundError: If job does not exist or client mismatch.
             InvalidStateTransitionError: If stage is not in PENDING state.
-            InvalidArchitectureError: If architecture is not supported.
-            InvalidImageKeyError: If image key format is invalid.
-            InvalidFunctionalGroupsError: If functional groups are invalid.
-            InventoryHostMissingError: If aarch64 requires host but none configured.
             QueueUnavailableError: If NFS queue is not accessible.
         """
         self._validate_job(command)
-        architecture = self._validate_architecture(command)
-        stage = self._validate_stage(command, architecture)
-        image_key = self._validate_image_key(command)
-        functional_groups = self._validate_functional_groups(command)
-
-        # Enforce image retention limit before kicking off a new build.
-        self._enforce_retention_limit(command)
-
-        # Persist build-image metadata so the result poller can construct
-        # complete S3 image paths once the build completes.
-        self._persist_build_image_metadata(
-            job_id=str(command.job_id),
-            image_key=str(image_key),
-            architecture=str(architecture),
-            functional_groups=functional_groups.to_list(),
-        )
-
-        inventory_host = self._get_inventory_host(command, architecture, stage)
-        
-        # Create inventory file for aarch64 builds
-        inventory_file_path = None
-        if inventory_host:
-            inventory_file_path = self._create_inventory_file(
-                command, inventory_host, stage
-            )
-
-        request = self._build_playbook_request(
-            command,
-            architecture,
-            image_key,
-            functional_groups,
-            inventory_file_path,
-        )
-        self._submit_to_queue(command, request, stage, architecture)
-
-        self._emit_stage_started_event(command, architecture, image_key)
-
-        return self._to_response(command, request, architecture, image_key)
+        stage = self._validate_stage_unified(command)
+        request = self._build_unified_playbook_request(command)
+        self._submit_to_queue_unified(command, request, stage)
+        self._emit_stage_started_event_unified(command)
+        return self._to_response_unified(command, request)
 
     def _enforce_retention_limit(
         self, command: CreateBuildImageCommand
@@ -314,10 +276,8 @@ class CreateBuildImageUseCase:
         self, command: CreateBuildImageCommand
     ) -> None:
         """Verify that create-local-repository stage is COMPLETED."""
-        from core.jobs.value_objects import StageState
-        
         prerequisite_stage = self._stage_repo.find_by_job_and_name(
-            command.job_id, 
+            command.job_id,
             StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         )
         if (
@@ -335,18 +295,20 @@ class CreateBuildImageUseCase:
                 correlation_id=str(command.correlation_id),
             )
 
-    def _validate_stage(self, command: CreateBuildImageCommand, architecture: Architecture) -> Stage:
+    def _validate_stage(
+        self, command: CreateBuildImageCommand, architecture: Architecture,
+    ) -> Stage:
         """Validate stage exists and is in PENDING state."""
-        
+
         # Verify upstream stage is completed
         self._verify_upstream_stage_completed(command)
-        
+
         # Use architecture-specific stage type
         if architecture.is_x86_64:
             stage_type = StageType.BUILD_IMAGE_X86_64
         else:
             stage_type = StageType.BUILD_IMAGE_AARCH64
-            
+
         stage_name = StageName(stage_type.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
@@ -356,7 +318,7 @@ class CreateBuildImageUseCase:
                 stage_name=stage_type.value,
                 correlation_id=str(command.correlation_id),
             )
-        
+
         # Reset FAILED stages for retry (build stages don't support re-run from COMPLETED)
         if stage.stage_state == StageState.FAILED:
             prev_state = stage.stage_state.value
@@ -378,7 +340,7 @@ class CreateBuildImageUseCase:
                 correlation_id=str(command.correlation_id),
                 client_id=str(command.client_id),
             )
-        
+
         # Only allow PENDING stages to transition to IN_PROGRESS
         if stage.stage_state == StageState.COMPLETED:
             raise StageAlreadyCompletedError(
@@ -386,7 +348,7 @@ class CreateBuildImageUseCase:
                 stage_name=stage_type.value,
                 correlation_id=str(command.correlation_id),
             )
-        
+
         if stage.stage_state != StageState.PENDING:
             raise InvalidStateTransitionError(
                 entity_type="Stage",
@@ -464,7 +426,7 @@ class CreateBuildImageUseCase:
                     error_summary=error_summary,
                 )
                 self._stage_repo.save(stage)
-                
+
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
                     job_repo=self._job_repo,
@@ -477,11 +439,11 @@ class CreateBuildImageUseCase:
                     correlation_id=str(command.correlation_id),
                     client_id=str(command.client_id),
                 )
-            except Exception as save_exc:
+            except Exception as save_exc:  # pylint: disable=broad-exception-caught
                 # If save fails, stage was modified elsewhere
                 log_secure_info(
-                    "Stage fail save failed, stage already modified elsewhere: %s",
-                    str(save_exc)
+                    "warning",
+                    f"Stage fail save failed, stage already modified: {save_exc}",
                 )
             log_secure_info(
                 "error",
@@ -514,7 +476,11 @@ class CreateBuildImageUseCase:
                 inventory_host=inventory_host,
                 job_id=str(command.job_id),
             )
-            log_secure_info('info', f"Created inventory file for job {command.job_id} at {inventory_file_path}")
+            log_secure_info(
+                'info',
+                f"Created inventory file for job {command.job_id} "
+                f"at {inventory_file_path}",
+            )
             return inventory_file_path
         except IOError as exc:
             # Refresh stage from database to avoid OptimisticLockError
@@ -530,7 +496,7 @@ class CreateBuildImageUseCase:
                     error_code=error_code,
                     error_summary=error_summary,
                 )
-                
+
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
                     job_repo=self._job_repo,
@@ -601,6 +567,7 @@ class CreateBuildImageUseCase:
             timeout=ExecutionTimeout(60),  # TODO: Make configurable
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             request_id=str(self._uuid_generator.generate()),
+            tags="execute",
         )
 
     def _submit_to_queue(
@@ -620,9 +587,18 @@ class CreateBuildImageUseCase:
         )
 
         # Use architecture-specific stage type for logging
-        stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
-        log_secure_info('info', f"Build image request submitted to queue for job {command.job_id}, stage={stage_type.value}, "
-            "arch={str(architecture)}, correlation_id={command.correlation_id}")
+        stage_type = (
+            StageType.BUILD_IMAGE_X86_64
+            if architecture.is_x86_64
+            else StageType.BUILD_IMAGE_AARCH64
+        )
+        log_secure_info(
+            'info',
+            f"Build image request submitted to queue for job "
+            f"{command.job_id}, stage={stage_type.value}, "
+            f"arch={architecture}, "
+            f"correlation_id={command.correlation_id}",
+        )
 
     def _emit_stage_started_event(
         self,
@@ -632,7 +608,11 @@ class CreateBuildImageUseCase:
     ) -> None:
         """Emit an audit event for stage start."""
         # Use architecture-specific stage type for audit event
-        stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
+        stage_type = (
+            StageType.BUILD_IMAGE_X86_64
+            if architecture.is_x86_64
+            else StageType.BUILD_IMAGE_AARCH64
+        )
         event = AuditEvent(
             event_id=str(self._uuid_generator.generate()),
             job_id=command.job_id,
@@ -657,7 +637,11 @@ class CreateBuildImageUseCase:
     ) -> BuildImageResponse:
         """Map to response DTO."""
         # Use architecture-specific stage type for response
-        stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
+        stage_type = (
+            StageType.BUILD_IMAGE_X86_64
+            if architecture.is_x86_64
+            else StageType.BUILD_IMAGE_AARCH64
+        )
         return BuildImageResponse(
             job_id=str(command.job_id),
             stage_name=stage_type.value,
@@ -667,4 +651,147 @@ class CreateBuildImageUseCase:
             architecture=str(architecture),
             image_key=str(image_key),
             functional_groups=command.functional_groups,
+        )
+
+    # ========================================================================
+    # Unified Domain-Segregated Methods (Omnia 2.3+)
+    # ========================================================================
+
+    def _validate_stage_unified(self, command: CreateBuildImageCommand) -> Stage:
+        """Validate unified BUILD_IMAGE stage exists and is in PENDING state."""
+        # Verify upstream stage is completed
+        self._verify_upstream_stage_completed(command)
+
+        # Use unified BUILD_IMAGE stage
+        stage = self._stage_repo.find_by_job_and_name(
+            command.job_id,
+            StageName(StageType.BUILD_IMAGE.value),
+        )
+
+        if stage is None:
+            raise StageNotFoundError(
+                job_id=str(command.job_id),
+                stage_name=StageType.BUILD_IMAGE.value,
+                correlation_id=str(command.correlation_id),
+            )
+
+        # Validate stage state allows transition to IN_PROGRESS
+        if stage.stage_state != StageState.PENDING:
+            if stage.stage_state in (StageState.COMPLETED, StageState.SUCCEEDED):
+                raise TerminalStateViolationError(
+                    job_id=str(command.job_id),
+                    stage_name=StageType.BUILD_IMAGE.value,
+                    state=stage.stage_state.value,
+                    correlation_id=str(command.correlation_id),
+                )
+            if stage.stage_state == StageState.FAILED:
+                raise TerminalStateViolationError(
+                    job_id=str(command.job_id),
+                    stage_name=StageType.BUILD_IMAGE.value,
+                    state="FAILED",
+                    correlation_id=str(command.correlation_id),
+                )
+            raise InvalidStateTransitionError(
+                job_id=str(command.job_id),
+                stage_name=StageType.BUILD_IMAGE.value,
+                current_state=stage.stage_state.value,
+                attempted_state="IN_PROGRESS",
+                correlation_id=str(command.correlation_id),
+            )
+
+        return stage
+
+    def _build_unified_playbook_request(
+        self, command: CreateBuildImageCommand
+    ) -> BuildImageRequest:
+        """Create unified playbook request with job_id only."""
+        # Use image_build_manager.yml playbook
+        full_path = get_playbook_path("image_build_manager.yml")
+        if full_path is None:
+            raise RuntimeError(
+                "Playbook 'image_build_manager.yml' not found in playbook_paths.yml"
+            )
+        playbook_name = full_path.split("/")[-1]
+        playbook_path = PlaybookPath(playbook_name)
+
+        # Only pass job_id - playbook reads catalog for everything else
+        extra_vars_dict = {
+            "job_id": str(command.job_id),
+        }
+        extra_vars = ExtraVars(extra_vars_dict)
+
+        return BuildImageRequest(
+            job_id=str(command.job_id),
+            stage_name=StageType.BUILD_IMAGE.value,
+            playbook_path=playbook_path,
+            extra_vars=extra_vars,
+            inventory_file_path=None,  # Not needed, playbook handles inventory
+            correlation_id=str(command.correlation_id),
+            timeout=ExecutionTimeout(60),
+            submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            request_id=str(self._uuid_generator.generate()),
+            tags="execute",
+        )
+
+    def _submit_to_queue_unified(
+        self,
+        command: CreateBuildImageCommand,
+        request: BuildImageRequest,
+        stage: Stage,
+    ) -> None:
+        """Submit unified playbook request to NFS queue."""
+        try:
+            stage.start()
+            self._stage_repo.save(stage)
+        except Exception as save_exc:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                "warning",
+                f"Stage start save failed, continuing with queue submission: {save_exc}",
+            )
+
+        # Submit request to NFS queue
+        self._queue_service.submit_request(
+            request=request,
+            correlation_id=str(command.correlation_id),
+        )
+
+        log_secure_info(
+            'info',
+            f"Playbook request submitted to queue for job {command.job_id}, "
+            f"stage={StageType.BUILD_IMAGE.value}, "
+            f"correlation_id={command.correlation_id}",
+        )
+
+    def _emit_stage_started_event_unified(
+        self, command: CreateBuildImageCommand
+    ) -> None:
+        """Emit audit event for unified BUILD_IMAGE stage start."""
+        event = AuditEvent(
+            event_id=str(self._uuid_generator.generate()),
+            job_id=command.job_id,
+            event_type="STAGE_STARTED",
+            correlation_id=command.correlation_id,
+            client_id=command.client_id,
+            timestamp=datetime.now(timezone.utc),
+            details={
+                "stage": StageType.BUILD_IMAGE.value,
+                "mode": "unified",
+                "note": "Playbook reads catalog and builds all architectures",
+            },
+        )
+        self._audit_repo.save(event)
+
+    def _to_response_unified(
+        self, command: CreateBuildImageCommand, request: BuildImageRequest
+    ) -> BuildImageResponse:
+        """Map unified request to response DTO."""
+        return BuildImageResponse(
+            job_id=str(command.job_id),
+            stage_name=StageType.BUILD_IMAGE.value,
+            status="accepted",
+            submitted_at=request.submitted_at,
+            correlation_id=str(command.correlation_id),
+            architecture=None,
+            image_key=None,
+            functional_groups=None,
         )

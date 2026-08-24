@@ -155,11 +155,15 @@ class TestStageName:
             stage.value = "build-image"
 
     def test_canonical_stages_count(self):
-        """Verify we have exactly 7 canonical stages (5 build + 2 deploy).
+        """Verify we have exactly 6 canonical stages (domain-segregated).
 
-        Omnia 2.3+: parse-catalog and generate-input-files retired.
+        Omnia 2.3+: Domain-segregated architecture with unified stages:
+        - CREATE_LOCAL_REPOSITORY (repo_manager.yml)
+        - BUILD_IMAGE (image_build_manager.yml handles all architectures)
+        - VALIDATE, RESTART (validation/restart)
+        - UPLOAD, DEPLOY (deployment)
         """
-        assert len(StageType) == 7
+        assert len(StageType) == 6
 
 
 class TestIdempotencyKey:

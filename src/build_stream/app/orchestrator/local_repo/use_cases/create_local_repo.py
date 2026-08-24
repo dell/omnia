@@ -33,8 +33,8 @@ from core.jobs.repositories import (
 from core.jobs.services import JobStateHelper
 from core.jobs.value_objects import (
     StageName,
-    StageType,
     StageState,
+    StageType,
 )
 from core.localrepo.entities import PlaybookRequest
 from core.localrepo.exceptions import (
@@ -51,9 +51,9 @@ from core.localrepo.value_objects import (
     PlaybookPath,
 )
 
+from core.common.playbook_registry import get_playbook_path
 from orchestrator.local_repo.commands import CreateLocalRepoCommand
 from orchestrator.local_repo.dtos import LocalRepoResponse
-from core.common.playbook_registry import get_playbook_path
 
 
 DEFAULT_PLAYBOOK_NAME = "repo_manager.yml"
@@ -170,8 +170,6 @@ class CreateLocalRepoUseCase:
         first stage in the build pipeline.  There is no upstream stage dependency
         (parse-catalog and generate-input-files have been retired).
         """
-        from core.jobs.value_objects import StageState
-        
         stage_name = StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
@@ -180,7 +178,7 @@ class CreateLocalRepoUseCase:
                 job_id=str(command.job_id),
                 correlation_id=str(command.correlation_id),
             )
-        
+
         # Reset FAILED stages for retry (build stages don't support re-run from COMPLETED)
         if stage.stage_state == StageState.FAILED:
             prev_state = stage.stage_state.value
@@ -202,7 +200,7 @@ class CreateLocalRepoUseCase:
                 correlation_id=str(command.correlation_id),
                 client_id=str(command.client_id),
             )
-        
+
         # Reject COMPLETED stages (build stages are immutable once complete)
         if stage.stage_state == StageState.COMPLETED:
             raise StageAlreadyCompletedError(
@@ -210,7 +208,7 @@ class CreateLocalRepoUseCase:
                 stage_name="create-local-repository",
                 correlation_id=str(command.correlation_id),
             )
-        
+
         # Reject IN_PROGRESS stages (already running)
         if stage.stage_state == StageState.IN_PROGRESS:
             raise InvalidStateTransitionError(
@@ -220,7 +218,7 @@ class CreateLocalRepoUseCase:
                 to_state="IN_PROGRESS",
                 correlation_id=str(command.correlation_id),
             )
-        
+
         # Stage should now be PENDING
         if stage.stage_state != StageState.PENDING:
             raise InvalidStateTransitionError(
@@ -230,7 +228,7 @@ class CreateLocalRepoUseCase:
                 to_state="IN_PROGRESS",
                 correlation_id=str(command.correlation_id),
             )
-        
+
         return stage
 
     def _prepare_input_files(
@@ -258,7 +256,7 @@ class CreateLocalRepoUseCase:
                     error_summary=error_summary,
                 )
                 self._stage_repo.save(stage)
-                
+
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
                     job_repo=self._job_repo,
@@ -271,11 +269,11 @@ class CreateLocalRepoUseCase:
                     correlation_id=str(command.correlation_id),
                     client_id=str(command.client_id),
                 )
-            except Exception as save_exc:
+            except Exception as save_exc:  # pylint: disable=broad-exception-caught
                 # If save fails, stage was modified elsewhere
                 log_secure_info(
-                    "Stage fail save failed, stage already modified elsewhere: %s",
-                    str(save_exc)
+                    "warning",
+                    f"Stage fail save failed, stage already modified: {save_exc}",
                 )
             log_secure_info(
                 "error",
@@ -307,7 +305,7 @@ class CreateLocalRepoUseCase:
             timeout=ExecutionTimeout.default(),
             submitted_at=datetime.now(timezone.utc).isoformat() + "Z",
             request_id=str(self._uuid_generator.generate()),
-            tags="validate,download,status",
+            tags="execute",
         )
 
     def _submit_to_queue(
@@ -320,11 +318,11 @@ class CreateLocalRepoUseCase:
         try:
             stage.start()
             self._stage_repo.save(stage)
-        except Exception as save_exc:
+        except Exception as save_exc:  # pylint: disable=broad-exception-caught
             # If save fails, stage was modified elsewhere, continue with queue submission
             log_secure_info(
-                "Stage start save failed, continuing with queue submission: %s",
-                str(save_exc)
+                "warning",
+                f"Stage start save failed, continuing with queue submission: {save_exc}",
             )
 
         # Submit request to NFS queue
@@ -333,7 +331,12 @@ class CreateLocalRepoUseCase:
             correlation_id=str(command.correlation_id),
         )
 
-        log_secure_info('info', f"Playbook request submitted to queue for job {command.job_id}, stage={StageType.CREATE_LOCAL_REPOSITORY.value}, correlation_id={command.correlation_id}")
+        log_secure_info(
+            'info',
+            f"Playbook request submitted to queue for job {command.job_id}, "
+            f"stage={StageType.CREATE_LOCAL_REPOSITORY.value}, "
+            f"correlation_id={command.correlation_id}",
+        )
 
 
     def _emit_stage_started_event(

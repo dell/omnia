@@ -66,7 +66,13 @@ variables:
 #
 # NOTE: parse-catalog and generate-input-files stages have been retired.
 # With domain segregation, input files are domain-specific and the catalog
-# is consumed directly by each domain.
+# is consumed directly by each domain (image_build_manager.yml reads the
+# catalog from /opt/omnia/catalog/catalog_rhel.json).
+#
+# The /catalog/roles API has been retired. The build-images stage now
+# triggers the build-image API twice (once per architecture: x86_64, aarch64).
+# The image_build_manager.yml playbook handles catalog parsing, role filtering,
+# and image building internally for each architecture.
 # ---------------------------------------------------------------------------
 stages:
   - initialization
@@ -840,9 +846,9 @@ configure-local-repository:
       echo ""
       echo "  [OK] Local repository configured successfully"
 
-# ============================= STAGE 5 ====================================
-# Build Images -- Retrieve roles, trigger builds, and poll until completion
-# Integrates role retrieval as prerequisite before building images
+# ============================= STAGE 4 ====================================
+# Build Images -- Trigger image_build_manager playbook via BSM API
+# Domain-segregated: playbook handles architecture selection internally
 # ==========================================================================
 build-images:
   stage: build-images
@@ -850,7 +856,7 @@ build-images:
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 4: Build Images"
+      echo "  [${JOB_ID}] STAGE 4: Build Images (Domain-Segregated)"
       echo "============================================================"
       echo ""
 
@@ -885,197 +891,118 @@ build-images:
       fi
       echo ""
 
-      echo "  Step 1/2: Retrieve catalog roles and image metadata..."
+      echo "  Step 1/2: Trigger unified build-image stage..."
       echo "  ------------------------------------------------------------"
       echo ""
       echo "  API Request:"
-      echo "  - Method: GET"
-      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/catalog/roles"
+      echo "  - Method: POST"
+      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image"
+      echo "  - Content-Type: application/json"
       echo "  - Certificate: ${BSM_CERT_FILE}"
+      echo "  - Request Body: {} (empty - playbook reads catalog)"
       echo ""
 
-      HTTP_CODE=$(api_call_with_retry roles_response.json \
-        -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/catalog/roles" \
+      HTTP_CODE=$(api_call_with_retry build_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
+        -H "Content-Type: application/json" \
+        -d '{}' \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
       echo "  API Response:"
       echo "  - HTTP Status Code: ${HTTP_CODE}"
       echo ""
 
-      if [ "$HTTP_CODE" != "200" ]; then
-        echo "  ERROR: Get roles failed"
+      if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+        echo "  ERROR: Build image request failed"
         echo "  Response Body:"
-        jq '.' roles_response.json 2>/dev/null || cat roles_response.json
+        jq '.' build_response.json 2>/dev/null || cat build_response.json
         exit 1
       fi
 
       echo "  Response Body:"
-      jq '.' roles_response.json
-
-      IMAGE_KEY=$(jq -r '.image_key' roles_response.json)
-      ARCHITECTURES=$(jq -r '.architectures[]' roles_response.json)
-      ROLES_JSON=$(jq -c '.roles' roles_response.json)
-      ARCH_COUNT=$(jq -r '.architectures | length' roles_response.json)
-      ROLE_COUNT=$(jq -r '.roles | length' roles_response.json)
-
+      jq '.' build_response.json 2>/dev/null || cat build_response.json
       echo ""
-      echo "  Extracted Metadata:"
-      echo "  - Image Key: ${IMAGE_KEY}"
-      echo "  - Architectures: ${ARCH_COUNT} ($(echo ${ARCHITECTURES} | tr '\n' ',' | sed 's/,$//'))"
-      echo "  - Roles/Functional Groups: ${ROLE_COUNT}"
-      echo ""
-      echo "  [OK] Roles retrieved successfully"
+      echo "  [OK] Build request accepted (playbook will build all architectures)"
       echo ""
 
-      echo "  Step 2/2: Build images sequentially for each architecture..."
+      echo "  Step 2/2: Wait for build-image stage to complete..."
       echo "  ------------------------------------------------------------"
-      echo "  Strategy: Sequential execution with fail-fast behavior"
-      echo "  - Submit build for one architecture at a time"
-      echo "  - Wait for completion before starting the next"
-      echo "  - Exit immediately if any build fails"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo "  Note: Playbook builds all architectures (x86_64, aarch64) internally"
       echo ""
-      BUILD_COUNT=0
 
-      for ARCH in ${ARCHITECTURES}; do
-        BUILD_COUNT=$((BUILD_COUNT + 1))
-        echo ""
-        echo "  ============================================================"
-        echo "  Build ${BUILD_COUNT}/${ARCH_COUNT}: ${ARCH}"
-        echo "  ============================================================"
-        echo ""
+      TERMINAL_REACHED=false
+      ATTEMPT=1
 
-        # Determine stage name for this architecture
-        STAGE_NAME="build-image-${ARCH}"
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
-        echo "  Step 2.${BUILD_COUNT}a: Submit build request for ${ARCH}..."
-        echo "  ------------------------------------------------------------"
-        echo ""
-        echo "  API Request:"
-        echo "  - Method: POST"
-        echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image"
-        echo "  - Content-Type: application/json"
-        echo "  - Certificate: ${BSM_CERT_FILE}"
-        echo ""
-        echo "  Request Payload:"
-        echo "    {\"architecture\": \"${ARCH}\", \"image_key\": \"${IMAGE_KEY}\", \"functional_groups\": ${ROLES_JSON}}" | jq '.'
-        echo ""
-
-        HTTP_CODE=$(api_call_with_retry "build_response_${ARCH}.json" \
-          -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"architecture\": \"${ARCH}\",
-            \"image_key\": \"${IMAGE_KEY}\",
-            \"functional_groups\": ${ROLES_JSON}
-          }" \
-          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-
-        echo "  API Response:"
-        echo "  - HTTP Status Code: ${HTTP_CODE}"
-        echo ""
-
-        if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-          echo "  ERROR: Build image request failed for architecture ${ARCH}"
-          echo "  Response Body:"
-          jq '.' "build_response_${ARCH}.json" 2>/dev/null || cat "build_response_${ARCH}.json"
-          exit 1
-        fi
-
-        echo "  Response Body:"
-        jq '.' "build_response_${ARCH}.json" 2>/dev/null || cat "build_response_${ARCH}.json"
-        echo ""
-        echo "  [OK] Build request accepted for ${ARCH}"
-        echo ""
-
-        echo "  Step 2.${BUILD_COUNT}b: Wait for ${ARCH} build to complete..."
-        echo "  ------------------------------------------------------------"
-        echo "  Polling interval: ${POLL_INTERVAL}s"
-        echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
-        echo "  Stage name: ${STAGE_NAME}"
-        echo ""
-
-        TERMINAL_REACHED=false
-        ATTEMPT=1
-
-        while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-          HTTP_CODE=$(api_call_with_retry "status_response_${ARCH}.json" \
-            -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-            --cacert "${BSM_CERT_FILE}")
-          [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
-            ATTEMPT=$((ATTEMPT + 1))
-            sleep "${POLL_INTERVAL}"
-            continue
-          fi
-
-          # Get status of the specific stage for this architecture
-          STAGE_STATE=$(jq -r ".stages[]? | select(.stage_name == \"${STAGE_NAME}\") | .stage_state" \
-            "status_response_${ARCH}.json" 2>/dev/null || echo "UNKNOWN")
-          JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' "status_response_${ARCH}.json")
-
-          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Stage ${STAGE_NAME}: ${STAGE_STATE}"
-
-          # Check stage state
-          case "${STAGE_STATE}" in
-            COMPLETED|SUCCEEDED)
-              TERMINAL_REACHED=true
-              echo ""
-              echo "  Stage Details:"
-              jq ".stages[]? | select(.stage_name == \"${STAGE_NAME}\") |
-                {stage: .stage_name, state: .stage_state, started: .started_at, ended: .ended_at}" "status_response_${ARCH}.json" 2>/dev/null
-              echo ""
-              echo "  [OK] Build completed successfully for ${ARCH}"
-              break
-              ;;
-            FAILED|CANCELLED)
-              echo ""
-              echo "  ERROR: Build-image stage reached ${STAGE_STATE} for ${ARCH}"
-              echo "  Stage Details:"
-              jq ".stages[]? | select(.stage_name == \"${STAGE_NAME}\")" "status_response_${ARCH}.json" 2>/dev/null
-              echo ""
-              echo "  Stopping sequential build process (fail-fast)"
-              exit 1
-              ;;
-            PENDING|IN_PROGRESS|RUNNING)
-              # Still in progress, continue polling
-              ;;
-            *)
-              echo "  WARNING: Unexpected stage state: ${STAGE_STATE}"
-              ;;
-          esac
-
-          # Check job state for early failure detection
-          case "${JOB_STATE}" in
-            FAILED|CANCELLED)
-              echo ""
-              echo "  ERROR: Job reached ${JOB_STATE} state"
-              exit 1
-              ;;
-          esac
-
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
           ATTEMPT=$((ATTEMPT + 1))
           sleep "${POLL_INTERVAL}"
-        done
-
-        if [ "$TERMINAL_REACHED" = "false" ]; then
-          echo ""
-          echo "  ERROR: Polling timed out for ${ARCH} after ${MAX_POLL_ATTEMPTS} attempts"
-          echo "  Last known stage state: ${STAGE_STATE}"
-          exit 1
+          continue
         fi
 
-        echo ""
+        STAGE_STATE=$(jq -r '.stages[]? | select(.stage_name == "build-image") | .stage_state' \
+          status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Stage build-image: ${STAGE_STATE}"
+
+        case "${STAGE_STATE}" in
+          COMPLETED|SUCCEEDED)
+            TERMINAL_REACHED=true
+            echo ""
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            echo ""
+            echo "  [OK] Build completed successfully (all architectures)"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: build-image stage reached ${STAGE_STATE}"
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            exit 1
+            ;;
+          PENDING|IN_PROGRESS|RUNNING)
+            # Still in progress, continue polling
+            ;;
+          *)
+            echo "  WARNING: Unexpected stage state: ${STAGE_STATE}"
+            ;;
+        esac
+
+        case "${JOB_STATE}" in
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Job reached ${JOB_STATE} state"
+            exit 1
+            ;;
+        esac
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
       done
+
+      if [ "$TERMINAL_REACHED" = "false" ]; then
+        echo ""
+        echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        echo "  Last known stage state: ${STAGE_STATE}"
+        exit 1
+      fi
 
       echo ""
       echo "  ============================================================"
-      echo "  [OK] All ${BUILD_COUNT} image(s) built successfully"
+      echo "  [OK] All images built successfully"
       echo "  ============================================================"
-  artifacts:
-    paths:
-      - roles_response.json
 
 # ============================= STAGE 5 ====================================
 # Summary -- Fetch final job status and display comprehensive results
