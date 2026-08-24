@@ -31,7 +31,7 @@ provision_password_not_set_msg: >-
 
 invalid_nfs_share_path_msg: >-
   Invalid nfs_share_path format: '{{ user_nfs_share_path }}'.
-  Expected format: 'server:/path' (e.g., '192.168.1.100:/mnt/nfs/share').
+  Expected format: 'server:/path' (e.g., '172.16.1.100:/mnt/nfs/share').
   Do not include the ISO filename in the path.
 
 nfs_share_not_available_msg: >-

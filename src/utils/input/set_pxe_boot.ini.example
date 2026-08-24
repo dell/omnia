@@ -10,9 +10,9 @@
 #   - service_tag: Dell service tag (for tracking)
 
 [bmc]
-100.10.0.73 admin_ip=192.168.1.50 hostname=node01 service_tag=ABC123
-100.10.0.74 admin_ip=192.168.1.51 hostname=node02 service_tag=DEF456
-100.10.0.75 admin_ip=192.168.1.52 hostname=node03 service_tag=GHI789
+172.16.0.73 admin_ip=172.16.1.50 hostname=node01 service_tag=ABC123
+172.16.0.74 admin_ip=172.16.1.51 hostname=node02 service_tag=DEF456
+172.16.0.75 admin_ip=172.16.1.52 hostname=node03 service_tag=GHI789
 
 # Alternative: Group variables (applies to all hosts in [bmc])
 # [bmc:vars]

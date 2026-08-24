@@ -52,8 +52,8 @@
 
 ```ini
 [bmc]
-100.10.0.73 admin_ip=192.168.1.50 hostname=node01
-100.10.0.74 admin_ip=192.168.1.51 hostname=node02
+172.16.0.73 admin_ip=172.16.1.50 hostname=node01
+172.16.0.74 admin_ip=172.16.1.51 hostname=node02
 ```
 
 ### YAML Format
@@ -61,11 +61,11 @@
 ```yaml
 bmc:
   hosts:
-    100.10.0.73:
-      admin_ip: 192.168.1.50
+    172.16.0.73:
+      admin_ip: 172.16.1.50
       hostname: node01
-    100.10.0.74:
-      admin_ip: 192.168.1.51
+    172.16.0.74:
+      admin_ip: 172.16.1.51
       hostname: node02
 ```
 

@@ -57,8 +57,8 @@ None.
   vars:
     pxe_start_epoch: "{{ lookup('pipe', 'date +%s') }}"
     target_node_admin_ips:
-      - 192.168.1.50
-      - 192.168.1.51
+      - 172.16.1.50
+      - 172.16.1.51
   roles:
     - role: verify_phone_home
 ```

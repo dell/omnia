@@ -24,16 +24,16 @@
   "success_count": 8,
   "failed_nodes": [
     {
-      "bmc_ip": "100.10.0.73",
-      "admin_ip": "192.168.1.50",
+      "bmc_ip": "172.16.0.73",
+      "admin_ip": "172.16.1.50",
       "hostname": "node01",
       "service_tag": "ABC1234",
       "failure_stage": "pxe_boot",
       "error_message": "iDRAC unreachable"
     },
     {
-      "bmc_ip": "100.10.0.74",
-      "admin_ip": "192.168.1.51",
+      "bmc_ip": "172.16.0.74",
+      "admin_ip": "172.16.1.51",
       "hostname": "node02",
       "service_tag": "XYZ5678",
       "failure_stage": "phone_home",
