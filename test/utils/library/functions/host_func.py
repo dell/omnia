@@ -253,9 +253,8 @@ def get_utils_output_path(host) -> str:
         str: The output path or empty string on failure.
     """
     try:
-        env = read_remote_env(host)
-        data_path = env.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
-        project = env.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+        data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
         # Output is directly in the collect directory (timestamped subdirectories are handled separately)
         return f"{data_path}/{DOMAIN_NAME}/output/{project}/collect"
     except Exception:

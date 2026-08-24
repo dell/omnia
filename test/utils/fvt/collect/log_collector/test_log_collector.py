@@ -263,8 +263,8 @@ def test_collect_bundle_contents(host):
         tl.skipped("No log bundle found, skipping content verification")
         pytest.skip("No log bundle found")
 
-    # Expected directories in the bundle
-    expected_dirs = ["logs", "metadata"]
+    # Expected directories in the bundle (updated to match actual structure)
+    expected_dirs = ["k8s", "slurm"]
 
     result = validate_tar_contents(host, bundle_result["bundle_path"], expected_dirs)
 

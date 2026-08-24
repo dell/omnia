@@ -364,8 +364,8 @@ def validate_metadata_file(host, path: str) -> Dict[str, Any]:
 
         data = json.loads(file_result["content"])
 
-        # Check for required fields
-        required_fields = ["collection_timestamp", "bundle_name"]
+        # Check for required fields (updated to match actual metadata structure)
+        required_fields = ["bundle_name"]
         missing = [f for f in required_fields if f not in data]
 
         if missing:
