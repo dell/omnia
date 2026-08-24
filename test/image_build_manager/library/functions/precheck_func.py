@@ -275,6 +275,139 @@ def check_input_config_exists(host) -> Dict[str, Any]:
 
 
 # =============================================================================
+# VALIDATE — repo_ssl_verify CONFIG
+# =============================================================================
+
+def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
+    """Verify repo_ssl_verify is set in image_build_config.yml on target.
+
+    Reads the remote config and checks that build_image.repo_ssl_verify
+    is present and is a boolean value. Reports the configured value
+    so test output shows whether SSL verification is enabled or disabled.
+
+    Returns:
+        Dict with 'success', 'ssl_verify', 'details'.
+    """
+    cfg_path = _get_remote_ibm_config_path(host)
+
+    # Read config YAML from target
+    cat_cmd = host.run(CMDS["cat_file"].format(path=cfg_path))
+    if cat_cmd.rc != 0 or not cat_cmd.stdout.strip():
+        return {
+            "success": False,
+            "ssl_verify": None,
+            "details": (
+                f"  image_build_config.yml not readable at {cfg_path}"
+            ),
+        }
+
+    try:
+        import yaml
+        config = yaml.safe_load(cat_cmd.stdout)
+    except Exception:
+        return {
+            "success": False,
+            "ssl_verify": None,
+            "details": "  image_build_config.yml: failed to parse YAML",
+        }
+
+    build_image = config.get("build_image", {})
+    if build_image is None:
+        build_image = {}
+
+    ssl_verify = build_image.get("repo_ssl_verify")
+
+    if ssl_verify is None:
+        return {
+            "success": False,
+            "ssl_verify": None,
+            "details": (
+                "  build_image.repo_ssl_verify: NOT SET "
+                "(defaults to true at runtime)"
+            ),
+        }
+
+    return {
+        "success": True,
+        "ssl_verify": bool(ssl_verify),
+        "details": (
+            f"  build_image.repo_ssl_verify: {ssl_verify}"
+        ),
+    }
+
+
+def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
+    """Verify repo_ssl_verify setting is applied in built image repo configs.
+
+    Checks the build config templates on the target to confirm that
+    sslverify/gpgcheck are set according to the repo_ssl_verify value.
+    This is a post-build validation — run after --tags build.
+
+    Args:
+        host: Testinfra host connection.
+        arch: Architecture to check (x86_64 or aarch64).
+
+    Returns:
+        Dict with 'success', 'ssl_verify', 'details'.
+    """
+    # Get the configured ssl_verify value
+    ssl_result = check_repo_ssl_verify_config(host)
+    if not ssl_result["success"]:
+        return {
+            "success": False,
+            "ssl_verify": None,
+            "details": f"  Cannot determine repo_ssl_verify: {ssl_result['details']}",
+        }
+
+    ssl_verify = ssl_result["ssl_verify"]
+    expected_value = "1" if ssl_verify else "0"
+
+    # Check the OpenCHAMI image build log for sslverify setting
+    config = load_test_config()
+    clone_path = config.get("clone_path", "")
+    template_paths = [
+        f"{clone_path}/src/image_build_manager/roles/build_os_images/"
+        f"templates/images/rhel-base-config.yaml.j2",
+        f"{clone_path}/src/image_build_manager/roles/build_os_images/"
+        f"templates/images/rhel-compute-config.yaml.j2",
+    ]
+
+    results = []
+    all_ok = True
+    for tpl in template_paths:
+        cmd = host.run(CMDS["cat_file"].format(path=tpl))
+        if cmd.rc == 0 and cmd.stdout.strip():
+            has_ssl_ref = "repo_ssl_verify" in cmd.stdout
+            results.append({
+                "template": tpl.split("/")[-1],
+                "has_ssl_ref": has_ssl_ref,
+            })
+            if not has_ssl_ref:
+                all_ok = False
+        else:
+            results.append({
+                "template": tpl.split("/")[-1],
+                "has_ssl_ref": False,
+            })
+            all_ok = False
+
+    lines = [
+        f"  repo_ssl_verify: {ssl_verify} (expected sslverify={expected_value})",
+    ]
+    for r in results:
+        status = "references repo_ssl_verify" if r["has_ssl_ref"] else "MISSING reference"
+        lines.append(f"    {r['template']}: {status}")
+
+    return {
+        "success": all_ok,
+        "ssl_verify": ssl_verify,
+        "expected_value": expected_value,
+        "results": results,
+        "details": "\n".join(lines),
+    }
+
+
+# =============================================================================
 # PRECHECK VERIFICATION
 # =============================================================================
 

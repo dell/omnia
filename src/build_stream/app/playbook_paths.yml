@@ -47,5 +47,11 @@ playbook_paths:
   image_build_manager.yml: "image_build_manager/playbooks/image_build_manager.yml"
 
   # --- Discovery / Provisioning playbooks ---
-  discovery.yml: "discovery/playbooks/discovery.yml"
-  provision.yml: "discovery/playbooks/provision.yml"
+  discovery.yml: "/omnia/discovery/playbooks/discovery.yml"
+  provision.yml: "/omnia/provision/provision.yml"
+
+  # --- Local Repository playbook ---
+  local_repo.yml: "/omnia/local_repo/local_repo.yml"
+
+  # --- Utility playbooks ---
+  set_pxe_boot.yml: "/omnia/utils/set_pxe_boot.yml"

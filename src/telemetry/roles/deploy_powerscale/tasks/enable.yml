@@ -26,16 +26,26 @@
 #   - Loads CSI PowerScale credentials from vault
 #   - Downloads offline dependencies (karavi-observability, cert-manager) from Pulp
 #   - Copies user-provided values file to NFS share
-#   - Actual helm install happens during cloud-init on control plane node
+#   - Installs karavi-observability Helm chart (CSM Metrics + OTEL Collector)
+#   - Patches OTEL Collector service for vmagent scrape discovery
 #
 # What Omnia does NOT do:
 #   - Omnia does NOT deploy or configure PowerScale itself
 
 - name: Set PowerScale configuration facts
   ansible.builtin.set_fact:
-    ps_csi_secret_path: "{{ hostvars['localhost']['service_cluster_info'].csi_powerscale_driver_secret_file_path | default('') }}"
+    ps_csi_secret_path: >-
+      {{ telemetry_config.powerscale_configurations.csi_powerscale_secret_path
+         | default(hostvars['localhost']['service_cluster_info'].csi_powerscale_driver_secret_file_path | default(''))
+      }}
     ps_helm_values_file: "{{ telemetry_config.powerscale_configurations.csm_observability_values_file_path }}"
     csm_observability_namespace: "{{ csm_namespace }}"
+
+- name: Validate CSI PowerScale secret path
+  ansible.builtin.assert:
+    that:
+      - ps_csi_secret_path | trim | length > 0
+    fail_msg: "{{ ps_csi_secret_path_missing_msg }}"
 
 - name: Validate user-provided Helm values file path
   ansible.builtin.assert:
@@ -116,7 +126,6 @@
     verbosity: 2
 
 # --- Copy user-provided values file to NFS share ---
-# Actual helm install happens in cloud-init during PXE boot.
 
 - name: Create karavi-observability directory on NFS share
   ansible.builtin.file:
@@ -134,6 +143,16 @@
   ansible.builtin.debug:
     msg: "{{ ps_telemetry_prepared_msg }}"
     verbosity: 2
+
+# --- Download offline dependencies from Pulp ---
+
+- name: Download karavi-observability offline dependencies
+  ansible.builtin.include_tasks: get_powerscale_telemetry_dependencies.yml
+
+# --- Deploy karavi-observability Helm chart ---
+
+- name: Deploy karavi-observability via Helm
+  ansible.builtin.include_tasks: helm_install_karavi.yml
 
 # --- Generate PowerScale deployment manifests ---
 

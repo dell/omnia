@@ -10,7 +10,7 @@ all:
           ansible_user: root
           ansible_host: {{ kube_vip }}
 {% for group_name in k8s_functional_groups %}
-{% set group_nodes = nodes | selectattr('value.FUNCTIONAL_GROUP_NAME', 'equalto', group_name) | list %}
+{% set group_nodes = mapping_nodes_var | selectattr('value.FUNCTIONAL_GROUP_NAME', 'equalto', group_name) | list %}
 {% if group_nodes | length > 0 %}
     {{ group_name }}:
       hosts:

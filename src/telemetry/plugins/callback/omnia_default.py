@@ -145,8 +145,9 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
             color = getattr(C, "COLOR_ERROR", "red")
 
             if delegated_vars:
+                delegated_host = delegated_vars.get('ansible_host', delegated_vars.get('inventory_hostname', 'delegated_host'))
                 self._display.display(
-                    f"fatal: [{host_name} -> {delegated_vars['ansible_host']}]: FAILED! => {formatted}",
+                    f"fatal: [{host_name} -> {delegated_host}]: FAILED! => {formatted}",
                     color=color,
                     stderr=stderr_opt,
                 )

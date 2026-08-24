@@ -42,7 +42,7 @@ deployment_timeout: 3600
     - role: iso_delivery
       vars:
         iso_custom_path: "/opt/isos/rhel-10.0-custom.iso"
-        target_node_bmc_ip: "192.168.1.100"
+        target_node_bmc_ip: "172.16.0.100"
         bmc_username: "{{ vault_bmc_username }}"
         bmc_password: "{{ vault_bmc_password }}"
 ```

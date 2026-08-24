@@ -35,7 +35,7 @@ import os
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.omnia.orchestrator.plugins.module_utils.orchestrator_validation.orchestrator_validation_flow import (
+from ansible.module_utils.orchestrator_validation.orchestrator_validation_flow import (
     validate_orchestrator_config_l2,
     validate_network_spec,
 )
@@ -60,7 +60,7 @@ options:
 
 EXAMPLES = r'''
 - name: Validate orchestrator configuration files
-  omnia.orchestrator.validate_orchestrator_config:
+  validate_orchestrator_config:
     input_project_dir: /opt/omnia/input/project_default
     schema_dir: "{{ role_path }}/../../plugins/module_utils/input_validation/schema"
   register: validation_result

@@ -1,0 +1,159 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Telemetry Stack Deployment Entry Point
+# =============================================================================
+#
+# Usage:
+#   cd src/telemetry && ansible-playbook playbooks/telemetry.yml --tags <tag>
+#   ./omnia.sh -r telemetry --tags <tag>
+#
+# Tags (pick ONE — mutually exclusive):
+#   (none)     — Default flow: validate + deploy
+#   precheck   — Validate environment prerequisites (opt-in only)
+#   validate   — Input validation only (alias: validation)
+#   execute    — Deploy all enabled telemetry (alias: deploy)
+#   cleanup    — Cleanup all telemetry components
+#   upgrade    — Upgrade telemetry components (placeholder)
+#   rollback   — Rollback telemetry components (placeholder)
+#
+# Granular cleanup tags (opt-in — requires explicit --tags):
+#   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
+#   cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
+#   cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm
+#
+# Internal steps (always):
+#   Step 0: Setup — load env vars (omnia.env), validate host, derive paths, create dirs
+#
+# Default flow (no tags):
+#   Step 1: Input validation (L1 schema + L2 logic)
+#   Step 2: Full deployment (prerequisites + sinks + sources + kustomize apply)
+#
+# Tag safety:
+#   - cleanup, precheck, upgrade, rollback use 'never' tag — NEVER run by default
+#   - Only --tags cleanup (or granular cleanup_*) triggers cleanup
+#   - Running without tags is SAFE: validates, then deploys
+#
+# Configuration:
+#   telemetry_config.yml → kube_vip, sources, sinks, credentials
+#   Only sources with metrics_enabled: true are deployed.
+#   All K8s tasks execute on the kube_vip host via SSH.
+# =============================================================================
+
+# =========================================================================
+# Step 0: Setup — load env vars (omnia.env), derive paths, create dirs
+# =========================================================================
+- name: Telemetry setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - telemetry_setup
+
+# =========================================================================
+# Step 1: Input validation (always runs in default flow)
+# =========================================================================
+- name: "Validation | Validate telemetry input files"
+  ansible.builtin.import_playbook: validate/validation.yml
+  tags: [validate, validation]
+
+# =========================================================================
+# Step 2: Deploy — Full telemetry deployment (default flow)
+# =========================================================================
+- name: "Execute | Deploy all telemetry sources"
+  ansible.builtin.import_playbook: deploy/deploy.yml
+  tags: [execute, deploy]
+
+# =========================================================================
+# FLOW: precheck — Environment validation (opt-in only)
+# =========================================================================
+- name: "Precheck | Validate telemetry prerequisites"
+  ansible.builtin.import_playbook: precheck/precheck.yml
+  tags:
+    # - never
+    - precheck
+
+# =========================================================================
+# FLOW: cleanup — Remove telemetry components (opt-in only)
+# =========================================================================
+# Each source has its own tag (cleanup_idrac, cleanup_ome, etc.).
+# --tags cleanup runs ALL cleanups (sources + sinks).
+# Individual source tags (cleanup_powerscale, etc.) clean only that source.
+# Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared infrastructure
+# and are ONLY cleaned with --tags cleanup (full cleanup).
+- name: "Cleanup | Remove telemetry components"
+  ansible.builtin.import_playbook: cleanup/cleanup.yml
+  tags:
+    - never
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_dcgm
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_sfm
+
+# =========================================================================
+# FLOW: upgrade — Upgrade telemetry (opt-in only, placeholder)
+# =========================================================================
+- name: "Upgrade | Upgrade telemetry components"
+  ansible.builtin.import_playbook: upgrade/upgrade.yml
+  tags:
+    - never
+    - upgrade
+
+# =========================================================================
+# FLOW: rollback — Rollback telemetry (opt-in only, placeholder)
+# =========================================================================
+- name: "Rollback | Rollback telemetry components"
+  ansible.builtin.import_playbook: rollback/rollback.yml
+  tags:
+    - never
+    - rollback
+
+# =========================================================================
+# UTILITY: external_kafka — Fetch Kafka connection details (opt-in only)
+# =========================================================================
+- name: "Utility | Fetch external Kafka connection details"
+  ansible.builtin.import_playbook: utils/external_kafka_connect.yml
+  tags:
+    - never
+    - external_kafka
+
+# ---------------------------------------------------------------------------
+# Summary — Display telemetry status file location
+# ---------------------------------------------------------------------------
+- name: "Summary | Display telemetry deployment status location"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../roles/common/vars/main.yml
+  tags: [deploy, upgrade, rollback]
+  tasks:
+    - name: Display telemetry status file location
+      ansible.builtin.debug:
+        msg:
+          - "╔══════════════════════════════════════════════════════════════════════════╗"
+          - "║              TELEMETRY DEPLOYMENT STATUS                                 ║"
+          - "╚══════════════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Deployment status:"
+          - "  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/telemetry_status.yml"
+          - ""
+          - "╚══════════════════════════════════════════════════════════════════════════╝"

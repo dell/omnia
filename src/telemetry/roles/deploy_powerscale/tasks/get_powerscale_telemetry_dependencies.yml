@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Downloads karavi-observability git repos and cert-manager Helm chart
+# from Pulp local mirror to the NFS share for air-gapped deployment.
+
+- name: Set offline path variables from telemetry_packages
+  ansible.builtin.set_fact:
+    _offline_git_path: "{{ telemetry_packages_config.telemetry_packages.offline_git_path | default('') }}"
+    _offline_tarball_path: "{{ telemetry_packages_config.telemetry_packages.offline_tarball_path | default('') }}"
+    _karavi_obs_url: "{{ telemetry_packages_config.telemetry_packages.karavi_observability_git | default('') }}"
+    _karavi_helm_url: "{{ telemetry_packages_config.telemetry_packages.karavi_helm_charts_git | default('') }}"
+    _cert_manager_url: "{{ telemetry_packages_config.telemetry_packages.cert_manager_tarball | default('') }}"
+
+- name: Create karavi-observability directory on NFS share
+  ansible.builtin.file:
+    path: "{{ telemetry_deploy_dir }}/karavi-observability"
+    state: directory
+    mode: '0755'
+
+- name: Download karavi-observability git tar from Pulp
+  ansible.builtin.get_url:
+    url: "{{ _karavi_obs_url }}"
+    dest: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_observability_git }}"
+    mode: "{{ file_permissions_644 }}"
+  when: _karavi_obs_url | length > 0
+
+- name: Extract karavi-observability tar
+  ansible.builtin.unarchive:
+    src: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_observability_git }}"
+    dest: "{{ telemetry_deploy_dir }}/karavi-observability/"
+    remote_src: true
+  when: _karavi_obs_url | length > 0
+
+- name: Download dell/helm-charts git tar from Pulp
+  ansible.builtin.get_url:
+    url: "{{ _karavi_helm_url }}"
+    dest: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_helm_charts_git }}"
+    mode: "{{ file_permissions_644 }}"
+  when: _karavi_helm_url | length > 0
+
+- name: Extract dell/helm-charts tar
+  ansible.builtin.unarchive:
+    src: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_helm_charts_git }}"
+    dest: "{{ telemetry_deploy_dir }}/karavi-observability/"
+    remote_src: true
+  when: _karavi_helm_url | length > 0
+
+- name: Create charts/ directory for Helm dependencies
+  ansible.builtin.file:
+    path: "{{ karavi_helm_chart_path }}/charts"
+    state: directory
+    mode: '0755'
+
+- name: Download cert-manager Helm chart from Pulp
+  ansible.builtin.get_url:
+    url: "{{ _cert_manager_url }}"
+    dest: "{{ karavi_helm_chart_path }}/charts/cert-manager.tar.gz"
+    mode: "{{ file_permissions_644 }}"
+  when:
+    - _cert_manager_url | length > 0
+    - user_helm_values['cert-manager']['enabled'] | default(false) | bool
+
+- name: Extract cert-manager Helm chart
+  ansible.builtin.unarchive:
+    src: "{{ karavi_helm_chart_path }}/charts/cert-manager.tar.gz"
+    dest: "{{ karavi_helm_chart_path }}/charts/"
+    remote_src: true
+  when:
+    - _cert_manager_url | length > 0
+    - user_helm_values['cert-manager']['enabled'] | default(false) | bool
+
+- name: Remove cert-manager archive after extraction
+  ansible.builtin.file:
+    path: "{{ karavi_helm_chart_path }}/charts/cert-manager.tar.gz"
+    state: absent

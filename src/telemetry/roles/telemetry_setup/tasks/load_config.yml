@@ -13,22 +13,109 @@
 # limitations under the License.
 ---
 # =============================================================================
-# LOAD TELEMETRY CONFIGURATION
+# LOAD TELEMETRY CONFIGURATION FROM ENVIRONMENT (omnia.env)
 # =============================================================================
-# Loads and validates that all required telemetry input files exist.
+# Reads environment variables (sourced from omnia.env) and derives all paths.
+# Pattern: matches image_build_setup/load_config.yml
+#
+# Required env vars: OMNIA_DATA_PATH, SYSTEM_ADMIN_NIC_IPV4,
+#                    SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME
+# Optional env vars: OMNIA_PROJECT_NAME, OMNIA_VENV_PATH,
+#                    OMNIA_VERSION, TELEMETRY_DATA_PATH
 # =============================================================================
 
+# --- Resolve domain root directory (works from any playbook location) ---
+- name: Set domain root directory
+  ansible.builtin.set_fact:
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
+    cacheable: true
+
+# --- Resolve configuration from environment variables ---
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    omnia_version: "{{ lookup('env', 'OMNIA_VERSION') | default('', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+    host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
+    domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
+    omnia_venv_path: "{{ lookup('env', 'OMNIA_VENV_PATH') | default('/opt/omnia/venv', true) }}"
+    cacheable: true
+
+- name: Display resolved environment
+  ansible.builtin.debug:
+    msg:
+      - "OMNIA_DATA_PATH: {{ omnia_data_path }}"
+      - "OMNIA_PROJECT_NAME: {{ project_name }}"
+      - "SYSTEM_ADMIN_NIC_IPV4: {{ admin_nic_ip }}"
+      - "SYSTEM_HOSTNAME: {{ host_name }}"
+      - "SYSTEM_DOMAIN_NAME: {{ domain_name }}"
+      - "OMNIA_VENV_PATH: {{ omnia_venv_path }}"
+      - "OMNIA_VERSION: {{ omnia_version }}"
+    verbosity: 1
+
+# --- Set all derived paths in a single set_fact ---
+- name: Set project dirs and derived paths
+  vars:
+    _telemetry_data_path: "{{ lookup('env', 'TELEMETRY_DATA_PATH') | default(omnia_data_path + '/telemetry', true) }}"
+  ansible.builtin.set_fact:
+    telemetry_data_path: "{{ _telemetry_data_path }}"
+    input_project_dir: "{{ _telemetry_data_path }}/input/{{ project_name }}"
+    input_source_dir: "{{ _domain_root_dir }}/input/{{ project_name }}"
+    output_project_dir: "{{ _telemetry_data_path }}/output/{{ project_name }}"
+    log_dir: "{{ _telemetry_data_path }}/log/{{ project_name }}"
+    telemetry_log_dir: "/var/log/omnia/telemetry"
+    oim_node_name: "{{ host_name }}"
+    cacheable: true
+
+# --- Verify and auto-copy input files ---
+- name: Verify project input directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: _project_dir_check
+
+- name: Auto-copy input files from source if runtime input dir is missing
+  when: not _project_dir_check.stat.exists
+  block:
+    - name: Check if source input directory exists
+      ansible.builtin.stat:
+        path: "{{ input_source_dir }}"
+      register: _source_dir_check
+
+    - name: Copy input files from source to runtime directory
+      when: _source_dir_check.stat.exists
+      ansible.builtin.command:
+        cmd: "cp -a {{ input_source_dir }}/. {{ input_project_dir }}/"
+      args:
+        creates: "{{ input_project_dir }}"
+      become: true
+
+    - name: Create runtime input directory if no source available
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}"
+        state: directory
+        mode: '0755'
+      become: true
+      when: not _source_dir_check.stat.exists
+
+    - name: Fail if no input files available
+      ansible.builtin.fail:
+        msg: >-
+          No telemetry input files found. Expected at:
+            Runtime: {{ input_project_dir }}
+            Source:  {{ input_source_dir }}
+          Run domain-init.sh or copy input files before executing.
+      when: not _source_dir_check.stat.exists
+
+# --- Validate telemetry_config.yml exists ---
 - name: Check telemetry_config.yml exists
   ansible.builtin.stat:
-    path: "{{ telemetry_config_file }}"
+    path: "{{ input_project_dir }}/telemetry_config.yml"
   register: telemetry_config_stat
 
 - name: Fail if telemetry_config.yml is missing
   ansible.builtin.fail:
-    msg: "{{ telemetry_config_missing_msg }}"
+    msg: >-
+      telemetry_config.yml not found at {{ input_project_dir }}/telemetry_config.yml.
+      Run domain-init.sh or copy input files to {{ input_project_dir }}/ before executing.
   when: not telemetry_config_stat.stat.exists
-
-- name: Load telemetry configuration
-  ansible.builtin.include_vars:
-    file: "{{ telemetry_config_file }}"
-    name: telemetry_config

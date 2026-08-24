@@ -1,0 +1,168 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Deploy telemetry components
+# Usage: ansible-playbook telemetry.yml --tags deploy
+# This playbook orchestrates deployment of all enabled telemetry components
+#
+# Execution order:
+#   Phase 0: Prerequisites — load config, derive flags, resolve kube_vip
+#   Phase 1: Sink infrastructure (Kafka, VictoriaMetrics, VictoriaLogs)
+#   Phase 2: Source manifest generation (each source renders to deployments/<component>/)
+#   Phase 3: Root kustomization + shared manifests generation
+#   Phase 4: Full-stack kustomize apply (kubectl apply -k deployments/)
+
+# ── Phase 0: Prerequisites ───────────────────────────────────────────────────
+- name: "Phase 0 | Load telemetry prerequisites"
+  ansible.builtin.import_playbook: telemetry_prereq.yml
+  tags: deploy
+
+# ── Phase 1: Sink infrastructure ─────────────────────────────────────────────
+# Deploy Kafka, VictoriaMetrics, VictoriaLogs based on config-derived flags.
+- name: "Phase 1 | Deploy telemetry sinks"
+  ansible.builtin.import_playbook: sinks/deploy_sinks.yml
+  tags: deploy
+
+# ── Phase 2: Source manifest generation ───────────────────────────────────────
+# Each source playbook: installs operators if needed, generates manifests
+- name: "Phase 2 | Deploy iDRAC telemetry"
+  ansible.builtin.import_playbook: sources/deploy_idrac_telemetry.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy LDMS telemetry"
+  ansible.builtin.import_playbook: sources/deploy_ldms.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy PowerScale telemetry"
+  ansible.builtin.import_playbook: sources/deploy_powerscale.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy UFM telemetry"
+  ansible.builtin.import_playbook: sources/deploy_ufm.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy VAST telemetry"
+  ansible.builtin.import_playbook: sources/deploy_vast.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.vast.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy OME telemetry"
+  ansible.builtin.import_playbook: sources/deploy_ome.yml
+  tags: deploy
+  when: >-
+    hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
+    hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy DCGM telemetry"
+  ansible.builtin.import_playbook: sources/deploy_dcgm.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.dcgm.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy SFM telemetry"
+  ansible.builtin.import_playbook: sources/deploy_sfm.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.sfm.metrics_enabled | default(false) | bool
+
+# ── Phase 3 & 4: Generate root kustomization + full-stack apply ──────────────
+- name: "Generate root kustomization and apply full-stack deployment"
+  hosts: kube_vip_group
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../../roles/common/vars/main.yml
+  tags: deploy
+  tasks:
+    - name: Generate root kustomization.yaml
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: generate_root_kustomization
+
+    - name: Apply full-stack kustomization
+      ansible.builtin.command: >
+        kubectl apply -k {{ telemetry_deployments_dir }}/
+      register: fullstack_kustomize_result
+      changed_when: >
+        'created' in fullstack_kustomize_result.stdout
+        or 'configured' in fullstack_kustomize_result.stdout
+
+    - name: Log full-stack apply result
+      ansible.builtin.debug:
+        msg: "Full-stack kustomize apply result: {{ fullstack_kustomize_result.stdout_lines | default([]) }}"
+
+    - name: Wait for newly created pods to be scheduled
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Wait for all telemetry pods to reach Ready state
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          kubectl get pods -n {{ telemetry_namespace }} --no-headers \
+            --field-selector=status.phase!=Succeeded \
+            -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
+            | xargs -I {} kubectl wait pod/{} -n {{ telemetry_namespace }} \
+              --for=condition=Ready --timeout=300s 2>&1 || true
+        executable: /bin/bash
+      register: pod_wait_result
+      changed_when: false
+      failed_when: false
+
+    - name: Display pod stabilization result
+      ansible.builtin.debug:
+        msg: "All telemetry pods have been checked for Ready state"
+        verbosity: 1
+
+    - name: Collect pod status in telemetry namespace
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} --no-headers
+      register: telemetry_pods
+      changed_when: false
+
+    - name: Check for pods in error state
+      ansible.builtin.set_fact:
+        failed_pods: >-
+          {{ telemetry_pods.stdout_lines | default([])
+             | select('search', 'CrashLoopBackOff|Error|ImagePullBackOff|ErrImagePull|InvalidImageName|CreateContainerConfigError')
+             | list }}
+
+    - name: Display telemetry pod status
+      ansible.builtin.debug:
+        msg: "{{ telemetry_pods.stdout_lines | default(['No pods found']) }}"
+
+    - name: Fail if pods are in error state
+      ansible.builtin.fail:
+        msg: >-
+          Telemetry deployment verification failed. The following pods are in error state:
+          {{ failed_pods | join('\n') }}
+          Check pod logs with: kubectl logs -n {{ telemetry_namespace }} <pod-name>
+      when: failed_pods | length > 0
+
+# ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────
+- name: "Write telemetry deployment status"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - ../../roles/common/vars/main.yml
+  tags: deploy
+  tasks:
+    - name: Write telemetry_status.yml
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: write_telemetry_status

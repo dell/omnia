@@ -41,7 +41,7 @@ options:
 
 EXAMPLES = r'''
 - name: Generate functional groups from mapping file
-  omnia.orchestrator.generate_functional_groups:
+  generate_functional_groups:
     mapping_file_path: /opt/omnia/input/project_default/pxe_mapping_file.csv
     functional_groups_file_path: /opt/omnia/.data/functional_groups_config.yml
     omnia_config_path: /opt/omnia/input/project_default/omnia_config.yml

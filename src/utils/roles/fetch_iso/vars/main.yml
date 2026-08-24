@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# OMNIA_DATA_PATH with fallback
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
 # Default values
 # These are overridden by extra vars or set_fact from the calling playbook.
-iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
-iso_target_directory: "/opt/omnia/iso_output"
+iso_source_path: "{{ omnia_data_path }}/rhel_10.0_aarch64.iso"
+iso_target_directory: "{{ omnia_data_path }}/iso_output"
 
 # Required ISO tooling
 required_iso_tools:

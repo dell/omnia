@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Container image
+omnia_auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
+omnia_auth_tag: "1.1"
+omnia_auth_container_name: "omnia_auth"
+
+# Directory paths
+auth_base_dir: "/opt/omnia/auth"
+auth_config_dir: "{{ auth_base_dir }}/config"
+auth_certs_dir: "{{ auth_base_dir }}/tls_certs"
+auth_data_dir: "{{ auth_base_dir }}/data"
+auth_init_dir: "{{ auth_base_dir }}/init"
+
+# Quadlet directory for systemd container units
+quadlet_dir: "/etc/containers/systemd"
+
+# OpenLDAP ports
+ldap_port: 389
+ldaps_port: 636
+
+# TLS certificate settings
+tls_cert_days: 3650
+tls_key_bits: 4096
+tls_cert_file: "ldapserver.crt"
+tls_key_file: "ldapserver.key"
+
+# Image pull settings
+pull_retries: 3
+pull_delay: 10
+
+# Service readiness
+healthcheck_retries: 10
+healthcheck_delay: 5
+
+# Error messages
+deploy_openldap_fail_msg: "Failed to deploy OpenLDAP container. Check the logs for details."
+credentials_missing_msg: "OpenLDAP credentials (openldap_db_username, openldap_db_password) are required. Run orchestrator.yml to be prompted for credentials."

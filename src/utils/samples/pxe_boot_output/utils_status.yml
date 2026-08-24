@@ -1,0 +1,25 @@
+# Sample utils_status.yml output
+# This file is written by utils_status_writer role after playbook execution
+# Location: <OMNIA_DATA_PATH>/utils/utils_status.yml
+---
+domain: utils
+status: partial
+playbook: set_pxe_boot.yml
+execution_start_time: "2026-08-21T10:00:00Z"
+execution_end_time: "2026-08-21T10:30:00Z"
+role_results:
+  - role: utils_setup
+    status: success
+  - role: collect_pxe_credentials
+    status: success
+  - role: idrac_pxe_boot
+    status: success
+    nodes_processed: 10
+    nodes_failed: 2
+  - role: verify_phone_home
+    status: partial
+    nodes_verified: 8
+    nodes_timeout: 2
+errors: []
+warnings:
+  - "2 nodes did not complete phone-home verification"

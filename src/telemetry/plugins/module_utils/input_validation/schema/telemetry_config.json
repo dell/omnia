@@ -4,11 +4,11 @@
   "description": "Three-layer telemetry configuration: Sources → Bridges → Sinks, with source-specific configurations.",
   "type": "object",
   "properties": {
-    "kube_vip": {
+    "cluster_inventory": {
       "type": "string",
       "minLength": 1,
-      "description": "Kubernetes control plane virtual IP address (IPv4). Required for all telemetry K8s operations.",
-      "errorMessage": "kube_vip is required and must be a non-empty IPv4 address (e.g., '10.0.0.1')."
+      "description": "Path to Ansible inventory file for telemetry deployment. Must contain kube_vip_group with the Kubernetes control plane VIP. Required for LDMS Slurm node discovery and K8s cluster validation.",
+      "errorMessage": "cluster_inventory is required and must be a non-empty file path (e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml')."
     },
     "telemetry_sources": {
       "type": "object",
@@ -486,9 +486,13 @@
         "csm_observability_values_file_path": {
           "type": "string",
           "description": "Path to the CSM Observability (Karavi) values.yaml file."
+        },
+        "csi_powerscale_secret_path": {
+          "type": "string",
+          "description": "Path to the CSI PowerScale driver secret YAML file. Required when PowerScale telemetry is enabled."
         }
       },
-      "required": ["otel_collector_storage_size", "csm_observability_values_file_path"]
+      "required": ["otel_collector_storage_size", "csm_observability_values_file_path", "csi_powerscale_secret_path"]
     },
     "ufm_configuration": {
       "type": "object",
@@ -590,5 +594,5 @@
       "required": []
     }
   },
-  "required": ["kube_vip", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
+  "required": ["cluster_inventory", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
 }

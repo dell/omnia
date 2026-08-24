@@ -13,15 +13,11 @@
 # limitations under the License.
 ---
 
-# Paths — relative to telemetry repo root
-telemetry_repo_root: "{{ playbook_dir }}/.."
-telemetry_input_dir: "{{ telemetry_repo_root }}/input"
-telemetry_output_dir: "{{ telemetry_repo_root }}/output"
+# Paths — derived from telemetry_setup role (Step 0, tags: always)
+# input_project_dir, output_project_dir, and telemetry_data_path are set by telemetry_setup.
+# telemetry_config_file and telemetry_storage_config_file are defined in common/vars/main.yml.
+telemetry_output_dir: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}"
 telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
-
-# Input files
-telemetry_config_file: "{{ telemetry_input_dir }}/telemetry_config.yml"
-telemetry_storage_config_file: "{{ telemetry_input_dir }}/telemetry_storage_config.yml"
 
 # Namespace
 telemetry_namespace: "telemetry"
@@ -50,11 +46,13 @@ mysqldb_container_port1: 3306
 mysqldb_container_port2: 33060
 
 # telemetry_registry is already set by load_telemetry_config
-idrac_telemetry_receiver_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.idrac_telemetry_receiver | default('dellhpcomniaaisolution/idrac_telemetry_receiver:1.3') }}{% else %}docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.3{% endif %}"  # noqa: yaml[line-length]
-kafkapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.kafkapump | default('dellhpcomniaaisolution/kafkapump:1.3') }}{% else %}docker.io/dellhpcomniaaisolution/kafkapump:1.3{% endif %}"  # noqa: yaml[line-length]
-victoriapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.victoriapump | default('dellhpcomniaaisolution/victoriapump:1.3') }}{% else %}docker.io/dellhpcomniaaisolution/victoriapump:1.3{% endif %}"  # noqa: yaml[line-length]
-activemq_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.activemq | default('apache/activemq:5.19.7') }}{% else %}docker.io/apache/activemq:5.19.7{% endif %}"  # noqa: yaml[line-length]
-mysql_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ telemetry_registry.images.idrac.mysql | default('library/mysql:9.3.0') }}{% else %}docker.io/library/mysql:9.3.0{% endif %}"  # noqa: yaml[line-length]
+# Note: When a private registry host is set, strip the 'docker.io/' prefix from image names
+# since private registries store images without the docker.io prefix.
+idrac_telemetry_receiver_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ (telemetry_registry.images.idrac.telemetry_receiver | default('dellhpcomniaaisolution/idrac_telemetry_receiver:1.3')) | regex_replace('^docker\\.io/', '') }}{% else %}{{ telemetry_registry.images.idrac.telemetry_receiver | default('docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.3') }}{% endif %}"  # noqa: yaml[line-length]
+kafkapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ (telemetry_registry.images.idrac.kafka_pump | default('dellhpcomniaaisolution/kafkapump:1.3')) | regex_replace('^docker\\.io/', '') }}{% else %}{{ telemetry_registry.images.idrac.kafka_pump | default('docker.io/dellhpcomniaaisolution/kafkapump:1.3') }}{% endif %}"  # noqa: yaml[line-length]
+victoriapump_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ (telemetry_registry.images.idrac.victoria_pump | default('dellhpcomniaaisolution/victoriapump:1.3')) | regex_replace('^docker\\.io/', '') }}{% else %}{{ telemetry_registry.images.idrac.victoria_pump | default('docker.io/dellhpcomniaaisolution/victoriapump:1.3') }}{% endif %}"  # noqa: yaml[line-length]
+activemq_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ (telemetry_registry.images.idrac.activemq | default('apache/activemq:6.3.0')) | regex_replace('^docker\\.io/', '') }}{% else %}{{ telemetry_registry.images.idrac.activemq | default('docker.io/apache/activemq:6.3.0') }}{% endif %}"  # noqa: yaml[line-length]
+mysql_image: "{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ (telemetry_registry.images.idrac.mysql | default('library/mysql:9.7.2')) | regex_replace('^docker\\.io/', '') }}{% else %}{{ telemetry_registry.images.idrac.mysql | default('docker.io/library/mysql:9.7.2') }}{% endif %}"  # noqa: yaml[line-length]
 
 # ActiveMQ ports
 activemq_http_port_1: 8161
@@ -116,10 +114,10 @@ min_firmware_version_reqd: 1
 waiting_time_30: 30
 
 # BMC group data file path
-bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
+bmc_group_data_filename: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/bmc_group_data.csv"
 
 # Telemetry report
-telemetry_report_path: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
+telemetry_report_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/idrac_telemetry_report.yml"
 telemetry_report_template: "telemetry_report.j2"
 telemetry_report: |
       ---- Telemetry Report Overview ----

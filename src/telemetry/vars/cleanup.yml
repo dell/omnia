@@ -1,0 +1,345 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Cleanup playbook — variables
+# =============================================================================
+
+telemetry_namespace: "telemetry"
+
+# Valid cleanup component tags (sources only — sinks are cleaned via --tags cleanup)
+valid_cleanup_components:
+  - cleanup_idrac
+  - cleanup_ldms
+  - cleanup_ome
+  - cleanup_powerscale
+  - cleanup_dcgm
+  - cleanup_ufm
+  - cleanup_vast
+  - cleanup_sfm
+
+# Timeouts
+cleanup_kafka_wait_timeout: "300s"
+cleanup_resource_grace_period: 0
+cleanup_helm_timeout: "5m"
+cleanup_post_delete_pause: 5
+
+# ---------------------------------------------------------------------------
+# Kafka cleanup resources
+# ---------------------------------------------------------------------------
+kafka_bridge_resources:
+  - { type: "kafkabridge", name: "bridge" }
+  - { type: "service", name: "bridge-bridge-service" }
+  - { type: "service", name: "bridge-bridge-lb" }
+  - { type: "deployment", name: "bridge-bridge" }
+
+kafka_user_resources:
+  - { type: "kafkauser", name: "kafkapump" }
+
+kafka_cluster_resources:
+  - { type: "kafka", name: "kafka" }
+
+kafka_nodepool_resources:
+  - { type: "kafkanodepool", name: "broker" }
+  - { type: "kafkanodepool", name: "controller" }
+
+kafka_secret_resources:
+  - "kafka-cluster-ca-cert"
+  - "kafka-cluster-ca"
+  - "kafka-clients-ca"
+  - "kafkapump"
+  - "kafka-secrets"
+  - "kafka-cluster-id"
+
+kafka_configmap_resources:
+  - "kafka-tls-test-script"
+
+kafka_job_resources:
+  - "kafka-tls-test"
+
+kafka_strimzi_helm_secret: "sh.helm.release.v1.strimzi-cluster-operator.v1"
+
+kafka_service_resources:
+  - "kafka-kafka-bootstrap"
+  - "kafka-kafka-brokers"
+  - "kafka-kafka-controllers"
+
+kafka_pvc_label: "strimzi.io/cluster=kafka"
+kafka_secret_label: "strimzi.io/cluster=kafka"
+kafka_pod_labels:
+  - "strimzi.io/cluster=kafka"
+  - "app.kubernetes.io/name=kafka-bridge"
+  - "app=kafka-tls-test"
+
+# ---------------------------------------------------------------------------
+# VictoriaMetrics cleanup resources
+# ---------------------------------------------------------------------------
+victoria_metrics:
+  crd_resources:
+    - { type: "vmcluster", name: "victoria-cluster" }
+  crd_all_resources:
+    - "vmagent"
+    - "vmpodscrape"
+    - "vmservicescrape"
+    - "vmsingle"
+  cluster_resources:
+    - { type: "deployment", name: "vmselect-victoria-cluster" }
+    - { type: "deployment", name: "vminsert-victoria-cluster" }
+    - { type: "statefulset", name: "vmstorage-victoria-cluster" }
+    - { type: "service", name: "vmselect-victoria-cluster" }
+    - { type: "service", name: "vminsert-victoria-cluster" }
+    - { type: "service", name: "vmstorage-victoria-cluster" }
+    - { type: "service", name: "vmagent-victoria-cluster" }
+  single_resources:
+    - { type: "statefulset", name: "victoria-metric" }
+    - { type: "service", name: "victoria-loadbalancer" }
+    - { type: "service", name: "victoria-metric" }
+  agent_resources:
+    - { type: "deployment", name: "vmagent" }
+    - { type: "service", name: "vmagent" }
+  shared_resources:
+    - { type: "configmap", name: "vmagent-config" }
+    - { type: "configmap", name: "vmagent-scrape-config" }
+    - { type: "configmap", name: "victoria-metric-config" }
+    - { type: "configmap", name: "victoria-tls-test-script" }
+    - { type: "serviceaccount", name: "vmagent" }
+    - { type: "role", name: "vmagent-sd" }
+    - { type: "rolebinding", name: "vmagent-sd-binding" }
+  # victoria-tls-certs is shared between VictoriaMetrics and VictoriaLogs.
+  # Only delete when cleaning VM. If VL is still running, VL cleanup keeps it.
+  tls_secret_resource:
+    - { type: "secret", name: "victoria-tls-certs" }
+  job_resources:
+    - "victoria-tls-test"
+  single_pvc:
+    - "victoria-metrics-pvc-victoria-metric-0"
+  pvc_labels:
+    - "app=victoria-metric"
+    - "app.kubernetes.io/instance=victoria-cluster"
+  # vmagent-vector write-buffer (used by vector-ldms to push metrics to VM)
+  # Cleaned with VM because it is the VM-side write adapter
+  vmagent_vector_resources:
+    - { type: "deployment", name: "vmagent-vector" }
+    - { type: "service", name: "vmagent-vector" }
+  pod_labels:
+    - "app=victoria-metric"
+    - "app.kubernetes.io/instance=victoria-cluster"
+    - "app.kubernetes.io/name=vmagent"
+    - "app=vmagent"
+    - "app=victoria-tls-test"
+    - "app=vmagent-vector"
+
+# ---------------------------------------------------------------------------
+# VictoriaLogs cleanup resources
+# ---------------------------------------------------------------------------
+victoria_logs:
+  crd_resources:
+    - { type: "vlcluster", name: "victoria-logs-cluster" }
+  crd_all_resources:
+    - "vlagent"
+  cluster_resources:
+    - { type: "deployment", name: "vlinsert-victoria-logs-cluster" }
+    - { type: "deployment", name: "vlselect-victoria-logs-cluster" }
+    - { type: "statefulset", name: "vlstorage-victoria-logs-cluster" }
+    - { type: "service", name: "vlinsert-victoria-logs-cluster" }
+    - { type: "service", name: "vlselect-victoria-logs-cluster" }
+    - { type: "service", name: "vlstorage-victoria-logs-cluster" }
+  agent_resources:
+    - { type: "statefulset", name: "vlagent-vlagent" }
+    - { type: "service", name: "vlagent-vlagent" }
+  shared_resources:
+    - { type: "configmap", name: "vlagent-config" }
+  pvc_labels:
+    - "app.kubernetes.io/name=vlstorage"
+    - "app.kubernetes.io/name=vlagent"
+  # Named PVCs for vlstorage and vlagent StatefulSets (0-9)
+  # vlagent PVC pattern is tmp-data-vlagent-vlagent-N (from VLAgent CR volumeClaimTemplate)
+  named_pvc_prefixes:
+    - "vlstorage-data-vlstorage-victoria-logs-cluster"
+    - "vlagent-data-vlagent-vlagent"
+    - "tmp-data-vlagent-vlagent"
+  # vlagent-vector log write-buffer (used by vector-ome to push logs to VL)
+  # Cleaned with VL because it is the VL-side write adapter
+  vlagent_vector_resources:
+    - { type: "deployment", name: "vlagent-vector" }
+    - { type: "service", name: "vlagent-vector" }
+  pod_labels:
+    - "app.kubernetes.io/component=vlinsert"
+    - "app.kubernetes.io/component=vlselect"
+    - "app.kubernetes.io/component=vlstorage"
+    - "app.kubernetes.io/name=vlagent"
+    - "app=vlagent-vector"
+
+# ---------------------------------------------------------------------------
+# iDRAC cleanup resources
+# ---------------------------------------------------------------------------
+idrac_resources:
+  - { type: "statefulset", name: "idrac-telemetry" }
+  - { type: "service", name: "idrac-telemetry-headless" }
+  - { type: "service", name: "idrac-telemetry-service" }
+  - { type: "configmap", name: "idrac-telemetry-config" }
+
+idrac_secret_resources:
+  - { type: "secret", name: "mysqldb-credentials" }
+
+idrac_configmap_label: "app=idrac-telemetry"
+idrac_pvc_label: "app=idrac-telemetry"
+idrac_pod_label: "app=idrac-telemetry"
+
+# ---------------------------------------------------------------------------
+# LDMS cleanup resources
+# ---------------------------------------------------------------------------
+ldms_helm_releases:
+  - "nersc-ldms-aggr"
+  - "nersc-ldms-store"
+
+ldms_statefulset_resources:
+  - "nersc-ldms-aggr"
+  - "nersc-ldms-store-slurm-cluster"
+  - "nersc-ldms-store-slurm-cluster-0"
+  - "nersc-ldms-aggr-0"
+
+ldms_service_resources:
+  - "nersc-ldms-aggr"
+  - "nersc-ldms-store"
+  - "nersc-ldms-store-slurm-cluster-0"
+  - "nersc-ldms-aggr-0"
+
+ldms_configmap_resources:
+  - "nersc-ldms-store-slurm-cluster-0-config"
+  - "nersc-ldms-aggr-0-config"
+
+ldms_secret_resources:
+  - { type: "secret", name: "nersc-ldms-ovis-auth" }
+  - { type: "secret", name: "nersc-munge-key" }
+
+ldms_configmap_label: "app=nersc-ldms"
+ldms_pvc_label: "app=nersc-ldms"
+ldms_pod_label: "app=nersc-ldms"
+
+# ---------------------------------------------------------------------------
+# Vector-LDMS resources (cleaned as part of LDMS cleanup)
+# ---------------------------------------------------------------------------
+# vector-ldms bridge connects LDMS → Kafka/VM. Cleaned when LDMS is cleaned.
+# Note: vmagent-vector (write-buffer to VM) is cleaned with VictoriaMetrics.
+vector_ldms_resources:
+  - { type: "deployment", name: "vector-ldms" }
+  - { type: "service", name: "vector-ldms" }
+  - { type: "configmap", name: "vector-ldms-config" }
+
+vector_ldms_pod_label: "app=vector-ldms"
+
+# ---------------------------------------------------------------------------
+# OME cleanup resources (includes Vector-OME bridge)
+# ---------------------------------------------------------------------------
+# vector-ome bridge connects OME → Kafka/VL. Cleaned when OME is cleaned.
+# Note: vlagent-vector (write-buffer to VL) is cleaned with VictoriaLogs.
+vector_ome_resources:
+  - { type: "deployment", name: "vector-ome" }
+  - { type: "service", name: "vector-ome" }
+  - { type: "configmap", name: "vector-ome-config" }
+  - { type: "kafkauser", name: "vector-ome" }
+
+vector_ome_pod_label: "app=vector-ome"
+
+# ---------------------------------------------------------------------------
+# PowerScale cleanup resources
+# ---------------------------------------------------------------------------
+powerscale_helm_release: "karavi-observability"
+
+powerscale_label_resources:
+  - { type: "deployment", label: "app.kubernetes.io/name=karavi-metrics-powerscale" }
+  - { type: "service", label: "app.kubernetes.io/name=karavi-metrics-powerscale" }
+  - { type: "configmap", label: "app.kubernetes.io/name=karavi-metrics-powerscale" }
+  - { type: "pod", label: "app.kubernetes.io/name=karavi-metrics-powerscale" }
+  - { type: "deployment", label: "app.kubernetes.io/name=otel-collector" }
+  - { type: "service", label: "app.kubernetes.io/name=otel-collector" }
+  - { type: "configmap", label: "app.kubernetes.io/name=otel-collector" }
+  - { type: "pod", label: "app.kubernetes.io/name=otel-collector" }
+
+powerscale_named_resources:
+  - { type: "vmservicescrape", name: "otel-collector-powerscale-scrape" }
+  - { type: "vmservicescrape", name: "otel-collector-powerscale" }
+  - { type: "configmap", name: "karavi-authorization-config" }
+  - { type: "secret", name: "karavi-authorization-ca-cert" }
+  - { type: "secret", name: "isilon-creds" }
+  - { type: "pvc", name: "otel-collector-data" }
+  # CSI Volume Exporter resources (deployed by deploy_powerscale role)
+  - { type: "deployment", name: "csi-volume-exporter" }
+  - { type: "service", name: "csi-volume-exporter" }
+  - { type: "serviceaccount", name: "csi-volume-exporter" }
+
+# CSI Volume Exporter cluster-scoped resources (not namespaced)
+powerscale_cluster_resources:
+  - { type: "clusterrole", name: "csi-volume-exporter" }
+  - { type: "clusterrolebinding", name: "csi-volume-exporter" }
+
+powerscale_pod_labels:
+  - "app.kubernetes.io/name=karavi-metrics-powerscale"
+  - "app.kubernetes.io/name=otel-collector"
+  - "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
+  - "app=csi-volume-exporter"
+
+# ---------------------------------------------------------------------------
+# DCGM cleanup resources
+# ---------------------------------------------------------------------------
+dcgm_resources:
+  - { type: "daemonset", name: "dcgm-exporter" }
+  - { type: "deployment", name: "dcgm-exporter" }
+  - { type: "service", name: "dcgm-exporter" }
+  - { type: "configmap", name: "dcgm-exporter-config" }
+
+dcgm_pod_label: "app=dcgm-exporter"
+
+# ---------------------------------------------------------------------------
+# UFM cleanup resources
+# ---------------------------------------------------------------------------
+ufm_resources:
+  - { type: "secret", name: "ufm-telemetry-credentials" }
+  - { type: "endpoints", name: "ufm-telemetry-external" }
+  - { type: "service", name: "ufm-telemetry-external" }
+  - { type: "vmservicescrape", name: "ufm-infiniband-metrics" }
+
+ufm_pod_label: "app=ufm-telemetry"
+
+# ---------------------------------------------------------------------------
+# VAST cleanup resources
+# ---------------------------------------------------------------------------
+vast_resources:
+  - { type: "secret", name: "vast-telemetry-credentials" }
+  - { type: "endpoints", name: "vast-telemetry-external" }
+  - { type: "service", name: "vast-telemetry-external" }
+  - { type: "vmservicescrape", name: "vast-storage-metrics" }
+
+vast_pod_label: "app=vast-telemetry"
+
+# ---------------------------------------------------------------------------
+# SFM cleanup resources
+# ---------------------------------------------------------------------------
+sfm_resources:
+  - { type: "deployment", name: "sfm-exporter" }
+  - { type: "service", name: "sfm-exporter" }
+  - { type: "configmap", name: "sfm-scrape-config" }
+
+sfm_pod_label: "app=sfm-telemetry"
+
+# ---------------------------------------------------------------------------
+# Victoria Operator cleanup (shared between VictoriaMetrics and VictoriaLogs)
+# ---------------------------------------------------------------------------
+# The victoria-metrics-operator manages both VM and VL CRDs.
+# It should only be deleted when neither VM nor VL workloads remain.
+victoria_operator_resources:
+  - { type: "deployment", name: "victoria-metrics-operator" }
+  - { type: "service", name: "victoria-metrics-operator" }

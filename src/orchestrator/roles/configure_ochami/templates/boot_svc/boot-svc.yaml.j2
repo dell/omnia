@@ -1,0 +1,15 @@
+---
+{% set s3_base_url = s3_configurations.endpoint_url %}
+{% set s3_use_https = s3_base_url.startswith('https') %}
+metadata:
+  name: "{{ functional_group_name }}"
+spec:
+  kernel: "{{ s3_base_url }}/{{ kernel }}"
+  initrd: "{{ s3_base_url }}/{{ initrd }}"
+  params: "nomodeset ro root=live:{{ s3_base_url }}/{{ image }} ip=dhcp rd.live.image rd.live.ram rd.neednet=1 {% if s3_use_https %}rd.noverifyssl {% endif %}rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 console=tty0 console=ttyS0,115200 selinux=0 apparmor=0 ip6=off {{ boot_svc_params_metadata_svc }}{% if boot_kernel_params | default('') | length > 0 %} {{ boot_kernel_params }}{% endif %}"
+  macs:
+{% for item in nodes %}
+{% if item.group == functional_group_name %}
+    - "{{ item.interfaces[0].mac_addr }}"
+{% endif %}
+{% endfor %}

@@ -26,14 +26,14 @@ s3_configurations:
 functional_group_images:
   - x86_64:
     - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../vmlinuz"
-      initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../initramfs.img"
-      image: "boot-images/slurm_control_node_x86_64/rhel-..."
+      kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../vmlinuz-<kernel-version>"
+      initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../initramfs-<kernel-version>.img"
+      image: "boot-images/slurm_control_node_x86_64/rhel-.../<rootfs-filename>"
   - aarch64:
     - functional_group: "slurm_node_aarch64"
-      kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-.../vmlinuz"
-      initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-.../initramfs.img"
-      image: "boot-images/slurm_node_aarch64/rhel-..."
+      kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-.../vmlinuz-<kernel-version>"
+      initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-.../initramfs-<kernel-version>.img"
+      image: "boot-images/slurm_node_aarch64/rhel-.../<rootfs-filename>"
 ```
 
 ### Fields
@@ -44,9 +44,9 @@ functional_group_images:
 | `s3_configurations.endpoint_url` | string | S3 endpoint URL |
 | `s3_configurations.bucket` | string | Always `"boot-images"` |
 | `functional_group_images[].functional_group` | string | Group name with arch suffix |
-| `functional_group_images[].kernel` | string | S3 key for vmlinuz |
-| `functional_group_images[].initrd` | string | S3 key for initramfs |
-| `functional_group_images[].image` | string | S3 key for rootfs |
+| `functional_group_images[].kernel` | string | S3 key for vmlinuz (includes kernel-version suffix) |
+| `functional_group_images[].initrd` | string | S3 key for initramfs (includes kernel-version suffix) |
+| `functional_group_images[].image` | string | Full S3 object key for rootfs file (not just the directory prefix) |
 
 ### S3 Endpoint
 
@@ -87,11 +87,11 @@ boot-images/
 +-- efi-images/
 |   +-- <functional_group>/
 |       +-- rhel-<group>_omnia_<version>/
-|           +-- vmlinuz
-|           +-- initramfs-<kernel>.img
+|           +-- vmlinuz-<kernel-version>
+|           +-- initramfs-<kernel-version>.img
 +-- <functional_group>/
     +-- rhel-<group>_omnia_<version>/
-        +-- <rootfs files>
+        +-- rhel<os_ver>-rhel-<group>_omnia_<version>-<os_ver>
 ```
 
 ---

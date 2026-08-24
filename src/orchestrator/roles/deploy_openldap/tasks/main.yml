@@ -1,0 +1,151 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Deploy OpenLDAP (omnia_auth) container on OIM
+# Skipped entirely when openldap_support is false.
+
+- name: Deploy OpenLDAP container
+  when: hostvars['localhost']['openldap_support'] | default(false) | bool
+  block:
+    - name: Check if omnia_auth container is already running
+      containers.podman.podman_container_info:
+        name: "{{ omnia_auth_container_name }}"
+      register: auth_container_check
+      failed_when: false
+
+    - name: Deploy OpenLDAP when container is not running
+      when: >-
+        (auth_container_check.containers | default([]) | length == 0) or
+        (auth_container_check.containers[0].State.Status | default('') != 'running')
+      block:
+        - name: Load OpenLDAP credentials
+          ansible.builtin.include_role:
+            name: orchestrator_common
+            tasks_from: decrypt_include_encrypt.yml
+          vars:
+            credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+            vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.omnia_config_credentials_key"
+
+        - name: Validate OpenLDAP credentials are available
+          ansible.builtin.assert:
+            that:
+              - openldap_db_username is defined
+              - openldap_db_username | length > 0
+              - openldap_db_password is defined
+              - openldap_db_password | length > 0
+            fail_msg: "{{ credentials_missing_msg }}"
+            quiet: true
+
+        - name: Set OpenLDAP configuration facts
+          ansible.builtin.set_fact:
+            ldap_search_base: "{{ (hostvars['localhost']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+            ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+            ldap_connection_type: "{{ hostvars['localhost']['ldap_connection_type'] | default('TLS') }}"
+            domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+
+        - name: Create OpenLDAP directories
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+          loop:
+            - "{{ auth_base_dir }}"
+            - "{{ auth_config_dir }}"
+            - "{{ auth_certs_dir }}"
+            - "{{ auth_data_dir }}"
+            - "{{ auth_init_dir }}"
+
+        - name: Generate TLS certificates
+          ansible.builtin.include_tasks: generate_tls_certs.yml
+
+        - name: Template slapd.conf
+          ansible.builtin.template:
+            src: slapd.conf.j2
+            dest: "{{ auth_config_dir }}/slapd.conf"
+            owner: root
+            group: root
+            mode: "0600"
+          no_log: true
+
+        - name: Template bootstrap.ldif
+          ansible.builtin.template:
+            src: bootstrap.ldif.j2
+            dest: "{{ auth_init_dir }}/bootstrap.ldif"
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: Pull omnia_auth container image
+          ansible.builtin.command:
+            cmd: "podman pull {{ omnia_auth_image }}:{{ omnia_auth_tag }}"
+          register: pull_result
+          retries: "{{ pull_retries }}"
+          delay: "{{ pull_delay }}"
+          until: pull_result.rc == 0
+          changed_when: "'Pulling' in pull_result.stdout or 'Copying' in pull_result.stderr"
+          failed_when: pull_result.rc != 0
+
+        - name: Stop existing omnia_auth container if present
+          containers.podman.podman_container:
+            name: "{{ omnia_auth_container_name }}"
+            state: absent
+            force_delete: true
+          failed_when: false
+
+        - name: Template Quadlet container unit
+          ansible.builtin.template:
+            src: omnia_auth.container.j2
+            dest: "{{ quadlet_dir }}/omnia_auth.container"
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: Reload systemd daemon for Quadlet
+          ansible.builtin.systemd:
+            daemon_reload: true
+
+        - name: Start omnia_auth service
+          ansible.builtin.systemd:
+            name: omnia_auth
+            state: started
+            enabled: true
+
+        - name: Wait for omnia_auth container to be healthy
+          containers.podman.podman_container_info:
+            name: "{{ omnia_auth_container_name }}"
+          register: auth_health_check
+          retries: "{{ healthcheck_retries }}"
+          delay: "{{ healthcheck_delay }}"
+          until: >-
+            (auth_health_check.containers | default([]) | length > 0) and
+            (auth_health_check.containers[0].State.Status == 'running')
+
+        - name: Display OpenLDAP deployment status
+          ansible.builtin.debug:
+            msg: "OpenLDAP (omnia_auth) container deployed successfully on {{ ldap_server_ip }}"
+
+    - name: Display skip message when container is already running
+      ansible.builtin.debug:
+        msg: "OpenLDAP (omnia_auth) container is already running. Skipping deployment."
+      when: >-
+        (auth_container_check.containers | default([]) | length > 0) and
+        (auth_container_check.containers[0].State.Status | default('') == 'running')
+
+  rescue:
+    - name: OpenLDAP deployment failed
+      ansible.builtin.fail:
+        msg: "{{ deploy_openldap_fail_msg }}"
