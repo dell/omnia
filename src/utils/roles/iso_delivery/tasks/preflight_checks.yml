@@ -13,58 +13,70 @@
 # limitations under the License.
 ---
 
-- name: Validate ISO NFS share path is provided
-  ansible.builtin.fail:
-    msg: "{{ no_iso_nfs_share_msg }}"
-  when: iso_nfs_share | length == 0
+# Step 1: Verify custom ISO exists locally
+- name: Verify custom ISO exists at local mount point
+  ansible.builtin.stat:
+    path: "{{ _local_iso_path }}"
+    get_checksum: false
+  register: _deploy_iso_stat
 
-- name: Check if target node is already reachable via SSH
-  when: target_node_ip is defined and target_node_ip | length > 0
+- name: Fail if custom ISO not found
+  ansible.builtin.fail:
+    msg: "{{ custom_iso_not_found_msg }}"
+  when: not _deploy_iso_stat.stat.exists
+
+# Step 2: Check if target node is already reachable via SSH
+- name: Check target node SSH reachability
+  when: target_admin_ip | default('') | length > 0
   block:
     - name: Test SSH connectivity to target node
       ansible.builtin.wait_for:
-        host: "{{ target_node_ip }}"
+        host: "{{ target_admin_ip }}"
         port: 22
         timeout: 10
         state: started
-      register: target_ssh_check
+      register: _target_ssh_check
       failed_when: false
 
     - name: Abort if target is reachable and force_reinstall is false
       ansible.builtin.fail:
         msg: "{{ target_already_reachable_msg }}"
       when:
-        - target_ssh_check is success
+        - _target_ssh_check is success
         - not (force_reinstall | bool)
 
     - name: Warn that target is reachable but force_reinstall is true
       ansible.builtin.debug:
         msg: >-
-          WARNING: Target node at '{{ target_node_ip }}' is reachable but
+          WARNING: Target node at '{{ target_admin_ip }}' is reachable but
           force_reinstall is true. Proceeding with OS reinstallation.
       when:
-        - target_ssh_check is success
+        - _target_ssh_check is success
         - force_reinstall | bool
 
-- name: Verify iDRAC reachability and get Lifecycle Controller status
-  dellemc.openmanage.idrac_lifecycle_controller_status_info:
-    idrac_ip: "{{ target_bmc_ip }}"
-    idrac_user: "{{ bmc_username }}"
-    idrac_password: "{{ bmc_password }}"
+# Step 3: Verify iDRAC reachability
+- name: Verify iDRAC reachability
+  ansible.builtin.uri:
+    url: "https://{{ target_bmc_ip }}/redfish/v1/Systems"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    force_basic_auth: true
     validate_certs: false
-  register: lc_status_info
+    return_content: true
+    timeout: 30
+  register: _idrac_check
   failed_when: false
   no_log: true
 
 - name: Fail if iDRAC is not reachable
   ansible.builtin.fail:
     msg: "{{ idrac_unreachable_msg }}"
-  when: lc_status_info is failed
+  when: _idrac_check.status | default(0) != 200
 
 - name: Log iDRAC pre-flight check success
   ansible.builtin.debug:
     msg: >-
       iDRAC pre-flight checks passed.
       BMC: {{ target_bmc_ip }},
-      LC Status: {{ lc_status_info.lc_status_info.msg.LCStatus | default('Ready') }},
-      LC Ready: {{ lc_status_info.lc_status_info.msg.LCReady | default(true) }}
+      Custom ISO: {{ _local_iso_path }} ({{ _deploy_iso_stat.stat.size | human_readable }})

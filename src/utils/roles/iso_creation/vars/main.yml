@@ -12,17 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# OMNIA_DATA_PATH with fallback
-omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
-# NFS-hosted kickstart configuration
-# iso_nfs_share format: "server:/nfs_path" mapping to OMNIA_DATA_PATH
-nfs_server_ip: "{{ iso_nfs_share.split(':')[0] }}"
-nfs_base_dir: "{{ iso_nfs_share.split(':')[1] }}"
-nfs_kickstart_filename: "kickstart.cfg"
-# Compute the sub-path of iso_target_directory relative to OMNIA_DATA_PATH
-nfs_iso_output_dir: "{{ nfs_base_dir }}/{{ iso_target_directory | regex_replace('^' + omnia_data_path + '/?', '') }}"
-nfs_kickstart_path: "{{ nfs_iso_output_dir }}/{{ nfs_kickstart_filename }}"
+# Kickstart filename used inside ISO and on NFS
+nfs_kickstart_filename: "kickstart.ks"
 
 # Temporary files for ISO modification
 temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
@@ -31,31 +23,26 @@ temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
 kickstart_file: ""
 kickstart_template: "rhel10"
 
-# Repacked ISO output (one-time build with grub.cfg modification)
-repacked_iso_name: "{{ iso_source_path | basename | regex_replace('\\.iso$', '') }}-nfs-ks.iso"
-repacked_iso_path: "{{ iso_target_directory }}/{{ repacked_iso_name }}"
-iso_volume_id: ""
+# Kickstart delivery method (embedded or nfs)
+kickstart_delivery_method: "embedded"
 
 # Interactive behavior
-# Set silent_install=true to suppress all prompts in the generic install_os playbook
-silent_install: false
-# Set rebuild_iso=true to force rebuilding the custom ISO (used by prompt or extra-var)
 rebuild_iso: false
 
-# Manifest file
-manifest_path: "{{ iso_target_directory }}/install_manifest.yml"
+# Manifest file (placed alongside the custom ISO)
+manifest_filename: "install_os_manifest.yml"
 
-# Kickstart template variables (passed by the calling orchestrator)
+# Kickstart template variables (set by validate_install_os_config role)
 ks_root_password_hash: ""
 ks_ssh_public_key: ""
-ks_hostname: "os-aarch64"
+ks_hostname: "node"
 ks_static_ip: ""
 ks_netmask: "255.255.255.0"
 ks_gateway: ""
 ks_dns: ""
 ks_network_device: ""
 ks_timezone: "UTC"
-ks_install_disk: ""
+ks_install_disk: "sda"
 
 # Error messages
 kickstart_file_not_found_msg: >-
@@ -72,3 +59,7 @@ user_ks_missing_rootpw_msg: >-
 user_ks_missing_sshkey_msg: >-
   WARNING: User-provided Kickstart file does not contain an 'sshkey' directive.
   OIM SSH key will not be injected into the installed system.
+nfs_mount_not_found_msg: >-
+  Cannot find local mount point for NFS server '{{ _nfs_server }}'.
+  The NFS directory containing custom_iso_path must be mounted locally.
+  Mount it with: mount -t nfs {{ _nfs_server }}:{{ _nfs_dir }} /mnt/install_os_nfs

@@ -1,0 +1,131 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ─────────────────────────────────────────────────────────────────────────
+# OS Installation Configuration
+#
+# This file configures the utils/install_os playbook.
+# Copy this file to your input project directory and customize as needed.
+#
+# Usage:
+#   # Collect credentials only:
+#   ansible-playbook playbooks/install_os.yml --tags credentials
+#
+#   # Build custom ISO only:
+#   ansible-playbook playbooks/install_os.yml --tags build_iso
+#
+#   # Deploy with an existing ISO:
+#   ansible-playbook playbooks/install_os.yml --tags deploy
+#
+#   # Generate kickstart file only:
+#   ansible-playbook playbooks/install_os.yml --tags generate_ks
+#
+#   # End-to-end (build + deploy):
+#   ansible-playbook playbooks/install_os.yml
+# ─────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────
+# ISO Configuration
+# ─────────────────────────────────────────────────────────────────────────
+
+# Path to the original RHEL/distro ISO on the local filesystem.
+# Required for: build_iso, generate_ks, end-to-end modes
+source_iso_path: ""
+
+# SHA-256 checksum for source ISO verification (optional but recommended).
+source_iso_checksum: ""
+
+# Custom ISO path — NFS path where the custom ISO and artifacts are stored.
+# Format: "nfs_server:/export_path/filename.iso"
+# Required for: build_iso, deploy, end-to-end modes
+#
+# - For build modes: the custom ISO will be written here (along with
+#   kickstart.ks and install_os_manifest.yml in the same directory)
+# - For deploy-only: the ISO at this path will be mounted via iDRAC
+# - The NFS directory must be mounted locally for build operations
+# - iDRAC will access the ISO via this NFS path for virtual media
+#
+# The ISO filename defaults to "<source_iso_basename>-omnia.iso" if not
+# specified. You may override with any filename.
+#
+# Example: "172.96.20.223:/mnt/nfs/omnia/iso/RHEL-10.0-x86_64-omnia.iso"
+custom_iso_path: ""
+
+# ─────────────────────────────────────────────────────────────────────────
+# Kickstart Configuration
+# ─────────────────────────────────────────────────────────────────────────
+
+# Kickstart delivery method.
+# Options:
+#   embedded - Kickstart file is embedded inside the custom ISO (recommended)
+#   nfs      - Kickstart hosted on NFS, ISO GRUB references it via inst.ks=
+kickstart_delivery_method: embedded
+
+# User-provided kickstart file path (optional).
+# If set, this file is used instead of the default template.
+# The playbook will inject rootpw and sshkey directives if missing.
+kickstart_file: ""
+
+# Kickstart template name (used when kickstart_file is empty).
+# Available templates: rhel10
+kickstart_template: rhel10
+
+# ─────────────────────────────────────────────────────────────────────────
+# Target Node Configuration
+# ─────────────────────────────────────────────────────────────────────────
+
+# iDRAC/BMC IP address (required for deploy mode)
+target_bmc_ip: ""
+
+# Hostname for the installed OS (required for build and end-to-end modes)
+target_hostname: ""
+
+# Admin network IP address for the installed OS
+target_admin_ip: ""
+
+# Target architecture (x86_64 or aarch64).
+# If empty, auto-detected from source ISO filename.
+target_architecture: ""
+
+# Network device name (e.g., "eno1", "eth0", "enP6s3f0np0").
+# If empty, kickstart uses "link" (first active device).
+network_device: ""
+
+# Network configuration (defaults applied if empty)
+netmask: "255.255.255.0"
+gateway: ""
+dns_server: ""
+
+# Target install disk (e.g., "sda", "nvme0n1").
+# If empty, defaults to "sda".
+install_disk: "sda"
+
+# Timezone for installed OS
+timezone: "UTC"
+
+# ─────────────────────────────────────────────────────────────────────────
+# Execution Control
+# ─────────────────────────────────────────────────────────────────────────
+
+# Force rebuild of custom ISO if it already exists (default: false)
+rebuild_iso: false
+
+# Force reinstall even if target node is already reachable via SSH
+force_reinstall: false
+
+# SSH verification after OS install
+ssh_verify_enabled: true
+ssh_verify_retries: 60
+ssh_verify_delay: 30
