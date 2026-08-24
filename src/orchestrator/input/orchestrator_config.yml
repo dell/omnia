@@ -86,3 +86,10 @@ image_build_manager_output_path: "/opt/omnia/image_build_manager/output/project_
 # consumed by k8s_config, slurm_config, and cloud-init templates.
 # Default: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
 repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+
+#### Optional
+# Enable NVIDIA DCGM (Data Center GPU Manager) installation on GPU nodes.
+# DCGM is part of the CUDA toolkit and provides GPU monitoring and management capabilities.
+# When enabled, DCGM will be installed on Slurm compute nodes with NVIDIA GPUs.
+# Default: true
+dcgm_enabled: true
