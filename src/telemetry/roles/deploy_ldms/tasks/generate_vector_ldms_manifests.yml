@@ -44,8 +44,28 @@
     dest: "{{ telemetry_deployments_dir }}/vector/vector-ldms-service.yaml"
     mode: "0644"
 
+- name: Check if vmagent-vector deployment already exists
+  ansible.builtin.stat:
+    path: "{{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml"
+  register: vmagent_vector_exists
+
+- name: Render vmagent-vector Deployment (metrics write-buffer for Vector pods)
+  ansible.builtin.template:
+    src: "{{ role_path | dirname }}/deploy_ome/templates/vmagent-vector-deployment.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml"
+    mode: "0644"
+  when: not vmagent_vector_exists.stat.exists
+
+- name: Render vmagent-vector Service
+  ansible.builtin.template:
+    src: "{{ role_path | dirname }}/deploy_ome/templates/vmagent-vector-service.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/vector/vmagent-vector-service.yaml"
+    mode: "0644"
+  when: not vmagent_vector_exists.stat.exists
+
 - name: Log Vector-LDMS manifest generation complete
   ansible.builtin.debug:
     msg: >
       Vector-LDMS manifests generated at {{ telemetry_deployments_dir }}/vector/:
-      vector-ldms-configmap.yaml, vector-ldms-deployment.yaml, vector-ldms-service.yaml
+      vector-ldms-configmap.yaml, vector-ldms-deployment.yaml, vector-ldms-service.yaml,
+      vmagent-vector-deployment.yaml, vmagent-vector-service.yaml

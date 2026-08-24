@@ -78,31 +78,42 @@ inputs = ["parse_ome_topic"]
 # ============================================================================
 # Step 3: Handles three OME metric data formats:
 #   Redfish format ({{ ome_id }}.telemetry):
-#     System[] array with nested Metric[] sub-arrays — flattened to individual metric events.
+#     Flat message: Identifier and Metric[] at top level (no System[] wrapper).
+#     Each Metric[].MetricId is split into (Type, MetricName, Aggregation, Interval) parts.
 #   Inventory format ({{ ome_id }}.inventory, {{ ome_id }}.event):
 #     System[] array with Component[].Data[].Properties — numeric/boolean properties extracted.
 #   Health format  ({{ ome_id }}.health):
 #     System[] array with flat fields — all numeric/boolean fields are dynamically extracted as metrics.
-#   _unmatched: best-effort processing — events without System[] are dropped gracefully.
+#   _unmatched: best-effort processing — events without System[] or Metric[] are dropped gracefully.
 [transforms.metric_enricher]
 type = "remap"
 inputs = ["ome_topic_router.metrics", "ome_topic_router._unmatched"]
 source = '''
   all_metrics = []
-  # Format detection: Check if .Metric exists at root (flat format) vs .System (wrapped format)
-  SystemArr = if .Metric != null && is_array(.Metric) {
-    # Flat format: {Identifier, Metric[]} → wrap as synthetic System entry
-    [{"Identifier": .Identifier, "Metric": .Metric}]
+  # Capture source_topic now — this field is on the event root and will be lost
+  # after `. = all_metrics` fan-out. Embed it in every parsed_metric so the
+  # downstream log_to_metric transform can expose it as a Prometheus label,
+  # enabling queries like: {source_subsystem="ome", source_topic="ome.telemetry"}
+  source_topic_val = to_string(.source_topic) ?? "unknown"
+
+  # Normalize: ome.inventory/health wrap data in System[{Identifier,...}] at the top level.
+  # ome.telemetry sends a flat message with Identifier and Metric[] directly at the top level
+  # (no System[] wrapper). Detect the flat format and synthesize a System entry so the
+  # existing for_each loop can process it uniformly without any other changes.
+  SystemArr = if exists(.System) && is_array(.System) {
+    array!(.System)
+  } else if exists(.Metric) && is_array(.Metric) {
+    # ome.telemetry flat format: build a synthetic System entry from top-level fields
+    [{"Identifier": to_string(.Identifier) ?? "unknown", "Metric": .Metric}]
   } else {
-    # Wrapped format: System[] array
-    array(.System) ?? []
+    []
   }
 
   for_each(SystemArr) -> |_index, system| {
     identifier = to_string(system.Identifier) ?? "unknown"
 
     if system.Metric != null && is_array(system.Metric) {
-      # Redfish telemetry format: System[].Metric[] arrays
+      # Redfish telemetry format: System[].Metric[] arrays (also ome.telemetry flat format)
       for_each(array!(system.Metric)) -> |_index1, metric| {
         id_replaced = replace!(metric.MetricId, ".", "_")
         parts = split(id_replaced, "_")
@@ -121,7 +132,7 @@ source = '''
           "TimeStamp": metric.TimeStamp[0],
           "Identifier": identifier,
           "Type": parts[0],
-          "SourceTopic": .source_topic
+          "SourceTopic": source_topic_val
         }]
 
         all_metrics = append(all_metrics, parsed_metric)
@@ -146,7 +157,7 @@ source = '''
                   "TimeStamp": ts,
                   "Identifier": identifier,
                   "Type": "inventory",
-                  "SourceTopic": .source_topic
+                  "SourceTopic": source_topic_val
                 }]
                 all_metrics = append(all_metrics, parsed_metric)
               }
@@ -168,7 +179,7 @@ source = '''
             "TimeStamp": ts,
             "Identifier": identifier,
             "Type": "health",
-            "SourceTopic": .source_topic
+            "SourceTopic": source_topic_val
           }]
           all_metrics = append(all_metrics, parsed_metric)
         }

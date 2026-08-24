@@ -31,6 +31,20 @@
 #   # Cleanup multiple sources
 #   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale
 #
+#   # Cleanup multiple components
+#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_idrac
+#   ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_victoria_metrics
+#
+#   # Cleanup via orchestrator (all components)
+#   ansible-playbook telemetry.yml --tags cleanup
+#
+#   # Cleanup via orchestrator (single component)
+#   ansible-playbook telemetry.yml --tags cleanup_kafka
+#
+# Available tags:
+#   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
+#   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
+#            cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm
 # Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
 # infrastructure that multiple sources depend on. They are ONLY cleaned
 # when --tags cleanup (all) is used, never individually.
@@ -49,6 +63,7 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   tasks:
     - name: Load telemetry configuration
       ansible.builtin.include_role:
@@ -104,6 +119,16 @@
       ansible.builtin.include_tasks: sources/cleanup_powerscale_tasks.yml
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_powerscale'] | bool
 
+# ---------------------------------------------------------------------------
+# Play 3: Sink cleanups — Kafka, VictoriaMetrics, VictoriaLogs
+# ---------------------------------------------------------------------------
+- name: "Telemetry Cleanup | Remove sinks"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../../vars/cleanup.yml
+  tags: [cleanup, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]
+  tasks:
     # -- Pre-sink guard: verify source pods have terminated --
     - name: "Check for remaining source pods before sink cleanup"
       vars:
@@ -156,11 +181,12 @@
       when: hostvars['localhost']['_cleanup_all'] | bool
 
 # ---------------------------------------------------------------------------
-# Play 3: Final verification and summary
+# Play 4: Final verification and summary
 # ---------------------------------------------------------------------------
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
   gather_facts: false
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   vars:
     telemetry_namespace: "telemetry"
   tasks:
@@ -189,6 +215,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   tasks:
     - name: Display cleanup summary
       vars:
