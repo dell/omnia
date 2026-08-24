@@ -371,3 +371,427 @@ def check_pulp_directories_removed(host) -> Dict[str, Any]:
         "details": f"Pulp directories removed: {', '.join(dirs)}",
         "error": "",
     }
+
+
+def check_pulp_cli_repository_list(host) -> Dict[str, Any]:
+    """Verify Pulp CLI can list RPM repositories."""
+    cmd = "pulp rpm repository list"
+    result = run_on_host(host, cmd)
+    if result.rc == 0:
+        repo_count = result.stdout.count("Name:")
+        return {
+            "success": True,
+            "details": f"Pulp CLI listed {repo_count} RPM repositories",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Exit code: {result.rc}",
+        "error": "Pulp CLI repository list command failed",
+    }
+
+
+def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
+    """Verify Pulp API detailed health (DB, workers, content apps, storage)."""
+    cmd = "pulp status --format json"
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Exit code: {result.rc}",
+            "error": "Pulp status command failed",
+        }
+    
+    try:
+        import json
+        status_data = json.loads(result.stdout)
+        
+        # Check key components
+        checks = {
+            "database": status_data.get("online", {}).get("database", False),
+            "workers": status_data.get("online", {}).get("workers", False),
+            "content_apps": status_data.get("online", {}).get("content-apps", False),
+            "storage": status_data.get("online", {}).get("storage", False),
+        }
+        
+        failed_checks = [k for k, v in checks.items() if not v]
+        if failed_checks:
+            return {
+                "success": False,
+                "details": f"Failed components: {', '.join(failed_checks)}",
+                "error": "Pulp API health check failed for some components",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All components healthy: {', '.join(checks.keys())}",
+            "error": "",
+        }
+    except (json.JSONDecodeError, KeyError) as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse Pulp status JSON: {str(exc)}",
+        }
+
+
+def check_software_download_status(host) -> Dict[str, Any]:
+    """Verify software.csv download status per architecture."""
+    output_path = _get_output_path()
+    software_csv_path = f"{output_path}/software.csv"
+    
+    result = run_on_host(host, f"test -f {software_csv_path} && echo 'exists' || echo 'missing'")
+    if "missing" in result.stdout:
+        return {
+            "success": False,
+            "details": f"software.csv not found at {software_csv_path}",
+            "error": "Software download status file missing",
+        }
+    
+    # Parse CSV and check for failed downloads
+    result = run_on_host(host, f"cat {software_csv_path}")
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Could not read {software_csv_path}",
+            "error": "Failed to read software.csv",
+        }
+    
+    lines = result.stdout.strip().split('\n')
+    failed_downloads = []
+    for line in lines[1:]:  # Skip header
+        if "failed" in line.lower() or "error" in line.lower():
+            failed_downloads.append(line)
+    
+    if failed_downloads:
+        return {
+            "success": False,
+            "details": f"Found {len(failed_downloads)} failed downloads",
+            "error": f"Failed downloads: {'; '.join(failed_downloads[:3])}",
+        }
+    
+    return {
+        "success": True,
+        "details": f"All software downloads successful ({len(lines)-1} entries)",
+        "error": "",
+    }
+
+
+def check_per_software_package_status(host) -> Dict[str, Any]:
+    """Verify per-software status.csv for individual package download results."""
+    output_path = _get_output_path()
+    
+    # Check for status.csv files in software subdirectories
+    cmd = f"find {output_path} -name 'status.csv' -type f"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": f"No status.csv files found in {output_path}",
+            "error": "Per-software status files missing",
+        }
+    
+    status_files = result.stdout.strip().split('\n')
+    failed_packages = []
+    
+    for status_file in status_files:
+        result = run_on_host(host, f"cat {status_file}")
+        if result.rc == 0:
+            lines = result.stdout.strip().split('\n')
+            for line in lines[1:]:  # Skip header
+                if "failed" in line.lower() or "error" in line.lower():
+                    failed_packages.append(f"{status_file}: {line}")
+    
+    if failed_packages:
+        return {
+            "success": False,
+            "details": f"Found {len(failed_packages)} failed package downloads",
+            "error": f"Failed packages: {'; '.join(failed_packages[:3])}",
+        }
+    
+    return {
+        "success": True,
+        "details": f"All per-software packages successful ({len(status_files)} status files)",
+        "error": "",
+    }
+
+
+def check_pulp_repositories_synced(host) -> Dict[str, Any]:
+    """Verify all RPM repositories have latest_version_href (sync indicator)."""
+    cmd = "pulp rpm repository list --format json"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Exit code: {result.rc}",
+            "error": "Failed to list Pulp RPM repositories",
+        }
+    
+    try:
+        import json
+        repos = json.loads(result.stdout)
+        
+        unsynced_repos = []
+        for repo in repos:
+            if not repo.get("latest_version_href"):
+                unsynced_repos.append(repo.get("name", "unknown"))
+        
+        if unsynced_repos:
+            return {
+                "success": False,
+                "details": f"Found {len(unsynced_repos)} unsynced repositories",
+                "error": f"Unsynced repos: {', '.join(unsynced_repos[:5])}",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All {len(repos)} RPM repositories synced",
+            "error": "",
+        }
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse repository list JSON: {str(exc)}",
+        }
+
+
+def check_pulp_distributions_published(host) -> Dict[str, Any]:
+    """Verify all RPM distributions are published with repository attachment."""
+    cmd = "pulp rpm distribution list --format json"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Exit code: {result.rc}",
+            "error": "Failed to list Pulp RPM distributions",
+        }
+    
+    try:
+        import json
+        distributions = json.loads(result.stdout)
+        
+        unpublished_dists = []
+        for dist in distributions:
+            if not dist.get("repository") or not dist.get("publication"):
+                unpublished_dists.append(dist.get("name", "unknown"))
+        
+        if unpublished_dists:
+            return {
+                "success": False,
+                "details": f"Found {len(unpublished_dists)} unpublished distributions",
+                "error": f"Unpublished dists: {', '.join(unpublished_dists[:5])}",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All {len(distributions)} RPM distributions published",
+            "error": "",
+        }
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse distribution list JSON: {str(exc)}",
+        }
+
+
+def check_container_repos_synced(host) -> Dict[str, Any]:
+    """Verify all container image repositories are synced."""
+    cmd = "pulp container repository list --format json"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Exit code: {result.rc}",
+            "error": "Failed to list Pulp container repositories",
+        }
+    
+    try:
+        import json
+        repos = json.loads(result.stdout)
+        
+        unsynced_repos = []
+        for repo in repos:
+            if not repo.get("latest_version_href"):
+                unsynced_repos.append(repo.get("name", "unknown"))
+        
+        if unsynced_repos:
+            return {
+                "success": False,
+                "details": f"Found {len(unsynced_repos)} unsynced container repos",
+                "error": f"Unsynced repos: {', '.join(unsynced_repos[:5])}",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All {len(repos)} container repositories synced",
+            "error": "",
+        }
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse container repository list JSON: {str(exc)}",
+        }
+
+
+def check_file_repos_synced(host) -> Dict[str, Any]:
+    """Verify all file repositories (tarball, git, etc.) are synced."""
+    cmd = "pulp file repository list --format json"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Exit code: {result.rc}",
+            "error": "Failed to list Pulp file repositories",
+        }
+    
+    try:
+        import json
+        repos = json.loads(result.stdout)
+        
+        unsynced_repos = []
+        for repo in repos:
+            if not repo.get("latest_version_href"):
+                unsynced_repos.append(repo.get("name", "unknown"))
+        
+        if unsynced_repos:
+            return {
+                "success": False,
+                "details": f"Found {len(unsynced_repos)} unsynced file repos",
+                "error": f"Unsynced repos: {', '.join(unsynced_repos[:5])}",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All {len(repos)} file repositories synced",
+            "error": "",
+        }
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse file repository list JSON: {str(exc)}",
+        }
+
+
+def check_pulp_content_accessible(host) -> Dict[str, Any]:
+    """Verify RPM content is reachable via HTTPS (repomd.xml check)."""
+    cmd = "pulp rpm distribution list --format json"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Exit code: {result.rc}",
+            "error": "Failed to list distributions for content check",
+        }
+    
+    try:
+        import json
+        distributions = json.loads(result.stdout)
+        
+        inaccessible = []
+        for dist in distributions:
+            base_path = dist.get("base_path", "")
+            if base_path:
+                url = f"https://127.0.0.1:{PULP_PORT}/pulp/content/{base_path}/repomd.xml"
+                curl_cmd = f"curl -k -s -o /dev/null -w '%{{http_code}}' {url} || echo '000'"
+                curl_result = run_on_host(host, curl_cmd)
+                if curl_result.stdout.strip() != "200":
+                    inaccessible.append(f"{base_path} (HTTP {curl_result.stdout.strip()})")
+        
+        if inaccessible:
+            return {
+                "success": False,
+                "details": f"Found {len(inaccessible)} inaccessible distributions",
+                "error": f"Inaccessible: {'; '.join(inaccessible[:3])}",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All {len(distributions)} distributions accessible via HTTPS",
+            "error": "",
+        }
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse distribution list JSON: {str(exc)}",
+        }
+
+
+def check_software_packages_in_pulp(host) -> Dict[str, Any]:
+    """Verify all RPM packages from software_config.json are present in Pulp."""
+    input_path = _get_input_path()
+    software_config_path = f"{input_path}/software_config.json"
+    
+    # Check if software_config.json exists
+    result = run_on_host(host, f"test -f {software_config_path} && echo 'exists' || echo 'missing'")
+    if "missing" in result.stdout:
+        return {
+            "success": False,
+            "details": f"software_config.json not found at {software_config_path}",
+            "error": "Software configuration file missing",
+        }
+    
+    # Read software_config.json
+    result = run_on_host(host, f"cat {software_config_path}")
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Could not read {software_config_path}",
+            "error": "Failed to read software configuration",
+        }
+    
+    try:
+        import json
+        config = json.loads(result.stdout)
+        
+        # Extract RPM packages from software_config.json
+        rpm_packages = set()
+        for software in config.get("softwares", []):
+            name = software.get("name")
+            arch_list = software.get("arch", [])
+            if name and arch_list:
+                rpm_packages.add(name)
+        
+        if not rpm_packages:
+            return {
+                "success": True,
+                "details": "No RPM packages specified in software_config.json",
+                "error": "",
+            }
+        
+        # Check if packages are in Pulp by searching content
+        missing_packages = []
+        for pkg in rpm_packages:
+            cmd = f"pulp rpm content list --name '{pkg}' --format json"
+            result = run_on_host(host, cmd)
+            if result.rc != 0 or not result.stdout.strip():
+                missing_packages.append(pkg)
+        
+        if missing_packages:
+            return {
+                "success": False,
+                "details": f"Found {len(missing_packages)} missing packages out of {len(rpm_packages)}",
+                "error": f"Missing packages: {', '.join(missing_packages[:10])}",
+            }
+        
+        return {
+            "success": True,
+            "details": f"All {len(rpm_packages)} RPM packages found in Pulp",
+            "error": "",
+        }
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "details": f"Output: {result.stdout[:200]}",
+            "error": f"Failed to parse software_config.json: {str(exc)}",
+        }

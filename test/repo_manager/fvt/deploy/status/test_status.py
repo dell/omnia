@@ -12,6 +12,8 @@ TC_RM_DP_002: Verify Pulp status is healthy
 TC_RM_DP_003: Verify Pulp endpoint reachable
 TC_RM_DP_004: Verify Pulp CLI configured
 TC_RM_DP_005: Verify Pulp SSL certificates exist
+TC_RM_DP_006: Verify Pulp CLI can list RPM repositories
+TC_RM_DP_007: Verify Pulp API detailed health (DB, workers, content apps, storage)
 """
 
 import pytest
@@ -24,6 +26,8 @@ from library.functions import (
     check_pulp_endpoint_reachable,
     check_pulp_cli_configured,
     check_pulp_certificates_exist,
+    check_pulp_cli_repository_list,
+    check_pulp_api_detailed_status,
 )
 from library.messages import (
     TEST_NAMES,
@@ -126,3 +130,35 @@ def test_pulp_certificates_exist(host):
         tl.failed(LOG["pulp_certs_missing"], result["details"])
 
     assert result["success"], ASSERT["pulp_certs_missing"]
+
+
+@pytest.mark.sanity
+@pytest.mark.positive
+@pytest.mark.order(6)
+def test_pulp_cli_repository_list(host):
+    """TC_RM_DP_006: Verify Pulp CLI can list RPM repositories."""
+    tl = TestLogger(TEST_NAMES["pulp_cli_repository_list"], "TC_RM_DP_006")
+    result = check_pulp_cli_repository_list(host)
+
+    if result["success"]:
+        tl.passed(LOG["pulp_cli_repo_list_ok"], result["details"])
+    else:
+        tl.failed(LOG["pulp_cli_repo_list_fail"], result["details"])
+
+    assert result["success"], ASSERT["pulp_cli_repo_list_failed"]
+
+
+@pytest.mark.sanity
+@pytest.mark.positive
+@pytest.mark.order(7)
+def test_pulp_api_detailed_status(host):
+    """TC_RM_DP_007: Verify Pulp API detailed health (DB, workers, content apps, storage)."""
+    tl = TestLogger(TEST_NAMES["pulp_api_detailed_status"], "TC_RM_DP_007")
+    result = check_pulp_api_detailed_status(host)
+
+    if result["success"]:
+        tl.passed(LOG["pulp_api_detailed_ok"], result["details"])
+    else:
+        tl.failed(LOG["pulp_api_detailed_fail"], result["details"])
+
+    assert result["success"], ASSERT["pulp_api_detailed_unhealthy"]
