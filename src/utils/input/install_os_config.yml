@@ -60,7 +60,7 @@ source_iso_checksum: ""
 # The ISO filename defaults to "<source_iso_basename>-omnia.iso" if not
 # specified. You may override with any filename.
 #
-# Example: "100.96.20.223:/mnt/nfs/omnia/iso/RHEL-10.0-x86_64-omnia.iso"
+# Example: "172.96.20.223:/mnt/nfs/omnia/iso/RHEL-10.0-x86_64-omnia.iso"
 custom_iso_path: ""
 
 # ─────────────────────────────────────────────────────────────────────────

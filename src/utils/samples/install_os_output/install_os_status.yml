@@ -4,10 +4,10 @@
 utility: install_os
 status: "success"
 timestamp: "2026-01-15T10:30:00Z"
-target_bmc_ip: "100.10.0.73"
+target_bmc_ip: "172.10.0.73"
 target_admin_ip: "172.10.5.28"
 target_hostname: "compute-node-01"
-custom_iso_path: "100.96.20.223:/mnt/nfs/omnia/iso/RHEL-10.0-x86_64-omnia.iso"
+custom_iso_path: "172.96.20.223:/mnt/nfs/omnia/iso/RHEL-10.0-x86_64-omnia.iso"
 architecture: "x86_64"
 kickstart_delivery_method: "embedded"
 ssh_verified: "true"
