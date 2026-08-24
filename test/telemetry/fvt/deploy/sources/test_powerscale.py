@@ -26,13 +26,13 @@ PowerScale Architecture:
     Data pipeline (logs):
         PowerScale OneFS syslog -> VLAgent -> VictoriaLogs
 
-Test cases:
+Test cases (execution order):
     TC_SR_030: Verify CSM Metrics PowerScale deployment ready
     TC_SR_031: Verify OTEL Collector deployment ready
     TC_SR_032: Verify isilon-creds secret has correct endpoint
     TC_SR_033: Verify PowerScale metrics in VictoriaMetrics
-    TC_SR_034: Verify PowerScale logs in VictoriaLogs
-    TC_SR_035: Verify PowerScale syslog forwarding configured
+    TC_SR_035: Verify/configure PowerScale syslog forwarding (BEFORE log check)
+    TC_SR_034: Verify PowerScale logs in VictoriaLogs (AFTER syslog config)
 """
 
 from datetime import datetime
@@ -110,7 +110,9 @@ def _format_metric_lines(metric_details):
     for m in metric_details:
         ts = m.get("timestamp", 0)
         try:
-            ts_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            ts_str = datetime.fromtimestamp(ts).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
         except (ValueError, OSError):
             ts_str = str(ts)
         lines.append(
@@ -127,7 +129,7 @@ def _format_metric_lines(metric_details):
 @pytest.mark.sanity
 @pytest.mark.order(60)
 def test_powerscale_csm_deploy(host):
-    """TC_SR_030: Verify CSM Metrics PowerScale deployment ready."""
+    """Verify CSM Metrics PowerScale deployment ready."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_csm_deploy"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -175,7 +177,7 @@ def test_powerscale_csm_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.order(61)
 def test_powerscale_otel_deploy(host):
-    """TC_SR_031: Verify OTEL Collector deployment ready."""
+    """Verify OTEL Collector deployment ready."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_otel_deploy"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -223,12 +225,11 @@ def test_powerscale_otel_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.order(62)
 def test_powerscale_secret_valid(host):
-    """TC_SR_032: Verify isilon-creds secret has correct endpoint."""
+    """Verify isilon-creds secret has correct endpoint."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_secret_valid"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Read expected values from config-referenced secret file
     tl.check("Reading PowerScale secret from telemetry config")
     cfg_result = load_powerscale_secret_from_config(host)
     if not cfg_result["success"]:
@@ -240,11 +241,12 @@ def test_powerscale_secret_valid(host):
             ),
             cfg_result["error"],
         )
-        pytest.fail(f"Cannot read PowerScale secret file: {cfg_result['error']}")
+        pytest.fail(
+            f"Cannot read PowerScale secret: {cfg_result['error']}"
+        )
 
     expected = cfg_result["clusters"][0]
 
-    # Read deployed K8s secret
     tl.check("Decoding deployed isilon-creds K8s secret")
     k8s_result = decode_isilon_creds(host)
     if not k8s_result["success"]:
@@ -256,7 +258,9 @@ def test_powerscale_secret_valid(host):
             ),
             k8s_result["error"],
         )
-        pytest.fail(f"isilon-creds K8s secret decode failed: {k8s_result['error']}")
+        pytest.fail(
+            f"isilon-creds decode failed: {k8s_result['error']}"
+        )
 
     deployed = k8s_result["clusters"][0]
     details = (
@@ -299,7 +303,7 @@ def test_powerscale_secret_valid(host):
 @pytest.mark.functional
 @pytest.mark.order(63)
 def test_powerscale_metrics_in_vm(host):
-    """TC_SR_033: Verify PowerScale metrics in VictoriaMetrics."""
+    """Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -307,11 +311,14 @@ def test_powerscale_metrics_in_vm(host):
     tl.check("Querying VictoriaMetrics for PowerScale metrics")
     result = verify_powerscale_metrics(host, POWERSCALE_EXPECTED_METRICS)
 
-    metric_lines = _format_metric_lines(result.get("metric_details", []))
+    metric_lines = _format_metric_lines(
+        result.get("metric_details", [])
+    )
 
     if result["success"]:
         details_lines = [
-            f"Found: {len(result['found'])}/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
+            f"Found: {len(result['found'])}"
+            f"/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
             "",
             metric_lines,
         ]
@@ -325,7 +332,8 @@ def test_powerscale_metrics_in_vm(host):
     else:
         missing_str = ", ".join(result["missing"])
         details_lines = [
-            f"Found: {len(result['found'])}/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
+            f"Found: {len(result['found'])}"
+            f"/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
         ]
         for m in result["missing"]:
             details_lines.append(f"  \u2717 {m}: MISSING")
@@ -343,59 +351,19 @@ def test_powerscale_metrics_in_vm(host):
 
 
 # =========================================================================
-# TC_SR_034: Verify PowerScale logs in VictoriaLogs
+# TC_SR_035: Verify/configure PowerScale syslog forwarding
+#   Runs BEFORE TC_SR_034 (log verification) so syslog is configured
+#   before we check if logs are arriving.
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(64)
-def test_powerscale_logs_in_vl(host):
-    """TC_SR_034: Verify PowerScale logs in VictoriaLogs."""
-    _skip_if_powerscale_disabled(host)
-    if not is_logs_enabled(host, "powerscale"):
-        pytest.skip("PowerScale logs not enabled in config")
-
-    tc = TC["powerscale_logs_in_vl"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
-        tl.failed("Cannot read PowerScale secret for cluster name", "")
-        pytest.fail("Cannot determine PowerScale cluster name")
-
-    hostname = cfg_result["clusters"][0]["clusterName"]
-
-    tl.check(f"Querying VictoriaLogs for PowerScale syslog (hostname: {hostname})")
-    result = verify_powerscale_logs(host, hostname_pattern=hostname)
-
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["logs_found"].format(count=result["count"]),
-            f"Sample: {result['sample_log']}",
-        )
-    else:
-        tl.failed(
-            LOG_MSGS["logs_missing"].format(source="PowerScale"),
-            "",
-        )
-
-    assert result["success"], ASSERT_MSGS["logs_missing"].format(
-        source="PowerScale",
-    )
-
-
-# =========================================================================
-# TC_SR_035: Verify PowerScale syslog forwarding configured
-# =========================================================================
-
-@pytest.mark.source
-@pytest.mark.functional
-@pytest.mark.order(65)
 def test_powerscale_syslog_config(host):
-    """TC_SR_035: Verify PowerScale syslog forwarding configured.
+    """Verify PowerScale syslog forwarding configured.
 
-    If syslog is not correctly configured, this test will reconfigure
-    it automatically and report the commands executed.
+    Checks if syslog is already configured correctly. If not, configures
+    it automatically, then verifies.
     """
     _skip_if_powerscale_disabled(host)
     if not is_logs_enabled(host, "powerscale"):
@@ -406,7 +374,9 @@ def test_powerscale_syslog_config(host):
 
     cfg_result = load_powerscale_secret_from_config(host)
     if not cfg_result["success"]:
-        tl.failed("Cannot read PowerScale credentials from config", "")
+        tl.failed(
+            "Cannot read PowerScale credentials from config", ""
+        )
         pytest.fail("PowerScale secret not available in config")
 
     cluster = cfg_result["clusters"][0]
@@ -414,10 +384,11 @@ def test_powerscale_syslog_config(host):
     ps_user = cluster["username"]
     ps_password = cluster["password"]
 
-    # Get VLAgent service IP and port dynamically
     vlagent_ip, vlagent_port = get_vlagent_endpoint(host)
     if not vlagent_ip:
-        tl.failed("Cannot get VLAgent LoadBalancer IP from service", "")
+        tl.failed(
+            "Cannot get VLAgent LoadBalancer IP from service", ""
+        )
         pytest.fail("VLAgent service not found")
     syslog_port = vlagent_port or str(POWERSCALE_SYSLOG_PORT)
 
@@ -429,6 +400,7 @@ def test_powerscale_syslog_config(host):
         vlagent_ip, syslog_port,
     )
 
+    # Already configured correctly — pass without reconfiguring
     if result["success"]:
         tl.passed(
             LOG_MSGS["syslog_configured"].format(target=target_str),
@@ -440,8 +412,10 @@ def test_powerscale_syslog_config(host):
         )
         return
 
-    # Syslog not configured correctly — reconfigure it
-    tl.check(f"Syslog misconfigured — reconfiguring to {target_str}")
+    # Not configured — configure it now
+    tl.check(
+        f"Syslog not configured — configuring to {target_str}"
+    )
     cfg_result2 = configure_powerscale_syslog(
         host, ps_user, ps_password, ps_host,
         vlagent_ip, syslog_port,
@@ -452,14 +426,17 @@ def test_powerscale_syslog_config(host):
     )
     if not cfg_result2["success"]:
         tl.failed(
-            LOG_MSGS["syslog_not_configured"].format(target=target_str),
-            f"Commands run:\n{cmds_detail}\nError: {cfg_result2['error']}",
+            LOG_MSGS["syslog_not_configured"].format(
+                target=target_str
+            ),
+            f"Commands run:\n{cmds_detail}\n"
+            f"Error: {cfg_result2['error']}",
         )
         assert False, ASSERT_MSGS["syslog_not_configured"].format(
             target=vlagent_ip,
         )
 
-    # Verify again after reconfiguration
+    # Verify after reconfiguration
     tl.check("Verifying syslog after reconfiguration")
     verify_result = verify_powerscale_syslog(
         host, ps_user, ps_password, ps_host,
@@ -479,9 +456,11 @@ def test_powerscale_syslog_config(host):
         )
     else:
         tl.failed(
-            LOG_MSGS["syslog_not_configured"].format(target=target_str),
+            LOG_MSGS["syslog_not_configured"].format(
+                target=target_str
+            ),
             (
-                f"Reconfiguration attempted but verification failed.\n"
+                f"Reconfiguration attempted but failed.\n"
                 f"Commands run:\n{cmds_detail}\n"
                 f"config: {verify_result['config_servers']}, "
                 f"system: {verify_result['system_servers']}, "
@@ -489,6 +468,58 @@ def test_powerscale_syslog_config(host):
             ),
         )
 
-    assert verify_result["success"], ASSERT_MSGS["syslog_not_configured"].format(
-        target=vlagent_ip,
+    assert verify_result["success"], (
+        ASSERT_MSGS["syslog_not_configured"].format(
+            target=vlagent_ip,
+        )
+    )
+
+
+# =========================================================================
+# TC_SR_034: Verify PowerScale logs in VictoriaLogs
+#   Runs AFTER TC_SR_035 (syslog config) so logs have time to arrive.
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(65)
+def test_powerscale_logs_in_vl(host):
+    """Verify PowerScale logs in VictoriaLogs."""
+    _skip_if_powerscale_disabled(host)
+    if not is_logs_enabled(host, "powerscale"):
+        pytest.skip("PowerScale logs not enabled in config")
+
+    tc = TC["powerscale_logs_in_vl"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    cfg_result = load_powerscale_secret_from_config(host)
+    if not cfg_result["success"]:
+        tl.failed(
+            "Cannot read PowerScale secret for cluster name", ""
+        )
+        pytest.fail("Cannot determine PowerScale cluster name")
+
+    hostname = cfg_result["clusters"][0]["clusterName"]
+
+    tl.check(
+        f"Querying VictoriaLogs for PowerScale syslog "
+        f"(hostname: {hostname})"
+    )
+    result = verify_powerscale_logs(
+        host, hostname_pattern=hostname
+    )
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["logs_found"].format(count=result["count"]),
+            f"Sample: {result['sample_log']}",
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["logs_missing"].format(source="PowerScale"),
+            "",
+        )
+
+    assert result["success"], ASSERT_MSGS["logs_missing"].format(
+        source="PowerScale",
     )

@@ -91,6 +91,11 @@ from .idrac_func import (
 from .ome_func import (
     verify_ome_kafka_connectivity,
     get_ome_forwarders,
+    run_external_kafka_playbook,
+    verify_external_kafka_certs,
+    convert_certs_to_pfx,
+    verify_ome_kafka_user_cr,
+    upload_ome_certs,
 )
 
 # --- Validation ---
@@ -164,6 +169,11 @@ __all__ = [
     # ome
     "verify_ome_kafka_connectivity",
     "get_ome_forwarders",
+    "run_external_kafka_playbook",
+    "verify_external_kafka_certs",
+    "convert_certs_to_pfx",
+    "verify_ome_kafka_user_cr",
+    "upload_ome_certs",
     # validation
     "validate_test_config",
     "validate_all",

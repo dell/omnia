@@ -213,8 +213,20 @@ TEST_CASES = {
         "id": "TC_SR_051",
         "title": "Verify OME KafkaUser CR exists",
     },
-    "ome_kafka_connectivity": {
+    "ome_external_kafka_certs": {
         "id": "TC_SR_052",
+        "title": "Verify external Kafka TLS certificates exist",
+    },
+    "ome_pfx_conversion": {
+        "id": "TC_SR_053",
+        "title": "Verify user.pfx certificate created for OME mTLS",
+    },
+    "ome_upload_certs": {
+        "id": "TC_SR_054",
+        "title": "Verify TLS certificates uploaded to OME",
+    },
+    "ome_kafka_connectivity": {
+        "id": "TC_SR_055",
         "title": "Verify OME Kafka forwarder connectivity status",
     },
 

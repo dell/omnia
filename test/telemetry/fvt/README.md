@@ -33,47 +33,62 @@
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_001 | Verify iDRAC StatefulSet pods ready | sanity |
-| TC_SR_002 | Verify all iDRAC containers running | sanity |
-| TC_SR_003 | Verify iDRAC Kafka topic exists | sanity |
-| TC_SR_004 | Verify iDRAC VictoriaPump metrics endpoint | sanity |
-| TC_SR_005 | Verify iDRAC telemetry service exists | sanity |
-| TC_SR_020 | Verify iDRAC telemetry data in VictoriaMetrics | functional |
+| TC_SR_001 | Verify iDRAC pod count matches bmc_group_data.csv | sanity |
+| TC_SR_002 | Verify iDRAC StatefulSet pods ready | sanity |
+| TC_SR_003 | Verify all iDRAC containers running | sanity |
+| TC_SR_004 | Verify MySQL data in iDRAC telemetry pods | functional |
+| TC_SR_005 | Verify iDRAC receiver is collecting metrics | functional |
+| TC_SR_006 | Verify iDRAC Kafka topic exists | sanity |
+| TC_SR_007 | Verify iDRAC VictoriaPump metrics endpoint | sanity |
+| TC_SR_008 | Verify iDRAC telemetry service exists | sanity |
+| TC_SR_009 | Verify iDRAC telemetry data in VictoriaMetrics | functional |
 
 ### Sources: LDMS
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_006 | Verify Vector-LDMS bridge deployment ready | sanity |
-| TC_SR_007 | Verify LDMS Kafka topic exists | sanity |
+| TC_SR_020 | Verify LDMS aggregator pod running | sanity |
+| TC_SR_021 | Verify LDMS store pod running | sanity |
+| TC_SR_022 | Verify Vector-LDMS bridge deployment ready | sanity |
+| TC_SR_023 | Verify LDMS Kafka topic exists | sanity |
 
 ### Sources: PowerScale
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_008 | Verify CSM Metrics PowerScale deployment ready | sanity |
-| TC_SR_009 | Verify OTEL Collector deployment ready | sanity |
-| TC_SR_010 | Verify isilon-creds secret has correct endpoint | sanity |
-| TC_SR_011 | Verify PowerScale metrics in VictoriaMetrics | functional |
-| TC_SR_012 | Verify PowerScale logs in VictoriaLogs | functional |
-| TC_SR_013 | Verify PowerScale syslog forwarding configured | functional |
+| TC_SR_030 | Verify CSM Metrics PowerScale deployment ready | sanity |
+| TC_SR_031 | Verify OTEL Collector deployment ready | sanity |
+| TC_SR_032 | Verify isilon-creds secret has correct endpoint | sanity |
+| TC_SR_033 | Verify PowerScale metrics in VictoriaMetrics | functional |
+| TC_SR_035 | Verify/configure PowerScale syslog forwarding | functional |
+| TC_SR_034 | Verify PowerScale logs in VictoriaLogs | functional |
 
-### Sources: OME
-
-| TC ID | Test | Marker |
-|-------|------|--------|
-| TC_SR_014 | Verify Vector-OME bridge deployment ready | sanity |
-| TC_SR_015 | Verify OME KafkaUser CR exists | sanity |
-| TC_SR_021 | Verify OME Kafka forwarder connectivity status | functional |
+Note: TC_SR_035 (syslog config) runs before TC_SR_034 (log check) to
+ensure syslog is configured before verifying log ingestion.
 
 ### Sources: UFM
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_016 | Verify UFM external service exists with correct endpoint | sanity |
-| TC_SR_017 | Verify UFM VMServiceScrape CR exists | sanity |
-| TC_SR_018 | Verify UFM credentials K8s secret exists | sanity |
-| TC_SR_019 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
+| TC_SR_040 | Verify UFM external service exists with correct endpoint | sanity |
+| TC_SR_041 | Verify UFM VMServiceScrape CR exists | sanity |
+| TC_SR_042 | Verify UFM credentials K8s secret exists | sanity |
+| TC_SR_043 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
+
+### Sources: OME
+
+| TC ID | Test | Marker | Condition |
+|-------|------|--------|-----------|
+| TC_SR_050 | Verify Vector-OME bridge deployment ready | sanity | always |
+| TC_SR_051 | Verify OME KafkaUser CR exists | sanity | always |
+| TC_SR_052 | Verify external Kafka TLS certificates exist | functional | configure_ome=true |
+| TC_SR_053 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true |
+| TC_SR_054 | Verify TLS certificates uploaded to OME | functional | configure_ome=true |
+| TC_SR_055 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true |
+
+When `configure_ome: false` in test_config.yml, only TC_SR_050 and
+TC_SR_051 run. Set `configure_ome: true` to run the full OME integration
+tests including TLS cert extraction and connectivity verification.
 
 ### Cleanup
 

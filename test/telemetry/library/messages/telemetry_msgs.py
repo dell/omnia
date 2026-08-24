@@ -87,6 +87,14 @@ TEST_LOG_MSGS = {
     "ome_kafka_connected": "OME Kafka forwarder '{name}' status: Connected",
     "ome_kafka_disconnected": "OME Kafka forwarder status: {status}",
 
+    # OME external Kafka certs
+    "ome_certs_found": "All {count} TLS certificate files found in {dir}",
+    "ome_certs_missing": "TLS certificate files missing: {missing}",
+    "ome_pfx_created": "user.pfx certificate created at {path}",
+    "ome_pfx_failed": "Failed to create user.pfx: {error}",
+    "ome_certs_uploaded": "TLS certificates uploaded to OME at {ome_ip}",
+    "ome_certs_upload_failed": "Failed to upload certs to OME: {error}",
+
     # Config skip
     "source_disabled": "{source} source not enabled in telemetry_config.yml",
 
@@ -214,6 +222,23 @@ TEST_ASSERT_MSGS = {
         "  1. Check OME Data Forwarding Service configuration\n"
         "  2. Upload Kafka CA certificate via OME UI\n"
         "  3. Verify Kafka bootstrap endpoint is reachable from OME\n"
+    ),
+
+    # OME external Kafka certs
+    "ome_certs_missing": (
+        "TLS certificate files missing: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. Run: ansible-playbook telemetry.yml"
+        " --tags external_kafka\n"
+        "  2. Check output in /opt/omnia/telemetry/external_kafka/\n"
+    ),
+    "ome_pfx_failed": (
+        "Failed to create user.pfx for OME mTLS\n"
+        "HOW TO FIX:\n"
+        "  1. Verify user.crt and user.key exist in"
+        " /opt/omnia/telemetry/external_kafka/\n"
+        "  2. Run manually: openssl pkcs12 -export"
+        " -out user.pfx -inkey user.key -in user.crt\n"
     ),
 
     # Cleanup

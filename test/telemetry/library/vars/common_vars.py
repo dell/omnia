@@ -176,6 +176,10 @@ VECTOR_OME_APP_NAME = "vector-ome"
 # OME Kafka user
 OME_KAFKA_USER = "vector-ome-user"
 
+# OME external Kafka TLS cert subdirectory (under output_project_dir)
+OME_KAFKA_CERT_SUBDIR = "external_kafka"
+OME_KAFKA_CERT_FILES = ["ca.crt", "user.crt", "user.key"]
+
 # UFM (from deploy_ufm/vars/main.yml)
 UFM_SVC_NAME = "ufm-external"
 UFM_VMSCRAPE_NAME = "ufm-infiniband-metrics"
@@ -441,6 +445,25 @@ CMDS = {
     "ome_get_forwarders_list": (
         "curl -sk -u '{user}:{password}' --max-time 15"
         " 'https://{ome_ip}/api/DataForwardingService/Forwarders'"
+    ),
+
+    # --- OpenSSL ---
+    "openssl_create_pfx": (
+        "openssl pkcs12 -export"
+        " -out {cert_dir}/user.pfx"
+        " -inkey {cert_dir}/user.key"
+        " -in {cert_dir}/user.crt"
+        " -passout pass:{password} 2>&1"
+    ),
+
+    # --- OME REST API: upload certificate ---
+    "ome_upload_cert": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/octet-stream'"
+        " --data-binary '@{cert_path}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.UploadCertificate'"
     ),
 
     # --- PowerScale syslog config via SSH ---

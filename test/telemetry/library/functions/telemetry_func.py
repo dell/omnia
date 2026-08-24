@@ -69,6 +69,24 @@ def _get_input_path(host):
     )
 
 
+def get_output_path(host):
+    """Resolve the telemetry output directory on the OIM host.
+
+    Returns ``<OMNIA_DATA_PATH>/telemetry/output/<OMNIA_PROJECT_NAME>``.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+
+    Returns:
+        str: Absolute path to telemetry output directory on the OIM.
+    """
+    data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+    output_path = f"{data_path}/{DOMAIN_NAME}/output/{project}"
+    log(f"Resolved remote output path: {output_path}", "INFO")
+    return output_path
+
+
 def load_telemetry_config_from_target(host):
     """Read and parse telemetry_config.yml from OIM host.
 

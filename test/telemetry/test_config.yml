@@ -107,6 +107,15 @@ sync_telemetry_input: false
 # the Kafka forwarding pipeline is connected.
 ome_ip: ""
 
+# When true, the OME test suite will:
+#   1. Run the external_kafka_connect playbook to extract TLS certs
+#   2. Verify ca.crt, user.crt, user.key exist
+#   3. Convert user.crt + user.key to user.pfx
+#   4. Verify OME Kafka forwarder connectivity via REST API
+# When false, only the OME deployment tests (Vector-OME bridge, KafkaUser)
+# are run; connectivity/certificate tests are skipped.
+configure_ome: false
+
 # =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
