@@ -18,13 +18,9 @@
     file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
     name: endpoint_config
 
-- name: Get pulp_server_ip from environment variable if not in config
-  ansible.builtin.set_fact:
-    pulp_server_ip_from_env: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') }}"
-
 - name: Set Pulp server IP from endpoint config or environment
   ansible.builtin.set_fact:
-    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(pulp_server_ip_from_env) }}"
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(admin_nic_ip) }}"
 
 - name: Validate Pulp password is provided
   ansible.builtin.fail:

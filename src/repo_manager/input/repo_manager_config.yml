@@ -13,6 +13,8 @@
 # ***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+---
+
 # ***********************************************************************
 # NOTE: This config uses the catalog-based approach (Omnia 2.2+).
 #       Package resolution is driven by the catalog.
@@ -240,7 +242,12 @@ repositories:
       appstream: {}
       codeready-builder: {}
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
-      slurm_custom: {}
+      slurm_custom:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       ldms: {}
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
       epel:

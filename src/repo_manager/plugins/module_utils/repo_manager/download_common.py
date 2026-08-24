@@ -11,10 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-return-statements,too-many-statements,too-many-arguments,too-many-branches,too-many-locals
+# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-return-statements,too-many-statements,too-many-arguments,too-many-branches,too-many-locals,too-many-nested-blocks
 
 """
-Handle pulp file downloads for local repository
+Handle pulp file downloads for local repository.
+
+This module provides:
+- File download operations for various content types
+- Download task processing and management
+- Content validation and error handling
+- Download status tracking and reporting
 """
 import base64
 import json
@@ -48,6 +54,44 @@ from ansible.module_utils.repo_manager.config import (
 from ansible.module_utils.repo_manager.software_utils import build_repo_name
 
 file_lock = Lock()
+
+# Per-resource locks for Pulp operations (non-image types)
+_repository_locks = {}
+_distribution_locks = {}
+_locks_lock = Lock()
+
+def get_repository_lock(repo_name):
+    """
+    Get or create lock for specific repository.
+    
+    This allows different repositories to be processed in parallel
+    while preventing race conditions for the same repository.
+    
+    Args:
+        repo_name (str): The repository name to get a lock for.
+    
+    Returns:
+        Lock: The lock for this specific repository.
+    """
+    with _locks_lock:
+        if repo_name not in _repository_locks:
+            _repository_locks[repo_name] = Lock()
+        return _repository_locks[repo_name]
+
+def get_distribution_lock(dist_name):
+    """
+    Get or create lock for specific distribution.
+    
+    Args:
+        dist_name (str): The distribution name to get a lock for.
+    
+    Returns:
+        Lock: The lock for this specific distribution.
+    """
+    with _locks_lock:
+        if dist_name not in _distribution_locks:
+            _distribution_locks[dist_name] = Lock()
+        return _distribution_locks[dist_name]
 
 # Mapping from task type to the prefix used in the Pulp repo name.
 # E.g. a tarball package "helm-v3.19.0" becomes "tarballhelm-v3.19.0".
@@ -385,6 +429,19 @@ def handle_post_request(repository_name, relative_path, base_path, file_url, tim
     Returns:
         str: "Success" if the operation completes successfully, "Failed" otherwise.
     """
+    # Get lock for this specific repository
+    repo_lock = get_repository_lock(repository_name)
+    
+    with repo_lock:
+        # Check if repository exists (idempotency)
+        if not execute_command(pulp_file_commands["show_repository"] % repository_name, logger):
+            logger.info(f"Repository {repository_name} does not exist. Creating it...")
+            if not execute_command(pulp_file_commands["create_repository"] % repository_name, logger):
+                logger.error(f"Failed to create repository: {repository_name}")
+                return "Failed"
+        else:
+            logger.info(f"Repository {repository_name} already exists. Skipping creation.")
+    
     result = handle_file_upload(repository_name, relative_path, file_url, timeout_minutes, logger)
     if result =="Success":
         distribution_name = repository_name
@@ -394,18 +451,22 @@ def handle_post_request(repository_name, relative_path, base_path, file_url, tim
             logger.error(f"Failed to create publication for repository: {repository_name}")
             result = "Failed"
 
-        logger.info("Checking distribution...")
-        if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name),
-                              logger):
-            logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-            if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
-                logger.error(f"Failed to create distribution: {distribution_name}")
-                result = "Failed"
-        else:
-            logger.info(f"Distribution {distribution_name} already exists. Updating it...")
-            if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
-                logger.error(f"Failed to update distribution: {distribution_name}")
-                result = "Failed"
+        # Get lock for this specific distribution
+        dist_lock = get_distribution_lock(distribution_name)
+        
+        with dist_lock:
+            logger.info("Checking distribution...")
+            if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name),
+                                  logger):
+                logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
+                if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
+                    logger.error(f"Failed to create distribution: {distribution_name}")
+                    result = "Failed"
+            else:
+                logger.info(f"Distribution {distribution_name} already exists. Updating it...")
+                if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
+                    logger.error(f"Failed to update distribution: {distribution_name}")
+                    result = "Failed"
     return result
 
 
@@ -444,14 +505,19 @@ def process_file(repository_name, output_file, relative_path,
             logger.info(f"File downloaded to: {file_path}")
         # Step 2: Check if the repository exists; create if not
         logger.info("Step 2: Checking repository...")
-        if not execute_command(pulp_file_commands["show_repository"] % (repository_name), logger):
-            logger.info(f"Repository {repository_name} does not exist. Creating it...")
-            if not execute_command(pulp_file_commands["create_repository"] % (repository_name),
-                                  logger):
-                logger.error(f"Failed to create repository: {repository_name}")
-                return "Failed"
-        else:
-            logger.info(f"Repository {repository_name} already exists.")
+        
+        # Get lock for this specific repository
+        repo_lock = get_repository_lock(repository_name)
+        
+        with repo_lock:
+            if not execute_command(pulp_file_commands["show_repository"] % (repository_name), logger):
+                logger.info(f"Repository {repository_name} does not exist. Creating it...")
+                if not execute_command(pulp_file_commands["create_repository"] % (repository_name),
+                                      logger):
+                    logger.error(f"Failed to create repository: {repository_name}")
+                    return "Failed"
+            else:
+                logger.info(f"Repository {repository_name} already exists.")
         # Step 3: Upload the content to the repository
         logger.info("Step 3: Uploading content...")
         if not execute_command(pulp_file_commands["content_upload"] % (repository_name, file_path, relative_path), logger):
@@ -465,17 +531,22 @@ def process_file(repository_name, output_file, relative_path,
             return "Failed"
         # Step 5: Check if the distribution exists
         logger.info("Step 5: Checking distribution...")
-        if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name),
-                              logger):
-            logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-            if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
-                logger.error(f"Failed to create distribution: {distribution_name}")
-                return "Failed"
-        else:
-            logger.info(f"Distribution {distribution_name} already exists. Updating it...")
-            if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
-                logger.error(f"Failed to update distribution: {distribution_name}")
-                return "Failed"
+        
+        # Get lock for this specific distribution
+        dist_lock = get_distribution_lock(distribution_name)
+        
+        with dist_lock:
+            if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name),
+                                  logger):
+                logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
+                if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
+                    logger.error(f"Failed to create distribution: {distribution_name}")
+                    return "Failed"
+            else:
+                logger.info(f"Distribution {distribution_name} already exists. Updating it...")
+                if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
+                    logger.error(f"Failed to update distribution: {distribution_name}")
+                    return "Failed"
         logger.info(f"Processing for file {url} completed successfully!")
         return status
     except Exception as e:
@@ -505,16 +576,21 @@ def process_file_without_download(repository_name, output_file, relative_path,
     status = "Success"
     try:
         logger.info(f"Processing file: {url}")
-        # Step 1: Check if the repository exists; create if not
-        logger.info("Step 1: Checking repository...")
-        if not execute_command(pulp_file_commands["show_repository"] % (repository_name), logger):
-            logger.info(f"Repository {repository_name} does not exist. Creating it...")
-            if not execute_command(pulp_file_commands["create_repository"] % (repository_name),
-                                  logger):
-                logger.error(f"Failed to create repository: {repository_name}")
-                return "Failed"
-        else:
-            logger.info(f"Repository {repository_name} already exists.")
+        
+        # Get lock for this specific repository
+        repo_lock = get_repository_lock(repository_name)
+        
+        with repo_lock:
+            # Step 1: Check if the repository exists; create if not
+            logger.info("Step 1: Checking repository...")
+            if not execute_command(pulp_file_commands["show_repository"] % (repository_name), logger):
+                logger.info(f"Repository {repository_name} does not exist. Creating it...")
+                if not execute_command(pulp_file_commands["create_repository"] % (repository_name),
+                                      logger):
+                    logger.error(f"Failed to create repository: {repository_name}")
+                    return "Failed"
+            else:
+                logger.info(f"Repository {repository_name} already exists.")
 
         # Step 2: Upload the content to the repository
         logger.info("Step 2: Uploading content...")
@@ -530,18 +606,22 @@ def process_file_without_download(repository_name, output_file, relative_path,
             logger.error(f"Failed to create publication for repository: {repository_name}")
             return "Failed"
 
-        # Step 4: Check if the distribution exists
-        logger.info("Step 4: Checking distribution...")
-        if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name), logger):
-            logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-            if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
-                logger.error(f"Failed to create distribution: {distribution_name}")
-                return "Failed"
-        else:
-            logger.info(f"Distribution {distribution_name} already exists. Updating it...")
-            if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
-                logger.error(f"Failed to update distribution: {distribution_name}")
-                return "Failed"
+        # Get lock for this specific distribution
+        dist_lock = get_distribution_lock(distribution_name)
+        
+        with dist_lock:
+            # Step 4: Check if the distribution exists
+            logger.info("Step 4: Checking distribution...")
+            if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name), logger):
+                logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
+                if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
+                    logger.error(f"Failed to create distribution: {distribution_name}")
+                    return "Failed"
+            else:
+                logger.info(f"Distribution {distribution_name} already exists. Updating it...")
+                if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
+                    logger.error(f"Failed to update distribution: {distribution_name}")
+                    return "Failed"
         logger.info(f"Processing for file {url} completed successfully!")
         return status
 

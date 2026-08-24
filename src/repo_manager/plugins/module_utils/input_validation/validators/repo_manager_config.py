@@ -34,6 +34,11 @@ from ansible.module_utils.input_validation.core.config import (
 )
 from ansible.module_utils.input_validation.core.utils import create_error_msg, create_file_path
 from ansible.module_utils.input_validation.core.file_utils import load_json
+from ansible.module_utils.input_validation.messages.common_messages import (
+    CERTIFICATE_FILE_NOT_FOUND_MSG, KEY_FILE_NOT_FOUND_MSG,
+    EMPTY_REPO_NAME_FIELD_MSG, DUPLICATE_REPO_NAMES_MSG,
+    REPO_NAME_DUPLICATE_MSG, NO_REQUIRED_REPO_URLS_MSG
+)
 
 from ansible.module_utils.repo_manager.software_utils import get_json_file_path
 
@@ -69,12 +74,12 @@ def validate(
             if cert_path and not os.path.exists(cert_path):
                 errors.append(create_error_msg(
                     repo_manager_config_yml, "user_registry",
-                    f"Certificate file not found: {cert_path}"))
+                    f"{CERTIFICATE_FILE_NOT_FOUND_MSG}: {cert_path}"))
 
             if key_path and not os.path.exists(key_path):
                 errors.append(create_error_msg(
                     repo_manager_config_yml, "user_registry",
-                    f"Key file not found: {key_path}"))
+                    f"{KEY_FILE_NOT_FOUND_MSG}: {key_path}"))
 
     # Validate user_repo_url entries have a 'name' field
     for repo_key in ("user_repo_url_x86_64", "user_repo_url_aarch64"):
@@ -85,7 +90,7 @@ def validate(
                 if not repo_name:
                     errors.append(create_error_msg(
                         repo_manager_config_yml, repo_key,
-                        "Each user repo entry must have a non-empty 'name' field."
+                        EMPTY_REPO_NAME_FIELD_MSG
                     ))
 
     # Collect repo names and check for duplicates
@@ -150,12 +155,13 @@ def validate(
     # Check for duplicate repo names
     for k, v in repo_names.items():
         if len(v) != len(set(v)):
-            errors.append(create_error_msg(repo_manager_config_yml, k, "Duplicate repo names found."))
+            errors.append(create_error_msg(repo_manager_config_yml, k, DUPLICATE_REPO_NAMES_MSG))
             for c in set(v):
                 if v.count(c) > 1:
                     errors.append(create_error_msg(
                         repo_manager_config_yml, k,
-                        f"Repo with name {c} found more than once."))
+                        REPO_NAME_DUPLICATE_MSG.format(name=c)
+                    ))
 
     # Note: Software-specific validations are now handled by catalog-based approach
     # The catalog JSON files define packages and their dependencies directly
@@ -215,7 +221,7 @@ def _check_subscription_status(logger=None):
                 if logger:
                     logger.info(f"Found {len(repo_urls)} repo URLs in {repo_file_to_check}")
             elif logger:
-                logger.info(f"No required repo URLs found in {repo_file_to_check}")
+                logger.info(f"{NO_REQUIRED_REPO_URLS_MSG} in {repo_file_to_check}")
         except (IOError, OSError) as e:
             if logger:
                 logger.warning(f"Error reading {repo_file_to_check}: {e}")

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,no-name-in-module,too-many-branches,too-many-statements
+# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-nested-blocks
 
 """
 Multi-catalog resolver for repo_manager.
