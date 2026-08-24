@@ -38,7 +38,7 @@
       {% set nfs_export = parts[0].split(':')[1] %}
       {% set local_mount = parts[1] %}
       {% if target_nfs_dir.startswith(nfs_export) %}
-      {% set rel_path = target_nfs_dir[nfs_export | length:].lstrip('/') %}
+      {% set rel_path = target_nfs_dir[nfs_export | length :].lstrip('/') %}
       {% if rel_path | length > 0 %}
       {{ local_mount }}/{{ rel_path }}
       {% else %}

@@ -20,6 +20,6 @@ galaxy_info:
     - dell
     - idrac
     - credentials
-    - os_install
+    - osinstall
 
 dependencies: []

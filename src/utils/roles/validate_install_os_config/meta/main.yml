@@ -19,6 +19,6 @@ galaxy_info:
     - hpc
     - dell
     - validation
-    - os_install
+    - osinstall
 
 dependencies: []
