@@ -85,6 +85,47 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # --- Deploy ---
     "playbook_success": "Playbook completed (rc=0, duration={duration:.1f}s)",
     "playbook_failed": "Playbook failed (rc={rc}, duration={duration:.1f}s)",
+
+    # --- GitLab Cleanup ---
+    "packages_removed": "GitLab packages removed: {packages}",
+    "packages_still_present": "GitLab packages still installed: {packages}",
+    "runner_container_removed": "gitlab-runner container removed",
+    "runner_container_still_exists": "gitlab-runner container still exists",
+    "quadlet_removed": "Quadlet file removed: {path}",
+    "quadlet_still_exists": "Quadlet file still exists: {path}",
+    "runner_services_stopped": "Runner services stopped: {count}/{total}",
+    "runner_services_still_active": "Runner services still active: {active}",
+    "url_not_accessible_ok": "GitLab URL not accessible (expected after cleanup)",
+    "url_still_accessible": "GitLab URL still accessible: {url} (HTTP {code})",
+    "directories_removed": "GitLab directories removed: {count}/{total}",
+    "directories_still_exist": "GitLab directories still exist: {dirs}",
+    "services_stopped": "All GitLab services stopped",
+    "services_still_running": "GitLab services still running: {services}",
+    "port_free": "GitLab port {port} is free",
+    "port_in_use": "GitLab port {port} is still in use",
+
+    # --- BuildStream Domain Cleanup ---
+    "container_not_found": "{container} container not found (removed)",
+    "container_still_exists": "{container} container still exists: {status}",
+    "service_inactive": "{service}: inactive (stopped)",
+    "service_still_active": "{service}: still active",
+    "service_disabled": "{service}: disabled",
+    "service_still_enabled": "{service}: still enabled",
+    "service_file_removed": "{path}: removed",
+    "service_file_still_exists": "{path}: still exists",
+    "quadlet_files_removed": "No quadlet files found for {pattern}",
+    "quadlet_files_still_exist": "Quadlet files still exist: {files}",
+    "dirs_removed": "Directories removed: {count}/{total}",
+    "dirs_still_exist": "Directories still exist: {dirs}",
+    "creds_removed": "Credential files removed: {count}/{total}",
+    "creds_still_exist": "Credential files still exist: {files}",
+    "volumes_removed": "No Postgres volumes found for {container}",
+    "volumes_still_exist": "Postgres volumes still exist: {volumes}",
+    "volumes_preserved_ok": "Postgres volumes preserved (backup mode)",
+    "image_groups_cleaned": "All image_groups marked CLEANED",
+    "image_groups_not_checked": (
+        "Postgres not running; image_groups status cannot be verified"
+    ),
 }
 
 # =============================================================================
@@ -291,5 +332,64 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "  1. Check: systemctl status playbook-watcher.service\n"
         "  2. Start: systemctl start playbook-watcher.service\n"
         "  3. Logs: journalctl -u playbook-watcher.service"
+    ),
+
+    # --- GitLab Cleanup ---
+    "packages_still_present": (
+        "GitLab packages still installed after cleanup: {packages}\n"
+        "Root cause: cleanup_gitlab playbook did not remove packages.\n"
+        "HOW TO FIX:\n"
+        "  1. Re-run: ansible-playbook cleanup_build_stream.yml\n"
+        "  2. Manual: dnf remove {packages}"
+    ),
+    "runner_container_still_exists": (
+        "gitlab-runner container still exists after cleanup.\n"
+        "HOW TO FIX:\n"
+        "  1. Manual: podman rm -f gitlab-runner\n"
+        "  2. Re-run cleanup playbook"
+    ),
+    "gitlab_url_still_accessible": (
+        "GitLab URL still accessible at {url} after cleanup.\n"
+        "HOW TO FIX:\n"
+        "  1. Verify cleanup ran to completion\n"
+        "  2. Manual: gitlab-ctl stop && dnf remove gitlab-ce"
+    ),
+    "gitlab_dirs_still_exist": (
+        "GitLab directories still exist: {dirs}\n"
+        "HOW TO FIX:\n"
+        "  1. Manual: rm -rf {dirs}\n"
+        "  2. Re-run cleanup playbook"
+    ),
+    "gitlab_port_in_use": (
+        "GitLab port {port} still in use after cleanup.\n"
+        "HOW TO FIX:\n"
+        "  1. Check: ss -tlnp | grep :{port}\n"
+        "  2. Kill process using the port"
+    ),
+
+    # --- BuildStream Domain Cleanup ---
+    "container_still_exists": (
+        "{container} container still exists after cleanup.\n"
+        "HOW TO FIX:\n"
+        "  1. podman stop {container} && podman rm -f {container}\n"
+        "  2. Re-run cleanup_build_stream.yml"
+    ),
+    "service_still_active": (
+        "{service} still active after cleanup.\n"
+        "HOW TO FIX:\n"
+        "  1. systemctl stop {service}\n"
+        "  2. Re-run cleanup_build_stream.yml"
+    ),
+    "dirs_still_exist": (
+        "Directories still exist after cleanup: {dirs}\n"
+        "HOW TO FIX:\n"
+        "  1. rm -rf <directory>\n"
+        "  2. Re-run cleanup_build_stream.yml"
+    ),
+    "creds_still_exist": (
+        "Credential files still exist: {files}\n"
+        "HOW TO FIX:\n"
+        "  1. Remove files manually\n"
+        "  2. Re-run cleanup_build_stream.yml"
     ),
 }

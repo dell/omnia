@@ -216,6 +216,37 @@ GITLAB_RAILS_CMD_PROJECT_DEFAULT_BRANCH = (
 BUILD_STREAM_CONFIG_FILE = "build_stream_config.yml"
 
 # =============================================================================
+# BUILDSTREAM CLEANUP DIRECTORIES (from cleanup_build_stream role vars)
+# =============================================================================
+
+QUADLET_DIR = "/etc/containers/systemd"
+OMNIA_TARGET_PATH = "/etc/systemd/system/omnia.target"
+PLAYBOOK_WATCHER_SERVICE_FILE = "/etc/systemd/system/playbook_watcher.service"
+PLAYBOOK_WATCHER_SERVICE_NAME = "playbook_watcher.service"
+
+# Directories removed during build_stream cleanup
+BUILDSTREAM_CLEANUP_DIRECTORIES: List[str] = [
+    "/opt/omnia/build_stream/log",
+    "/opt/omnia/build_stream/playbook_queue",
+    "/opt/omnia/build_stream_ssl",
+    "/opt/omnia/build_stream_root",
+    "/opt/omnia/build_stream_inv",
+    "/opt/omnia/build_stream_enabled",
+    "/opt/omnia/build_stream",
+]
+
+# Credential files removed during cleanup
+BUILDSTREAM_CREDENTIAL_FILES: List[str] = [
+    "build_stream_credentials.yml",
+    ".build_stream_credentials_key",
+]
+
+BUILDSTREAM_OAUTH_CREDENTIAL_FILES: List[str] = [
+    "build_stream_oauth_credentials.yml",
+    ".build_stream_oauth_credentials_key",
+]
+
+# =============================================================================
 # SHELL COMMANDS — all commands MUST be in this dict.
 # =============================================================================
 CMDS: Dict[str, str] = {
@@ -318,5 +349,29 @@ CMDS: Dict[str, str] = {
     # --- Venv ---
     "venv_ansible_playbook": (
         "test -f {venv_path}/bin/ansible-playbook && echo exists"
+    ),
+
+    # --- Cleanup verification ---
+    "podman_container_exists": (
+        "podman ps -a --format '{{{{.Names}}}}'"
+        " --filter name=^{container}$ 2>/dev/null"
+    ),
+    "systemctl_is_enabled": (
+        "systemctl is-enabled {service} 2>/dev/null"
+    ),
+    "ss_port_check": (
+        "ss -tlnp 2>/dev/null | grep ':{port}' || true"
+    ),
+    "podman_volume_ls": (
+        "podman volume ls --format '{{{{.Name}}}}' 2>/dev/null"
+        " | grep {pattern} || true"
+    ),
+    "find_quadlet_files": (
+        "find {dir} -name '{pattern}*' -type f 2>/dev/null || true"
+    ),
+    "systemctl_list_units": (
+        "systemctl list-units --type=service --all"
+        " --no-legend 2>/dev/null"
+        " | grep {pattern} || true"
     ),
 }

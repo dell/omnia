@@ -256,7 +256,10 @@ def pytest_sessionstart(session):
             log(f"Input sync failed: {sync_result['error']}", "ERROR")
 
     # Initialize test report
-    valid_scenarios = {"gitlab_install", "gitlab_cleanup", "health"}
+    valid_scenarios = {
+        "gitlab_install", "gitlab_cleanup",
+        "buildstream_cleanup", "health",
+    }
     module_name = "build_stream"
     test_paths = (
         session.config.args if hasattr(session.config, "args") else []

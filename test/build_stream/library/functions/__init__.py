@@ -74,6 +74,37 @@ from .build_stream_func import (
     check_playbook_watcher,
 )
 
+# --- Cleanup verification ---
+from .cleanup_func import (
+    # GitLab cleanup
+    check_gitlab_packages_removed,
+    check_gitlab_runner_container_removed,
+    check_gitlab_runner_quadlet_removed,
+    check_gitlab_runner_services_stopped,
+    check_gitlab_url_not_accessible,
+    check_gitlab_directories_removed,
+    check_gitlab_services_stopped,
+    check_gitlab_port_free,
+    # BuildStream domain cleanup
+    check_buildstream_container_stopped,
+    check_buildstream_container_removed,
+    check_buildstream_quadlet_files_removed,
+    check_buildstream_services_stopped,
+    check_playbook_watcher_service_stopped,
+    check_playbook_watcher_service_disabled,
+    check_playbook_watcher_service_file_removed,
+    check_postgres_container_stopped,
+    check_postgres_container_removed,
+    check_postgres_quadlet_files_removed,
+    check_postgres_services_stopped,
+    check_image_groups_marked_cleaned,
+    check_postgres_volumes_removed,
+    check_postgres_volumes_preserved,
+    check_buildstream_directories_removed,
+    check_buildstream_credentials_removed,
+    check_buildstream_oauth_credentials_removed,
+)
+
 # --- Validation ---
 from .validation_func import (
     validate_test_config,
@@ -138,6 +169,33 @@ __all__ = [
     "check_bsm_tls_certificate",
     "check_nfs_queue_directory",
     "check_playbook_watcher",
+    # GitLab cleanup
+    "check_gitlab_packages_removed",
+    "check_gitlab_runner_container_removed",
+    "check_gitlab_runner_quadlet_removed",
+    "check_gitlab_runner_services_stopped",
+    "check_gitlab_url_not_accessible",
+    "check_gitlab_directories_removed",
+    "check_gitlab_services_stopped",
+    "check_gitlab_port_free",
+    # BuildStream domain cleanup
+    "check_buildstream_container_stopped",
+    "check_buildstream_container_removed",
+    "check_buildstream_quadlet_files_removed",
+    "check_buildstream_services_stopped",
+    "check_playbook_watcher_service_stopped",
+    "check_playbook_watcher_service_disabled",
+    "check_playbook_watcher_service_file_removed",
+    "check_postgres_container_stopped",
+    "check_postgres_container_removed",
+    "check_postgres_quadlet_files_removed",
+    "check_postgres_services_stopped",
+    "check_image_groups_marked_cleaned",
+    "check_postgres_volumes_removed",
+    "check_postgres_volumes_preserved",
+    "check_buildstream_directories_removed",
+    "check_buildstream_credentials_removed",
+    "check_buildstream_oauth_credentials_removed",
     # Validation
     "validate_test_config",
     "validate_all",

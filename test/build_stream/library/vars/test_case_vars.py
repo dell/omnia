@@ -167,4 +167,122 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "TC_BH_011",
         "title": "Verify playbook watcher running",
     },
+
+    # =================================================================
+    # SECTION C: GitLab Cleanup (TC_GC_xxx)
+    # =================================================================
+
+    "deploy_gitlab_cleanup": {
+        "id": "TC_GC_000",
+        "title": "Deploy build_stream --tags gitlab_cleanup",
+    },
+    "gitlab_packages_removed": {
+        "id": "TC_GC_001",
+        "title": "Verify GitLab packages removed",
+    },
+    "gitlab_runner_container_removed": {
+        "id": "TC_GC_002",
+        "title": "Verify gitlab-runner container removed",
+    },
+    "gitlab_runner_quadlet_removed": {
+        "id": "TC_GC_003",
+        "title": "Verify gitlab-runner quadlet removed",
+    },
+    "gitlab_runner_services_stopped": {
+        "id": "TC_GC_004",
+        "title": "Verify GitLab runner services stopped",
+    },
+    "gitlab_url_not_accessible": {
+        "id": "TC_GC_005",
+        "title": "Verify GitLab URL not accessible",
+    },
+    "gitlab_directories_removed": {
+        "id": "TC_GC_006",
+        "title": "Verify GitLab directories removed",
+    },
+    "gitlab_services_stopped": {
+        "id": "TC_GC_007",
+        "title": "Verify all GitLab services stopped",
+    },
+    "gitlab_port_free": {
+        "id": "TC_GC_008",
+        "title": "Verify GitLab HTTPS port free",
+    },
+
+    # =================================================================
+    # SECTION C.1: BuildStream Domain Cleanup (TC_BC_xxx)
+    # =================================================================
+
+    "deploy_buildstream_cleanup": {
+        "id": "TC_BC_000",
+        "title": "Deploy cleanup_build_stream playbook",
+    },
+    "buildstream_container_stopped": {
+        "id": "TC_BC_001",
+        "title": "Verify omnia_build_stream container stopped",
+    },
+    "buildstream_container_removed": {
+        "id": "TC_BC_002",
+        "title": "Verify omnia_build_stream container removed",
+    },
+    "buildstream_quadlet_files_removed": {
+        "id": "TC_BC_003",
+        "title": "Verify omnia_build_stream quadlet removed",
+    },
+    "buildstream_services_stopped": {
+        "id": "TC_BC_004",
+        "title": "Verify omnia_build_stream services stopped",
+    },
+    "playbook_watcher_service_stopped": {
+        "id": "TC_BC_005",
+        "title": "Verify playbook_watcher stopped",
+    },
+    "playbook_watcher_service_disabled": {
+        "id": "TC_BC_006",
+        "title": "Verify playbook_watcher disabled",
+    },
+    "playbook_watcher_service_file_removed": {
+        "id": "TC_BC_007",
+        "title": "Verify playbook_watcher file removed",
+    },
+    "postgres_container_stopped": {
+        "id": "TC_BC_008",
+        "title": "Verify omnia_postgres container stopped",
+    },
+    "postgres_container_removed": {
+        "id": "TC_BC_009",
+        "title": "Verify omnia_postgres container removed",
+    },
+    "postgres_quadlet_files_removed": {
+        "id": "TC_BC_010",
+        "title": "Verify omnia_postgres quadlet removed",
+    },
+    "postgres_services_stopped": {
+        "id": "TC_BC_011",
+        "title": "Verify omnia_postgres services stopped",
+    },
+    "image_groups_marked_cleaned": {
+        "id": "TC_BC_012",
+        "title": "Verify image_groups marked CLEANED",
+    },
+    "postgres_volumes_removed_no_backup": {
+        "id": "TC_BC_013",
+        "title": "Verify Postgres volumes removed (no backup)",
+    },
+    "postgres_volumes_preserved_with_backup": {
+        "id": "TC_BC_014",
+        "title": "Verify Postgres volumes preserved (backup)",
+    },
+    "buildstream_directories_removed": {
+        "id": "TC_BC_015",
+        "title": "Verify build_stream directories removed",
+    },
+    "buildstream_credentials_removed": {
+        "id": "TC_BC_016",
+        "title": "Verify build_stream credentials removed",
+    },
+    "buildstream_oauth_credentials_removed": {
+        "id": "TC_BC_017",
+        "title": "Verify OAuth credentials removed",
+    },
 }
