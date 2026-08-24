@@ -27,7 +27,6 @@ from core.jobs.value_objects import (
     CorrelationId,
     JobId,
     StageName,
-    StageState,
     StageType,
 )
 from core.localrepo.exceptions import InputFilesMissingError
@@ -94,7 +93,7 @@ def use_case_fixture(job, stage):
 
     stage_repo = MagicMock()
 
-    def _find_by_job_and_name(job_id_arg, stage_name_arg):
+    def _find_by_job_and_name(_job_id_arg, stage_name_arg):
         if stage_name_arg.value == StageType.CREATE_LOCAL_REPOSITORY.value:
             return stage
         return None
