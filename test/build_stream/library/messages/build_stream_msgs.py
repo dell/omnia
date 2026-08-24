@@ -233,7 +233,8 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "bsm_disabled": (
         "build_stream not enabled in build_stream_config.yml.\n"
         "HOW TO FIX:\n"
-        "  1. Check config file exists at: /opt/omnia/build_stream/input/<project>/build_stream_config.yml\n"
+        "  1. Check config file exists at:\n"
+        "     /opt/omnia/build_stream/input/<project>/build_stream_config.yml\n"
         "  2. Set enable_build_stream: true in the config\n"
         "  3. If file missing, verify project_name and shared_path in test_config.yml"
     ),
