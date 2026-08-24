@@ -24,7 +24,7 @@ from typing import Any, Dict
 
 from omnia_auto import load_test_config, run_on_host
 
-from ..vars.common_vars import (
+from library.vars.common_vars import (
     BSM_HEALTH_PATH,
     BSM_HOST_IP_KEY,
     BSM_PORT_KEY,

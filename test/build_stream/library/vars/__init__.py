@@ -14,14 +14,14 @@
 
 """Build Stream — Variables Package."""
 
-from .common_vars import (
+from library.vars.common_vars import (
     DOMAIN_NAME,
     PLAYBOOK_ENTRY_POINT,
     PLAYBOOK_WORKDIR,
     PLAYBOOK_TAGS,
     CMDS,
 )
-from .test_case_vars import TEST_CASES
+from library.vars.test_case_vars import TEST_CASES
 
 __all__ = [
     "DOMAIN_NAME",

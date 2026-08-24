@@ -38,10 +38,10 @@ from omnia_auto import (
     set_current_report,
     run_playbook as _run_playbook,
 )
-from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
 # --- GitLab verification ---
-from .gitlab_func import (
+from library.functions.gitlab_func import (
     check_gitlab_packages_installed,
     check_gitlab_server_reachable,
     check_gitlab_runner_container,
@@ -62,7 +62,7 @@ from .gitlab_func import (
 )
 
 # --- BuildStream health verification ---
-from .build_stream_func import (
+from library.functions.build_stream_func import (
     check_build_stream_enabled,
     check_build_stream_health,
     check_postgres_tables,
@@ -75,7 +75,7 @@ from .build_stream_func import (
 )
 
 # --- Cleanup verification ---
-from .cleanup_func import (
+from library.functions.cleanup_func import (
     # GitLab cleanup
     check_gitlab_packages_removed,
     check_gitlab_runner_container_removed,
@@ -106,7 +106,7 @@ from .cleanup_func import (
 )
 
 # --- Validation ---
-from .validation_func import (
+from library.functions.validation_func import (
     validate_test_config,
     validate_all,
     ConfigValidationError,

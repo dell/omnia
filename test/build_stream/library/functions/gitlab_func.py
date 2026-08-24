@@ -24,7 +24,7 @@ from typing import Any, Dict, List
 
 from omnia_auto import load_test_config, load_test_credentials, run_on_host
 
-from ..vars.common_vars import (
+from library.vars.common_vars import (
     CMDS,
     GITLAB_API_VERSION,
     GITLAB_CI_ALL_FILES,

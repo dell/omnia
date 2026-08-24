@@ -14,7 +14,7 @@
 
 """Build Stream — Messages Package."""
 
-from .build_stream_msgs import (
+from library.messages.build_stream_msgs import (
     TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
 )

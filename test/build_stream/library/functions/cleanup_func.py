@@ -24,7 +24,7 @@ from typing import Any, Dict, List
 
 from omnia_auto import load_test_config, run_on_host
 
-from ..vars.common_vars import (
+from library.vars.common_vars import (
     BSM_CONTAINER_NAME,
     BUILDSTREAM_CLEANUP_DIRECTORIES,
     BUILDSTREAM_CREDENTIAL_FILES,
@@ -42,7 +42,7 @@ from ..vars.common_vars import (
     POSTGRES_CONTAINER_NAME,
     QUADLET_DIR,
 )
-from .gitlab_func import _get_gitlab_config, _ssh_to_gitlab
+from library.functions.gitlab_func import _get_gitlab_config, _ssh_to_gitlab
 
 
 # =========================================================================
