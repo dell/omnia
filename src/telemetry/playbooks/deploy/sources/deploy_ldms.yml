@@ -59,6 +59,7 @@
       register: slurm_inv_stat
       delegate_to: localhost
       when: slurm_inventory_file | default('') | length > 0
+      # Note: Not in a loop - single delegation to localhost for file existence check
 
     - name: Load slurm inventory for aggregator/sampler node delegation
       when:

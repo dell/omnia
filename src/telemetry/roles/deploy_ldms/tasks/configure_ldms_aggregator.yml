@@ -111,6 +111,7 @@
   register: host_map_count
   changed_when: false
   failed_when: false
+  # noqa: risky-shell-pipe
 
 - name: Skip Helm deploy if no nodes configured
   ansible.builtin.debug:
