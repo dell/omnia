@@ -373,6 +373,11 @@ else
     echo "ERROR: Virtual environment not found at ${OMNIA_VENV_PATH}"
     return 1 2>/dev/null || exit 1
 fi
+
+# Load omnia-cli bash completion
+if [ -f /etc/bash_completion.d/omnia-cli ]; then
+    source /etc/bash_completion.d/omnia-cli
+fi
 ACTIVATE_EOF
     chmod +x "${OMNIA_DATA_PATH}/activate-omnia.sh"
 

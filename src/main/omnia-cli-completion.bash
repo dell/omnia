@@ -30,12 +30,12 @@ _omnia_cli_completions() {
     _init_completion || return
 
     # All top-level commands
-    local commands="status check edit logs repo-manager image-build \
-orchestrator discovery telemetry build-stream utils version help"
+    local commands="status check edit logs repo_manager image_build_manager \
+orchestrator discovery telemetry build_stream utils version help"
 
     # All domain names (used by edit, logs, help, and as direct commands)
-    local domains="repo-manager image-build orchestrator discovery \
-telemetry build-stream utils"
+    local domains="repo_manager image_build_manager orchestrator discovery \
+telemetry build_stream utils"
 
     # Determine which command was typed (skip flags and their values)
     local command=""
@@ -128,8 +128,8 @@ telemetry build-stream utils"
                 fi
             fi
             ;;
-        status|check|repo-manager|image-build|orchestrator| \
-        discovery|telemetry|build-stream|utils)
+        status|check|repo_manager|image_build_manager|orchestrator| \
+        discovery|telemetry|build_stream|utils)
             # These commands only take --project
             if [[ "$cur" == -* ]]; then
                 COMPREPLY=($(compgen -W "--project" -- "$cur"))
