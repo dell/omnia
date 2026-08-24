@@ -82,12 +82,39 @@
     mode: '0644'
   when: telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
+- name: Collect rendered Vector-OME manifests
+  ansible.builtin.set_fact:
+    _vector_ome_manifests:
+      - "{{ telemetry_deployments_dir }}/vector/vector-ome-kafkauser.yaml"
+      - "{{ telemetry_deployments_dir }}/vector/vector-ome-configmap.yaml"
+      - "{{ telemetry_deployments_dir }}/vector/vector-ome-deployment.yaml"
+      - "{{ telemetry_deployments_dir }}/vector/vector-ome-service.yaml"
+
+- name: Add vmagent-vector manifests to apply list
+  ansible.builtin.set_fact:
+    _vector_ome_manifests: >-
+      {{ _vector_ome_manifests +
+         [telemetry_deployments_dir + '/vector/vmagent-vector-deployment.yaml',
+          telemetry_deployments_dir + '/vector/vmagent-vector-service.yaml'] }}
+  when: telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool
+
+- name: Add vlagent-vector manifests to apply list
+  ansible.builtin.set_fact:
+    _vector_ome_manifests: >-
+      {{ _vector_ome_manifests +
+         [telemetry_deployments_dir + '/vector/vlagent-vector-deployment.yaml',
+          telemetry_deployments_dir + '/vector/vlagent-vector-service.yaml'] }}
+  when: telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+
+- name: Apply Vector-OME manifests
+  ansible.builtin.command: >
+    kubectl apply -f {{ item }}
+  loop: "{{ _vector_ome_manifests }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  changed_when: false
+
 - name: Display Vector-OME template generation summary
   ansible.builtin.debug:
-    msg: >
-      Vector-OME templates generated:
-      KafkaUser: {{ vector_ome_kafkauser_rendered.dest }}.
-      ConfigMap: {{ vector_ome_configmap_rendered.dest }}.
-      Deployment: {{ vector_ome_deployment_rendered.dest }}.
-      Service: {{ vector_ome_service_rendered.dest }}.
+    msg: "Vector-OME manifests generated and applied"
     verbosity: 2
