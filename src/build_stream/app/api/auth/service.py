@@ -114,9 +114,17 @@ class AuthService:
                 "Registration configuration error"
             ) from None
 
-        registration_config = auth_config.get("auth_registration", {})
-        stored_username = registration_config.get("username")
-        stored_password_hash = registration_config.get("password_hash")
+        # Support both flat (new) and nested (legacy) credential formats
+        # Flat format: build_stream_auth_username, build_stream_auth_password_hash
+        # Nested format: auth_registration.username, auth_registration.password_hash
+        stored_username = auth_config.get("build_stream_auth_username")
+        stored_password_hash = auth_config.get("build_stream_auth_password_hash")
+
+        # Fall back to nested format for backwards compatibility
+        if not stored_username or not stored_password_hash:
+            registration_config = auth_config.get("auth_registration", {})
+            stored_username = registration_config.get("username")
+            stored_password_hash = registration_config.get("password_hash")
 
         if not stored_username or not stored_password_hash:
             raise RegistrationDisabledError(

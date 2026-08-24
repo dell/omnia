@@ -96,12 +96,15 @@
           ansible.builtin.fail:
             msg: "Failed to load build_stream credentials. Check file and vault key at {{ bs_cred_file }}."
 
-    - name: Set build_stream auth vars from auth_registration dict
+    - name: Set build_stream auth vars from auth_registration dict (backwards compat)
       ansible.builtin.set_fact:
         build_stream_auth_username: "{{ auth_registration.username | default('') }}"
         build_stream_auth_password: "{{ auth_registration.password | default('') }}"
+        build_stream_auth_password_hash: "{{ auth_registration.password_hash | default('') }}"
       no_log: true
-      when: auth_registration is defined
+      when:
+        - auth_registration is defined
+        - build_stream_auth_username is not defined
 
     - name: Validate postgres credentials are set
       ansible.builtin.assert:
