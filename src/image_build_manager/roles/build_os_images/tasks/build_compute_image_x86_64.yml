@@ -260,3 +260,51 @@
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
+
+    - name: Verify x86_64 compute images have tags in registry
+      ansible.builtin.shell: |
+        /usr/local/bin/regctl tag ls {{ registry_host }}:5000/{{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }} 2>/dev/null
+      changed_when: false
+      failed_when: false
+      register: _compute_tag_check
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
+    - name: Fail if x86_64 compute image has no tags
+      ansible.builtin.fail:
+        msg: >-
+          Compute image {{ host_name }}/rhel-{{ item.item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}
+          exists in registry but has no tags.
+          Check log: {{ image_build_log_dir }}/{{ item.item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+      when: item.stdout_lines | default([]) | length == 0
+      loop: "{{ _compute_tag_check.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    # --- S3 verification ---
+    - name: Verify x86_64 compute images exist in S3
+      ansible.builtin.shell: |
+        set -o pipefail
+        s3cmd ls -r s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.key }}/ 2>/dev/null | grep -c 'rhel-{{ item.key }}' || echo 0
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
+      register: _compute_s3_check
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
+    - name: Fail if x86_64 compute image not in S3
+      ansible.builtin.fail:
+        msg: >-
+          Compute image for group {{ item.item.key }} not found in
+          s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.item.key }}/.
+          Check log: {{ image_build_log_dir }}/{{ item.item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+      when: (item.stdout | default('0') | trim | int) == 0
+      loop: "{{ _compute_s3_check.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
