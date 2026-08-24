@@ -290,7 +290,7 @@ run_pytest() {
         rc=$?
         set -e
     fi
-    return $rc
+    return "$rc"
 }
 
 # =============================================================================
@@ -435,9 +435,11 @@ COMPLETION_EOF
             echo -e "${RED}Error: Config file not found: ${CONFIG_FILE}${NC}"
             exit 1
         fi
-        export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+        REPORT_ID=$(date '+%Y%m%d%H%M%S')
+        export REPORT_ID
         export OMNIA_SUPPRESS_SUMMARY="true"
-        export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+        OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+        export OMNIA_RESULTS_FILE
 
         echo -e "${BLUE}=================================================================${NC}"
         echo -e "${BLUE}  Batch Execution from test_run_config.yml${NC}"
@@ -445,7 +447,7 @@ COMPLETION_EOF
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
 
-        local_total=0; local_passed=0; local_failed=0; local_skipped=0
+        cfg_total=0; cfg_passed=0; cfg_failed=0; cfg_skipped=0
         scenario_names=$(python3 -c "
 import yaml
 with open('${CONFIG_FILE}') as f:
@@ -455,6 +457,7 @@ for name in cfg.get('scenarios', {}):
 ")
 
         for name in $scenario_names; do
+            # shellcheck disable=SC2034
             eval "$(python3 -c "
 import yaml
 with open('${CONFIG_FILE}') as f:
@@ -466,27 +469,29 @@ print(f'suite_cfg={sc.get(\"suite\", \"\")}')
 print(f'command_cfg={sc.get(\"command\", \"test\")}')
 print(f'tag_cfg={sc.get(\"tag\", \"\")}')
 ")"
-            local_total=$((local_total + 1))
+            cfg_total=$((cfg_total + 1))
+            # shellcheck disable=SC2154
             if [[ "$run_flag" != "true" ]]; then
                 echo -e "  ${YELLOW}SKIP${NC}  ${name}"
-                local_skipped=$((local_skipped + 1))
+                cfg_skipped=$((cfg_skipped + 1))
                 continue
             fi
 
-            local extra_args=""
+            extra_args=""
             [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
             [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
 
-            local run_args="${DOMAIN_NAME}"
+            run_args="${DOMAIN_NAME}"
             [[ -n "$tag_cfg" ]] && run_args="${run_args} ${tag_cfg}"
             run_args="${run_args} ${command_cfg:-verify}"
 
+            # shellcheck disable=SC2086
             if "$0" $run_args $extra_args; then
                 echo -e "  ${GREEN}PASS${NC}  ${name}"
-                local_passed=$((local_passed + 1))
+                cfg_passed=$((cfg_passed + 1))
             else
                 echo -e "  ${RED}FAIL${NC}  ${name}"
-                local_failed=$((local_failed + 1))
+                cfg_failed=$((cfg_failed + 1))
             fi
         done
 
@@ -494,9 +499,9 @@ print(f'tag_cfg={sc.get(\"tag\", \"\")}')
 
         echo ""
         echo -e "${BLUE}=================================================================${NC}"
-        echo -e "  Total: ${local_total}  ${GREEN}Passed: ${local_passed}${NC}  ${RED}Failed: ${local_failed}${NC}  ${YELLOW}Skipped: ${local_skipped}${NC}"
+        echo -e "  Total: ${cfg_total}  ${GREEN}Passed: ${cfg_passed}${NC}  ${RED}Failed: ${cfg_failed}${NC}  ${YELLOW}Skipped: ${cfg_skipped}${NC}"
         echo -e "${BLUE}=================================================================${NC}"
-        [[ $local_failed -eq 0 ]] || exit 1
+        [[ $cfg_failed -eq 0 ]] || exit 1
         exit 0
         ;;
 esac
@@ -524,7 +529,7 @@ fi
 if [[ -n "$SUITE" && -n "$TAG" && ! -d "${FVT_DIR}/${TAG}/${SUITE}" ]]; then
     echo -e "${YELLOW}Warning: Suite '${SUITE}' not found in fvt/${TAG}/${NC}"
     echo -e "${YELLOW}Available:${NC}"
-    ls -d "${FVT_DIR}/${TAG}"/*/ 2>/dev/null | xargs -I{} basename {} | while read -r d; do echo "  $d"; done
+    find "${FVT_DIR}/${TAG}" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -exec basename {} \; 2>/dev/null | while read -r d; do echo "  $d"; done
     exit 1
 fi
 
@@ -532,7 +537,8 @@ fi
 # Setup environment
 # =============================================================================
 if [[ -z "${REPORT_ID:-}" ]]; then
-    export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    REPORT_ID=$(date '+%Y%m%d%H%M%S')
+    export REPORT_ID
 fi
 
 export OMNIA_SUITE="${SUITE:-all}"
@@ -635,7 +641,8 @@ case "$COMMAND" in
         FAILED=0
 
         export OMNIA_SUPPRESS_SUMMARY="true"
-        export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+        OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+        export OMNIA_RESULTS_FILE
 
         # Step 1: Execute playbook
         export OMNIA_COMMAND_TYPE="exec"
