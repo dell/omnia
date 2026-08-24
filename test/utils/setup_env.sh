@@ -31,16 +31,92 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 PLUGINS_DIR="${SCRIPT_DIR}/../plugins"
 WHEEL_PATH="${PLUGINS_DIR}/dist/omnia_auto-1.0.0-py3-none-any.whl"
+CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
+CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Vault key management
+_ensure_vault_key() {
+    if [ ! -f "$CREDS_KEY" ]; then
+        log_info "Generating vault key: .test_creds.key"
+        python3 -c "import secrets; print(secrets.token_urlsafe(32)[:32])" > "$CREDS_KEY"
+        chmod 600 "$CREDS_KEY"
+    fi
+}
+
+_vault_encrypt() {
+    if command -v ansible-vault &>/dev/null; then
+        ansible-vault encrypt "$CREDS_FILE" --vault-password-file "$CREDS_KEY" 2>/dev/null
+        log_info "Credentials encrypted: test_creds.yml"
+    else
+        log_warn "ansible-vault not found — credentials saved as plain text"
+        log_warn "Install ansible-core and re-run to encrypt"
+    fi
+}
+
+_decrypt_creds_temp() {
+    DECRYPTED_CREDS_TMP=$(mktemp)
+    if command -v ansible-vault &>/dev/null && grep -q '^\$ANSIBLE_VAULT' "$CREDS_FILE" 2>/dev/null; then
+        ansible-vault decrypt --output "$DECRYPTED_CREDS_TMP" \
+            --vault-password-file "$CREDS_KEY" "$CREDS_FILE" 2>/dev/null || true
+    else
+        cp "$CREDS_FILE" "$DECRYPTED_CREDS_TMP"
+    fi
+}
+
+_read_existing_field() {
+    local _field="$1"
+    grep -E "^${_field}:" "$CREDS_FILE" 2>/dev/null \
+        | sed "s/^${_field}:[[:space:]]*//; s/[\"']//g" || true
+}
+
+_create_and_encrypt_creds() {
+    # Args:  $1 = oim_password
+    #        $2 = bmc_username   (optional; keep existing if not provided)
+    #        $3 = bmc_password  (optional; keep existing if not provided)
+    local _oim_pass="${1:-}"
+    local _bmc_user="${2:-}"
+    local _bmc_pass="${3:-}"
+
+    # If file already exists, preserve existing values for fields not being updated
+    if [ -f "$CREDS_FILE" ]; then
+        _decrypt_creds_temp
+        [ -z "$_oim_pass" ]  && _oim_pass=$(grep -E '^oim_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^oim_password:[[:space:]]*//; s/[\"'\'']//g' || true)
+        [ -z "$_bmc_user" ]  && _bmc_user=$(grep -E '^bmc_username:' "$DECRYPTED_CREDS_TMP" | sed 's/^bmc_username:[[:space:]]*//; s/[\"'\'']//g' || true)
+        [ -z "$_bmc_pass" ]  && _bmc_pass=$(grep -E '^bmc_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^bmc_password:[[:space:]]*//; s/[\"'\'']//g' || true)
+        rm -f "$DECRYPTED_CREDS_TMP"
+    fi
+
+    # Write plain-text creds file (all fields)
+    cat > "$CREDS_FILE" << CREDS_EOF
+---
+# Utils Domain — test credentials
+# Auto-encrypted with Ansible Vault.  Do NOT commit this file.
+
+# SSH password for the remote OIM server (oim_server_ip in test_config.yml).
+# Leave empty to use key-based authentication.
+oim_password: "${_oim_pass}"
+
+# BMC credentials for PXE boot tests — synced to set_pxe_boot_credentials.yml on the target.
+# Required by the set_pxe_boot playbook for iDRAC/BMC access.
+bmc_username: "${_bmc_user}"
+bmc_password: "${_bmc_pass}"
+CREDS_EOF
+    chmod 600 "$CREDS_FILE"
+
+    _ensure_vault_key
+    _vault_encrypt
+}
 
 # Parse arguments
 SET_PASSWORD=false
@@ -110,27 +186,13 @@ log_info "Activate with: source ${VENV_DIR}/bin/activate"
 if [[ "${SET_PASSWORD}" == "true" ]]; then
     if [[ -n "${PASSWORD_VALUE}" ]]; then
         # Non-interactive mode
-        python3 -c "
-import yaml
-with open('${SCRIPT_DIR}/test_creds.yml', 'r') as f:
-    creds = yaml.safe_load(f) or {}
-creds['oim_password'] = '${PASSWORD_VALUE}'
-with open('${SCRIPT_DIR}/test_creds.yml', 'w') as f:
-    yaml.dump(creds, f, default_flow_style=False)
-"
+        _create_and_encrypt_creds "${PASSWORD_VALUE}"
         log_info "SSH password updated in test_creds.yml"
     else
         # Interactive mode
         read -sp "Enter SSH password for oim_server_ip: " password
         echo
-        python3 -c "
-import yaml
-with open('${SCRIPT_DIR}/test_creds.yml', 'r') as f:
-    creds = yaml.safe_load(f) or {}
-creds['oim_password'] = '${password}'
-with open('${SCRIPT_DIR}/test_creds.yml', 'w') as f:
-    yaml.dump(creds, f, default_flow_style=False)
-"
+        _create_and_encrypt_creds "${password}"
         log_info "SSH password saved to test_creds.yml"
     fi
 fi
@@ -139,31 +201,16 @@ fi
 if [[ "${SET_DOMAIN_CREDS}" == "true" ]]; then
     if [[ -n "${DOMAIN_CREDS_JSON}" ]]; then
         # Non-interactive mode (JSON input)
-        python3 -c "
-import yaml
-import json
-with open('${SCRIPT_DIR}/test_creds.yml', 'r') as f:
-    creds = yaml.safe_load(f) or {}
-domain_creds = json.loads('${DOMAIN_CREDS_JSON}')
-creds.update(domain_creds)
-with open('${SCRIPT_DIR}/test_creds.yml', 'w') as f:
-    yaml.dump(creds, f, default_flow_style=False)
-"
-        log_info "Domain credentials updated in test_creds.yml"
+        _bmc_user=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('bmc_username',''))" 2>/dev/null || true)
+        _bmc_pass=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('bmc_password',''))" 2>/dev/null || true)
+        _create_and_encrypt_creds "" "$_bmc_user" "$_bmc_pass"
+        log_info "BMC credentials updated in test_creds.yml"
     else
         # Interactive mode
         read -p "Enter BMC username: " bmc_user
         read -sp "Enter BMC password: " bmc_pass
         echo
-        python3 -c "
-import yaml
-with open('${SCRIPT_DIR}/test_creds.yml', 'r') as f:
-    creds = yaml.safe_load(f) or {}
-creds['bmc_username'] = '${bmc_user}'
-creds['bmc_password'] = '${bmc_pass}'
-with open('${SCRIPT_DIR}/test_creds.yml', 'w') as f:
-    yaml.dump(creds, f, default_flow_style=False)
-"
+        _create_and_encrypt_creds "" "$bmc_user" "$bmc_pass"
         log_info "BMC credentials saved to test_creds.yml"
     fi
 fi

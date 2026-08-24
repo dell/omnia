@@ -69,6 +69,7 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "phone_home_disabled": "Phone-home verification is disabled",
     "failed_nodes_created": "Failed nodes report created: {path}",
     "failed_nodes_missing": "Failed nodes report not found",
+    "playbook_failed_as_expected": "Playbook failed as expected: {error}",
 
     # --- Install OS ---
     "iso_config_valid": "ISO configuration is valid",

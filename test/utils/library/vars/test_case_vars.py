@@ -179,6 +179,22 @@ TEST_CASES = {
         "id": "TC_PX_031",
         "title": "Verify phone-home configuration values",
     },
+    "pxe_boot_success_status": {
+        "id": "TC_PX_040",
+        "title": "Verify PXE boot operation completed successfully",
+    },
+    "pxe_boot_failure_details": {
+        "id": "TC_PX_041",
+        "title": "Verify detailed failure information is captured for failed nodes",
+    },
+    "pxe_phone_home_verification_status": {
+        "id": "TC_PX_042",
+        "title": "Verify phone-home verification completed successfully",
+    },
+    "pxe_boot_timestamp_validation": {
+        "id": "TC_PX_043",
+        "title": "Verify PXE boot operation has valid timestamp",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO — Deploy Tests
@@ -258,6 +274,18 @@ TEST_CASES = {
     "pxe_invalid_bmc_ip_fails": {
         "id": "TC_NEG_011",
         "title": "Verify set_pxe_boot.yml fails with invalid BMC IP",
+    },
+    "pxe_missing_admin_ip_fails": {
+        "id": "TC_NEG_012",
+        "title": "Verify set_pxe_boot.yml fails when admin_ip missing with phone-home enabled",
+    },
+    "pxe_invalid_credentials_fails": {
+        "id": "TC_NEG_013",
+        "title": "Verify set_pxe_boot.yml fails with invalid BMC credentials",
+    },
+    "pxe_invalid_config_params_fails": {
+        "id": "TC_NEG_014",
+        "title": "Verify set_pxe_boot.yml fails with invalid configuration parameters",
     },
     "install_os_missing_iso_fails": {
         "id": "TC_NEG_020",

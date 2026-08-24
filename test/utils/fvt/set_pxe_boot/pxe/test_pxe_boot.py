@@ -320,3 +320,190 @@ def test_pxe_phone_home_config(host):
         f"Phone-home config: pause={pause}min, retries={retries}, "
         f"delay={delay}s (total wait: {total_wait}s)"
     )
+
+
+# =============================================================================
+# POST-BOOT VALIDATION
+# =============================================================================
+
+@pytest.mark.functional
+@pytest.mark.pxe
+@pytest.mark.order(40)
+def test_pxe_boot_success_status(host):
+    """Verify PXE boot operation completed successfully."""
+    tc = TC["pxe_boot_success_status"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    file_path = f"{output_path}/{FAILED_NODES_FILE}"
+
+    # Check if failed_nodes.json exists
+    exists_result = check_file_exists(host, file_path)
+    if not exists_result["success"]:
+        tl.skipped("failed_nodes.json not found (PXE boot may not have run)")
+        pytest.skip("failed_nodes.json not found")
+
+    result = validate_failed_nodes_json(host, file_path)
+
+    if not result["success"]:
+        tl.failed(f"Failed to parse failed_nodes.json: {result['error']}")
+        assert False, result["error"]
+
+    data = result["data"]
+    total_nodes = data.get("total_nodes", 0)
+    failure_count = data.get("failure_count", 0)
+    success_count = data.get("success_count", 0)
+
+    if failure_count == 0 and success_count > 0:
+        tl.passed(
+            f"All nodes booted successfully: {success_count}/{total_nodes} success"
+        )
+    elif failure_count > 0:
+        tl.failed(
+            f"Some nodes failed PXE boot: {success_count} success, {failure_count} failures"
+        )
+        assert False, f"PXE boot failures detected: {failure_count} nodes failed"
+    else:
+        tl.skipped("No nodes processed (empty inventory or skipped)")
+
+
+@pytest.mark.functional
+@pytest.mark.pxe
+@pytest.mark.order(41)
+def test_pxe_boot_failure_details(host):
+    """Verify detailed failure information is captured for failed nodes."""
+    tc = TC["pxe_boot_failure_details"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    file_path = f"{output_path}/{FAILED_NODES_FILE}"
+
+    # Check if failed_nodes.json exists
+    exists_result = check_file_exists(host, file_path)
+    if not exists_result["success"]:
+        tl.skipped("failed_nodes.json not found (PXE boot may not have run)")
+        pytest.skip("failed_nodes.json not found")
+
+    result = validate_failed_nodes_json(host, file_path)
+
+    if not result["success"]:
+        tl.failed(f"Failed to parse failed_nodes.json: {result['error']}")
+        assert False, result["error"]
+
+    data = result["data"]
+    failed_nodes = data.get("failed_nodes", [])
+
+    if not failed_nodes:
+        tl.passed("No failed nodes (all boots successful)")
+        return
+
+    # Validate that failed nodes have required fields
+    required_fields = ["bmc_ip", "failure_stage", "status", "error"]
+    missing_fields = []
+
+    for node in failed_nodes:
+        for field in required_fields:
+            if field not in node or not node[field]:
+                missing_fields.append(f"Node {node.get('bmc_ip', 'unknown')} missing field: {field}")
+
+    if missing_fields:
+        tl.failed(f"Failed nodes missing required fields: {', '.join(missing_fields)}")
+        assert False, f"Failed nodes missing required fields"
+
+    # Validate failure_stage values
+    valid_stages = ["pxe_boot", "phone_home"]
+    invalid_stages = [
+        node["bmc_ip"] for node in failed_nodes
+        if node.get("failure_stage") not in valid_stages
+    ]
+
+    if invalid_stages:
+        tl.failed(f"Nodes with invalid failure_stage: {', '.join(invalid_stages)}")
+        assert False, f"Invalid failure_stage values detected"
+
+    tl.passed(
+        f"Failure details captured for {len(failed_nodes)} nodes: "
+        f"{len([n for n in failed_nodes if n.get('failure_stage') == 'pxe_boot'])} PXE boot failures, "
+        f"{len([n for n in failed_nodes if n.get('failure_stage') == 'phone_home'])} phone-home failures"
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.pxe
+@pytest.mark.order(42)
+def test_pxe_phone_home_verification_status(host):
+    """Verify phone-home verification completed successfully."""
+    tc = TC["pxe_phone_home_verification_status"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    file_path = f"{output_path}/{FAILED_NODES_FILE}"
+
+    # Check if failed_nodes.json exists
+    exists_result = check_file_exists(host, file_path)
+    if not exists_result["success"]:
+        tl.skipped("failed_nodes.json not found (PXE boot may not have run)")
+        pytest.skip("failed_nodes.json not found")
+
+    result = validate_failed_nodes_json(host, file_path)
+
+    if not result["success"]:
+        tl.failed(f"Failed to parse failed_nodes.json: {result['error']}")
+        assert False, result["error"]
+
+    data = result["data"]
+    failed_nodes = data.get("failed_nodes", [])
+
+    # Check for phone-home failures
+    phone_home_failures = [
+        node for node in failed_nodes
+        if node.get("failure_stage") == "phone_home"
+    ]
+
+    if not phone_home_failures:
+        tl.passed("Phone-home verification completed successfully (no phone-home failures)")
+    else:
+        tl.failed(
+            f"Phone-home verification failed for {len(phone_home_failures)} nodes"
+        )
+        assert False, f"Phone-home verification failed for {len(phone_home_failures)} nodes"
+
+
+@pytest.mark.functional
+@pytest.mark.pxe
+@pytest.mark.order(43)
+def test_pxe_boot_timestamp_validation(host):
+    """Verify PXE boot operation has valid timestamp."""
+    tc = TC["pxe_boot_timestamp_validation"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    file_path = f"{output_path}/{FAILED_NODES_FILE}"
+
+    # Check if failed_nodes.json exists
+    exists_result = check_file_exists(host, file_path)
+    if not exists_result["success"]:
+        tl.skipped("failed_nodes.json not found (PXE boot may not have run)")
+        pytest.skip("failed_nodes.json not found")
+
+    result = validate_failed_nodes_json(host, file_path)
+
+    if not result["success"]:
+        tl.failed(f"Failed to parse failed_nodes.json: {result['error']}")
+        assert False, result["error"]
+
+    data = result["data"]
+    timestamp = data.get("timestamp", "")
+
+    if not timestamp:
+        tl.failed("Timestamp is missing from failed_nodes.json")
+        assert False, "Timestamp is missing"
+
+    # Validate timestamp format (ISO8601)
+    import re
+    iso8601_pattern = r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
+    if not re.match(iso8601_pattern, timestamp):
+        tl.failed(f"Invalid timestamp format: {timestamp}")
+        assert False, f"Invalid timestamp format: {timestamp}"
+
+    tl.passed(f"Valid timestamp in failed_nodes.json: {timestamp}")

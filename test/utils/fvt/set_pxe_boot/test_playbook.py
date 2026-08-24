@@ -91,6 +91,7 @@ def test_deploy_pxe_boot(host):
     result = run_playbook(
         playbook=PLAYBOOK_SET_PXE_BOOT,
         tag="pxe_boot",
+        inventory=inventory_path,
     )
 
     if result["success"]:
