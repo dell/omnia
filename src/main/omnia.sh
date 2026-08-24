@@ -621,13 +621,17 @@ cleanup_omnia() {
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - omnia-cli:           /usr/local/bin/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
     else
-        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, and dependency cache:${NC}"
+        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, omnia-cli, and dependency cache:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - omnia-cli:           /usr/local/bin/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
@@ -675,6 +679,20 @@ cleanup_omnia() {
     if [ -f "$PROFILE_DROP_IN" ]; then
         echo -e "${BLUE}Removing profile drop-in: ${PROFILE_DROP_IN}${NC}"
         rm -f "$PROFILE_DROP_IN"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove omnia-cli from /usr/local/bin
+    if [ -f "/usr/local/bin/omnia-cli" ]; then
+        echo -e "${BLUE}Removing omnia-cli from /usr/local/bin/omnia-cli${NC}"
+        rm -f /usr/local/bin/omnia-cli
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove bash completion
+    if [ -f "/etc/bash_completion.d/omnia-cli" ]; then
+        echo -e "${BLUE}Removing bash completion from /etc/bash_completion.d/omnia-cli${NC}"
+        rm -f /etc/bash_completion.d/omnia-cli
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -1176,7 +1194,6 @@ main() {
                 fi
                 if [ -f "$completion_src" ]; then
                     cp "$completion_src" /etc/bash_completion.d/omnia-cli
-                    source /etc/bash_completion.d/omnia-cli
                     echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
                 fi
             else
