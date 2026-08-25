@@ -191,6 +191,56 @@
       vars:
         slurm_inv: "{{ hostvars[groups['kube_vip_group'][0]]['slurm_inv'] | default({}) }}"
 
+- name: Deploy LDMS Aggregator on Kube VIP Host
+  hosts: kube_vip_group
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
+    - name: Set required variables from localhost
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+        cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
+        slurm_inv: "{{ hostvars[groups['kube_vip_group'][0]]['slurm_inv'] | default({}) }}"
+        cluster_inv: "{{ hostvars['localhost']['cluster_inv'] | default({}) }}"
+      when: hostvars['localhost']['telemetry_config'] is defined
+
+    - name: Set munge key check result from slurm control node
+      ansible.builtin.set_fact:
+        munge_key_check_result: "{{ hostvars[groups['slurm_control_node'][0]]['munge_key_check_result'] | default(false) }}"
+      when:
+        - groups['slurm_control_node'] is defined
+        - groups['slurm_control_node'] | length > 0
+        - hostvars[groups['slurm_control_node'][0]]['munge_key_check_result'] is defined
+
+    - name: Set ldms_sampler_password from slurm control node
+      ansible.builtin.set_fact:
+        ldms_sampler_password: "{{ hostvars[groups['slurm_control_node'][0]]['ldms_sampler_password'] | default('') }}"
+      no_log: true
+      when:
+        - groups['slurm_control_node'] is defined
+        - groups['slurm_control_node'] | length > 0
+        - hostvars[groups['slurm_control_node'][0]]['ldms_sampler_password'] is defined
+
+    - name: Set ldms_sampler_password from telemetry_credentials as fallback
+      ansible.builtin.set_fact:
+        ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
+      no_log: true
+      when:
+        - telemetry_credentials is defined
+        - telemetry_credentials.ldms_sampler_password is defined
+        - ldms_sampler_password is not defined or ldms_sampler_password == ''
+
+    - name: Deploy LDMS aggregator on kube_vip host
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: deploy_ldms_aggregator_k8s
+
 - name: Configure LDMS Sampler on Slurm Compute Nodes
   hosts: slurm_node
   gather_facts: true
