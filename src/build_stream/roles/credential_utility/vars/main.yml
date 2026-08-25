@@ -32,38 +32,27 @@ credential_files:
     vault_path: "{{ bs_credential_vault_path }}"
     condition: "{{ enable_build_stream | default(false) | bool }}"
 
-# Build Stream credentials prompt definition
-bs_credentials:
-  build_stream:
-    mandatory:
-      - { password: gitlab_root_password }
-      - { password: gitlab_ssh_password, file: "{{ bs_credential_file_path }}" }
-    conditional_mandatory:
-      - username: build_stream_auth_username
-        password: build_stream_auth_password
-        condition: "{{ enable_build_stream | default(false) | bool }}"
-        file: "{{ bs_credential_file_path }}"
-      - username: postgres_user
-        password: postgres_password
-        condition: "{{ enable_build_stream | default(false) | bool }}"
-        file: "{{ bs_credential_file_path }}"
+# Credential prompt definitions (flat structure matching image_build_manager pattern)
+bs_cred_config:
+  mandatory:
+    - password: gitlab_root_password
+    - password: gitlab_ssh_password
+  conditional_mandatory:
+    - username: build_stream_auth_username
+      password: build_stream_auth_password
+      condition: "{{ enable_build_stream | default(false) | bool }}"
+      is_bs_auth: true
+    - username: postgres_user
+      password: postgres_password
+      condition: "{{ enable_build_stream | default(false) | bool }}"
 
 # Prompt messages
-mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty. Please provide valid inputs."
-mandatory_input: "is a [MANDATORY] credential and cannot be left empty."
-conditional_mandatory_warning_msg: |
-  WARNING: Conditional mandatory credentials will be prompted based on your configuration.
-  These credentials are required when specific features are enabled and cannot be left empty.
-conditional_mandatory_input: "is a [CONDITIONAL MANDATORY] credential and cannot be left empty when the feature is enabled."
-
-# Prompt error messages
-mandatory_password_fail_msg: "Failed. Password is required for mandatory credential or any username input. Please provide valid password."
-password_match_fail_msg: "Failed. Passwords do not match. Please try again."
-password_fail_msg: "Failed. Please provide valid password."
-mandatory_credentials_msg: "Failed. Please provide valid username for mandatory credential."
-username_fail_msg: "Failed. Please provide valid username."
-credential_encrypt_fail_msg: "Failed to encrypt credential file."
-password_hash_fail_msg: "Failed to generate Argon2 password hash for build stream registrar."
+bs_mandatory_warning_msg: "WARNING: The following are mandatory build stream credentials and cannot be left empty."
+bs_conditional_warning_msg: "WARNING: Conditional build stream credentials will be prompted based on your configuration."
+bs_password_fail_msg: "Failed. Password is required for mandatory credential."
+bs_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+bs_credential_encrypt_fail_msg: "Failed to encrypt build stream credential file."
+bs_password_hash_fail_msg: "Failed to generate Argon2 password hash for build stream registrar."
 
 # Vault search key
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
