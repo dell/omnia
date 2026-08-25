@@ -50,6 +50,7 @@ bs_cred_config:
 bs_mandatory_warning_msg: "WARNING: The following are mandatory build stream credentials and cannot be left empty."
 bs_conditional_warning_msg: "WARNING: Conditional build stream credentials will be prompted based on your configuration."
 bs_password_fail_msg: "Failed. Password is required for mandatory credential."
+bs_password_length_fail_msg: "Failed. build_stream_auth_password must be at least 8 characters long (GitLab masked variable requirement)."
 bs_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 bs_credential_encrypt_fail_msg: "Failed to encrypt build stream credential file."
 bs_password_hash_fail_msg: "Failed to generate Argon2 password hash for build stream registrar."
