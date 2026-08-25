@@ -1,32 +1,121 @@
-# Telemetry FVT — Batch Run Configuration
-# Used by: ./run_validation.sh --config
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# Each scenario entry defines a test run with optional overrides.
-# Fields:
-#   scenario     : FVT scenario directory name
-#   command      : deploy | verify | test
-#   dataset      : (optional) dataset name override
-#   sync_input   : (optional) override sync_telemetry_input
-#   marker       : (optional) marker filter expression
-#   enabled      : true/false to include in batch run
+# =============================================================================
+# Test Run Configuration — Telemetry
+# =============================================================================
+#
+# Configure which test categories to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable scenarios and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Category Structure
+# -----------------------------------------------------------------------------
+# Top-level categories match the run_validation.sh first argument:
+#
+#   fvt_telemetry  — Functional Verification Tests (playbook tags)
+#
+# FVT scenarios (nested under fvt_telemetry):
+#   Each scenario maps to an Ansible playbook tag.  Fields:
+#     run:          true/false    - Whether to execute this scenario
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook only
+#                                   verify = Run verification tests only
+#                                   test   = Exec + Verify (full flow)
+#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#     marker:       <expression>  - Marker filter expression (empty = all)
+#     dataset:      <name>        - Override dataset from test_config.yml
+#                                   Must be a valid folder under datasets/
+#     sync_input:   true/false    - Override sync_telemetry_input
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
+#   Single:   "sanity"                  — tests with @pytest.mark.sanity
+#   OR:       "sink,source"             — tests with EITHER marker
+#   AND:      "source+sanity"           — tests with BOTH markers
+#   Standard: "functional"              — tests with @pytest.mark.functional
+#
+# Available markers:
+#   Quality:       sanity, functional
+#   Component:     sink, source
+#   Execution:     deploy
+#
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   precheck:   cluster
+#   validate:   input
+#   deploy:     sinks, sources
+#   cleanup:    cleanup
+#
+# =============================================================================
 
-scenarios:
-  - scenario: precheck
-    command: test
-    enabled: true
+---
 
-  - scenario: validate
-    command: test
-    enabled: true
+# =============================================================================
+# Global Overrides
+# =============================================================================
+# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
+#   When set, this takes precedence over both test_config.yml dataset and
+#   per-scenario dataset overrides below.
+#   Must be a valid folder name under datasets/.
+#   Leave commented out to use per-scenario or test_config.yml defaults.
+# dataset_override: "my_custom_ds"
 
-  - scenario: deploy
-    command: test
-    enabled: false
+# sync_input_override: Override sync_telemetry_input for ALL scenarios.
+# sync_input_override: true
 
-  - scenario: cleanup
-    command: test
-    enabled: false
+# =============================================================================
+# Execution Options
+# =============================================================================
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
+skip_on_failure: false
 
-  - scenario: telemetry
-    command: test
-    enabled: false
+# =============================================================================
+# FVT — Functional Verification Tests
+# =============================================================================
+fvt_telemetry:
+  precheck:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  validate:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  deploy:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false

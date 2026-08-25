@@ -146,7 +146,7 @@ Use the precheck scenario to validate the full environment:
 
 ```bash
 # Via test automation
-./run_validation.sh precheck verify --marker sanity
+./run_validation.sh fvt_image_build_manager precheck verify --marker sanity
 
 # Via playbook
 cd src/image_build_manager/playbooks

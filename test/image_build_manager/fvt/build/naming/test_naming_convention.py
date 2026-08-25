@@ -112,7 +112,7 @@ def _get_s3_image_paths(host) -> List[str]:
 # TC_BD_007 — image-builder registry naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(7)
+@pytest.mark.order(8)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_registry_naming_image_builder_x86_64(host):
@@ -176,7 +176,7 @@ def test_registry_naming_image_builder_x86_64(host):
 # TC_BD_008 — image-builder S3 naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(8)
+@pytest.mark.order(9)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_s3_naming_image_builder_x86_64(host):
@@ -233,7 +233,7 @@ def test_s3_naming_image_builder_x86_64(host):
 # TC_BD_009 — image-thrillhouse registry naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(9)
+@pytest.mark.order(10)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_registry_naming_image_thrillhouse_x86_64(host):
@@ -295,7 +295,7 @@ def test_registry_naming_image_thrillhouse_x86_64(host):
 # TC_BD_010 — image-thrillhouse S3 naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(10)
+@pytest.mark.order(11)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_s3_naming_image_thrillhouse_x86_64(host):
@@ -351,7 +351,7 @@ def test_s3_naming_image_thrillhouse_x86_64(host):
 # TC_BD_011 — Suffix isolation: -imgbld and -imgth paths never collide
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(11)
+@pytest.mark.order(12)
 @pytest.mark.x86_64
 @pytest.mark.functional
 def test_artifact_suffix_isolation(host):

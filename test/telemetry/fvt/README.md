@@ -1,154 +1,130 @@
-# Telemetry FVT — Test Case Registry
+# Telemetry — FVT Test Cases
 
-## Overview
+## Tags
 
-Functional Verification Tests for the `telemetry` domain.
-Tests verify the telemetry stack deployment, validation, and cleanup.
-
-**Source under test**: `src/telemetry/`
-**Entry point**: `ansible-playbook playbooks/telemetry.yml --tags <tag>`
-
-## Scenarios
-
-| Scenario | Directory | Tag | Phase |
-|----------|-----------|-----|-------|
-| Precheck | `fvt/precheck/` | `precheck` | Phase 1 |
-| Validate | `fvt/validate/` | `validate` | Phase 1 |
-| Deploy | `fvt/deploy/` | `execute/deploy` | Phase 2-4 |
-| Cleanup | `fvt/cleanup/` | `cleanup` | Phase 5 |
-| Full E2E | `fvt/telemetry/` | (none) | Phase 2-5 |
+| Tag | Description | Playbook Tag |
+|-----|-------------|--------------|
+| precheck | Environment prechecks | precheck |
+| validate | Validate inputs | validate |
+| deploy | Deploy sinks + sources | deploy |
+| cleanup | Cleanup resources | cleanup |
 
 ## Test Case Registry
 
-### Phase 1 — Precheck (7 TCs)
+### Namespace-Wide
 
-| TC ID | Test Function | Title | Marker |
-|-------|--------------|-------|--------|
-| TC_PC_001 | `test_deploy_precheck` | Deploy telemetry (precheck) | deploy, sanity |
-| TC_PC_002 | `test_kube_vip_defined` | Verify kube_vip is defined in telemetry_config.yml | sanity |
-| TC_PC_003 | `test_kube_vip_reachable` | Verify kube_vip is reachable (ICMP + SSH) | sanity |
-| TC_PC_004 | `test_control_plane_ready` | Verify K8s control plane nodes are Ready | sanity |
-| TC_PC_005 | `test_worker_nodes_ready` | Verify worker nodes meet minimum readiness threshold | sanity |
-| TC_PC_006 | `test_pods_healthy` | Verify all pods (outside telemetry ns) are healthy | sanity |
-| TC_PC_007 | `test_kubectl_available` | Verify kubectl is available on kube_vip | sanity |
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TC_NS_001 | Verify all telemetry pods running | sanity |
 
-### Phase 1 — Validate (6 TCs)
+### Sinks
 
-| TC ID | Test Function | Title | Marker |
-|-------|--------------|-------|--------|
-| TC_VL_001 | `test_deploy_validate` | Deploy telemetry (validate) | deploy, sanity |
-| TC_VL_002 | `test_config_file_exists` | Verify telemetry_config.yml exists on target | sanity |
-| TC_VL_003 | `test_storage_config_exists` | Verify telemetry_storage_config.yml exists on target | sanity |
-| TC_VL_004 | `test_packages_config_exists` | Verify telemetry_packages.yml exists on target | sanity |
-| TC_VL_005 | `test_l1_schema_valid` | Verify L1 JSON schema validation passes | sanity |
-| TC_VL_006 | `test_l2_logic_valid` | Verify L2 cross-field logic validation passes | sanity |
+| TC ID | Test | Suite | Marker |
+|-------|------|-------|--------|
+| TC_SK_001 | Verify Kafka broker/controller pods running | kafka | sanity |
+| TC_SK_002 | Verify Kafka cluster Ready condition | kafka | sanity |
+| TC_SK_003 | Verify Kafka bridge pod running | kafka | sanity |
+| TC_SK_004 | Verify VictoriaMetrics cluster pods running | victoriametrics | sanity |
+| TC_SK_005 | Verify VMAgent pods running | victoriametrics | sanity |
+| TC_SK_006 | Verify VictoriaLogs cluster pods running | victorialogs | sanity |
+| TC_SK_007 | Verify VLAgent pods running | victorialogs | sanity |
 
-### Phase 2 — Deploy / Sinks (13 TCs)
+### Sources: iDRAC
 
-| TC ID | Test Function | Title | Marker | File |
-|-------|--------------|-------|--------|------|
-| TC_DP_001 | `test_deploy_telemetry` | Deploy telemetry (execute/deploy) | deploy | `deploy/test_playbook.py` |
-| TC_SK_001 | `test_vm_cluster_pods` | Verify VictoriaMetrics cluster pods running | sink, sanity | `deploy/sinks/vm/test_victoria_metrics.py` |
-| TC_SK_002 | `test_vm_persistence_size` | Verify VictoriaMetrics PVC sizes | sink | `deploy/sinks/vm/test_victoria_metrics.py` |
-| TC_SK_003 | `test_vmagent_pods` | Verify vmagent pods running | sink, sanity | `deploy/sinks/vm/test_victoria_metrics.py` |
-| TC_SK_004 | `test_vm_tls_secret` | Verify VictoriaMetrics TLS secret exists | sink | `deploy/sinks/vm/test_victoria_metrics.py` |
-| TC_SK_005 | `test_vm_health` | Verify VictoriaMetrics operator running | sink | `deploy/sinks/vm/test_victoria_metrics.py` |
-| TC_SK_006 | `test_vm_services` | Verify VictoriaMetrics services exist | sink | `deploy/sinks/vm/test_victoria_metrics.py` |
-| TC_SK_007 | `test_vl_cluster_pods` | Verify VictoriaLogs cluster pods running | sink, sanity | `deploy/sinks/vl/test_victoria_logs.py` |
-| TC_SK_008 | `test_vlagent_pods` | Verify VictoriaLogs vlagent pods running | sink, sanity | `deploy/sinks/vl/test_victoria_logs.py` |
-| TC_SK_009 | `test_kafka_pods` | Verify Kafka broker pods running | sink, sanity | `deploy/sinks/kafka/test_kafka.py` |
-| TC_SK_010 | `test_kafka_ready` | Verify Kafka CR is Ready | sink, sanity | `deploy/sinks/kafka/test_kafka.py` |
-| TC_SK_011 | `test_kafka_bridge` | Verify Kafka bridge pods (optional) | sink | `deploy/sinks/kafka/test_kafka.py` |
-| TC_SK_012 | `test_kafka_persistence` | Verify Kafka PVCs exist | sink | `deploy/sinks/kafka/test_kafka.py` |
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TC_SR_001 | Verify iDRAC pod count matches bmc_group_data.csv | sanity |
+| TC_SR_002 | Verify iDRAC StatefulSet pods ready | sanity |
+| TC_SR_003 | Verify all iDRAC containers running | sanity |
+| TC_SR_004 | Verify MySQL data in iDRAC telemetry pods | functional |
+| TC_SR_005 | Verify iDRAC receiver is collecting metrics | functional |
+| TC_SR_006 | Verify iDRAC Kafka topic exists | sanity |
+| TC_SR_007 | Verify iDRAC VictoriaPump metrics endpoint | sanity |
+| TC_SR_008 | Verify iDRAC telemetry service exists | sanity |
+| TC_SR_009 | Verify iDRAC telemetry data in VictoriaMetrics | functional |
 
-### Phase 3 — Sources: iDRAC, LDMS, OME (13 TCs)
+### Sources: LDMS
 
-| TC ID | Test Function | Title | Marker | File |
-|-------|--------------|-------|--------|------|
-| TC_SR_001 | `test_idrac_sts_ready` | Verify iDRAC StatefulSet pods ready | source, sanity | `deploy/sources/idrac/test_idrac.py` |
-| TC_SR_002 | `test_idrac_containers` | Verify all iDRAC containers running | source, sanity | `deploy/sources/idrac/test_idrac.py` |
-| TC_SR_003 | `test_idrac_kafka_topic` | Verify Kafka topic 'idrac' exists | source | `deploy/sources/idrac/test_idrac.py` |
-| TC_SR_004 | `test_idrac_victoria_pump` | Verify iDRAC VictoriaPump metrics endpoint | source | `deploy/sources/idrac/test_idrac.py` |
-| TC_SR_005 | `test_idrac_service` | Verify iDRAC telemetry service exists | source | `deploy/sources/idrac/test_idrac.py` |
-| TC_SR_006 | `test_ldms_aggregator` | Verify LDMS aggregator StatefulSet ready | source, sanity | `deploy/sources/ldms/test_ldms.py` |
-| TC_SR_007 | `test_ldms_store` | Verify LDMS store daemon pod running | source, sanity | `deploy/sources/ldms/test_ldms.py` |
-| TC_SR_008 | `test_vector_ldms` | Verify Vector-LDMS bridge deployment ready | source | `deploy/sources/ldms/test_ldms.py` |
-| TC_SR_009 | `test_ldms_kafka_topic` | Verify LDMS Kafka topic exists | source | `deploy/sources/ldms/test_ldms.py` |
-| TC_SR_010 | `test_ldms_sampler_config` | Verify LDMS sampler config on NFS | source | `deploy/sources/ldms/test_ldms.py` |
-| TC_SR_011 | `test_vector_ome` | Verify Vector-OME bridge deployment ready | source, sanity | `deploy/sources/ome/test_ome.py` |
-| TC_SR_012 | `test_ome_kafka_user` | Verify OME KafkaUser CR exists | source | `deploy/sources/ome/test_ome.py` |
-| TC_SR_013 | `test_ome_sink_prerequisites` | Verify OME bridge sink prerequisites | source | `deploy/sources/ome/test_ome.py` |
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TC_SR_020 | Verify LDMS aggregator pod running | sanity |
+| TC_SR_021 | Verify LDMS store pod running | sanity |
+| TC_SR_022 | Verify Vector-LDMS bridge deployment ready | sanity |
+| TC_SR_023 | Verify LDMS Kafka topic exists | sanity |
 
-> **Note**: DCGM tests excluded from Phase 3 (per project requirements).
+### Sources: PowerScale
 
-### Phase 4 — Sources: PowerScale, UFM, VAST, SFM (8 TCs) — *planned*
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TC_SR_030 | Verify CSM Metrics PowerScale deployment ready | sanity |
+| TC_SR_031 | Verify OTEL Collector deployment ready | sanity |
+| TC_SR_032 | Verify isilon-creds secret has correct endpoint | sanity |
+| TC_SR_033 | Verify PowerScale metrics in VictoriaMetrics | functional |
+| TC_SR_035 | Verify/configure PowerScale syslog forwarding | functional |
+| TC_SR_034 | Verify PowerScale logs in VictoriaLogs | functional |
 
-| TC ID | Test Function | Title | Marker |
-|-------|--------------|-------|--------|
-| TC_SR_016 | `test_powerscale_csi_exporter` | Verify CSI volume exporter pods running | source |
-| TC_SR_017 | `test_powerscale_metrics` | Verify PowerScale metrics in VictoriaMetrics | source |
-| TC_SR_018 | `test_ufm_pods_running` | Verify UFM telemetry pods running | source |
-| TC_SR_019 | `test_ufm_service` | Verify UFM external service created | source |
-| TC_SR_020 | `test_vast_pods_running` | Verify VAST telemetry pods running | source |
-| TC_SR_021 | `test_vast_service` | Verify VAST external service created | source |
-| TC_SR_022 | `test_sfm_pods_running` | Verify SFM telemetry pods running | source |
-| TC_SR_023 | `test_sfm_manifests` | Verify SFM manifests generated | source |
+Note: TC_SR_035 (syslog config) runs before TC_SR_034 (log check) to
+ensure syslog is configured before verifying log ingestion.
 
-### Phase 5 — Cleanup (12 TCs) — *planned*
+### Sources: UFM
 
-| TC ID | Test Function | Title | Marker |
-|-------|--------------|-------|--------|
-| TC_CL_001 | `test_deploy_cleanup` | Deploy telemetry (cleanup) | deploy |
-| TC_CL_002 | `test_cleanup_kafka` | Verify cleanup_kafka removes Kafka resources | sanity |
-| TC_CL_003 | `test_cleanup_victoria_metrics` | Verify cleanup_victoria_metrics removes VM resources | sanity |
-| TC_CL_004 | `test_cleanup_victoria_logs` | Verify cleanup_victoria_logs removes VL resources | sanity |
-| TC_CL_005 | `test_cleanup_idrac` | Verify cleanup_idrac removes iDRAC resources | sanity |
-| TC_CL_006 | `test_cleanup_ldms` | Verify cleanup_ldms removes LDMS + Vector-LDMS | sanity |
-| TC_CL_007 | `test_cleanup_ome` | Verify cleanup_ome removes OME + Vector-OME | sanity |
-| TC_CL_008 | `test_cleanup_dcgm` | Verify cleanup_dcgm removes DCGM resources | sanity |
-| TC_CL_009 | `test_cleanup_ufm` | Verify cleanup_ufm removes UFM resources | sanity |
-| TC_CL_010 | `test_cleanup_vast` | Verify cleanup_vast removes VAST resources | sanity |
-| TC_CL_011 | `test_no_pods_after_full_cleanup` | Verify no pods remain after full cleanup | sanity |
-| TC_CL_012 | `test_no_pvcs_after_full_cleanup` | Verify no PVCs remain after full cleanup | sanity |
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TC_SR_040 | Verify UFM external service exists with correct endpoint | sanity |
+| TC_SR_041 | Verify UFM VMServiceScrape CR exists | sanity |
+| TC_SR_042 | Verify UFM credentials K8s secret exists | sanity |
+| TC_SR_043 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
 
-## Running Tests
+### Sources: OME
+
+| TC ID | Test | Marker | Condition |
+|-------|------|--------|-----------|
+| TC_SR_050 | Verify Vector-OME bridge deployment ready | sanity | always |
+| TC_SR_051 | Verify OME KafkaUser CR exists | sanity | always |
+| TC_SR_052 | Verify external Kafka TLS certificates exist | functional | configure_ome=true |
+| TC_SR_053 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true |
+| TC_SR_054 | Verify TLS certificates uploaded to OME | functional | configure_ome=true |
+| TC_SR_055 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true |
+
+When `configure_ome: false` in test_config.yml, only TC_SR_050 and
+TC_SR_051 run. Set `configure_ome: true` to run the full OME integration
+tests including TLS cert extraction and connectivity verification.
+
+### Cleanup
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TC_CL_002 | Verify telemetry pods removed | sanity |
+| TC_CL_003 | Verify Kafka topics removed | sanity |
+
+### Playbook Execution
+
+| TC ID | Test | Tag |
+|-------|------|-----|
+| TC_DP_001 | Deploy telemetry (full stack, no tags) | (none) |
+| TC_DP_002 | Deploy telemetry (--tags deploy) | deploy |
+| TC_PC_001 | Deploy telemetry (--tags precheck) | precheck |
+| TC_VL_001 | Deploy telemetry (--tags validate) | validate |
+| TC_CL_001 | Deploy telemetry (--tags cleanup) | cleanup |
+
+## Execution
 
 ```bash
-# One-time setup
-source setup_env.sh
+# Verify all (except cleanup)
+./run_validation.sh telemetry verify
 
-# Run precheck scenario
-./run_validation.sh precheck test
+# Verify deploy tag only
+./run_validation.sh telemetry deploy verify
 
-# Run validate scenario
-./run_validation.sh validate test
+# Exec playbook + verify
+./run_validation.sh telemetry test
 
-# Run a specific scenario (deploy-only)
-./run_validation.sh precheck deploy
+# Exec with specific tag + verify
+./run_validation.sh telemetry deploy test
 
-# Run verification-only (no playbook execution)
-./run_validation.sh precheck verify
+# Sanity only
+./run_validation.sh telemetry verify --marker sanity
 
-# Run with marker filter
-./run_validation.sh precheck test --marker sanity
-
-# Run all FVT scenarios
-./run_validation.sh all test
-
-# Run batch from config
-./run_validation.sh --config
-
-# List scenarios
-./run_validation.sh list
+# Sources only
+./run_validation.sh telemetry deploy verify --suite sources
 ```
-
-## Summary
-
-| Phase | Scenarios | TCs | Status |
-|-------|-----------|-----|--------|
-| Phase 1 | precheck, validate | 13 | **Implemented** |
-| Phase 2 | deploy (sinks: VM, VL, Kafka) | 13 | **Implemented** |
-| Phase 3 | deploy (sources: iDRAC, LDMS, OME) | 13 | **Implemented** |
-| Phase 4 | deploy (sources: PowerScale, UFM, VAST, SFM) | 8 | Planned |
-| Phase 5 | cleanup | 12 | Planned |
-| **Total** | | **59 FVT** | |

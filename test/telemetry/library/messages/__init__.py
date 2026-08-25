@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Telemetry test module — messages sub-package."""
+"""
+Telemetry — Messages
 
-from library.messages.telemetry_msgs import (
+Centralized log and assertion messages for telemetry FVT.
+"""
+
+from .telemetry_msgs import (
     TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
 )

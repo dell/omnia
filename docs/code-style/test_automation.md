@@ -728,12 +728,100 @@ The following CI workflows run on every PR. **All must pass before merge.**
 | Check | Tool | Rule |
 |-------|------|------|
 | **DCO** | `dco` | Every commit signed off (`git commit -s`) |
+| **Flake8** | `flake8` | No errors with `--max-line-length=100` |
 | **Pylint** | `pylint` | Score >= 8.0 per file |
 | **Bandit** | `bandit` | No High severity issues (`-ll -ii`) |
 | **Gitleaks** | `gitleaks` | No secrets in committed code |
 | **Ansible Lint** | `ansible-lint` | YAML best practices (`true`/`false` not `yes`/`no`, newline at EOF) |
 | **pip-audit** | `pip-audit` | No vulnerable Python dependencies |
 | **Checkmarx** | SAST | No hardcoded credentials, no insecure file operations |
+
+### 8.1 How to Run Each Check Locally
+
+Run these commands from the module root (e.g., `test/telemetry/`) before every commit.
+
+#### DCO — Developer Certificate of Origin
+
+Every commit MUST include `Signed-off-by:`. Use the `--signoff` flag:
+
+```bash
+git commit --signoff -m "feat(telemetry): description"
+```
+
+Verify existing commits:
+```bash
+git log --format='%H %s' origin/main..HEAD | while read hash msg; do
+  git log --format='%(trailers:key=Signed-off-by)' -1 "$hash" | grep -q 'Signed-off-by' \
+    || echo "MISSING DCO: $hash $msg"
+done
+```
+
+#### Flake8 — Style and Error Linting
+
+```bash
+source .venv/bin/activate
+
+# Lint all module code (exclude venv)
+flake8 library/ fvt/ conftest.py --max-line-length=100 --exclude=.venv --count
+
+# Lint a single file
+flake8 library/functions/telemetry_func.py --max-line-length=100
+```
+
+**Result must be 0 errors.** The only permitted `# noqa` is `E402` in
+`conftest.py` where imports MUST follow `sys.path.insert()` and
+`omnia_auto.configure()`. All other suppressions are prohibited — fix the
+underlying issue instead.
+
+#### Pylint — Code Quality Score
+
+```bash
+source .venv/bin/activate
+pylint library/functions/*.py library/vars/*.py library/messages/*.py
+```
+
+**Minimum score: 8.8/10 locally, 8.0 in CI.**
+
+#### Bandit — Security Scanner
+
+```bash
+source .venv/bin/activate
+
+# Scan all library and test code
+bandit -r library/ fvt/ -ll -ii
+
+# Scan with detailed output
+bandit -r library/ fvt/ -ll -ii -f json -o bandit_report.json
+```
+
+**Result must have zero High/Medium severity findings.** Common false positives:
+- `B603` (subprocess call): acceptable when using `run_on_host()` from `omnia_auto`
+- `B108` (/tmp usage): use constants from `common_vars.py` instead of inline `/tmp`
+
+#### Gitleaks — Secret Detection
+
+```bash
+# Scan staged changes
+grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
+    --include="*.py" --include="*.yml" | \
+    grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
+
+# Scan for hardcoded passwords/tokens
+grep -rn -iE '(password|secret|token|api.?key)\s*=\s*["'"'"'][^"'"'"']+["'"'"']' \
+    --include="*.py" --include="*.yml" | \
+    grep -v 'CHANGE_ME' | grep -v 'placeholder' | grep -v '""'
+```
+
+**Both must return empty results.**
+
+#### pip-audit — Dependency Vulnerabilities
+
+```bash
+source .venv/bin/activate
+pip-audit
+```
+
+**Zero known-vulnerable packages allowed.**
 
 ---
 
@@ -894,6 +982,7 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - **First line**: `<type>(<scope>): <description>` (max 72 chars)
 - **Body** (optional): Blank line, then details in bullet points
 - **Signed-off-by**: Auto-added by `--signoff` flag
+- **No Co-Authored-By tags** — do NOT include `Co-Authored-By: Devin <...>` or any AI agent attribution in commits. Only the human developer's `Signed-off-by` should appear.
 
 ### 12.3 Branch Naming
 
@@ -911,22 +1000,25 @@ Run this sequence before every push:
 ```bash
 source .venv/bin/activate
 
-# 1. Pylint — all changed files must score >= 8.8
+# 1. Flake8 — zero errors
+flake8 library/ fvt/ conftest.py --max-line-length=100 --exclude=.venv --count
+
+# 2. Pylint — all changed files must score >= 8.8
 pylint library/functions/*.py library/vars/*.py library/messages/*.py
 
-# 2. Bandit — no High severity
-bandit -r library/ -ll -ii
+# 3. Bandit — no High severity
+bandit -r library/ fvt/ -ll -ii
 
-# 3. Gitleaks — no secrets
+# 4. Gitleaks — no secrets
 grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
     --include="*.py" --include="*.yml" | \
     grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
 
-# 4. Run tests — all must pass
+# 5. Run tests — all must pass
 ./run_validation.sh <scenario> verify --marker sanity
 
-# 5. Only push when everything is green
-git commit -s -m "<type>(<scope>): description"
+# 6. Commit with DCO sign-off and push
+git commit --signoff -m "<type>(<scope>): description"
 git push
 ```
 
@@ -973,10 +1065,12 @@ Before submitting a PR, verify:
 - [ ] `.format()` with named placeholders for dynamic content
 
 ### CI
+- [ ] Flake8: zero errors (`--max-line-length=100`)
 - [ ] Pylint >= 8.8 locally, >= 8.0 in CI
 - [ ] Bandit: zero high-severity findings
 - [ ] No hardcoded IPs, passwords, tokens
-- [ ] All commits signed off (`git commit -s`)
+- [ ] All commits signed off (`git commit --signoff`)
+- [ ] No `Co-Authored-By` tags in commits (no AI agent attribution)
 - [ ] fvt/README.md updated with new test cases
 
 ### Co-Change
@@ -984,3 +1078,4 @@ Before submitting a PR, verify:
 - [ ] New playbook tags have a corresponding FVT scenario
 - [ ] Deleted features have their tests removed
 - [ ] AI agents (Devin, Copilot, etc.) NOT used for sign-off — see `general.md` §7
+- [ ] No `Co-Authored-By` or `Generated with` tags in commit messages

@@ -571,155 +571,7 @@ if [ -z "$PASSWORD_VALUE" ] && [ "$UPDATE_PASSWORD" = false ] && [ "$SET_PASSWOR
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 5: Register run_validation + tab completion (venv modes only)
-# ─────────────────────────────────────────────────────────────────────────────
-_inject_tab_completion() {
-    local activate_script="$1"
-    local marker="# >>> image-build-manager-test >>>"
-    local marker_end="# <<< image-build-manager-test <<<"
-    local module_dir="$SCRIPT_DIR"
-
-    # Remove any previous block (idempotent)
-    if grep -q "${marker}" "${activate_script}" 2>/dev/null; then
-        sed -i "/${marker}/,/${marker_end}/d" "${activate_script}"
-    fi
-
-    cat >> "${activate_script}" << IBM_ACTIVATE_EOF
-
-${marker}
-# Added by setup_env.sh — shell function and tab-completion
-
-# Shell function so run_validation works without ./
-run_validation() {
-    "${module_dir}/run_validation.sh" "\$@"
-}
-
-# Tab-completion for run_validation
-_run_validation_completions() {
-    local cur prev
-    cur="\${COMP_WORDS[COMP_CWORD]}"
-    prev="\${COMP_WORDS[COMP_CWORD-1]}"
-    local fvt_dir="${module_dir}/fvt"
-    local scenarios=""
-    if [ -d "\${fvt_dir}" ]; then
-        for d in "\${fvt_dir}"/*/; do
-            [ -d "\$d" ] || continue
-            local name
-            name="\$(basename "\$d")"
-            [ "\$name" = "__pycache__" ] && continue
-            scenarios="\${scenarios} \${name}"
-        done
-    fi
-    local commands="deploy verify test"
-    local special="all list help --config --help"
-    local options="--suite --marker -v --verbose --debug"
-    local markers="sanity x86_64 aarch64 functional regression deploy"
-    case "\$COMP_CWORD" in
-        1) COMPREPLY=( \$(compgen -W "\${scenarios} \${special}" -- "\$cur") ) ;;
-        2)
-            case "\$prev" in
-                list|help|--help|-h|--config) COMPREPLY=() ;;
-                *) COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") ) ;;
-            esac ;;
-        *)
-            case "\$prev" in
-                --suite)
-                    local scenario="\${COMP_WORDS[1]}"
-                    local suites=""
-                    if [ -d "\${fvt_dir}/\${scenario}" ]; then
-                        for d in "\${fvt_dir}/\${scenario}"/*/; do
-                            [ -d "\$d" ] || continue
-                            local name
-                            name="\$(basename "\$d")"
-                            [ "\$name" = "__pycache__" ] && continue
-                            suites="\${suites} \${name}"
-                        done
-                    fi
-                    COMPREPLY=( \$(compgen -W "\${suites}" -- "\$cur") ) ;;
-                --marker) COMPREPLY=( \$(compgen -W "\${markers}" -- "\$cur") ) ;;
-                *) COMPREPLY=( \$(compgen -W "\${options}" -- "\$cur") ) ;;
-            esac ;;
-    esac
-}
-complete -F _run_validation_completions run_validation
-
-${marker_end}
-IBM_ACTIVATE_EOF
-}
-
-if [ "$INSTALL_MODE" = "venv" ]; then
-    _inject_tab_completion "${VENV_DIR}/bin/activate"
-    ok "Registered run_validation + tab-completion in .venv/bin/activate"
-elif [ "$INSTALL_MODE" = "active-venv" ]; then
-    _inject_tab_completion "${VIRTUAL_ENV}/bin/activate"
-    ok "Registered run_validation + tab-completion in ${VIRTUAL_ENV}/bin/activate"
-else
-    # Baremetal — create a sourceable shell snippet
-    SHELL_SNIPPET="${SCRIPT_DIR}/.run_validation_rc"
-    _inject_tab_completion_baremetal() {
-        cat > "$SHELL_SNIPPET" << BARE_EOF
-# Source this file to get run_validation + tab-completion
-# Usage: source ${SHELL_SNIPPET}
-
-run_validation() {
-    "${SCRIPT_DIR}/run_validation.sh" "\$@"
-}
-
-_run_validation_completions() {
-    local cur prev
-    cur="\${COMP_WORDS[COMP_CWORD]}"
-    prev="\${COMP_WORDS[COMP_CWORD-1]}"
-    local fvt_dir="${SCRIPT_DIR}/fvt"
-    local scenarios=""
-    if [ -d "\${fvt_dir}" ]; then
-        for d in "\${fvt_dir}"/*/; do
-            [ -d "\$d" ] || continue
-            local name
-            name="\$(basename "\$d")"
-            [ "\$name" = "__pycache__" ] && continue
-            scenarios="\${scenarios} \${name}"
-        done
-    fi
-    local commands="deploy verify test"
-    local special="all list help --config --help"
-    local options="--suite --marker -v --verbose --debug"
-    local markers="sanity x86_64 aarch64 functional regression deploy"
-    case "\$COMP_CWORD" in
-        1) COMPREPLY=( \$(compgen -W "\${scenarios} \${special}" -- "\$cur") ) ;;
-        2)
-            case "\$prev" in
-                list|help|--help|-h|--config) COMPREPLY=() ;;
-                *) COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") ) ;;
-            esac ;;
-        *)
-            case "\$prev" in
-                --suite)
-                    local scenario="\${COMP_WORDS[1]}"
-                    local suites=""
-                    if [ -d "\${fvt_dir}/\${scenario}" ]; then
-                        for d in "\${fvt_dir}/\${scenario}"/*/; do
-                            [ -d "\$d" ] || continue
-                            local name
-                            name="\$(basename "\$d")"
-                            [ "\$name" = "__pycache__" ] && continue
-                            suites="\${suites} \${name}"
-                        done
-                    fi
-                    COMPREPLY=( \$(compgen -W "\${suites}" -- "\$cur") ) ;;
-                --marker) COMPREPLY=( \$(compgen -W "\${markers}" -- "\$cur") ) ;;
-                *) COMPREPLY=( \$(compgen -W "\${options}" -- "\$cur") ) ;;
-            esac ;;
-    esac
-}
-complete -F _run_validation_completions run_validation
-BARE_EOF
-    }
-    _inject_tab_completion_baremetal
-    ok "Created shell snippet: .run_validation_rc"
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Step 6: Make scripts executable
+# Step 5: Make scripts executable
 # ─────────────────────────────────────────────────────────────────────────────
 chmod +x "${SCRIPT_DIR}/run_validation.sh" 2>/dev/null || true
 
@@ -736,19 +588,18 @@ case "$INSTALL_MODE" in
     venv)
         echo "  Next steps:"
         echo "    source .venv/bin/activate"
-        echo "    run_validation --help"
-        echo "    run_validation image_build_manager verify --marker sanity"
+        echo "    ./run_validation.sh --help"
+        echo "    ./run_validation.sh fvt_image_build_manager list"
         ;;
     active-venv)
         echo "  Next steps (venv already active):"
-        echo "    run_validation --help"
-        echo "    run_validation image_build_manager verify --marker sanity"
+        echo "    ./run_validation.sh --help"
+        echo "    ./run_validation.sh fvt_image_build_manager list"
         ;;
     baremetal)
         echo "  Next steps:"
-        echo "    source .run_validation_rc              # Load run_validation + tab-completion"
-        echo "    run_validation --help"
-        echo "    run_validation image_build_manager verify --marker sanity"
+        echo "    ./run_validation.sh --help"
+        echo "    ./run_validation.sh fvt_image_build_manager list"
         ;;
 esac
 
