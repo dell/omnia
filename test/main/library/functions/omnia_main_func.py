@@ -21,6 +21,7 @@ installation, venv creation, domain initialization, and CLI behavior.
 All functions return a dict with keys: success, details, error.
 """
 
+import os
 import time
 from typing import Any, Dict, List
 
@@ -38,6 +39,30 @@ from ..vars.common_vars import (
     OPTIONAL_ENV_VARS,
     OMNIA_CLI_HELP_SECTIONS,
 )
+
+
+# =============================================================================
+# VENV DETECTION
+# =============================================================================
+
+def is_running_from_omnia_venv() -> bool:
+    """Check if tests are running from the omnia production venv.
+
+    Compares the active VIRTUAL_ENV against the configured venv_path
+    (default: /opt/omnia/venv).  When they match, destructive operations
+    like --setup-venv and --cleanup must be skipped because they would
+    destroy the interpreter that is currently executing the test suite.
+
+    Returns:
+        True if the active venv IS the omnia production venv.
+        False if running from test/main/.venv or no venv is active.
+    """
+    active_venv = os.environ.get("VIRTUAL_ENV", "")
+    if not active_venv:
+        return False
+    config = load_test_config()
+    omnia_venv = config.get("venv_path", "/opt/omnia/venv")
+    return os.path.realpath(active_venv) == os.path.realpath(omnia_venv)
 
 
 # =============================================================================

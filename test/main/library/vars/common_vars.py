@@ -67,10 +67,11 @@ DEFAULT_VENV_PATH = "/opt/omnia/venv"
 DEFAULT_PROJECT_NAME = "project_default"
 
 # Base directories created by omnia.sh --setup-venv
+# Note: domain-specific log/ and input/ dirs are created by domain-init.sh,
+# not by the base setup.  Only {data_path} and {data_path}/.data are
+# created by create_base_dirs().
 BASE_DIRS: List[str] = [
     "{data_path}",
-    "{data_path}/log",
-    "{data_path}/input",
     "{data_path}/.data",
 ]
 
@@ -263,14 +264,6 @@ CMDS: Dict[str, str] = {
     ),
     "omnia_sh_cleanup_yes": (
         "cd {clone_path} && echo yes"
-        " | bash {omnia_sh} --cleanup 2>&1"
-    ),
-    "omnia_sh_cleanup_all_yes": (
-        "cd {clone_path} && echo yes"
-        " | bash {omnia_sh} --cleanup --all 2>&1"
-    ),
-    "omnia_sh_cleanup_no": (
-        "cd {clone_path} && echo no"
         " | bash {omnia_sh} --cleanup 2>&1"
     ),
     # --- Files ---

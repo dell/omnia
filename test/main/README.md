@@ -1,8 +1,30 @@
 # Omnia Main — Test Automation (FVT + NFT)
 
 Automated FVT and NFT for `omnia.sh` and `omnia-cli` — verifies environment
-setup, domain initialization, CLI argument handling, performance, idempotency,
-and file permissions.
+setup, domain initialization, CLI argument handling, actual execution,
+performance, idempotency, and file permissions.
+
+## Deploy vs Verify Architecture
+
+Every scenario follows a two-step pattern:
+
+| Command | What it does | Marker |
+|---------|-------------|--------|
+| `deploy` | **Executes** the actual omnia.sh / omnia-cli command. These tests **change state** on the target (install venv, create dirs, run playbooks). | `@pytest.mark.deploy` |
+| `verify` | **Checks results** after deploy ran. These tests are **read-only** — they inspect files, dirs, env vars, and command output. No state changes. | *(no deploy marker)* |
+| `test`   | Runs **deploy + verify** in sequence (full flow). | — |
+
+This means:
+- `./run_validation.sh setup test` = run `--setup-venv --deps-only`, then verify venv/env/dirs exist
+- `./run_validation.sh setup verify` = only verify (assumes setup already ran)
+- `./run_validation.sh execution deploy` = only run the scripts (no verification)
+
+### Intelligent Skip for Setup & Cleanup
+
+Setup (`--setup-venv`) and cleanup (`--cleanup`) modify the omnia production
+venv.  If you activated the **omnia venv** (`source /opt/omnia/venv/bin/activate`)
+instead of the **test venv** (`source test/main/.venv/bin/activate`), these
+tests auto-skip to prevent destroying the active interpreter.
 
 ## Quick Start
 
@@ -10,7 +32,7 @@ and file permissions.
 # 1. Setup test environment
 bash setup_env.sh
 
-# 2. Activate virtual environment
+# 2. Activate test virtual environment (NOT the omnia venv)
 source .venv/bin/activate
 
 # 3. Configure target server
@@ -21,7 +43,7 @@ run_validation setup test        # Setup + verify
 run_validation init test         # Init + verify
 run_validation cli verify        # CLI argument tests
 run_validation omnia_cli test    # omnia-cli diagnostics
-run_validation execution test    # Actual execution: setup, run --tags, cleanup
+run_validation execution test    # Actual execution: setup, init, run, cleanup
 run_validation nft test          # Performance + idempotency NFT
 run_validation all test          # Run all scenarios
 ```
@@ -50,29 +72,27 @@ test/main/
 │       ├── __init__.py
 │       └── omnia_main_msgs.py
 ├── fvt/                     # Functional Verification Tests
-│   ├── README.md            # FVT test case registry
+│   ├── README.md            # FVT test case registry + deploy/verify docs
 │   ├── setup/               # omnia.sh --setup-venv tests
-│   │   ├── test_deploy_setup.py
-│   │   ├── environment/     # Env file, variable, and source validation tests
-│   │   ├── venv/            # Python venv tests
-│   │   └── directories/     # Base directory tests
+│   │   ├── test_deploy_setup.py       # @deploy: run --setup-venv --deps-only
+│   │   ├── environment/               # verify: env file, variables, source validation
+│   │   ├── venv/                      # verify: Python venv, ansible, pip, Galaxy
+│   │   └── directories/               # verify: base directories, activate helper
 │   ├── init/                # omnia.sh --init tests
-│   │   ├── test_deploy_init.py
-│   │   └── domain_init/     # Domain-specific init tests (incl. orchestrator, discovery)
+│   │   ├── test_deploy_init.py        # @deploy: run --init
+│   │   └── domain_init/              # verify: domain log dirs, input staging
 │   ├── cli/                 # CLI argument tests
-│   │   ├── test_deploy_cli.py
-│   │   ├── commands/        # Command error handling + flag verification + skip-catalog
-│   │   └── tags/            # Tag verification tests (precheck, validate, prepare, execute, cleanup)
+│   │   ├── test_deploy_cli.py         # @deploy: run --help (entry point)
+│   │   ├── commands/                  # verify: flag parsing, error handling
+│   │   └── tags/                      # verify: tag verification
 │   ├── omnia_cli/           # omnia-cli diagnostics tests
-│   │   ├── test_deploy_omnia_cli.py
-│   │   ├── diagnostics/     # status, check, domain commands (incl. orchestrator, telemetry, build-stream)
-│   │   ├── errors/          # Unknown command error tests
-│   │   └── logs/            # Log command tests
-│   └── execution/           # Actual omnia.sh operations (setup, init, run --tags, cleanup)
-│       ├── test_deploy_execution.py
-│       ├── setup_exec/      # Full setup + domain init execution + verification
-│       ├── run_exec/        # Run domain with all tags (precheck, validate, prepare, execute, cleanup)
-│       └── cleanup_exec/    # Cleanup lifecycle, cancel, verify, re-setup
+│   │   ├── test_deploy_omnia_cli.py   # @deploy: run omnia-cli help
+│   │   ├── diagnostics/              # verify: status, check, domain commands
+│   │   ├── errors/                   # verify: unknown command errors
+│   │   └── logs/                     # verify: log commands
+│   └── execution/           # Actual omnia.sh operations (full lifecycle)
+│       ├── test_deploy_execution.py   # @deploy: setup, init, run --tags, cleanup
+│       └── setup_exec/               # verify: venv, env, log dirs, input files
 └── nft/                     # Non-Functional Tests
     ├── README.md            # NFT test cases and thresholds
     ├── __init__.py
@@ -84,14 +104,14 @@ test/main/
 
 ## Scenarios
 
-| Scenario | What It Tests | Deploy Command |
-|----------|--------------|----------------|
-| `setup` | Environment install, venv creation, directory setup, env source validation | `omnia.sh --setup-venv --deps-only` |
-| `init` | Domain log directories, input file staging (all 7 domains incl. orchestrator, discovery, utils) | `omnia.sh --init` |
-| `cli` | Help output, error handling, flag verification (--cleanup, --check-deps, --force-deps, --skip-catalog, --skip-omnia-cli), generic tags, argument parsing | `omnia.sh --help` |
-| `omnia_cli` | Diagnostics CLI: status, check, version, domain queries (all 7 domains incl. orchestrator, telemetry, build-stream, utils), logs, errors | `omnia-cli help` |
-| `execution` | **Actual execution** of all omnia.sh operations: full setup, domain init, `--run --tags` (precheck/validate/prepare/execute/cleanup), cleanup cancel/execute/verify, `--all` full reset, re-setup idempotency | `omnia.sh --setup-venv`, `--init`, `--run`, `--cleanup` |
-| `nft` | Performance thresholds, idempotency, file permissions, CLI performance | `omnia.sh --setup-venv`, `--init`, `omnia-cli status` |
+| Scenario | Deploy (what it runs) | Verify (what it checks) |
+|----------|----------------------|------------------------|
+| `setup` | `omnia.sh --setup-venv --deps-only` | Env files, venv, ansible, dirs, pip packages, Galaxy collections |
+| `init` | `omnia.sh --init` | Domain log dirs, input file staging (7 domains) |
+| `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags |
+| `omnia_cli` | `omnia-cli help` | Status, check, version, domain queries, logs, errors |
+| `execution` | `--setup-venv --deps-only`, `--init`, `--run --tags precheck/validate`, `--cleanup` (smart skip) | Venv+ansible exist, env files installed, log dirs created, input files staged |
+| `nft` | `--setup-venv`, `--init`, `omnia-cli status` | Performance thresholds, idempotency, file permissions |
 
 ## Markers
 
@@ -99,7 +119,7 @@ test/main/
 |--------|-------------|
 | `sanity` | Baseline must-pass tests |
 | `functional` | Functional verification tests |
-| `deploy` | Script execution tests |
+| `deploy` | Script execution tests (these **change state** on the target) |
 | `nft` | Non-functional tests (performance, idempotency, permissions) |
 
 ### Filtering by Marker

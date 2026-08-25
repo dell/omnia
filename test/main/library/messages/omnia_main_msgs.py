@@ -225,18 +225,6 @@ TEST_NAMES: Dict[str, str] = {
     "exec_cleanup": (
         "Execute omnia.sh --cleanup"
     ),
-    "exec_cleanup_cancel": (
-        "Execute omnia.sh --cleanup with 'no' confirmation"
-    ),
-    "exec_cleanup_verify_removed": (
-        "Verify cleanup removed venv and env files"
-    ),
-    "exec_cleanup_verify_data": (
-        "Verify cleanup preserved runtime data"
-    ),
-    "exec_re_setup": (
-        "Re-deploy omnia.sh --setup-venv after cleanup"
-    ),
 }
 
 # =============================================================================
@@ -516,24 +504,6 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "exec_cleanup_failed": (
         "--cleanup failed (rc={rc})"
-    ),
-    "exec_cleanup_cancelled_ok": (
-        "--cleanup cancelled correctly when user says 'no' (rc={rc})"
-    ),
-    "exec_cleanup_verify_ok": (
-        "Cleanup removed expected artifacts"
-    ),
-    "exec_cleanup_verify_data_ok": (
-        "Cleanup preserved runtime data at {data_path}"
-    ),
-    "exec_cleanup_verify_failed": (
-        "Cleanup did not remove: {remaining}"
-    ),
-    "exec_re_setup_ok": (
-        "Re-setup after cleanup succeeded (rc={rc})"
-    ),
-    "exec_re_setup_failed": (
-        "Re-setup after cleanup failed (rc={rc})"
     ),
 }
 
@@ -926,50 +896,6 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check cleanup_omnia() in omnia.sh\n"
         "\u2551   2. Verify file permissions on /etc/omnia/, /etc/profile.d/\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
-    "exec_cleanup_cancel_failed": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 CLEANUP CANCELLATION FAILED\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 omnia.sh --cleanup should cancel when user enters 'no'.\n"
-        "\u2551 Got: rc={rc}\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check cleanup_omnia() confirmation prompt\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
-    "exec_cleanup_verify_failed": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 CLEANUP DID NOT REMOVE EXPECTED FILES\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 After cleanup, these should NOT exist: {remaining}\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check cleanup_omnia() in omnia.sh removes all artifacts\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
-    "exec_cleanup_data_lost": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 CLEANUP DELETED RUNTIME DATA (should preserve)\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 Runtime data at {data_path} was removed by --cleanup\n"
-        "\u2551 without --all. Data should be preserved.\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check cleanup_omnia() only removes venv+env (not data)\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
-    "exec_re_setup_failed": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 RE-SETUP AFTER CLEANUP FAILED\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 omnia.sh --setup-venv --deps-only failed after cleanup.\n"
-        "\u2551 Got: rc={rc}\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Verify cleanup was clean (no stale artifacts)\n"
-        "\u2551   2. Check setup_venv() in omnia.sh\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

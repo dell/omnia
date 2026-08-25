@@ -234,6 +234,8 @@ def pytest_sessionfinish(session, exitstatus):
     """Save report and print summary table after all tests complete."""
     report = get_current_report()
     if report and report.results:
+        # Ensure report directory exists (may have been removed by cleanup)
+        os.makedirs(report.report_path, exist_ok=True)
         report.save()
 
     print_summary_table()

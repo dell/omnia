@@ -13,20 +13,24 @@
 # limitations under the License.
 
 """
-Omnia Main Execution — Setup Verification.
+Omnia Main Execution — Verify.
 
-TC_EX_002: Verify full setup created venv with ansible
-TC_EX_003: Verify full setup installed env files
-TC_EX_004: Execute omnia.sh --init for image_build_manager domain
-TC_EX_005: Verify domain init created log directories
-TC_EX_006: Verify domain init staged input files
+Verification tests that check results AFTER the deploy step ran
+``omnia.sh --setup-venv``, ``--init``, and ``--run --tags``.
+
+These tests are read-only — they inspect files, directories, and env
+variables but do NOT execute any omnia.sh commands.
+
+TC_EX_006: Verify venv created with ansible
+TC_EX_007: Verify system env files installed
+TC_EX_008: Verify domain log directories created
+TC_EX_009: Verify domain input files staged
 """
 
 import pytest
 
 from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import (
-    run_omnia_cmd,
     check_venv_created,
     check_ansible_available,
     check_env_file_installed,
@@ -42,11 +46,11 @@ from library.messages import (
 
 
 @pytest.mark.sanity
-@pytest.mark.order(1)
-def test_full_setup_venv_exists(host):
-    """TC_EX_002: Verify full setup created venv with ansible."""
+@pytest.mark.order(10)
+def test_verify_venv_exists(host):
+    """TC_EX_006: Verify full setup created venv with ansible."""
     tl = TestLogger(
-        TEST_NAMES["exec_setup_full"], "TC_EX_002"
+        TEST_NAMES["exec_setup_full"], "TC_EX_006"
     )
 
     config = load_test_config()
@@ -55,13 +59,9 @@ def test_full_setup_venv_exists(host):
     result = check_venv_created(host)
 
     if result["success"]:
-        tl.passed(LOG["venv_ok"].format(
-            path=venv_path
-        ))
+        tl.passed(LOG["venv_ok"].format(path=venv_path))
     else:
-        tl.failed(LOG["venv_missing"].format(
-            path=venv_path
-        ))
+        tl.failed(LOG["venv_missing"].format(path=venv_path))
 
     assert result["success"], ASSERT["venv_missing"]
 
@@ -71,11 +71,11 @@ def test_full_setup_venv_exists(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(2)
-def test_full_setup_env_installed(host):
-    """TC_EX_003: Verify full setup installed system env files."""
+@pytest.mark.order(11)
+def test_verify_env_installed(host):
+    """TC_EX_007: Verify full setup installed system env files."""
     tl = TestLogger(
-        TEST_NAMES["exec_setup_full"], "TC_EX_003"
+        TEST_NAMES["exec_setup_full"], "TC_EX_007"
     )
 
     env_result = check_env_file_installed(host)
@@ -100,46 +100,11 @@ def test_full_setup_env_installed(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(3)
-def test_init_domain_exec(host):
-    """TC_EX_004: Execute omnia.sh --init for image_build_manager."""
+@pytest.mark.order(12)
+def test_verify_domain_log_dirs(host):
+    """TC_EX_008: Verify domain init created log directories."""
     tl = TestLogger(
-        TEST_NAMES["exec_init_domain"], "TC_EX_004"
-    )
-
-    result = run_omnia_cmd(
-        host, "omnia_sh_init_domain",
-        domain="image_build_manager",
-    )
-
-    if result["success"]:
-        tl.passed(LOG["exec_init_domain_ok"].format(
-            domain="image_build_manager",
-            rc=result["rc"],
-            duration=result["duration"],
-        ))
-    else:
-        tl.failed(
-            LOG["exec_init_domain_failed"].format(
-                domain="image_build_manager",
-                rc=result["rc"],
-                duration=result["duration"],
-            ),
-            result.get("error", "See output above"),
-        )
-
-    assert result["success"], ASSERT["exec_init_domain_failed"].format(
-        domain="image_build_manager",
-        rc=result["rc"],
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(4)
-def test_init_domain_log_dirs(host):
-    """TC_EX_005: Verify domain init created log directories."""
-    tl = TestLogger(
-        TEST_NAMES["exec_init_domain"], "TC_EX_005"
+        TEST_NAMES["exec_init_domain"], "TC_EX_008"
     )
 
     result = check_domain_log_dirs(
@@ -161,11 +126,11 @@ def test_init_domain_log_dirs(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(5)
-def test_init_domain_input_staged(host):
-    """TC_EX_006: Verify domain init staged input files."""
+@pytest.mark.order(13)
+def test_verify_domain_input_staged(host):
+    """TC_EX_009: Verify domain init staged input files."""
     tl = TestLogger(
-        TEST_NAMES["exec_init_domain"], "TC_EX_006"
+        TEST_NAMES["exec_init_domain"], "TC_EX_009"
     )
 
     result = check_domain_input_staged(

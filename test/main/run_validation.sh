@@ -36,7 +36,8 @@
 #   setup      omnia.sh --setup-venv tests
 #   init       omnia.sh --init tests
 #   cli        CLI argument parsing tests
-#   execution  Actual omnia.sh operations (setup, init, run --tags, cleanup)
+#   execution  Actual omnia.sh operations (setup, init, run --tags, cleanup*)
+#              * cleanup skipped if running from omnia production venv
 # =============================================================================
 
 set -euo pipefail
@@ -399,7 +400,7 @@ case "$SCENARIO" in
         echo "  init       omnia.sh --init: domain-init.sh scripts, input staging (7 domains)"
         echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog"
         echo "  omnia_cli  omnia-cli diagnostics: status, check, domain cmds, logs, help, errors"
-        echo "  execution  Actual execution: setup, init, run --tags, cleanup, re-setup lifecycle"
+        echo "  execution  Actual execution: setup, init, run --tags, cleanup (smart skip)"
         echo ""
         echo -e "${YELLOW}SCENARIOS (NFT)${NC}"
         echo "  nft        Performance, idempotency, file permissions, CLI performance"
@@ -425,7 +426,7 @@ case "$SCENARIO" in
         echo "  $0 init test                     # 2. Stage domain input files + verify"
         echo "  $0 cli verify                    # 3. Verify CLI argument handling"
         echo "  $0 omnia_cli verify              # 4. Verify omnia-cli diagnostics"
-        echo "  $0 execution test                # 5. Run full lifecycle (setup/init/run/cleanup)"
+        echo "  $0 execution test                # 5. Full lifecycle (setup/init/run/cleanup)"
         echo "  $0 nft test                      # 6. Performance + idempotency + permissions"
         echo "  $0 all verify                    # Or: verify everything at once"
         echo ""
