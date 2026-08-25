@@ -260,12 +260,13 @@ def host():
 # =============================================================================
 
 def pytest_runtest_makereport(item, call):
-    """Capture test results for the summary table."""
+    """Capture test results for the summary table and report."""
     if call.when != "call":
         return
 
     func_name = item.name
     tc_id = _TC_ID_MAP.get(func_name, get_last_tc_id() or "")
+    test_output = get_test_output()
 
     status = "PASSED" if call.excinfo is None else "FAILED"
     if item.get_closest_marker("skip") or (
@@ -275,12 +276,23 @@ def pytest_runtest_makereport(item, call):
 
     duration = getattr(call, "duration", 0)
 
+    # Add to session summary table
     add_session_result(
         test_name=func_name,
         status=status,
         duration=duration,
         tc_id=tc_id,
     )
+
+    # Add to report
+    report = get_current_report()
+    if report:
+        report.add_result(
+            test_name=func_name,
+            passed=(status == "PASSED"),
+            duration=duration,
+            details=test_output,
+        )
 
 
 def pytest_sessionfinish(session, exitstatus):
