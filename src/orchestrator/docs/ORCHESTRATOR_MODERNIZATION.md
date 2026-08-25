@@ -628,8 +628,6 @@ Roles:
      - Query functional_groups_config.yml for FG→category mapping
      - Generate orchestrator_inventory.yml (all nodes)
      - Generate bmc_group_data.yml (all nodes)
-     - Generate kube_inventory.yml (FGs matching kubernetes category)
-     - Generate slurm_inventory.yml (FGs matching slurm category)
      - All inventories generated in ONE pass — no append, no deduplication
 
   2. validate_provisioning:
@@ -648,8 +646,6 @@ Roles:
 
 Output:
   - orchestrator_inventory.yml
-  - kube_inventory.yml
-  - slurm_inventory.yml
   - bmc_group_data.yml
   - provisioning_report.yml → orchestrator output directory
   - Console summary
@@ -1220,8 +1216,6 @@ to the monolithic version before merging.
 | `functional_groups_config.yml` | Internal (provisioning) |
 | `orchestrator_state.yml` | Internal (support flags for standalone runs) |
 | `orchestrator_inventory.yml` | External (Ansible inventory) |
-| `kube_inventory.yml` | External (K8s operations) |
-| `slurm_inventory.yml` | External (Slurm operations) |
 | `bmc_group_data.yml` | External (BMC operations) |
 | `provisioning_report.yml` | External (audit/review) |
 | SMD state (in OpenCHAMI) | OpenCHAMI services |
