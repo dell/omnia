@@ -19,26 +19,6 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ---
 
-## image_build_manager (Full End-to-End)
-
-| TC ID | Test | Suite | Markers | Description |
-|-------|------|-------|---------|-------------|
-| TC_IB_001 | `test_deploy_image_build_manager` | *(root)* | deploy, sanity | Deploy image_build_manager.yml (no tags — prepare + build) |
-| TC_IB_002 | `test_s3_storage_backend` | container/ | x86_64, aarch64, sanity | Verify S3 storage backend (MinIO or PowerScale) |
-| TC_IB_003 | `test_registry_container` | container/ | x86_64, aarch64, sanity | Verify registry container is running |
-| TC_IB_004 | `test_s3_buckets_created` | s3/ | x86_64, aarch64, sanity | Verify required S3 buckets exist |
-| TC_IB_005 | `test_s3_bucket_images_x86_64` | s3/ | x86_64, sanity | Verify x86_64 images pushed to S3 |
-| TC_IB_006 | `test_s3_bucket_images_aarch64` | s3/ | aarch64, sanity | Verify aarch64 images pushed to S3 |
-| TC_IB_007 | `test_registry_images_x86_64` | registry/ | x86_64, sanity | Verify x86_64 images in registry |
-| TC_IB_008 | `test_registry_images_aarch64` | registry/ | aarch64, sanity | Verify aarch64 images in registry |
-| TC_IB_009 | `test_build_status` | registry/ | x86_64, aarch64, sanity | Verify build_status.yml exists and reports success |
-| TC_IB_010 | `test_functional_groups_x86_64` | registry/ | x86_64, sanity | Verify all x86_64 functional groups were built |
-| TC_IB_011 | `test_functional_groups_aarch64` | registry/ | aarch64, sanity | Verify all aarch64 functional groups were built |
-| TC_IB_012 | `test_image_packages_x86_64` | image_verification/ | x86_64, functional | Verify packages in x86_64 S3 images |
-| TC_IB_013 | `test_image_packages_aarch64` | image_verification/ | aarch64, functional | Verify packages in aarch64 S3 images |
-
----
-
 ## validate
 
 | TC ID | Test | Suite | Markers | Description |
@@ -66,35 +46,40 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ## build
 
-| TC ID | Test | Suite | Markers | Description |
-|-------|------|-------|---------|-------------|
-| TC_BD_001 | `test_deploy_build` | *(root)* | deploy, sanity | Deploy image_build_manager --tags build |
-| TC_BD_002 | `test_s3_images_x86_64` | s3/ | x86_64, sanity | Verify x86_64 images pushed to S3 |
-| TC_BD_003 | `test_s3_images_aarch64` | s3/ | aarch64, sanity | Verify aarch64 images pushed to S3 |
-| TC_BD_004 | `test_registry_images_x86_64` | registry/ | x86_64, sanity | Verify x86_64 images in registry |
-| TC_BD_005 | `test_build_status` | registry/ | x86_64, aarch64, sanity | Verify build_status.yml reports success |
-| TC_BD_006 | `test_functional_groups_x86_64` | registry/ | x86_64, sanity | Verify all x86_64 functional groups built |
+| TC ID | Test | Suite | Order | Markers | Description |
+|-------|------|-------|-------|---------|-------------|
+| TC_BD_001 | `test_deploy_build` | *(root)* | 0 | deploy, sanity | Deploy image_build_manager --tags build |
+| TC_BD_002 | `test_s3_images_x86_64` | s3/ | 1 | x86_64, sanity | Verify x86_64 images pushed to S3 |
+| TC_BD_003 | `test_s3_images_aarch64` | s3/ | 2 | aarch64, sanity | Verify aarch64 images pushed to S3 |
+| TC_BD_004 | `test_registry_images_x86_64` | registry/ | 3 | x86_64, sanity | Verify x86_64 images in registry |
+| TC_BD_012 | `test_registry_images_aarch64` | registry/ | 4 | aarch64, sanity | Verify aarch64 images in registry |
+| TC_BD_005 | `test_build_status` | registry/ | 5 | sanity | Verify build_status.yml reports success |
+| TC_BD_006 | `test_functional_groups_x86_64` | registry/ | 6 | x86_64, sanity | Verify all x86_64 functional groups built |
+| TC_BD_013 | `test_functional_groups_aarch64` | registry/ | 7 | aarch64, sanity | Verify all aarch64 functional groups built |
+| TC_BD_014 | `test_image_packages_x86_64` | image_verification/ | 13 | x86_64, sanity | Verify packages installed in x86_64 S3 images |
+| TC_BD_015 | `test_image_packages_aarch64` | image_verification/ | 14 | aarch64, sanity | Verify packages installed in aarch64 S3 images |
+| TC_BD_016 | `test_repo_ssl_verify_applied` | *(validate/status)* | 4 | x86_64, functional | Verify repo_ssl_verify is applied in build templates |
 
 ### Build-type naming convention
 
 These cases verify that the `-imgbld` / `-imgth` artifact suffix is applied correctly
 so the two build engines never overwrite each other's registry images or S3 objects.
 
-| TC ID | Test | Suite | Markers | image_build_type | Description |
-|-------|------|-------|---------|-----------------|-------------|
-| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | Registry repos carry `-imgbld` suffix; no `-imgth` contamination |
-| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | S3 boot-images paths carry `-imgbld`; no `-imgth` contamination |
-| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | Registry repos carry `-imgth` suffix; no `-imgbld` contamination |
-| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-imgth`; no `-imgbld` contamination |
-| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | x86_64, functional | both | `-imgbld` and `-imgth` base names never collide in registry or S3 |
+| TC ID | Test | Suite | Order | Markers | image_build_type | Description |
+|-------|------|-------|-------|---------|-----------------|-------------|
+| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | 8 | x86_64, sanity | image-builder | Registry repos carry `-imgbld` suffix |
+| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | 9 | x86_64, sanity | image-builder | S3 boot-images paths carry `-imgbld` |
+| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | 10 | x86_64, sanity | image-thrillhouse | Registry repos carry `-imgth` suffix |
+| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | 11 | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-imgth` |
+| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | 12 | x86_64, functional | both | `-imgbld` and `-imgth` paths never collide |
 
 > **Skip behaviour**: TC_BD_007/008 skip automatically when `image_build_type = image-thrillhouse`
 > and TC_BD_009/010 skip when `image_build_type = image-builder`.  TC_BD_011 runs in all cases.
 
 > **Running naming tests only**:
 > ```bash
-> ./run_validation.sh build verify --suite naming
-> ./run_validation.sh build verify --suite naming --marker x86_64+sanity
+> ./run_validation.sh fvt_image_build_manager build verify --suite naming
+> ./run_validation.sh fvt_image_build_manager build verify --suite naming --marker x86_64+sanity
 > ```
 
 ---
@@ -114,17 +99,27 @@ so the two build engines never overwrite each other's registry images or S3 obje
 
 ---
 
+## cleanup_images
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_CI_001 | `test_deploy_cleanup_images` | *(root)* | deploy, sanity | Deploy image_build_manager --tags cleanup_images |
+| TC_CI_002 | `test_s3_images_cleaned` | *(root)* | sanity | Verify S3 images deleted after cleanup_images |
+| TC_CI_003 | `test_registry_images_cleaned` | *(root)* | sanity | Verify registry images deleted after cleanup_images |
+
+---
+
 ## Summary
 
-| Scenario | Prefix | Test Count | Notes |
-|----------|--------|------------|-------|
+| Tag | Prefix | Test Count | Notes |
+|-----|--------|------------|-------|
 | precheck | TC_PC_ | 6 (001–006) | |
-| image_build_manager | TC_IB_ | 13 (001–013) | Full end-to-end |
-| validate | TC_VL_ | 3 | |
-| prepare | TC_PR_ | 8 | |
-| build | TC_BD_ | 11 (001–011) | 007–011 are naming-convention tests |
-| cleanup | TC_CL_ | 8 | |
-| **Total** | | **49** | |
+| validate | TC_VL_ | 4 (001–004) | 004 = repo_ssl_verify_config |
+| prepare | TC_PR_ | 8 (001–008) | |
+| build | TC_BD_ | 16 (001–016) | 007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify |
+| cleanup | TC_CL_ | 8 (001–008) | |
+| cleanup_images | TC_CI_ | 3 (001–003) | |
+| **Total** | | **45** | Plus TC_IB_001 (full-stack deploy) |
 
 ### Naming Convention Test Matrix
 

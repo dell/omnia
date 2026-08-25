@@ -11,13 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""
-Image Build Manager — Registry suite.
-
-Verify x86_64 images in registry
-Verify aarch64 images in registry
-Verify build_status.yml exists
-Verify all x86_64 functional groups built
-Verify all aarch64 functional groups built
-"""

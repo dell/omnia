@@ -13,60 +13,72 @@
 # limitations under the License.
 
 """
-Telemetry Deploy — Playbook Deployment Test.
+Telemetry Deploy — Playbook Execution.
 
-Test case:
-    TC_DP_001: Deploy telemetry (execute/deploy)
-    Runs: ansible-playbook telemetry.yml --tags execute
+Test cases:
+    TC_DP_001: Deploy telemetry (full stack, no tags)
+    TC_DP_002: Deploy telemetry (--tags deploy)
 """
+
+import os
 
 import pytest
 
-from omnia_auto import TestLogger, run_playbook
-
+from library.functions import TestLogger, run_playbook
 from library.vars.test_case_vars import TEST_CASES as TC
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
 
 
-@pytest.mark.deploy
-@pytest.mark.order(20)
-def test_deploy_telemetry(host):
-    """TC_DP_001: Run telemetry deploy playbook.
+def _get_deploy_tag():
+    """Get deploy tag from OMNIA_DEPLOY_TAG env var.
 
-    Executes ``ansible-playbook telemetry.yml --tags execute`` which deploys
-    all enabled sinks (Kafka, VictoriaMetrics, VictoriaLogs) and sources
-    (iDRAC, LDMS, OME, etc.) based on telemetry_config.yml.
+    When run_validation.sh executes with a specific tag (e.g. deploy),
+    it sets OMNIA_DEPLOY_TAG so the test knows which ansible tag to use.
+    When empty, the playbook runs without tags (full stack).
     """
-    tc = TC["deploy_telemetry"]
-    tl = TestLogger(tc["title"], tc["id"])
+    return os.environ.get("OMNIA_DEPLOY_TAG", "")
 
-    tl.check("Running telemetry deploy playbook (--tags execute)")
-    result = run_playbook(
-        host=host,
-        playbook=PLAYBOOK_ENTRY_POINT,
-        workdir=PLAYBOOK_WORKDIR,
-        tag="execute",
-    )
 
-    if result["rc"] == 0:
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.order(0)
+def test_deploy_telemetry(host):
+    """Deploy telemetry playbook with the configured tag."""
+    tag = _get_deploy_tag()
+    if tag:
+        tc = TC["deploy_deploy"]
+        tl = TestLogger(tc["title"], tc["id"])
+        tl.check(f"Running telemetry playbook --tags {tag}")
+        result = run_playbook(tag=tag)
+        tag_label = tag
+    else:
+        tc = TC["deploy_telemetry"]
+        tl = TestLogger(tc["title"], tc["id"])
+        tl.check("Running telemetry playbook (full stack)")
+        result = run_playbook()
+        tag_label = "(none)"
+
+    if result["success"]:
         tl.passed(
-            LOG_MSGS["deploy_passed"],
-            f"Exit code: {result['rc']}\n"
-            f"Duration: {result.get('duration', 'N/A')}s",
+            LOG_MSGS["playbook_success"].format(
+                duration=f"{result['duration']:.1f}s",
+            ),
+            f"rc={result['rc']}",
         )
     else:
-        output_lines = result.get("output", "").strip().split("\n")
-        tail = "\n".join(output_lines[-30:])
         tl.failed(
-            LOG_MSGS["deploy_failed"],
-            f"Exit code: {result['rc']}\n"
-            f"Last output:\n{tail}",
+            LOG_MSGS["playbook_failed"].format(
+                rc=result["rc"],
+                duration=f"{result['duration']:.1f}s",
+            ),
+            result.get("error", ""),
         )
 
-    assert result["rc"] == 0, ASSERT_MSGS["deploy_failed"].format(
+    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+        playbook="telemetry.yml",
+        tag=tag_label,
         rc=result["rc"],
     )

@@ -57,6 +57,7 @@ from .registry_func import (                         # noqa: F401
 from .build_status_func import (                     # noqa: F401
     check_build_status_file,
     check_functional_groups_built,
+    check_build_status_s3_match,
 )
 
 # --- Image content (squashfs + RPM) ------------------------------------------
@@ -114,6 +115,7 @@ __all__ = [
     # Build status / functional groups
     "check_build_status_file",
     "check_functional_groups_built",
+    "check_build_status_s3_match",
     # Image content
     "verify_image_packages",
     # Cleanup verification

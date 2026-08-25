@@ -13,9 +13,17 @@
 # limitations under the License.
 
 """
-Image Build Manager — S3 suite.
+Shared validation runner constants.
 
-Verify S3 buckets exist
-Verify x86_64 images in S3
-Verify aarch64 images in S3
+Domain-agnostic values used by ``ValidationRunner``.  Domain-specific
+variables (tags, markers, suites) live in each domain's
+``library/vars/domain_vars.py``.
 """
+
+from typing import Tuple
+
+# =====================================================================
+# Supported commands — shared across all domains
+# =====================================================================
+
+COMMANDS: Tuple[str, ...] = ("exec", "verify", "test")

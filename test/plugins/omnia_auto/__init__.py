@@ -47,6 +47,7 @@ from .functions.formatting_func import (
     Symbols,
     log,
     set_debug_mode,
+    set_verbose_mode,
     TestLogger,
     get_test_output,
     get_last_tc_id,
@@ -67,6 +68,8 @@ from .functions.host_func import (
     connection_params,
     read_remote_env,
     ensure_remote_dir,
+    read_remote_yaml,
+    read_yaml_key,
     resolve_domain_input_path,
 )
 
@@ -83,6 +86,9 @@ from .functions.runner_func import run_playbook
 # --- Sync ---
 from .functions.sync_func import clone_repo, sync_files
 
+# --- Validation Runner ---
+from .functions.validation_runner import ValidationRunner
+
 __all__ = [
     "__version__",
     # Config
@@ -95,6 +101,7 @@ __all__ = [
     "Symbols",
     "log",
     "set_debug_mode",
+    "set_verbose_mode",
     "TestLogger",
     "get_test_output",
     "get_last_tc_id",
@@ -112,6 +119,8 @@ __all__ = [
     "connection_params",
     "read_remote_env",
     "ensure_remote_dir",
+    "read_remote_yaml",
+    "read_yaml_key",
     "resolve_domain_input_path",
     # Report
     "TestReport",
@@ -122,4 +131,6 @@ __all__ = [
     # Sync
     "clone_repo",
     "sync_files",
+    # Validation Runner
+    "ValidationRunner",
 ]
