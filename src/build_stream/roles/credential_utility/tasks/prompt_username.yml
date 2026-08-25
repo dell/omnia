@@ -16,15 +16,9 @@
 - name: Fetch username if empty # noqa name[template]
   when: username_status
   block:
-    - name: Fetch credential rule for "{{ field.username | default('Username') }}" # noqa name[template]
-      fetch_credential_rule:
-        credential_field: "{{ field.username }}"
-        module_utils_path: "{{ module_utils_path }}"
-      register: credential_rule
-
-    - name: Prompt user for "{{ field.username | default('Username') }}" # noqa name[template]
+    - name: "Prompt for [{{ field.username | default('Username') }}]" # noqa name[template]
       ansible.builtin.pause:
-        prompt: "[{{ field.username }}] {{ lookup('vars', type.key ~ '_input') }} {{ credential_rule.msg }} Enter value"
+        prompt: "[Build Stream] Enter {{ field.username | default('Username') }}"
       no_log: true
       register: username_input
 
@@ -42,15 +36,3 @@
       when:
         - not mandatory_credentials_status
         - username_input.user_input | length == 0
-
-    - name: Validate input credential - "{{ field.username | default('Username') }}" # noqa name[template]
-      validate_credentials:
-        credential_field: "{{ field.username }}"
-        credential_input: "{{ username_input.user_input }}"
-        module_utils_path: "{{ module_utils_path }}"
-      when: username_input.user_input | length != 0
-
-  rescue:
-    - name: Failed to credentials with entered username
-      ansible.builtin.fail:
-        msg: "{{ username_fail_msg }}"
