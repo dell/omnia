@@ -435,9 +435,10 @@ class ValidationRunner:
     ) -> int:
         """Run exec + verify (full flow)."""
         failed = 0
-        results_file = tempfile.mktemp(
+        fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",
         )
+        os.close(fd)
         os.environ["OMNIA_SUPPRESS_SUMMARY"] = "true"
         os.environ["OMNIA_RESULTS_FILE"] = results_file
 
@@ -585,9 +586,10 @@ class ValidationRunner:
         report_id = _timestamp()
         os.environ["REPORT_ID"] = report_id
 
-        results_file = tempfile.mktemp(
+        fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",
         )
+        os.close(fd)
         os.environ["OMNIA_SUPPRESS_SUMMARY"] = "true"
         os.environ["OMNIA_RESULTS_FILE"] = results_file
 
@@ -780,9 +782,10 @@ class ValidationRunner:
         )
         own_results = False
         if not results_file:
-            results_file = tempfile.mktemp(
+            fd, results_file = tempfile.mkstemp(
                 prefix="omnia_results_", suffix=".json",
             )
+            os.close(fd)
             os.environ["OMNIA_RESULTS_FILE"] = results_file
             own_results = True
 
