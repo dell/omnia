@@ -48,6 +48,7 @@ readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly BLUE='\033[0;34m'
 readonly YELLOW='\033[0;33m'
+readonly DIM='\033[2m'
 readonly NC='\033[0m'
 
 # Omnia release metadata
@@ -284,6 +285,18 @@ create_base_dirs() {
 # Venv Setup
 # ─────────────────────────────────────────────────────────────────────────────
 setup_venv() {
+    local start_time=$SECONDS
+    local setup_complete=false
+
+    cleanup_on_failure() {
+        if [ "$setup_complete" = false ]; then
+            echo -e "\n${RED}Setup interrupted. Venv may be incomplete.${NC}"
+            echo -e "${YELLOW}Re-run: ./omnia.sh -s${NC}"
+            deactivate 2>/dev/null || true
+        fi
+    }
+    trap cleanup_on_failure EXIT INT TERM
+
     install_system_env
     load_env
     validate_env
@@ -391,6 +404,15 @@ ACTIVATE_EOF
     echo -e "${BLUE}Dependencies will be installed by each domain's domain-init.sh.${NC}"
     echo ""
 
+    local elapsed=$(( SECONDS - start_time ))
+    local mins=$(( elapsed / 60 ))
+    local secs=$(( elapsed % 60 ))
+    echo -e "  ${GREEN}Setup completed in ${mins}m ${secs}s${NC}"
+    echo ""
+
+    setup_complete=true
+    trap - EXIT INT TERM
+
     deactivate 2>/dev/null || true
 }
 
@@ -401,6 +423,7 @@ ACTIVATE_EOF
 # ─────────────────────────────────────────────────────────────────────────────
 init_domains() {
     local domain_filter="${1:-}"
+    local start_time=$SECONDS
     load_env
 
     # Activate venv so domain-init.sh can install pip/galaxy deps
@@ -413,15 +436,46 @@ init_domains() {
         exit 1
     fi
 
-    # Build the list of domains to initialize
+    # ── Build skip set ──
+    declare -A skip_set
+    if [ -n "$SKIP_DOMAINS" ]; then
+        IFS=',' read -ra skip_list <<< "$SKIP_DOMAINS"
+        for skip in "${skip_list[@]}"; do
+            skip="$(echo "$skip" | xargs)"  # trim whitespace
+            # Validate that the skipped domain actually exists
+            local valid=false
+            for d in "${DOMAINS[@]}"; do
+                if [ "$d" = "$skip" ]; then
+                    valid=true
+                    break
+                fi
+            done
+            if [ "$valid" = false ]; then
+                echo -e "${RED}ERROR: Unknown domain in --skip: '$skip'${NC}"
+                echo -e "${YELLOW}Available domains: ${DOMAINS[*]}${NC}"
+                exit 1
+            fi
+            skip_set["$skip"]=1
+        done
+    fi
+
+    # ── Build the list of domains to initialize ──
     local target_domains=()
+
     if [ -z "$domain_filter" ] || [ "$domain_filter" = "all" ]; then
-        target_domains=("${DOMAINS[@]}")
+        # Start with all domains, then apply skip filter
+        for d in "${DOMAINS[@]}"; do
+            if [ -z "${skip_set[$d]+_}" ]; then
+                target_domains+=("$d")
+            else
+                echo -e "${YELLOW}Skipping domain: $d (--skip)${NC}"
+            fi
+        done
     else
-        # Split comma-separated list and validate each
+        # Explicit include list — skip filter not allowed (validated earlier)
         IFS=',' read -ra requested <<< "$domain_filter"
         for req in "${requested[@]}"; do
-            req="$(echo "$req" | xargs)"  # trim whitespace
+            req="$(echo "$req" | xargs)"
             local found=false
             for d in "${DOMAINS[@]}"; do
                 if [ "$d" = "$req" ]; then
@@ -439,6 +493,13 @@ init_domains() {
         done
     fi
 
+    # ── Bail if nothing to init ──
+    if [ ${#target_domains[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No domains to initialize (all were skipped).${NC}"
+        deactivate 2>/dev/null || true
+        return 0
+    fi
+
     local domain_init_args=()
     if [ "$DEPS_ONLY" = true ]; then
         domain_init_args+=(--deps-only)
@@ -450,8 +511,26 @@ init_domains() {
         domain_init_args+=(--force-deps)
     fi
 
-    if [ ${#target_domains[@]} -lt ${#DOMAINS[@]} ]; then
-        echo -e "${BLUE}  Targets: ${target_domains[*]}${NC}"
+    # Show target list (always useful when skipping)
+    echo -e "${BLUE}  Targets: ${target_domains[*]}${NC}"
+    if [ -n "$SKIP_DOMAINS" ]; then
+        echo -e "${YELLOW}  Skipped: ${SKIP_DOMAINS}${NC}"
+    fi
+
+    # ── Dry-run mode ──
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${BLUE}DRY RUN — would initialize these domains:${NC}"
+        for domain in "${target_domains[@]}"; do
+            local init_script="$SRC_DIR/$domain/domain-init.sh"
+            local has_script=" (no domain-init.sh)"
+            [ -f "$init_script" ] && has_script=""
+            echo -e "  ${GREEN}${domain}${has_script}${NC}"
+        done
+        if [ -n "$SKIP_DOMAINS" ]; then
+            echo -e "${YELLOW}  Skipped: ${SKIP_DOMAINS}${NC}"
+        fi
+        deactivate 2>/dev/null || true
+        return 0
     fi
 
     local initialized=0
@@ -466,6 +545,7 @@ init_domains() {
             fi
         fi
     done
+
     if [ "$initialized" -eq 0 ]; then
         echo -e "${YELLOW}No domain-init.sh scripts found in any domain${NC}"
     else
@@ -479,6 +559,11 @@ init_domains() {
         echo -e "${BLUE}Installed collections:${NC}"
         ansible-galaxy collection list 2>/dev/null | grep -E "^(ansible\.|containers\.|community\.|kubernetes\.|omnia\.)" || true
     fi
+
+    local elapsed=$(( SECONDS - start_time ))
+    local mins=$(( elapsed / 60 ))
+    local secs=$(( elapsed % 60 ))
+    echo -e "  ${GREEN}Domain init completed in ${mins}m ${secs}s${NC}"
 
     deactivate 2>/dev/null || true
 }
@@ -803,22 +888,24 @@ check_deps() {
     done
 
     local pip_mismatches=0
-    for pkg in $(echo "${!pip_versions[@]}" | tr ' ' '\n' | sort); do
-        local entries="${pip_versions[$pkg]}"
-        # Extract unique version specs
-        local unique_specs
-        unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
-        if [ "$unique_specs" -gt 1 ]; then
-            echo -e "  ${RED}MISMATCH: ${pkg}${NC}"
-            for entry in $entries; do
-                local d="${entry%%:*}"
-                local v="${entry#*:}"
-                echo -e "    ${YELLOW}${d}: ${v}${NC}"
-            done
-            pip_mismatches=$((pip_mismatches + 1))
-            has_mismatch=true
-        fi
-    done
+    if [ ${#pip_versions[@]} -gt 0 ]; then
+        for pkg in $(echo "${!pip_versions[@]}" | tr ' ' '\n' | sort); do
+            local entries="${pip_versions[$pkg]}"
+            # Extract unique version specs
+            local unique_specs
+            unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
+            if [ "$unique_specs" -gt 1 ]; then
+                echo -e "  ${RED}MISMATCH: ${pkg}${NC}"
+                for entry in $entries; do
+                    local d="${entry%%:*}"
+                    local v="${entry#*:}"
+                    echo -e "    ${YELLOW}${d}: ${v}${NC}"
+                done
+                pip_mismatches=$((pip_mismatches + 1))
+                has_mismatch=true
+            fi
+        done
+    fi
 
     if [ "$pip_mismatches" -eq 0 ]; then
         echo -e "  ${GREEN}No pip version mismatches found.${NC}"
@@ -850,21 +937,23 @@ check_deps() {
     done
 
     local galaxy_mismatches=0
-    for col in $(echo "${!galaxy_versions[@]}" | tr ' ' '\n' | sort); do
-        local entries="${galaxy_versions[$col]}"
-        local unique_specs
-        unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
-        if [ "$unique_specs" -gt 1 ]; then
-            echo -e "  ${RED}MISMATCH: ${col}${NC}"
-            for entry in $entries; do
-                local d="${entry%%:*}"
-                local v="${entry#*:}"
-                echo -e "    ${YELLOW}${d}: ${v}${NC}"
-            done
-            galaxy_mismatches=$((galaxy_mismatches + 1))
-            has_mismatch=true
-        fi
-    done
+    if [ ${#galaxy_versions[@]} -gt 0 ]; then
+        for col in $(echo "${!galaxy_versions[@]}" | tr ' ' '\n' | sort); do
+            local entries="${galaxy_versions[$col]}"
+            local unique_specs
+            unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
+            if [ "$unique_specs" -gt 1 ]; then
+                echo -e "  ${RED}MISMATCH: ${col}${NC}"
+                for entry in $entries; do
+                    local d="${entry%%:*}"
+                    local v="${entry#*:}"
+                    echo -e "    ${YELLOW}${d}: ${v}${NC}"
+                done
+                galaxy_mismatches=$((galaxy_mismatches + 1))
+                has_mismatch=true
+            fi
+        done
+    fi
 
     if [ "$galaxy_mismatches" -eq 0 ]; then
         echo -e "  ${GREEN}No Galaxy version mismatches found.${NC}"
@@ -988,6 +1077,14 @@ OPTIONS:
                         Cannot be used standalone; requires -s or -i.
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
+  --skip <domain,...>   With -s or -i: skip specific domains during init.
+                        Cannot be combined with an explicit domain list.
+                        Examples:
+                          ./omnia.sh -i --skip telemetry
+                          ./omnia.sh -s --skip telemetry,utils
+                          ./omnia.sh -i --skip build_stream --deps-only
+  --dry-run             With -s or -i: show which domains would be initialized
+                        without executing. Useful for previewing --skip behavior.
   --skip-catalog        With -s: skip the automatic catalog copy.
   --skip-omnia-cli      With -s: skip installing omnia-cli and bash completion
                         to /usr/local/bin/ and /etc/bash_completion.d/.
@@ -1042,6 +1139,16 @@ EXAMPLES:
   ./omnia.sh -i --force-deps                   # Force reinstall even if cached
   ./omnia.sh -i telemetry --deps-only          # Only deps for telemetry
 
+  # Skip specific domains during init:
+  ./omnia.sh -i --skip telemetry               # All except telemetry
+  ./omnia.sh -i --skip telemetry,utils         # All except telemetry and utils
+  ./omnia.sh -s --skip build_stream            # Full setup, skip build_stream init
+  ./omnia.sh -i --skip telemetry --deps-only   # Deps only, skip telemetry
+
+  # Dry-run to preview init:
+  ./omnia.sh -i --dry-run                      # Preview which domains would be initialized
+  ./omnia.sh -i --dry-run --skip telemetry     # Preview with skip filter
+
   # Check dependency versions across all domains:
   ./omnia.sh --check-deps                      # Lists any pip/Galaxy version mismatches
 
@@ -1072,6 +1179,8 @@ EOF
 main() {
     DEPS_ONLY=false    # Global — used by init_domains()
     FORCE_DEPS=false   # Global — passed to domain-init.sh
+    SKIP_DOMAINS=""    # Global — comma-separated domains to skip during init
+    DRY_RUN=false      # Global — preview mode for init
     local CLEANUP_ALL=false
     local SKIP_CATALOG=false
     local SKIP_OMNIA_CLI=false
@@ -1106,6 +1215,20 @@ main() {
                 ;;
             --skip-omnia-cli)
                 SKIP_OMNIA_CLI=true
+                shift
+                ;;
+            --skip)
+                if [ $# -lt 2 ] || [[ "$2" == --* ]]; then
+                    echo -e "${RED}ERROR: --skip requires a comma-separated list of domains${NC}"
+                    echo -e "${YELLOW}Usage: $0 -i --skip telemetry,utils${NC}"
+                    echo -e "${YELLOW}Domains: ${DOMAINS[*]}${NC}"
+                    exit 1
+                fi
+                SKIP_DOMAINS="$2"
+                shift 2
+                ;;
+            --dry-run)
+                DRY_RUN=true
                 shift
                 ;;
             --init|-i)
@@ -1168,6 +1291,22 @@ main() {
     if [ "$FORCE_DEPS" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
         echo -e "${RED}ERROR: --force-deps requires --setup-venv (-s) or --init (-i)${NC}"
         echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
+        exit 1
+    fi
+    if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
+        echo -e "${RED}ERROR: --skip requires --setup-venv (-s) or --init (-i)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --skip telemetry or $0 -i --skip telemetry${NC}"
+        exit 1
+    fi
+    if [ -n "$SKIP_DOMAINS" ] && [ -n "$init_domain_filter" ]; then
+        echo -e "${RED}ERROR: Cannot use --skip with an explicit domain list${NC}"
+        echo -e "${YELLOW}Use either: $0 -i telemetry  OR  $0 -i --skip telemetry${NC}"
+        echo -e "${YELLOW}Not both.${NC}"
+        exit 1
+    fi
+    if [ "$DRY_RUN" = true ] && [ "$command" != "init" ] && [ "$command" != "setup-venv" ]; then
+        echo -e "${RED}ERROR: --dry-run requires --init (-i) or --setup-venv (-s)${NC}"
+        echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 -i --dry-run --skip telemetry${NC}"
         exit 1
     fi
 
