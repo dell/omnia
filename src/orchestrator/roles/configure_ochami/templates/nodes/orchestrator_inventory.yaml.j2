@@ -4,13 +4,20 @@
 ---
 all:
   children:
+{% if kube_vip %}
+    kube_vip_group:
+      hosts:
+        kube-vip:
+          ansible_host: {{ kube_vip }}
+          ansible_user: root
+{% endif %}
 {% for group_name in mapping_nodes_var | map(attribute='value.FUNCTIONAL_GROUP_NAME') | unique | sort %}
     {{ group_name }}:
       hosts:
 {% for item in mapping_nodes_var | sort(attribute='value.XNAME') %}
 {% if item.value.FUNCTIONAL_GROUP_NAME == group_name %}
         {{ item.value.HOSTNAME }}:
-          admin_ip: {{ item.value.ADMIN_IP }}
+          ansible_host: {{ item.value.ADMIN_IP }}
           bmc_ip: {{ item.value.BMC_IP }}
           service_tag: {{ item.value.SERVICE_TAG }}
           group_name: {{ item.value.GROUP_NAME }}
