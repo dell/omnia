@@ -218,6 +218,34 @@ TEST_NAMES: Dict[str, str] = {
         "Verify --setup-venv --skip-omnia-cli accepted"
     ),
 
+    # CLI — --skip / --dry-run
+    "skip_in_help": (
+        "Verify --skip flag appears in help output"
+    ),
+    "dry_run_in_help": (
+        "Verify --dry-run flag appears in help output"
+    ),
+    "skip_invalid_domain": (
+        "Verify --skip with invalid domain exits with error"
+    ),
+    "skip_with_include_error": (
+        "Verify --skip + explicit domain list is rejected"
+    ),
+    "skip_without_init_error": (
+        "Verify --skip without -s/-i exits with error"
+    ),
+    "skip_no_args_error": (
+        "Verify --skip without domain list exits with error"
+    ),
+    "dry_run_output": (
+        "Verify --dry-run shows domain list without executing"
+    ),
+    "dry_run_with_skip": (
+        "Verify --dry-run --skip shows filtered domain list"
+    ),
+    "dry_run_without_init_error": (
+        "Verify --dry-run without -s/-i exits with error"
+    ),
     # Execution — actual omnia.sh operations
     "exec_setup_full": (
         "Execute omnia.sh --setup-venv (full setup)"
@@ -484,6 +512,40 @@ TEST_LOG_MSGS: Dict[str, str] = {
         "Source omnia.env update did NOT propagate to system copy"
     ),
 
+    # --skip / --dry-run
+    "skip_in_help_ok": (
+        "--skip flag found in help output"
+    ),
+    "skip_not_in_help": (
+        "--skip flag NOT found in help output"
+    ),
+    "dry_run_in_help_ok": (
+        "--dry-run flag found in help output"
+    ),
+    "dry_run_not_in_help": (
+        "--dry-run flag NOT found in help output"
+    ),
+    "skip_invalid_ok": (
+        "--skip with invalid domain exited with error (rc={rc})"
+    ),
+    "skip_include_error_ok": (
+        "--skip + explicit domain rejected (rc={rc})"
+    ),
+    "skip_without_init_ok": (
+        "--skip without -s/-i rejected (rc={rc})"
+    ),
+    "skip_no_args_ok": (
+        "--skip without domain list rejected (rc={rc})"
+    ),
+    "dry_run_ok": (
+        "--dry-run listed domains without executing"
+    ),
+    "dry_run_skip_ok": (
+        "--dry-run --skip listed filtered domains"
+    ),
+    "dry_run_without_init_ok": (
+        "--dry-run without -s/-i rejected (rc={rc})"
+    ),
     # skip-catalog / skip-omnia-cli
     "skip_catalog_ok": (
         "--setup-venv --skip-catalog completed (rc={rc})"
@@ -869,6 +931,92 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
+    # --skip / --dry-run
+    "skip_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--skip' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --skip to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "dry_run_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --DRY-RUN FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--dry-run' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --dry-run to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_invalid_domain": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP WITH INVALID DOMAIN NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --skip nonexistent_domain_xyz should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check skip domain validation in init_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_with_include": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP + EXPLICIT DOMAIN NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --init telemetry --skip utils should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check mutual exclusion validation in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_without_init": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP WITHOUT -S/-I NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --skip without --init or --setup-venv should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check flag combination validation in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_no_args": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP WITHOUT DOMAIN LIST NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --skip without a domain list should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check --skip argument parsing in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "dry_run_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --DRY-RUN DID NOT SHOW DOMAIN LIST\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --dry-run should print domain list without executing\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check dry-run logic in init_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "dry_run_without_init": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --DRY-RUN WITHOUT -I/-S NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --dry-run without --init or --setup-venv should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check flag combination validation in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
     # Execution tests
     "exec_setup_failed": (
         "\n\u2554" + _BORDER + "\u2557\n"
