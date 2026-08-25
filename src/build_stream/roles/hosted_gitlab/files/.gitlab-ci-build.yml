@@ -11,802 +11,1129 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# BuildStream API Client -- GitLab CI/CD Build Pipeline
+#
+# Independent pipeline triggered when catalog_rhel.json changes or via API trigger.
+#
+# Prerequisites:
+#   - GitLab runner with curl and jq installed (alpine/ubuntu image works)
+#   - Network access from the runner to the OIM server
+#   - catalog_rhel.json in the same directory as this file
+#   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
+#   - BSM_API_USERNAME / BSM_API_PASSWORD for first-time registration
+#   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate)
+#
+# Token Management:
+#   - Access tokens expire after 1 hour
+#   - All API calls detect 401 errors (token_expired, invalid_token, missing_token)
+#   - On 401, the pipeline refreshes the token and retries the failed call once
+#   - Token refresh is transparent via the api_call_with_retry wrapper
+# ---------------------------------------------------------------------------
 
-"""CreateBuildImage use case implementation."""
+# ---------------------------------------------------------------------------
+# Workflow rules -- pipeline runs on catalog changes or API trigger
+# ---------------------------------------------------------------------------
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+    - changes:
+        - catalog_rhel.json
+        - input/**/*
+        - omnia.env
+    - if: '$CI_PIPELINE_SOURCE == "trigger" && $PIPELINE_TYPE == "build"'
+    - if: '$CI_PIPELINE_SOURCE == "api" && $PIPELINE_TYPE == "build"'
 
-import json
-import os
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional
+# ---------------------------------------------------------------------------
+# Variables -- BSM_API_URL, BSM_API_USERNAME, BSM_API_PASSWORD,
+# GITLAB_API_TOKEN, and BSM_API_CERT must be set as CI/CD project variables.
+# BSM_API_CERT contains the PEM-encoded CA certificate for BSM API TLS.
+# BSM_CLIENT_ID / BSM_CLIENT_SECRET are auto-stored on first registration.
+# ---------------------------------------------------------------------------
+variables:
+  CATALOG_FILE: "catalog_rhel.json"
+  POLL_INTERVAL: "30"
+  MAX_POLL_ATTEMPTS: "300"
+  BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
+  CURL_CONNECT_TIMEOUT: "15"
+  CURL_MAX_TIME: "45"
+  # Defaults — overridden by omnia.env if present in the GitLab repo
+  OMNIA_DATA_PATH: "/opt/omnia"
+  OMNIA_PROJECT_NAME: "project_default"
 
-from api.logging_utils import log_secure_info
+# ---------------------------------------------------------------------------
+# Stages -- executed in order (domain-segregated, Omnia 2.3+)
+#
+# NOTE: parse-catalog and generate-input-files stages have been retired.
+# With domain segregation, input files are domain-specific and the catalog
+# is consumed directly by each domain (image_build_manager.yml reads the
+# catalog from /opt/omnia/catalog/catalog_rhel.json).
+#
+# The /catalog/roles API has been retired. The build-images stage now
+# triggers the build-image API twice (once per architecture: x86_64, aarch64).
+# The image_build_manager.yml playbook handles catalog parsing, role filtering,
+# and image building internally for each architecture.
+# ---------------------------------------------------------------------------
+stages:
+  - initialization
+  - copy-input-files
+  - configure-local-repository
+  - build-images
+  - summary
 
-from core.build_image.entities import BuildImageRequest
-from core.build_image.exceptions import (
-    InvalidArchitectureError,
-    InvalidImageKeyError,
-    InvalidFunctionalGroupsError,
-    InventoryHostMissingError,
-)
-from core.build_image.services import (
-    BuildImageConfigService,
-    BuildImageQueueService,
-)
-from core.build_image.value_objects import (
-    Architecture,
-    ImageKey,
-    FunctionalGroups,
-    InventoryHost,
-)
-from core.cleanup.exceptions import RetentionLimitExceededError
-from core.common.playbook_registry import get_playbook_path
-from core.image_group.repositories import ImageGroupRepository
-from core.jobs.entities import AuditEvent, Stage
-from core.jobs.exceptions import (
-    JobNotFoundError,
-    StageNotFoundError,
-    StageAlreadyCompletedError,
-    InvalidStateTransitionError,
-    TerminalStateViolationError,
-    UpstreamStageNotCompletedError,
-)
-from core.jobs.repositories import (
-    AuditEventRepository,
-    JobRepository,
-    StageRepository,
-    UUIDGenerator,
-)
-from core.jobs.services import JobStateHelper
-from core.jobs.value_objects import (
-    StageName,
-    StageState,
-    StageType,
-)
-from core.localrepo.value_objects import (
-    ExecutionTimeout,
-    ExtraVars,
-    PlaybookPath,
-)
-from infra.repositories import NfsInputRepository
-from orchestrator.build_image.commands import CreateBuildImageCommand
-from orchestrator.build_image.dtos import BuildImageResponse
+# ---------------------------------------------------------------------------
+# Default settings applied to every job
+# ---------------------------------------------------------------------------
+default:
+  before_script:
+    - apk add --no-cache curl jq coreutils openssl
+    - |
+      if [ -z "${BSM_API_CERT:-}" ]; then
+        echo "ERROR: BSM_API_CERT variable is not set -- cannot verify TLS"
+        exit 1
+      fi
+      if [ -f "${BSM_API_CERT}" ]; then
+        cp "${BSM_API_CERT}" "${BSM_CERT_FILE}"
+      else
+        printf '%s\n' "${BSM_API_CERT}" | sed 's/\\n/\n/g' > "${BSM_CERT_FILE}"
+      fi
+      chmod 600 "${BSM_CERT_FILE}"
 
+      # Strip carriage returns
+      sed -i 's/\r//g' "${BSM_CERT_FILE}"
 
-# Domain-segregated (Omnia 2.3+): both architectures use the single
-# image_build_manager.yml entry point.  The playbook internally dispatches
-# to build_image_x86_64.yml / build_image_aarch64.yml based on tags.
-_IBM_PATH = get_playbook_path("image_build_manager.yml")
-if _IBM_PATH is None:
-    raise RuntimeError(
-        "Playbook 'image_build_manager.yml' not found in playbook_paths.yml. "
-        "Verify that playbook_paths.yml is present and OMNIA_SRC_PATH is set correctly."
-    )
-PLAYBOOK_PATHS = {
-    "x86_64": _IBM_PATH,
-    "aarch64": _IBM_PATH,
-}
+      # Validate PEM structure
+      if ! grep -q "BEGIN CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT missing BEGIN CERTIFICATE marker"
+        exit 1
+      fi
+      if ! grep -q "END CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT missing END CERTIFICATE marker"
+        exit 1
+      fi
 
-DEFAULT_TIMEOUT_MINUTES = 60
+      # Validate certificate with openssl
+      if ! openssl x509 -in "${BSM_CERT_FILE}" -noout 2>/dev/null; then
+        echo "ERROR: BSM_API_CERT is not a valid X.509 PEM certificate"
+        exit 1
+      fi
 
+      # ---------------------------------------------------------------------------
+      # Token Refresh Helper Function (POSIX sh compatible)
+      # Refreshes ACCESS_TOKEN using CLIENT_ID / CLIENT_SECRET
+      # ---------------------------------------------------------------------------
+      refresh_token() {
+        echo "  [TOKEN REFRESH] Requesting new access token..." >&2
 
-class CreateBuildImageUseCase:
-    """Use case for triggering the build-image stage.
+        if [ -z "${CLIENT_ID:-}" ] || [ -z "${CLIENT_SECRET:-}" ]; then
+          echo "  [TOKEN REFRESH] ERROR: CLIENT_ID or CLIENT_SECRET not available" >&2
+          return 1
+        fi
 
-    This use case orchestrates stage execution with the following guarantees:
-    - Stage guard enforcement: Only PENDING stages can be started
-    - Job ownership verification: Client must own the job
-    - Architecture validation: Only x86_64 and aarch64 supported
-    - Inventory host validation: Required for aarch64 builds
-    - Inventory file creation: Creates inventory file for aarch64 builds
-    - Audit trail: Emits STAGE_STARTED event
-    - NFS queue submission: Submits playbook request to NFS queue for watcher service
+        TOKEN_HTTP_CODE=$(curl -s -o token_refresh_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+          --retry 2 --retry-delay 1 --cacert "${BSM_CERT_FILE}")
 
-    Attributes:
-        job_repo: Job repository port.
-        stage_repo: Stage repository port.
-        audit_repo: Audit event repository port.
-        config_service: Build image configuration service.
-        queue_service: Build image queue service.
-        inventory_repo: Build image inventory repository.
-        uuid_generator: UUID generator for events and request IDs.
-    """
+        if [ "$TOKEN_HTTP_CODE" != "200" ]; then
+          echo "  [TOKEN REFRESH] ERROR: Token refresh failed (HTTP ${TOKEN_HTTP_CODE})" >&2
+          cat token_refresh_response.json >&2 2>/dev/null || true
+          return 1
+        fi
 
-    def __init__(
-        self,
-        job_repo: JobRepository,
-        stage_repo: StageRepository,
-        audit_repo: AuditEventRepository,
-        config_service: BuildImageConfigService,
-        queue_service: BuildImageQueueService,
-        inventory_repo: NfsInputRepository,
-        uuid_generator: UUIDGenerator,
-        image_group_repo: Optional[ImageGroupRepository] = None,
-        retention_limit: Optional[int] = None,
-    ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        """Initialize use case with repository and service dependencies.
+        ACCESS_TOKEN=$(jq -r '.access_token' token_refresh_response.json)
+        if [ -z "${ACCESS_TOKEN}" ] || [ "${ACCESS_TOKEN}" = "null" ]; then
+          echo "  [TOKEN REFRESH] ERROR: No access_token in response" >&2
+          return 1
+        fi
 
-        Args:
-            job_repo: Job repository implementation.
-            stage_repo: Stage repository implementation.
-            audit_repo: Audit event repository implementation.
-            config_service: Build image configuration service.
-            queue_service: Build image queue service.
-            inventory_repo: Build image inventory repository.
-            uuid_generator: UUID generator for identifiers.
-            image_group_repo: Optional ImageGroup repository (used for
-                the image-retention-limit guard). When omitted the
-                guard is silently skipped (e.g. dev/test profiles).
-            retention_limit: Maximum allowed number of non-CLEANED
-                ImageGroups (default: read from
-                ``IMAGE_RETENTION_LIMIT`` env var or 50).
-        """
-        self._job_repo = job_repo
-        self._stage_repo = stage_repo
-        self._audit_repo = audit_repo
-        self._config_service = config_service
-        self._queue_service = queue_service
-        self._inventory_repo = inventory_repo
-        self._uuid_generator = uuid_generator
-        self._image_group_repo = image_group_repo
-        if retention_limit is not None:
-            self._retention_limit = retention_limit
-        else:
-            try:
-                self._retention_limit = int(
-                    os.environ.get("IMAGE_RETENTION_LIMIT", "50")
-                )
-            except (TypeError, ValueError):
-                self._retention_limit = 50
+        echo "  [TOKEN REFRESH] New token obtained successfully" >&2
+        export ACCESS_TOKEN
+        # Persist to temp file so parent shell can read it back (subshell export doesn't propagate)
+        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+        return 0
+      }
 
-    def execute(self, command: CreateBuildImageCommand) -> BuildImageResponse:
-        """Execute the build-image stage.
+      # ---------------------------------------------------------------------------
+      # API Call Wrapper with Automatic Token Refresh (POSIX sh compatible)
+      # Usage: HTTP_CODE=$(api_call_with_retry <output_file> [curl_args...])
+      #
+      # Detects 401 responses from verify_token():
+      #   - error: token_expired  (Access token has expired)
+      #   - error: invalid_token  (Invalid token signature / Invalid access token)
+      #   - error: missing_token  (Authorization header is required)
+      # On match, refreshes the token and retries the call once.
+      #
+      # The wrapper injects -H "Authorization: Bearer ${ACCESS_TOKEN}" automatically.
+      # Callers must NOT pass their own Authorization header.
+      # Includes timeout handling with --connect-timeout and --max-time.
+      # ---------------------------------------------------------------------------
+      api_call_with_retry() {
+        _RETRY_OUTPUT_FILE="$1"
+        shift
 
-        Domain-segregated (Omnia 2.3+): The image_build_manager.yml playbook
-        reads the catalog directly and builds all images for all architectures.
-
-        Args:
-            command: CreateBuildImage command with job_id only.
-
-        Returns:
-            BuildImageResponse DTO with acceptance details.
-
-        Raises:
-            JobNotFoundError: If job does not exist or client mismatch.
-            InvalidStateTransitionError: If stage is not in PENDING state.
-            QueueUnavailableError: If NFS queue is not accessible.
-        """
-        self._validate_job(command)
-        stage = self._validate_stage_unified(command)
-        request = self._build_unified_playbook_request(command)
-        self._submit_to_queue_unified(command, request, stage)
-        self._emit_stage_started_event_unified(command)
-        return self._to_response_unified(command, request)
-
-    def _enforce_retention_limit(
-        self, command: CreateBuildImageCommand
-    ) -> None:
-        """Block new builds when the image retention limit is reached."""
-        if self._image_group_repo is None:
-            return
-        try:
-            current_count = self._image_group_repo.count_non_cleaned()
-        except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "warning",
-                f"Retention limit check skipped due to error: {exc}",
-                job_id=str(command.job_id),
-            )
-            return
-
-        if current_count > self._retention_limit:
-            log_secure_info(
-                "warning",
-                f"Build aborted: retention limit reached "
-                f"({current_count}/{self._retention_limit}) for "
-                f"job_id={command.job_id}",
-                job_id=str(command.job_id),
-            )
-            raise RetentionLimitExceededError(
-                current_count=current_count,
-                limit=self._retention_limit,
-            )
-
-    def _persist_build_image_metadata(
-        self,
-        job_id: str,
-        image_key: str,
-        architecture: str,
-        functional_groups: list,
-    ) -> None:
-        """Persist build-image metadata to NFS for the result poller.
-
-        The metadata is written to ``<artifact_base>/artifacts/<job_id>/build_image_meta.json``
-        so the result poller can reconstruct complete S3 image paths
-        once the build completes.
-        """
-        try:
-            base = os.environ.get(
-                "NFS_ARTIFACT_BASE", "/opt/omnia/build_stream_root"
-            )
-            job_dir = Path(base) / "artifacts" / job_id
-            job_dir.mkdir(parents=True, exist_ok=True)
-            meta_path = job_dir / "build_image_meta.json"
-            payload = {
-                "image_key": image_key,
-                "architecture": architecture,
-                "functional_groups": functional_groups,
-                "written_at": datetime.now(timezone.utc)
-                .isoformat()
-                .replace("+00:00", "Z"),
-            }
-            meta_path.write_text(json.dumps(payload), encoding="utf-8")
-            log_secure_info(
-                "info",
-                f"Persisted build_image_meta to {meta_path}",
-                job_id=job_id,
-            )
-        except OSError as exc:
-            # Non-fatal: result poller will fall back to legacy naming.
-            log_secure_info(
-                "warning",
-                f"Could not persist build_image_meta for job={job_id}: "
-                f"{exc}",
-                job_id=job_id,
-            )
-
-    def _validate_job(self, command: CreateBuildImageCommand):
-        """Validate job exists and belongs to the requesting client."""
-        job = self._job_repo.find_by_id(command.job_id)
-        if job is None or job.tombstoned:
-            raise JobNotFoundError(
-                job_id=str(command.job_id),
-                correlation_id=str(command.correlation_id),
-            )
-
-        if job.client_id != command.client_id:
-            raise JobNotFoundError(
-                job_id=str(command.job_id),
-                correlation_id=str(command.correlation_id),
-            )
-
-        return job
-
-    def _verify_upstream_stage_completed(
-        self, command: CreateBuildImageCommand
-    ) -> None:
-        """Verify that create-local-repository stage is COMPLETED."""
-        prerequisite_stage = self._stage_repo.find_by_job_and_name(
-            command.job_id,
-            StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
-        )
-        if (
-            prerequisite_stage is None
-            or prerequisite_stage.stage_state != StageState.COMPLETED
-        ):
-            raise UpstreamStageNotCompletedError(
-                job_id=str(command.job_id),
-                required_stage="create-local-repository",
-                actual_state=(
-                    prerequisite_stage.stage_state.value
-                    if prerequisite_stage
-                    else "NOT_FOUND"
-                ),
-                correlation_id=str(command.correlation_id),
-            )
-
-    def _validate_stage(
-        self, command: CreateBuildImageCommand, architecture: Architecture,
-    ) -> Stage:
-        """Validate stage exists and is in PENDING state."""
-
-        # Verify upstream stage is completed
-        self._verify_upstream_stage_completed(command)
-
-        # Use architecture-specific stage type
-        if architecture.is_x86_64:
-            stage_type = StageType.BUILD_IMAGE_X86_64
-        else:
-            stage_type = StageType.BUILD_IMAGE_AARCH64
-
-        stage_name = StageName(stage_type.value)
-        stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
-
-        if stage is None:
-            raise StageNotFoundError(
-                job_id=str(command.job_id),
-                stage_name=stage_type.value,
-                correlation_id=str(command.correlation_id),
-            )
-
-        # Reset FAILED stages for retry (build stages don't support re-run from COMPLETED)
-        if stage.stage_state == StageState.FAILED:
-            prev_state = stage.stage_state.value
-            stage.reset()
-            self._stage_repo.save(stage)
-            log_secure_info(
-                "info",
-                f"Resetting {stage_type.value} stage from {prev_state} to PENDING "
-                f"for retry (attempt {stage.attempt}): job_id={command.job_id}",
-                job_id=str(command.job_id),
-            )
-            # Resume job from FAILED to IN_PROGRESS so CI polling doesn't exit early
-            JobStateHelper.handle_job_resume(
-                job_repo=self._job_repo,
-                audit_repo=self._audit_repo,
-                uuid_generator=self._uuid_generator,
-                job_id=command.job_id,
-                stage_name=stage_type.value,
-                correlation_id=str(command.correlation_id),
-                client_id=str(command.client_id),
-            )
-
-        # Only allow PENDING stages to transition to IN_PROGRESS
-        if stage.stage_state == StageState.COMPLETED:
-            raise StageAlreadyCompletedError(
-                job_id=str(command.job_id),
-                stage_name=stage_type.value,
-                correlation_id=str(command.correlation_id),
-            )
-
-        if stage.stage_state != StageState.PENDING:
-            raise InvalidStateTransitionError(
-                entity_type="Stage",
-                entity_id=f"{command.job_id}/{stage_type.value}",
-                from_state=stage.stage_state.value,
-                to_state="IN_PROGRESS",
-                correlation_id=str(command.correlation_id),
-            )
-
-        return stage
-
-    def _validate_architecture(
-        self,
-        command: CreateBuildImageCommand,
-    ) -> Architecture:
-        """Validate and create Architecture value object."""
-        try:
-            return Architecture(command.architecture)
-        except ValueError as exc:
-            raise InvalidArchitectureError(
-                message=str(exc),
-                correlation_id=str(command.correlation_id),
-            ) from exc
-
-    def _validate_image_key(self, command: CreateBuildImageCommand) -> ImageKey:
-        """Validate and create ImageKey value object."""
-        try:
-            return ImageKey(command.image_key)
-        except ValueError as exc:
-            raise InvalidImageKeyError(
-                message=str(exc),
-                correlation_id=str(command.correlation_id),
-            ) from exc
-
-    def _validate_functional_groups(
-        self,
-        command: CreateBuildImageCommand,
-    ) -> FunctionalGroups:
-        """Validate and create FunctionalGroups value object."""
-        try:
-            return FunctionalGroups(command.functional_groups)
-        except ValueError as exc:
-            raise InvalidFunctionalGroupsError(
-                message=str(exc),
-                correlation_id=str(command.correlation_id),
-            ) from exc
-
-    def _get_inventory_host(
-        self,
-        command: CreateBuildImageCommand,
-        architecture: Architecture,
-        stage: Stage,
-    ):
-        """Get inventory host for aarch64 builds from config service.
-
-        Inventory host is retrieved internally from build_stream_config.yml
-        and should not be provided in the API request.
-
-        If inventory host retrieval fails, the stage is transitioned to FAILED
-        and the error is re-raised to prevent playbook invocation.
-        """
-        try:
-            return self._config_service.get_inventory_host(
-                job_id=str(command.job_id),
-                architecture=architecture,
-                correlation_id=str(command.correlation_id),
-            )
-        except InventoryHostMissingError as exc:
-            try:
-                error_code = "INVENTORY_HOST_MISSING"
-                error_summary = exc.message
-                stage.start()
-                stage.fail(
-                    error_code=error_code,
-                    error_summary=error_summary,
-                )
-                self._stage_repo.save(stage)
-
-                # Update job state to FAILED when stage fails
-                JobStateHelper.handle_stage_failure(
-                    job_repo=self._job_repo,
-                    audit_repo=self._audit_repo,
-                    uuid_generator=self._uuid_generator,
-                    job_id=command.job_id,
-                    stage_name=str(stage.stage_name),
-                    error_code=error_code,
-                    error_summary=error_summary,
-                    correlation_id=str(command.correlation_id),
-                    client_id=str(command.client_id),
-                )
-            except Exception as save_exc:  # pylint: disable=broad-exception-caught
-                # If save fails, stage was modified elsewhere
-                log_secure_info(
-                    "warning",
-                    f"Stage fail save failed, stage already modified: {save_exc}",
-                )
-            log_secure_info(
-                "error",
-                f"Inventory host missing for job {command.job_id}",
-                str(command.correlation_id),
-            )
-            raise
-
-    def _create_inventory_file(
-        self,
-        command: CreateBuildImageCommand,
-        inventory_host: InventoryHost,
-        stage: Stage,
-    ) -> Optional[Path]:
-        """Create inventory file for aarch64 builds.
-
-        Args:
-            command: CreateBuildImage command.
-            inventory_host: Inventory host IP.
-            stage: Current stage entity.
-
-        Returns:
-            Path to created inventory file.
-
-        Raises:
-            IOError: If inventory file creation fails.
-        """
-        try:
-            inventory_file_path = self._inventory_repo.create_inventory_file(
-                inventory_host=inventory_host,
-                job_id=str(command.job_id),
-            )
-            log_secure_info(
-                'info',
-                f"Created inventory file for job {command.job_id} "
-                f"at {inventory_file_path}",
-            )
-            return inventory_file_path
-        except IOError as exc:
-            # Refresh stage from database to avoid OptimisticLockError
-            fresh_stage = self._stage_repo.find_by_job_and_name(
-                command.job_id,
-                stage.stage_name
-            )
-            if fresh_stage:
-                error_code = "INVENTORY_FILE_CREATION_FAILED"
-                error_summary = f"Failed to create inventory file: {str(exc)}"
-                fresh_stage.start()
-                fresh_stage.fail(
-                    error_code=error_code,
-                    error_summary=error_summary,
-                )
-
-                # Update job state to FAILED when stage fails
-                JobStateHelper.handle_stage_failure(
-                    job_repo=self._job_repo,
-                    audit_repo=self._audit_repo,
-                    uuid_generator=self._uuid_generator,
-                    job_id=command.job_id,
-                    stage_name=str(fresh_stage.stage_name),
-                    error_code=error_code,
-                    error_summary=error_summary,
-                    correlation_id=str(command.correlation_id),
-                    client_id=str(command.client_id),
-                )
-                self._stage_repo.save(fresh_stage)
-            log_secure_info(
-                "error",
-                f"Failed to create inventory file for job {command.job_id}",
-                str(command.correlation_id),
-            )
-            raise
-
-    def _build_playbook_request(
-        self,
-        command: CreateBuildImageCommand,
-        architecture: Architecture,
-        image_key: ImageKey,
-        functional_groups: FunctionalGroups,
-        inventory_file_path: Optional[Path],
-    ) -> BuildImageRequest:
-        """Compatibility shim matching historical naming used by execute()."""
-        return self._create_request(
-            command,
-            architecture,
-            image_key,
-            functional_groups,
-            inventory_file_path,
-        )
-
-    def _create_request(
-        self,
-        command: CreateBuildImageCommand,
-        architecture: Architecture,
-        image_key: ImageKey,
-        functional_groups: FunctionalGroups,
-        inventory_file_path: Optional[Path],
-    ) -> BuildImageRequest:
-        """Create BuildImageRequest entity."""
-        # Determine playbook path based on architecture
-        full_path = PLAYBOOK_PATHS[architecture.value]
-        playbook_name = full_path.split("/")[-1]  # Extract filename from full path
-        playbook_path = PlaybookPath(playbook_name)
-
-        # Build extra vars dictionary
-        extra_vars_dict = {
-            "job_id": str(command.job_id),
-            "image_key": str(image_key),
-            "functional_groups": functional_groups.to_list(),
+        # First attempt with timeout
+        _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@") || {
+          _CURL_EXIT=$?
+          case "$_CURL_EXIT" in
+            7)
+              echo "  ERROR: Connection refused - BSM API server unreachable at ${BSM_API_URL}" >&2
+              ;;
+            28)
+              echo "  ERROR: Request timeout - BSM API server did not respond within ${CURL_MAX_TIME}s" >&2
+              ;;
+            6)
+              echo "  ERROR: DNS resolution failed - cannot resolve BSM API hostname" >&2
+              ;;
+            60)
+              echo "  ERROR: SSL certificate validation failed - certificate may be invalid or not trusted" >&2
+              echo "  ERROR: Check BSM_API_CERT variable and ensure certificate is valid for ${BSM_API_URL}" >&2
+              ;;
+            *)
+              echo "  ERROR: Curl failed with exit code ${_CURL_EXIT}" >&2
+              ;;
+          esac
+          echo "000"
+          return
         }
 
-        extra_vars = ExtraVars(extra_vars_dict)
+        # Only retry on 401 Unauthorized
+        if [ "$_RETRY_HTTP_CODE" = "401" ]; then
+          _RETRY_ERROR=$(jq -r '.detail.error // .error // ""' "${_RETRY_OUTPUT_FILE}" 2>/dev/null || echo "")
 
-        return BuildImageRequest(
-            job_id=str(command.job_id),
-            stage_name="build-image-x86_64" if architecture.is_x86_64 else "build-image-aarch64",
-            playbook_path=playbook_path,
-            extra_vars=extra_vars,
-            inventory_file_path=str(inventory_file_path) if inventory_file_path else None,
-            correlation_id=str(command.correlation_id),
-            timeout=ExecutionTimeout(60),  # TODO: Make configurable
-            submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            request_id=str(self._uuid_generator.generate()),
-            tags="execute",
-        )
+          case "${_RETRY_ERROR}" in
+            token_expired|invalid_token|missing_token)
+              echo "  [RETRY] 401 auth error detected: ${_RETRY_ERROR}" >&2
+              if refresh_token; then
+                echo "  [RETRY] Retrying API call with new token..." >&2
+                _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+                  --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+                  -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
+                echo "  [RETRY] Retry response code: ${_RETRY_HTTP_CODE}" >&2
+              else
+                echo "  [RETRY] Token refresh failed -- cannot retry" >&2
+              fi
+              ;;
+          esac
+        fi
 
-    def _submit_to_queue(
-        self,
-        command: CreateBuildImageCommand,
-        request: BuildImageRequest,
-        stage: Stage,
-        architecture: Architecture,
-    ) -> None:
-        """Submit playbook request to NFS queue for watcher service."""
-        stage.start()
-        self._stage_repo.save(stage)
+        echo "${_RETRY_HTTP_CODE}"
+      }
 
-        self._queue_service.submit_request(
-            request=request,
-            correlation_id=str(command.correlation_id),
-        )
+      # ---------------------------------------------------------------------------
+      # Refresh Input Files from Latest Commit (Retry/Resume Support)
+      #
+      # When a GitLab CI job is retried, it checks out the ORIGINAL commit SHA
+      # that triggered the pipeline -- not the latest commit on the branch.
+      # This means config file fixes committed after the pipeline started are
+      # NOT picked up by retried jobs.
+      #
+      # This function uses the GitLab Repository Files API to download the
+      # latest version of each config file from the branch tip, overwriting
+      # the stale checkout so that the Upload API receives the current files.
+      # ---------------------------------------------------------------------------
+      refresh_input_files() {
+        if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+          echo "  [REFRESH] GITLAB_API_TOKEN not set -- skipping file refresh" >&2
+          return 0
+        fi
 
-        # Use architecture-specific stage type for logging
-        stage_type = (
-            StageType.BUILD_IMAGE_X86_64
-            if architecture.is_x86_64
-            else StageType.BUILD_IMAGE_AARCH64
-        )
-        log_secure_info(
-            'info',
-            f"Build image request submitted to queue for job "
-            f"{command.job_id}, stage={stage_type.value}, "
-            f"arch={architecture}, "
-            f"correlation_id={command.correlation_id}",
-        )
+        echo "  [REFRESH] Fetching latest config files from branch ${CI_COMMIT_REF_NAME}..."
 
-    def _emit_stage_started_event(
-        self,
-        command: CreateBuildImageCommand,
-        architecture: Architecture,
-        image_key: ImageKey,
-    ) -> None:
-        """Emit an audit event for stage start."""
-        # Use architecture-specific stage type for audit event
-        stage_type = (
-            StageType.BUILD_IMAGE_X86_64
-            if architecture.is_x86_64
-            else StageType.BUILD_IMAGE_AARCH64
-        )
-        event = AuditEvent(
-            event_id=str(self._uuid_generator.generate()),
-            job_id=command.job_id,
-            event_type="STAGE_STARTED",
-            correlation_id=command.correlation_id,
-            client_id=command.client_id,
-            timestamp=datetime.now(timezone.utc),
-            details={
-                "stage_name": stage_type.value,
-                "architecture": str(architecture),
-                "image_key": str(image_key),
-            },
-        )
-        self._audit_repo.save(event)
+        _REFRESH_COUNT=0
+        _REFRESH_FAILED=0
+        for _RF_FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
+               pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
+               telemetry_storage_config.yml security_config.yml high_availability_config.yml \
+               omnia_config.yml build_stream_config.yml; do
 
-    def _to_response(
-        self,
-        command: CreateBuildImageCommand,
-        request: BuildImageRequest,
-        architecture: Architecture,
-        image_key: ImageKey,
-    ) -> BuildImageResponse:
-        """Map to response DTO."""
-        # Use architecture-specific stage type for response
-        stage_type = (
-            StageType.BUILD_IMAGE_X86_64
-            if architecture.is_x86_64
-            else StageType.BUILD_IMAGE_AARCH64
-        )
-        return BuildImageResponse(
-            job_id=str(command.job_id),
-            stage_name=stage_type.value,
-            status="accepted",
-            submitted_at=request.submitted_at,
-            correlation_id=str(command.correlation_id),
-            architecture=str(architecture),
-            image_key=str(image_key),
-            functional_groups=command.functional_groups,
-        )
+          # URL-encode the file path (input/<filename>)
+          _RF_ENCODED_PATH=$(printf '%s' "input/${_RF_FNAME}" | sed 's|/|%2F|g')
 
-    # ========================================================================
-    # Unified Domain-Segregated Methods (Omnia 2.3+)
-    # ========================================================================
+          _RF_HTTP_CODE=$(curl -s -o "/tmp/_rf_${_RF_FNAME}" -w "%{http_code}" \
+            --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+            -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/${_RF_ENCODED_PATH}/raw?ref=${CI_COMMIT_REF_NAME}" \
+            --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
 
-    def _validate_stage_unified(self, command: CreateBuildImageCommand) -> Stage:
-        """Validate unified BUILD_IMAGE stage exists and is in PENDING state."""
-        # Verify upstream stage is completed
-        self._verify_upstream_stage_completed(command)
+          if [ "$_RF_HTTP_CODE" = "200" ]; then
+            mkdir -p "${CI_PROJECT_DIR}/input"
+            cp "/tmp/_rf_${_RF_FNAME}" "${CI_PROJECT_DIR}/input/${_RF_FNAME}"
+            _REFRESH_COUNT=$((_REFRESH_COUNT + 1))
+          else
+            # File may not exist in repo (optional config), not an error
+            _REFRESH_FAILED=$((_REFRESH_FAILED + 1))
+          fi
+          rm -f "/tmp/_rf_${_RF_FNAME}"
+        done
 
-        # Use unified BUILD_IMAGE stage
-        stage = self._stage_repo.find_by_job_and_name(
-            command.job_id,
-            StageName(StageType.BUILD_IMAGE.value),
-        )
+        echo "  [REFRESH] Updated ${_REFRESH_COUNT} files from latest commit (${_REFRESH_FAILED} not found/skipped)"
+      }
 
-        if stage is None:
-            raise StageNotFoundError(
-                job_id=str(command.job_id),
-                stage_name=StageType.BUILD_IMAGE.value,
-                correlation_id=str(command.correlation_id),
-            )
+# ============================= STAGE 1 ====================================
+# Initialization -- Health Check + Authentication + Job Creation
+# Performs setup tasks: verifies API connectivity, obtains access token,
+# and creates a new job for the pipeline run.
+# ==========================================================================
+initialization:
+  stage: initialization
+  script:
+    - |
+      echo "============================================================"
+      echo "  STAGE 1: Initialization"
+      echo "============================================================"
+      echo ""
+      echo "  Step 1/4: BSM API Health Check"
+      echo "  ------------------------------------------------------------"
 
-        # Reset FAILED stages for retry (build stages don't support re-run from COMPLETED)
-        if stage.stage_state == StageState.FAILED:
-            prev_state = stage.stage_state.value
-            stage.reset()
-            self._stage_repo.save(stage)
-            log_secure_info(
-                "info",
-                f"Resetting {StageType.BUILD_IMAGE.value} stage from {prev_state} to PENDING "
-                f"for retry (attempt {stage.attempt}): job_id={command.job_id}",
-                job_id=str(command.job_id),
-            )
-            # Resume job from FAILED to IN_PROGRESS so CI polling doesn't exit early
-            JobStateHelper.handle_job_resume(
-                job_repo=self._job_repo,
-                audit_repo=self._audit_repo,
-                uuid_generator=self._uuid_generator,
-                job_id=command.job_id,
-                stage_name=StageType.BUILD_IMAGE.value,
-                correlation_id=str(command.correlation_id),
-                client_id=str(command.client_id),
-            )
+      echo "  Checking BSM API server connectivity..."
+      echo "  Endpoint: ${BSM_API_URL}/health"
+      echo "  Connect timeout: ${CURL_CONNECT_TIMEOUT}s"
+      echo "  Max time: ${CURL_MAX_TIME}s"
+      echo ""
 
-        # Only allow PENDING stages to transition to IN_PROGRESS
-        if stage.stage_state == StageState.COMPLETED:
-            raise StageAlreadyCompletedError(
-                job_id=str(command.job_id),
-                stage_name=StageType.BUILD_IMAGE.value,
-                correlation_id=str(command.correlation_id),
-            )
+      # Perform health check with timeout
+      HTTP_CODE=$(curl -s -o health_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+        -X GET "${BSM_API_URL}/health" \
+        --cacert "${BSM_CERT_FILE}" 2>&1) || {
+        CURL_EXIT=$?
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |              BSM API HEALTH CHECK FAILED                  |"
+        echo "  +-----------------------------------------------------------+"
+        case "$CURL_EXIT" in
+          7)
+            echo "  |  Error: Connection refused                                |"
+            echo "  |  The BSM API server is unreachable at:                    |"
+            echo "  |  ${BSM_API_URL}"
+            echo "  |                                                           |"
+            echo "  |  Possible causes:                                         |"
+            echo "  |  - BSM API server is not running                          |"
+            echo "  |  - Firewall blocking the connection                       |"
+            echo "  |  - Incorrect BSM_API_URL configured                       |"
+            ;;
+          28)
+            echo "  |  Error: Connection timeout (${CURL_CONNECT_TIMEOUT}s)                          |"
+            echo "  |  The BSM API server did not respond in time at:           |"
+            echo "  |  ${BSM_API_URL}"
+            echo "  |                                                           |"
+            echo "  |  Possible causes:                                         |"
+            echo "  |  - Network latency or routing issues                      |"
+            echo "  |  - BSM API server is overloaded                           |"
+            ;;
+          6)
+            echo "  |  Error: DNS resolution failed                             |"
+            echo "  |  Cannot resolve hostname in BSM_API_URL                   |"
+            ;;
+          35|51|60)
+            echo "  |  Error: SSL/TLS certificate verification failed           |"
+            echo "  |  Check BSM_API_CERT configuration                         |"
+            ;;
+          *)
+            echo "  |  Error: Curl failed with exit code ${CURL_EXIT}                      |"
+            ;;
+        esac
+        echo "  +-----------------------------------------------------------+"
+        echo ""
+        echo "  RESULT: FAILED -- BSM API server is not reachable"
+        exit 1
+      }
 
-        if stage.stage_state != StageState.PENDING:
-            raise InvalidStateTransitionError(
-                entity_type="Stage",
-                entity_id=f"{command.job_id}/{StageType.BUILD_IMAGE.value}",
-                from_state=stage.stage_state.value,
-                to_state="IN_PROGRESS",
-                correlation_id=str(command.correlation_id),
-            )
+      echo "  Health check response code: ${HTTP_CODE}"
 
-        return stage
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |              BSM API HEALTH CHECK FAILED                  |"
+        echo "  +-----------------------------------------------------------+"
+        echo "  |  Error: Unexpected response code ${HTTP_CODE}                        |"
+        echo "  |  Expected: 200 OK                                         |"
+        echo "  +-----------------------------------------------------------+"
+        cat health_response.json 2>/dev/null || true
+        echo ""
+        echo "  RESULT: FAILED -- BSM API health check returned ${HTTP_CODE}"
+        exit 1
+      fi
 
-    def _build_unified_playbook_request(
-        self, command: CreateBuildImageCommand
-    ) -> BuildImageRequest:
-        """Create unified playbook request with job_id only."""
-        # Use image_build_manager.yml playbook
-        full_path = get_playbook_path("image_build_manager.yml")
-        if full_path is None:
-            raise RuntimeError(
-                "Playbook 'image_build_manager.yml' not found in playbook_paths.yml"
-            )
-        playbook_name = full_path.split("/")[-1]
-        playbook_path = PlaybookPath(playbook_name)
+      echo ""
+      echo "  +-----------------------------------------------------------+"
+      echo "  |              BSM API HEALTH CHECK PASSED                  |"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |  BSM API server is reachable and healthy                  |"
+      echo "  |  URL: ${BSM_API_URL}"
+      echo "  +-----------------------------------------------------------+"
+      echo ""
+      echo "  [OK] Health check passed"
+      echo ""
+      echo "  Step 2/4: Authentication"
+      echo "  ------------------------------------------------------------"
 
-        # Only pass job_id - playbook reads catalog for everything else
-        extra_vars_dict = {
-            "job_id": str(command.job_id),
-        }
-        extra_vars = ExtraVars(extra_vars_dict)
+      # ============================= Authentication Logic ====================================
+      # Authenticate: skip registration if credentials exist, else register once
+      # Registration is a one-time activity. On first run the pipeline registers
+      # a new OAuth client and persists CLIENT_ID / CLIENT_SECRET as GitLab
+      # project-level CI/CD variables (BSM_CLIENT_ID, BSM_CLIENT_SECRET).
+      # Subsequent runs skip registration and only generate a fresh access token.
+      # ==========================================================================
 
-        return BuildImageRequest(
-            job_id=str(command.job_id),
-            stage_name=StageType.BUILD_IMAGE.value,
-            playbook_path=playbook_path,
-            extra_vars=extra_vars,
-            inventory_file_path=None,  # Not needed, playbook handles inventory
-            correlation_id=str(command.correlation_id),
-            timeout=ExecutionTimeout(60),
-            submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            request_id=str(self._uuid_generator.generate()),
-            tags="execute",
-        )
+      # --- 2a. Check for stored client credentials ---
+      if [ -n "${BSM_CLIENT_ID:-}" ] && [ -n "${BSM_CLIENT_SECRET:-}" ]; then
+        echo "  Stored credentials found -- skipping registration"
+        echo "  CLIENT_ID: ${BSM_CLIENT_ID:0:12}..."
+        CLIENT_ID="${BSM_CLIENT_ID}"
+        CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      else
+        echo "  No stored credentials -- registering new client"
 
-    def _submit_to_queue_unified(
-        self,
-        command: CreateBuildImageCommand,
-        request: BuildImageRequest,
-        stage: Stage,
-    ) -> None:
-        """Submit unified playbook request to NFS queue."""
-        try:
-            stage.start()
-            self._stage_repo.save(stage)
-        except Exception as save_exc:  # pylint: disable=broad-exception-caught
-            log_secure_info(
-                "warning",
-                f"Stage start save failed, continuing with queue submission: {save_exc}",
-            )
+        AUTH_HEADER=$(echo -n "${BSM_API_USERNAME}:${BSM_API_PASSWORD}" | base64)
+        CLIENT_NAME="gitlab-ci-client-$(date +%s)"
 
-        # Submit request to NFS queue
-        self._queue_service.submit_request(
-            request=request,
-            correlation_id=str(command.correlation_id),
-        )
+        echo "  Registering client: ${CLIENT_NAME}"
+        echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/register"
 
-        log_secure_info(
-            'info',
-            f"Playbook request submitted to queue for job {command.job_id}, "
-            f"stage={StageType.BUILD_IMAGE.value}, "
-            f"correlation_id={command.correlation_id}",
-        )
+        HTTP_CODE=$(curl -s -o register_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/register" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Basic ${AUTH_HEADER}" \
+          -d "{
+            \"client_name\": \"${CLIENT_NAME}\",
+            \"allowed_scopes\": [\"catalog:read\", \"catalog:write\", \"job:write\"],
+            \"grant_types\": [\"client_credentials\"]
+          }" \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
-    def _emit_stage_started_event_unified(
-        self, command: CreateBuildImageCommand
-    ) -> None:
-        """Emit audit event for unified BUILD_IMAGE stage start."""
-        event = AuditEvent(
-            event_id=str(self._uuid_generator.generate()),
-            job_id=command.job_id,
-            event_type="STAGE_STARTED",
-            correlation_id=command.correlation_id,
-            client_id=command.client_id,
-            timestamp=datetime.now(timezone.utc),
-            details={
-                "stage": StageType.BUILD_IMAGE.value,
-                "mode": "unified",
-                "note": "Playbook reads catalog and builds all architectures",
-            },
-        )
-        self._audit_repo.save(event)
+        echo "  Register response code: ${HTTP_CODE}"
 
-    def _to_response_unified(
-        self, command: CreateBuildImageCommand, request: BuildImageRequest
-    ) -> BuildImageResponse:
-        """Map unified request to response DTO."""
-        return BuildImageResponse(
-            job_id=str(command.job_id),
-            stage_name=StageType.BUILD_IMAGE.value,
-            status="accepted",
-            submitted_at=request.submitted_at,
-            correlation_id=str(command.correlation_id),
-            architecture=None,
-            image_key=None,
-            functional_groups=None,
-        )
+        if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+          echo "  ERROR: Client registration failed"
+          cat register_response.json
+          exit 1
+        fi
+
+        CLIENT_ID=$(jq -r '.client_id' register_response.json)
+        CLIENT_SECRET=$(jq -r '.client_secret' register_response.json)
+        echo "  Client registered: ${CLIENT_ID:0:12}..."
+
+        # --- 1b. Persist credentials as GitLab CI/CD variables ---
+        if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+          echo "  WARNING: GITLAB_API_TOKEN not set -- cannot persist credentials"
+          echo "  Credentials will not survive across pipeline runs"
+        else
+          echo "  Persisting credentials to GitLab CI/CD variables..."
+
+          for VAR_NAME in BSM_CLIENT_ID BSM_CLIENT_SECRET; do
+            if [ "$VAR_NAME" = "BSM_CLIENT_ID" ]; then VAR_VALUE="${CLIENT_ID}"; fi
+            if [ "$VAR_NAME" = "BSM_CLIENT_SECRET" ]; then VAR_VALUE="${CLIENT_SECRET}"; fi
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/variables" \
+              -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+              --form "key=${VAR_NAME}" \
+              --form "value=${VAR_VALUE}" \
+              --form "masked=true" \
+              --form "protected=false" \
+              --cacert "${CI_SERVER_TLS_CA_FILE}")
+
+            if [ "$HTTP_CODE" = "201" ]; then
+              echo "    ${VAR_NAME} stored successfully"
+            else
+              echo "    WARNING: Failed to store ${VAR_NAME} (HTTP ${HTTP_CODE})"
+            fi
+          done
+        fi
+      fi
+
+      # --- 1c. Get access token (always -- tokens are short-lived) ---
+      echo ""
+      echo "  Requesting access token..."
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/token"
+
+      HTTP_CODE=$(curl -s -o token_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+        -X POST "${BSM_API_URL}/api/v1/auth/token" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+      echo "  Token response code: ${HTTP_CODE}"
+
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "  ERROR: Token request failed"
+        cat token_response.json
+        exit 1
+      fi
+
+      ACCESS_TOKEN=$(jq -r '.access_token' token_response.json)
+      echo "  Access token obtained: ${ACCESS_TOKEN:0:20}..."
+
+      # --- Write credentials to dotenv artifact ---
+      echo "CLIENT_ID=${CLIENT_ID}" > credentials.env
+      echo "CLIENT_SECRET=${CLIENT_SECRET}" >> credentials.env
+      echo "ACCESS_TOKEN=${ACCESS_TOKEN}" >> credentials.env
+
+      echo ""
+      echo "  [OK] Authentication complete"
+      echo ""
+      echo "  Step 3/4: Job Creation"
+      echo "  ------------------------------------------------------------"
+
+      # ============================= Job Creation Logic ====================================
+      # Create a new job
+      # ==========================================================================
+
+      IDEMPOTENCY_KEY=$(cat /proc/sys/kernel/random/uuid)
+      CORRELATION_ID=$(cat /proc/sys/kernel/random/uuid)
+
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs"
+      echo "  Idempotency-Key: ${IDEMPOTENCY_KEY}"
+
+      HTTP_CODE=$(api_call_with_retry job_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs" \
+        -H "Content-Type: application/json" \
+        -H "Idempotency-Key: ${IDEMPOTENCY_KEY}" \
+        -H "X-Correlation-ID: ${CORRELATION_ID}" \
+        -d "{
+          \"correlation_id\": \"${CORRELATION_ID}\",
+          \"client_id\": \"${CLIENT_ID}\"
+        }" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+      echo "  Response code: ${HTTP_CODE}"
+
+      if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+        echo "  ERROR: Job creation failed"
+        cat job_response.json
+        exit 1
+      fi
+
+      JOB_ID=$(jq -r '.job_id' job_response.json)
+      echo "  Job ID: ${JOB_ID}"
+
+      # --- Update GitLab pipeline description with JOB_ID ---
+      if [ -n "${GITLAB_API_TOKEN:-}" ]; then
+        echo "  Updating pipeline description with JOB_ID..."
+        curl -s -o /dev/null -w "Pipeline update: %{http_code}\n" \
+          -X PUT "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}" \
+          -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -d "{\"description\": \"BSM Job: ${JOB_ID}\"}" \
+          --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null || true
+      fi
+
+      # --- Write job.env dotenv artifact ---
+      echo "JOB_ID=${JOB_ID}" > job.env
+
+      echo ""
+      echo "  [OK] Job creation complete"
+      echo ""
+      echo "  Step 4/4: Implicit Upload -- sync ALL whitelisted config files"
+      echo "  ------------------------------------------------------------"
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
+             pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
+             telemetry_storage_config.yml security_config.yml high_availability_config.yml \
+             omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        else
+          echo "    [-] ${FNAME} (not found, skipping)"
+        fi
+      done
+
+      # Upload catalog_rhel.json to OIM host (routed to CATALOG_FILE_PATH)
+      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
+      if [ -f "${CATALOG_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${CATALOG_SRC}"
+        echo "    [+] ${CATALOG_FILE} (catalog)"
+      else
+        echo "    [-] ${CATALOG_FILE} (not found, skipping)"
+      fi
+
+      # Upload omnia.env to OIM host (routed to /etc/omnia/omnia.env)
+      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${OMNIA_ENV_SRC}"
+        echo "    [+] omnia.env (environment config)"
+      else
+        echo "    [-] omnia.env (not found, skipping)"
+      fi
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  ERROR: Upload failed (HTTP ${HTTP_CODE})"
+          jq "." upload_response.json 2>/dev/null || cat upload_response.json
+          exit 1
+        fi
+        echo "  [OK] Configuration files uploaded"
+        jq '.upload_summary' upload_response.json 2>/dev/null || true
+      else
+        echo "  [SKIP] No configuration files found to upload"
+      fi
+
+      echo ""
+      echo "  ============================================================"
+      echo "  INITIALIZATION COMPLETE"
+      echo "  ============================================================"
+      echo "  - Health Check: PASSED"
+      echo "  - Authentication: COMPLETE"
+      echo "  - Job Created: ${JOB_ID}"
+      echo "  - Config Upload: COMPLETE"
+      echo "  ============================================================"
+  artifacts:
+    reports:
+      dotenv:
+        - credentials.env
+        - job.env
+
+# ============================= STAGE 2 ====================================
+# Copy Input Files — Domain-segregated input file placement (Omnia 2.3+)
+#
+# Sources omnia.env for OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, CATALOG_FILE_PATH.
+# Copies domain-specific input files from the GitLab repository to their
+# runtime destinations on the OIM host:
+#
+#   input/repo_manager/*          -> ${OMNIA_DATA_PATH}/repo_manager/input/${OMNIA_PROJECT_NAME}/
+#   input/image_build_manager/*   -> ${OMNIA_DATA_PATH}/image_build_manager/input/${OMNIA_PROJECT_NAME}/
+#   catalog_rhel.json             -> ${CATALOG_FILE_PATH}
+#
+# NOTE: parse-catalog and generate-input-files stages have been retired.
+# ==========================================================================
+copy-input-files:
+  stage: copy-input-files
+  needs: [initialization]
+  script:
+    - |
+      echo "============================================================"
+      echo "  [${JOB_ID}] STAGE 2: Copy Input Files (Domain-Segregated)"
+      echo "============================================================"
+      echo ""
+
+      # --- Source omnia.env for path variables ---
+      OMNIA_ENV_PATH="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_PATH}" ]; then
+        echo "  Sourcing omnia.env from GitLab repository..."
+        set -a
+        . "${OMNIA_ENV_PATH}"
+        set +a
+        echo "  OMNIA_DATA_PATH=${OMNIA_DATA_PATH}"
+        echo "  OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME}"
+        echo "  CATALOG_FILE_PATH=${CATALOG_FILE_PATH}"
+        echo ""
+      else
+        echo "  WARNING: omnia.env not found in GitLab repository, using defaults"
+        OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+        OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+        CATALOG_FILE_PATH="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
+        echo ""
+      fi
+
+      # --- Step 1: Verify catalog + omnia.env were uploaded ---
+      # catalog_rhel.json and omnia.env are uploaded to the OIM host
+      # via BSM API during initialization (Step 4/4).
+      echo "  Step 1/3: Verify catalog and omnia.env..."
+      echo "  ------------------------------------------------------------"
+      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
+      if [ -f "${CATALOG_SRC}" ]; then
+        echo "  [OK] ${CATALOG_FILE} present in repo (uploaded to OIM via BSM API)"
+      else
+        echo "  ERROR: ${CATALOG_FILE} not found in GitLab repository"
+        exit 1
+      fi
+      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_SRC}" ]; then
+        echo "  [OK] omnia.env present in repo (uploaded to OIM via BSM API)"
+      else
+        echo "  WARNING: omnia.env not found in GitLab repository"
+      fi
+      echo ""
+
+      # --- Step 2: Copy repo_manager input files ---
+      echo "  Step 2/3: Copy repo_manager input files..."
+      echo "  ------------------------------------------------------------"
+      RM_SRC="${CI_PROJECT_DIR}/input/repo_manager"
+      RM_DEST="${OMNIA_DATA_PATH}/repo_manager/input/${OMNIA_PROJECT_NAME}"
+      if [ -d "${RM_SRC}" ]; then
+        mkdir -p "${RM_DEST}"
+        cp -rv "${RM_SRC}/"* "${RM_DEST}/" 2>/dev/null || true
+        echo "  [OK] repo_manager input files copied to ${RM_DEST}"
+      else
+        echo "  [SKIP] No repo_manager input directory in GitLab repository"
+      fi
+      echo ""
+
+      # --- Step 3: Copy image_build_manager input files ---
+      echo "  Step 3/3: Copy image_build_manager input files..."
+      echo "  ------------------------------------------------------------"
+      IBM_SRC="${CI_PROJECT_DIR}/input/image_build_manager"
+      IBM_DEST="${OMNIA_DATA_PATH}/image_build_manager/input/${OMNIA_PROJECT_NAME}"
+      if [ -d "${IBM_SRC}" ]; then
+        mkdir -p "${IBM_DEST}"
+        cp -rv "${IBM_SRC}/"* "${IBM_DEST}/" 2>/dev/null || true
+        echo "  [OK] image_build_manager input files copied to ${IBM_DEST}"
+      else
+        echo "  [SKIP] No image_build_manager input directory in GitLab repository"
+      fi
+      echo ""
+
+      echo "  ============================================================"
+      echo "  INPUT FILE COPY COMPLETE"
+      echo "  ============================================================"
+
+# ============================= STAGE 3 ====================================
+# Configure Local Repository -- Trigger repo_manager playbook via BSM API
+# Polls until completion
+# ==========================================================================
+configure-local-repository:
+  stage: configure-local-repository
+  needs: [initialization, copy-input-files]
+  script:
+    - |
+      echo "============================================================"
+      echo "  [${JOB_ID}] STAGE 3: Configure Local Repository"
+      echo "============================================================"
+      echo ""
+
+      # Common Init -- re-authenticate and re-upload config files (retry support)
+      echo "  Common Init -- Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+      refresh_token
+      refresh_input_files
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        fi
+      done
+
+      # Include catalog and omnia.env in retry uploads
+      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
+      if [ -f "${CATALOG_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${CATALOG_SRC}"
+        echo "    [+] ${CATALOG_FILE} (catalog)"
+      fi
+      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${OMNIA_ENV_SRC}"
+        echo "    [+] omnia.env (environment config)"
+      fi
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
+        else
+          echo "  [OK] Configuration files uploaded"
+        fi
+      fi
+      echo ""
+
+      echo "  Step 1/2: Trigger repository creation..."
+      echo "  ------------------------------------------------------------"
+      echo ""
+      echo "  API Request:"
+      echo "  - Method: POST"
+      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/create-local-repository"
+      echo "  - Certificate: ${BSM_CERT_FILE}"
+      echo ""
+
+      HTTP_CODE=$(api_call_with_retry repo_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/create-local-repository" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+      echo "  API Response:"
+      echo "  - HTTP Status Code: ${HTTP_CODE}"
+      echo ""
+
+      if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "202" ]; then
+        echo "  ERROR: Create local repository failed"
+        echo "  Response Body:"
+        jq '.' repo_response.json 2>/dev/null || cat repo_response.json
+        exit 1
+      fi
+
+      echo "  Response Body:"
+      jq '.' repo_response.json 2>/dev/null || cat repo_response.json
+      echo ""
+      echo "  [OK] Repository creation request accepted"
+      echo ""
+
+      echo "  Step 2/2: Wait for repository creation to complete..."
+      echo "  ------------------------------------------------------------"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo ""
+
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        REPO_STATE=$(jq -r '.stages[]? | select(.stage_name == "create-local-repository") | .stage_state' status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Local-Repo Stage: ${REPO_STATE}"
+
+        case "${REPO_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            echo ""
+            echo "  Final Status Response:"
+            jq '.stages[]? | select(.stage_name == "create-local-repository")' status_response.json 2>/dev/null
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Local repository stage reached ${REPO_STATE}"
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "create-local-repository")' status_response.json 2>/dev/null
+            exit 1
+            ;;
+        esac
+
+        case "${JOB_STATE}" in
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Job reached ${JOB_STATE} state"
+            exit 1
+            ;;
+        esac
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$STAGE_COMPLETED" = "false" ]; then
+        echo ""
+        echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        exit 1
+      fi
+
+      echo ""
+      echo "  [OK] Local repository configured successfully"
+
+# ============================= STAGE 4 ====================================
+# Build Images -- Trigger image_build_manager playbook via BSM API
+# Domain-segregated: playbook handles architecture selection internally
+# ==========================================================================
+build-images:
+  stage: build-images
+  needs: [initialization, configure-local-repository]
+  script:
+    - |
+      echo "============================================================"
+      echo "  [${JOB_ID}] STAGE 4: Build Images (Domain-Segregated)"
+      echo "============================================================"
+      echo ""
+
+      # Common Init -- re-authenticate and re-upload config files (retry support)
+      echo "  Common Init -- Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+      refresh_token
+      refresh_input_files
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
+             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        fi
+      done
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
+        else
+          echo "  [OK] Configuration files uploaded"
+        fi
+      fi
+      echo ""
+
+      echo "  Step 1/2: Trigger unified build-image stage..."
+      echo "  ------------------------------------------------------------"
+      echo ""
+      echo "  API Request:"
+      echo "  - Method: POST"
+      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image"
+      echo "  - Content-Type: application/json"
+      echo "  - Certificate: ${BSM_CERT_FILE}"
+      echo "  - Request Body: {} (empty - playbook reads catalog)"
+      echo ""
+
+      HTTP_CODE=$(api_call_with_retry build_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
+        -H "Content-Type: application/json" \
+        -d '{}' \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+      echo "  API Response:"
+      echo "  - HTTP Status Code: ${HTTP_CODE}"
+      echo ""
+
+      if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+        echo "  ERROR: Build image request failed"
+        echo "  Response Body:"
+        jq '.' build_response.json 2>/dev/null || cat build_response.json
+        exit 1
+      fi
+
+      echo "  Response Body:"
+      jq '.' build_response.json 2>/dev/null || cat build_response.json
+      echo ""
+      echo "  [OK] Build request accepted (playbook will build all architectures)"
+      echo ""
+
+      echo "  Step 2/2: Wait for build-image stage to complete..."
+      echo "  ------------------------------------------------------------"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo "  Note: Playbook builds all architectures (x86_64, aarch64) internally"
+      echo ""
+
+      TERMINAL_REACHED=false
+      ATTEMPT=1
+
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        STAGE_STATE=$(jq -r '.stages[]? | select(.stage_name == "build-image") | .stage_state' \
+          status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Stage build-image: ${STAGE_STATE}"
+
+        case "${STAGE_STATE}" in
+          COMPLETED|SUCCEEDED)
+            TERMINAL_REACHED=true
+            echo ""
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            echo ""
+            echo "  [OK] Build completed successfully (all architectures)"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: build-image stage reached ${STAGE_STATE}"
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            exit 1
+            ;;
+          PENDING|IN_PROGRESS|RUNNING)
+            # Still in progress, continue polling
+            ;;
+          *)
+            echo "  WARNING: Unexpected stage state: ${STAGE_STATE}"
+            ;;
+        esac
+
+        case "${JOB_STATE}" in
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Job reached ${JOB_STATE} state"
+            exit 1
+            ;;
+        esac
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$TERMINAL_REACHED" = "false" ]; then
+        echo ""
+        echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        echo "  Last known stage state: ${STAGE_STATE}"
+        exit 1
+      fi
+
+      echo ""
+      echo "  ============================================================"
+      echo "  [OK] All images built successfully"
+      echo "  ============================================================"
+
+# ============================= STAGE 5 ====================================
+# Summary -- Fetch final job status and display comprehensive results
+# Runs after any stage (success or failure) to provide complete pipeline summary
+# ==========================================================================
+summary:
+  stage: summary
+  when: always
+  script:
+    - |
+      echo "============================================================"
+      echo "  STAGE 5: Build Pipeline Summary"
+      echo "============================================================"
+
+      # Check if we have a job ID (might not if auth or create-job failed)
+      if [ -z "${JOB_ID:-}" ]; then
+        echo "  No job ID available - pipeline likely failed before job creation"
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |                  BSM PIPELINE SUMMARY                     |"
+        echo "  +-----------------------------------------------------------+"
+        echo "  |  Job ID:     NOT AVAILABLE                                |"
+        echo "  |  Job State:  FAILED                                       |"
+        echo "  |  Reason:     Authentication or job creation failed        |"
+        echo "  +-----------------------------------------------------------+"
+        exit 1
+      fi
+
+      echo "  Job ID: ${JOB_ID}"
+      echo "  Fetching final job status..."
+
+      HTTP_CODE=$(api_call_with_retry final_status.json \
+        -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+        --cacert "${BSM_CERT_FILE}")
+
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "  WARNING: Failed to fetch final job status (HTTP ${HTTP_CODE})"
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |                  BSM PIPELINE SUMMARY                     |"
+        echo "  +-----------------------------------------------------------+"
+        echo "  |  Job ID:     ${JOB_ID}"
+        echo "  |  Job State:  FAILED (API returned ${HTTP_CODE})"
+        echo "  +-----------------------------------------------------------+"
+        exit 1
+      fi
+
+      echo "  Job status fetched successfully"
+      echo ""
+
+      JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' final_status.json)
+
+      # Build pipeline stages only (exclude deploy/restart/validate/pxe_boot/upload)
+      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image(-.*)?)$"))'
+      TOTAL_STAGES=$(jq -r "[${BUILD_STAGES_FILTER}] | length" \
+        final_status.json 2>/dev/null || echo "0")
+      COMPLETED=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"COMPLETED\" or .stage_state == \"SUCCEEDED\")] | length" \
+        final_status.json 2>/dev/null || echo "0")
+      FAILED=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"FAILED\")] | length" \
+        final_status.json 2>/dev/null || echo "0")
+      SKIPPED=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"SKIPPED\")] | length" \
+        final_status.json 2>/dev/null || echo "0")
+      PENDING=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"PENDING\" or .stage_state == \"IN_PROGRESS\")] | length" \
+        final_status.json 2>/dev/null || echo "0")
+
+      # Determine final display state based on actual results
+      if [ "$FAILED" -gt 0 ] || [ "$JOB_STATE" = "FAILED" ]; then
+        DISPLAY_STATE="FAILED"
+      elif [ "$JOB_STATE" = "COMPLETED" ] || [ "$JOB_STATE" = "SUCCEEDED" ]; then
+        DISPLAY_STATE="SUCCESS"
+      elif [ "$JOB_STATE" = "IN_PROGRESS" ] || [ "$JOB_STATE" = "RUNNING" ]; then
+        # If job is still running but all stages completed, show SUCCESS
+        if [ "$PENDING" -eq 0 ] && [ "$COMPLETED" -gt 0 ]; then
+          DISPLAY_STATE="SUCCESS"
+        else
+          DISPLAY_STATE="IN_PROGRESS"
+        fi
+      else
+        DISPLAY_STATE="${JOB_STATE}"
+      fi
+
+      echo "  +-----------------------------------------------------------+"
+      echo "  |                  BSM PIPELINE SUMMARY                     |"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |  Job ID:     ${JOB_ID}"
+      echo "  |  Job State:  ${DISPLAY_STATE}"
+      echo "  |  Stages:     ${TOTAL_STAGES} total (${COMPLETED} ok, ${FAILED} failed, ${SKIPPED} skipped, ${PENDING} pending)"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |  Stage Results:                                           |"
+
+      # Sort and display only build pipeline stages in execution order
+      jq -r '
+        # Define build stage execution order
+        def stage_order:
+          {
+            "copy-input-files": 1,
+            "create-local-repository": 2,
+            "build-image": 3,
+            "build-image-x86_64": 3,
+            "build-image-aarch64": 3
+          };
+
+        # Filter to build stages only, then sort by execution order
+        [.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image(-.*)?)$"))] |
+        sort_by([stage_order[.stage_name] // 999, .stage_name])[] |
+        "  |    \(.stage_name): \(.stage_state)" +
+        (if .error_code then "  [\(.error_code)]" else "" end)
+      ' final_status.json 2>/dev/null || echo "  |    (no stage data)"
+
+      echo "  +-----------------------------------------------------------+"
+
+      # Print errors if any (build stages only)
+      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image(-.*)?)$")) | \
+                           select(.stage_state == "FAILED")'
+      ERRORS=$(jq -r "${BUILD_FAILED_FILTER} | \"  |    X \(.stage_name): \" + (.error_summary // \"no details\")" \
+        final_status.json 2>/dev/null || true)
+      if [ -n "${ERRORS}" ]; then
+        echo "  |  Errors:                                                |"
+        echo "${ERRORS}"
+      fi
+
+      echo "  +-----------------------------------------------------------+"
+      echo ""
+
+      if [ "$DISPLAY_STATE" = "FAILED" ]; then
+        echo "  RESULT: FAILED -- ${FAILED} stage(s) failed"
+        exit 1
+      fi
+
+      echo "  RESULT: SUCCESS -- all stages completed"
+      exit 0
+  artifacts:
+    paths:
+      - final_status.json
