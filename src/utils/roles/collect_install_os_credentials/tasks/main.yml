@@ -1,0 +1,226 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# collect_install_os_credentials — Self-contained credential flow for OS installation.
+# Handles: validate → create → prompt → encrypt
+# Idempotent — skips if credentials are already loaded in this run.
+
+- name: Skip credential flow if already loaded
+  ansible.builtin.debug:
+    msg: "OS install credentials already loaded — skipping."
+  when: install_os_credentials_loaded | default(false) | bool
+
+- name: OS install credential flow
+  when: not (install_os_credentials_loaded | default(false) | bool)
+  block:
+    # Step 1: Validate existing credential file
+    - name: Check if OS install credential file exists
+      ansible.builtin.stat:
+        path: "{{ install_os_credential_file.file_path }}"
+      register: _install_os_cred_file_stat
+
+    - name: Check if vault key exists
+      ansible.builtin.stat:
+        path: "{{ install_os_credential_file.vault_path }}"
+      register: _install_os_vault_key_stat
+
+    # Step 2: Create credential file from template if missing
+    - name: Create credential file if missing
+      when: not _install_os_cred_file_stat.stat.exists
+      block:
+        - name: Ensure parent directory exists
+          ansible.builtin.file:
+            path: "{{ install_os_credential_file.file_path | dirname }}"
+            state: directory
+            mode: "0755"
+
+        - name: Create credential file from template
+          ansible.builtin.template:
+            src: "{{ install_os_credential_file.template }}"
+            dest: "{{ install_os_credential_file.file_path }}"
+            mode: "{{ install_os_credential_file.file_mode }}"
+
+        - name: Create vault key file
+          ansible.builtin.lineinfile:
+            path: "{{ install_os_credential_file.vault_path }}"
+            line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+            mode: "0600"
+            owner: root
+            create: true
+          when: not _install_os_vault_key_stat.stat.exists
+
+        - name: Encrypt newly created credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ install_os_credential_file.file_path }}"
+            --vault-password-file "{{ install_os_credential_file.vault_path }}"
+          changed_when: false
+
+    # Step 3: Create vault key if file exists but key is missing
+    - name: Ensure vault key exists for existing credential file
+      ansible.builtin.lineinfile:
+        path: "{{ install_os_credential_file.vault_path }}"
+        line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+        mode: "0600"
+        owner: root
+        create: true
+      when:
+        - _install_os_cred_file_stat.stat.exists
+        - not _install_os_vault_key_stat.stat.exists
+
+    # Re-check vault key after potential creation
+    - name: Re-check vault key exists
+      ansible.builtin.stat:
+        path: "{{ install_os_credential_file.vault_path }}"
+      register: _install_os_vault_key_stat
+
+    # Step 4: Detect if credential file is vault-encrypted or plaintext
+    - name: Check if credential file is vault-encrypted
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -n1 "{{ install_os_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+      register: _is_vault_encrypted
+      changed_when: false
+      failed_when: false
+      when:
+        - _install_os_cred_file_stat.stat.exists
+        - _install_os_vault_key_stat.stat.exists
+
+    # Step 4a: File is vault-encrypted — decrypt, load, re-encrypt
+    - name: Load vault-encrypted credentials
+      when:
+        - _install_os_cred_file_stat.stat.exists
+        - _install_os_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) == 0
+      block:
+        - name: Decrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ install_os_credential_file.file_path }}"
+            --vault-password-file "{{ install_os_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _cred_decrypt_result
+
+        - name: Load credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ install_os_credential_file.file_path }}"
+            name: install_os_loaded_creds
+          no_log: true
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ install_os_credential_file.file_path }}"
+            --vault-password-file "{{ install_os_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+    # Step 4b: File is plaintext — load and encrypt
+    - name: Load plaintext credentials (recovery)
+      when:
+        - _install_os_cred_file_stat.stat.exists
+        - _install_os_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) != 0
+      block:
+        - name: Load plaintext credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ install_os_credential_file.file_path }}"
+            name: install_os_loaded_creds
+          no_log: true
+
+        - name: Encrypt plaintext credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ install_os_credential_file.file_path }}"
+            --vault-password-file "{{ install_os_credential_file.vault_path }}"
+          changed_when: false
+
+        - name: Fix credential file permissions
+          ansible.builtin.file:
+            path: "{{ install_os_credential_file.file_path }}"
+            mode: "{{ install_os_credential_file.file_mode }}"
+
+    - name: Default install_os_loaded_creds if not loaded
+      ansible.builtin.set_fact:
+        install_os_loaded_creds: {}
+      when: install_os_loaded_creds is not defined
+
+    # Step 5: Prompt for mandatory credentials (only if value is empty)
+    - name: Prompt for mandatory OS install credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ install_os_cred_config.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+
+    # Step 6: Expose credentials as facts for downstream roles
+    - name: Reload final credentials
+      when: install_os_credential_file.file_path is file
+      block:
+        - name: Check if final credential file is vault-encrypted
+          ansible.builtin.shell: |
+            set -o pipefail
+            head -n1 "{{ install_os_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+          register: _final_is_vault
+          changed_when: false
+          failed_when: false
+
+        - name: Decrypt for final load
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ install_os_credential_file.file_path }}"
+            --vault-password-file "{{ install_os_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _final_decrypt_result
+          when: _final_is_vault.rc | default(1) == 0
+
+        - name: Load final credentials
+          ansible.builtin.include_vars:
+            file: "{{ install_os_credential_file.file_path }}"
+          no_log: true
+          when: _final_decrypt_result.rc | default(0) == 0
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ install_os_credential_file.file_path }}"
+            --vault-password-file "{{ install_os_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+
+    # Step 7: Generate password hash for kickstart
+    - name: Generate SHA-512 hash of OS root password
+      ansible.builtin.set_fact:
+        ks_root_password_hash: "{{ os_root_password | password_hash('sha512') }}"
+        cacheable: true
+      when:
+        - os_root_password is defined
+        - os_root_password | length > 0
+      no_log: true
+
+    # Step 8: Read SSH public key for kickstart injection
+    - name: Read OIM SSH public key
+      ansible.builtin.slurp:
+        src: /root/.ssh/id_rsa.pub
+      register: _ssh_pub_key
+      failed_when: false
+
+    - name: Set SSH public key fact
+      ansible.builtin.set_fact:
+        ks_ssh_public_key: "{{ _ssh_pub_key.content | b64decode | trim }}"
+        cacheable: true
+      when: _ssh_pub_key is success
+
+    # Step 9: Mark credentials as loaded to prevent re-prompting
+    - name: Set credentials loaded guard
+      ansible.builtin.set_fact:
+        install_os_credentials_loaded: true
+        cacheable: true

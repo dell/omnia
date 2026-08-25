@@ -64,6 +64,9 @@ TEST_NAMES: Dict[str, str] = {
     "domain_log_dirs": (
         "Verify domain log directories created"
     ),
+    "domain_output_dirs": (
+        "Verify domain output directories created"
+    ),
     "domain_input_staged": (
         "Verify domain input files staged to data path"
     ),
@@ -162,6 +165,19 @@ TEST_NAMES: Dict[str, str] = {
     "cli_unknown_command": (
         "Verify omnia-cli unknown command exits with error"
     ),
+
+    # omnia-cli logs verification
+    "cli_logs_help": (
+        "Verify omnia-cli logs --help runs"
+    ),
+
+    # omnia.sh tags verification
+    "sh_generic_tags_in_help": (
+        "Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup)"
+    ),
+    "sh_tags_run": (
+        "Verify omnia.sh --run <domain> --tags <tag> accepts generic tags"
+    ),
 }
 
 # =============================================================================
@@ -236,6 +252,12 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "log_dirs_missing": (
         "{count} domain log directory(ies) missing"
+    ),
+    "output_dirs_ok": (
+        "All {count} domain output directories exist"
+    ),
+    "output_dirs_missing": (
+        "{count} domain output directory(ies) missing"
     ),
     "input_staged_ok": (
         "Input files staged for {domain}: {count} file(s)"
@@ -344,6 +366,22 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "cli_unknown_error_ok": (
         "omnia-cli unknown command exited with error (rc={rc})"
+    ),
+
+    # omnia-cli logs
+    "cli_logs_help_ok": (
+        "omnia-cli logs --help ran successfully"
+    ),
+    "cli_logs_help_failed": (
+        "omnia-cli logs --help failed"
+    ),
+
+    # omnia.sh tags
+    "sh_generic_tags_ok": (
+        "Help shows all 5 generic tags per domain"
+    ),
+    "sh_generic_tags_missing": (
+        "Help missing generic tags: {missing}"
     ),
 }
 
@@ -470,6 +508,19 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Run: ./omnia.sh --init\n"
         "\u2551   2. Check /var/log/omnia/ permissions\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "output_dirs_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN OUTPUT DIRECTORIES MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing:\n"
+        "{missing_list}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: ./omnia.sh --init\n"
+        "\u2551   2. Check OMNIA_DATA_PATH permissions\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 

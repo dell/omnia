@@ -76,6 +76,11 @@
                     "type": "boolean",
                     "description": "Copy existing S3 compute image artifacts to *_prev before rebuilding.",
                     "default": false
+                },
+                "repo_ssl_verify": {
+                    "type": "boolean",
+                    "description": "Enable SSL verification and GPG checks on RPM repos during image builds. Set false for self-signed certs.",
+                    "default": true
                 }
             },
             "additionalProperties": false

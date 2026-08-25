@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-# Default values
-# These are overridden by extra vars or set_fact from the calling playbook.
-iso_source_path: "/opt/omnia/rhel_10.0_aarch64.iso"
-iso_target_directory: "/opt/omnia/iso_output"
+# Default values (overridden by set_fact from validate_install_os_config)
+iso_source_path: "{{ source_iso_path | default('') }}"
+iso_source_checksum: "{{ source_iso_checksum | default('') }}"
+iso_target_directory: "{{ _local_iso_dir | default('/tmp/install_os') }}"
 
 # Required ISO tooling
 required_iso_tools:
@@ -25,21 +25,13 @@ required_iso_tools:
   - name: implantisomd5
     package: isomd5sum
 
-# ISO mount point for extraction
-iso_mount_point: "/mnt/iso_source"
-iso_extract_dir: "{{ iso_target_directory }}/iso_extract"
-
 # Error messages
 iso_not_found_msg: >-
   Source ISO not found at '{{ iso_source_path }}'.
-  Please place the RHEL 10.x AArch64 Server with GUI ISO at the specified path
-  and re-run the playbook.
+  Please verify the path in install_os_config.yml and re-run the playbook.
 iso_checksum_mismatch_msg: >-
   Source ISO checksum mismatch. Expected: {{ iso_source_checksum }}.
   The ISO file may be corrupted or incomplete. Please re-download the ISO and retry.
 tool_missing_msg: >-
   Required ISO tooling is missing: {{ missing_tools | join(', ') }}.
   Install the missing packages and re-run the playbook.
-iso_mount_fail_msg: >-
-  Failed to mount the source ISO at '{{ iso_source_path }}'.
-  The ISO file may be corrupted. Please verify the ISO and retry.

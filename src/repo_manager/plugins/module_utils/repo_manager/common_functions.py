@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Common utility functions for repo_manager operations.
+
+This module provides:
+- Vault encryption/decryption operations
+- File permission management
+- Configuration file handling
+- Common validation and helper functions
+"""
+
 import os
 import subprocess
 import stat

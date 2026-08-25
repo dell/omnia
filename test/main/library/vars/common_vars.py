@@ -96,6 +96,7 @@ DOMAINS_WITH_INIT: List[str] = [
     "orchestrator",
     "repo_manager",
     "telemetry",
+    "utils",
 ]
 
 # =============================================================================
@@ -148,6 +149,8 @@ OMNIA_CLI_COMMANDS: List[str] = [
     "image-build",
     "version",
     "help",
+    "logs",
+    "vault",
 ]
 
 # Domains addressable via omnia-cli <domain>
@@ -158,6 +161,15 @@ OMNIA_CLI_DOMAINS: List[str] = [
     "discovery",
     "telemetry",
     "build-stream",
+]
+
+# Generic tags shown in omnia.sh help (per domain)
+OMNIA_SH_GENERIC_TAGS: List[str] = [
+    "precheck",
+    "validate",
+    "prepare",
+    "execute",
+    "cleanup",
 ]
 
 # Expected sections in omnia-cli help output
@@ -278,6 +290,14 @@ CMDS: Dict[str, str] = {
         "find {data_path}/{domain}/input/{project}"
         " -type f 2>/dev/null | wc -l"
     ),
+    "domain_output_dir_exists": (
+        "test -d {data_path}/{domain}/output/{project}"
+        " && echo exists"
+    ),
+    "domain_runtime_log_dir_exists": (
+        "test -d {data_path}/{domain}/log/{project}"
+        " && echo exists"
+    ),
     # --- System ---
     "hostname_cmd": "hostname 2>/dev/null",
     "which_cmd": "which {binary} 2>/dev/null",
@@ -317,5 +337,15 @@ CMDS: Dict[str, str] = {
     "omnia_cli_unknown": (
         "cd {clone_path} && bash {omnia_cli}"
         " nonexistent_cmd 2>&1"
+    ),
+    # --- omnia-cli logs ---
+    "omnia_cli_logs_help": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs --help 2>&1"
+    ),
+    # --- omnia.sh tags validation ---
+    "omnia_sh_run_tags": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --run {domain} --tags {tag} 2>&1"
     ),
 }

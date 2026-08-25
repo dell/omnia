@@ -426,6 +426,63 @@ def check_domain_input_staged(
     }
 
 
+def check_domain_output_dirs(
+    host,
+) -> Dict[str, Any]:
+    """Verify domain output directories created by domain-init.sh.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, missing.
+    """
+    config = load_test_config()
+    data_path = config.get(
+        "omnia_data_path", "/opt/omnia"
+    )
+    project = config.get(
+        "project_name", "project_default"
+    )
+
+    missing: List[str] = []
+    present: List[str] = []
+
+    for domain in DOMAINS_WITH_INIT:
+        cmd = CMDS["domain_output_dir_exists"].format(
+            data_path=data_path,
+            domain=domain,
+            project=project,
+        )
+        result = run_on_host(host, cmd)
+        output_dir = (
+            f"{data_path}/{domain}/output/{project}"
+        )
+        if "exists" in result.stdout:
+            present.append(output_dir)
+        else:
+            missing.append(output_dir)
+
+    if not missing:
+        return {
+            "success": True,
+            "details": (
+                f"{len(present)} output directories present"
+            ),
+            "error": "",
+            "missing": [],
+        }
+    return {
+        "success": False,
+        "details": (
+            f"{len(present)} present, "
+            f"{len(missing)} missing"
+        ),
+        "error": f"Missing: {', '.join(missing)}",
+        "missing": missing,
+    }
+
+
 # =============================================================================
 # CLI VERIFICATION
 # =============================================================================
@@ -444,7 +501,7 @@ def check_help_output(host) -> Dict[str, Any]:
 
     expected_sections = [
         "USAGE:",
-        "SETUP COMMANDS:",
+        "SETUP COMMANDS",
         "EXECUTION COMMANDS:",
         "OPTIONS:",
         "DOMAINS:",

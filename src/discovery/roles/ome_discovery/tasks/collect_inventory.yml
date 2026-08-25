@@ -30,7 +30,7 @@
           is correct and that the OME appliance is powered on and network-accessible.
 
 - name: Collect OME server inventory
-  omnia.discovery.ome_server_inventory:
+  ome_server_inventory:
     ome_ip: "{{ ome_ip }}"
     ome_username: "{{ ome_username }}"
     ome_password: "{{ ome_password }}"

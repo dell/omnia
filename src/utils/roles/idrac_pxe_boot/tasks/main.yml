@@ -17,22 +17,11 @@
     reboot_failed: false
     reboot_status: ""
 
-- name: Skip this host if BSM excluded it from effective inventory
-  when: bsm_skip_this_host | default(false)
-  block:
-    - name: Mark host as skipped by BSM
-      ansible.builtin.set_fact:
-        reboot_failed: false
-        reboot_status: "Skipped by Build Stream (already booted or not in diff)"
-
-    - name: End play for this host
-      ansible.builtin.meta: end_host
-
 - name: Get LC status of iDRAC
   ansible.builtin.uri:
     url: "https://{{ inventory_hostname }}/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus"
-    user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-    password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+    user: "{{ hostvars['localhost']['bmc_username'] }}"
+    password: "{{ hostvars['localhost']['bmc_password'] }}"
     method: POST
     force_basic_auth: true
     validate_certs: false
@@ -59,20 +48,20 @@
   module_defaults:
     dellemc.openmanage.redfish_powerstate:
       baseuri: "{{ inventory_hostname }}"
-      username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-      password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+      username: "{{ hostvars['localhost']['bmc_username'] }}"
+      password: "{{ hostvars['localhost']['bmc_password'] }}"
       validate_certs: false
       resource_id: "System.Embedded.1"
   block:
     - name: Set boot option from pxe
       dellemc.openmanage.idrac_boot:
         idrac_ip: "{{ inventory_hostname }}"
-        idrac_user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-        idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+        idrac_user: "{{ hostvars['localhost']['bmc_username'] }}"
+        idrac_password: "{{ hostvars['localhost']['bmc_password'] }}"
         validate_certs: false
         boot_source_override_mode: uefi
-        boot_source_override_target: "{{ boot_source_override_target }}"
-        boot_source_override_enabled: "{{ boot_source_override_enabled }}"
+        boot_source_override_target: "{{ hostvars['localhost']['boot_source_override_target'] | default('pxe') }}"
+        boot_source_override_enabled: "{{ hostvars['localhost']['boot_source_override_enabled'] | default('continuous') }}"
         reset_type: "none" # Dont Restart here as to Handle poweroff case
         resource_id: "System.Embedded.1"
       register: pxe_provisioning
@@ -81,8 +70,8 @@
 
     - name: Try ForceRestart
       dellemc.openmanage.redfish_powerstate:
-        reset_type: "{{ 'ForceRestart' if force_restart else 'GracefulRestart' }}"
-      when: restart_host
+        reset_type: "{{ 'ForceRestart' if (hostvars['localhost']['force_restart'] | default(true)) else 'GracefulRestart' }}"
+      when: hostvars['localhost']['restart_host'] | default(true)
       register: restart_op
       failed_when: false
 
@@ -92,14 +81,18 @@
       register: power_on_op
       failed_when: false
       when:
-        - restart_host
+        - hostvars['localhost']['restart_host'] | default(true)
         - not (restart_op is changed)
 
 - name: Check LC availibility
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "{{ lc_check_fail_msg }}"
-  when: idrac_status is failed or not (idrac_status.json.LCStatus | lower == "ready")
+  when: >
+    idrac_status is failed or
+    (idrac_status.json is not defined) or
+    (idrac_status.json.LCStatus is not defined) or
+    (idrac_status.json.LCStatus | lower != "ready")
 
 - name: Fail if PXE provisioning failed
   ansible.builtin.set_fact:
@@ -125,7 +118,7 @@
     reboot_status: "Power operation failed on {{ inventory_hostname }}. Failed to restart server."
   when:
     - not reboot_failed
-    - restart_host
+    - hostvars['localhost']['restart_host'] | default(true)
     - not (restart_op is defined and restart_op is changed)
     - not (power_on_op is defined and power_on_op is changed)
 
@@ -136,6 +129,6 @@
       PXE Boot: {{ 'OK' if pxe_provisioning is success else ('UNREACHABLE' if pxe_provisioning is unreachable else 'FAILED') }} |
       Power: {{ 'Restart OK' if (restart_op is defined and restart_op is changed)
       else ('On OK' if (power_on_op is defined and power_on_op is changed)
-      else ('Skipped (no restart)' if not restart_host
+      else ('Skipped (no restart)' if not (hostvars['localhost']['restart_host'] | default(true))
       else 'FAILED')) }}
   when: not reboot_failed

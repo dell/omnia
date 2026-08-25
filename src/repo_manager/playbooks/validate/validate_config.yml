@@ -29,6 +29,7 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
   tags:
+    - precheck
     - local_repo
     - repo_manager
   tasks:
@@ -40,6 +41,11 @@
         path: "{{ repo_manager_log_dir }}"
         state: directory
         mode: "0755"
+
+    - name: Validate required environment variables using setup role
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_config.yml
 
     - name: Enable subscription check when validate_config.yml is run directly
       ansible.builtin.set_fact:

@@ -1,0 +1,130 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# utils.yml - Top-level entry point for the utils domain.
+# Provides common utilities for Omnia: log collection, PXE boot, slurm config, etc.
+#
+# Usage (run ONE tag at a time - no comma-separated tags):
+#   cd src/utils/playbooks
+#   ansible-playbook utils.yml --tags precheck        # Env precheck only
+#   ansible-playbook utils.yml --tags setup           # Setup only
+#   ansible-playbook utils.yml --tags collect         # Collect logs
+#   ansible-playbook utils.yml --tags pxe             # PXE boot utility
+#   ansible-playbook utils.yml --tags slurm           # Slurm config utility
+#   ansible-playbook utils.yml --tags cleanup         # Cleanup flow (placeholder)
+#   ansible-playbook utils.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook utils.yml --tags rollback        # Rollback flow (placeholder)
+#
+# Tags (mutually exclusive - pick ONE):
+#   (none)    - Default: setup only
+#   precheck  - Environment precheck (env vars, connectivity)
+#   setup     - Setup and configuration
+#   collect   - Log collection utility
+#   pxe       - PXE boot utility
+#   slurm     - Slurm configuration utility
+#   cleanup   - Cleanup flow (placeholder)
+#   upgrade   - Upgrade flow (placeholder)
+#   rollback  - Rollback flow (placeholder)
+
+# =========================================================================
+# Step 0: Setup - load env vars (omnia.env), validate host
+# =========================================================================
+- name: Utils domain setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - utils_setup
+
+# =========================================================================
+# FLOW: precheck - Environment validation (opt-in only)
+# =========================================================================
+- name: Precheck environment
+  ansible.builtin.import_playbook: precheck/precheck_environment.yml
+  tags:
+    - never
+    - precheck
+
+# =========================================================================
+# FLOW: collect - Log collection utility
+# =========================================================================
+- name: Collect logs
+  ansible.builtin.import_playbook: collect.yml
+  tags:
+    - never
+    - collect
+
+# =========================================================================
+# FLOW: pxe - PXE boot utility
+# =========================================================================
+- name: PXE boot utility
+  ansible.builtin.import_playbook: set_pxe_boot.yml
+  tags:
+    - never
+    - pxe
+
+# =========================================================================
+# FLOW: slurm - Slurm configuration utility
+# =========================================================================
+- name: Slurm configuration utility
+  ansible.builtin.import_playbook: slurm_config_util.yml
+  tags:
+    - never
+    - slurm
+
+# =========================================================================
+# FLOW: cleanup - Cleanup flow placeholder (opt-in only)
+# =========================================================================
+- name: Cleanup utils
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - never
+    - cleanup
+  tasks:
+    - name: Cleanup placeholder
+      ansible.builtin.debug:
+        msg: "Utils cleanup - not implemented yet"
+
+# =========================================================================
+# FLOW: upgrade - Upgrade flow placeholder (opt-in only)
+# =========================================================================
+- name: Upgrade utils
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - never
+    - upgrade
+  tasks:
+    - name: Upgrade placeholder
+      ansible.builtin.debug:
+        msg: "Utils upgrade - not implemented yet"
+
+# =========================================================================
+# FLOW: rollback - Rollback flow placeholder (opt-in only)
+# =========================================================================
+- name: Rollback utils
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - never
+    - rollback
+  tasks:
+    - name: Rollback placeholder
+      ansible.builtin.debug:
+        msg: "Utils rollback - not implemented yet"

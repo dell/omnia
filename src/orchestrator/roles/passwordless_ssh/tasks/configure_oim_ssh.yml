@@ -14,6 +14,19 @@
 ---
 # tasks/configure_oim_ssh.yml
 
+- name: Ensure .ssh directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.ssh"
+    state: directory
+    mode: '0700'
+
+- name: Generate OIM SSH key pair
+  ansible.builtin.command: >-
+    ssh-keygen -t rsa -b 4096
+    -f {{ ansible_user_dir }}/.ssh/oim_rsa -N ""
+  args:
+    creates: "{{ ansible_user_dir }}/.ssh/oim_rsa"
+
 - name: Gather cluster hostnames and IP wildcard patterns from localhost facts
   ansible.builtin.set_fact:
     k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | default([]) }}"

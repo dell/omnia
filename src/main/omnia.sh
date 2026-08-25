@@ -440,6 +440,38 @@ init_domains() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Stage-Order Warning (non-blocking)
+# ─────────────────────────────────────────────────────────────────────────────
+warn_stage_order() {
+    local domain="$1"
+    local project="${OMNIA_PROJECT_NAME:-project_default}"
+    local data_path="${OMNIA_DATA_PATH:-/opt/omnia}"
+
+    case "$domain" in
+        image_build_manager)
+            # image_build_manager reads repo_status.yml from repo_manager
+            local repo_status="$data_path/repo_manager/output/$project/repo_status.yml"
+            if [ ! -f "$repo_status" ]; then
+                echo -e "${YELLOW}WARNING: repo_manager has not been run yet (no repo_status.yml found).${NC}"
+                echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
+                echo -e "${YELLOW}  Run: ./omnia.sh --run repo_manager${NC}"
+                echo ""
+            fi
+            ;;
+        orchestrator)
+            # orchestrator reads build_status.yml from image_build_manager
+            local build_status="$data_path/image_build_manager/output/$project/build_status.yml"
+            if [ ! -f "$build_status" ]; then
+                echo -e "${YELLOW}WARNING: image_build_manager has not been run yet (no build_status.yml found).${NC}"
+                echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
+                echo -e "${YELLOW}  Run: ./omnia.sh --run image_build_manager${NC}"
+                echo ""
+            fi
+            ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Run Domain Playbook
 # ─────────────────────────────────────────────────────────────────────────────
 run_domain() {
@@ -499,6 +531,9 @@ run_domain() {
 
     # shellcheck disable=SC1091
     source "$OMNIA_VENV_PATH/bin/activate"
+
+    # --- Stage-order warnings (non-blocking) ---
+    warn_stage_order "$domain"
 
     # Build ansible-playbook command
     local cmd=("ansible-playbook" "$playbook")
@@ -806,7 +841,7 @@ PREREQUISITE:
 USAGE:
   $0 <command> [options]
 
-SETUP COMMANDS:
+SETUP COMMANDS (run once, in order):
   --setup-venv, -s      Create/update the shared Python venv, then run all
                         domain-init.sh scripts (pip deps, Galaxy collections,
                         log dirs, input file staging) and copy catalog files.
@@ -823,6 +858,55 @@ EXECUTION COMMANDS:
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
                         Passes --tags and any extra args to ansible-playbook.
+
+RECOMMENDED EXECUTION ORDER:
+  Domains should be run in this order (each reads the previous domain's output):
+
+    Step 1. repo_manager          Mirror packages, images, pip (writes repo_status.yml)
+    Step 2. image_build_manager   Build OS images              (reads repo_status.yml, writes build_status.yml)
+    Step 3. discovery [optional]  Discover servers             (writes bmc_pxe_mapping_file.csv)
+    Step 4. orchestrator          Deploy cluster + K8s/Slurm   (reads build_status.yml + discovery output)
+    Step 5. telemetry             Deploy telemetry on K8s      (requires K8s from step 4)
+    Step 6. utils     [optional]  Utility playbooks            (run anytime)
+
+  WARNING: Running a later step without completing earlier steps may fail.
+           The CLI will warn you if prerequisite outputs are missing.
+
+  Tags by domain (use --tags <tag> to run a specific stage):
+  Execution order: precheck -> validate -> prepare -> execute -> cleanup
+
+    repo_manager:
+      precheck        Environment prerequisite check      (never: explicit only)
+      validate        Validate input configurations
+      prepare         Deploy Pulp server
+      execute         Deploy + download + status (full domain tasks)
+      cleanup         Remove Pulp server and all data     (never: explicit only)
+
+    image_build_manager:
+      precheck        Environment prerequisite check      (never: explicit only)
+      validate        Validate image build configuration
+      prepare         Deploy build infrastructure (MinIO + Registry)
+      execute         Build OS images (full domain tasks)
+      cleanup         Remove build infrastructure         (never: explicit only)
+
+    orchestrator:
+      precheck        Validate orchestrator prerequisites (never: explicit only)
+      validate        Validate orchestrator configuration
+      prepare         Prepare orchestrator components
+      execute         Deploy + provision (full domain tasks)
+      cleanup         Remove orchestrator components      (never: explicit only)
+
+    telemetry:
+      precheck        Validate telemetry prerequisites    (never: explicit only)
+      validate        Validate telemetry input files
+      prepare         Prepare telemetry components
+      execute         Deploy all telemetry sources + sinks (full domain tasks)
+      cleanup         Remove telemetry components         (never: explicit only)
+
+  Without --tags, --run <domain> executes the full domain (equivalent to --tags execute).
+  Tags marked "(never: explicit only)" require --tags <tag> to run;
+  they are skipped during a normal full domain run.
+  Additional domain-specific tags are available — see domain help.
 
 DIAGNOSTIC COMMANDS:
   --check-deps          Audit all domain requirements.txt and requirements.yml
@@ -898,7 +982,7 @@ EXAMPLES:
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
-  ./omnia.sh -r repo_manager --tags build
+  ./omnia.sh -r repo_manager                   # Run all tags
   ./omnia.sh -r telemetry                      # Run all tags
 
   # Validate a domain (uses --tags validate):

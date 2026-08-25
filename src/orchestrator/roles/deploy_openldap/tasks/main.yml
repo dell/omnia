@@ -32,7 +32,7 @@
       block:
         - name: Load OpenLDAP credentials
           ansible.builtin.include_role:
-            name: omnia.orchestrator.orchestrator_common
+            name: orchestrator_common
             tasks_from: decrypt_include_encrypt.yml
           vars:
             credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"

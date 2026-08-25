@@ -48,14 +48,14 @@ boot_svc_params_opts: 'ip=dhcp rd.live.image rd.live.ram rd.neednet=1 rd.driver.
 image_missing_fail_msg: "Failed to set kernel or initrd. Create the image using build_image.yml and try again."
 
 # Usage: configure_metadata_svc_group.yml, configure_bss_metadata_svc.yml
-ssh_key_path: /root/.ssh/oim_rsa.pub
+ssh_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa.pub"
 ms_defaults_template: metadata_svc/ms-defaults.yaml.j2
 metadata_svc_dir: "{{ openchami_work_dir }}/metadata-service"
 ms_defaults_dest: '{{ metadata_svc_dir }}/ms-defaults.yaml'
 ms_group_load_fail_msg: |
   "Template loading failed. Ensure the template exists in the specified path and is compatible with the defined functional groups."
 default_file_path: "{{ role_path }}/../slurm_config/defaults/main.yml"
-ssh_private_key_path: /root/.ssh/oim_rsa
+ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"
 
 # Usage: configure_metadata_svc_common.yml
 ms_group_common_template: metadata_svc/ms-group-common.yaml.j2
@@ -122,7 +122,7 @@ all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | defaul
 login_compiler_node_present: "{{ hostvars['oim']['login_compiler_node_present'] | default(false) }}"
 slurm_node_present: "{{ hostvars['oim']['slurm_node_present'] | default(false) }}"
 # Usage: ci-group-slurm_node_x86_64.yaml.j2, ci-group-slurm_node_aarch64.yaml.j2
-dcgm_support: "{{ hostvars['localhost'].get('telemetry_sources', {}).get('dcgm', {}).get('metrics_enabled', true) | bool }}"
+dcgm_support: "{{ hostvars['localhost'].get('dcgm_support', true) | bool }}"
 # NVIDIA DCGM (Data Center GPU Manager) configuration
 dcgm_service_name: "nvidia-dcgm"
 dcgm_health_check_retries: 3

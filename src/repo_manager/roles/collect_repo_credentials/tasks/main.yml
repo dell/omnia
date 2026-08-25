@@ -1,0 +1,281 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# collect_repo_credentials — Self-contained credential flow for repo_manager.
+# Handles: validate → create → prompt → encrypt
+# Idempotent — skips if credentials are already loaded in this run.
+#
+# Naming Convention:
+#   Role:     collect_repo_credentials  (verb — what the role does: collects)
+#   Playbook: get_repo_credentials.yml  (verb — what the user gets)
+#   Data:     repo_manager_credentials.yml (noun — the artifact)
+
+- name: Skip credential flow if already loaded
+  ansible.builtin.debug:
+    msg: "Repo manager credentials already loaded — skipping."
+  when: repo_manager_credentials_loaded | default(false) | bool
+
+- name: Repo manager credential flow
+  when: not (repo_manager_credentials_loaded | default(false) | bool)
+  block:
+    # Step 1: Validate existing credential file
+    - name: Check if repo manager credential file exists
+      ansible.builtin.stat:
+        path: "{{ repo_manager_credential_file.file_path }}"
+      register: repo_manager_cred_file_stat
+
+    - name: Check if vault key exists
+      ansible.builtin.stat:
+        path: "{{ repo_manager_credential_file.vault_path }}"
+      register: repo_manager_vault_key_stat
+
+    # Step 2: Create credential file from template if missing
+    - name: Create credential file if missing
+      when: not repo_manager_cred_file_stat.stat.exists
+      block:
+        - name: Ensure parent directory exists
+          ansible.builtin.file:
+            path: "{{ repo_manager_credential_file.file_path | dirname }}"
+            state: directory
+            mode: "0755"
+
+        - name: Create credential file from template
+          ansible.builtin.template:
+            src: "{{ repo_manager_credential_file.template }}"
+            dest: "{{ repo_manager_credential_file.file_path }}"
+            mode: "{{ repo_manager_credential_file.file_mode }}"
+          register: repo_manager_file_created
+
+        - name: Create vault key file
+          ansible.builtin.lineinfile:
+            path: "{{ repo_manager_credential_file.vault_path }}"
+            line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+            mode: "0600"
+            owner: root
+            create: true
+          when: not repo_manager_vault_key_stat.stat.exists
+
+        - name: Encrypt newly created credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
+            --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+          changed_when: false
+
+    # Step 3: Create vault key if file exists but key is missing
+    - name: Ensure vault key exists for existing credential file
+      ansible.builtin.lineinfile:
+        path: "{{ repo_manager_credential_file.vault_path }}"
+        line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+        mode: "0600"
+        owner: root
+        create: true
+      when:
+        - repo_manager_cred_file_stat.stat.exists
+        - not repo_manager_vault_key_stat.stat.exists
+
+    # Step 4: Detect if credential file is vault-encrypted or plaintext
+    - name: Check if credential file is vault-encrypted
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -n1 "{{ repo_manager_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+      register: _is_vault_encrypted
+      changed_when: false
+      failed_when: false
+      when:
+        - repo_manager_cred_file_stat.stat.exists
+        - repo_manager_vault_key_stat.stat.exists
+
+    # Step 4a: File is vault-encrypted — decrypt, load, re-encrypt
+    - name: Load vault-encrypted credentials
+      when:
+        - repo_manager_cred_file_stat.stat.exists
+        - repo_manager_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) == 0
+      block:
+        - name: Decrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ repo_manager_credential_file.file_path }}"
+            --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _cred_decrypt_result
+
+        - name: Load credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ repo_manager_credential_file.file_path }}"
+            name: repo_manager_loaded_creds
+          no_log: true
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
+            --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+    # Step 4b: File is plaintext (left unencrypted from a prior failed run) — load and encrypt
+    - name: Load plaintext credentials (recovery)
+      when:
+        - repo_manager_cred_file_stat.stat.exists
+        - repo_manager_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) != 0
+      block:
+        - name: Load plaintext credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ repo_manager_credential_file.file_path }}"
+            name: repo_manager_loaded_creds
+          no_log: true
+
+        - name: Encrypt plaintext credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
+            --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+          changed_when: false
+
+        - name: Fix credential file permissions
+          ansible.builtin.file:
+            path: "{{ repo_manager_credential_file.file_path }}"
+            mode: "{{ repo_manager_credential_file.file_mode }}"
+
+    - name: Default repo_manager_loaded_creds if not loaded
+      ansible.builtin.set_fact:
+        repo_manager_loaded_creds: {}
+      when: repo_manager_loaded_creds is not defined
+
+    # Step 4.5: Check if credential file is already encrypted (for use in prompting)
+    - name: Check if credential file is already encrypted
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -n1 "{{ repo_manager_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+      register: _is_already_encrypted
+      changed_when: false
+      failed_when: false
+      when: repo_manager_credential_file.file_path is file
+
+    # Step 5: Prompt for mandatory credentials (only if value is empty)
+    - name: Prompt for mandatory repo manager credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ repo_manager_cred_config.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+
+    # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
+    - name: Prompt for conditional mandatory repo manager credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ repo_manager_cred_config.conditional_mandatory }}"
+      loop_control:
+        loop_var: cred_field
+      when: cred_field.condition | default(false) | bool
+
+    # Step 7: Process registry credentials if configured
+    - name: Load registry configuration from repo_manager_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/repo_manager_config.yml"
+      register: repo_config
+      failed_when: false
+
+    - name: Set default empty registry credentials
+      ansible.builtin.set_fact:
+        registry_credentials: []
+      when: repo_config.ansible_facts is not defined or repo_config.ansible_facts.registries is not defined or repo_config.ansible_facts.registries is none
+
+    - name: Build dynamic registry credential list
+      ansible.builtin.set_fact:
+        registry_credentials: >-
+          {% set registry_creds = [] %}
+          {% if repo_config.ansible_facts is defined and repo_config.ansible_facts.registries is defined and repo_config.ansible_facts.registries is not none %}
+          {% for reg_name, reg_config in repo_config.ansible_facts.registries.items() %}
+          {% set auth_type = reg_config.Auth.Type | default('basic') %}
+          {% set password_required = auth_type == 'basic' and reg_config.Auth.Credentials.VaultPath | default('') | length > 0 %}
+          {% set cred_item = {
+            'registry_name': reg_name,
+            'auth_type': auth_type,
+            'password_required': password_required,
+            'username_field': reg_name + '_username',
+            'password_field': reg_name + '_password',
+            'tls_ca_path': reg_name + '_ca_path',
+            'tls_cert_path': reg_name + '_cert_path',
+            'tls_key_path': reg_name + '_key_path',
+            'insecure_skip_verify': reg_name + '_insecure'
+          } %}
+          {{ registry_creds.append(cred_item) }}
+          {% endfor %}
+          {% endif %}
+          {{ registry_creds }}
+      when: repo_config.ansible_facts is defined and repo_config.ansible_facts.registries is defined and repo_config.ansible_facts.registries is not none
+
+    - name: Check if registry credentials are configured
+      ansible.builtin.set_fact:
+        registry_credentials_configured: >-
+          {{ registry_credentials | default([]) | length > 0 }}
+
+    - name: Process registry credentials
+      ansible.builtin.include_tasks: process_registry_credential.yml
+      loop: "{{ registry_credentials | default([]) }}"
+      loop_control:
+        loop_var: registry_config
+      when: registry_credentials_configured | default(false) | bool
+
+    # Step 7.5: Encrypt credential file after prompting (if it was plaintext)
+    - name: Encrypt credential file after prompting
+      ansible.builtin.command: >-
+        ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
+        --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+      changed_when: false
+      when:
+        - repo_manager_credential_file.file_path is file
+        - repo_manager_vault_key_stat.stat.exists
+        - _is_already_encrypted.rc | default(1) != 0
+
+    # Step 8: Expose credentials as facts for downstream roles
+    - name: Reload final credentials
+      when: repo_manager_credential_file.file_path is file
+      block:
+        - name: Check if final credential file is vault-encrypted
+          ansible.builtin.shell: |
+            set -o pipefail
+            head -n1 "{{ repo_manager_credential_file.file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+          register: _final_is_vault
+          changed_when: false
+          failed_when: false
+
+        - name: Decrypt for final load
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ repo_manager_credential_file.file_path }}"
+            --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _final_decrypt_result
+          when: _final_is_vault.rc | default(1) == 0
+
+        - name: Load final credentials
+          ansible.builtin.include_vars:
+            file: "{{ repo_manager_credential_file.file_path }}"
+          no_log: true
+          when: _final_decrypt_result.rc | default(0) == 0
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
+            --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+
+    # Step 9: Mark credentials as loaded to prevent re-prompting
+    - name: Set credentials loaded guard
+      ansible.builtin.set_fact:
+        repo_manager_credentials_loaded: true
+        cacheable: true

@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Self-contained credential definition for PXE boot operations.
+# This role can operate independently of the central credential_utility.
+
+# Base path — uses input_project_dir if available, falls back to env-based path
+pxe_credentials_dir: >-
+  {{ input_project_dir
+     | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
+               + '/utils/input/'
+               + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)) }}
+
+# Credential file definition (standalone — no dependency on credential_utility index)
+pxe_credential_file:
+  credential_type: "PXE Boot"
+  template: "{{ role_path }}/templates/set_pxe_boot_credentials.j2"
+  file_path: "{{ pxe_credentials_dir }}/set_pxe_boot_credentials.yml"
+  file_mode: "0600"
+  vault_path: "{{ pxe_credentials_dir }}/.set_pxe_boot_credentials_key"
+
+# Credential prompt definitions
+pxe_cred_config:
+  mandatory:
+    - username: bmc_username
+      password: bmc_password
+
+# Messages
+pxe_mandatory_warning_msg: "WARNING: BMC/iDRAC credentials are required for PXE boot operations and cannot be left empty."
+pxe_password_fail_msg: "Failed. Password is required for BMC/iDRAC access."
+pxe_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+pxe_credential_encrypt_fail_msg: "Failed to encrypt PXE credential file."
