@@ -47,9 +47,8 @@ def test_deploy_cleanup(host):
 
     tl.check("Running telemetry cleanup playbook (--tags cleanup)")
     result = run_playbook(
-        host=host,
         playbook=PLAYBOOK_ENTRY_POINT,
-        workdir=PLAYBOOK_WORKDIR,
+        playbook_workdir=PLAYBOOK_WORKDIR,
         tag="cleanup",
     )
 

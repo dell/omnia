@@ -64,9 +64,8 @@ def test_cleanup_idempotency(host):
     # -- Run 1: Initial cleanup -------------------------------------------
     tl.check("Running first cleanup (initial cleanup)")
     run1 = run_playbook(
-        host=host,
         playbook=PLAYBOOK_ENTRY_POINT,
-        workdir=PLAYBOOK_WORKDIR,
+        playbook_workdir=PLAYBOOK_WORKDIR,
         tag="cleanup",
     )
 
@@ -86,9 +85,8 @@ def test_cleanup_idempotency(host):
     # -- Run 2: Idempotent re-run -----------------------------------------
     tl.check("Running second cleanup (idempotency check)")
     run2 = run_playbook(
-        host=host,
         playbook=PLAYBOOK_ENTRY_POINT,
-        workdir=PLAYBOOK_WORKDIR,
+        playbook_workdir=PLAYBOOK_WORKDIR,
         tag="cleanup",
     )
 
