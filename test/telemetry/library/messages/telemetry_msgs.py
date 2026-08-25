@@ -95,6 +95,37 @@ TEST_LOG_MSGS = {
     "pods_remaining": "{count} pods still present in telemetry namespace",
     "no_pvcs_remaining": "No PVCs remain in telemetry namespace",
     "pvcs_remaining": "{count} PVCs still present in telemetry namespace",
+
+    # ── Cleanup — granular source/sink ─────────────────────────────────
+    "idrac_cleaned": "iDRAC telemetry resources removed successfully",
+    "idrac_not_cleaned": "iDRAC telemetry resources still present",
+    "ldms_cleaned": "LDMS + Vector-LDMS resources removed successfully",
+    "ldms_not_cleaned": "LDMS + Vector-LDMS resources still present",
+    "ome_cleaned": "OME + Vector-OME resources removed successfully",
+    "ome_not_cleaned": "OME + Vector-OME resources still present",
+    "dcgm_cleaned": "DCGM resources removed successfully",
+    "dcgm_not_cleaned": "DCGM resources still present",
+    "ufm_cleaned": "UFM resources removed successfully",
+    "ufm_not_cleaned": "UFM resources still present",
+    "vast_cleaned": "VAST resources removed successfully",
+    "vast_not_cleaned": "VAST resources still present",
+    "sfm_cleaned": "SFM resources removed successfully",
+    "sfm_not_cleaned": "SFM resources still present",
+    "kafka_cleaned": "Kafka resources removed successfully",
+    "kafka_not_cleaned": "Kafka resources still present",
+    "vm_cleaned": "VictoriaMetrics resources removed successfully",
+    "vm_not_cleaned": "VictoriaMetrics resources still present",
+    "vl_cleaned": "VictoriaLogs resources removed successfully",
+    "vl_not_cleaned": "VictoriaLogs resources still present",
+
+    # ── Idempotency ────────────────────────────────────────────────────
+    "idempotent_passed": (
+        "Cleanup idempotency verified: second run exited 0 "
+        "(duration={duration}s)"
+    ),
+    "idempotent_failed": (
+        "Cleanup idempotency failed: second run exited {rc}"
+    ),
 }
 
 # =============================================================================
@@ -191,5 +222,50 @@ TEST_ASSERT_MSGS = {
     ),
     "pvcs_remaining": (
         "{count} PVCs still present in telemetry namespace after cleanup."
+    ),
+    "idrac_not_cleaned": (
+        "iDRAC resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry -l app=idrac-telemetry"
+    ),
+    "ldms_not_cleaned": (
+        "LDMS/Vector-LDMS resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep -E 'nersc-ldms|vector-ldms'"
+    ),
+    "ome_not_cleaned": (
+        "OME/Vector-OME resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep vector-ome"
+    ),
+    "dcgm_not_cleaned": (
+        "DCGM resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep dcgm"
+    ),
+    "ufm_not_cleaned": (
+        "UFM resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep ufm"
+    ),
+    "vast_not_cleaned": (
+        "VAST resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep vast"
+    ),
+    "sfm_not_cleaned": (
+        "SFM resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep sfm"
+    ),
+    "kafka_not_cleaned": (
+        "Kafka resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep -E 'kafka|strimzi'"
+    ),
+    "vm_not_cleaned": (
+        "VictoriaMetrics resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep -E 'vm|victoria-metrics'"
+    ),
+    "vl_not_cleaned": (
+        "VictoriaLogs resources still present after cleanup. "
+        "Check: kubectl get pods -n telemetry | grep -E 'vl|vlagent'"
+    ),
+    "idempotent_failed": (
+        "Cleanup idempotency check failed. Second cleanup run returned "
+        "exit code {rc}. A cleanup playbook must be safe to run multiple "
+        "times without errors."
     ),
 }

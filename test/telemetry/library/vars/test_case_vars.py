@@ -289,12 +289,16 @@ TEST_CASES = {
         "id": "TC_CL_010",
         "title": "Verify cleanup_vast removes VAST resources",
     },
-    "no_pods_after_full_cleanup": {
+    "cleanup_sfm": {
         "id": "TC_CL_011",
+        "title": "Verify cleanup_sfm removes SFM resources",
+    },
+    "no_pods_after_full_cleanup": {
+        "id": "TC_CL_012",
         "title": "Verify no pods remain after full cleanup",
     },
     "no_pvcs_after_full_cleanup": {
-        "id": "TC_CL_012",
+        "id": "TC_CL_013",
         "title": "Verify no PVCs remain after full cleanup",
     },
 

@@ -58,6 +58,19 @@ from library.functions import (
     verify_ldms_sampler_config,
     verify_vector_ome,
     verify_ome_kafka_user,
+    # Cleanup verification
+    verify_idrac_cleaned,
+    verify_ldms_cleaned,
+    verify_ome_cleaned,
+    verify_dcgm_cleaned,
+    verify_ufm_cleaned,
+    verify_vast_cleaned,
+    verify_sfm_cleaned,
+    verify_kafka_cleaned,
+    verify_victoria_metrics_cleaned,
+    verify_victoria_logs_cleaned,
+    verify_no_pods_remaining,
+    verify_no_pvcs_remaining,
 )
 from library.vars import TEST_CASES
 from library.messages import TEST_LOG_MSGS, TEST_ASSERT_MSGS
@@ -106,6 +119,19 @@ __all__ = [
     "verify_ldms_sampler_config",
     "verify_vector_ome",
     "verify_ome_kafka_user",
+    # Cleanup verification
+    "verify_idrac_cleaned",
+    "verify_ldms_cleaned",
+    "verify_ome_cleaned",
+    "verify_dcgm_cleaned",
+    "verify_ufm_cleaned",
+    "verify_vast_cleaned",
+    "verify_sfm_cleaned",
+    "verify_kafka_cleaned",
+    "verify_victoria_metrics_cleaned",
+    "verify_victoria_logs_cleaned",
+    "verify_no_pods_remaining",
+    "verify_no_pvcs_remaining",
     # Vars and messages
     "TEST_CASES",
     "TEST_LOG_MSGS",
