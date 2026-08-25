@@ -1,0 +1,25 @@
+---
+# Repo Manager — Test configuration
+# Target server and sync settings.
+
+# Target OIM server IP. Leave empty to run tests on the local machine.
+oim_server_ip: ""
+
+# Path on the remote server where the project repo is synced (remote mode only).
+clone_path: "/root/omnia"
+
+# Path to the Python virtual environment on the target. Empty uses system-wide Ansible.
+venv_path: ""
+
+# Project name for input/output paths on the target.
+project_name: "project_default"
+
+# Report output path.
+report_path: "/opt/omnia/reports"
+
+# Empty dataset uses the target's $OMNIA_DATA_PATH/repo_manager/input/<project>/
+# as the input source. No local dataset is synced.
+dataset: ""
+
+# Sync repo_manager input files from the local source tree (development convenience).
+sync_repo_manager_input: false

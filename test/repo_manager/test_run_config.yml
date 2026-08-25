@@ -1,0 +1,10 @@
+---
+# Repo Manager — Batch test execution configuration
+# Used by run_validation.sh --config
+
+scenarios:
+  - validate
+  - deploy
+  - download
+  - status
+  - cleanup
