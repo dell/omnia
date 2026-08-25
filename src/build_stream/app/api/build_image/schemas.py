@@ -19,22 +19,31 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class CreateBuildImageRequest(BaseModel):
-    """Request model for build image stage."""
+    """Request model for build image stage.
+    
+    Domain-segregated (Omnia 2.3+): architecture, image_key, and functional_groups
+    are optional. When omitted, the image_build_manager.yml playbook reads the
+    catalog directly from /opt/omnia/catalog/catalog_rhel.json and builds images
+    for all architectures defined in the catalog.
+    
+    Legacy mode: If architecture is provided, only that architecture is built.
+    """
 
-    architecture: str = Field(
-        ...,
-        description="Target architecture (x86_64 or aarch64)",
+    architecture: Optional[str] = Field(
+        default=None,
+        description="Target architecture (x86_64 or aarch64). "
+                    "If omitted, playbook builds all architectures from catalog.",
         pattern="^(x86_64|aarch64)$",
     )
-    image_key: str = Field(
-        ...,
-        description="Image identifier key",
+    image_key: Optional[str] = Field(
+        default=None,
+        description="Image identifier key (legacy, read from catalog if omitted)",
         min_length=1,
         max_length=128,
     )
-    functional_groups: List[str] = Field(
-        ...,
-        description="List of functional groups to build",
+    functional_groups: Optional[List[str]] = Field(
+        default=None,
+        description="List of functional groups to build (legacy, read from catalog if omitted)",
         min_items=1,
         max_items=50,
     )
@@ -48,9 +57,9 @@ class CreateBuildImageResponse(BaseModel):
     status: str = Field(..., description="Acceptance status")
     submitted_at: str = Field(..., description="Submission timestamp (ISO 8601)")
     correlation_id: str = Field(..., description="Correlation identifier")
-    architecture: str = Field(..., description="Target architecture")
-    image_key: str = Field(..., description="Image identifier key")
-    functional_groups: List[str] = Field(..., description="List of functional groups to build")
+    architecture: Optional[str] = Field(None, description="Target architecture (if specified)")
+    image_key: Optional[str] = Field(None, description="Image identifier key (if specified)")
+    functional_groups: Optional[List[str]] = Field(None, description="List of functional groups (if specified)")
 
 
 class BuildImageErrorResponse(BaseModel):

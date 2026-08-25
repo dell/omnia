@@ -150,13 +150,20 @@ class TestStageName:
 
     def test_immutability(self):
         """StageName should be immutable."""
-        stage = StageName("parse-catalog")
+        stage = StageName("create-local-repository")
         with pytest.raises(AttributeError):
             stage.value = "build-image"
 
     def test_canonical_stages_count(self):
-        """Verify we have exactly 9 canonical stages (7 R1 + 2 R2)."""
-        assert len(StageType) == 9
+        """Verify we have exactly 6 canonical stages (domain-segregated).
+
+        Omnia 2.3+: Domain-segregated architecture with unified stages:
+        - CREATE_LOCAL_REPOSITORY (repo_manager.yml)
+        - BUILD_IMAGE (image_build_manager.yml handles all architectures)
+        - VALIDATE, RESTART (validation/restart)
+        - UPLOAD, DEPLOY (deployment)
+        """
+        assert len(StageType) == 6
 
 
 class TestIdempotencyKey:

@@ -63,9 +63,6 @@ from api.jobs.schemas import (
     GetJobResponse,
     GetStageResponse,
 )
-from api.catalog_roles.dependencies import get_catalog_roles_service
-from api.catalog_roles.service import CatalogRolesService
-
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
@@ -241,7 +238,6 @@ async def get_job(
     job_repo = Depends(get_job_repo),
     stage_repo = Depends(get_stage_repo),
     audit_repo = Depends(get_audit_repo),
-    catalog_roles_service: CatalogRolesService = Depends(get_catalog_roles_service),
 ) -> GetJobResponse:
     """Return a job if it exists for the requesting client."""
 
@@ -279,71 +275,9 @@ async def get_job(
         if job.client_id != client_id:
             raise JobNotFoundError(job_id, correlation_id.value)
 
-        # Get stage breakdown
+        # Get stage breakdown — include all stages (architecture filtering
+        # is handled by image_build_manager domain playbook directly)
         stages_entities = stage_repo.find_all_by_job(validated_job_id)  # pylint: disable=no-member
-        
-        # Try to get supported architectures from catalog to filter build-image stages
-        supported_architectures = []
-        try:
-            catalog_roles = catalog_roles_service.get_roles(validated_job_id)
-            # catalog_roles returns a dict, not a Pydantic model
-            if isinstance(catalog_roles, dict):
-                supported_architectures = catalog_roles.get("architectures", [])
-                log_secure_info(
-                    "debug",
-                    f"Filtering build-image stages for job {job_id}: "
-                    f"supported_architectures={supported_architectures}",
-                    job_id=job_id,
-                )
-            else:
-                log_secure_info(
-                    "warning",
-                    f"Unexpected catalog roles type for job {job_id}: "
-                    f"{type(catalog_roles).__name__}",
-                    job_id=job_id,
-                )
-                supported_architectures = []
-        except AttributeError as e:
-            # Specific handling for attribute errors
-            log_secure_info(
-                "warning",
-                f"AttributeError getting catalog roles for job {job_id}",
-                job_id=job_id,
-            )
-            supported_architectures = []
-        except Exception as e:
-            # If catalog roles are not available, include all stages (fallback behavior)
-            log_secure_info(
-                "warning",
-                f"Could not get catalog roles for job {job_id}, including all stages",
-                job_id=job_id,
-            )
-            supported_architectures = []
-        
-        # Filter stages based on supported architectures
-        filtered_stages = []
-        for s in stages_entities:
-            stage_name = str(s.stage_name)
-            
-            # Check if this is a build-image stage
-            if stage_name.startswith("build-image-"):
-                # Extract architecture from stage name (e.g., "build-image-x86_64" -> "x86_64")
-                stage_arch = stage_name.replace("build-image-", "")
-                
-                # Only include this build-image stage if the architecture is supported
-                if not supported_architectures or stage_arch in supported_architectures:
-                    filtered_stages.append(s)
-                else:
-                    log_secure_info(
-                        "debug",
-                        f"Filtering out build-image stage for unsupported "
-                        f"architecture: job_id={job_id}, stage={stage_name}, "
-                        f"arch={stage_arch}",
-                        job_id=job_id,
-                    )
-            else:
-                # Include all non-build-image stages
-                filtered_stages.append(s)
         
         stages = [
             GetStageResponse(
@@ -356,7 +290,7 @@ async def get_job(
                 log_file_path=s.log_file_path,
                 result_detail=s.result_detail,
             )
-            for s in filtered_stages
+            for s in stages_entities
         ]
         
         # Get audit events for state change timestamps

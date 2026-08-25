@@ -87,32 +87,34 @@ def _discover_s3_image_paths(
     role_to_paths = {role: [] for role in role_names}
 
     try:
-        # Run s3cmd ls -Hr and grep for job_id in one command
-        # This filters at subprocess level instead of in Python
-        cmd = f"s3cmd ls -Hr {bucket} | grep {job_id}"
-        result = subprocess.run(
-            cmd,
-            shell=True,
+        # Run s3cmd ls -Hr using safe subprocess with list args (Checkmarx-safe)
+        # Filter for job_id in Python instead of using shell pipe
+        result = subprocess.run(  # nosec B602 - using list args, no shell
+            ["s3cmd", "ls", "-Hr", bucket],
             capture_output=True,
             text=True,
             timeout=60,
             check=False,
         )
 
-        if result.returncode not in [0, 1]:  # 0=found, 1=not found (grep exit code)
+        if result.returncode != 0:
             log_secure_info(
                 "warning",
                 f"s3cmd ls failed for bucket {bucket}: {result.stderr}",
             )
             return role_to_paths
 
-        # Parse grep output
+        # Filter output for job_id in Python (safer than shell pipe)
         # s3cmd ls output format: "DATE SIZE s3://bucket/role/path/file.img"
         # Extract directory paths from file paths
         discovered_paths = set()
         for line in result.stdout.splitlines():
             line = line.strip()
             if not line:
+                continue
+            
+            # Filter for job_id (replaces grep filter)
+            if job_id not in line:
                 continue
 
             # Extract S3 file path from line (last column)
@@ -585,10 +587,13 @@ class ResultPoller:
             )
 
     def _load_catalog_metadata(self, job_id) -> dict:
-        """Load catalog metadata artifact persisted by parse-catalog.
+        """Load catalog metadata artifact persisted by create-local-repository.
 
         Retrieves the catalog-metadata artifact from the artifact store
         to get image_group_id and role-to-image mappings.
+
+        In unified design (Omnia 2.3+), catalog metadata is stored by the
+        create-local-repository stage which reads the catalog.
 
         Args:
             job_id: Job identifier.
@@ -602,7 +607,7 @@ class ResultPoller:
         try:
             record = self._artifact_metadata_repo.find_by_job_stage_and_label(
                 job_id=job_id,
-                stage_name=StageName("parse-catalog"),
+                stage_name=StageName("create-local-repository"),
                 label="catalog-metadata",
             )
             if record is None:

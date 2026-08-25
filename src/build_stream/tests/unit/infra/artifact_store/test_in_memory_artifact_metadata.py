@@ -44,7 +44,7 @@ def _make_ref(key_str: str = "ns/hash/label.bin") -> ArtifactRef:
 
 def _make_record(
     job_id_str: str = VALID_JOB_ID,
-    stage: str = "parse-catalog",
+    stage: str = "create-local-repository",
     label: str = "catalog-file",
     record_id: str = "rec-001",
 ) -> ArtifactRecord:
@@ -68,7 +68,7 @@ class TestSave:
         artifact_metadata_repo.save(record)
         found = artifact_metadata_repo.find_by_job_stage_and_label(
             job_id=JobId(VALID_JOB_ID),
-            stage_name=StageName(StageType.PARSE_CATALOG.value),
+            stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
             label="catalog-file",
         )
         assert found is not None
@@ -82,7 +82,7 @@ class TestSave:
         artifact_metadata_repo.save(record2)
         found = artifact_metadata_repo.find_by_job_stage_and_label(
             job_id=JobId(VALID_JOB_ID),
-            stage_name=StageName(StageType.PARSE_CATALOG.value),
+            stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
             label="catalog-file",
         )
         assert found is not None
@@ -96,7 +96,7 @@ class TestFind:
         """Test that find returns None for nonexistent record."""
         found = artifact_metadata_repo.find_by_job_stage_and_label(
             job_id=JobId(VALID_JOB_ID),
-            stage_name=StageName(StageType.PARSE_CATALOG.value),
+            stage_name=StageName(StageType.CREATE_LOCAL_REPOSITORY.value),
             label="nonexistent",
         )
         assert found is None
@@ -106,7 +106,7 @@ class TestFind:
         artifact_metadata_repo.save(_make_record(label="catalog-file", record_id="r1"))
         artifact_metadata_repo.save(
             _make_record(
-                stage="generate-input-files",
+                stage="validate",
                 label="omnia-configs",
                 record_id="r2",
             )
@@ -135,7 +135,7 @@ class TestDelete:
         artifact_metadata_repo.save(_make_record(label="catalog-file", record_id="r1"))
         artifact_metadata_repo.save(
             _make_record(
-                stage="generate-input-files",
+                stage="validate",
                 label="omnia-configs",
                 record_id="r2",
             )

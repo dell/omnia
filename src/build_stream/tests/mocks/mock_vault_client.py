@@ -42,11 +42,17 @@ class MockVaultClient:
         """
         username = auth_username or self.DEFAULT_TEST_USERNAME
         password = auth_password or self.DEFAULT_TEST_PASSWORD
+        password_hash = hash_password(password)
 
+        # Support both flat (new) and nested (legacy) credential formats
         self._auth_config: Dict[str, Any] = {
+            # Flat format (preferred)
+            "build_stream_auth_username": username,
+            "build_stream_auth_password_hash": password_hash,
+            # Nested format (backwards compatibility)
             "auth_registration": {
                 "username": username,
-                "password_hash": hash_password(password),
+                "password_hash": password_hash,
             }
         }
         self._oauth_clients: Dict[str, Dict[str, Any]] = {}
