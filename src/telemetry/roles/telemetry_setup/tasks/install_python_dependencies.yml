@@ -1,0 +1,90 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Install Python Dependencies for Telemetry
+# =============================================================================
+# Installs required Python packages for telemetry custom Ansible modules
+# Supports both online and offline installation modes
+#
+# Required for:
+#   - idrac_telemetry: kubernetes, pyyaml
+#   - Custom modules that interact with K8s API
+# =============================================================================
+
+- name: Check if Python kubernetes module is installed
+  ansible.builtin.command: python3 -c "import kubernetes"
+  register: kubernetes_check
+  failed_when: false
+  changed_when: false
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Install Python kubernetes module
+  when: kubernetes_check.rc != 0
+  block:
+    - name: Log Python dependency installation
+      ansible.builtin.debug:
+        msg: "Installing Python kubernetes module (required for iDRAC telemetry MySQL operations)"
+
+    - name: Try installing kubernetes from pip (online mode)
+      ansible.builtin.command: python3 -m pip install kubernetes
+      register: pip_install_online
+      failed_when: false
+      changed_when: pip_install_online.rc == 0
+      delegate_to: "{{ inventory_hostname }}"
+
+    - name: Install from offline package if online installation fails
+      when: pip_install_online.rc != 0
+      block:
+        - name: Check if offline Python packages directory exists
+          ansible.builtin.stat:
+            path: "{{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}"
+          register: offline_dir_stat
+          delegate_to: "{{ inventory_hostname }}"
+
+        - name: Install kubernetes from offline packages
+          ansible.builtin.command: >
+            python3 -m pip install --no-index 
+            --find-links={{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
+            kubernetes
+          when: offline_dir_stat.stat.exists
+          register: pip_install_offline
+          failed_when: false
+          changed_when: pip_install_offline.rc == 0
+          delegate_to: "{{ inventory_hostname }}"
+
+        - name: Fail if kubernetes module could not be installed
+          ansible.builtin.fail:
+            msg: |
+              Failed to install Python kubernetes module.
+              - Online installation failed (no internet or pip unavailable)
+              - Offline packages not found at {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
+              
+              To fix:
+              1. Ensure internet connectivity, OR
+              2. Download packages: pip3 download kubernetes -d /opt/omnia/telemetry/packages/python/
+              3. Re-run the playbook
+          when: 
+            - not offline_dir_stat.stat.exists or pip_install_offline.rc != 0
+
+- name: Verify Python kubernetes module is now available
+  ansible.builtin.command: python3 -c "import kubernetes; print(kubernetes.__version__)"
+  register: kubernetes_verify
+  changed_when: false
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Log successful installation
+  ansible.builtin.debug:
+    msg: "Python kubernetes module version {{ kubernetes_verify.stdout }} is available"
