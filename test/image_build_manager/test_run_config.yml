@@ -30,12 +30,15 @@
 #                                be unique across enabled suites; duplicate
 #                                order values are a configuration error.
 #   run:         true/false    - Whether to execute this suite
-#   command:     <string>      - Execution mode: deploy, verify, or test (default: test)
-#                                deploy  = Run the playbook only
+#   command:     <string>      - Execution mode: exec, verify, or test (default: test)
+#                                exec    = Run the playbook only
 #                                verify  = Run verification tests only (skip playbook)
-#                                test    = Deploy + Verify (full flow)
-#   suite:       <folder>      - FVT folder name under fvt/ to run
+#                                test    = Exec + Verify (full flow)
+#   suite:       <folder>      - FVT subfolder to run (e.g., container, s3, registry)
 #   marker:      <expression>  - Marker filter expression (empty = all tests)
+#
+# NOTE: The scenario name is used as the Ansible playbook tag automatically.
+#       For example, scenario "build" runs --tags build.
 #   dataset:     <name>        - (optional) Override dataset from test_config.yml
 #                                Must be a valid folder under datasets/
 #   sync_input:  true/false    - (optional) Override sync_image_build_input
@@ -52,10 +55,6 @@
 #   Quality:       sanity, functional, regression
 #
 # Available suites (under fvt/):
-#   image_build_manager   — Full end-to-end: deploy (no tags) + verify
-#                            (container, S3, registry, image verification).
-#                            Supported markers: x86_64, aarch64, sanity
-#
 #   prepare               — Deploy with --tags prepare, then verify containers
 #                            and S3 buckets are set up.
 #                            Supported markers: sanity
@@ -97,36 +96,6 @@ skip_on_failure: false
 # sync_output_override: false
 
 scenarios:
-
-  # =========================================================================
-  # image_build_manager — Full end-to-end (deploy + verify)
-  # =========================================================================
-  # Deploys image_build_manager.yml (no tags — default: prepare + build).
-  # Then verifies the complete state: containers, S3 images, registry
-  # images, build status, and image packages.
-  #
-  # Supported suites (subfolders inside fvt/image_build_manager/):
-  #   container          — MinIO and registry container checks
-  #   s3                 — S3 bucket and image verification
-  #   registry           — Registry image and build_status checks
-  #   image_verification — Package verification inside S3 images
-  #
-  # Supported markers:
-  #   x86_64    — x86_64 architecture tests
-  #   aarch64   — aarch64 architecture tests
-  #   sanity    — Baseline must-pass tests
-  #   x86_64+sanity — AND: tests with both markers
-  #   x86_64,aarch64 — OR: tests with either marker
-  image_build_manager:
-    order: 1
-    run: true
-    command: "test"
-    suite: ""
-    marker: "sanity"
-    # --- Per-scenario dataset override (uncomment to use) ---
-    # dataset: "my_custom_ds"      # Override dataset for this scenario only
-    # sync_input: true             # Sync input files before running
-    # sync_output: false           # Sync repo_manager output before running
 
   # =========================================================================
   # prepare — Deploy prepare + verify containers/S3

@@ -21,16 +21,82 @@ source setup_env.sh
 ## CLI
 
 ```
-./run_validation.sh telemetry <command>             # All except cleanup
-./run_validation.sh telemetry <tag> <command>        # Specific tag
+./run_validation.sh telemetry <command> [options]
+./run_validation.sh telemetry <tag> <command> [options]
+./run_validation.sh telemetry list
+./run_validation.sh --config
+./run_validation.sh --completion
+```
 
-Commands:
-  exec      Run playbook only (no verification)
-  verify    Run verification tests only (no playbook)
-  test      exec + verify (full flow)
+### Commands
 
-Tags (match ansible --tags):
-  precheck  validate  deploy  cleanup
+| Command | Description |
+|---------|-------------|
+| `exec` | Run the Ansible playbook only (no verification tests) |
+| `verify` | Run pytest verification tests only (no playbook execution) |
+| `test` | `exec` + `verify` (full flow: deploy then verify) |
+
+When a `<tag>` is provided (e.g., `deploy`):
+- `exec` runs `ansible-playbook telemetry.yml --tags deploy`
+- `verify` runs pytest tests under `fvt/deploy/`
+- `test` runs exec + verify for that tag
+
+When NO tag is provided:
+- `exec` runs the playbook without tags (full stack)
+- `verify` runs ALL tests except cleanup
+- `test` runs exec (full stack) + verify ALL
+
+### Tags (match Ansible --tags)
+
+| Tag | Description |
+|-----|-------------|
+| `precheck` | Environment prechecks (env vars, K8s cluster health) |
+| `validate` | Input file validation (config, credentials) |
+| `deploy` | Deploy sinks + sources |
+| `cleanup` | Cleanup resources (pods, services, topics) |
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--suite <name>` | Run only tests in a subfolder (`sinks`, `sources`, `cluster`) |
+| `--marker <expr>` | Filter by pytest marker expression |
+| `-v, --verbose` | Increase pytest verbosity |
+| `--debug` | Full debug output (`-vvs`) |
+
+### Marker Expressions
+
+| Syntax | Example | Meaning |
+|--------|---------|---------|
+| Single | `--marker sanity` | Tests with `@pytest.mark.sanity` |
+| AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
+| OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
+
+### Examples
+
+```bash
+# Verify
+./run_validation.sh telemetry verify                              # All tests except cleanup
+./run_validation.sh telemetry verify --marker sanity               # All sanity tests
+./run_validation.sh telemetry deploy verify                        # Verify deploy tag only
+./run_validation.sh telemetry deploy verify --suite sources        # Deploy sources only
+./run_validation.sh telemetry deploy verify --suite sinks          # Deploy sinks only
+./run_validation.sh telemetry deploy verify --marker source+sanity # Sources AND sanity
+
+# Execute playbook
+./run_validation.sh telemetry exec                                 # Full stack (no tags)
+./run_validation.sh telemetry deploy exec                          # --tags deploy
+
+# Full flow (exec + verify)
+./run_validation.sh telemetry deploy test --marker sanity           # Deploy + verify sanity
+./run_validation.sh telemetry deploy test --marker sink,source      # Deploy + verify sinks OR sources
+./run_validation.sh telemetry cleanup test                          # Cleanup + verify
+
+# List tags and test counts
+./run_validation.sh telemetry list
+
+# Run scenarios from test_run_config.yml
+./run_validation.sh --config
 ```
 
 ## Architecture

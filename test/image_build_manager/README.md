@@ -138,73 +138,96 @@ These flags do **not** require `oim_server_ip` — they only write to the local 
 ## Running Tests
 
 ```
-./run_validation.sh <scenario> <command> [options]
-./run_validation.sh --config          # Batch run from test_run_config.yml
-./run_validation.sh list              # List available scenarios
-./run_validation.sh --help            # Full usage
+./run_validation.sh image_build_manager <command>             # All tags except cleanup
+./run_validation.sh image_build_manager <tag> <command>        # Specific tag
+./run_validation.sh image_build_manager list                   # List available tags
+./run_validation.sh --config                                   # Batch from test_run_config.yml
 ```
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `deploy` | Run the Ansible playbook only |
+| `exec` | Run the Ansible playbook only |
 | `verify` | Run verification tests only (no playbook) |
-| `test` | Full flow: deploy + verify |
+| `test` | Full flow: exec + verify |
 
-### FVT Scenarios
+### Tags
 
-| Scenario | Playbook Tag | What It Tests |
-|----------|-------------|---------------|
+| Tag | Playbook Tag | What It Tests |
+|-----|-------------|---------------|
 | `precheck` | `--tags precheck` | Env vars, hostname, IP, connectivity, omnia.sh setup |
-| `image_build_manager` | *(default: prepare + build)* | Full end-to-end |
 | `validate` | `--tags validate` | Input config and credentials present |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
 | `build` | `--tags build` | S3 images, registry images, build_status, **naming convention** |
 | `cleanup` | `--tags cleanup` | All artifacts removed |
+| `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
+| *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
 
-#### Build-type naming convention (within `build` scenario)
+#### Build-type naming convention (within `build` tag)
 
 Both `image-builder` and `image-thrillhouse` produce artifacts with distinct suffixes
-(`-ib` / `-th`) to prevent cross-contamination in the registry and S3 bucket.
-The naming tests (`naming/` suite) run automatically within the `build` scenario.
-
-| Suite | `--suite` name | Runs when | What it checks |
-|-------|---------------|-----------|----------------|
-| `naming/` | `naming` | both build types | `-ib` / `-th` suffix on all `rhel-*` images in registry + S3 |
+(`-imgbld` / `-imgth`) to prevent cross-contamination in the registry and S3 bucket.
+The naming tests (`naming/` suite) run automatically within the `build` tag.
 
 ```bash
 # Run only naming convention tests
-./run_validation.sh build verify --suite naming
-./run_validation.sh build verify --suite naming --marker x86_64+sanity
+./run_validation.sh image_build_manager build verify --suite naming
+./run_validation.sh image_build_manager build verify --suite naming --marker x86_64+sanity
 ```
 
-### NFT Scenario
+### NFT
 
-| Scenario | Marker | What It Tests |
-|----------|--------|---------------|
-| `nft` | `@pytest.mark.nft` | Performance thresholds and idempotency |
+```bash
+./run_validation.sh nft test    # Performance thresholds and idempotency
+```
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
 | `--suite <name>` | Filter by subfolder (`container`, `s3`, `registry`, `naming`) |
-| `--marker <expr>` | Filter by marker (`sanity`, `x86_64`, `x86_64+sanity`) |
-| `--debug` | Full debug output (pytest -vvs) |
+| `--marker <expr>` | Filter by pytest marker expression |
 | `-v, --verbose` | Increase pytest verbosity |
+| `--debug` | Full debug output (pytest `-vvs`) |
+
+### Marker Expressions
+
+| Syntax | Example | Meaning |
+|--------|---------|---------|
+| Single | `--marker sanity` | Tests with `@pytest.mark.sanity` |
+| AND (`+`) | `--marker x86_64+sanity` | Tests with BOTH markers |
+| OR (`,`) | `--marker x86_64,aarch64` | Tests with EITHER marker |
+
+Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
+
+### More Examples
+
+```bash
+# Marker expressions
+./run_validation.sh image_build_manager build test --marker x86_64+sanity    # x86_64 AND sanity
+./run_validation.sh image_build_manager build test --marker x86_64,aarch64   # x86_64 OR aarch64
+./run_validation.sh image_build_manager build verify --suite registry        # Registry tests only
+./run_validation.sh image_build_manager build verify --suite naming          # Naming tests only
+
+# Config-driven execution
+./run_validation.sh --config                                                 # Run test_run_config.yml
+
+# List tags and test counts
+./run_validation.sh image_build_manager list
+```
 
 ### Typical Workflow
 
 ```bash
-./run_validation.sh precheck verify --marker sanity             # 0. Precheck environment
-./run_validation.sh cleanup test                                # 1. Clean previous state
-./run_validation.sh validate test                               # 2. Validate inputs
-./run_validation.sh prepare test                                # 3. Prepare infrastructure
-./run_validation.sh build test --marker x86_64                  # 4. Build images (+ naming checks)
-./run_validation.sh build verify --suite naming                 # 4b. Naming convention verify only
-./run_validation.sh image_build_manager verify --marker sanity  # 5. Full verification
-./run_validation.sh nft test                                    # 6. Performance + idempotency
+./run_validation.sh image_build_manager precheck verify                 # 0. Precheck environment
+./run_validation.sh image_build_manager cleanup test                    # 1. Clean previous state
+./run_validation.sh image_build_manager validate test                   # 2. Validate inputs
+./run_validation.sh image_build_manager prepare test                    # 3. Prepare infrastructure
+./run_validation.sh image_build_manager build test --marker x86_64      # 4. Build images
+./run_validation.sh image_build_manager build verify --suite naming     # 4b. Naming convention
+./run_validation.sh image_build_manager verify --marker sanity          # 5. Full verification
+./run_validation.sh nft test                                            # 6. Performance
 ```
 
 ---
@@ -303,26 +326,26 @@ Generated in the configured `report_path` (default `/opt/omnia/reports`):
 
 See [`fvt/README.md`](fvt/README.md) for the complete test case registry.
 
-| Scenario | Prefix | Count | Notes |
-|----------|--------|-------|-------|
+| Tag | Prefix | Count | Notes |
+|-----|--------|-------|-------|
 | precheck | TC_PC_ | 6 | 001–006 |
-| image_build_manager | TC_IB_ | 13 | Full end-to-end |
-| validate | TC_VL_ | 3 | |
-| prepare | TC_PR_ | 8 | |
-| build | TC_BD_ | 11 | 007–011 = naming convention tests |
-| cleanup | TC_CL_ | 8 | |
+| validate | TC_VL_ | 4 | 001–004 (includes repo_ssl_verify_config) |
+| prepare | TC_PR_ | 8 | 001–008 |
+| build | TC_BD_ | 16 | 001–016 (007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify) |
+| cleanup | TC_CL_ | 8 | 001–008 |
+| cleanup_images | TC_CI_ | 3 | 001–003 |
 | nft | NFT_ | 4 | |
-| **Total** | | **53** | |
+| **Total** | | **50** | Plus TC_IB_001 (full-stack deploy) |
 
 ### Build-type naming convention tests (TC_BD_007 – TC_BD_011)
 
 | Test | Build type | Checks |
 |------|-----------|--------|
-| TC_BD_007 | image-builder | x86_64 registry images end with `-ib`; no `-th` leakage |
-| TC_BD_008 | image-builder | x86_64 S3 paths include `-ib`; no `-th` leakage |
-| TC_BD_009 | image-thrillhouse | x86_64 registry images end with `-th`; no `-ib` leakage |
-| TC_BD_010 | image-thrillhouse | x86_64 S3 paths include `-th`; no `-ib` leakage |
-| TC_BD_011 | both | `-ib` and `-th` base names never collide (isolation check) |
+| TC_BD_007 | image-builder | x86_64 registry images end with `-imgbld`; no `-imgth` leakage |
+| TC_BD_008 | image-builder | x86_64 S3 paths include `-imgbld`; no `-imgth` leakage |
+| TC_BD_009 | image-thrillhouse | x86_64 registry images end with `-imgth`; no `-imgbld` leakage |
+| TC_BD_010 | image-thrillhouse | x86_64 S3 paths include `-imgth`; no `-imgbld` leakage |
+| TC_BD_011 | both | `-imgbld` and `-imgth` base names never collide (isolation check) |
 
 ---
 
@@ -356,11 +379,6 @@ test/image_build_manager/
 │
 ├── fvt/                         # Functional Verification Tests
 │   ├── README.md                # Test case registry (authoritative)
-│   ├── image_build_manager/     # Full end-to-end
-│   │   ├── container/
-│   │   ├── s3/
-│   │   ├── registry/
-│   │   └── image_verification/
 │   ├── precheck/                # Precheck tag (env + connectivity)
 │   │   └── connectivity/
 │   ├── validate/                # Validate tag
@@ -371,9 +389,11 @@ test/image_build_manager/
 │   ├── build/                   # Build tag
 │   │   ├── s3/
 │   │   ├── registry/
-│   │   └── naming/              # Naming convention tests (TC_BD_007-011)
-│   └── cleanup/                 # Cleanup tag
-│       └── cleanup/
+│   │   ├── naming/              # Naming convention tests (TC_BD_007-011)
+│   │   └── image_verification/  # Package verification (TC_BD_014-015)
+│   ├── cleanup/                 # Cleanup tag
+│   │   └── cleanup/
+│   └── cleanup_images/          # Cleanup images tag
 │
 ├── nft/                         # Non-Functional Tests
 │   ├── README.md                # NFT documentation (thresholds, execution)

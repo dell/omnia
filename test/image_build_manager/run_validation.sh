@@ -17,32 +17,44 @@
 # image_build_manager — Validation Runner
 # =============================================================================
 # Usage:
-#   ./run_validation.sh <scenario> <command> [options]
-#   ./run_validation.sh all <command> [options]
-#   ./run_validation.sh --config
-#   ./run_validation.sh list
+#   ./run_validation.sh image_build_manager <command> [options]
+#   ./run_validation.sh image_build_manager <tag> <command> [options]
+#   ./run_validation.sh image_build_manager list
+#   ./run_validation.sh --completion
 #
 # Commands:
-#   deploy    Run the playbook only (tests marked @deploy)
-#   verify    Run verification tests only (exclude @deploy)
-#   test      Deploy + Verify (full flow)
+#   exec      Run the Ansible playbook only (no verification)
+#   verify    Run verification tests only (no playbook execution)
+#   test      exec + verify (full flow)
+#
+# When a <tag> is provided (validate, prepare, build, cleanup, cleanup_images):
+#   - exec    runs the playbook with --tags <tag>
+#   - verify  runs only tests in fvt/<tag>/
+#   - test    exec + verify for that tag
+#
+# When NO tag is provided:
+#   - exec    runs the playbook without tags (full stack)
+#   - verify  runs ALL tests except cleanup/cleanup_images
+#   - test    exec (full stack) + verify ALL
 #
 # Options:
-#   --suite <name>    Filter by subfolder (container, s3, registry, etc.)
-#   --marker <expr>   Filter by pytest marker (x86_64, sanity, etc.)
+#   --suite <name>    Filter by subfolder (container, s3, registry, naming)
+#   --marker <expr>   Filter by pytest marker expression
+#                       Single: --marker sanity
+#                       AND:    --marker x86_64+sanity   (BOTH markers)
+#                       OR:     --marker x86_64,aarch64  (EITHER marker)
 #   -v, --verbose     Increase verbosity
+#   --debug           Full debug output
 #
-# FVT Scenarios:
-#   image_build_manager     Full end-to-end (deploy without tags + verify)
-#   validate                Validate tag tests
-#   prepare                 Prepare tag tests
-#   build                   Build tag tests
-#   cleanup                 Cleanup tag tests
-#   cleanup_images          Cleanup images from S3 + registry
+# FVT Tags (match ansible playbook tags):
+#   validate       Validate inputs + config
+#   prepare        Build infrastructure setup
+#   build          Build OS images
+#   cleanup        Cleanup build artifacts
+#   cleanup_images Delete S3 + registry images
 #
-# NFT Scenarios:
-#   nft                     Non-functional tests (performance + idempotency)
-#                           Tests live in nft/ directory with @pytest.mark.nft
+# Tab Completion:
+#   eval "$(./run_validation.sh --completion)"
 # =============================================================================
 
 set -euo pipefail
@@ -51,6 +63,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FVT_DIR="${SCRIPT_DIR}/fvt"
 NFT_DIR="${SCRIPT_DIR}/nft"
 CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
+DOMAIN_NAME="image_build_manager"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -59,12 +72,15 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-SUPPORTED_COMMANDS="deploy verify test"
+SUPPORTED_COMMANDS="exec verify test"
+SUPPORTED_TAGS="precheck validate prepare build cleanup cleanup_images"
+# Destructive tags excluded from 'verify all' — must be run explicitly
+EXCLUDE_FROM_ALL="cleanup cleanup_images"
 
 # Change to script dir
 cd "$SCRIPT_DIR"
 
-# Activate venv if exists, otherwise use system python
+# Activate venv if exists
 if [ -f ".venv/bin/activate" ]; then
     # shellcheck disable=SC1091
     source .venv/bin/activate
@@ -73,49 +89,96 @@ fi
 # =============================================================================
 # Parse arguments
 # =============================================================================
-SCENARIO="${1:-help}"
-COMMAND="${2:-test}"
+if [[ $# -lt 1 ]]; then
+    set -- "help"
+fi
+
+ARG1="${1:-help}"
+shift || true
+
+# Handle special cases first
+case "$ARG1" in
+    help|--help|-h)
+        TAG=""
+        COMMAND="help"
+        ;;
+    --completion)
+        TAG=""
+        COMMAND="completion"
+        ;;
+    --config)
+        TAG=""
+        COMMAND="config"
+        ;;
+    nft)
+        TAG=""
+        COMMAND="nft"
+        ;;
+    *)
+        # First arg should be domain name
+        if [[ "$ARG1" != "$DOMAIN_NAME" ]]; then
+            echo -e "${RED}Error: Expected '${DOMAIN_NAME}' as first argument, got '${ARG1}'${NC}"
+            echo -e "${YELLOW}Usage: $0 ${DOMAIN_NAME} [tag] <command> [options]${NC}"
+            exit 1
+        fi
+
+        # Next arg is either a tag or a command
+        ARG2="${1:-help}"
+        shift || true
+
+        if echo " ${SUPPORTED_TAGS} " | grep -q " ${ARG2} "; then
+            # It's a tag — next arg is the command
+            TAG="$ARG2"
+            COMMAND="${1:-verify}"
+            shift || true
+        elif echo " ${SUPPORTED_COMMANDS} list help " | grep -q " ${ARG2} "; then
+            # It's a command — no tag
+            TAG=""
+            COMMAND="$ARG2"
+        else
+            echo -e "${RED}Error: Unknown argument '${ARG2}'${NC}"
+            echo -e "${YELLOW}Expected a tag (${SUPPORTED_TAGS}) or command (${SUPPORTED_COMMANDS})${NC}"
+            exit 1
+        fi
+        ;;
+esac
+
+# Parse remaining options
 SUITE=""
 MARKER=""
 VERBOSE=""
 DEBUG=""
 
-if [[ $# -gt 2 ]]; then
-    shift 2
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --suite)
-                SUITE="$2"
-                shift 2
-                ;;
-            --marker)
-                MARKER="$2"
-                shift 2
-                ;;
-            -v|--verbose)
-                VERBOSE="-v"
-                shift
-                ;;
-            --debug)
-                DEBUG="true"
-                VERBOSE="-vvs"
-                shift
-                ;;
-            *)
-                echo -e "${RED}Unknown option: $1${NC}"
-                exit 1
-                ;;
-        esac
-    done
-fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --suite)
+            SUITE="$2"
+            shift 2
+            ;;
+        --marker)
+            MARKER="$2"
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE="-v"
+            shift
+            ;;
+        --debug)
+            DEBUG="true"
+            VERBOSE="-vvs"
+            shift
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
 
 # =============================================================================
 # Helper functions
 # =============================================================================
-# Destructive scenarios excluded from 'all' — must be run explicitly.
-EXCLUDE_FROM_ALL="cleanup cleanup_images"
-
-get_scenarios() {
+get_tags() {
     for dir in "$FVT_DIR"/*/; do
         name=$(basename "$dir")
         [[ "$name" == __pycache__ ]] && continue
@@ -123,42 +186,27 @@ get_scenarios() {
     done
 }
 
-get_safe_scenarios() {
-    for name in $(get_scenarios); do
-        if ! echo " ${EXCLUDE_FROM_ALL} " | grep -q " ${name} "; then
-            echo "$name"
-        fi
-    done
-}
-
-build_test_path() {
-    local tests_dir="$1"
-    if [[ -n "$SUITE" && -d "${tests_dir}/${SUITE}" ]]; then
-        echo "${tests_dir}/${SUITE}"
+build_verify_dirs() {
+    # Build the list of test directories to run
+    # If TAG is set, use only that tag's directory
+    # If TAG is empty, use ALL directories except excluded ones
+    if [[ -n "$TAG" ]]; then
+        echo "${FVT_DIR}/${TAG}"
     else
-        echo "${tests_dir}"
+        local dirs=""
+        for dir in "$FVT_DIR"/*/; do
+            name=$(basename "$dir")
+            [[ "$name" == __pycache__ ]] && continue
+            if echo " ${EXCLUDE_FROM_ALL} " | grep -q " ${name} "; then
+                continue
+            fi
+            dirs="${dirs} ${dir}"
+        done
+        echo "$dirs"
     fi
-}
-
-build_pytest_args() {
-    local exclude_deploy="$1"
-    local args=""
-
-    # Custom --marker option for arch/quality filtering
-    if [[ -n "$MARKER" ]]; then
-        args="${args} --marker ${MARKER}"
-    fi
-
-    # Native -m for deploy exclusion
-    if [[ "$exclude_deploy" == "yes" ]]; then
-        args="${args} -m 'not deploy'"
-    fi
-
-    echo "$args"
 }
 
 print_combined_summary() {
-    # Print a combined summary table from the OMNIA_RESULTS_FILE JSON
     local results_file="${1:-${OMNIA_RESULTS_FILE:-}}"
     if [[ -z "$results_file" || ! -f "$results_file" ]]; then
         return
@@ -230,7 +278,6 @@ run_pytest() {
     echo -e "  ${CYAN}Command: ${pytest_cmd}${NC}"
     echo ""
 
-    # Tee output to log file for report if OMNIA_LOG_FILE is set
     local rc=0
     if [[ -n "${OMNIA_LOG_FILE:-}" ]]; then
         set +e
@@ -247,37 +294,205 @@ run_pytest() {
 }
 
 # =============================================================================
-# Config mode — run from test_run_config.yml
+# Handle special commands
 # =============================================================================
-run_config_mode() {
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        echo -e "${RED}Error: Config file not found: ${CONFIG_FILE}${NC}"
-        exit 1
-    fi
+case "$COMMAND" in
 
-    export REPORT_ID=$(date '+%Y%m%d%H%M%S')
-    export OMNIA_SUPPRESS_SUMMARY="true"
-    export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+    # -------------------------------------------------------------------------
+    # LIST: Show available tags and test counts
+    # -------------------------------------------------------------------------
+    list|help)
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        echo ""
 
-    echo -e "${BLUE}=================================================================${NC}"
-    echo -e "${BLUE}  Batch Execution from test_run_config.yml${NC}"
-    echo -e "${BLUE}  Report ID : ${REPORT_ID}${NC}"
-    echo -e "${BLUE}=================================================================${NC}"
-    echo ""
+        if [[ "$COMMAND" == "list" ]]; then
+            echo -e "${YELLOW}Available tags:${NC}"
+            for name in $(get_tags); do
+                tag_dir="${FVT_DIR}/${name}"
+                test_count=$(find "$tag_dir" -name 'test_*.py' 2>/dev/null | wc -l)
+                suites=$(find "$tag_dir" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f ' 2>/dev/null)
+                echo -e "  ${GREEN}${name}${NC}  (${test_count} test files)"
+                if [ -n "$suites" ]; then
+                    echo -e "    suites: ${YELLOW}${suites}${NC}"
+                fi
+            done
+            echo ""
+            if [ -d "$NFT_DIR" ]; then
+                nft_count=$(find "$NFT_DIR" -name 'test_*.py' 2>/dev/null | wc -l)
+                echo -e "${YELLOW}NFT:${NC}"
+                echo -e "  ${GREEN}nft${NC}  (${nft_count} test files — performance, idempotency)"
+            fi
+            echo ""
+            exit 0
+        fi
 
-    local total=0 passed=0 failed=0 skipped=0
-    local scenario_names
-    scenario_names=$(python3 -c "
-import yaml
-with open('${CONFIG_FILE}') as f:
-    cfg = yaml.safe_load(f) or {}
-for name in cfg.get('scenarios', {}):
-    print(name)
-")
+        echo -e "  End-to-end tests for the ${GREEN}${DOMAIN_NAME}${NC} domain."
+        echo ""
+        echo -e "${YELLOW}USAGE${NC}"
+        echo "  $0 ${DOMAIN_NAME} <command> [options]"
+        echo "  $0 ${DOMAIN_NAME} <tag> <command> [options]"
+        echo "  $0 ${DOMAIN_NAME} list"
+        echo "  $0 --config"
+        echo "  $0 --completion"
+        echo ""
+        echo -e "${YELLOW}COMMANDS${NC}"
+        echo "  exec       Run the Ansible playbook only (no verification tests)"
+        echo "  verify     Run pytest verification tests only (no playbook execution)"
+        echo "  test       exec + verify (full flow: deploy then verify)"
+        echo ""
+        echo "  When a <tag> is provided:"
+        echo "    exec     runs:  ansible-playbook image_build_manager.yml --tags <tag>"
+        echo "    verify   runs:  pytest tests under fvt/<tag>/"
+        echo "    test     runs:  exec + verify for that tag"
+        echo ""
+        echo "  When NO tag is provided:"
+        echo "    exec     runs:  ansible-playbook image_build_manager.yml (no tags, full stack)"
+        echo "    verify   runs:  ALL tests except cleanup/cleanup_images"
+        echo "    test     runs:  exec (full stack) + verify ALL"
+        echo ""
+        echo -e "${YELLOW}TAGS${NC} (match Ansible --tags values)"
+        echo "  precheck       Environment prechecks (connectivity, env vars)"
+        echo "  validate       Validate inputs + config files"
+        echo "  prepare        Build infrastructure setup (MinIO, registry)"
+        echo "  build          Build OS images (S3, registry, packages)"
+        echo "  cleanup        Cleanup build artifacts (containers, services)"
+        echo "  cleanup_images Delete S3 + registry images only"
+        echo ""
+        echo -e "${YELLOW}OPTIONS${NC}"
+        echo "  --suite <name>    Run only tests in a subfolder (container, s3, registry, naming)"
+        echo "  --marker <expr>   Filter by pytest marker expression"
+        echo "  -v, --verbose     Increase pytest verbosity"
+        echo "  --debug           Full debug output (-vvs)"
+        echo ""
+        echo -e "${YELLOW}MARKERS${NC}"
+        echo "  sanity       Baseline must-pass tests"
+        echo "  x86_64       x86_64 architecture tests"
+        echo "  aarch64      aarch64 architecture tests"
+        echo "  functional   Functional verification tests"
+        echo "  deploy       Playbook execution tests"
+        echo ""
+        echo -e "${YELLOW}MARKER EXPRESSIONS${NC}"
+        echo "  Single:   --marker sanity                  Tests with @pytest.mark.sanity"
+        echo "  AND:      --marker x86_64+sanity           Tests with BOTH markers"
+        echo "  OR:       --marker x86_64,aarch64          Tests with EITHER marker"
+        echo ""
+        echo -e "${YELLOW}EXAMPLES${NC}"
+        echo "  $0 ${DOMAIN_NAME} verify                              # All tests except cleanup"
+        echo "  $0 ${DOMAIN_NAME} verify --marker sanity               # All sanity tests"
+        echo "  $0 ${DOMAIN_NAME} exec                                 # Run playbook (full stack)"
+        echo "  $0 ${DOMAIN_NAME} build exec                           # Run playbook --tags build"
+        echo "  $0 ${DOMAIN_NAME} build verify                         # Verify build only"
+        echo "  $0 ${DOMAIN_NAME} build verify --suite registry        # Build registry tests only"
+        echo "  $0 ${DOMAIN_NAME} build verify --suite naming          # Build naming tests only"
+        echo "  $0 ${DOMAIN_NAME} build test --marker x86_64           # Exec + verify x86_64"
+        echo "  $0 ${DOMAIN_NAME} build test --marker x86_64+sanity    # Exec + verify x86_64 AND sanity"
+        echo "  $0 ${DOMAIN_NAME} build test --marker x86_64,aarch64   # Exec + verify x86_64 OR aarch64"
+        echo "  $0 ${DOMAIN_NAME} prepare test                         # Exec prepare + verify"
+        echo "  $0 ${DOMAIN_NAME} cleanup test                         # Run cleanup + verify"
+        echo "  $0 ${DOMAIN_NAME} list                                 # Show tags + test counts"
+        echo ""
+        echo -e "${YELLOW}TYPICAL WORKFLOW${NC}"
+        echo "  $0 ${DOMAIN_NAME} cleanup test                      # 1. Clean previous state"
+        echo "  $0 ${DOMAIN_NAME} validate test                     # 2. Validate inputs"
+        echo "  $0 ${DOMAIN_NAME} prepare test                      # 3. Prepare infrastructure"
+        echo "  $0 ${DOMAIN_NAME} build test --marker x86_64        # 4. Build + verify x86_64"
+        echo "  $0 ${DOMAIN_NAME} verify --marker sanity             # 5. Full sanity verification"
+        echo ""
+        echo -e "${YELLOW}NFT (NON-FUNCTIONAL TESTS)${NC}"
+        echo "  $0 nft test                        Run all NFT tests"
+        echo ""
+        echo -e "${YELLOW}CONFIG-DRIVEN EXECUTION${NC}"
+        echo "  $0 --config                        Run scenarios from test_run_config.yml"
+        echo ""
+        echo -e "${YELLOW}TAB COMPLETION${NC}"
+        echo "  eval \"\$($0 --completion)\""
+        echo ""
+        exit 0
+        ;;
 
-    # Read global overrides (dataset, sync_input, sync_output)
-    local global_dataset global_sync_input global_sync_output
-    eval "$(python3 -c "
+    # -------------------------------------------------------------------------
+    # COMPLETION: Output bash completion function
+    # -------------------------------------------------------------------------
+    completion)
+        cat << COMPLETION_EOF
+run_validation() { "${SCRIPT_DIR}/run_validation.sh" "\$@"; }
+_run_validation_completions() {
+    local cur prev pprev
+    cur="\${COMP_WORDS[\$COMP_CWORD]}"
+    prev="\${COMP_WORDS[\$COMP_CWORD-1]}"
+    pprev="\${COMP_WORDS[\$COMP_CWORD-2]:-}"
+    local domain="${DOMAIN_NAME}"
+    local tags="${SUPPORTED_TAGS}"
+    local commands="exec verify test list help"
+    local options="--suite --marker -v --verbose --debug"
+    local markers="sanity x86_64 aarch64 functional deploy"
+    local fvt_dir="${FVT_DIR}"
+    case "\$COMP_CWORD" in
+        1) COMPREPLY=( \$(compgen -W "\${domain} nft" -- "\$cur") ) ;;
+        2) COMPREPLY=( \$(compgen -W "\${tags} \${commands}" -- "\$cur") ) ;;
+        3)
+            if echo " \${tags} " | grep -q " \${prev} "; then
+                COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") )
+            else
+                COMPREPLY=( \$(compgen -W "\${options}" -- "\$cur") )
+            fi
+            ;;
+        *)
+            case "\$prev" in
+                --suite)
+                    local tag_dir=""
+                    for w in "\${COMP_WORDS[@]}"; do
+                        if echo " \${tags} " | grep -q " \${w} "; then
+                            tag_dir="\${fvt_dir}/\${w}"
+                            break
+                        fi
+                    done
+                    if [ -n "\${tag_dir}" ] && [ -d "\${tag_dir}" ]; then
+                        local suites=""
+                        for d in "\${tag_dir}"/*/; do
+                            [ -d "\$d" ] || continue
+                            local n; n="\$(basename "\$d")"
+                            [ "\$n" = "__pycache__" ] && continue
+                            suites="\${suites} \${n}"
+                        done
+                        COMPREPLY=( \$(compgen -W "\${suites}" -- "\$cur") )
+                    fi
+                    ;;
+                --marker) COMPREPLY=( \$(compgen -W "\${markers}" -- "\$cur") ) ;;
+                *) COMPREPLY=( \$(compgen -W "\${options}" -- "\$cur") ) ;;
+            esac
+            ;;
+    esac
+}
+complete -F _run_validation_completions run_validation
+COMPLETION_EOF
+        exit 0
+        ;;
+
+    # -------------------------------------------------------------------------
+    # CONFIG: Batch run from test_run_config.yml
+    # -------------------------------------------------------------------------
+    config)
+        if [[ ! -f "$CONFIG_FILE" ]]; then
+            echo -e "${RED}Error: Config file not found: ${CONFIG_FILE}${NC}"
+            exit 1
+        fi
+        export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+        export OMNIA_SUPPRESS_SUMMARY="true"
+        export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
+
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "${BLUE}  Batch Execution from test_run_config.yml${NC}"
+        echo -e "${BLUE}  Report ID : ${REPORT_ID}${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        echo ""
+
+        # Read global overrides
+        local_total=0; local_passed=0; local_failed=0; local_skipped=0
+        # shellcheck disable=SC2034
+        eval "$(python3 -c "
 import yaml
 with open('${CONFIG_FILE}') as f:
     cfg = yaml.safe_load(f) or {}
@@ -289,9 +504,16 @@ print(f'global_sync_input={str(si).lower() if si != \"\" else \"\"}')
 print(f'global_sync_output={str(so).lower() if so != \"\" else \"\"}')
 ")"
 
-    for name in $scenario_names; do
-        local run_flag marker_cfg suite_cfg dataset_cfg sync_input_cfg sync_output_cfg
-        eval "$(python3 -c "
+        scenario_names=$(python3 -c "
+import yaml
+with open('${CONFIG_FILE}') as f:
+    cfg = yaml.safe_load(f) or {}
+for name in cfg.get('scenarios', {}):
+    print(name)
+")
+
+        for name in $scenario_names; do
+            eval "$(python3 -c "
 import yaml
 with open('${CONFIG_FILE}') as f:
     cfg = yaml.safe_load(f) or {}
@@ -300,250 +522,98 @@ print(f'run_flag={str(sc.get(\"run\", False)).lower()}')
 print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 print(f'suite_cfg={sc.get(\"suite\", \"\")}')
 print(f'command_cfg={sc.get(\"command\", \"test\")}')
+print(f'tag_cfg={sc.get(\"tag\", \"${name}\")}')
 print(f'dataset_cfg={sc.get(\"dataset\", \"\")}')
 print(f'sync_input_cfg={str(sc.get(\"sync_input\", \"\")).lower()}')
 print(f'sync_output_cfg={str(sc.get(\"sync_output\", \"\")).lower()}')
 ")"
-        total=$((total + 1))
-        if [[ "$run_flag" != "true" ]]; then
-            echo -e "  ${YELLOW}SKIP${NC}  ${name}"
-            skipped=$((skipped + 1))
-            continue
-        fi
+            local_total=$((local_total + 1))
+            if [[ "$run_flag" != "true" ]]; then
+                echo -e "  ${YELLOW}SKIP${NC}  ${name}"
+                local_skipped=$((local_skipped + 1))
+                continue
+            fi
 
-        # Resolve dataset: global override > per-scenario > test_config.yml default
-        local effective_dataset="${global_dataset:-${dataset_cfg}}"
-        local effective_sync_input="${global_sync_input:-${sync_input_cfg}}"
-        local effective_sync_output="${global_sync_output:-${sync_output_cfg}}"
+            # shellcheck disable=SC2154
+            effective_dataset="${global_dataset:-${dataset_cfg}}"
+            # shellcheck disable=SC2154
+            effective_sync_input="${global_sync_input:-${sync_input_cfg}}"
+            # shellcheck disable=SC2154
+            effective_sync_output="${global_sync_output:-${sync_output_cfg}}"
 
-        local dataset_info=""
-        [[ -n "$effective_dataset" ]] && dataset_info=", dataset=${effective_dataset}"
-        echo -e "  ${CYAN}RUN${NC}   ${name} (command=${command_cfg:-test}, marker=${marker_cfg:-none}, suite=${suite_cfg:-all}${dataset_info})"
+            extra_args=""
+            [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
+            [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
 
-        local extra_args=""
-        [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
-        [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
+            run_args="${DOMAIN_NAME}"
+            [[ -n "$tag_cfg" ]] && run_args="${run_args} ${tag_cfg}"
+            run_args="${run_args} ${command_cfg:-test}"
 
-        # Pass dataset/sync overrides as environment variables
-        local -a env_vars=()
-        [[ -n "$effective_dataset" ]] && env_vars+=("OMNIA_DATASET_OVERRIDE=${effective_dataset}")
-        [[ -n "$effective_sync_input" ]] && env_vars+=("OMNIA_SYNC_INPUT_OVERRIDE=${effective_sync_input}")
-        [[ -n "$effective_sync_output" ]] && env_vars+=("OMNIA_SYNC_OUTPUT_OVERRIDE=${effective_sync_output}")
+            env_vars=()
+            [[ -n "$effective_dataset" ]] && env_vars+=("OMNIA_DATASET_OVERRIDE=${effective_dataset}")
+            [[ -n "$effective_sync_input" ]] && env_vars+=("OMNIA_SYNC_INPUT_OVERRIDE=${effective_sync_input}")
+            [[ -n "$effective_sync_output" ]] && env_vars+=("OMNIA_SYNC_OUTPUT_OVERRIDE=${effective_sync_output}")
 
-        if env "${env_vars[@]}" "$0" "$name" "${command_cfg:-test}" $extra_args; then
-            echo -e "  ${GREEN}PASS${NC}  ${name}"
-            passed=$((passed + 1))
-        else
-            echo -e "  ${RED}FAIL${NC}  ${name}"
-            failed=$((failed + 1))
-        fi
-    done
-
-    # Combined test-level summary across all scenarios
-    print_combined_summary
-
-    echo ""
-    echo -e "${BLUE}=================================================================${NC}"
-    echo -e "  Scenarios: ${total}  ${GREEN}Passed: ${passed}${NC}  ${RED}Failed: ${failed}${NC}  ${YELLOW}Skipped: ${skipped}${NC}"
-    echo -e "${BLUE}=================================================================${NC}"
-    [[ $failed -eq 0 ]] || exit 1
-}
-
-# =============================================================================
-# Handle special commands
-# =============================================================================
-case "$SCENARIO" in
-    list|--list)
-        echo -e "${BLUE}=================================================================${NC}"
-        echo -e "${BLUE}  Available Scenarios${NC}"
-        echo -e "${BLUE}=================================================================${NC}"
-        echo ""
-        echo -e "${YELLOW}FVT (Functional Verification):${NC}"
-        for name in $(get_scenarios); do
-            scenario_dir="${FVT_DIR}/${name}"
-            if [ -d "$scenario_dir" ]; then
-                test_count=$(find "$scenario_dir" -name 'test_*.py' 2>/dev/null | wc -l)
-                suites=$(find "$scenario_dir" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f ' 2>/dev/null)
-                echo -e "  ${GREEN}${name}${NC}  (${test_count} test files)"
-                if [ -n "$suites" ]; then
-                    echo -e "    suites: ${YELLOW}${suites}${NC}"
-                fi
+            if env "${env_vars[@]}" "$0" $run_args $extra_args; then
+                echo -e "  ${GREEN}PASS${NC}  ${name}"
+                local_passed=$((local_passed + 1))
             else
-                echo -e "  ${RED}${name}${NC}  (not found)"
+                echo -e "  ${RED}FAIL${NC}  ${name}"
+                local_failed=$((local_failed + 1))
             fi
         done
+
+        print_combined_summary
+
         echo ""
-        echo -e "${YELLOW}NFT (Non-Functional Tests):${NC}"
-        if [ -d "$NFT_DIR" ]; then
-            nft_count=$(find "$NFT_DIR" -name 'test_*.py' 2>/dev/null | wc -l)
-            echo -e "  ${GREEN}nft${NC}  (${nft_count} test files — performance, idempotency)"
-        else
-            echo -e "  ${RED}nft${NC}  (directory not found)"
+        echo -e "${BLUE}=================================================================${NC}"
+        echo -e "  Total: ${local_total}  ${GREEN}Passed: ${local_passed}${NC}  ${RED}Failed: ${local_failed}${NC}  ${YELLOW}Skipped: ${local_skipped}${NC}"
+        echo -e "${BLUE}=================================================================${NC}"
+        [[ $local_failed -eq 0 ]] || exit 1
+        exit 0
+        ;;
+
+    # -------------------------------------------------------------------------
+    # NFT: Non-functional tests
+    # -------------------------------------------------------------------------
+    nft)
+        if [[ ! -d "$NFT_DIR" ]]; then
+            echo -e "${RED}Error: NFT directory not found at ${NFT_DIR}${NC}"
+            exit 1
         fi
-        echo ""
-        exit 0
-        ;;
-    --config)
-        run_config_mode
-        exit 0
-        ;;
-    --completion)
-        # Output a shell snippet users can eval to get tab completion
-        # without running setup_env.sh. Usage: eval "$(./run_validation.sh --completion)"
-        cat << COMPLETION_EOF
-run_validation() { "${SCRIPT_DIR}/run_validation.sh" "\$@"; }
-_run_validation_completions() {
-    local cur prev; cur="\${COMP_WORDS[\$COMP_CWORD]}"; prev="\${COMP_WORDS[\$COMP_CWORD-1]}"
-    local fvt_dir="${SCRIPT_DIR}/fvt"
-    local scenarios=""; if [ -d "\${fvt_dir}" ]; then for d in "\${fvt_dir}"/*/; do [ -d "\$d" ] || continue; local n; n="\$(basename "\$d")"; [ "\$n" = "__pycache__" ] && continue; scenarios="\${scenarios} \${n}"; done; fi
-    local commands="deploy verify test"; local special="all nft list help --config --help"; local options="--suite --marker -v --verbose --debug"; local markers="sanity x86_64 aarch64 functional regression deploy nft"
-    case "\$COMP_CWORD" in
-        1) COMPREPLY=( \$(compgen -W "\${scenarios} \${special}" -- "\$cur") ) ;;
-        2) case "\$prev" in list|help|--help|-h|--config) COMPREPLY=() ;; *) COMPREPLY=( \$(compgen -W "\${commands}" -- "\$cur") ) ;; esac ;;
-        *) case "\$prev" in --suite) local sc="\${COMP_WORDS[1]}"; local suites=""; if [ -d "\${fvt_dir}/\${sc}" ]; then for d in "\${fvt_dir}/\${sc}"/*/; do [ -d "\$d" ] || continue; local n; n="\$(basename "\$d")"; [ "\$n" = "__pycache__" ] && continue; suites="\${suites} \${n}"; done; fi; COMPREPLY=( \$(compgen -W "\${suites}" -- "\$cur") ) ;; --marker) COMPREPLY=( \$(compgen -W "\${markers}" -- "\$cur") ) ;; *) COMPREPLY=( \$(compgen -W "\${options}" -- "\$cur") ) ;; esac ;; esac
-}
-complete -F _run_validation_completions run_validation
-COMPLETION_EOF
-        exit 0
-        ;;
-    all)
-        export REPORT_ID=$(date '+%Y%m%d%H%M%S')
+        export OMNIA_COMMAND_TYPE="nft"
+        nft_args="-m nft"
+        [[ -n "$MARKER" ]] && nft_args="${nft_args} --marker ${MARKER}"
+
         echo -e "${BLUE}=================================================================${NC}"
-        echo -e "${BLUE}  Running ALL Scenarios: ${COMMAND}${NC}"
-        echo -e "${BLUE}=================================================================${NC}"
-        echo -e "${YELLOW}  (excluding destructive: ${EXCLUDE_FROM_ALL})${NC}"
-        echo ""
-        total=0; pass_count=0; fail_count=0
-        for name in $(get_safe_scenarios); do
-            total=$((total + 1))
-            echo -e "${YELLOW}[${total}] ${name}${NC}"
-            extra=""
-            [[ -n "$SUITE" ]] && extra="$extra --suite $SUITE"
-            [[ -n "$MARKER" ]] && extra="$extra --marker $MARKER"
-            if "$0" "$name" "$COMMAND" $extra; then
-                pass_count=$((pass_count + 1))
-            else
-                fail_count=$((fail_count + 1))
-            fi
-            echo ""
-        done
-        echo -e "${BLUE}=================================================================${NC}"
-        echo -e "  Total: ${total}  ${GREEN}Passed: ${pass_count}${NC}  ${RED}Failed: ${fail_count}${NC}"
-        echo -e "${BLUE}=================================================================${NC}"
-        [[ $fail_count -eq 0 ]] || exit 1
-        exit 0
-        ;;
-    help|--help|-h|"")
-        echo -e "${BLUE}=================================================================${NC}"
-        echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
+        echo -e "${BLUE}  Image Build Manager — NFT Runner${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
-        echo -e "  End-to-end tests for the ${GREEN}image_build_manager${NC} domain."
-        echo -e "  Deploys the Ansible playbook and verifies S3, registry, and build artifacts."
-        echo -e "  Module: ${CYAN}image_build_manager${NC}   Test dir: ${CYAN}test/image_build_manager/fvt/${NC}"
+
+        run_pytest \
+            "${NFT_DIR}" \
+            "${nft_args}" \
+            "Running NFT (performance + idempotency)"
+
         echo ""
-        echo -e "${YELLOW}USAGE${NC}"
-        echo "  $0 <scenario> <command> [options]"
-        echo "  $0 all <command>                  Run all non-destructive scenarios"
-        echo "  $0 list                           List available scenarios"
-        echo "  $0 --config                       Batch run from test_run_config.yml"
-        echo ""
-        echo -e "${YELLOW}COMMANDS${NC}"
-        echo "  deploy    Run the Ansible playbook only (live streaming output)"
-        echo "  verify    Run verification tests only (no playbook, check existing state)"
-        echo "  test      Deploy + verify (full flow)"
-        echo ""
-        echo -e "${YELLOW}OPTIONS${NC}"
-        echo "  --suite <name>    Run only tests in a subfolder (container, s3, registry, naming)"
-        echo "  --marker <expr>   Filter by pytest marker (see MARKERS below)"
-        echo "  -v, --verbose     Increase pytest verbosity"
-        echo "  --debug           Full debug output (pytest -vvs + debug env)"
-        echo ""
-        echo -e "${YELLOW}SCENARIOS${NC}"
-        echo "  Each scenario maps to an Ansible --tags value:"
-        echo ""
-        echo "  image_build_manager  Full end-to-end (no --tags, runs all stages)"
-        echo "  validate             --tags validate   (verify inputs + config)"
-        echo "  prepare              --tags prepare    (build infrastructure setup)"
-        echo "  build                --tags build      (build OS images)"
-        echo "  cleanup              --tags cleanup    (remove build artifacts)  [excluded from all]"
-        echo "  cleanup_images       --tags cleanup_images (delete S3 + registry images)  [excluded from all]"
-        echo ""
-        echo -e "${YELLOW}MARKERS${NC}"
-        echo "  sanity       Baseline must-pass tests"
-        echo "  x86_64       x86_64 architecture tests"
-        echo "  aarch64      aarch64 architecture tests"
-        echo "  functional   Functional verification tests"
-        echo "  deploy       Playbook execution tests"
-        echo ""
-        echo "  Combine markers:  x86_64,aarch64  (OR)    x86_64+sanity  (AND)"
-        echo ""
-        echo -e "${YELLOW}QUICK START${NC}"
-        echo ""
-        echo "  # Verify an existing deployment (no playbook run):"
-        echo "  $0 build verify"
-        echo ""
-        echo "  # Full test: deploy build + verify images:"
-        echo "  $0 build test --marker x86_64"
-        echo ""
-        echo "  # Verify only naming convention tests:"
-        echo "  $0 build verify --suite naming"
-        echo ""
-        echo -e "${YELLOW}TYPICAL WORKFLOW${NC}"
-        echo "  $0 cleanup test                                # 1. Clean previous state"
-        echo "  $0 validate test                               # 2. Validate inputs + config"
-        echo "  $0 prepare test                                # 3. Prepare build infrastructure"
-        echo "  $0 build test --marker x86_64                  # 4. Build images + verify"
-        echo "  $0 image_build_manager verify --marker sanity  # 5. Full sanity verification"
-        echo "  $0 nft test                                    # 6. Performance + idempotency"
-        echo ""
-        echo -e "${YELLOW}NFT (NON-FUNCTIONAL TESTS)${NC}"
-        echo "  $0 nft test                        Run all NFT tests"
-        echo "  $0 nft verify                      NFT verify only (no deploy)"
-        echo ""
-        echo -e "${YELLOW}CONFIGURATION${NC}"
-        echo "  test_config.yml      Target server, sync settings, report options"
-        echo "  test_creds.yml       SSH + S3 credentials (Ansible Vault encrypted)"
-        echo "  test_run_config.yml  Batch suite definitions for --config mode"
-        echo "  setup_env.sh         Setup script: --set-password, --set-domain-creds"
-        echo ""
-        echo -e "${YELLOW}TAB COMPLETION${NC}"
-        echo "  eval \"\$($0 --completion)\""
-        echo ""
-        echo -e "${YELLOW}REPORTS${NC}"
-        echo "  Reports are generated in reports/ after each run."
-        echo "  View: python3 -m http.server 8899 --directory reports/"
-        echo ""
-        exit 0
+        echo -e "${GREEN}NFT execution completed.${NC}"
+        exit $?
         ;;
 esac
 
 # =============================================================================
-# Validate scenario
+# Validate inputs
 # =============================================================================
-IS_NFT=false
-if [[ "$SCENARIO" == "nft" ]]; then
-    IS_NFT=true
-    SCENARIO_DIR="${NFT_DIR}"
-    if [[ ! -d "$SCENARIO_DIR" ]]; then
-        echo -e "${RED}Error: NFT directory not found at ${NFT_DIR}${NC}"
-        exit 1
-    fi
-else
-    SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
-    if [[ ! -d "$SCENARIO_DIR" ]]; then
-        echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
-        echo ""
-        echo -e "${YELLOW}Available FVT scenarios:${NC}"
-        get_scenarios | while read -r s; do echo "  $s"; done
-        echo ""
-        echo -e "${YELLOW}NFT:${NC}"
-        echo "  nft"
+if [[ -n "$TAG" ]]; then
+    TAG_DIR="${FVT_DIR}/${TAG}"
+    if [[ ! -d "$TAG_DIR" ]]; then
+        echo -e "${RED}Error: Tag '${TAG}' not found in fvt/${NC}"
+        echo -e "${YELLOW}Available:${NC}"
+        get_tags | while read -r s; do echo "  $s"; done
         exit 1
     fi
 fi
 
-# Validate command
 if ! echo " ${SUPPORTED_COMMANDS} " | grep -q " ${COMMAND} "; then
     echo -e "${RED}Error: Invalid command '${COMMAND}'${NC}"
     echo -e "${YELLOW}Supported: ${SUPPORTED_COMMANDS}${NC}"
@@ -551,136 +621,147 @@ if ! echo " ${SUPPORTED_COMMANDS} " | grep -q " ${COMMAND} "; then
 fi
 
 # Validate suite folder
-if [[ -n "$SUITE" && ! -d "${SCENARIO_DIR}/${SUITE}" ]]; then
-    echo -e "${YELLOW}Warning: Suite folder '${SUITE}' not found in ${SCENARIO_DIR}/${NC}"
+if [[ -n "$SUITE" && -n "$TAG" && ! -d "${FVT_DIR}/${TAG}/${SUITE}" ]]; then
+    echo -e "${YELLOW}Warning: Suite '${SUITE}' not found in fvt/${TAG}/${NC}"
     echo -e "${YELLOW}Available:${NC}"
-    ls -d "${SCENARIO_DIR}"/*/ 2>/dev/null | xargs -I{} basename {} | while read -r d; do echo "  $d"; done
+    ls -d "${FVT_DIR}/${TAG}"/*/ 2>/dev/null | xargs -I{} basename {} | while read -r d; do echo "  $d"; done
     exit 1
 fi
 
 # =============================================================================
-# Generate report ID
+# Setup environment
 # =============================================================================
 if [[ -z "${REPORT_ID:-}" ]]; then
     export REPORT_ID=$(date '+%Y%m%d%H%M%S')
 fi
 
-# Export vars for TestReport in conftest.py
 export OMNIA_SUITE="${SUITE:-all}"
 export OMNIA_MARKER="${MARKER:-}"
 [[ -n "$DEBUG" ]] && export OMNIA_DEBUG="true"
 LOG_DIR="${SCRIPT_DIR}/reports/logs"
 mkdir -p "${LOG_DIR}"
-export OMNIA_LOG_FILE="${LOG_DIR}/${SCENARIO}_${COMMAND}_${REPORT_ID}.log"
+LABEL="${TAG:-all}"
+export OMNIA_LOG_FILE="${LOG_DIR}/${LABEL}_${COMMAND}_${REPORT_ID}.log"
+
+# Set the deploy tag so test_playbook.py knows which ansible tag to use
+export OMNIA_DEPLOY_TAG="${TAG}"
 
 # =============================================================================
 # Display banner
 # =============================================================================
 echo -e "${BLUE}=================================================================${NC}"
-if [[ "$IS_NFT" == true ]]; then
-    echo -e "${BLUE}  Image Build Manager — NFT Runner${NC}"
-else
-    echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
-fi
+echo -e "${BLUE}  Image Build Manager — Validation Runner${NC}"
 echo -e "${BLUE}=================================================================${NC}"
-echo -e "  Scenario  : ${GREEN}${SCENARIO}${NC}"
-[[ "$IS_NFT" == true ]] && echo -e "  Type      : ${CYAN}Non-Functional Tests${NC}"
+echo -e "  Domain    : ${GREEN}${DOMAIN_NAME}${NC}"
+[[ -n "$TAG" ]]        && echo -e "  Tag       : ${GREEN}${TAG}${NC}" \
+                        || echo -e "  Tag       : ${GREEN}(all except cleanup)${NC}"
 echo -e "  Command   : ${GREEN}${COMMAND}${NC}"
-[[ -n "$SUITE" ]]       && echo -e "  Suite     : ${GREEN}${SUITE}${NC}"
-[[ -n "$MARKER" ]]      && echo -e "  Marker    : ${GREEN}${MARKER}${NC}"
-[[ -n "$DEBUG" ]] && echo -e "  Debug     : ${YELLOW}yes${NC}"
+[[ -n "$SUITE" ]]      && echo -e "  Suite     : ${GREEN}${SUITE}${NC}"
+[[ -n "$MARKER" ]]     && echo -e "  Marker    : ${GREEN}${MARKER}${NC}"
+[[ -n "$DEBUG" ]]      && echo -e "  Debug     : ${YELLOW}yes${NC}"
 echo -e "  Report ID : ${GREEN}${REPORT_ID}${NC}"
 echo -e "${BLUE}=================================================================${NC}"
 echo ""
 
 # =============================================================================
+# Build marker args for pytest
+# =============================================================================
+build_marker_args() {
+    local args=""
+    if [[ -n "$MARKER" ]]; then
+        args="${args} --marker ${MARKER}"
+    fi
+    echo "$args"
+}
+
+# =============================================================================
 # Execute based on command
 # =============================================================================
-
-# NFT special handling — all NFT tests use -m nft marker
-if [[ "$IS_NFT" == true ]]; then
-    export OMNIA_COMMAND_TYPE="nft"
-    nft_args="-m nft"
-    [[ -n "$MARKER" ]] && nft_args="${nft_args} --marker ${MARKER}"
-
-    echo -e "${YELLOW}=================================================================${NC}"
-    echo -e "${YELLOW}  Running Non-Functional Tests${NC}"
-    echo -e "${YELLOW}=================================================================${NC}"
-    echo ""
-
-    run_pytest \
-        "${NFT_DIR}" \
-        "${nft_args}" \
-        "Running NFT (performance + idempotency)"
-
-    echo ""
-    echo -e "${GREEN}NFT execution completed.${NC}"
-    exit $?
-fi
-
 case "$COMMAND" in
 
     # -------------------------------------------------------------------------
-    # DEPLOY: Run playbook only (tests with @pytest.mark.deploy)
+    # EXEC: Run the Ansible playbook only (no verification)
     # -------------------------------------------------------------------------
-    deploy)
-        export OMNIA_COMMAND_TYPE="deploy"
-        marker_cmd="-m deploy"
-        [[ -n "$MARKER" ]] && marker_cmd="${marker_cmd} --marker ${MARKER}"
-        run_pytest \
-            "${SCENARIO_DIR}" \
-            "${marker_cmd}" \
-            "Running playbook deployment for ${SCENARIO}"
+    exec)
+        export OMNIA_COMMAND_TYPE="exec"
+
+        # Find the test_playbook.py in the appropriate tag dir
+        if [[ -n "$TAG" ]]; then
+            exec_dir="${FVT_DIR}/${TAG}"
+        else
+            exec_dir="${FVT_DIR}/build"
+        fi
+
+        exec_args="-m deploy"
+        [[ -n "$MARKER" ]] && exec_args="${exec_args} --marker ${MARKER}"
+        run_pytest "${exec_dir}" "${exec_args}" "Executing playbook (tag=${TAG:-none})"
 
         echo ""
-        echo -e "${GREEN}Deployment completed.${NC}"
+        echo -e "${GREEN}Playbook execution completed.${NC}"
         ;;
 
     # -------------------------------------------------------------------------
-    # VERIFY: Run verification tests only (exclude @deploy, apply filters)
+    # VERIFY: Run verification tests only (no playbook)
     # -------------------------------------------------------------------------
     verify)
         export OMNIA_COMMAND_TYPE="verify"
-        test_path=$(build_test_path "${SCENARIO_DIR}")
-        extra_args=$(build_pytest_args "yes")
+        verify_dirs=$(build_verify_dirs)
+        marker_args=$(build_marker_args)
+        extra_args="${marker_args} -m 'not deploy'"
+
+        # Build test path with suite filter
+        test_paths=""
+        for dir in $verify_dirs; do
+            if [[ -n "$SUITE" && -d "${dir}/${SUITE}" ]]; then
+                test_paths="${test_paths} ${dir}/${SUITE}"
+            else
+                test_paths="${test_paths} ${dir}"
+            fi
+        done
 
         run_pytest \
-            "${test_path}" \
+            "${test_paths}" \
             "${extra_args}" \
-            "Running verification tests for ${SCENARIO}"
+            "Running verification tests (${TAG:-all except cleanup})"
 
         echo ""
         echo -e "${GREEN}Verification completed.${NC}"
         ;;
 
     # -------------------------------------------------------------------------
-    # TEST: Deploy + Verify (full flow)
+    # TEST: Exec playbook + Verify (full flow)
     # -------------------------------------------------------------------------
     test)
         FAILED=0
 
-        # Suppress individual pytest summaries; print combined at end
         export OMNIA_SUPPRESS_SUMMARY="true"
         export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
 
-        # Step 1: Deploy
-        export OMNIA_COMMAND_TYPE="deploy"
+        # Step 1: Execute playbook
+        export OMNIA_COMMAND_TYPE="exec"
         echo -e "${YELLOW}=================================================================${NC}"
-        echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
+        echo -e "${YELLOW}  Step 1/2: Execute Playbook${NC}"
         echo -e "${YELLOW}=================================================================${NC}"
         echo ""
 
-        deploy_args="-m deploy"
-        [[ -n "$MARKER" ]] && deploy_args="${deploy_args} --marker ${MARKER}"
-        if run_pytest "${SCENARIO_DIR}" "${deploy_args}" "Running playbook deployment"; then
-            echo -e "${GREEN}Deployment succeeded${NC}"
+        # Find the test_playbook.py in the appropriate tag dir
+        if [[ -n "$TAG" ]]; then
+            exec_dir="${FVT_DIR}/${TAG}"
         else
-            echo -e "${RED}Deployment failed${NC}"
+            exec_dir="${FVT_DIR}/build"
+        fi
+
+        exec_args="-m deploy"
+        [[ -n "$MARKER" ]] && exec_args="${exec_args} --marker ${MARKER}"
+        if run_pytest "${exec_dir}" "${exec_args}" "Executing playbook (tag=${TAG:-none})"; then
+            echo -e "${GREEN}Playbook execution succeeded${NC}"
+        else
+            echo -e "${RED}Playbook execution failed${NC}"
             FAILED=1
         fi
         echo ""
 
-        # Step 2: Verify (only if deploy succeeded)
+        # Step 2: Verify (only if exec succeeded)
         if [[ $FAILED -eq 0 ]]; then
             export OMNIA_COMMAND_TYPE="verify"
             echo -e "${YELLOW}=================================================================${NC}"
@@ -688,28 +769,37 @@ case "$COMMAND" in
             echo -e "${YELLOW}=================================================================${NC}"
             echo ""
 
-            test_path=$(build_test_path "${SCENARIO_DIR}")
-            verify_args=$(build_pytest_args "yes")
+            verify_dirs=$(build_verify_dirs)
+            marker_args=$(build_marker_args)
+            extra_args="${marker_args} -m 'not deploy'"
 
-            if run_pytest "${test_path}" "${verify_args}" "Running verification tests"; then
+            test_paths=""
+            for dir in $verify_dirs; do
+                if [[ -n "$SUITE" && -d "${dir}/${SUITE}" ]]; then
+                    test_paths="${test_paths} ${dir}/${SUITE}"
+                else
+                    test_paths="${test_paths} ${dir}"
+                fi
+            done
+
+            if run_pytest "${test_paths}" "${extra_args}" "Running verification tests"; then
                 echo -e "${GREEN}Verification succeeded${NC}"
             else
                 echo -e "${RED}Verification failed${NC}"
                 FAILED=1
             fi
         else
-            echo -e "${YELLOW}Skipping verification — deployment failed${NC}"
+            echo -e "${YELLOW}Skipping verification — playbook execution failed${NC}"
         fi
 
-        # Combined summary at the very end
         print_combined_summary
 
         echo ""
         echo -e "${BLUE}=================================================================${NC}"
         if [[ $FAILED -eq 0 ]]; then
-            echo -e "${GREEN}  ${SCENARIO}: DEPLOY + VERIFY PASSED${NC}"
+            echo -e "${GREEN}  ${DOMAIN_NAME} ${TAG:-full}: EXEC + VERIFY PASSED${NC}"
         else
-            echo -e "${RED}  ${SCENARIO}: FAILED${NC}"
+            echo -e "${RED}  ${DOMAIN_NAME} ${TAG:-full}: FAILED${NC}"
         fi
         echo -e "${BLUE}=================================================================${NC}"
 

@@ -982,6 +982,7 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - **First line**: `<type>(<scope>): <description>` (max 72 chars)
 - **Body** (optional): Blank line, then details in bullet points
 - **Signed-off-by**: Auto-added by `--signoff` flag
+- **No Co-Authored-By tags** — do NOT include `Co-Authored-By: Devin <...>` or any AI agent attribution in commits. Only the human developer's `Signed-off-by` should appear.
 
 ### 12.3 Branch Naming
 
@@ -1069,6 +1070,7 @@ Before submitting a PR, verify:
 - [ ] Bandit: zero high-severity findings
 - [ ] No hardcoded IPs, passwords, tokens
 - [ ] All commits signed off (`git commit --signoff`)
+- [ ] No `Co-Authored-By` tags in commits (no AI agent attribution)
 - [ ] fvt/README.md updated with new test cases
 
 ### Co-Change
@@ -1076,3 +1078,4 @@ Before submitting a PR, verify:
 - [ ] New playbook tags have a corresponding FVT scenario
 - [ ] Deleted features have their tests removed
 - [ ] AI agents (Devin, Copilot, etc.) NOT used for sign-off — see `general.md` §7
+- [ ] No `Co-Authored-By` or `Generated with` tags in commit messages

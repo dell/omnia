@@ -33,10 +33,14 @@
 #                                exec    = Run the playbook only (no verification)
 #                                verify  = Run verification tests only (skip playbook)
 #                                test    = Exec + Verify (full flow)
-#   tag:         <string>      - Ansible playbook tag (precheck, validate, deploy, cleanup)
-#                                Empty = run playbook without tags (full stack)
 #   suite:       <folder>      - FVT subfolder to run (e.g., sinks, sources)
 #   marker:      <expression>  - Marker filter expression (empty = all tests)
+#   dataset:     <name>        - (optional) Override dataset from test_config.yml
+#                                Must be a valid folder under datasets/
+#   sync_input:  true/false    - (optional) Override sync_telemetry_input
+#
+# NOTE: The scenario name is used as the Ansible playbook tag automatically.
+#       For example, scenario "deploy" runs --tags deploy.
 #
 # Marker expression syntax:
 #   Single:   "sanity"                  - tests with @pytest.mark.sanity
@@ -53,7 +57,6 @@
 #   validate   - Validate inputs + config
 #   deploy     - Deploy sinks + sources
 #   cleanup    - Cleanup resources
-#   (empty)    - Full stack (no tags)
 #
 # Available suites (subfolders under fvt/<tag>/):
 #   sinks/     - Kafka, VictoriaMetrics, VictoriaLogs
@@ -70,26 +73,15 @@
 #                  When false (default), all tests run regardless of failures.
 skip_on_failure: false
 
-scenarios:
+# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
+#   Must be a valid folder name under datasets/.
+#   Leave commented out to use per-scenario or test_config.yml defaults.
+# dataset_override: "my_custom_ds"
 
-  # =========================================================================
-  # telemetry - Full end-to-end (exec + verify)
-  # =========================================================================
-  # Executes telemetry.yml (no tags - full stack).
-  # Then verifies: sinks (Kafka, VictoriaMetrics, VictoriaLogs),
-  # sources (iDRAC, LDMS, OME, PowerScale, UFM), cluster health.
-  #
-  # Supported markers:
-  #   sanity    - Baseline must-pass tests
-  #   sink      - Sink component tests
-  #   source    - Source component tests
-  telemetry:
-    order: 1
-    run: true
-    command: "verify"
-    tag: ""
-    suite: ""
-    marker: "sanity"
+# sync_input_override: Override sync_telemetry_input for ALL scenarios.
+# sync_input_override: true
+
+scenarios:
 
   # =========================================================================
   # precheck - Precheck environment
@@ -100,9 +92,10 @@ scenarios:
     order: 10
     run: false
     command: "test"
-    tag: "precheck"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: true
 
   # =========================================================================
   # deploy - Deploy telemetry + verify resources
@@ -116,9 +109,10 @@ scenarios:
     order: 20
     run: false
     command: "test"
-    tag: "deploy"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: true
 
   # =========================================================================
   # validate - Validate inputs + verify status
@@ -129,9 +123,10 @@ scenarios:
     order: 30
     run: false
     command: "test"
-    tag: "validate"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: true
 
   # =========================================================================
   # cleanup - Cleanup telemetry + verify removal
@@ -142,6 +137,7 @@ scenarios:
     order: 40
     run: false
     command: "test"
-    tag: "cleanup"
     suite: ""
     marker: "sanity"
+    # dataset: "my_custom_ds"
+    # sync_input: false

@@ -38,8 +38,11 @@
 #   - test    exec (full stack) + verify ALL
 #
 # Options:
-#   --suite <name>    Filter by subfolder (sinks, sources, cluster, etc.)
-#   --marker <expr>   Filter by pytest marker (sanity, functional, etc.)
+#   --suite <name>    Filter by subfolder (sinks, sources, cluster)
+#   --marker <expr>   Filter by pytest marker expression
+#                       Single: --marker sanity
+#                       AND:    --marker source+sanity   (BOTH markers)
+#                       OR:     --marker sink,source     (EITHER marker)
 #   -v, --verbose     Increase verbosity
 #   --debug           Full debug output
 #
@@ -325,25 +328,38 @@ case "$COMMAND" in
         echo -e "  End-to-end tests for the ${GREEN}${DOMAIN_NAME}${NC} domain."
         echo ""
         echo -e "${YELLOW}USAGE${NC}"
-        echo "  $0 ${DOMAIN_NAME} verify                    Verify ALL (except cleanup)"
-        echo "  $0 ${DOMAIN_NAME} exec                      Run playbook (full stack, no tags)"
-        echo "  $0 ${DOMAIN_NAME} <tag> exec                Run playbook with --tags <tag>"
-        echo "  $0 ${DOMAIN_NAME} <tag> verify              Verify only <tag> tests"
-        echo "  $0 ${DOMAIN_NAME} <tag> test                Exec (--tags <tag>) + verify"
-        echo "  $0 ${DOMAIN_NAME} test                      Exec (full stack) + verify ALL"
-        echo "  $0 ${DOMAIN_NAME} list                      List available tags"
+        echo "  $0 ${DOMAIN_NAME} <command> [options]"
+        echo "  $0 ${DOMAIN_NAME} <tag> <command> [options]"
+        echo "  $0 ${DOMAIN_NAME} list"
+        echo "  $0 --config"
+        echo "  $0 --completion"
         echo ""
-        echo -e "${YELLOW}TAGS${NC}"
-        echo "  precheck     Environment prechecks (env vars, cluster health)"
-        echo "  validate     Input file validation"
-        echo "  deploy       Deploy sinks + sources"
-        echo "  cleanup      Cleanup resources"
+        echo -e "${YELLOW}COMMANDS${NC}"
+        echo "  exec       Run the Ansible playbook only (no verification tests)"
+        echo "  verify     Run pytest verification tests only (no playbook execution)"
+        echo "  test       exec + verify (full flow: deploy then verify)"
+        echo ""
+        echo "  When a <tag> is provided:"
+        echo "    exec     runs:  ansible-playbook telemetry.yml --tags <tag>"
+        echo "    verify   runs:  pytest tests under fvt/<tag>/"
+        echo "    test     runs:  exec + verify for that tag"
+        echo ""
+        echo "  When NO tag is provided:"
+        echo "    exec     runs:  ansible-playbook telemetry.yml (no tags, full stack)"
+        echo "    verify   runs:  ALL tests except cleanup"
+        echo "    test     runs:  exec (full stack) + verify ALL"
+        echo ""
+        echo -e "${YELLOW}TAGS${NC} (match Ansible --tags values)"
+        echo "  precheck     Environment prechecks (env vars, K8s cluster health)"
+        echo "  validate     Input file validation (config, credentials)"
+        echo "  deploy       Deploy sinks + sources (Kafka, VictoriaMetrics, iDRAC, etc.)"
+        echo "  cleanup      Cleanup resources (pods, services, topics)"
         echo ""
         echo -e "${YELLOW}OPTIONS${NC}"
         echo "  --suite <name>    Run only tests in a subfolder (sinks, sources, cluster)"
-        echo "  --marker <expr>   Filter by pytest marker (sanity, functional)"
+        echo "  --marker <expr>   Filter by pytest marker expression"
         echo "  -v, --verbose     Increase pytest verbosity"
-        echo "  --debug           Full debug output"
+        echo "  --debug           Full debug output (-vvs)"
         echo ""
         echo -e "${YELLOW}MARKERS${NC}"
         echo "  sanity       Baseline must-pass tests"
@@ -352,15 +368,34 @@ case "$COMMAND" in
         echo "  source       Source component tests (iDRAC, LDMS, PowerScale, UFM, OME)"
         echo "  deploy       Playbook execution tests"
         echo ""
+        echo -e "${YELLOW}MARKER EXPRESSIONS${NC}"
+        echo "  Single:   --marker sanity                  Tests with @pytest.mark.sanity"
+        echo "  AND:      --marker source+sanity           Tests with BOTH markers"
+        echo "  OR:       --marker sink,source             Tests with EITHER marker"
+        echo ""
         echo -e "${YELLOW}EXAMPLES${NC}"
-        echo "  $0 ${DOMAIN_NAME} verify                           # All tests except cleanup"
-        echo "  $0 ${DOMAIN_NAME} verify --marker sanity            # All sanity tests"
-        echo "  $0 ${DOMAIN_NAME} exec                              # Run playbook (full stack)"
-        echo "  $0 ${DOMAIN_NAME} deploy exec                       # Run playbook --tags deploy"
-        echo "  $0 ${DOMAIN_NAME} deploy verify                     # Verify deploy only"
-        echo "  $0 ${DOMAIN_NAME} deploy verify --suite sources     # Deploy sources only"
-        echo "  $0 ${DOMAIN_NAME} deploy test --marker sanity        # Exec + verify sanity"
-        echo "  $0 ${DOMAIN_NAME} cleanup test                      # Run cleanup + verify"
+        echo "  $0 ${DOMAIN_NAME} verify                              # All tests except cleanup"
+        echo "  $0 ${DOMAIN_NAME} verify --marker sanity               # All sanity tests"
+        echo "  $0 ${DOMAIN_NAME} exec                                 # Run playbook (full stack)"
+        echo "  $0 ${DOMAIN_NAME} deploy exec                          # Run playbook --tags deploy"
+        echo "  $0 ${DOMAIN_NAME} deploy verify                        # Verify deploy only"
+        echo "  $0 ${DOMAIN_NAME} deploy verify --suite sources        # Deploy sources only"
+        echo "  $0 ${DOMAIN_NAME} deploy verify --suite sinks          # Deploy sinks only"
+        echo "  $0 ${DOMAIN_NAME} deploy test --marker sanity           # Exec + verify sanity"
+        echo "  $0 ${DOMAIN_NAME} deploy test --marker source+sanity    # Exec + verify source AND sanity"
+        echo "  $0 ${DOMAIN_NAME} deploy test --marker sink,source      # Exec + verify sink OR source"
+        echo "  $0 ${DOMAIN_NAME} cleanup test                          # Run cleanup + verify"
+        echo "  $0 ${DOMAIN_NAME} list                                  # Show tags + test counts"
+        echo ""
+        echo -e "${YELLOW}TYPICAL WORKFLOW${NC}"
+        echo "  $0 ${DOMAIN_NAME} precheck test                     # 1. Precheck environment"
+        echo "  $0 ${DOMAIN_NAME} validate test                     # 2. Validate inputs"
+        echo "  $0 ${DOMAIN_NAME} deploy test --marker sanity        # 3. Deploy + verify sanity"
+        echo "  $0 ${DOMAIN_NAME} verify --marker sanity              # 4. Full sanity verification"
+        echo "  $0 ${DOMAIN_NAME} cleanup test                       # 5. Cleanup + verify"
+        echo ""
+        echo -e "${YELLOW}CONFIG-DRIVEN EXECUTION${NC}"
+        echo "  $0 --config                        Run scenarios from test_run_config.yml"
         echo ""
         echo -e "${YELLOW}TAB COMPLETION${NC}"
         echo "  eval \"\$($0 --completion)\""
@@ -447,6 +482,16 @@ COMPLETION_EOF
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
 
+        # Read global overrides
+        # shellcheck disable=SC2034
+        eval "$(python3 -c "
+import yaml
+with open('${CONFIG_FILE}') as f:
+    cfg = yaml.safe_load(f) or {}
+print(f'global_dataset={cfg.get(\"dataset_override\", \"\")}')
+print(f'global_sync_input={str(cfg.get(\"sync_input_override\", \"\")).lower()}')
+")"
+
         cfg_total=0; cfg_passed=0; cfg_failed=0; cfg_skipped=0
         scenario_names=$(python3 -c "
 import yaml
@@ -467,7 +512,9 @@ print(f'run_flag={str(sc.get(\"run\", False)).lower()}')
 print(f'marker_cfg={sc.get(\"marker\", \"\")}')
 print(f'suite_cfg={sc.get(\"suite\", \"\")}')
 print(f'command_cfg={sc.get(\"command\", \"test\")}')
-print(f'tag_cfg={sc.get(\"tag\", \"\")}')
+print(f'tag_cfg={sc.get(\"tag\", \"${name}\")}')
+print(f'dataset_cfg={sc.get(\"dataset\", \"\")}')
+print(f'sync_input_cfg={str(sc.get(\"sync_input\", \"\")).lower()}')
 ")"
             cfg_total=$((cfg_total + 1))
             # shellcheck disable=SC2154
@@ -477,6 +524,11 @@ print(f'tag_cfg={sc.get(\"tag\", \"\")}')
                 continue
             fi
 
+            # shellcheck disable=SC2154
+            effective_dataset="${global_dataset:-${dataset_cfg}}"
+            # shellcheck disable=SC2154
+            effective_sync_input="${global_sync_input:-${sync_input_cfg}}"
+
             extra_args=""
             [[ -n "$marker_cfg" ]] && extra_args="$extra_args --marker $marker_cfg"
             [[ -n "$suite_cfg" ]] && extra_args="$extra_args --suite $suite_cfg"
@@ -485,8 +537,12 @@ print(f'tag_cfg={sc.get(\"tag\", \"\")}')
             [[ -n "$tag_cfg" ]] && run_args="${run_args} ${tag_cfg}"
             run_args="${run_args} ${command_cfg:-verify}"
 
+            env_vars=()
+            [[ -n "$effective_dataset" ]] && env_vars+=("OMNIA_DATASET_OVERRIDE=${effective_dataset}")
+            [[ -n "$effective_sync_input" ]] && env_vars+=("OMNIA_SYNC_INPUT_OVERRIDE=${effective_sync_input}")
+
             # shellcheck disable=SC2086
-            if "$0" $run_args $extra_args; then
+            if env "${env_vars[@]}" "$0" $run_args $extra_args; then
                 echo -e "  ${GREEN}PASS${NC}  ${name}"
                 cfg_passed=$((cfg_passed + 1))
             else
