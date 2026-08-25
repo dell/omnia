@@ -157,11 +157,15 @@
     - name: "Check for remaining source pods before sink cleanup"
       vars:
         telemetry_namespace: "telemetry"
-        _source_apps: "idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,karavi-metrics-powerscale,otel-collector,csi-volume-exporter,dcgm-exporter,sfm-telemetry,ufm-external,vast-external,skyway-telemetry,powervault-telemetry"
+        _source_apps: >-
+          idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
+          karavi-metrics-powerscale,otel-collector,
+          csi-volume-exporter,dcgm-exporter,sfm-telemetry,
+          ufm-external,vast-external,skyway-telemetry,powervault-telemetry
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }}
         --no-headers --ignore-not-found
-        -l 'app in ({{ _source_apps }})'
+        -l 'app in ({{ _source_apps | replace("\n", "") | trim }})'
       register: _remaining_source_pods
       changed_when: false
       failed_when: false
@@ -179,10 +183,14 @@
     - name: "Wait for source pods to terminate before sink cleanup"
       vars:
         telemetry_namespace: "telemetry"
-        _source_apps: "idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,karavi-metrics-powerscale,otel-collector,csi-volume-exporter,dcgm-exporter,sfm-telemetry,ufm-external,vast-external,skyway-telemetry,powervault-telemetry"
+        _source_apps: >-
+          idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
+          karavi-metrics-powerscale,otel-collector,
+          csi-volume-exporter,dcgm-exporter,sfm-telemetry,
+          ufm-external,vast-external,skyway-telemetry,powervault-telemetry
       ansible.builtin.command: >
         kubectl wait --for=delete pods
-        -l 'app in ({{ _source_apps }})'
+        -l 'app in ({{ _source_apps | replace("\n", "") | trim }})'
         -n {{ telemetry_namespace }} --timeout=60s
       changed_when: false
       failed_when: false
