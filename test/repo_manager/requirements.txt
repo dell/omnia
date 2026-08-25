@@ -1,0 +1,3 @@
+pytest>=7.4.0
+pytest-testinfra>=9.0.0
+pytest-order>=1.1.0

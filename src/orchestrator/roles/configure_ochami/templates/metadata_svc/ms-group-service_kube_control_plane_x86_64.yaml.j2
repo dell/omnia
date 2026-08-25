@@ -14,7 +14,8 @@
 
       users:
         - name: root
-          ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
+          ssh_authorized_keys:
+            - "{{ read_ssh_key.stdout }}"
           lock_passwd: false
           hashed_passwd: "{{ hashed_password_output.stdout }}"
       disable_root: false
@@ -85,6 +86,8 @@
             Host {{ k8s_control_ssh_patterns }}
                 IdentityFile {{ k8s_client_mount_path }}/ssh/oim_rsa
                 IdentitiesOnly yes
+                StrictHostKeyChecking no
+                UserKnownHostsFile /dev/null
 
         - path: /etc/modules-load.d/k8s.conf
           content: |

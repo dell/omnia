@@ -479,4 +479,14 @@ CMDS = {
         " {user}@{host}"
         " '{isi_cmd}'"
     ),
+
+    # --- Cleanup verification ---
+    "kubectl_count_resources": (
+        "kubectl get {resource} -n {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null | wc -l"
+    ),
+    "kubectl_get_ns": (
+        "kubectl get namespace {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null"
+    ),
 }
