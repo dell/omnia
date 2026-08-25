@@ -18,15 +18,17 @@ Omnia Main Setup — Environment Verification.
 TC_SU_002: Verify omnia.env installed at /etc/omnia/omnia.env
 TC_SU_003: Verify /etc/profile.d/omnia-env.sh exists
 TC_SU_004: Verify environment variables are set after install
+TC_SU_011: Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4
 """
 
 import pytest
 
-from library.functions import TestLogger
+from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import (
     check_env_file_installed,
     check_profile_drop_in,
     check_env_vars_loaded,
+    check_env_source_validation,
 )
 from library.messages import (
     TEST_NAMES,
@@ -108,4 +110,25 @@ def test_env_vars_loaded(host):
         missing_list="\n".join(
             f"\u2551   - {v}" for v in result.get("missing", [])
         ),
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(4)
+def test_env_source_validation(host):
+    """TC_SU_011: Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4."""
+    tl = TestLogger(
+        TEST_NAMES["env_source_validation"], "TC_SU_011"
+    )
+    result = check_env_source_validation(host)
+
+    if result["success"]:
+        tl.passed(LOG["env_source_validation_ok"])
+    else:
+        tl.failed(LOG["env_source_validation_failed"].format(
+            rc=result.get("rc", "?")
+        ))
+
+    assert result["success"], (
+        ASSERT["env_source_validation_failed"]
     )

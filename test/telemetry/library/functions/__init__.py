@@ -80,6 +80,20 @@ from library.functions.source_func import (
     verify_ome_kafka_user,
     verify_ome_sink_prerequisites,
 )
+from library.functions.cleanup_func import (
+    verify_idrac_cleaned,
+    verify_ldms_cleaned,
+    verify_ome_cleaned,
+    verify_dcgm_cleaned,
+    verify_ufm_cleaned,
+    verify_vast_cleaned,
+    verify_sfm_cleaned,
+    verify_kafka_cleaned,
+    verify_victoria_metrics_cleaned,
+    verify_victoria_logs_cleaned,
+    verify_no_pods_remaining,
+    verify_no_pvcs_remaining,
+)
 
 __all__ = [
     # omnia_auto re-exports
@@ -140,4 +154,17 @@ __all__ = [
     "verify_vector_ome",
     "verify_ome_kafka_user",
     "verify_ome_sink_prerequisites",
+    # cleanup verification
+    "verify_idrac_cleaned",
+    "verify_ldms_cleaned",
+    "verify_ome_cleaned",
+    "verify_dcgm_cleaned",
+    "verify_ufm_cleaned",
+    "verify_vast_cleaned",
+    "verify_sfm_cleaned",
+    "verify_kafka_cleaned",
+    "verify_victoria_metrics_cleaned",
+    "verify_victoria_logs_cleaned",
+    "verify_no_pods_remaining",
+    "verify_no_pvcs_remaining",
 ]

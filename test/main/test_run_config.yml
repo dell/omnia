@@ -121,6 +121,28 @@ scenarios:
     marker: "sanity"
 
   # =========================================================================
+  # execution — Actual omnia.sh operations (setup, init, run, cleanup)
+  # =========================================================================
+  # Tests actual execution of omnia.sh commands — not just help/flags.
+  #
+  # Deploy step (@deploy marker):
+  #   --setup-venv --deps-only, --init, --run --tags precheck/validate,
+  #   --cleanup (intelligent skip if running from omnia venv)
+  #
+  # Verify step (setup_exec/ subfolder):
+  #   Checks venv, env files, log dirs, input files exist after deploy
+  #
+  # Supported markers:
+  #   sanity     — Baseline must-pass tests
+  #   functional — Domain execution tests
+  #   deploy     — Script execution (setup, init, run, cleanup)
+  execution:
+    order: 25
+    run: true
+    suite: ""
+    marker: "sanity"
+
+  # =========================================================================
   # setup — Environment install, venv creation, directory setup
   # =========================================================================
   # Verifies environment file installation, venv creation, directory

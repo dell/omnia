@@ -223,9 +223,12 @@ def pytest_sessionstart(session):
     # Init report
     report_path = config.get("report_path", "reports")
     report_name = config.get("report_name", "telemetry_test_report")
+    server_ip = config.get("target_host", "unknown")
     report = TestReport(
-        report_dir=os.path.join(_TEST_DIR, report_path),
+        module_name="telemetry",
+        report_path=os.path.join(_TEST_DIR, report_path),
         report_name=report_name,
+        server_ip=server_ip,
     )
     set_current_report(report)
 
@@ -257,7 +260,7 @@ def host():
 # =============================================================================
 
 def pytest_runtest_makereport(item, call):
-    """Capture test results for the summary table."""
+    """Capture test results for the summary table and report."""
     if call.when != "call":
         return
 
@@ -265,19 +268,37 @@ def pytest_runtest_makereport(item, call):
     tc_id = _TC_ID_MAP.get(func_name, get_last_tc_id() or "")
     test_output = get_test_output()
 
-    result = "PASS" if call.excinfo is None else "FAIL"
+    status = "PASSED" if call.excinfo is None else "FAILED"
     if item.get_closest_marker("skip") or (
         call.excinfo and call.excinfo.typename == "Skipped"
     ):
-        result = "SKIP"
+        status = "SKIPPED"
 
-    add_session_result(tc_id, func_name, result, test_output)
+    duration = getattr(call, "duration", 0)
+
+    # Add to session summary table
+    add_session_result(
+        test_name=func_name,
+        status=status,
+        duration=duration,
+        tc_id=tc_id,
+    )
+
+    # Add to report
+    report = get_current_report()
+    if report:
+        report.add_result(
+            test_name=func_name,
+            passed=(status == "PASSED"),
+            duration=duration,
+            details=test_output,
+        )
 
 
 def pytest_sessionfinish(session, exitstatus):
     """Generate report and print summary at session end."""
     report = get_current_report()
     if report:
-        report.generate()
+        report.save()
 
     print_summary_table()

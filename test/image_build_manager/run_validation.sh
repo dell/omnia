@@ -243,6 +243,11 @@ run_pytest() {
         rc=$?
         set -e
     fi
+
+    # pytest exit code 5 = no tests collected (all skipped/deselected) — not a failure
+    if [[ $rc -eq 5 ]]; then
+        return 0
+    fi
     return $rc
 }
 
