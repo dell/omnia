@@ -105,6 +105,22 @@ def pytest_configure(config):
     # Enable verbose logging when pytest -v is used or OMNIA_VERBOSE is set
     if config.option.verbose > 0 or os.environ.get("OMNIA_VERBOSE"):
         set_verbose_mode(True)
+    
+    # Set environment variables for Ansible non-interactive execution
+    # This prevents ansible.builtin.pause from failing in pytest
+    os.environ["ANSIBLE_NOCOLOR"] = "1"
+    os.environ["ANSIBLE_FORCE_COLOR"] = "0"
+    os.environ["ANSIBLE_STDOUT_CALLBACK"] = "default"
+    
+    # Redirect stdin to /dev/null to prevent pause module from blocking
+    # This is safe because Ansible playbooks should not require interactive input
+    import subprocess
+    try:
+        devnull = open(os.devnull, 'r')
+        os.dup2(devnull.fileno(), 0)  # Redirect stdin (fd 0) to /dev/null
+    except Exception:
+        pass  # If it fails, continue anyway
+    
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
