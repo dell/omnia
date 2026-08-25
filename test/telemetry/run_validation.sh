@@ -43,7 +43,7 @@
 #   nft                 Non-functional tests (performance + idempotency)
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FVT_DIR="${SCRIPT_DIR}/fvt"

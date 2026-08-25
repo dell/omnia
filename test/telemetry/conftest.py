@@ -223,9 +223,12 @@ def pytest_sessionstart(session):
     # Init report
     report_path = config.get("report_path", "reports")
     report_name = config.get("report_name", "telemetry_test_report")
+    server_ip = config.get("target_host", "unknown")
     report = TestReport(
-        report_dir=os.path.join(_TEST_DIR, report_path),
+        module_name="telemetry",
+        report_path=os.path.join(_TEST_DIR, report_path),
         report_name=report_name,
+        server_ip=server_ip,
     )
     set_current_report(report)
 
