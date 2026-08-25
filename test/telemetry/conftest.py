@@ -266,15 +266,21 @@ def pytest_runtest_makereport(item, call):
 
     func_name = item.name
     tc_id = _TC_ID_MAP.get(func_name, get_last_tc_id() or "")
-    test_output = get_test_output()
 
-    result = "PASS" if call.excinfo is None else "FAIL"
+    status = "PASSED" if call.excinfo is None else "FAILED"
     if item.get_closest_marker("skip") or (
         call.excinfo and call.excinfo.typename == "Skipped"
     ):
-        result = "SKIP"
+        status = "SKIPPED"
 
-    add_session_result(tc_id, func_name, result, test_output)
+    duration = getattr(call, "duration", 0)
+
+    add_session_result(
+        test_name=func_name,
+        status=status,
+        duration=duration,
+        tc_id=tc_id,
+    )
 
 
 def pytest_sessionfinish(session, exitstatus):
