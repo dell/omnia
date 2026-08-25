@@ -308,22 +308,22 @@ dcgm_pod_label: "app=dcgm-exporter"
 # ---------------------------------------------------------------------------
 ufm_resources:
   - { type: "secret", name: "ufm-telemetry-credentials" }
-  - { type: "endpoints", name: "ufm-telemetry-external" }
-  - { type: "service", name: "ufm-telemetry-external" }
+  - { type: "endpoints", name: "ufm-external" }
+  - { type: "service", name: "ufm-external" }
   - { type: "vmservicescrape", name: "ufm-infiniband-metrics" }
 
-ufm_pod_label: "app=ufm-telemetry"
+ufm_pod_label: "app=ufm-external"
 
 # ---------------------------------------------------------------------------
 # VAST cleanup resources
 # ---------------------------------------------------------------------------
 vast_resources:
   - { type: "secret", name: "vast-telemetry-credentials" }
-  - { type: "endpoints", name: "vast-telemetry-external" }
-  - { type: "service", name: "vast-telemetry-external" }
+  - { type: "endpoints", name: "vast-external" }
+  - { type: "service", name: "vast-external" }
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
 
-vast_pod_label: "app=vast-telemetry"
+vast_pod_label: "app=vast-external"
 
 # ---------------------------------------------------------------------------
 # SFM cleanup resources

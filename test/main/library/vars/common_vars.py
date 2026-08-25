@@ -96,6 +96,7 @@ DOMAINS_WITH_INIT: List[str] = [
     "orchestrator",
     "repo_manager",
     "telemetry",
+    "utils",
 ]
 
 # =============================================================================
@@ -288,6 +289,14 @@ CMDS: Dict[str, str] = {
     "domain_input_file_count": (
         "find {data_path}/{domain}/input/{project}"
         " -type f 2>/dev/null | wc -l"
+    ),
+    "domain_output_dir_exists": (
+        "test -d {data_path}/{domain}/output/{project}"
+        " && echo exists"
+    ),
+    "domain_runtime_log_dir_exists": (
+        "test -d {data_path}/{domain}/log/{project}"
+        " && echo exists"
     ),
     # --- System ---
     "hostname_cmd": "hostname 2>/dev/null",

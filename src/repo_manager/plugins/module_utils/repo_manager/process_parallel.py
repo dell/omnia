@@ -428,6 +428,23 @@ def execute_parallel(
         user_registries, user_registry_credentials
     )
 
+    # Deduplicate tasks by package:tag:digest to prevent duplicate processing
+    seen_packages = set()
+    deduplicated_tasks = []
+    for task in tasks:
+        # Create unique key including tag and digest
+        tag = task.get('tag', '')
+        digest = task.get('digest', '')
+        package_key = f"{task.get('package', '')}:{tag}:{digest}"
+        
+        if package_key not in seen_packages:
+            seen_packages.add(package_key)
+            deduplicated_tasks.append(task)
+        else:
+            standard_logger.info(f"Skipping duplicate task: {package_key}")
+    
+    tasks = deduplicated_tasks
+
     # Create a pool of worker processes to handle the tasks
     with multiprocessing.Pool(processes=nthreads) as pool:
         task_results = []  # List to hold references to the async results of the tasks

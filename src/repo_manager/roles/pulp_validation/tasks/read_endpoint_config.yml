@@ -50,21 +50,17 @@
       ansible.builtin.fail:
         msg: "{{ endpoint_config_syntax_fail_msg }}"
 
-- name: Get pulp_server_ip from environment variable if not in config
-  ansible.builtin.set_fact:
-    pulp_server_ip_from_env: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') }}"
-
 - name: Validate required fields in endpoint config
   ansible.builtin.assert:
     that:
-      - (endpoint_config.pulp_server_ip is defined and endpoint_config.pulp_server_ip | length > 0) or (pulp_server_ip_from_env | length > 0)
+      - (endpoint_config.pulp_server_ip is defined and endpoint_config.pulp_server_ip | length > 0) or (admin_nic_ip is defined and admin_nic_ip | length > 0)
       - endpoint_config.pulp_server_port is defined
       - endpoint_config.pulp_protocol is defined
     fail_msg: "Required fields missing: pulp_server_ip (config or SYSTEM_ADMIN_NIC_IPV4 env var), pulp_server_port, pulp_protocol"
 
 - name: Set Pulp endpoint variables from config or environment
   ansible.builtin.set_fact:
-    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(pulp_server_ip_from_env) }}"
+    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(admin_nic_ip) }}"
     pulp_server_port: "{{ endpoint_config.pulp_server_port }}"
     pulp_protocol: "{{ endpoint_config.pulp_protocol }}"
     pulp_https_enabled: "{{ endpoint_config.pulp_https_enabled | default(true) }}"

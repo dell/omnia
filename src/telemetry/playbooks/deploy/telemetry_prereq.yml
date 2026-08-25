@@ -39,6 +39,15 @@
         name: collect_telemetry_credentials
       when: telemetry_credentials is not defined
 
+    - name: Expose credential fields as top-level facts for downstream roles
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ telemetry_credentials | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      no_log: true
+      when: telemetry_credentials is defined
+
     - name: Set bmc_group_data_path from idrac_telemetry_configurations (for iDRAC)
       ansible.builtin.set_fact:
         bmc_group_data_path: "{{ telemetry_config.idrac_telemetry_configurations.bmc_group_data_path }}"

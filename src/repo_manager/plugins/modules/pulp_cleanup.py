@@ -931,7 +931,7 @@ def remove_from_mirror_index(base_path: str, cluster_os_type: str, cluster_os_ve
     """Remove entries from pulp_mirror_index.json that match the given criteria.
 
     Args:
-        base_path: Base log path (e.g., /opt/omnia/log/repo_manager)
+        base_path: Base log path (e.g., $OMNIA_DATA_PATH/log/repo_manager)
         cluster_os_type: OS type (e.g., 'rhel')
         cluster_os_version: OS version (e.g., '10.0')
         logger: Logger instance

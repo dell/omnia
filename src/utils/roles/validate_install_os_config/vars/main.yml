@@ -1,0 +1,38 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Error messages
+config_file_missing_msg: >-
+  install_os_config.yml not found at '{{ _install_os_config_path }}'.
+  Please create the configuration file in the input directory.
+custom_iso_path_missing_msg: >-
+  'custom_iso_path' is required but not set in install_os_config.yml.
+  Provide the NFS path where the custom ISO will be stored/read.
+  Format: "nfs_server:/export_path/filename.iso"
+custom_iso_path_format_msg: >-
+  'custom_iso_path' must be in NFS URI format: "server:/path/filename.iso".
+  Got: '{{ install_os_config.custom_iso_path | default("") }}'
+source_iso_missing_msg: >-
+  'source_iso_path' is required for build_iso and generate_ks modes but is not set.
+target_bmc_missing_msg: >-
+  'target_bmc_ip' is required for deploy mode but is not set.
+target_hostname_missing_msg: >-
+  'target_hostname' is required for build operations but is not set.
+target_admin_ip_missing_msg: >-
+  'target_admin_ip' is required for deploy mode but is not set.
+invalid_architecture_msg: >-
+  'target_architecture' must be 'x86_64' or 'aarch64'. Got: '{{ _os_arch }}'
+invalid_ks_delivery_msg: >-
+  'kickstart_delivery_method' must be 'embedded' or 'nfs'. Got: '{{ install_os_config.kickstart_delivery_method | default("") }}'

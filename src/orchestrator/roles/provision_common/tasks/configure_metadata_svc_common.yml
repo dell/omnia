@@ -54,6 +54,37 @@
     label: "{{ entry.name }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Fetch existing metadata-service groups for delete-before-set - common
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: _existing_common_groups
+  failed_when: false
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Delete existing metadata-service common group entries
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: >-
+    {{ _existing_common_groups.json | default([])
+       | selectattr('metadata.name', 'in', _ms_group_bodies | default([]) | map(attribute='metadata.name') | list)
+       | list }}
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - _existing_common_groups.json | default([]) | length > 0
+
 - name: Set metadata-service group configuration - common (via metadata-service API)
   ansible.builtin.uri:
     url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
@@ -63,7 +94,7 @@
       Content-Type: "application/json"
     body_format: json
     body: "{{ item }}"
-    status_code: [200, 201, 409]
+    status_code: [200, 201]
     validate_certs: false
   loop: "{{ _ms_group_bodies | default([]) }}"
   loop_control:

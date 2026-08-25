@@ -28,40 +28,8 @@
 - name: "Cleanup iDRAC Telemetry"
   hosts: kube_vip_group
   gather_facts: false
-  vars_files:
-    - ../../../vars/cleanup.yml
   tasks:
-    - name: "IDRAC | Delete resources"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ idrac_resources + idrac_secret_resources }}"
-      loop_control:
-        label: "{{ item.type }}/{{ item.name }}"
-      changed_when: false
-      failed_when: false
-
-    - name: "IDRAC | Delete ConfigMaps by label"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete configmap -l {{ idrac_configmap_label }}
-        --ignore-not-found=true --wait=false
-      changed_when: false
-      failed_when: false
-
-    - name: "IDRAC | Delete PVCs"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete pvc -l {{ idrac_pvc_label }}
-        --ignore-not-found=true --wait=false
-      changed_when: false
-      failed_when: false
-
-    - name: "IDRAC | Force delete pods"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete pod -l {{ idrac_pod_label }}
-        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-      changed_when: false
-      failed_when: false
-
-    - name: "IDRAC | Cleanup complete"
-      ansible.builtin.debug:
-        msg: "iDRAC telemetry cleanup completed"
+    - name: "Run idrac cleanup"
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: idrac

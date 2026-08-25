@@ -60,7 +60,7 @@ Validation failed for repo_manager_config.yml
 **Fix**: Check the JSON schema validation:
 ```bash
 cd /root/oim-multi-repo/omnia/src/repo_manager/playbooks
-ansible-playbook repo_manager.yml --tags validate -vvv
+ansible-playbook repo_manager.yml --tags precheck -vvv
 ```
 
 Common issues:
@@ -217,7 +217,7 @@ ansible-playbook repo_manager.yml --tags cleanup
 
 ```bash
 cd /root/oim-multi-repo/omnia/src/repo_manager/playbooks
-ansible-playbook repo_manager.yml --tags validate -vvv
+ansible-playbook repo_manager.yml --tags precheck -vvv
 ```
 
 ### Verify Pulp distributions
@@ -252,7 +252,7 @@ podman logs pulp-worker
 
 ```bash
 cd /root/oim-multi-repo/omnia/src/repo_manager/playbooks
-ansible-playbook repo_manager.yml --tags validate --check
+ansible-playbook repo_manager.yml --tags precheck --check
 ```
 
 ### Test specific tags
@@ -374,5 +374,5 @@ If you have a backup of `repo_status.yml`:
 cp backup/repo_status.yml /opt/omnia/repo_manager/output/<project_name>/
 
 # Verify it's valid
-ansible-playbook repo_manager.yml --tags validate
+ansible-playbook repo_manager.yml --tags precheck
 ```

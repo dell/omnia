@@ -61,6 +61,11 @@
     - { regexp: '^DOCKER_STEPCA_INIT_DNS_NAMES=', line: 'DOCKER_STEPCA_INIT_DNS_NAMES=step-ca,step-ca.{{ cluster_domain }}' }
     - { regexp: '^TOKENSMITH_CLUSTER_ID=', line: 'TOKENSMITH_CLUSTER_ID={{ cluster_name }}-cluster' }
     - { regexp: '^TOKENSMITH_OPENCHAMI_ID=', line: 'TOKENSMITH_OPENCHAMI_ID={{ cluster_name }}-openchami' }
+    - { regexp: '^SMD_DBHOST=', line: 'SMD_DBHOST={{ smd_dbhost }}' }
+    - { regexp: '^SMD_DBPORT=', line: 'SMD_DBPORT={{ smd_dbport }}' }
+    - { regexp: '^SMD_DBNAME=', line: 'SMD_DBNAME={{ smd_dbname }}' }
+    - { regexp: '^SMD_DBUSER=', line: 'SMD_DBUSER={{ smd_dbuser }}' }
+    - { regexp: '^SMD_DBOPTS=', line: 'SMD_DBOPTS={{ smd_dbopts }}' }
   loop_control:
     label: "{{ item.regexp }}"
 
