@@ -43,10 +43,21 @@
       changed_when: false
       failed_when: false
 
-    - name: Include unencrypted file directly
-      ansible.builtin.include_vars: "{{ credential_file_path }}"
+    - name: Include unencrypted file directly into namespaced dict
+      ansible.builtin.include_vars:
+        file: "{{ credential_file_path }}"
+        name: build_stream_loaded_creds
       no_log: true
       when: is_encrypted.rc != 0
+
+    - name: Expose loaded credentials as individual facts (unencrypted)
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ build_stream_loaded_creds | default({}) | dict2items }}"
+      no_log: true
+      when:
+        - is_encrypted.rc != 0
+        - build_stream_loaded_creds is defined
 
     - name: Process encrypted file
       when: is_encrypted.rc == 0
@@ -68,8 +79,10 @@
           register: decrypt_result
           changed_when: false
 
-        - name: Include decrypted variables
-          ansible.builtin.include_vars: "{{ credential_file_path }}"
+        - name: Include decrypted variables into namespaced dict
+          ansible.builtin.include_vars:
+            file: "{{ credential_file_path }}"
+            name: build_stream_loaded_creds
           no_log: true
           when: decrypt_result is succeeded
 
@@ -79,6 +92,15 @@
             --vault-password-file "{{ vault_password_file }}"
           changed_when: false
           when: decrypt_result is succeeded
+
+        - name: Expose loaded credentials as individual facts
+          ansible.builtin.set_fact:
+            "{{ item.key }}": "{{ item.value }}"
+          loop: "{{ build_stream_loaded_creds | default({}) | dict2items }}"
+          no_log: true
+          when:
+            - decrypt_result is succeeded
+            - build_stream_loaded_creds is defined
 
   rescue:
     - name: Cleanup on decryption failure

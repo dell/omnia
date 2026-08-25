@@ -20,6 +20,11 @@
 # Validates, creates, and updates build_stream_credentials.yml only.
 # ============================================================================
 
+# --- Step 0: Initialize namespaced credential dict ---
+- name: Initialize build_stream_loaded_creds
+  ansible.builtin.set_fact:
+    build_stream_loaded_creds: {}
+
 # --- Step 1: Load build_stream_config.yml to check enable_build_stream ---
 - name: Load build_stream_config.yml
   block:
