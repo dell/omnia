@@ -39,7 +39,7 @@ omnia-cli version
 | `telemetry [--project <name>]` | Telemetry stack status |
 | `build-stream [--project <name>]` | Build stream (GitLab) status |
 | `utils [--project <name>]` | Shared utilities status |
-| `logs <domain>` | Browse and tail domain log files |
+| `logs <domain>` | Browse and tail domain log files (default: 30 logs, use --limit <n>) |
 | `vault edit <domain>` | Edit domain credentials file (Ansible Vault) |
 | `version` | Show Omnia version info |
 | `help [<domain>]` | Show help (or domain-specific help) |
@@ -47,6 +47,7 @@ omnia-cli version
 ## Options
 
 - `--project <name>` or `-p <name>` — Project name (default: `$OMNIA_PROJECT_NAME` or `project_default`)
+- `--limit <n>` or `-l <n>` — Maximum number of logs to display (default: 30, applies to `logs` command only)
 
 ## Examples
 
@@ -147,6 +148,8 @@ Browse and tail domain log files interactively. Searches the following locations
 ```bash
 ./omnia-cli logs image_build_manager
 ./omnia-cli logs repo_manager --project prod
+./omnia-cli logs orchestrator --limit 50
+./omnia-cli logs discovery -l 100
 ```
 
 ### vault edit

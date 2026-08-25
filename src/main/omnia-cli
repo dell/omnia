@@ -28,7 +28,7 @@
 #   ./omnia-cli status [--project <name>]
 #   ./omnia-cli check [--project <name>]
 #   ./omnia-cli edit <domain> [--project <name>]
-#   ./omnia-cli logs <domain> [--project <name>]
+#   ./omnia-cli logs <domain> [--project <name>] [--limit <n>]
 #   ./omnia-cli repo-manager [--project <name>]
 #   ./omnia-cli image-build [--project <name>]
 #   ./omnia-cli <domain> [--project <name>]
@@ -75,6 +75,9 @@ fi
 
 # Omnia release metadata
 readonly OMNIA_RELEASE="2.3.0.0"
+
+# Default log display limit (can be overridden with --limit)
+readonly DEFAULT_LOG_LIMIT=30
 
 # Known domains with their output status file patterns
 declare -A DOMAIN_STATUS_FILES=(
@@ -791,10 +794,13 @@ cmd_edit() {
 # Command: logs — View domain execution logs or ansible logs
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_logs() {
-    local domain="$1" project="$2"
+    local domain="$1" project="$2" limit="$3"
     local base="${OMNIA_DATA_PATH:-/opt/omnia}"
     local display_name
     display_name=$(echo "$domain" | tr '_' ' ')
+    
+    # Use provided limit or default
+    local log_limit="${limit:-$DEFAULT_LOG_LIMIT}"
 
     echo ""
     echo -e "${BOLD}${BLUE}${display_name} Logs${NC}  ${DIM}(project: ${project})${NC}"
@@ -845,7 +851,7 @@ cmd_logs() {
                     fmod=$(stat -c '%y' "$fpath" 2>/dev/null | cut -d. -f1 || echo "?")
                     echo -e "    ${CYAN}${idx})${NC} ${fname}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
                     log_arr+=("$fpath")
-                    [ "$idx" -ge 10 ] && break
+                    [ "$idx" -ge "$log_limit" ] && break
                 done <<< "$log_files"
                 echo ""
             fi
@@ -860,7 +866,7 @@ cmd_logs() {
             ansible_logs=$(find "$alog_dir" -maxdepth 3 \
                 \( -name "*${domain}*" -o -name "ansible*.log" \) \
                 -type f -printf '%T@ %p\n' 2>/dev/null \
-                | sort -rn | head -n 10)
+                | sort -rn | head -n "$log_limit")
             if [ -n "$ansible_logs" ]; then
                 found_logs=1
                 echo -e "  ${BOLD}Ansible logs${NC}  ${DIM}(${alog_dir})${NC}"
@@ -876,7 +882,7 @@ cmd_logs() {
                     amod=$(stat -c '%y' "$alog" 2>/dev/null | cut -d. -f1 || echo "?")
                     echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes, ${amod})${NC}"
                     log_arr+=("$alog")
-                    [ "$idx" -ge 20 ] && break
+                    [ "$idx" -ge "$log_limit" ] && break
                 done <<< "$ansible_logs"
                 echo ""
             fi
@@ -889,7 +895,7 @@ cmd_logs() {
     if [ -d "$output_dir" ]; then
         local output_logs
         output_logs=$(find "$output_dir" -maxdepth 3 -name "*.log" -type f \
-            -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 10)
+            -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n "$log_limit")
         if [ -n "$output_logs" ]; then
             found_logs=1
             echo -e "  ${BOLD}Output logs${NC}  ${DIM}(${output_dir})${NC}"
@@ -905,7 +911,7 @@ cmd_logs() {
                 omod=$(stat -c '%y' "$olog" 2>/dev/null | cut -d. -f1 || echo "?")
                 echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes, ${omod})${NC}"
                 log_arr+=("$olog")
-                [ "$idx" -ge 30 ] && break
+                [ "$idx" -ge "$log_limit" ] && break
             done <<< "$output_logs"
             echo ""
         fi
@@ -1053,6 +1059,7 @@ LOGS:
   Also checks \${OMNIA_DATA_PATH}/${domain}/log/ directly
   Shows ansible logs from /var/log/omnia/
   Offers to tail or view selected log in \$PAGER (default: less)
+  Default limit: 30 logs (use --limit <n> to change)
 EOF
             ;;
     esac
@@ -1066,13 +1073,13 @@ show_help() {
 ${BOLD}omnia-cli${NC} — Omnia Domain Status & Diagnostics CLI  v${OMNIA_RELEASE}
 
 USAGE:
-  omnia-cli <command> [--project <name>]
+  omnia-cli <command> [--project <name>] [--limit <n>]
 
 COMMANDS:
   ${BOLD}status${NC}              Show all domain statuses for a project
   ${BOLD}check${NC}               Validate input files and output existence for all domains
   ${BOLD}edit${NC} <domain>        List and edit input configuration files for a domain
-  ${BOLD}logs${NC} <domain>        View domain execution logs and ansible logs
+  ${BOLD}logs${NC} <domain>        View domain execution logs and ansible logs (default: 30, use --limit <n>)
   ${BOLD}repo-manager${NC}        Detailed repo_manager diagnostics
   ${BOLD}image-build${NC}         Detailed image_build_manager diagnostics
   ${BOLD}orchestrator${NC}        Orchestrator status
@@ -1085,6 +1092,7 @@ COMMANDS:
 
 OPTIONS:
   --project <name>    Project name (default: \$OMNIA_PROJECT_NAME or project_default)
+  --limit <n>         Max log entries to display (default: 30, logs command only)
 
 ENVIRONMENT:
   Export these variables (or source omnia.env) before running:
@@ -1102,6 +1110,7 @@ EXAMPLES:
   omnia-cli edit repo-manager               # Edit repo_manager input config files
   omnia-cli logs image-build                # View image_build_manager logs
   omnia-cli logs orchestrator --project prod # View orchestrator logs for 'prod'
+  omnia-cli logs repo-manager --limit 50     # Show up to 50 logs
   omnia-cli help repo-manager               # Domain-specific help
 
 SEE ALSO:
@@ -1138,12 +1147,17 @@ main() {
     # Parse --project flag and positional args from remaining args
     local project_flag=""
     local project=""
+    local log_limit=""
     local positional_args=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --project|-p)
                 project_flag="${2:-project_default}"
                 shift 2 || { echo -e "${RED}--project requires a value${NC}"; exit 1; }
+                ;;
+            --limit|-l)
+                log_limit="${2:-}"
+                shift 2 || { echo -e "${RED}--limit requires a value${NC}"; exit 1; }
                 ;;
             *)
                 positional_args+=("$1")
@@ -1159,6 +1173,13 @@ main() {
     if [[ ! "$project" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]]; then
         echo -e "${RED}Invalid project name: '${project}'${NC}" >&2
         echo -e "${DIM}Allowed: letters, digits, underscore, hyphen, dot${NC}" >&2
+        exit 1
+    fi
+
+    # Validate log limit (must be a positive integer)
+    if [ -n "$log_limit" ] && ! [[ "$log_limit" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}Invalid --limit value: '${log_limit}'${NC}" >&2
+        echo -e "${DIM}Must be a positive integer${NC}" >&2
         exit 1
     fi
 
@@ -1194,7 +1215,7 @@ main() {
         logs|log)
             if [ "${#positional_args[@]}" -eq 0 ]; then
                 echo -e "${RED}logs requires a domain argument${NC}"
-                echo -e "Usage: omnia-cli logs <domain> [--project <name>]"
+                echo -e "Usage: omnia-cli logs <domain> [--project <name>] [--limit <n>]"
                 echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream, utils"
                 exit 1
             fi
@@ -1204,7 +1225,7 @@ main() {
                 echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
                 exit 1
             fi
-            cmd_logs "$domain" "$project" || true
+            cmd_logs "$domain" "$project" "$log_limit" || true
             ;;
         version|--version|-v)
             cmd_version
