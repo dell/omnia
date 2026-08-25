@@ -29,30 +29,33 @@ Usage (via run_validation.sh or run_validation CLI)::
 import os
 import sys
 
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Ensure library/ is importable
-sys.path.insert(0, _SCRIPT_DIR)
+def main():
+    """Load domain config and run ValidationRunner."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, script_dir)
 
-from library.vars.domain_vars import (  # noqa: E402
-    DOMAIN_NAME,
-    FVT_TAGS,
-    MARKERS,
-    SUITES,
-    EXCLUDE_TAGS,
-)
-from omnia_auto.functions.validation_runner import (  # noqa: E402
-    ValidationRunner,
-)
+    from library.vars.domain_vars import (
+        DOMAIN_NAME,
+        FVT_TAGS,
+        MARKERS,
+        SUITES,
+        EXCLUDE_TAGS,
+    )
+    from omnia_auto.functions.validation_runner import ValidationRunner
 
-runner = ValidationRunner(
-    domain=DOMAIN_NAME,
-    script_dir=_SCRIPT_DIR,
-    domain_config={
-        "tags": FVT_TAGS,
-        "markers": MARKERS,
-        "suites": SUITES,
-        "exclude_tags": EXCLUDE_TAGS,
-    },
-)
-sys.exit(runner.main(sys.argv[1:]))
+    runner = ValidationRunner(
+        domain=DOMAIN_NAME,
+        script_dir=script_dir,
+        domain_config={
+            "tags": FVT_TAGS,
+            "markers": MARKERS,
+            "suites": SUITES,
+            "exclude_tags": EXCLUDE_TAGS,
+        },
+    )
+    sys.exit(runner.main(sys.argv[1:]))
+
+
+if __name__ == "__main__":
+    main()
