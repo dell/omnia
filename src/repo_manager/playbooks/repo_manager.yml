@@ -104,7 +104,6 @@
   tags:
     - execute
     - download
-    - execute
 
 # -------------------------------------------------------------------------
 # GENERATE STATUS
@@ -121,7 +120,6 @@
   ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_pulp.yml"
   tags:
     - never
-    - cleanup_pulp
     - cleanup
 
 # -------------------------------------------------------------------------
@@ -132,7 +130,6 @@
   tags:
     - never
     - cleanup_repos
-    - cleanup
 
 # -------------------------------------------------------------------------
 # UPGRADE (Placeholder)
