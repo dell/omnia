@@ -131,7 +131,7 @@
 
 - name: Configure SSH on OIM with Host * when all groups are present in nodes.yaml
   ansible.builtin.blockinfile:
-    path: "{{ ssh_private_key_path }}"
+    path: "{{ oim_ssh_config_path }}"
     create: true
     mode: '0600'
     marker: "# {mark} OMNIA_CLUSTER_SSH"
@@ -139,11 +139,14 @@
       Host *
           IdentityFile ~/.ssh/oim_rsa
           IdentitiesOnly yes
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+          LogLevel ERROR
   when: all_group_names_present
 
 - name: Configure SSH on OIM with derived hostname/IP patterns when groups are incomplete
   ansible.builtin.blockinfile:
-    path: "{{ ssh_private_key_path }}"
+    path: "{{ oim_ssh_config_path }}"
     create: true
     mode: '0600'
     marker: "# {mark} OMNIA_CLUSTER_SSH"
@@ -155,6 +158,9 @@
                | join(' ') }}
           IdentityFile ~/.ssh/oim_rsa
           IdentitiesOnly yes
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+          LogLevel ERROR
   when:
     - not all_group_names_present | default(false) | bool
     - omnia_cluster_ssh_matches | default([]) | length > 0

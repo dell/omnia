@@ -13,7 +13,8 @@
         settings: [no_replace, recurse_list]
       users:
         - name: root
-          ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
+          ssh_authorized_keys:
+            - "{{ read_ssh_key.stdout }}"
           lock_passwd: false
           hashed_passwd: "{{ hashed_password_output.stdout }}"
         - name: {{ slurm_user }}
@@ -78,6 +79,8 @@
             Host {{ slurm_control_ssh_patterns }}
                 IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
                 IdentitiesOnly yes
+                StrictHostKeyChecking no
+                UserKnownHostsFile /dev/null
 
 
 {% if hostvars['localhost']['openldap_support'] %}
