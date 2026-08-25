@@ -11,14 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""omnia-auto — Variables"""
-
-from .common_vars import (
-    configure,
-    get_setting,
-    init_module_root,
-    get_module_root,
-)
-
-from .validation_vars import COMMANDS

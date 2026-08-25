@@ -86,6 +86,9 @@ from .functions.runner_func import run_playbook
 # --- Sync ---
 from .functions.sync_func import clone_repo, sync_files
 
+# --- Validation Runner ---
+from .functions.validation_runner import ValidationRunner
+
 __all__ = [
     "__version__",
     # Config
@@ -128,4 +131,6 @@ __all__ = [
     # Sync
     "clone_repo",
     "sync_files",
+    # Validation Runner
+    "ValidationRunner",
 ]

@@ -57,7 +57,7 @@ def _format_pkg_details(result):
 
 @pytest.mark.x86_64
 @pytest.mark.sanity
-@pytest.mark.order(9)
+@pytest.mark.order(13)
 def test_image_packages_x86_64(host):
     """Verify packages in x86_64 S3 images."""
     tc = TC["packages_x86_64"]
@@ -92,7 +92,7 @@ def test_image_packages_x86_64(host):
 
 @pytest.mark.aarch64
 @pytest.mark.sanity
-@pytest.mark.order(10)
+@pytest.mark.order(14)
 def test_image_packages_aarch64(host):
     """Verify packages in aarch64 S3 images."""
     tc = TC["packages_aarch64"]

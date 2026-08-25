@@ -16,35 +16,43 @@
 # Test Run Configuration — Image Build Manager
 # =============================================================================
 #
-# Configure which test suites to run, execution order, and marker filters.
+# Configure which test categories to run, execution order, and marker filters.
 #
 # Usage:
-#   1. Edit this file to enable/disable suites and set markers
+#   1. Edit this file to enable/disable scenarios and set markers
 #   2. Run: ./run_validation.sh --config
 #
 # -----------------------------------------------------------------------------
-# Suite definitions
+# Category Structure
 # -----------------------------------------------------------------------------
-# Each suite has:
-#   order:       <int>         - Execution order (ascending). Order values MUST
-#                                be unique across enabled suites; duplicate
-#                                order values are a configuration error.
-#   run:         true/false    - Whether to execute this suite
-#   command:     <string>      - Execution mode: exec, verify, or test (default: test)
-#                                exec    = Run the playbook only
-#                                verify  = Run verification tests only (skip playbook)
-#                                test    = Exec + Verify (full flow)
-#   suite:       <folder>      - FVT subfolder to run (e.g., container, s3, registry)
-#   marker:      <expression>  - Marker filter expression (empty = all tests)
+# Top-level categories match the run_validation.sh first argument:
 #
-# NOTE: The scenario name is used as the Ansible playbook tag automatically.
-#       For example, scenario "build" runs --tags build.
-#   dataset:     <name>        - (optional) Override dataset from test_config.yml
-#                                Must be a valid folder under datasets/
-#   sync_input:  true/false    - (optional) Override sync_image_build_input
-#   sync_output: true/false    - (optional) Override sync_output
+#   fvt_image_build_manager  — Functional Verification Tests (playbook tags)
+#   nft_image_build_manager  — Non-Functional Tests (performance, idempotency)
+#   ut_image_build_manager   — Unit Tests (offline validation)
 #
-# Marker expression syntax:
+# FVT scenarios (nested under fvt_image_build_manager):
+#   Each scenario maps to an Ansible playbook tag.  Fields:
+#     run:          true/false    - Whether to execute this scenario
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook only
+#                                   verify = Run verification tests only
+#                                   test   = Exec + Verify (full flow)
+#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#     marker:       <expression>  - Marker filter expression (empty = all)
+#     dataset:      <name>        - Override dataset from test_config.yml
+#                                   Must be a valid folder under datasets/
+#     sync_input:   true/false    - Override sync_image_build_input
+#     sync_output:  true/false    - Override sync_output
+#
+# NFT / UT (top-level, no nested scenarios):
+#   run:          true/false    - Whether to execute
+#   command:      <string>      - test or verify
+#   marker:       <expression>  - Marker filter (empty = all tests)
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
 #   Single:   "x86_64"                  — tests with @pytest.mark.x86_64
 #   OR:       "x86_64,aarch64"          — tests with EITHER marker
 #   AND:      "x86_64+sanity"           — tests with BOTH markers
@@ -52,35 +60,26 @@
 #
 # Available markers:
 #   Architecture:  x86_64, aarch64
-#   Quality:       sanity, functional, regression
+#   Quality:       sanity, functional
+#   Execution:     deploy, nft
 #
-# Available suites (under fvt/):
-#   prepare               — Deploy with --tags prepare, then verify containers
-#                            and S3 buckets are set up.
-#                            Supported markers: sanity
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   precheck:       connectivity
+#   validate:       status
+#   prepare:        container, s3
+#   build:          s3, registry, naming, image_verification
+#   cleanup:        cleanup
+#   cleanup_images: (no suites)
 #
-#   build                 — Deploy with --tags build, then verify S3 images,
-#                            registry images, build_status.yml, functional groups.
-#                            Supported markers: x86_64, aarch64, sanity
-#
-#   validate              — Deploy with --tags validate, then verify
-#                            validation output and build_status.yml.
-#                            Supported markers: sanity
-#
-#   cleanup               — Deploy with --tags cleanup, then verify containers
-#                            removed and S3/registry artifacts cleaned.
-#                            Supported markers: sanity
 # =============================================================================
 
 ---
 
 # =============================================================================
-# Execution Options
+# Global Overrides
 # =============================================================================
-# skip_on_failure: Stop the current suite on first test failure.
-#                  When false (default), all tests run regardless of failures.
-skip_on_failure: false
-
 # dataset_override: Override the dataset from test_config.yml for ALL scenarios.
 #   When set, this takes precedence over both test_config.yml dataset and
 #   per-scenario dataset overrides below.
@@ -95,98 +94,78 @@ skip_on_failure: false
 # sync_output_override: Override sync_output for ALL scenarios.
 # sync_output_override: false
 
-scenarios:
+# =============================================================================
+# Execution Options
+# =============================================================================
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
+skip_on_failure: false
 
-  # =========================================================================
-  # prepare — Deploy prepare + verify containers/S3
-  # =========================================================================
-  # Runs: ansible-playbook image_build_manager.yml --tags prepare
-  # Then verifies: MinIO container, registry container, S3 buckets created.
-  #
-  # Supported suites (subfolders inside fvt/prepare/):
-  #   container — MinIO and registry container checks
-  #   s3        — S3 bucket verification
-  #
-  # Supported markers:
-  #   sanity    — All prepare tests are sanity baseline
-  #   deploy    — Playbook deployment test
-  prepare:
-    order: 10
+# =============================================================================
+# FVT — Functional Verification Tests
+# =============================================================================
+fvt_image_build_manager:
+  precheck:
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: true
-    # sync_output: false
-
-  # =========================================================================
-  # build — Deploy build + verify images
-  # =========================================================================
-  # Runs: ansible-playbook image_build_manager.yml --tags build
-  # Then verifies: S3 images pushed, registry images, build_status.yml,
-  # functional groups built.
-  #
-  # Supported suites (subfolders inside fvt/build/):
-  #   s3       — S3 image verification per arch
-  #   registry — Registry images, build status, functional groups
-  #
-  # Supported markers:
-  #   x86_64    — x86_64 image verification
-  #   aarch64   — aarch64 image verification
-  #   sanity    — Baseline must-pass tests
-  #   deploy    — Playbook deployment test
-  build:
-    order: 20
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: false
-    # sync_output: false
-
-  # =========================================================================
-  # validate — Deploy validate + verify status
-  # =========================================================================
-  # Runs: ansible-playbook image_build_manager.yml --tags validate
-  # Then verifies: build_status.yml after validation pass.
-  #
-  # Supported suites (subfolders inside fvt/validate/):
-  #   status — build_status.yml verification
-  #
-  # Supported markers:
-  #   sanity    — Baseline must-pass tests
-  #   deploy    — Playbook deployment test
+    dataset: ""
+    sync_input: false
+    sync_output: false
   validate:
-    order: 30
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: false
-    # sync_output: false
-
-  # =========================================================================
-  # cleanup — Deploy cleanup + verify removal
-  # =========================================================================
-  # Runs: ansible-playbook image_build_manager.yml --tags cleanup
-  # Then verifies: containers stopped/removed, S3 buckets cleaned,
-  # registry artifacts removed.
-  #
-  # Supported suites (subfolders inside fvt/cleanup/):
-  #   cleanup — Container removal and S3 artifact cleanup verification
-  #
-  # Supported markers:
-  #   sanity    — Baseline must-pass tests
-  #   deploy    — Playbook deployment test
+    dataset: ""
+    sync_input: false
+    sync_output: false
+  prepare:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+  build:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
   cleanup:
-    order: 40
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: false
-    # sync_output: false
+    dataset: ""
+    sync_input: false
+    sync_output: false
+  cleanup_images:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+
+# =============================================================================
+# NFT — Non-Functional Tests
+# =============================================================================
+nft_image_build_manager:
+  run: false
+  command: "test"
+  marker: ""
+
+# =============================================================================
+# UT — Unit Tests
+# =============================================================================
+ut_image_build_manager:
+  run: false
+  command: "test"
+  marker: ""

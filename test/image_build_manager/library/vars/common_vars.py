@@ -153,6 +153,12 @@ IMAGE_TYPE_DISPLAY = {
 # Functional group packages filename
 FG_PACKAGES_FILENAME = "functional_group_packages.yml"
 
+# Package groups config filename (config-mode fallback)
+PACKAGE_GROUPS_FILENAME = "package_groups.yml"
+
+# Catalog file env var (catalog mode — on target host)
+ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
+
 # =============================================================================
 # SQUASHFS / IMAGE VERIFICATION PATHS
 # =============================================================================

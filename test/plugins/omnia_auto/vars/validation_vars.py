@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""omnia-auto — Variables"""
+"""
+Shared validation runner constants.
 
-from .common_vars import (
-    configure,
-    get_setting,
-    init_module_root,
-    get_module_root,
-)
+Domain-agnostic values used by ``ValidationRunner``.  Domain-specific
+variables (tags, markers, suites) live in each domain's
+``library/vars/domain_vars.py``.
+"""
 
-from .validation_vars import COMMANDS
+from typing import Tuple
+
+# =====================================================================
+# Supported commands — shared across all domains
+# =====================================================================
+
+COMMANDS: Tuple[str, ...] = ("exec", "verify", "test")

@@ -98,7 +98,7 @@ def test_registry_images_aarch64(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(6)
+@pytest.mark.order(5)
 def test_build_status(host):
     """Verify build_status.yml after build."""
     tc = TC["build_status_file"]
@@ -119,7 +119,7 @@ def test_build_status(host):
 
 @pytest.mark.x86_64
 @pytest.mark.sanity
-@pytest.mark.order(7)
+@pytest.mark.order(6)
 def test_functional_groups_x86_64(host):
     """Verify functional groups built after build tag."""
     tc = TC["functional_groups_x86_64"]
@@ -149,7 +149,7 @@ def test_functional_groups_x86_64(host):
 
 @pytest.mark.aarch64
 @pytest.mark.sanity
-@pytest.mark.order(8)
+@pytest.mark.order(7)
 def test_functional_groups_aarch64(host):
     """Verify aarch64 functional groups built after build tag."""
     tc = TC["functional_groups_aarch64"]

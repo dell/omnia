@@ -70,7 +70,7 @@ bash setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret 
 
 # Step 5 — Activate environment (if using --venv mode)
 source .venv/bin/activate            # For --venv mode
-source .run_validation_rc            # For baremetal mode (tab completion)
+# No extra sourcing needed for baremetal
 
 # Step 6 — (Optional) Generate a dataset for custom input
 cd datasets/generator/
@@ -80,7 +80,7 @@ cd ../..
 # Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
 
 # Step 7 — Run tests
-./run_validation.sh prepare verify --marker sanity
+./run_validation.sh fvt_image_build_manager precheck verify
 ```
 
 ### Setup Modes
@@ -137,12 +137,25 @@ These flags do **not** require `oim_server_ip` — they only write to the local 
 
 ## Running Tests
 
+Run from inside the `test/image_build_manager/` directory:
+
 ```
-./run_validation.sh image_build_manager <command>             # All tags except cleanup
-./run_validation.sh image_build_manager <tag> <command>        # Specific tag
-./run_validation.sh image_build_manager list                   # List available tags
-./run_validation.sh --config                                   # Batch from test_run_config.yml
+./run_validation.sh fvt_image_build_manager <command>             # All tags except cleanup
+./run_validation.sh fvt_image_build_manager <tag> <command>        # Specific tag
+./run_validation.sh fvt_image_build_manager list                   # List available tags
+./run_validation.sh nft_image_build_manager <command>              # NFT tests
+./run_validation.sh ut_image_build_manager <command>               # Unit tests
+./run_validation.sh --config                                       # Batch from test_run_config.yml
+./run_validation.sh --help                                         # Full help
 ```
+
+### Categories
+
+| Category | Description |
+|----------|-------------|
+| `fvt_image_build_manager` | Functional Verification Tests (playbook tags) |
+| `nft_image_build_manager` | Non-Functional Tests (performance, idempotency) |
+| `ut_image_build_manager` | Unit Tests (offline validation) |
 
 ### Commands
 
@@ -152,7 +165,7 @@ These flags do **not** require `oim_server_ip` — they only write to the local 
 | `verify` | Run verification tests only (no playbook) |
 | `test` | Full flow: exec + verify |
 
-### Tags
+### FVT Tags
 
 | Tag | Playbook Tag | What It Tests |
 |-----|-------------|---------------|
@@ -172,14 +185,8 @@ The naming tests (`naming/` suite) run automatically within the `build` tag.
 
 ```bash
 # Run only naming convention tests
-./run_validation.sh image_build_manager build verify --suite naming
-./run_validation.sh image_build_manager build verify --suite naming --marker x86_64+sanity
-```
-
-### NFT
-
-```bash
-./run_validation.sh nft test    # Performance thresholds and idempotency
+./run_validation.sh fvt_image_build_manager build verify --suite naming
+./run_validation.sh fvt_image_build_manager build verify --suite naming --marker x86_64+sanity
 ```
 
 ### Options
@@ -201,33 +208,35 @@ The naming tests (`naming/` suite) run automatically within the `build` tag.
 
 Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 
-### More Examples
+### Examples
 
 ```bash
-# Marker expressions
-./run_validation.sh image_build_manager build test --marker x86_64+sanity    # x86_64 AND sanity
-./run_validation.sh image_build_manager build test --marker x86_64,aarch64   # x86_64 OR aarch64
-./run_validation.sh image_build_manager build verify --suite registry        # Registry tests only
-./run_validation.sh image_build_manager build verify --suite naming          # Naming tests only
+# FVT
+./run_validation.sh fvt_image_build_manager build test --marker x86_64+sanity
+./run_validation.sh fvt_image_build_manager build verify --suite registry
+./run_validation.sh fvt_image_build_manager build verify --suite naming
+./run_validation.sh fvt_image_build_manager list
 
-# Config-driven execution
-./run_validation.sh --config                                                 # Run test_run_config.yml
+# NFT
+./run_validation.sh nft_image_build_manager test
 
-# List tags and test counts
-./run_validation.sh image_build_manager list
+# UT
+./run_validation.sh ut_image_build_manager test
+
+# Config-driven batch
+./run_validation.sh --config
 ```
 
 ### Typical Workflow
 
 ```bash
-./run_validation.sh image_build_manager precheck verify                 # 0. Precheck environment
-./run_validation.sh image_build_manager cleanup test                    # 1. Clean previous state
-./run_validation.sh image_build_manager validate test                   # 2. Validate inputs
-./run_validation.sh image_build_manager prepare test                    # 3. Prepare infrastructure
-./run_validation.sh image_build_manager build test --marker x86_64      # 4. Build images
-./run_validation.sh image_build_manager build verify --suite naming     # 4b. Naming convention
-./run_validation.sh image_build_manager verify --marker sanity          # 5. Full verification
-./run_validation.sh nft test                                            # 6. Performance
+./run_validation.sh fvt_image_build_manager precheck verify             # 0. Precheck environment
+./run_validation.sh fvt_image_build_manager cleanup test                # 1. Clean previous state
+./run_validation.sh fvt_image_build_manager validate test               # 2. Validate inputs
+./run_validation.sh fvt_image_build_manager prepare test                # 3. Prepare infrastructure
+./run_validation.sh fvt_image_build_manager build test --marker x86_64  # 4. Build images
+./run_validation.sh fvt_image_build_manager verify --marker sanity      # 5. Full verification
+./run_validation.sh nft_image_build_manager test                        # 6. Performance
 ```
 
 ---
@@ -354,7 +363,8 @@ See [`fvt/README.md`](fvt/README.md) for the complete test case registry.
 ```
 test/image_build_manager/
 ├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
-├── run_validation.sh            # CLI runner (FVT + NFT)
+├── run_validation.sh            # Shell entry point (delegates to _run.py)
+├── _run.py                      # Python entry point (loads domain vars, creates runner)
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
 ├── test_creds.yml               # All credentials: SSH + S3 + aarch64 (Ansible Vault, gitignored)
@@ -374,7 +384,7 @@ test/image_build_manager/
 │
 ├── library/                     # Reusable automation library
 │   ├── functions/               # host_func, build_image_func, validation_func
-│   ├── vars/                    # Constants, paths, commands (common_vars)
+│   ├── vars/                    # Constants, paths, commands (common_vars, domain_vars)
 │   └── messages/                # Test names, log/assert messages
 │
 ├── fvt/                         # Functional Verification Tests
@@ -394,6 +404,7 @@ test/image_build_manager/
 │   ├── cleanup/                 # Cleanup tag
 │   │   └── cleanup/
 │   └── cleanup_images/          # Cleanup images tag
+│       └── cleanup_images/
 │
 ├── nft/                         # Non-Functional Tests
 │   ├── README.md                # NFT documentation (thresholds, execution)

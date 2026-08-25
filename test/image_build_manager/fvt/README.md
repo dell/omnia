@@ -46,40 +46,40 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 ## build
 
-| TC ID | Test | Suite | Markers | Description |
-|-------|------|-------|---------|-------------|
-| TC_BD_001 | `test_deploy_build` | *(root)* | deploy, sanity | Deploy image_build_manager --tags build |
-| TC_BD_002 | `test_s3_images_x86_64` | s3/ | x86_64, sanity | Verify x86_64 images pushed to S3 |
-| TC_BD_003 | `test_s3_images_aarch64` | s3/ | aarch64, sanity | Verify aarch64 images pushed to S3 |
-| TC_BD_004 | `test_registry_images_x86_64` | registry/ | x86_64, sanity | Verify x86_64 images in registry |
-| TC_BD_005 | `test_build_status` | registry/ | x86_64, aarch64, sanity | Verify build_status.yml reports success |
-| TC_BD_006 | `test_functional_groups_x86_64` | registry/ | x86_64, sanity | Verify all x86_64 functional groups built |
-| TC_BD_012 | `test_registry_images_aarch64` | registry/ | aarch64, sanity | Verify aarch64 images in registry |
-| TC_BD_013 | `test_functional_groups_aarch64` | registry/ | aarch64, sanity | Verify all aarch64 functional groups built |
-| TC_BD_014 | `test_image_packages_x86_64` | image_verification/ | x86_64, sanity | Verify packages installed in x86_64 S3 images |
-| TC_BD_015 | `test_image_packages_aarch64` | image_verification/ | aarch64, sanity | Verify packages installed in aarch64 S3 images |
-| TC_BD_016 | `test_repo_ssl_verify_applied` | *(validate/status)* | x86_64, functional | Verify repo_ssl_verify is applied in build templates |
+| TC ID | Test | Suite | Order | Markers | Description |
+|-------|------|-------|-------|---------|-------------|
+| TC_BD_001 | `test_deploy_build` | *(root)* | 0 | deploy, sanity | Deploy image_build_manager --tags build |
+| TC_BD_002 | `test_s3_images_x86_64` | s3/ | 1 | x86_64, sanity | Verify x86_64 images pushed to S3 |
+| TC_BD_003 | `test_s3_images_aarch64` | s3/ | 2 | aarch64, sanity | Verify aarch64 images pushed to S3 |
+| TC_BD_004 | `test_registry_images_x86_64` | registry/ | 3 | x86_64, sanity | Verify x86_64 images in registry |
+| TC_BD_012 | `test_registry_images_aarch64` | registry/ | 4 | aarch64, sanity | Verify aarch64 images in registry |
+| TC_BD_005 | `test_build_status` | registry/ | 5 | sanity | Verify build_status.yml reports success |
+| TC_BD_006 | `test_functional_groups_x86_64` | registry/ | 6 | x86_64, sanity | Verify all x86_64 functional groups built |
+| TC_BD_013 | `test_functional_groups_aarch64` | registry/ | 7 | aarch64, sanity | Verify all aarch64 functional groups built |
+| TC_BD_014 | `test_image_packages_x86_64` | image_verification/ | 13 | x86_64, sanity | Verify packages installed in x86_64 S3 images |
+| TC_BD_015 | `test_image_packages_aarch64` | image_verification/ | 14 | aarch64, sanity | Verify packages installed in aarch64 S3 images |
+| TC_BD_016 | `test_repo_ssl_verify_applied` | *(validate/status)* | 4 | x86_64, functional | Verify repo_ssl_verify is applied in build templates |
 
 ### Build-type naming convention
 
 These cases verify that the `-imgbld` / `-imgth` artifact suffix is applied correctly
 so the two build engines never overwrite each other's registry images or S3 objects.
 
-| TC ID | Test | Suite | Markers | image_build_type | Description |
-|-------|------|-------|---------|-----------------|-------------|
-| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | Registry repos carry `-imgbld` suffix; no `-imgth` contamination |
-| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | x86_64, sanity | image-builder | S3 boot-images paths carry `-imgbld`; no `-imgth` contamination |
-| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | Registry repos carry `-imgth` suffix; no `-imgbld` contamination |
-| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-imgth`; no `-imgbld` contamination |
-| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | x86_64, functional | both | `-imgbld` and `-imgth` base names never collide in registry or S3 |
+| TC ID | Test | Suite | Order | Markers | image_build_type | Description |
+|-------|------|-------|-------|---------|-----------------|-------------|
+| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | 8 | x86_64, sanity | image-builder | Registry repos carry `-imgbld` suffix |
+| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | 9 | x86_64, sanity | image-builder | S3 boot-images paths carry `-imgbld` |
+| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | 10 | x86_64, sanity | image-thrillhouse | Registry repos carry `-imgth` suffix |
+| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | 11 | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-imgth` |
+| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | 12 | x86_64, functional | both | `-imgbld` and `-imgth` paths never collide |
 
 > **Skip behaviour**: TC_BD_007/008 skip automatically when `image_build_type = image-thrillhouse`
 > and TC_BD_009/010 skip when `image_build_type = image-builder`.  TC_BD_011 runs in all cases.
 
 > **Running naming tests only**:
 > ```bash
-> ./run_validation.sh image_build_manager build verify --suite naming
-> ./run_validation.sh image_build_manager build verify --suite naming --marker x86_64+sanity
+> ./run_validation.sh fvt_image_build_manager build verify --suite naming
+> ./run_validation.sh fvt_image_build_manager build verify --suite naming --marker x86_64+sanity
 > ```
 
 ---
