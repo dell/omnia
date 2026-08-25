@@ -1102,8 +1102,7 @@ summary:
           {
             "copy-input-files": 1,
             "create-local-repository": 2,
-            "build-image-x86_64": 3,
-            "build-image-aarch64": 3
+            "build-image": 3
           };
 
         # Filter to build stages only, then sort by execution order
