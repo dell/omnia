@@ -181,12 +181,15 @@
         telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
         cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
         slurm_inv: "{{ hostvars[groups['kube_vip_group'][0]]['slurm_inv'] | default({}) }}"
+        cluster_inv: "{{ hostvars['localhost']['cluster_inv'] | default({}) }}"
       when: hostvars['localhost']['telemetry_config'] is defined
 
     - name: Configure LDMS aggregator on control node
       ansible.builtin.include_role:
         name: deploy_ldms
         tasks_from: configure_ldms_aggregator
+      vars:
+        slurm_inv: "{{ hostvars[groups['kube_vip_group'][0]]['slurm_inv'] | default({}) }}"
 
 - name: Configure LDMS Sampler on Slurm Compute Nodes
   hosts: slurm_node

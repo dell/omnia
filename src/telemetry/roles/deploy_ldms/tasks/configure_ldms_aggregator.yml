@@ -25,6 +25,7 @@
   ansible.builtin.stat:
     path: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
   register: values_file_exists
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Copy LDMS aggregator Helm chart files
   ansible.builtin.copy:
@@ -32,24 +33,28 @@
     dest: "{{ ldms_share_path }}"
     mode: "{{ common_mode }}"
   when: not values_file_exists.stat.exists
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Copy LDMS decompose.json
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nersc-ldms-aggr/scripts/decomp.json"
     dest: "{{ ldms_share_path }}/nersc-ldms-aggr/scripts/decomp.json"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Generate LDMS machine config
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/ldms_machine_config.json.j2"
     dest: "{{ ldms_share_path }}/nersc-ldms-aggr/ldms_machine_config.json"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Generate LDMS host map
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/host_map.slurm-cluster.json.j2"
     dest: "{{ ldms_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Clean up previous build artifacts before make
   ansible.builtin.file:
@@ -60,42 +65,61 @@
     - out_dir
     - manifest.yaml
     - values.yaml
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Run make command inside LDMS directory
   ansible.builtin.shell: make clean all && make
   changed_when: true
   args:
     chdir: "{{ ldms_share_path }}/nersc-ldms-aggr"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Render values.yaml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/values.yaml.j2"
     dest: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Check if munge key exists
   ansible.builtin.stat:
-    path: "{{ slurm_config_path }}/munge.key"
+    path: "{{ munge_key_path }}"
   register: munge_key_check
 
-- name: Copy munge key from slurm config
+- name: Fetch munge key from slurm control node
+  ansible.builtin.fetch:
+    src: "{{ munge_key_path }}"
+    dest: "/tmp/munge.key"
+    flat: true
+  when: munge_key_check.stat.exists
+
+- name: Copy munge key to kube_vip host
   ansible.builtin.copy:
-    src: "{{ slurm_config_path }}/munge.key"
+    src: "/tmp/munge.key"
     dest: "{{ ldms_share_path }}/munge.key"
     mode: "{{ file_permissions_400 }}"
-    remote_src: true
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when: munge_key_check.stat.exists
 
 - name: Warn if munge key not found
   ansible.builtin.debug:
-    msg: "WARNING: Munge key not found at {{ slurm_config_path }}/munge.key. LDMS authentication may not work properly."
+    msg: "WARNING: Munge key not found at {{ munge_key_path }}. LDMS authentication may not work properly."
   when: not munge_key_check.stat.exists
+
+- name: Ensure ldms_sampler_password is available for aggregator
+  ansible.builtin.set_fact:
+    ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
+  when:
+    - telemetry_credentials is defined
+    - telemetry_credentials.ldms_sampler_password is defined
+  no_log: true
 
 - name: Render ldmsauth.conf to LDMS directory
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/ldmsauth.conf.j2"
     dest: "{{ ldms_share_path }}/ldmsauth.conf"
     mode: "{{ file_permissions_600 }}"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
 
 - name: Log LDMS aggregator configuration complete
   ansible.builtin.debug:
@@ -104,6 +128,10 @@
 # =============================================================================
 # Deploy LDMS aggregator Helm chart to Kubernetes
 # =============================================================================
+# All Helm and kubectl tasks are delegated to the kube_vip host because
+# configure_ldms_aggregator is called from the slurm_control_node play,
+# which does not have helm/kubectl or kubeconfig access.
+# =============================================================================
 
 - name: Check if host map has nodes (non-empty)
   ansible.builtin.shell: >
@@ -111,6 +139,7 @@
   register: host_map_count
   changed_when: false
   failed_when: false
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   # noqa: risky-shell-pipe
 
 - name: Skip Helm deploy if no nodes configured
@@ -118,12 +147,58 @@
     msg: "No Slurm nodes configured in host map. Skipping LDMS aggregator Helm deployment."
   when: host_map_count.stdout | default('0') | int == 0
 
+# ---- Create K8s secrets required by the Helm chart ----
+
+- name: Check if nersc-munge-key secret exists
+  ansible.builtin.command: >
+    kubectl get secret nersc-munge-key -n {{ telemetry_namespace }}
+  register: munge_secret_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
+  when: host_map_count.stdout | default('0') | int > 0
+
+- name: Create nersc-munge-key secret from munge key file
+  ansible.builtin.command: >
+    kubectl create secret generic nersc-munge-key
+    --from-file=munge.key={{ ldms_share_path }}/munge.key
+    -n {{ telemetry_namespace }}
+  changed_when: true
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
+  when:
+    - host_map_count.stdout | default('0') | int > 0
+    - munge_secret_check.rc != 0
+    - munge_key_check.stat.exists | default(false)
+
+- name: Check if nersc-ldms-ovis-auth secret exists
+  ansible.builtin.command: >
+    kubectl get secret nersc-ldms-ovis-auth -n {{ telemetry_namespace }}
+  register: ovis_secret_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
+  when: host_map_count.stdout | default('0') | int > 0
+
+- name: Create nersc-ldms-ovis-auth secret from ldmsauth.conf
+  ansible.builtin.command: >
+    kubectl create secret generic nersc-ldms-ovis-auth
+    --from-file=ldmsauth.conf={{ ldms_share_path }}/ldmsauth.conf
+    -n {{ telemetry_namespace }}
+  changed_when: true
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
+  when:
+    - host_map_count.stdout | default('0') | int > 0
+    - ovis_secret_check.rc != 0
+
+# ---- Helm install / upgrade ----
+
 - name: Check if nersc-ldms-aggr Helm release exists
   ansible.builtin.command: >
     helm status nersc-ldms-aggr -n {{ telemetry_namespace }}
   register: ldms_helm_status
   changed_when: false
   failed_when: false
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when: host_map_count.stdout | default('0') | int > 0
 
 - name: Install nersc-ldms-aggr Helm chart (fresh install)
@@ -134,6 +209,7 @@
     --values {{ ldms_share_path }}/nersc-ldms-aggr/values.yaml
   register: ldms_helm_install
   changed_when: "'deployed' in ldms_helm_install.stdout | default('')"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when:
     - host_map_count.stdout | default('0') | int > 0
     - ldms_helm_status.rc != 0
@@ -146,6 +222,7 @@
     --values {{ ldms_share_path }}/nersc-ldms-aggr/values.yaml
   register: ldms_helm_upgrade
   changed_when: "'deployed' in ldms_helm_upgrade.stdout | default('')"
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when:
     - host_map_count.stdout | default('0') | int > 0
     - ldms_helm_status.rc == 0
@@ -157,6 +234,7 @@
     --timeout={{ ldms_deploy_timeout }}
   register: ldms_agg_rollout
   changed_when: false
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when: host_map_count.stdout | default('0') | int > 0
 
 - name: Wait for LDMS aggregator pods to be ready
@@ -170,6 +248,7 @@
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
   until: ldms_agg_pods_ready.rc == 0
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when: host_map_count.stdout | default('0') | int > 0
 
 - name: Wait for LDMS store daemon pods to be ready
@@ -183,6 +262,7 @@
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
   until: ldms_store_pods_ready.rc == 0
+  delegate_to: "{{ groups['kube_vip_group'][0] }}"
   when: host_map_count.stdout | default('0') | int > 0
 
 - name: Log LDMS aggregator deployment complete
