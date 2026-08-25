@@ -13,35 +13,98 @@
 # limitations under the License.
 
 # =============================================================================
-# Orchestrator — Batch Test Run Configuration
+# Test Run Configuration — Orchestrator
 # =============================================================================
-# Used by: run_validation.sh --config
-# Each scenario maps to a directory under fvt/.
+#
+# Configure which test categories to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable scenarios and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Category Structure
+# -----------------------------------------------------------------------------
+# Top-level categories match the run_validation.sh first argument:
+#
+#   fvt_orchestrator  — Functional Verification Tests (playbook tags)
+#
+# FVT scenarios (nested under fvt_orchestrator):
+#   Each scenario maps to an Ansible playbook tag.  Fields:
+#     run:          true/false    - Whether to execute this scenario
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook only
+#                                   verify = Run verification tests only
+#                                   test   = Exec + Verify (full flow)
+#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#     marker:       <expression>  - Marker filter expression (empty = all)
+#     dataset:      <name>        - Override dataset from test_config.yml
+#                                   Must be a valid folder under datasets/
+#     sync_input:   true/false    - Override sync_orchestrator_input
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
+#   Single:   "sanity"                  — tests with @pytest.mark.sanity
+#   OR:       "sanity,functional"       — tests with EITHER marker
+#   AND:      "sanity+functional"       — tests with BOTH markers
+#   Standard: "functional"              — tests with @pytest.mark.functional
+#
+# Available markers:
+#   Quality:       sanity, functional, regression
+#   Execution:     deploy
+#
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   validate:   status
+#   prepare:    openchami
+#   provision:  (none)
+#   cleanup:    status
+#
 # =============================================================================
 
 ---
-scenarios:
+
+# =============================================================================
+# Execution Options
+# =============================================================================
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
+skip_on_failure: false
+
+# =============================================================================
+# FVT — Functional Verification Tests
+# =============================================================================
+fvt_orchestrator:
   validate:
     run: true
-    marker: "sanity"
+    command: "test"
     suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: true
 
   prepare:
     run: true
-    marker: ""
+    command: "test"
     suite: ""
+    marker: ""
+    dataset: ""
+    sync_input: true
 
   provision:
     run: false
-    marker: ""
+    command: "test"
     suite: ""
+    marker: ""
+    dataset: ""
+    sync_input: true
 
   cleanup:
     run: false
-    marker: ""
+    command: "test"
     suite: ""
-
-  orchestrator:
-    run: false
     marker: ""
-    suite: ""
+    dataset: ""
+    sync_input: false

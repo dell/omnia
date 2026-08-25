@@ -17,17 +17,29 @@ Tests that dcgm_enabled is properly defined in schema and defaults to true
 """
 
 import json
+import os
 import yaml
+
+
+# Resolve paths relative to repo root (test/ -> repo/)
+_TEST_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)))
+_REPO_ROOT = os.path.dirname(_TEST_DIR)
+
+_SCHEMA_PATH = os.path.join(
+    _REPO_ROOT, "src", "orchestrator",
+    "plugins", "module_utils", "orchestrator_validation",
+    "schema", "orchestrator_config.json",
+)
+_INPUT_CONFIG_PATH = os.path.join(
+    _REPO_ROOT, "src", "orchestrator", "input", "orchestrator_config.yml",
+)
 
 
 def test_dcgm_enabled_in_schema():
     """Test that dcgm_enabled is defined in orchestrator_config.json schema"""
-    schema_path = (
-        "/share_sayuri/sujit/omnia/src/orchestrator/"
-        "plugins/module_utils/orchestrator_validation/"
-        "schema/orchestrator_config.json"
-    )
-    with open(schema_path, encoding="utf-8") as f:
+    with open(_SCHEMA_PATH, encoding="utf-8") as f:
         schema = json.load(f)
 
     assert "dcgm_enabled" in schema["properties"], (
@@ -43,8 +55,7 @@ def test_dcgm_enabled_in_schema():
 
 def test_dcgm_enabled_in_input_file():
     """Test that dcgm_enabled is defined in orchestrator_config.yml input file"""
-    config_path = "/share_sayuri/sujit/omnia/src/orchestrator/input/orchestrator_config.yml"
-    with open(config_path, encoding="utf-8") as f:
+    with open(_INPUT_CONFIG_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     assert "dcgm_enabled" in config, (
@@ -57,8 +68,7 @@ def test_dcgm_enabled_in_input_file():
 
 def test_dcgm_enabled_boolean_values():
     """Test that dcgm_enabled accepts boolean values"""
-    config_path = "/share_sayuri/sujit/omnia/src/orchestrator/input/orchestrator_config.yml"
-    with open(config_path, encoding="utf-8") as f:
+    with open(_INPUT_CONFIG_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     # Test setting to false
