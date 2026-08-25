@@ -23,6 +23,9 @@ TC_OC_007: Verify omnia-cli image-build runs
 TC_OC_008: Verify omnia-cli discovery runs
 TC_OC_009: Verify omnia-cli help repo-manager shows domain help
 TC_OC_010: Verify omnia-cli help discovery shows domain help
+TC_OC_014: Verify omnia-cli orchestrator runs
+TC_OC_015: Verify omnia-cli telemetry runs
+TC_OC_016: Verify omnia-cli build-stream runs
 """
 
 import pytest
@@ -249,4 +252,88 @@ def test_cli_help_discovery(host):
 
     assert has_usage, ASSERT["cli_help_missing"].format(
         sections="USAGE",
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(10)
+def test_cli_orchestrator(host):
+    """TC_OC_014: Verify omnia-cli orchestrator runs."""
+    tl = TestLogger(
+        TEST_NAMES["cli_orchestrator"], "TC_OC_014"
+    )
+    result = run_omnia_cli_cmd(
+        host, "omnia_cli_orchestrator"
+    )
+
+    ran_ok = result["rc"] in (0, 1)
+
+    if ran_ok:
+        tl.passed(LOG["cli_orchestrator_ok"].format(
+            rc=result["rc"]
+        ))
+    else:
+        tl.failed(
+            "omnia-cli orchestrator crashed"
+            f" (rc={result['rc']})"
+        )
+
+    assert ran_ok, ASSERT["cli_status_failed"].format(
+        rc=result["rc"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(11)
+def test_cli_telemetry(host):
+    """TC_OC_015: Verify omnia-cli telemetry runs."""
+    tl = TestLogger(
+        TEST_NAMES["cli_telemetry"], "TC_OC_015"
+    )
+    result = run_omnia_cli_cmd(
+        host, "omnia_cli_telemetry"
+    )
+
+    ran_ok = result["rc"] in (0, 1)
+
+    if ran_ok:
+        tl.passed(LOG["cli_telemetry_ok"].format(
+            rc=result["rc"]
+        ))
+    else:
+        tl.failed(
+            "omnia-cli telemetry crashed"
+            f" (rc={result['rc']})"
+        )
+
+    assert ran_ok, ASSERT["cli_status_failed"].format(
+        rc=result["rc"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(12)
+def test_cli_build_stream(host):
+    """TC_OC_016: Verify omnia-cli build-stream runs."""
+    tl = TestLogger(
+        TEST_NAMES["cli_build_stream"], "TC_OC_016"
+    )
+    result = run_omnia_cli_cmd(
+        host, "omnia_cli_build_stream"
+    )
+
+    ran_ok = result["rc"] in (0, 1)
+
+    if ran_ok:
+        tl.passed(LOG["cli_build_stream_ok"].format(
+            rc=result["rc"]
+        ))
+    else:
+        tl.failed(
+            "omnia-cli build-stream crashed"
+            f" (rc={result['rc']})"
+        )
+
+    assert ran_ok, ASSERT["cli_status_failed"].format(
+        rc=result["rc"],
     )

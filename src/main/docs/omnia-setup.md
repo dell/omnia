@@ -6,7 +6,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 | Command | Description |
 |---------|-------------|
-| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh, copy catalog |
+| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh, copy catalog, install omnia-cli |
 | `--init, -i [domain,...]` | Run domain-init.sh scripts (all or comma-separated subset) |
 | `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
 | `--check-deps` | Audit all domains for pip/Galaxy version mismatches |
@@ -21,6 +21,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 | `--deps-only` | Install deps only, skip input file staging. Use with `-s` or `-i`. |
 | `--force-deps` | Bypass dependency cache and force reinstall. Use with `-s` or `-i`. |
 | `--skip-catalog` | With `-s`: skip the automatic catalog copy. |
+| `--skip-omnia-cli` | With `-s`: skip installing omnia-cli and bash completion. |
 
 ## What `--setup-venv` Does
 
@@ -36,16 +37,18 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
    - Creates Ansible log directories
    - Stages input files from flat `src/<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 8. **Copies catalog** — Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
-9. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
+9. **Installs omnia-cli** — Copies `omnia-cli` to `/usr/local/bin/omnia-cli` and bash completion to `/etc/bash_completion.d/omnia-cli` (use `--skip-omnia-cli` to suppress)
+10. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
 Use `--deps-only` to skip input file staging in step 7 (e.g., in CI or if you manage input files externally). Dependencies are still installed.
 
 Use `--force-deps` to bypass the dependency cache and force a fresh `pip install` + `ansible-galaxy collection install`.
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog
+./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog + omnia-cli
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
 ./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
 ./omnia.sh --init                  # Stage input files only (all domains)
 ./omnia.sh -i telemetry            # Init single domain
