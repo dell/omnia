@@ -281,6 +281,6 @@ def pytest_sessionfinish(session, exitstatus):
     """Generate report and print summary at session end."""
     report = get_current_report()
     if report:
-        report.generate()
+        report.save()
 
     print_summary_table()
