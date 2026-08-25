@@ -32,7 +32,7 @@ def validate_telemetry_config(
     Validates the telemetry configuration from telemetry_config.yml.
 
     This function validates the new three-layer telemetry configuration structure:
-    - telemetry_sources (idrac, ldms, dcgm, powerscale, ufm, vast)
+    - telemetry_sources (idrac, ldms, powerscale, ufm, vast, ome)
     - telemetry_bridges (vector_ldms, vector_ome)
     - telemetry_sinks (victoria_metrics, victoria_logs, kafka)
 
@@ -234,8 +234,6 @@ def validate_telemetry_config(
     kafka_sink = telemetry_sinks.get("kafka", {})
     topic_partitions = kafka_sink.get("topic_partitions", {})
 
-    dcgm_source = telemetry_sources.get("dcgm", {})
-
     # =========================================================================
     # Validate collection_targets per source type
     # =========================================================================
@@ -257,14 +255,6 @@ def validate_telemetry_config(
             "telemetry_sources.ldms.collection_targets",
             list(ldms_targets),
             "LDMS only supports 'kafka' as collection target. Use Vector-LDMS bridge to route to victoria_metrics."
-        ))
-
-    # DCGM: should NOT have collection_targets
-    if "collection_targets" in dcgm_source:
-        errors.append(create_error_msg(
-            "telemetry_sources.dcgm.collection_targets",
-            dcgm_source.get("collection_targets"),
-            "DCGM does not support collection_targets. DCGM metrics are collected via LDMS samplers and routed through LDMS flow."
         ))
 
     # PowerScale: supports victoria_metrics and victoria_logs

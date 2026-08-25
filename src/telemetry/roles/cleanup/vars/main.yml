@@ -292,17 +292,6 @@ vast_resources:
 vast_pod_label: "app=vast-external"
 
 # =============================================================================
-# DCGM cleanup resources
-# =============================================================================
-dcgm_resources:
-  - { type: "daemonset", name: "dcgm-exporter" }
-  - { type: "deployment", name: "dcgm-exporter" }
-  - { type: "service", name: "dcgm-exporter" }
-  - { type: "configmap", name: "dcgm-exporter-config" }
-
-dcgm_pod_label: "app=dcgm-exporter"
-
-# =============================================================================
 # SFM cleanup resources
 # =============================================================================
 sfm_resources:

@@ -40,7 +40,6 @@ telemetry_usage_info_msg:
   - "  cleanup_ldms               - LDMS only"
   - "  cleanup_ome                - OME only"
   - "  cleanup_powerscale         - PowerScale only"
-  - "  cleanup_dcgm               - DCGM only"
   - "  cleanup_ufm                - UFM only"
   - "  cleanup_vast               - VAST only"
   - "  cleanup_sfm                - SFM only"
