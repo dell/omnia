@@ -64,17 +64,13 @@
     vault_password_file: "{{ bs_credential_vault_path }}"
   when: bs_credential_file_path is file
 
-# --- Step 4.5: Map nested auth_registration to flat variables (backwards compat) ---
-- name: Map auth_registration dict to flat variables
-  ansible.builtin.set_fact:
-    build_stream_auth_username: "{{ auth_registration.username | default('') }}"
-    build_stream_auth_password: "{{ auth_registration.password | default('') }}"
-    build_stream_auth_password_hash: "{{ auth_registration.password_hash | default('') }}"
-  no_log: true
+# --- Step 4.5: Debug loaded credentials (keys only) ---
+- name: Show loaded credential keys
+  ansible.builtin.debug:
+    msg: "Loaded credentials: {{ build_stream_loaded_creds.keys() | list }}"
   when:
-    - bs_credential_file_path is file
-    - auth_registration is defined
-    - build_stream_auth_username is not defined
+    - build_stream_loaded_creds is defined
+    - build_stream_loaded_creds | length > 0
 
 # --- Step 5: Prompt and update credentials ---
 - name: Prompt and update build_stream credentials
