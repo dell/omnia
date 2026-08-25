@@ -16,55 +16,69 @@
 # Test Run Configuration — Telemetry
 # =============================================================================
 #
-# Configure which test suites to run, execution order, and marker filters.
+# Configure which test categories to run, execution order, and marker filters.
 #
 # Usage:
-#   1. Edit this file to enable/disable suites and set markers
+#   1. Edit this file to enable/disable scenarios and set markers
 #   2. Run: ./run_validation.sh --config
 #
 # -----------------------------------------------------------------------------
-# Suite definitions
+# Category Structure
 # -----------------------------------------------------------------------------
-# Each suite has:
-#   order:       <int>         - Execution order (ascending). Order values MUST
-#                                be unique across enabled suites.
-#   run:         true/false    - Whether to execute this suite
-#   command:     <string>      - Execution mode: exec, verify, or test (default: test)
-#                                exec    = Run the playbook only (no verification)
-#                                verify  = Run verification tests only (skip playbook)
-#                                test    = Exec + Verify (full flow)
-#   suite:       <folder>      - FVT subfolder to run (e.g., sinks, sources)
-#   marker:      <expression>  - Marker filter expression (empty = all tests)
-#   dataset:     <name>        - (optional) Override dataset from test_config.yml
-#                                Must be a valid folder under datasets/
-#   sync_input:  true/false    - (optional) Override sync_telemetry_input
+# Top-level categories match the run_validation.sh first argument:
 #
-# NOTE: The scenario name is used as the Ansible playbook tag automatically.
-#       For example, scenario "deploy" runs --tags deploy.
+#   fvt_telemetry  — Functional Verification Tests (playbook tags)
 #
-# Marker expression syntax:
-#   Single:   "sanity"                  - tests with @pytest.mark.sanity
-#   OR:       "sink,source"             - tests with EITHER marker
-#   AND:      "source+sanity"           - tests with BOTH markers
+# FVT scenarios (nested under fvt_telemetry):
+#   Each scenario maps to an Ansible playbook tag.  Fields:
+#     run:          true/false    - Whether to execute this scenario
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook only
+#                                   verify = Run verification tests only
+#                                   test   = Exec + Verify (full flow)
+#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#     marker:       <expression>  - Marker filter expression (empty = all)
+#     dataset:      <name>        - Override dataset from test_config.yml
+#                                   Must be a valid folder under datasets/
+#     sync_input:   true/false    - Override sync_telemetry_input
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
+#   Single:   "sanity"                  — tests with @pytest.mark.sanity
+#   OR:       "sink,source"             — tests with EITHER marker
+#   AND:      "source+sanity"           — tests with BOTH markers
+#   Standard: "functional"              — tests with @pytest.mark.functional
 #
 # Available markers:
-#   Quality:       sanity, functional, regression
+#   Quality:       sanity, functional
 #   Component:     sink, source
-#   Phase:         deploy
+#   Execution:     deploy
 #
-# Available tags (match ansible --tags):
-#   precheck   - Precheck environment (env vars, K8s health)
-#   validate   - Validate inputs + config
-#   deploy     - Deploy sinks + sources
-#   cleanup    - Cleanup resources
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   precheck:   cluster
+#   validate:   input
+#   deploy:     sinks, sources
+#   cleanup:    cleanup
 #
-# Available suites (subfolders under fvt/<tag>/):
-#   sinks/     - Kafka, VictoriaMetrics, VictoriaLogs
-#   sources/   - iDRAC, LDMS, OME, PowerScale, UFM
-#   cluster/   - K8s cluster health (precheck only)
 # =============================================================================
 
 ---
+
+# =============================================================================
+# Global Overrides
+# =============================================================================
+# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
+#   When set, this takes precedence over both test_config.yml dataset and
+#   per-scenario dataset overrides below.
+#   Must be a valid folder name under datasets/.
+#   Leave commented out to use per-scenario or test_config.yml defaults.
+# dataset_override: "my_custom_ds"
+
+# sync_input_override: Override sync_telemetry_input for ALL scenarios.
+# sync_input_override: true
 
 # =============================================================================
 # Execution Options
@@ -73,71 +87,35 @@
 #                  When false (default), all tests run regardless of failures.
 skip_on_failure: false
 
-# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
-#   Must be a valid folder name under datasets/.
-#   Leave commented out to use per-scenario or test_config.yml defaults.
-# dataset_override: "my_custom_ds"
-
-# sync_input_override: Override sync_telemetry_input for ALL scenarios.
-# sync_input_override: true
-
-scenarios:
-
-  # =========================================================================
-  # precheck - Precheck environment
-  # =========================================================================
-  # Executes: ansible-playbook telemetry.yml --tags precheck
-  # Then verifies: env vars, K8s cluster health, connectivity.
+# =============================================================================
+# FVT — Functional Verification Tests
+# =============================================================================
+fvt_telemetry:
   precheck:
-    order: 10
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: true
-
-  # =========================================================================
-  # deploy - Deploy telemetry + verify resources
-  # =========================================================================
-  # Executes: ansible-playbook telemetry.yml --tags deploy
-  # Then verifies: K8s pods, services, Kafka topics, VictoriaMetrics,
-  # VictoriaLogs, iDRAC, LDMS, OME, PowerScale, UFM.
-  #
-  # Suites: sinks/, sources/
-  deploy:
-    order: 20
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: true
-
-  # =========================================================================
-  # validate - Validate inputs + verify status
-  # =========================================================================
-  # Executes: ansible-playbook telemetry.yml --tags validate
-  # Then verifies: input validation output.
+    dataset: ""
+    sync_input: false
   validate:
-    order: 30
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: true
-
-  # =========================================================================
-  # cleanup - Cleanup telemetry + verify removal
-  # =========================================================================
-  # Executes: ansible-playbook telemetry.yml --tags cleanup
-  # Then verifies: pods removed, topics removed, services removed.
+    dataset: ""
+    sync_input: false
+  deploy:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
   cleanup:
-    order: 40
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    # dataset: "my_custom_ds"
-    # sync_input: false
+    dataset: ""
+    sync_input: false

@@ -13,19 +13,19 @@ source setup_env.sh
 #    Edit test_creds.yml: set SSH credentials (auto-encrypted)
 
 # 3. Run tests
-./run_validation.sh telemetry verify               # All tests except cleanup
-./run_validation.sh telemetry deploy verify          # Deploy tag tests only
-./run_validation.sh telemetry verify --marker sanity  # Sanity tests only
+./run_validation.sh fvt_telemetry precheck verify
 ```
 
-## CLI
+## Running Tests
+
+Run from inside the `test/telemetry/` directory:
 
 ```
-./run_validation.sh telemetry <command> [options]
-./run_validation.sh telemetry <tag> <command> [options]
-./run_validation.sh telemetry list
-./run_validation.sh --config
-./run_validation.sh --completion
+./run_validation.sh fvt_telemetry <command>             # All tags except cleanup
+./run_validation.sh fvt_telemetry <tag> <command>        # Specific tag
+./run_validation.sh fvt_telemetry list                   # List available tags
+./run_validation.sh --config                             # Batch from test_run_config.yml
+./run_validation.sh --help                               # Full help
 ```
 
 ### Commands
@@ -33,36 +33,27 @@ source setup_env.sh
 | Command | Description |
 |---------|-------------|
 | `exec` | Run the Ansible playbook only (no verification tests) |
-| `verify` | Run pytest verification tests only (no playbook execution) |
-| `test` | `exec` + `verify` (full flow: deploy then verify) |
+| `verify` | Run verification tests only (no playbook) |
+| `test` | Full flow: exec + verify |
 
-When a `<tag>` is provided (e.g., `deploy`):
-- `exec` runs `ansible-playbook telemetry.yml --tags deploy`
-- `verify` runs pytest tests under `fvt/deploy/`
-- `test` runs exec + verify for that tag
+### FVT Tags
 
-When NO tag is provided:
-- `exec` runs the playbook without tags (full stack)
-- `verify` runs ALL tests except cleanup
-- `test` runs exec (full stack) + verify ALL
-
-### Tags (match Ansible --tags)
-
-| Tag | Description |
-|-----|-------------|
-| `precheck` | Environment prechecks (env vars, K8s cluster health) |
-| `validate` | Input file validation (config, credentials) |
-| `deploy` | Deploy sinks + sources |
-| `cleanup` | Cleanup resources (pods, services, topics) |
+| Tag | Playbook Tag | What It Tests |
+|-----|-------------|---------------|
+| `precheck` | `--tags precheck` | Env vars, K8s cluster health, connectivity |
+| `validate` | `--tags validate` | Input config and credentials validation |
+| `deploy` | `--tags deploy` | Deploy sinks + sources (Kafka, VM, VL, iDRAC, etc.) |
+| `cleanup` | `--tags cleanup` | Cleanup resources (pods, services, topics) |
+| *(none)* | *(no tag)* | Full end-to-end (all tags) |
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--suite <name>` | Run only tests in a subfolder (`sinks`, `sources`, `cluster`) |
+| `--suite <name>` | Filter by subfolder (`sinks`, `sources`, `cluster`, `input`) |
 | `--marker <expr>` | Filter by pytest marker expression |
 | `-v, --verbose` | Increase pytest verbosity |
-| `--debug` | Full debug output (`-vvs`) |
+| `--debug` | Full debug output (pytest `-vvs`) |
 
 ### Marker Expressions
 
@@ -72,32 +63,32 @@ When NO tag is provided:
 | AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
+Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`
+
 ### Examples
 
 ```bash
-# Verify
-./run_validation.sh telemetry verify                              # All tests except cleanup
-./run_validation.sh telemetry verify --marker sanity               # All sanity tests
-./run_validation.sh telemetry deploy verify                        # Verify deploy tag only
-./run_validation.sh telemetry deploy verify --suite sources        # Deploy sources only
-./run_validation.sh telemetry deploy verify --suite sinks          # Deploy sinks only
-./run_validation.sh telemetry deploy verify --marker source+sanity # Sources AND sanity
+# FVT
+./run_validation.sh fvt_telemetry deploy test --marker sanity
+./run_validation.sh fvt_telemetry deploy verify --suite sources
+./run_validation.sh fvt_telemetry deploy verify --suite sinks
+./run_validation.sh fvt_telemetry list
 
-# Execute playbook
-./run_validation.sh telemetry exec                                 # Full stack (no tags)
-./run_validation.sh telemetry deploy exec                          # --tags deploy
-
-# Full flow (exec + verify)
-./run_validation.sh telemetry deploy test --marker sanity           # Deploy + verify sanity
-./run_validation.sh telemetry deploy test --marker sink,source      # Deploy + verify sinks OR sources
-./run_validation.sh telemetry cleanup test                          # Cleanup + verify
-
-# List tags and test counts
-./run_validation.sh telemetry list
-
-# Run scenarios from test_run_config.yml
+# Config-driven batch
 ./run_validation.sh --config
 ```
+
+### Typical Workflow
+
+```bash
+./run_validation.sh fvt_telemetry precheck test                     # 1. Precheck environment
+./run_validation.sh fvt_telemetry validate test                     # 2. Validate inputs
+./run_validation.sh fvt_telemetry deploy test --marker sanity        # 3. Deploy + verify sanity
+./run_validation.sh fvt_telemetry verify --marker sanity              # 4. Full sanity verification
+./run_validation.sh fvt_telemetry cleanup test                       # 5. Cleanup + verify
+```
+
+---
 
 ## Architecture
 
@@ -112,48 +103,42 @@ Sinks:   VictoriaMetrics, VictoriaLogs, Kafka (Strimzi)
 
 ```
 test/telemetry/
-├── conftest.py               # Session setup, omnia_auto.configure()
-├── run_validation.sh         # CLI runner
-├── setup_env.sh              # One-time venv setup
+├── setup_env.sh              # Environment setup (--venv, --set-password, etc.)
+├── run_validation.sh         # Shell entry point (delegates to _run.py)
+├── _run.py                   # Python entry point (loads domain vars, creates runner)
+├── conftest.py               # Pytest hooks, fixtures, report generation
 ├── test_config.yml           # Non-sensitive settings (IPs, paths)
-├── test_creds.yml            # Credentials (auto-encrypted)
-├── library/                  # Functions, vars, messages
-│   ├── functions/
-│   │   ├── __init__.py       # Public API (re-exports)
-│   │   ├── telemetry_func.py # Common: kube_vip, config, VM/VL queries
-│   │   ├── k8s_func.py       # K8s: pods, deploys, sts, services
-│   │   ├── powerscale_func.py# PowerScale source verification
-│   │   ├── ufm_func.py       # UFM source verification
-│   │   ├── ome_func.py       # OME Kafka connectivity
-│   │   └── validation_func.py# Config validation
-│   ├── vars/
-│   │   ├── common_vars.py    # Constants, component names, CMDS
-│   │   └── test_case_vars.py # TEST_CASES dict (TC IDs + titles)
-│   └── messages/
-│       └── telemetry_msgs.py # TEST_LOG_MSGS, TEST_ASSERT_MSGS
-└── fvt/
-    ├── precheck/             # Precheck tag tests
-    │   ├── test_playbook.py  # Playbook --tags precheck
-    │   └── cluster/          # Env vars, K8s nodes, kube_vip
-    ├── validate/             # Validate tag tests
-    │   ├── test_playbook.py  # Playbook --tags validate
-    │   └── input/            # Config validation
-    ├── deploy/               # Deploy tag tests
-    │   ├── test_playbook.py  # Playbook (tag from OMNIA_DEPLOY_TAG)
-    │   ├── test_namespace.py # All-pods-running check
-    │   ├── sinks/
-    │   │   ├── test_kafka.py
-    │   │   ├── test_victoriametrics.py
-    │   │   └── test_victorialogs.py
-    │   └── sources/
-    │       ├── test_idrac.py
-    │       ├── test_ldms.py
-    │       ├── test_ome.py
-    │       ├── test_powerscale.py
-    │       └── test_ufm.py
-    └── cleanup/              # Cleanup tag tests
-        ├── test_playbook.py  # Playbook --tags cleanup
-        └── cleanup/          # Verify pods removed, topics removed
+├── test_creds.yml            # Credentials (auto-encrypted, gitignored)
+├── test_run_config.yml       # Batch execution: scenario order, markers, suites
+│
+├── library/                  # Reusable automation library
+│   ├── functions/            # telemetry_func, k8s_func, powerscale_func, etc.
+│   ├── vars/                 # Constants, component names (common_vars, domain_vars)
+│   └── messages/             # Test names, log/assert messages
+│
+├── fvt/                      # Functional Verification Tests
+│   ├── precheck/             # Precheck tag tests
+│   │   ├── test_playbook.py  # Playbook --tags precheck
+│   │   └── cluster/          # Env vars, K8s nodes, kube_vip
+│   ├── validate/             # Validate tag tests
+│   │   ├── test_playbook.py  # Playbook --tags validate
+│   │   └── input/            # Config validation
+│   ├── deploy/               # Deploy tag tests
+│   │   ├── test_playbook.py  # Playbook (tag from OMNIA_DEPLOY_TAG)
+│   │   ├── test_namespace.py # All-pods-running check
+│   │   ├── sinks/
+│   │   │   ├── test_kafka.py
+│   │   │   ├── test_victoriametrics.py
+│   │   │   └── test_victorialogs.py
+│   │   └── sources/
+│   │       ├── test_idrac.py
+│   │       ├── test_ldms.py
+│   │       ├── test_ome.py
+│   │       ├── test_powerscale.py
+│   │       └── test_ufm.py
+│   └── cleanup/              # Cleanup tag tests
+│       ├── test_playbook.py  # Playbook --tags cleanup
+│       └── cleanup/          # Verify pods removed, topics removed
 ```
 
 ## Test Case Summary
@@ -183,12 +168,6 @@ test/telemetry/
   ✔ PASS: 6 UFM metric(s) found
     │   ✓ infiniband_CBW: 0 (2026-08-24 12:59:50)
     │   ✓ PortXmitDataExtended: 94017600 (2026-08-24 12:59:50)
-```
-
-## Tab Completion
-
-```bash
-eval "$(./run_validation.sh --completion)"
 ```
 
 See `fvt/README.md` for the complete test case registry.
