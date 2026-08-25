@@ -25,7 +25,6 @@ from api.dependencies import (
     _create_sql_stage_repo,
     _create_sql_audit_repo,
     _create_sql_image_group_repo,
-    _get_container,
     _ENV,
 )
 from core.jobs.value_objects import ClientId, CorrelationId

@@ -161,7 +161,6 @@ class CreateLocalRepoUseCase:
         self, command: CreateLocalRepoCommand
     ) -> None:
         """Verify that generate-input-files stage is COMPLETED."""
-        from core.jobs.value_objects import StageState
         
         prerequisite_stage = self._stage_repo.find_by_job_and_name(
             command.job_id, 
@@ -184,7 +183,6 @@ class CreateLocalRepoUseCase:
 
     def _validate_stage(self, command: CreateLocalRepoCommand) -> Stage:
         """Validate stage exists; reset to PENDING if in a retryable terminal state."""
-        from core.jobs.value_objects import StageState
         
         # Verify upstream stage is completed
         self._verify_upstream_stage_completed(command)

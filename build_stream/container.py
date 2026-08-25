@@ -69,7 +69,6 @@ from core.build_image.services import (
 )
 from core.validate.services import ValidateQueueService
 from core.deploy.services import DeployQueueService
-from core.catalog.adapter_policy import _DEFAULT_POLICY_PATH, _DEFAULT_SCHEMA_PATH
 from core.artifacts.value_objects import SafePath
 from common.config import load_config
 
