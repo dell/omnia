@@ -13,9 +13,21 @@
 # limitations under the License.
 ---
 
+- name: Wait for tokensmith to be active before generating access token
+  ansible.builtin.systemd:
+    name: tokensmith.service
+  register: tokensmith_status
+  until: tokensmith_status.status.ActiveState == "active"
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  changed_when: false
+
 - name: Generate access token # noqa: command-instead-of-shell
   ansible.builtin.shell: sudo bash -lc 'gen_access_token'
   register: access_token_result
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: access_token_result.rc == 0
   changed_when: false
 
 - name: Set ochami_env
