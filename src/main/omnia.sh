@@ -181,21 +181,62 @@ readonly SYSTEM_ENV_DIR="/etc/omnia"
 readonly SYSTEM_ENV_FILE="${SYSTEM_ENV_DIR}/omnia.env"
 readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 
+validate_env_source() {
+    local env_file="$1"
+    local errors=0
+
+    # Source env file in a subshell to validate without polluting current env
+    local ip_value
+    ip_value="$(bash -c "set -a; . \"$env_file\"; echo \"\$SYSTEM_ADMIN_NIC_IPV4\"")"
+
+    if [ -z "$ip_value" ]; then
+        echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set in ${env_file}${NC}"
+        echo -e "${YELLOW}  Edit ${env_file} and set SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>${NC}"
+        errors=$((errors + 1))
+    fi
+
+    # Validate IP format (basic IPv4 check)
+    if [ -n "$ip_value" ]; then
+        if ! echo "$ip_value" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
+            echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo -e "${RED}Environment file validation failed. Fix ${env_file} before running setup.${NC}"
+        exit 1
+    fi
+}
+
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
     echo -e "${BLUE}Installing environment to system...${NC}"
 
+    if [ ! -f "$env_file" ]; then
+        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+        return 0
+    fi
+
+    # Validate source env file BEFORE installing to system
+    validate_env_source "$env_file"
+
     mkdir -p "$SYSTEM_ENV_DIR"
 
     if [ -f "$SYSTEM_ENV_FILE" ]; then
-        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
-        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
-    else
-        if [ ! -f "$env_file" ]; then
-            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
-            return 0
+        # Compare source with installed — update if source has changed
+        if ! diff -q "$env_file" "$SYSTEM_ENV_FILE" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}Source omnia.env differs from installed copy.${NC}"
+            echo -e "  ${BLUE}Updating: ${SYSTEM_ENV_FILE}${NC}"
+            cp -f "$env_file" "$SYSTEM_ENV_FILE"
+            chmod 0644 "$SYSTEM_ENV_FILE"
+            echo -e "  ${GREEN}Updated: ${SYSTEM_ENV_FILE}${NC}"
+        else
+            echo -e "  ${GREEN}Existing: ${SYSTEM_ENV_FILE} (matches source)${NC}"
         fi
+    else
         cp -f "$env_file" "$SYSTEM_ENV_FILE"
         chmod 0644 "$SYSTEM_ENV_FILE"
         echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
@@ -235,8 +276,6 @@ PROFILE_EOF
 create_base_dirs() {
     echo -e "${BLUE}Creating base directory structure at ${OMNIA_DATA_PATH}...${NC}"
     mkdir -p "${OMNIA_DATA_PATH}"
-    mkdir -p "${OMNIA_DATA_PATH}/log"
-    mkdir -p "${OMNIA_DATA_PATH}/input"
     mkdir -p "${OMNIA_DATA_PATH}/.data"
     echo -e "${GREEN}Base directories created. Domain directories will be created by respective playbooks.${NC}"
 }
@@ -331,6 +370,11 @@ if [ -f "${OMNIA_VENV_PATH}/bin/activate" ]; then
 else
     echo "ERROR: Virtual environment not found at ${OMNIA_VENV_PATH}"
     return 1 2>/dev/null || exit 1
+fi
+
+# Load omnia-cli bash completion
+if [ -f /etc/bash_completion.d/omnia-cli ]; then
+    source /etc/bash_completion.d/omnia-cli
 fi
 ACTIVATE_EOF
     chmod +x "${OMNIA_DATA_PATH}/activate-omnia.sh"
@@ -575,13 +619,17 @@ cleanup_omnia() {
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
     else
-        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, and dependency cache:${NC}"
+        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, omnia-cli, and dependency cache:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
@@ -629,6 +677,20 @@ cleanup_omnia() {
     if [ -f "$PROFILE_DROP_IN" ]; then
         echo -e "${BLUE}Removing profile drop-in: ${PROFILE_DROP_IN}${NC}"
         rm -f "$PROFILE_DROP_IN"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove omnia-cli from /usr/local/bin
+    if [ -f "/usr/local/bin/omnia-cli" ]; then
+        echo -e "${BLUE}Removing omnia-cli from /usr/local/bin/omnia-cli${NC}"
+        rm -f /usr/local/bin/omnia-cli
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove bash completion
+    if [ -f "/etc/bash_completion.d/omnia-cli" ]; then
+        echo -e "${BLUE}Removing bash completion from /etc/bash_completion.d/omnia-cli${NC}"
+        rm -f /etc/bash_completion.d/omnia-cli
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -927,6 +989,8 @@ OPTIONS:
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
   --skip-catalog        With -s: skip the automatic catalog copy.
+  --skip-omnia-cli      With -s: skip installing omnia-cli and bash completion
+                        to /usr/local/bin/ and /etc/bash_completion.d/.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -946,9 +1010,10 @@ DIAGNOSTICS (see omnia-cli):
   omnia-cli version                           Version info
   omnia-cli help [<domain>]                   CLI help
 
-INSTALL omnia-cli TO PATH:
-  sudo cp omnia-cli /usr/local/bin/
-  sudo chmod +x /usr/local/bin/omnia-cli
+INSTALL omnia-cli TO PATH (automatic during --setup-venv):
+  omnia-cli and bash completion are installed automatically.
+  To skip: omnia.sh -s --skip-omnia-cli
+  Manual: sudo cp omnia-cli /usr/local/bin/ && sudo chmod +x /usr/local/bin/omnia-cli
 
 SYSTEM ENVIRONMENT:
   After --setup-venv, omnia.env is installed to:
@@ -1009,6 +1074,7 @@ main() {
     FORCE_DEPS=false   # Global — passed to domain-init.sh
     local CLEANUP_ALL=false
     local SKIP_CATALOG=false
+    local SKIP_OMNIA_CLI=false
     local command=""
     local init_domain_filter=""
     local run_domain_name=""
@@ -1036,6 +1102,10 @@ main() {
                 ;;
             --skip-catalog)
                 SKIP_CATALOG=true
+                shift
+                ;;
+            --skip-omnia-cli)
+                SKIP_OMNIA_CLI=true
                 shift
                 ;;
             --init|-i)
@@ -1109,6 +1179,23 @@ main() {
             # Auto-copy catalog unless --skip-catalog
             if [ "$SKIP_CATALOG" = false ]; then
                 copy_catalog
+            fi
+
+            # Install omnia-cli and bash completion unless --skip-omnia-cli
+            if [ "$SKIP_OMNIA_CLI" = false ]; then
+                local cli_src="${SCRIPT_DIR}/omnia-cli"
+                local completion_src="${SCRIPT_DIR}/omnia-cli-completion.bash"
+                if [ -f "$cli_src" ]; then
+                    cp "$cli_src" /usr/local/bin/omnia-cli
+                    chmod +x /usr/local/bin/omnia-cli
+                    echo -e "${GREEN}Installed omnia-cli to /usr/local/bin/omnia-cli${NC}"
+                fi
+                if [ -f "$completion_src" ]; then
+                    cp "$completion_src" /etc/bash_completion.d/omnia-cli
+                    echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
+                fi
+            else
+                echo -e "${DIM}Skipping omnia-cli install (--skip-omnia-cli)${NC}"
             fi
 
             # ── Post-setup activation instructions (shown LAST) ──
