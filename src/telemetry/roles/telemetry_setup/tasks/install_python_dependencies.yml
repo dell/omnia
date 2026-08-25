@@ -56,7 +56,7 @@
 
         - name: Install kubernetes from offline packages
           ansible.builtin.command: >
-            python3 -m pip install --no-index 
+            python3 -m pip install --no-index
             --find-links={{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
             kubernetes
           when: offline_dir_stat.stat.exists
@@ -71,12 +71,12 @@
               Failed to install Python kubernetes module.
               - Online installation failed (no internet or pip unavailable)
               - Offline packages not found at {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
-              
+
               To fix:
               1. Ensure internet connectivity, OR
               2. Download packages: pip3 download kubernetes -d /opt/omnia/telemetry/packages/python/
               3. Re-run the playbook
-          when: 
+          when:
             - not offline_dir_stat.stat.exists or pip_install_offline.rc != 0
 
 - name: Verify Python kubernetes module is now available
