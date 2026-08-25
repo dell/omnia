@@ -12,14 +12,15 @@ Every scenario follows a three-phase pattern:
 |-------|-------------|--------|
 | `deploy` | **Executes** the actual omnia.sh / omnia-cli command. Changes state on target. | `@pytest.mark.deploy` |
 | `verify` | **Checks results** after deploy. Read-only — inspects files, dirs, env vars. | *(no marker)* |
-| `cleanup` | **Tears down** state (e.g. `--cleanup`). Runs **after** verify so checks pass. | `@pytest.mark.cleanup` |
+| `cleanup` | **Tears down** state (e.g. `--cleanup`). Must be explicitly requested. | `@pytest.mark.cleanup` |
 
-The `test` command runs all three phases in order: deploy -> verify -> cleanup.
+The `test` command runs deploy + verify. Cleanup is **never automatic** — use the explicit `cleanup` command.
 
 This means:
-- `./run_validation.sh setup test` = run `--setup-venv --deps-only`, verify, then cleanup (if any)
+- `./run_validation.sh setup test` = run `--setup-venv --deps-only`, verify (no cleanup)
 - `./run_validation.sh setup verify` = only verify (assumes setup already ran)
-- `./run_validation.sh execution test` = setup + init + run, verify, then cleanup
+- `./run_validation.sh execution test` = setup + init + run, verify (no cleanup)
+- `./run_validation.sh execution cleanup` = run cleanup only (when explicitly needed)
 
 ### Intelligent Skip for Setup & Cleanup
 
@@ -45,9 +46,10 @@ run_validation setup test        # Setup + verify
 run_validation init test         # Init + verify
 run_validation cli verify        # CLI argument tests
 run_validation omnia_cli test    # omnia-cli diagnostics
-run_validation execution test    # Actual execution: setup, init, run, cleanup
+run_validation execution test    # Actual execution: setup, init, run (no cleanup)
+run_validation execution cleanup # Cleanup only (when explicitly needed)
 run_validation nft test          # Performance + idempotency NFT
-run_validation all test          # Run all scenarios
+run_validation all test          # Run all scenarios (no cleanup)
 ```
 
 ## Structure
@@ -112,7 +114,7 @@ test/main/
 | `init` | `omnia.sh --init` | Domain log dirs, input file staging (7 domains) |
 | `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags |
 | `omnia_cli` | `omnia-cli help` | Status, check, version, domain queries, logs, errors |
-| `execution` | `--setup-venv --deps-only`, `--init`, `--run --tags precheck/validate`, `--cleanup` (smart skip) | Venv+ansible exist, env files installed, log dirs created, input files staged |
+| `execution` | `--setup-venv --deps-only`, `--init`, `--run --tags precheck/validate` (cleanup via explicit cmd) | Venv+ansible exist, env files installed, log dirs created, input files staged |
 | `nft` | `--setup-venv`, `--init`, `omnia-cli status` | Performance thresholds, idempotency, file permissions |
 
 ## Markers

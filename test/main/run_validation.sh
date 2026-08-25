@@ -25,7 +25,8 @@
 # Commands:
 #   deploy    Run the script/playbook only (tests marked @deploy)
 #   verify    Run verification tests only (exclude @deploy)
-#   test      Deploy + Verify (full flow)
+#   test      Deploy + Verify (full flow; cleanup NOT included)
+#   cleanup   Run cleanup only (tests marked @cleanup; must be explicit)
 #
 # Options:
 #   --suite <name>    Filter by subfolder (environment, venv, commands, etc.)
@@ -36,8 +37,12 @@
 #   setup      omnia.sh --setup-venv tests
 #   init       omnia.sh --init tests
 #   cli        CLI argument parsing tests
-#   execution  Actual omnia.sh operations (setup, init, run --tags, cleanup*)
-#              * cleanup skipped if running from omnia production venv
+#   execution  Actual omnia.sh operations (setup, init, run --tags)
+#   omnia_cli  omnia-cli diagnostics, logs, errors
+#
+# Cleanup:
+#   Cleanup is NEVER run automatically.  Use an explicit command:
+#     ./run_validation.sh execution cleanup
 # =============================================================================
 
 set -euo pipefail
@@ -54,7 +59,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-SUPPORTED_COMMANDS="deploy verify test"
+SUPPORTED_COMMANDS="deploy verify test cleanup"
 
 # Change to script dir
 cd "$SCRIPT_DIR"
@@ -402,7 +407,8 @@ case "$SCENARIO" in
         echo -e "${YELLOW}COMMANDS${NC}"
         echo "  deploy    Execute the omnia.sh command (tests marked @deploy)"
         echo "  verify    Run verification tests only (no script execution)"
-        echo "  test      Deploy + verify + cleanup (full flow)"
+        echo "  test      Deploy + verify (full flow; cleanup NOT included)"
+        echo "  cleanup   Run cleanup only (must be explicit, never automatic)"
         echo ""
         echo -e "${YELLOW}OPTIONS${NC}"
         echo "  --suite <name>    Run only tests in a subfolder (environment, venv, etc.)"
@@ -415,7 +421,7 @@ case "$SCENARIO" in
         echo "  init       omnia.sh --init: domain-init.sh scripts, input staging (7 domains)"
         echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog"
         echo "  omnia_cli  omnia-cli diagnostics: status, check, domain cmds, logs, help, errors"
-        echo "  execution  Actual execution: setup, init, run --tags, cleanup (smart skip)"
+        echo "  execution  Actual execution: setup, init, run --tags (cleanup via explicit cmd)"
         echo ""
         echo -e "${YELLOW}SCENARIOS (NFT)${NC}"
         echo "  nft        Performance, idempotency, file permissions, CLI performance"
@@ -436,12 +442,16 @@ case "$SCENARIO" in
         echo "  # Just check CLI help output:"
         echo "  $0 cli verify"
         echo ""
+        echo "  # Run cleanup explicitly (NOT done in 'test' or 'all test'):"
+        echo "  $0 execution cleanup"
+        echo ""
         echo -e "${YELLOW}TYPICAL WORKFLOW${NC}"
         echo "  $0 setup test                    # 1. Install env + venv + verify"
         echo "  $0 init test                     # 2. Stage domain input files + verify"
         echo "  $0 cli verify                    # 3. Verify CLI argument handling"
         echo "  $0 omnia_cli verify              # 4. Verify omnia-cli diagnostics"
-        echo "  $0 execution test                # 5. Full lifecycle (setup/init/run/cleanup)"
+        echo "  $0 execution test                # 5. Full lifecycle (setup/init/run)"
+        echo "  $0 execution cleanup             # 5b. Cleanup (only when explicitly needed)"
         echo "  $0 nft test                      # 6. Performance + idempotency + permissions"
         echo "  $0 all verify                    # Or: verify everything at once"
         echo ""
@@ -532,6 +542,24 @@ case "$COMMAND" in
         echo -e "${GREEN}Deployment completed.${NC}"
         ;;
 
+    cleanup)
+        export OMNIA_COMMAND_TYPE="cleanup"
+        has_cleanup=$(grep -rl '@pytest\.mark\.cleanup\|pytest\.mark\.cleanup' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1 || true)
+        if [[ -z "$has_cleanup" ]]; then
+            echo -e "${YELLOW}No cleanup tests in ${SCENARIO} — nothing to do${NC}"
+            exit 0
+        fi
+        marker_cmd="-m cleanup"
+        [[ -n "$MARKER" ]] && marker_cmd="${marker_cmd} --marker ${MARKER}"
+        run_pytest \
+            "${SCENARIO_DIR}" \
+            "${marker_cmd}" \
+            "Running cleanup for ${SCENARIO}"
+
+        echo ""
+        echo -e "${GREEN}Cleanup completed.${NC}"
+        ;;
+
     verify)
         export OMNIA_COMMAND_TYPE="verify"
         test_path=$(build_test_path "${SCENARIO_DIR}")
@@ -577,13 +605,9 @@ case "$COMMAND" in
             echo ""
         fi
 
-        # Check if scenario has cleanup tests (grep for @pytest.mark.cleanup)
-        has_cleanup=$(grep -rl '@pytest\.mark\.cleanup\|pytest\.mark\.cleanup' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1 || true)
-
-        # Calculate total steps
+        # Calculate total steps (deploy + verify only; cleanup is explicit)
         total_steps=1  # verify is always present
         [[ -n "$has_deploy" ]] && total_steps=$((total_steps + 1))
-        [[ -n "$has_cleanup" ]] && total_steps=$((total_steps + 1))
         current_step=1
 
         # Step 2: Verify (only if deploy succeeded or was skipped)
@@ -606,23 +630,6 @@ case "$COMMAND" in
             fi
         else
             echo -e "${YELLOW}Skipping verification — deployment failed${NC}"
-        fi
-
-        # Step 3: Cleanup (runs after verify, may destroy state)
-        if [[ -n "$has_cleanup" ]]; then
-            echo ""
-            export OMNIA_COMMAND_TYPE="cleanup"
-            echo -e "${YELLOW}=================================================================${NC}"
-            echo -e "${YELLOW}  Step ${total_steps}/${total_steps}: Cleanup${NC}"
-            echo -e "${YELLOW}=================================================================${NC}"
-            echo ""
-
-            cleanup_args="-m cleanup"
-            if run_pytest "${SCENARIO_DIR}" "${cleanup_args}" "Running cleanup"; then
-                echo -e "${GREEN}Cleanup succeeded${NC}"
-            else
-                echo -e "${YELLOW}Cleanup failed (non-fatal)${NC}"
-            fi
         fi
 
         print_combined_summary

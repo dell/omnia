@@ -360,6 +360,18 @@ CMDS: Dict[str, str] = {
         "cd {clone_path} && bash {omnia_cli}"
         " logs --help 2>&1"
     ),
+    "omnia_cli_logs_limit": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs {domain} --limit {limit} 2>&1"
+    ),
+    "omnia_cli_logs_limit_invalid": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs {domain} --limit {limit} 2>&1"
+    ),
+    "omnia_cli_logs_limit_short": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs {domain} -l {limit} 2>&1"
+    ),
     # --- omnia.sh tags validation ---
     "omnia_sh_run_tags": (
         "cd {clone_path} && bash {omnia_sh}"

@@ -173,6 +173,15 @@ TEST_NAMES: Dict[str, str] = {
     "cli_logs_help": (
         "Verify omnia-cli logs --help runs"
     ),
+    "cli_logs_limit": (
+        "Verify omnia-cli logs --limit flag works"
+    ),
+    "cli_logs_limit_invalid": (
+        "Verify omnia-cli logs --limit rejects invalid values"
+    ),
+    "cli_logs_limit_short": (
+        "Verify omnia-cli logs -l short form works"
+    ),
 
     # omnia.sh tags verification
     "sh_generic_tags_in_help": (
@@ -427,6 +436,15 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "cli_logs_help_failed": (
         "omnia-cli logs --help failed"
+    ),
+    "cli_logs_limit_ok": (
+        "omnia-cli logs --limit {limit} accepted"
+    ),
+    "cli_logs_limit_invalid_ok": (
+        "omnia-cli logs --limit {limit} rejected (rc={rc})"
+    ),
+    "cli_logs_limit_short_ok": (
+        "omnia-cli logs -l {limit} accepted"
     ),
 
     # omnia.sh tags

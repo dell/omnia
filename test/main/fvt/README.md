@@ -10,12 +10,12 @@ Every scenario follows a three-phase pattern:
 |-------|-------------|--------|--------------|
 | `deploy` | **Executes** the actual omnia.sh command (setup, init, run). Changes state. | `@pytest.mark.deploy` | Step 1 |
 | `verify` | **Checks results** after deploy. Read-only — inspects files, dirs, env vars. | *(no marker)* | Step 2 |
-| `cleanup` | **Tears down** state (e.g. `--cleanup`). Runs **after** verify so checks pass. | `@pytest.mark.cleanup` | Step 3 |
+| `cleanup` | **Tears down** state (e.g. `--cleanup`). Must be explicitly requested. | `@pytest.mark.cleanup` | Explicit only |
 
 Usage:
 
 ```bash
-# Full flow: deploy + verify + cleanup
+# Full flow: deploy + verify (cleanup NOT included)
 ./run_validation.sh execution test
 
 # Only execute the scripts (no verification, no cleanup)
@@ -23,6 +23,9 @@ Usage:
 
 # Only verify results (assumes scripts already ran)
 ./run_validation.sh execution verify
+
+# Run cleanup explicitly (never automatic)
+./run_validation.sh execution cleanup
 ```
 
 ### Intelligent Skip Logic
@@ -121,9 +124,12 @@ test harness venv (`test/main/.venv`), all operations execute normally.
 | TC_OC_011 | `test_cli_unknown_command` | errors/ | sanity | Verify omnia-cli unknown command exits with error |
 | TC_OC_012 | `test_cli_logs_help` | logs/ | sanity | Verify omnia-cli logs --help runs |
 | TC_OC_013 | `test_cli_logs_no_opt_omnia_log` | logs/ | sanity | Verify omnia-cli logs searches /var/log/omnia only |
-| TC_OC_014 | `test_cli_orchestrator` | diagnostics/ | sanity | Verify omnia-cli orchestrator runs |
-| TC_OC_015 | `test_cli_telemetry` | diagnostics/ | sanity | Verify omnia-cli telemetry runs |
-| TC_OC_016 | `test_cli_build_stream` | diagnostics/ | sanity | Verify omnia-cli build-stream runs |
+| TC_OC_014 | `test_cli_logs_limit` | logs/ | functional | Verify omnia-cli logs --limit flag works |
+| TC_OC_015 | `test_cli_logs_limit_invalid` | logs/ | functional | Verify omnia-cli logs --limit rejects invalid values |
+| TC_OC_016 | `test_cli_logs_limit_short` | logs/ | functional | Verify omnia-cli logs -l short form works |
+| TC_OC_017 | `test_cli_orchestrator` | diagnostics/ | sanity | Verify omnia-cli orchestrator runs |
+| TC_OC_018 | `test_cli_telemetry` | diagnostics/ | sanity | Verify omnia-cli telemetry runs |
+| TC_OC_019 | `test_cli_build_stream` | diagnostics/ | sanity | Verify omnia-cli build-stream runs |
 
 ---
 

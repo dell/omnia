@@ -53,6 +53,9 @@ def is_running_from_omnia_venv() -> bool:
     like --setup-venv and --cleanup must be skipped because they would
     destroy the interpreter that is currently executing the test suite.
 
+    Uses both os.path.realpath and normpath to handle symlinks and
+    trailing slashes consistently.
+
     Returns:
         True if the active venv IS the omnia production venv.
         False if running from test/main/.venv or no venv is active.
@@ -62,7 +65,14 @@ def is_running_from_omnia_venv() -> bool:
         return False
     config = load_test_config()
     omnia_venv = config.get("venv_path", "/opt/omnia/venv")
-    return os.path.realpath(active_venv) == os.path.realpath(omnia_venv)
+
+    # Normalize both paths: resolve symlinks AND strip trailing slashes
+    active_norm = os.path.normpath(os.path.realpath(active_venv))
+    omnia_norm = os.path.normpath(os.path.realpath(omnia_venv))
+
+    # Also check if active venv starts with the omnia venv path
+    # (handles cases like /opt/omnia/venv vs /opt/omnia/venv/)
+    return active_norm == omnia_norm or active_norm.startswith(omnia_norm + os.sep)
 
 
 # =============================================================================
