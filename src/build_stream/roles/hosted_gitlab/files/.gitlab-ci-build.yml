@@ -39,6 +39,8 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
     - changes:
         - catalog_rhel.json
+        - input/**/*
+        - omnia.env
     - if: '$CI_PIPELINE_SOURCE == "trigger" && $PIPELINE_TYPE == "build"'
     - if: '$CI_PIPELINE_SOURCE == "api" && $PIPELINE_TYPE == "build"'
 
@@ -55,14 +57,26 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
+  # Defaults — overridden by omnia.env if present in the GitLab repo
+  OMNIA_DATA_PATH: "/opt/omnia"
+  OMNIA_PROJECT_NAME: "project_default"
 
 # ---------------------------------------------------------------------------
-# Stages -- executed in order
+# Stages -- executed in order (domain-segregated, Omnia 2.3+)
+#
+# NOTE: parse-catalog and generate-input-files stages have been retired.
+# With domain segregation, input files are domain-specific and the catalog
+# is consumed directly by each domain (image_build_manager.yml reads the
+# catalog from /opt/omnia/catalog/catalog_rhel.json).
+#
+# The /catalog/roles API has been retired. The build-images stage now
+# triggers the build-image API twice (once per architecture: x86_64, aarch64).
+# The image_build_manager.yml playbook handles catalog parsing, role filtering,
+# and image building internally for each architecture.
 # ---------------------------------------------------------------------------
 stages:
   - initialization
-  - parse-catalog
-  - generate-input-files
+  - copy-input-files
   - configure-local-repository
   - build-images
   - summary
@@ -535,6 +549,24 @@ initialization:
         fi
       done
 
+      # Upload catalog_rhel.json to OIM host (routed to CATALOG_FILE_PATH)
+      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
+      if [ -f "${CATALOG_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${CATALOG_SRC}"
+        echo "    [+] ${CATALOG_FILE} (catalog)"
+      else
+        echo "    [-] ${CATALOG_FILE} (not found, skipping)"
+      fi
+
+      # Upload omnia.env to OIM host (routed to /etc/omnia/omnia.env)
+      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${OMNIA_ENV_SRC}"
+        echo "    [+] omnia.env (environment config)"
+      else
+        echo "    [-] omnia.env (not found, skipping)"
+      fi
+
       if [ -n "${UPLOAD_ARGS}" ]; then
         HTTP_CODE=$(eval api_call_with_retry upload_response.json \
           -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
@@ -569,179 +601,110 @@ initialization:
         - job.env
 
 # ============================= STAGE 2 ====================================
-# Parse Catalog -- Upload and validate catalog JSON file
+# Copy Input Files — Domain-segregated input file placement (Omnia 2.3+)
+#
+# Sources omnia.env for OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, CATALOG_FILE_PATH.
+# Copies domain-specific input files from the GitLab repository to their
+# runtime destinations on the OIM host:
+#
+#   input/repo_manager/*          -> ${OMNIA_DATA_PATH}/repo_manager/input/${OMNIA_PROJECT_NAME}/
+#   input/image_build_manager/*   -> ${OMNIA_DATA_PATH}/image_build_manager/input/${OMNIA_PROJECT_NAME}/
+#   catalog_rhel.json             -> ${CATALOG_FILE_PATH}
+#
+# NOTE: parse-catalog and generate-input-files stages have been retired.
 # ==========================================================================
-parse-catalog:
-  stage: parse-catalog
+copy-input-files:
+  stage: copy-input-files
   needs: [initialization]
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 2: Parse Catalog"
+      echo "  [${JOB_ID}] STAGE 2: Copy Input Files (Domain-Segregated)"
       echo "============================================================"
       echo ""
 
-      # Common Init -- re-authenticate and re-upload config files (retry support)
-      echo "  Common Init -- Upload configuration files..."
-      echo "  ------------------------------------------------------------"
-      refresh_token
-      refresh_input_files
-
-      UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
-        if [ -f "${FPATH}" ]; then
-          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
-        fi
-      done
-
-      if [ -n "${UPLOAD_ARGS}" ]; then
-        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
-          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
-          ${UPLOAD_ARGS} \
-          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
-        else
-          echo "  [OK] Configuration files uploaded"
-        fi
+      # --- Source omnia.env for path variables ---
+      OMNIA_ENV_PATH="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_PATH}" ]; then
+        echo "  Sourcing omnia.env from GitLab repository..."
+        set -a
+        . "${OMNIA_ENV_PATH}"
+        set +a
+        echo "  OMNIA_DATA_PATH=${OMNIA_DATA_PATH}"
+        echo "  OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME}"
+        echo "  CATALOG_FILE_PATH=${CATALOG_FILE_PATH}"
+        echo ""
+      else
+        echo "  WARNING: omnia.env not found in GitLab repository, using defaults"
+        OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+        OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+        CATALOG_FILE_PATH="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
+        echo ""
       fi
-      echo ""
 
-      # Locate catalog file relative to this CI file
-      CATALOG_PATH="${CI_PROJECT_DIR}/${CATALOG_FILE}"
-
-      if [ ! -f "${CATALOG_PATH}" ]; then
-        echo "  ERROR: Catalog file not found: ${CATALOG_PATH}"
-        echo "  Ensure ${CATALOG_FILE} is committed alongside .gitlab-ci.yml"
+      # --- Step 1: Verify catalog + omnia.env were uploaded ---
+      # catalog_rhel.json and omnia.env are uploaded to the OIM host
+      # via BSM API during initialization (Step 4/4).
+      echo "  Step 1/3: Verify catalog and omnia.env..."
+      echo "  ------------------------------------------------------------"
+      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
+      if [ -f "${CATALOG_SRC}" ]; then
+        echo "  [OK] ${CATALOG_FILE} present in repo (uploaded to OIM via BSM API)"
+      else
+        echo "  ERROR: ${CATALOG_FILE} not found in GitLab repository"
         exit 1
       fi
-
-      CATALOG_SIZE=$(stat -c%s "${CATALOG_PATH}" 2>/dev/null || stat -f%z "${CATALOG_PATH}" 2>/dev/null)
-
-      echo "  Uploading and parsing catalog file..."
-      echo "  ------------------------------------------------------------"
-      echo "  File: ${CATALOG_PATH}"
-      echo "  Size: ${CATALOG_SIZE} bytes"
-      echo ""
-      echo "  API Request:"
-      echo "  - Method: POST"
-      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog"
-      echo "  - Content-Type: multipart/form-data"
-      echo "  - Certificate: ${BSM_CERT_FILE}"
-      echo ""
-
-      HTTP_CODE=$(api_call_with_retry parse_response.json \
-        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog" \
-        -F "file=@${CATALOG_PATH};type=application/json" \
-        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-
-      echo "  API Response:"
-      echo "  - HTTP Status Code: ${HTTP_CODE}"
-      echo ""
-
-      if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-        echo "  ERROR: Parse catalog failed"
-        echo "  Response Body:"
-        jq '.' parse_response.json 2>/dev/null || cat parse_response.json
-        exit 1
+      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_SRC}" ]; then
+        echo "  [OK] omnia.env present in repo (uploaded to OIM via BSM API)"
+      else
+        echo "  WARNING: omnia.env not found in GitLab repository"
       fi
-
-      echo "  Response Body:"
-      jq '.' parse_response.json
-
       echo ""
-      echo "  [OK] Catalog parsed successfully"
+
+      # --- Step 2: Copy repo_manager input files ---
+      echo "  Step 2/3: Copy repo_manager input files..."
+      echo "  ------------------------------------------------------------"
+      RM_SRC="${CI_PROJECT_DIR}/input/repo_manager"
+      RM_DEST="${OMNIA_DATA_PATH}/repo_manager/input/${OMNIA_PROJECT_NAME}"
+      if [ -d "${RM_SRC}" ]; then
+        mkdir -p "${RM_DEST}"
+        cp -rv "${RM_SRC}/"* "${RM_DEST}/" 2>/dev/null || true
+        echo "  [OK] repo_manager input files copied to ${RM_DEST}"
+      else
+        echo "  [SKIP] No repo_manager input directory in GitLab repository"
+      fi
+      echo ""
+
+      # --- Step 3: Copy image_build_manager input files ---
+      echo "  Step 3/3: Copy image_build_manager input files..."
+      echo "  ------------------------------------------------------------"
+      IBM_SRC="${CI_PROJECT_DIR}/input/image_build_manager"
+      IBM_DEST="${OMNIA_DATA_PATH}/image_build_manager/input/${OMNIA_PROJECT_NAME}"
+      if [ -d "${IBM_SRC}" ]; then
+        mkdir -p "${IBM_DEST}"
+        cp -rv "${IBM_SRC}/"* "${IBM_DEST}/" 2>/dev/null || true
+        echo "  [OK] image_build_manager input files copied to ${IBM_DEST}"
+      else
+        echo "  [SKIP] No image_build_manager input directory in GitLab repository"
+      fi
+      echo ""
+
+      echo "  ============================================================"
+      echo "  INPUT FILE COPY COMPLETE"
+      echo "  ============================================================"
 
 # ============================= STAGE 3 ====================================
-# Generate Input Files -- Create configuration files from parsed catalog
-# ==========================================================================
-generate-input-files:
-  stage: generate-input-files
-  needs: [initialization, parse-catalog]
-  script:
-    - |
-      echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 3: Generate Input Files"
-      echo "============================================================"
-      echo ""
-
-      # Common Init -- re-authenticate and re-upload config files (retry support)
-      echo "  Common Init -- Upload configuration files..."
-      echo "  ------------------------------------------------------------"
-      refresh_token
-      refresh_input_files
-
-      UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
-        if [ -f "${FPATH}" ]; then
-          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
-        fi
-      done
-
-      if [ -n "${UPLOAD_ARGS}" ]; then
-        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
-          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
-          ${UPLOAD_ARGS} \
-          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
-        else
-          echo "  [OK] Configuration files uploaded"
-        fi
-      fi
-      echo ""
-
-      echo "  Generating configuration files from parsed catalog..."
-      echo "  ------------------------------------------------------------"
-      echo ""
-      echo "  API Request:"
-      echo "  - Method: POST"
-      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/generate-input-files"
-      echo "  - Certificate: ${BSM_CERT_FILE}"
-      echo ""
-
-      HTTP_CODE=$(api_call_with_retry gen_response.json \
-        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/generate-input-files" \
-        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-
-      echo "  API Response:"
-      echo "  - HTTP Status Code: ${HTTP_CODE}"
-      echo ""
-
-      if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-        echo "  ERROR: Generate input files failed"
-        echo "  Response Body:"
-        jq '.' gen_response.json 2>/dev/null || cat gen_response.json
-        exit 1
-      fi
-
-      echo "  Response Body:"
-      jq '.' gen_response.json
-
-      echo ""
-      echo "  [OK] Input files generated successfully"
-
-# ============================= STAGE 4 ====================================
-# Configure Local Repository -- Create and download packages to local repo
-# Triggers async repository creation and polls until completion
+# Configure Local Repository -- Trigger repo_manager playbook via BSM API
+# Polls until completion
 # ==========================================================================
 configure-local-repository:
   stage: configure-local-repository
-  needs: [initialization, generate-input-files]
+  needs: [initialization, copy-input-files]
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 4: Configure Local Repository"
+      echo "  [${JOB_ID}] STAGE 3: Configure Local Repository"
       echo "============================================================"
       echo ""
 
@@ -761,6 +724,18 @@ configure-local-repository:
           echo "    [+] ${FNAME}"
         fi
       done
+
+      # Include catalog and omnia.env in retry uploads
+      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
+      if [ -f "${CATALOG_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${CATALOG_SRC}"
+        echo "    [+] ${CATALOG_FILE} (catalog)"
+      fi
+      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
+      if [ -f "${OMNIA_ENV_SRC}" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${OMNIA_ENV_SRC}"
+        echo "    [+] omnia.env (environment config)"
+      fi
 
       if [ -n "${UPLOAD_ARGS}" ]; then
         HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
@@ -871,9 +846,9 @@ configure-local-repository:
       echo ""
       echo "  [OK] Local repository configured successfully"
 
-# ============================= STAGE 5 ====================================
-# Build Images -- Retrieve roles, trigger builds, and poll until completion
-# Integrates role retrieval as prerequisite before building images
+# ============================= STAGE 4 ====================================
+# Build Images -- Trigger image_build_manager playbook via BSM API
+# Domain-segregated: playbook handles architecture selection internally
 # ==========================================================================
 build-images:
   stage: build-images
@@ -881,7 +856,7 @@ build-images:
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 5: Build Images"
+      echo "  [${JOB_ID}] STAGE 4: Build Images (Domain-Segregated)"
       echo "============================================================"
       echo ""
 
@@ -916,211 +891,132 @@ build-images:
       fi
       echo ""
 
-      echo "  Step 1/2: Retrieve catalog roles and image metadata..."
+      echo "  Step 1/2: Trigger unified build-image stage..."
       echo "  ------------------------------------------------------------"
       echo ""
       echo "  API Request:"
-      echo "  - Method: GET"
-      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/catalog/roles"
+      echo "  - Method: POST"
+      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image"
+      echo "  - Content-Type: application/json"
       echo "  - Certificate: ${BSM_CERT_FILE}"
+      echo "  - Request Body: {} (empty - playbook reads catalog)"
       echo ""
 
-      HTTP_CODE=$(api_call_with_retry roles_response.json \
-        -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/catalog/roles" \
+      HTTP_CODE=$(api_call_with_retry build_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
+        -H "Content-Type: application/json" \
+        -d '{}' \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
       echo "  API Response:"
       echo "  - HTTP Status Code: ${HTTP_CODE}"
       echo ""
 
-      if [ "$HTTP_CODE" != "200" ]; then
-        echo "  ERROR: Get roles failed"
+      if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+        echo "  ERROR: Build image request failed"
         echo "  Response Body:"
-        jq '.' roles_response.json 2>/dev/null || cat roles_response.json
+        jq '.' build_response.json 2>/dev/null || cat build_response.json
         exit 1
       fi
 
       echo "  Response Body:"
-      jq '.' roles_response.json
-
-      IMAGE_KEY=$(jq -r '.image_key' roles_response.json)
-      ARCHITECTURES=$(jq -r '.architectures[]' roles_response.json)
-      ROLES_JSON=$(jq -c '.roles' roles_response.json)
-      ARCH_COUNT=$(jq -r '.architectures | length' roles_response.json)
-      ROLE_COUNT=$(jq -r '.roles | length' roles_response.json)
-
+      jq '.' build_response.json 2>/dev/null || cat build_response.json
       echo ""
-      echo "  Extracted Metadata:"
-      echo "  - Image Key: ${IMAGE_KEY}"
-      echo "  - Architectures: ${ARCH_COUNT} ($(echo ${ARCHITECTURES} | tr '\n' ',' | sed 's/,$//'))"
-      echo "  - Roles/Functional Groups: ${ROLE_COUNT}"
-      echo ""
-      echo "  [OK] Roles retrieved successfully"
+      echo "  [OK] Build request accepted (playbook will build all architectures)"
       echo ""
 
-      echo "  Step 2/2: Build images sequentially for each architecture..."
+      echo "  Step 2/2: Wait for build-image stage to complete..."
       echo "  ------------------------------------------------------------"
-      echo "  Strategy: Sequential execution with fail-fast behavior"
-      echo "  - Submit build for one architecture at a time"
-      echo "  - Wait for completion before starting the next"
-      echo "  - Exit immediately if any build fails"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo "  Note: Playbook builds all architectures (x86_64, aarch64) internally"
       echo ""
-      BUILD_COUNT=0
 
-      for ARCH in ${ARCHITECTURES}; do
-        BUILD_COUNT=$((BUILD_COUNT + 1))
-        echo ""
-        echo "  ============================================================"
-        echo "  Build ${BUILD_COUNT}/${ARCH_COUNT}: ${ARCH}"
-        echo "  ============================================================"
-        echo ""
+      TERMINAL_REACHED=false
+      ATTEMPT=1
 
-        # Determine stage name for this architecture
-        STAGE_NAME="build-image-${ARCH}"
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
-        echo "  Step 2.${BUILD_COUNT}a: Submit build request for ${ARCH}..."
-        echo "  ------------------------------------------------------------"
-        echo ""
-        echo "  API Request:"
-        echo "  - Method: POST"
-        echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image"
-        echo "  - Content-Type: application/json"
-        echo "  - Certificate: ${BSM_CERT_FILE}"
-        echo ""
-        echo "  Request Payload:"
-        echo "    {\"architecture\": \"${ARCH}\", \"image_key\": \"${IMAGE_KEY}\", \"functional_groups\": ${ROLES_JSON}}" | jq '.'
-        echo ""
-
-        HTTP_CODE=$(api_call_with_retry "build_response_${ARCH}.json" \
-          -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"architecture\": \"${ARCH}\",
-            \"image_key\": \"${IMAGE_KEY}\",
-            \"functional_groups\": ${ROLES_JSON}
-          }" \
-          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-
-        echo "  API Response:"
-        echo "  - HTTP Status Code: ${HTTP_CODE}"
-        echo ""
-
-        if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-          echo "  ERROR: Build image request failed for architecture ${ARCH}"
-          echo "  Response Body:"
-          jq '.' "build_response_${ARCH}.json" 2>/dev/null || cat "build_response_${ARCH}.json"
-          exit 1
-        fi
-
-        echo "  Response Body:"
-        jq '.' "build_response_${ARCH}.json" 2>/dev/null || cat "build_response_${ARCH}.json"
-        echo ""
-        echo "  [OK] Build request accepted for ${ARCH}"
-        echo ""
-
-        echo "  Step 2.${BUILD_COUNT}b: Wait for ${ARCH} build to complete..."
-        echo "  ------------------------------------------------------------"
-        echo "  Polling interval: ${POLL_INTERVAL}s"
-        echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
-        echo "  Stage name: ${STAGE_NAME}"
-        echo ""
-
-        TERMINAL_REACHED=false
-        ATTEMPT=1
-
-        while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-          HTTP_CODE=$(api_call_with_retry "status_response_${ARCH}.json" \
-            -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-            --cacert "${BSM_CERT_FILE}")
-          [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
-            ATTEMPT=$((ATTEMPT + 1))
-            sleep "${POLL_INTERVAL}"
-            continue
-          fi
-
-          # Get status of the specific stage for this architecture
-          STAGE_STATE=$(jq -r ".stages[]? | select(.stage_name == \"${STAGE_NAME}\") | .stage_state" \
-            "status_response_${ARCH}.json" 2>/dev/null || echo "UNKNOWN")
-          JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' "status_response_${ARCH}.json")
-
-          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Stage ${STAGE_NAME}: ${STAGE_STATE}"
-
-          # Check stage state
-          case "${STAGE_STATE}" in
-            COMPLETED|SUCCEEDED)
-              TERMINAL_REACHED=true
-              echo ""
-              echo "  Stage Details:"
-              jq ".stages[]? | select(.stage_name == \"${STAGE_NAME}\") |
-                {stage: .stage_name, state: .stage_state, started: .started_at, ended: .ended_at}" "status_response_${ARCH}.json" 2>/dev/null
-              echo ""
-              echo "  [OK] Build completed successfully for ${ARCH}"
-              break
-              ;;
-            FAILED|CANCELLED)
-              echo ""
-              echo "  ERROR: Build-image stage reached ${STAGE_STATE} for ${ARCH}"
-              echo "  Stage Details:"
-              jq ".stages[]? | select(.stage_name == \"${STAGE_NAME}\")" "status_response_${ARCH}.json" 2>/dev/null
-              echo ""
-              echo "  Stopping sequential build process (fail-fast)"
-              exit 1
-              ;;
-            PENDING|IN_PROGRESS|RUNNING)
-              # Still in progress, continue polling
-              ;;
-            *)
-              echo "  WARNING: Unexpected stage state: ${STAGE_STATE}"
-              ;;
-          esac
-
-          # Check job state for early failure detection
-          case "${JOB_STATE}" in
-            FAILED|CANCELLED)
-              echo ""
-              echo "  ERROR: Job reached ${JOB_STATE} state"
-              exit 1
-              ;;
-          esac
-
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
           ATTEMPT=$((ATTEMPT + 1))
           sleep "${POLL_INTERVAL}"
-        done
-
-        if [ "$TERMINAL_REACHED" = "false" ]; then
-          echo ""
-          echo "  ERROR: Polling timed out for ${ARCH} after ${MAX_POLL_ATTEMPTS} attempts"
-          echo "  Last known stage state: ${STAGE_STATE}"
-          exit 1
+          continue
         fi
 
-        echo ""
+        STAGE_STATE=$(jq -r '.stages[]? | select(.stage_name == "build-image") | .stage_state' \
+          status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Stage build-image: ${STAGE_STATE}"
+
+        case "${STAGE_STATE}" in
+          COMPLETED|SUCCEEDED)
+            TERMINAL_REACHED=true
+            echo ""
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            echo ""
+            echo "  [OK] Build completed successfully (all architectures)"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: build-image stage reached ${STAGE_STATE}"
+            echo "  Stage Details:"
+            jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            exit 1
+            ;;
+          PENDING|IN_PROGRESS|RUNNING)
+            # Still in progress, continue polling
+            ;;
+          *)
+            echo "  WARNING: Unexpected stage state: ${STAGE_STATE}"
+            ;;
+        esac
+
+        case "${JOB_STATE}" in
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Job reached ${JOB_STATE} state"
+            exit 1
+            ;;
+        esac
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
       done
+
+      if [ "$TERMINAL_REACHED" = "false" ]; then
+        echo ""
+        echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        echo "  Last known stage state: ${STAGE_STATE}"
+        exit 1
+      fi
 
       echo ""
       echo "  ============================================================"
-      echo "  [OK] All ${BUILD_COUNT} image(s) built successfully"
+      echo "  [OK] All images built successfully"
       echo "  ============================================================"
-  artifacts:
-    paths:
-      - roles_response.json
 
-# ============================= STAGE 6 ====================================
+# ============================= STAGE 5 ====================================
 # Summary -- Fetch final job status and display comprehensive results
 # Runs after any stage (success or failure) to provide complete pipeline summary
 # ==========================================================================
 summary:
   stage: summary
-  needs: [initialization, parse-catalog, generate-input-files, configure-local-repository,
+  needs: [initialization, copy-input-files, configure-local-repository,
           build-images]
   when: always
   script:
     - |
       echo "============================================================"
-      echo "  STAGE 6: Build Pipeline Summary"
+      echo "  STAGE 5: Build Pipeline Summary"
       echo "============================================================"
 
       # Check if we have a job ID (might not if auth or create-job failed)
@@ -1162,7 +1058,7 @@ summary:
       JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' final_status.json)
 
       # Build pipeline stages only (exclude deploy/restart/validate/pxe_boot/upload)
-      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|generate-input-files|create-local-repository|build-image-.*)$"))'
+      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image-.*)$"))'
       TOTAL_STAGES=$(jq -r "[${BUILD_STAGES_FILTER}] | length" \
         final_status.json 2>/dev/null || echo "0")
       COMPLETED=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"COMPLETED\" or .stage_state == \"SUCCEEDED\")] | length" \
@@ -1204,15 +1100,14 @@ summary:
         # Define build stage execution order
         def stage_order:
           {
-            "parse-catalog": 1,
-            "generate-input-files": 2,
-            "create-local-repository": 3,
-            "build-image-x86_64": 4,
-            "build-image-aarch64": 4
+            "copy-input-files": 1,
+            "create-local-repository": 2,
+            "build-image-x86_64": 3,
+            "build-image-aarch64": 3
           };
 
         # Filter to build stages only, then sort by execution order
-        [.stages[]? | select(.stage_name | test("^(parse-catalog|generate-input-files|create-local-repository|build-image-.*)$"))] |
+        [.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image-.*)$"))] |
         sort_by([stage_order[.stage_name] // 999, .stage_name])[] |
         "  |    \(.stage_name): \(.stage_state)" +
         (if .error_code then "  [\(.error_code)]" else "" end)
@@ -1221,7 +1116,7 @@ summary:
       echo "  +-----------------------------------------------------------+"
 
       # Print errors if any (build stages only)
-      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|generate-input-files|create-local-repository|build-image-.*)$")) | \
+      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image-.*)$")) | \
                            select(.stage_state == "FAILED")'
       ERRORS=$(jq -r "${BUILD_FAILED_FILTER} | \"  |    X \(.stage_name): \" + (.error_summary // \"no details\")" \
         final_status.json 2>/dev/null || true)

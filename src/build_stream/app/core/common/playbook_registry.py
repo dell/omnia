@@ -15,14 +15,19 @@
 """Playbook Path Registry — single source of truth for playbook locations.
 
 Reads playbook_paths.yml at module load time and exposes a lookup function.
-When domain segregation is complete, only the YAML file needs updating —
-no Python code changes required.
+Paths in the YAML are relative to OMNIA_SRC_PATH (the ``omnia/src/``
+directory).  The registry resolves them to absolute paths at load time.
+
+Resolution order for OMNIA_SRC_PATH:
+  1. ``OMNIA_SRC_PATH`` environment variable (if set and non-empty).
+  2. Auto-detected from this file's location in the source tree:
+     ``<this_file>/../../../../..`` → ``omnia/src/``.
 
 Usage:
     from core.common.playbook_registry import get_playbook_path
 
-    path = get_playbook_path("provision.yml")
-    # Returns "/omnia/provision/provision.yml"
+    path = get_playbook_path("repo_manager.yml")
+    # Returns "/home/user/omnia/src/repo_manager/playbooks/repo_manager.yml"
 """
 
 import os
@@ -33,13 +38,40 @@ from api.logging_utils import log_secure_info
 
 _PLAYBOOK_PATHS_FILE = Path(os.getenv(
     "PLAYBOOK_PATHS_CONFIG",
-    str(Path(__file__).resolve().parent.parent.parent / "playbook_paths.yml"),
+    str(Path(__file__).resolve().parent.parent.parent / "playbook_paths.conf"),
 ))
+
+# Auto-detect: this file is at src/build_stream/app/core/common/playbook_registry.py
+# so .parent x5 gives src/
+_AUTO_DETECTED_SRC_PATH = str(
+    Path(__file__).resolve().parent.parent.parent.parent.parent
+)
+
+
+def _get_omnia_src_path() -> str:
+    """Return the Omnia source tree root (``omnia/src/``).
+
+    Reads ``OMNIA_SRC_PATH`` from the environment.  Falls back to
+    auto-detection from this file's location in the source tree.
+    """
+    return os.environ.get("OMNIA_SRC_PATH") or _AUTO_DETECTED_SRC_PATH
+
+
+def _resolve_path(relative_path: str) -> str:
+    """Resolve a relative playbook path to an absolute path.
+
+    If the path is already absolute it is returned as-is (backward compat).
+    Otherwise it is joined with OMNIA_SRC_PATH.
+    """
+    if os.path.isabs(relative_path):
+        return relative_path
+    return str(Path(_get_omnia_src_path()) / relative_path)
 
 
 def _load_mapping(config_path: Path) -> dict:
     """Load playbook name→path mapping from YAML config.
 
+    Relative paths are resolved against OMNIA_SRC_PATH.
     Returns an empty dict on any error, which makes every lookup fail
     safely (no playbook can be resolved).
     """
@@ -48,7 +80,8 @@ def _load_mapping(config_path: Path) -> dict:
         with open(config_path, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
         if isinstance(data, dict) and isinstance(data.get("playbook_paths"), dict):
-            return dict(data["playbook_paths"])
+            raw = data["playbook_paths"]
+            return {name: _resolve_path(p) for name, p in raw.items()}
         log_secure_info("error", "playbook_paths.yml: missing 'playbook_paths' key")
         return {}
     except FileNotFoundError:
@@ -65,10 +98,10 @@ _REGISTRY: dict = _load_mapping(_PLAYBOOK_PATHS_FILE)
 
 
 def get_playbook_path(playbook_name: str) -> Optional[str]:
-    """Resolve a playbook filename to its absolute container path.
+    """Resolve a playbook filename to its absolute path on the host.
 
     Args:
-        playbook_name: Filename only (e.g. ``"provision.yml"``).
+        playbook_name: Filename only (e.g. ``"repo_manager.yml"``).
 
     Returns:
         Absolute path string if found, ``None`` otherwise.

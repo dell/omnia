@@ -28,7 +28,7 @@
 #
 # This playbook orchestrates the full BuildStream domain:
 #   1. Upgrade check + input directory resolution (shared utilities)
-#   2. Domain-specific credential validation, creation, and update
+#   2. Build Stream credential validation, creation, and update
 #   3. Postgres + GitLab + BSM deployment (prepare_build_stream)
 #   4. GitLab CI/CD configuration (setup_gitlab)
 #   5. Output: build_stream_status.yml
