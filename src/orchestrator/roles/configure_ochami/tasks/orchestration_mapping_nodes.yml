@@ -45,11 +45,12 @@
         mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
     - name: Create orchestrator output directory on localhost
+      # HPC: No loop fan-out - single task only
       ansible.builtin.file:
         path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
         state: directory
         mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
-      delegate_to: localhost  # HPC: No loop fan-out - single task only
+      delegate_to: localhost  # noqa
 
     - name: Load BMC-group data file
       ansible.builtin.template:
