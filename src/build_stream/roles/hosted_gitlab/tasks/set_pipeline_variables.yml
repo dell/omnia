@@ -60,7 +60,7 @@
       key: "{{ item.item.key }}"
       value: "{{ item.item.value }}"
       variable_type: "{{ item.item.variable_type }}"
-      masked: "{{ item.item.masked }}"
+      masked: "{{ item.item.masked and (item.item.value | string | length >= 8) }}"
       protected: false
     validate_certs: false
     status_code: "{{ gitlab_pipeline_var_create_status_codes }}"
@@ -80,7 +80,7 @@
     body:
       value: "{{ item.item.value }}"
       variable_type: "{{ item.item.variable_type }}"
-      masked: "{{ item.item.masked }}"
+      masked: "{{ item.item.masked and (item.item.value | string | length >= 8) }}"
       protected: false
     validate_certs: false
     status_code: "{{ gitlab_pipeline_var_update_status_codes }}"
