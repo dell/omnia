@@ -2,23 +2,23 @@
 
 All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
-## Deploy vs Verify Architecture
+## Deploy / Verify / Cleanup Architecture
 
-Every scenario follows a two-step pattern:
+Every scenario follows a three-phase pattern:
 
-| Command | What it does | Marker |
-|---------|-------------|--------|
-| `deploy` | **Executes** the actual omnia.sh command (setup, init, run, cleanup). These tests **change state** on the target. | `@pytest.mark.deploy` |
-| `verify` | **Checks results** after deploy ran. These tests are **read-only** — they inspect files, dirs, env vars. No state changes. | *(no deploy marker)* |
-| `test`   | Runs **deploy + verify** in sequence (full flow). | — |
+| Phase | What it does | Marker | When it runs |
+|-------|-------------|--------|--------------|
+| `deploy` | **Executes** the actual omnia.sh command (setup, init, run). Changes state. | `@pytest.mark.deploy` | Step 1 |
+| `verify` | **Checks results** after deploy. Read-only — inspects files, dirs, env vars. | *(no marker)* | Step 2 |
+| `cleanup` | **Tears down** state (e.g. `--cleanup`). Runs **after** verify so checks pass. | `@pytest.mark.cleanup` | Step 3 |
 
 Usage:
 
 ```bash
-# Full flow: execute scripts, then verify results
+# Full flow: deploy + verify + cleanup
 ./run_validation.sh execution test
 
-# Only execute the scripts (no verification)
+# Only execute the scripts (no verification, no cleanup)
 ./run_validation.sh execution deploy
 
 # Only verify results (assumes scripts already ran)
@@ -131,7 +131,7 @@ test harness venv (`test/main/.venv`), all operations execute normally.
 
 Tests actual execution of omnia.sh commands — not just help output or flag parsing.
 
-### Deploy tests (test_deploy_execution.py)
+### Phase 1 — Deploy tests (test_deploy_execution.py)
 
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
@@ -139,9 +139,8 @@ Tests actual execution of omnia.sh commands — not just help output or flag par
 | TC_EX_002 | `test_deploy_init_domain` | *(root)* | deploy, sanity | Deploy omnia.sh --init image_build_manager |
 | TC_EX_003 | `test_deploy_run_precheck` | *(root)* | deploy, sanity, functional | Deploy --run image_build_manager --tags precheck |
 | TC_EX_004 | `test_deploy_run_validate` | *(root)* | deploy, sanity, functional | Deploy --run image_build_manager --tags validate |
-| TC_EX_005 | `test_deploy_cleanup` | *(root)* | deploy, sanity | Deploy omnia.sh --cleanup (skip if inside omnia venv) |
 
-### Verify tests (setup_exec/)
+### Phase 2 — Verify tests (setup_exec/)
 
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
@@ -149,6 +148,12 @@ Tests actual execution of omnia.sh commands — not just help output or flag par
 | TC_EX_007 | `test_verify_env_installed` | setup_exec/ | sanity | Verify system env files installed after deploy |
 | TC_EX_008 | `test_verify_domain_log_dirs` | setup_exec/ | sanity | Verify domain log directories created after init |
 | TC_EX_009 | `test_verify_domain_input_staged` | setup_exec/ | sanity | Verify domain input files staged after init |
+
+### Phase 3 — Cleanup tests (test_deploy_execution.py)
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_005 | `test_deploy_cleanup` | *(root)* | cleanup, sanity | Cleanup omnia.sh --cleanup (runs after verify, skip if inside omnia venv) |
 
 ---
 

@@ -6,18 +6,20 @@ performance, idempotency, and file permissions.
 
 ## Deploy vs Verify Architecture
 
-Every scenario follows a two-step pattern:
+Every scenario follows a three-phase pattern:
 
-| Command | What it does | Marker |
-|---------|-------------|--------|
-| `deploy` | **Executes** the actual omnia.sh / omnia-cli command. These tests **change state** on the target (install venv, create dirs, run playbooks). | `@pytest.mark.deploy` |
-| `verify` | **Checks results** after deploy ran. These tests are **read-only** — they inspect files, dirs, env vars, and command output. No state changes. | *(no deploy marker)* |
-| `test`   | Runs **deploy + verify** in sequence (full flow). | — |
+| Phase | What it does | Marker |
+|-------|-------------|--------|
+| `deploy` | **Executes** the actual omnia.sh / omnia-cli command. Changes state on target. | `@pytest.mark.deploy` |
+| `verify` | **Checks results** after deploy. Read-only — inspects files, dirs, env vars. | *(no marker)* |
+| `cleanup` | **Tears down** state (e.g. `--cleanup`). Runs **after** verify so checks pass. | `@pytest.mark.cleanup` |
+
+The `test` command runs all three phases in order: deploy -> verify -> cleanup.
 
 This means:
-- `./run_validation.sh setup test` = run `--setup-venv --deps-only`, then verify venv/env/dirs exist
+- `./run_validation.sh setup test` = run `--setup-venv --deps-only`, verify, then cleanup (if any)
 - `./run_validation.sh setup verify` = only verify (assumes setup already ran)
-- `./run_validation.sh execution deploy` = only run the scripts (no verification)
+- `./run_validation.sh execution test` = setup + init + run, verify, then cleanup
 
 ### Intelligent Skip for Setup & Cleanup
 
@@ -91,7 +93,7 @@ test/main/
 │   │   ├── errors/                   # verify: unknown command errors
 │   │   └── logs/                     # verify: log commands
 │   └── execution/           # Actual omnia.sh operations (full lifecycle)
-│       ├── test_deploy_execution.py   # @deploy: setup, init, run --tags, cleanup
+│       ├── test_deploy_execution.py   # @deploy: setup, init, run; @cleanup: teardown
 │       └── setup_exec/               # verify: venv, env, log dirs, input files
 └── nft/                     # Non-Functional Tests
     ├── README.md            # NFT test cases and thresholds
@@ -119,7 +121,8 @@ test/main/
 |--------|-------------|
 | `sanity` | Baseline must-pass tests |
 | `functional` | Functional verification tests |
-| `deploy` | Script execution tests (these **change state** on the target) |
+| `deploy` | Script execution tests (setup, init, run — **change state**) |
+| `cleanup` | Teardown tests (run after verify — **may destroy state**) |
 | `nft` | Non-functional tests (performance, idempotency, permissions) |
 
 ### Filtering by Marker

@@ -13,17 +13,21 @@
 # limitations under the License.
 
 """
-Omnia Main Execution — Deploy.
+Omnia Main Execution — Deploy + Cleanup.
 
-Runs actual omnia.sh commands (the ``deploy`` step).
-Verification of results is in setup_exec/ (the ``verify`` step).
+Three-phase test flow managed by ``run_validation.sh test``:
 
-Deploy flow:
-  1. omnia.sh --setup-venv --deps-only  (skip if inside omnia venv)
-  2. omnia.sh --init image_build_manager
-  3. omnia.sh --run image_build_manager --tags precheck
-  4. omnia.sh --run image_build_manager --tags validate
-  5. omnia.sh --cleanup      (skip if inside omnia venv)
+  Phase 1 — Deploy (@deploy marker):
+    1. omnia.sh --setup-venv --deps-only  (skip if inside omnia venv)
+    2. omnia.sh --init image_build_manager
+    3. omnia.sh --run image_build_manager --tags precheck
+    4. omnia.sh --run image_build_manager --tags validate
+
+  Phase 2 — Verify (no marker, in setup_exec/):
+    Read-only checks that venv, env files, log dirs, input files exist.
+
+  Phase 3 — Cleanup (@cleanup marker, runs AFTER verify):
+    5. omnia.sh --cleanup  (skip if inside omnia venv)
 
 Intelligent skip logic:
   - Setup and cleanup modify the omnia production venv at OMNIA_VENV_PATH.
@@ -39,7 +43,7 @@ TC_EX_001: Deploy omnia.sh --setup-venv --deps-only
 TC_EX_002: Deploy omnia.sh --init image_build_manager
 TC_EX_003: Deploy omnia.sh --run image_build_manager --tags precheck
 TC_EX_004: Deploy omnia.sh --run image_build_manager --tags validate
-TC_EX_005: Deploy omnia.sh --cleanup (intelligent skip)
+TC_EX_005: Cleanup omnia.sh --cleanup (intelligent skip, runs after verify)
 """
 
 import pytest
@@ -235,7 +239,7 @@ def test_deploy_run_validate(host):
 # TC_EX_005: Cleanup (intelligent skip)
 # =========================================================================
 
-@pytest.mark.deploy
+@pytest.mark.cleanup
 @pytest.mark.sanity
 @pytest.mark.order(100)
 def test_deploy_cleanup(host):

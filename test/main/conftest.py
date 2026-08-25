@@ -17,7 +17,7 @@ Pytest configuration for omnia main FVT.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy, nft
+- Custom markers: sanity, functional, deploy, cleanup, nft
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -95,7 +95,8 @@ def pytest_configure(config):
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
         "regression": "Regression tests",
-        "deploy": "Script execution tests",
+        "deploy": "Script execution tests (setup, init, run)",
+        "cleanup": "Teardown tests (run after verify, may destroy state)",
         "nft": "Non-functional tests (performance, idempotency, permissions)",
     }
     for name, desc in markers.items():
