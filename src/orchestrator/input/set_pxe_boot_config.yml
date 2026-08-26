@@ -14,6 +14,10 @@
 ---
 # PXE Boot Configuration
 # This file configures PXE boot and phone-home verification timing
+#
+# Usage:
+#   - To run PXE boot: ansible-playbook orchestrator.yml --tags setpxe
+#   - Standalone: ansible-playbook setpxe/set_pxe_boot.yml
 
 # ─────────────────────────────────────────────────────────────────────────
 # Phone-Home Verification Configuration
