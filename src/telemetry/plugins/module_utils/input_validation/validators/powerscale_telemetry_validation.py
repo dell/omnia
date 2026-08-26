@@ -182,25 +182,61 @@ def validate_powerscale_telemetry_config(
                     )
                     # Note: proxyHost validation removed - proxy mode is optional
 
-                    # Offline image availability check
-                    # Warn if required images are not available in local registry
-                    required_images = []
-                    if karavi_metrics and karavi_metrics.get("image"):
-                        required_images.append(karavi_metrics["image"])
-                    if otel_config and otel_config.get("image"):
-                        required_images.append(otel_config["image"])
-                    karavi_auth = (
-                        karavi_metrics.get("authorization", {}) if karavi_metrics else {}
-                    )
-                    sidecar_proxy = karavi_auth.get("sidecarProxy", {})
-                    if sidecar_proxy and sidecar_proxy.get("image"):
-                        required_images.append(sidecar_proxy["image"])
+                    # Compare images with telemetry_packages.yml in offline mode
+                    install_mode = "online"
+                    expected_images = {}
+                    if telemetry_packages_file_path and os.path.exists(telemetry_packages_file_path):
+                        try:
+                            with open(telemetry_packages_file_path, 'r', encoding='utf-8') as pkg_f:
+                                packages_data = yaml.safe_load(pkg_f)
+                            install_mode = packages_data.get("install_mode", "online")
+                            if install_mode == "offline":
+                                # Get expected PowerScale images from telemetry_packages.yml
+                                powerscale_images = packages_data.get("images", {}).get("powerscale", {})
+                                expected_images = {
+                                    "csm_metrics": powerscale_images.get("csm_metrics", ""),
+                                    "otel_collector": powerscale_images.get("otel_collector", ""),
+                                }
+                                # Add sidecar proxy if authorization is enabled
+                                if karavi_auth.get("enabled", False):
+                                    # Note: sidecar proxy image is not in telemetry_packages.yml
+                                    # It's typically bundled with csm-authorization-sidecar
+                                    pass
+                        except (yaml.YAMLError, IOError) as pkg_err:
+                            logger.warning(
+                                f"Could not load telemetry_packages.yml: {pkg_err}"
+                            )
 
-                    if required_images:
-                        logger.warning(
-                            "PowerScale telemetry requires the following images to be available "
-                            f"in your container registry: {', '.join(required_images)}. "
-                            "Ensure these images are pulled or available offline before deployment."
+                    # Collect actual images from CSM values
+                    actual_images = {}
+                    if karavi_metrics and karavi_metrics.get("image"):
+                        actual_images["csm_metrics"] = karavi_metrics["image"]
+                    if otel_config and otel_config.get("image"):
+                        actual_images["otel_collector"] = otel_config["image"]
+
+                    # Compare images in offline mode
+                    if install_mode == "offline" and expected_images:
+                        mismatched_images = []
+                        for img_key, expected_img in expected_images.items():
+                            if expected_img and img_key in actual_images:
+                                if actual_images[img_key] != expected_img:
+                                    mismatched_images.append(
+                                        f"{img_key}: expected '{expected_img}', "
+                                        f"found '{actual_images[img_key]}'"
+                                    )
+                        if mismatched_images:
+                            logger.warning(
+                                "PowerScale image version mismatch detected in offline mode. "
+                                f"Ensure these images match telemetry_packages.yml: "
+                                f"{', '.join(mismatched_images)}"
+                            )
+                        else:
+                            logger.info(
+                                "PowerScale images match telemetry_packages.yml in offline mode"
+                            )
+                    elif install_mode == "online":
+                        logger.info(
+                            "Online mode: skipping image version comparison with telemetry_packages.yml"
                         )
 
                     # Validate unsupported metrics are not enabled

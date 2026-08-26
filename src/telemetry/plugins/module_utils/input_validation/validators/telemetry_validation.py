@@ -556,6 +556,17 @@ def validate_telemetry_config(
     powerscale_configs = data.get("powerscale_configurations", {})
     powerscale_collection_targets = powerscale_source.get("collection_targets", [])
 
+    # Build config_paths for PowerScale validation
+    telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
+    telemetry_input_dir = os.path.join(telemetry_root, "input")
+    software_config_file_path = os.path.join(telemetry_input_dir, "software_config.json")
+    telemetry_packages_file_path = os.path.join(telemetry_input_dir, "telemetry_packages.yml")
+    is_service_cluster_defined = bool(kube_vip_valid)
+    config_paths = {
+        "service_k8s_json_path": os.path.join(telemetry_input_dir, "service_k8s.json"),
+        "csi_driver_powerscale_json_path": os.path.join(telemetry_input_dir, "csi_driver_powerscale.json"),
+    }
+
     if powerscale_enabled or powerscale_logs_enabled:
         # Use standalone PowerScale validation module
         powerscale_telemetry_validation.validate_powerscale_telemetry_config(
@@ -565,7 +576,8 @@ def validate_telemetry_config(
             is_service_cluster_defined=is_service_cluster_defined,
             config_paths=config_paths,
             logger=logger,
-            errors=errors
+            errors=errors,
+            telemetry_packages_file_path=telemetry_packages_file_path
         )
 
 
