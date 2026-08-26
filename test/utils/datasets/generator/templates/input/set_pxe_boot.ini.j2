@@ -1,8 +1,0 @@
-# PXE Boot Inventory
-# Generated from template with profile variables
-
-[bmc]
-{% for host in bmc_hosts %}
-{{ host.ip }} admin_ip={{ host.admin_ip }} hostname={{ host.hostname }}{% if host.service_tag %} service_tag={{ host.service_tag }}{% endif %}
-
-{% endfor %}
