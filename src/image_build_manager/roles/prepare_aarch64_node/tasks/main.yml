@@ -17,9 +17,9 @@
 # Image pull: tries repo manager (Pulp) first, falls back to DockerHub/upstream.
 # regctl: copies from OIM localhost first, downloads from GitHub if copy fails.
 #
-# NOTE: SSH connectivity (known_hosts, ssh-copy-id, passwordless verify) is
-# handled by validate_aarch64_host.yml BEFORE this role runs. By the time
-# Ansible reaches this play (hosts: admin_aarch64), SSH must already work.
+# Prerequisites (completed before this role runs):
+#   - validate_aarch64_host.yml: ping check, admin_aarch64 group creation
+#   - setup_ssh.yml: SSH keygen, known_hosts, ssh-copy-id, verify
 
 # =========================================================================
 # Phase 1: Architecture validation

@@ -10,11 +10,22 @@ at `/opt/omnia/image_build_manager`.
 
 ### Prerequisites (handled before this role)
 
-- **SSH connectivity** — `validate_aarch64_host.yml` (in `validate_build_runtime`) handles
-  ping check, known_hosts, ssh-copy-id, and passwordless SSH verification on localhost
-  *before* this role's play begins. By the time `hosts: admin_aarch64` runs, SSH works.
+- **Validation** — `validate_aarch64_host.yml` (in `validate_build_runtime`) runs on
+  localhost: checks IP is configured, pings the host, creates `admin_aarch64` inventory group.
+  Fails early if host is unreachable.
+- **SSH setup** — `setup_ssh.yml` (in this role) runs on localhost: generates SSH keypair
+  if missing, adds host to known_hosts, runs `ssh-copy-id` with credential password,
+  verifies passwordless SSH works. Called from a localhost play in the playbook.
 
-### Phases (this role)
+### Task files
+
+| File | Runs on | Purpose |
+|------|---------|---------|
+| `setup_ssh.yml` | localhost | SSH keygen + known_hosts + ssh-copy-id + verify |
+| `gather_oim_data.yml` | localhost | Inventory checks + OIM network facts |
+| `main.yml` | admin_aarch64 | Node preparation (arch check, dirs, images, regctl, registry) |
+
+### Phases (main.yml)
 
 1. **Architecture validation** — Verifies the remote host is actually aarch64.
 2. **OIM hostname resolution** — Adds OIM PXE IP + hostname to `/etc/hosts` on the aarch64 node

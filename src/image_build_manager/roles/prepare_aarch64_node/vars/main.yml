@@ -77,3 +77,12 @@ regctl_not_found_msg: >
   Tried: 1) Copy from OIM localhost
          2) Download from {{ regctl_download_url }}
   Ensure the OIM has regctl installed or the aarch64 node has internet access.
+
+ssh_setup_fail_msg: >
+  Failed to establish passwordless SSH to {{ aarch64_inventory_host_ip }}.
+  Possible causes:
+    1) SSH keypair missing — check /root/.ssh/id_rsa exists on OIM
+    2) aarch64_ssh_password is incorrect in image_build_credentials.yml
+    3) SSH service not running on aarch64 node
+    4) Firewall blocking port 22
+  Manual fix: ssh-keygen -t rsa -b 4096 && ssh-copy-id {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}

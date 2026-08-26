@@ -12,10 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# validate_aarch64_host.yml — Validate aarch64 build host, set up SSH, and
-# dynamically create admin_aarch64 inventory group.
-# IP format + reserved IP validation is handled by Python L1/L2 validators.
-# This file handles runtime checks: ping, SSH setup, and inventory group creation.
+# validate_aarch64_host.yml — Validate aarch64 build host and create dynamic
+# inventory group. This file does VALIDATION ONLY — no SSH setup.
+#
+# Checks performed:
+#   1. Is aarch64_inventory_host_ip configured?
+#   2. Is the host reachable (ping)?
+#   3. Create admin_aarch64 dynamic inventory group
+#
+# SSH setup (keygen, known_hosts, ssh-copy-id) is handled separately by
+# prepare_aarch64_node/tasks/setup_ssh.yml, called from a localhost play
+# in the playbook BEFORE the hosts: admin_aarch64 play.
 
 # --- 1. Check if aarch64 IP is configured ---
 - name: Check if aarch64 IP is configured
@@ -53,75 +60,7 @@
   ansible.builtin.debug:
     msg: "aarch64 host {{ aarch64_inventory_host_ip }} is reachable (ping OK)"
 
-# --- 3. SSH setup — add to known_hosts and configure passwordless SSH ---
-- name: Add aarch64 host to known_hosts
-  when: aarch64_build_enabled | bool
-  ansible.builtin.known_hosts:
-    name: "{{ aarch64_inventory_host_ip }}"
-    key: "{{ lookup('pipe', 'ssh-keyscan -H ' + aarch64_inventory_host_ip) }}"
-
-- name: Check if passwordless SSH is already enabled
-  when: aarch64_build_enabled | bool
-  ansible.builtin.command: >-
-    ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
-    {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
-  register: _aarch64_ssh_check
-  changed_when: false
-  failed_when: false
-
-- name: Set SSH passwordless status
-  when: aarch64_build_enabled | bool
-  ansible.builtin.set_fact:
-    aarch64_ssh_passwordless: "{{ (_aarch64_ssh_check.rc | default(1) == 0) | bool }}"
-    cacheable: true
-
-- name: Setup passwordless SSH via ssh-copy-id
-  when:
-    - aarch64_build_enabled | bool
-    - not (aarch64_ssh_passwordless | bool)
-  ansible.builtin.expect:
-    command: >-
-      ssh-copy-id -o StrictHostKeyChecking=no
-      -i /root/.ssh/id_rsa.pub
-      {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}
-    responses:
-      "(?i)password:": "{{ aarch64_ssh_password | default('') }}"
-  no_log: true
-  register: _ssh_copy_id_result
-  failed_when: false
-
-- name: Verify passwordless SSH is working
-  when:
-    - aarch64_build_enabled | bool
-    - not (aarch64_ssh_passwordless | bool)
-  ansible.builtin.command: >-
-    ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
-    {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
-  register: _ssh_verify
-  changed_when: false
-  failed_when: false
-
-- name: Fail if SSH setup failed
-  when:
-    - aarch64_build_enabled | bool
-    - not (aarch64_ssh_passwordless | bool)
-    - _ssh_verify.rc | default(1) != 0
-  ansible.builtin.fail:
-    msg: >
-      Failed to establish passwordless SSH to {{ aarch64_inventory_host_ip }}.
-      ssh-copy-id output: {{ _ssh_copy_id_result.stdout | default('') }}
-      Verify aarch64_ssh_password is correct in image_build_credentials.yml,
-      or manually run: ssh-copy-id root@{{ aarch64_inventory_host_ip }}
-
-- name: Display SSH status
-  when: aarch64_build_enabled | bool
-  ansible.builtin.debug:
-    msg: >-
-      SSH to {{ aarch64_inventory_host_ip }}:
-      {{ 'already configured (passwordless)' if (aarch64_ssh_passwordless | bool)
-         else 'configured via ssh-copy-id' }}
-
-# --- 4. Dynamically create admin_aarch64 inventory group ---
+# --- 3. Dynamically create admin_aarch64 inventory group ---
 - name: Add aarch64 host to admin_aarch64 group dynamically
   when: aarch64_build_enabled | bool
   ansible.builtin.add_host:
