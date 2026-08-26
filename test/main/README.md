@@ -88,6 +88,8 @@ test/main/
 │   ├── cli/                 # CLI argument tests
 │   │   ├── test_deploy_cli.py         # @deploy: run --help (entry point)
 │   │   ├── commands/                  # verify: flag parsing, error handling
+│   │   │   ├── test_commands.py       # verify: existing CLI commands
+│   │   │   └── test_skip_dryrun.py    # verify: --skip, --dry-run
 │   │   └── tags/                      # verify: tag verification
 │   ├── omnia_cli/           # omnia-cli diagnostics tests
 │   │   ├── test_deploy_omnia_cli.py   # @deploy: run omnia-cli help
