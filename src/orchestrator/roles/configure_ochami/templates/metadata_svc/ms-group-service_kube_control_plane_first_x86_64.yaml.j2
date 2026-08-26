@@ -92,6 +92,7 @@
           permissions: '0600'
           content: |
             {{ read_ssh_private_key.stdout | indent(12) }}
+
         - path: /root/.ssh/config
           permissions: '0600'
           content: |
