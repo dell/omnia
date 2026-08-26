@@ -41,7 +41,87 @@ Usage from a consumer module::
 import os
 import shlex
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+
+# =====================================================================
+# INTERNAL HELPERS — List-based command builders (Checkmarx-safe)
+# =====================================================================
+
+def _parse_ssh_opts(ssh_opts: str) -> List[str]:
+    """Parse SSH options string into a list of arguments."""
+    return shlex.split(ssh_opts)
+
+
+def _build_ssh_cmd_list(
+    ip: str,
+    user: str,
+    auth_secret: Optional[str],
+    ssh_opts: str,
+    remote_cmd: str,
+) -> List[str]:
+    """Build SSH command as a list (no shell=True needed).
+
+    Args:
+        ip: Target host IP.
+        user: SSH user.
+        auth_secret: SSH auth secret (sshpass is used when set).
+        ssh_opts: SSH options string.
+        remote_cmd: Command to execute on the remote host.
+
+    Returns:
+        Command as a list of strings.
+    """
+    opts = _parse_ssh_opts(ssh_opts)
+    target = f"{user}@{ip}"
+
+    if auth_secret:
+        return ["sshpass", "-p", auth_secret, "ssh"] + opts + [target, remote_cmd]
+    return ["ssh"] + opts + [target, remote_cmd]
+
+
+def _build_scp_cmd_list(
+    ip: str,
+    user: str,
+    auth_secret: Optional[str],
+    ssh_opts: str,
+    src: str,
+    dest: str,
+) -> List[str]:
+    """Build SCP command as a list (no shell=True needed).
+
+    Args:
+        ip: Target host IP.
+        user: SSH user.
+        auth_secret: SSH auth secret (sshpass is used when set).
+        ssh_opts: SSH options string.
+        src: Local source path.
+        dest: Remote destination path.
+
+    Returns:
+        Command as a list of strings.
+    """
+    opts = _parse_ssh_opts(ssh_opts)
+    target = f"{user}@{ip}:{dest}"
+
+    if auth_secret:
+        return ["sshpass", "-p", auth_secret, "scp"] + opts + [src, target]
+    return ["scp"] + opts + [src, target]
+
+
+def _build_rsync_ssh_e(auth_secret: Optional[str], ssh_opts: str) -> str:
+    """Build the ``-e`` argument for rsync over SSH.
+
+    Args:
+        auth_secret: SSH auth secret (sshpass is used when set).
+        ssh_opts: SSH options string.
+
+    Returns:
+        SSH command string for rsync ``-e``.
+    """
+    if auth_secret:
+        return f"sshpass -p {shlex.quote(auth_secret)} ssh {ssh_opts}"
+    return f"ssh {ssh_opts}"
 
 
 # =====================================================================
@@ -76,7 +156,7 @@ def clone_repo(
     Returns:
         Dict with ``success``, ``details``, ``error``.
     """
-    result = {"success": False, "details": "", "error": ""}
+    result: Dict[str, Any] = {"success": False, "details": "", "error": ""}
 
     if mode not in ("local", "ssh"):
         result["error"] = f"Invalid mode '{mode}': must be 'local' or 'ssh'"
@@ -91,41 +171,51 @@ def clone_repo(
         result["error"] = "'dest' is required"
         return result
 
-    # --- helpers ---------------------------------------------------
-    def _run(cmd: str) -> subprocess.CompletedProcess:
-        if mode == "local":
-            return subprocess.run(
-                cmd, shell=True, capture_output=True, text=True,  # nosec B602
-                timeout=timeout, check=False,
-            )
-        ssh_cmd = _build_ssh_cmd(ip, user, auth_secret, ssh_opts, cmd)
+    def _run_cmd(cmd_list: List[str]) -> subprocess.CompletedProcess:
+        """Run a command list with timeout."""
         return subprocess.run(
-            ssh_cmd, shell=True, capture_output=True, text=True,  # nosec B602
-            timeout=timeout, check=False,
+            cmd_list,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
         )
 
+    def _run_local(cmd: str) -> subprocess.CompletedProcess:
+        """Run a local shell command via bash -c (list args)."""
+        return _run_cmd(["bash", "-c", cmd])
+
+    def _run_ssh(remote_cmd: str) -> subprocess.CompletedProcess:
+        """Run a remote command via SSH (list args)."""
+        cmd_list = _build_ssh_cmd_list(ip, user, auth_secret, ssh_opts, remote_cmd)
+        return _run_cmd(cmd_list)
+
+    def _run(cmd: str) -> subprocess.CompletedProcess:
+        """Run command locally or via SSH based on mode."""
+        if mode == "local":
+            return _run_local(cmd)
+        return _run_ssh(cmd)
+
     try:
-        # --- check existing repo ----------------------------------
-        chk = _run(f"test -d {dest}/.git && echo YES || echo NO")
+        # Check existing repo
+        chk = _run(f"test -d {shlex.quote(dest)}/.git && echo YES || echo NO")
         repo_exists = chk.returncode == 0 and "YES" in chk.stdout
 
         if repo_exists and force:
-            rm = _run(f"rm -rf {dest}")
+            rm = _run(f"rm -rf {shlex.quote(dest)}")
             if rm.returncode != 0:
                 result["error"] = f"Failed to remove {dest}: {rm.stderr}"
                 return result
             repo_exists = False
 
         if not repo_exists:
-            cl = _run(f"git clone {url} {dest} 2>&1")
+            cl = _run(f"git clone {shlex.quote(url)} {shlex.quote(dest)}")
             if cl.returncode != 0:
-                result["error"] = (
-                    f"git clone failed: {cl.stdout}{cl.stderr}"
-                )
+                result["error"] = f"git clone failed: {cl.stdout}{cl.stderr}"
                 return result
             result["details"] = f"Cloned {url} -> {dest}"
         else:
-            _run(f"cd {dest} && git pull 2>&1")
+            _run(f"cd {shlex.quote(dest)} && git pull")
             result["details"] = f"Repo exists at {dest}, pulled latest"
 
         result["success"] = True
@@ -173,7 +263,7 @@ def sync_files(
     Returns:
         Dict with ``success``, ``details``, ``error``.
     """
-    result = {"success": False, "details": "", "error": ""}
+    result: Dict[str, Any] = {"success": False, "details": "", "error": ""}
 
     if mode not in ("local", "ssh"):
         result["error"] = f"Invalid mode '{mode}': must be 'local' or 'ssh'"
@@ -224,17 +314,18 @@ def sync_files(
         # --- SSH mode ---------------------------------------------
         if mkdir:
             dest_dir = dest if is_dir else os.path.dirname(dest)
-            mkdir_cmd = _build_ssh_cmd(
+            mkdir_cmd = _build_ssh_cmd_list(
                 ip, user, auth_secret, ssh_opts,
                 f"mkdir -p {shlex.quote(dest_dir)}",
             )
             subprocess.run(
-                mkdir_cmd, shell=True, capture_output=True,  # nosec B602
-                text=True, timeout=30, check=False,
+                mkdir_cmd,
+                capture_output=True, text=True,
+                timeout=30, check=False,
             )
 
         if is_dir:
-            ssh_e = _build_ssh_e(auth_secret, ssh_opts)
+            ssh_e = _build_rsync_ssh_e(auth_secret, ssh_opts)
             r = subprocess.run(
                 [
                     "rsync", "-avz", "-e", ssh_e,
@@ -244,26 +335,14 @@ def sync_files(
                 timeout=timeout, check=False,
             )
         else:
-            if auth_secret:
-                scp_cmd = (
-                    f"sshpass -p {shlex.quote(auth_secret)}"
-                    f" scp {ssh_opts}"
-                    f" {shlex.quote(src)}"
-                    f" {shlex.quote(user)}@{shlex.quote(ip)}"
-                    f":{shlex.quote(dest)}"
-                )
-                r = subprocess.run(
-                    scp_cmd,
-                    shell=True, capture_output=True, text=True,  # nosec B602
-                    timeout=timeout, check=False,
-                )
-            else:
-                r = subprocess.run(
-                    ["scp", *ssh_opts.split(), src,
-                     f"{user}@{ip}:{dest}"],
-                    capture_output=True, text=True,
-                    timeout=timeout, check=False,
-                )
+            scp_cmd = _build_scp_cmd_list(
+                ip, user, auth_secret, ssh_opts, src, dest,
+            )
+            r = subprocess.run(
+                scp_cmd,
+                capture_output=True, text=True,
+                timeout=timeout, check=False,
+            )
 
         if r.returncode != 0:
             result["error"] = f"sync failed: {r.stderr}"
@@ -278,55 +357,3 @@ def sync_files(
         result["error"] = f"OS error during sync: {exc}"
 
     return result
-
-
-# =====================================================================
-# INTERNAL HELPERS
-# =====================================================================
-
-def _build_ssh_cmd(
-    ip: str,
-    user: str,
-    auth_secret: Optional[str],
-    ssh_opts: str,
-    cmd: str,
-) -> str:
-    """Build an SSH (or sshpass + SSH) command string.
-
-    Args:
-        ip: Target host IP.
-        user: SSH user.
-        auth_secret: SSH auth secret (sshpass is used when set).
-        ssh_opts: SSH options string.
-        cmd: Command to execute on the remote host.
-
-    Returns:
-        Shell command string.
-    """
-    quoted_cmd = shlex.quote(cmd)
-    if auth_secret:
-        return (
-            f"sshpass -p {shlex.quote(auth_secret)} ssh {ssh_opts} "
-            f"{shlex.quote(user)}@{shlex.quote(ip)} {quoted_cmd}"
-        )
-    return (
-        f"ssh {ssh_opts} "
-        f"{shlex.quote(user)}@{shlex.quote(ip)} {quoted_cmd}"
-    )
-
-
-def _build_ssh_e(auth_secret: Optional[str], ssh_opts: str) -> str:
-    """Build the ``-e`` argument for rsync over SSH.
-
-    Args:
-        auth_secret: SSH auth secret (sshpass is used when set).
-        ssh_opts: SSH options string.
-
-    Returns:
-        SSH command string for rsync ``-e``.
-    """
-    if auth_secret:
-        return (
-            f"sshpass -p {shlex.quote(auth_secret)} ssh {ssh_opts}"
-        )
-    return f"ssh {ssh_opts}"
