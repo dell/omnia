@@ -47,7 +47,7 @@ def aarch64_reserved_ip_msg(ip_address):
     """Returns message when aarch64 IP is a reserved address."""
     return (
         f"image_build_config: aarch64_inventory_host_ip '{ip_address}' is a "
-        f"reserved address (loopback, unspecified, or broadcast). "
+        f"reserved address (loopback or broadcast). "
         f"Provide a valid, routable IPv4 address for the ARM build host."
     )
 

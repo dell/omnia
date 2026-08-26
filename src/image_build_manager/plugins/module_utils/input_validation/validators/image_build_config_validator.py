@@ -64,7 +64,7 @@ def _validate_aarch64_config(config_data, errors, logger=None):
 
     if host_ip and host_ip.strip():
         # Check for reserved/unusable IPs
-        reserved_ips = {"127.0.0.1", "0.0.0.0", "255.255.255.255"}
+        reserved_ips = {"127.0.0.1", "255.255.255.255"}
         if host_ip.strip() in reserved_ips:
             error = msg.aarch64_reserved_ip_msg(host_ip.strip())
             errors.append(error)
