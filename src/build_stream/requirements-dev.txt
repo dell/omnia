@@ -9,6 +9,15 @@ pytest-cov>=4.1.0
 # HTTP client for FastAPI testing
 httpx>=0.25.0
 
+# Database (required by conftest.py for JSONB shim)
+sqlalchemy>=2.0.0
+
+# Authentication (required by conftest.py for JWT exception patching)
+PyJWT>=2.8.0
+
+# Web framework (required by conftest.py for TestClient fixture)
+fastapi>=0.104.0
+
 # Code quality
 pylint>=3.0.0
 black>=26.5.0
