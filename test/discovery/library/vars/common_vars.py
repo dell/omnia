@@ -46,7 +46,7 @@ NETWORK_SPEC_FILE = "network_spec.yml"
 
 # Playbook entry point (relative to the domain source)
 PLAYBOOK_ENTRY_POINT = "discovery.yml"
-PLAYBOOK_WORKDIR = "src/discovery"
+PLAYBOOK_WORKDIR = "src/discovery/playbooks"
 
 # Valid playbook tags
 PLAYBOOK_TAGS: List[str] = [
@@ -58,8 +58,8 @@ PLAYBOOK_TAGS: List[str] = [
 # Domain-specific paths
 # =============================================================================
 SHARED_PATH = "/opt/omnia/discovery"
-INPUT_PATH_TEMPLATE = "/opt/omnia/input/{project}/discovery"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/output/{project}/discovery"
+INPUT_PATH_TEMPLATE = "/opt/omnia/discovery/input/{project}"
+OUTPUT_PATH_TEMPLATE = "/opt/omnia/discovery/output/{project}"
 
 # Credentials
 CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"

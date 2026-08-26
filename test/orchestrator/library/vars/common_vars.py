@@ -50,7 +50,7 @@ HA_CONFIG_FILE = "high_availability_config.yml"
 
 # Playbook entry point
 PLAYBOOK_ENTRY_POINT = "orchestrator.yml"
-PLAYBOOK_WORKDIR = "src/orchestrator"
+PLAYBOOK_WORKDIR = "src/orchestrator/playbooks"
 
 # Valid playbook tags (mapped to sub-playbooks)
 PLAYBOOK_TAGS: List[str] = [
@@ -71,8 +71,8 @@ PLAYBOOK_TAGS: List[str] = [
 # Domain-specific paths
 # =============================================================================
 SHARED_PATH = "/opt/omnia/orchestrator"
-INPUT_PATH_TEMPLATE = "/opt/omnia/input/{project}/orchestrator"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/output/{project}/orchestrator"
+INPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/input/{project}"
+OUTPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/output/{project}"
 REPO_MANAGER_OUTPUT_TEMPLATE = (
     "/opt/omnia/repo_manager/output/{project}/repo_status.yml"
 )
@@ -82,26 +82,32 @@ CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"
 CREDENTIALS_KEY_NAME = ".omnia_config_credentials_key"
 
 # =============================================================================
-# OpenCHAMI containers
+# OpenCHAMI containers (fabrica-based architecture via Quadlet)
 # =============================================================================
 OPENCHAMI_CONTAINERS: List[str] = [
-    "openchami-smd",
-    "openchami-bss",
-    "openchami-cloud-init",
-    "openchami-postgres",
+    "smd",
+    "boot-service",
+    "metadata-service",
+    "postgres",
+    "tokensmith",
+    "step-ca",
+    "haproxy",
+    "coresmd-coredns",
+    "coresmd-coredhcp",
 ]
 
-# Systemd services managed by orchestrator
+# Systemd target managed by orchestrator (fabrica Quadlet)
 SYSTEMD_SERVICES: List[str] = [
-    "openchami.service",
+    "openchami.target",
 ]
 
-# Firewall ports
+# Firewall ports (from deploy_openchami vars)
 FIREWALL_PORTS: List[str] = [
     "8443/tcp",
     "8081/tcp",
-    "8082/tcp",
-    "8084/tcp",
+    "5432/tcp",
+    "27778/tcp",
+    "27779/tcp",
 ]
 
 # =============================================================================

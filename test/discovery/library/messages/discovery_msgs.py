@@ -137,7 +137,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Copy template: src/discovery/input/discovery_config.yml\n"
         "\u2551   2. Edit with your OME IP and settings\n"
-        "\u2551   3. Place in /opt/omnia/input/<project>/discovery/\n"
+        "\u2551   3. Place in /opt/omnia/discovery/input/<project>/\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -150,7 +150,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Copy template: src/discovery/input/network_spec.yml\n"
         "\u2551   2. Edit with your network topology\n"
-        "\u2551   3. Place in /opt/omnia/input/<project>/discovery/\n"
+        "\u2551   3. Place in /opt/omnia/discovery/input/<project>/\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
