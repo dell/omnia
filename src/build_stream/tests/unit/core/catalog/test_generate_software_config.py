@@ -75,7 +75,7 @@ class TestStaticFields:
             all_arch_target_configs=configs,
         )
         result = _read_output(str(tmp_path))
-        assert result["repo_config"] == "always"
+        assert result["repo_config"] == "partial"
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +321,7 @@ class TestEdgeCases:
         assert result["softwares"] == []
         assert result["cluster_os_type"] == "rhel"
         assert result["cluster_os_version"] == "10.0"
-        assert result["repo_config"] == "always"
+        assert result["repo_config"] == "partial"
 
     def test_creates_output_directory(self, tmp_path: str) -> None:
         output_dir = os.path.join(str(tmp_path), "deep", "nested", "output")

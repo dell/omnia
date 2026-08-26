@@ -17,9 +17,8 @@
 # This file is the main CI configuration that routes to the appropriate
 # child pipeline.  Each pipeline is independently invokable.
 #
-# Trigger behaviour (Omnia 2.3+ domain-segregated):
-#   Auto-trigger : catalog_rhel.json, input/repo_manager/*, input/image_build_manager/*,
-#                  or omnia.env change  -> build pipeline
+# Trigger behaviour:
+#   Auto-trigger : catalog_rhel.json change   -> build pipeline only
 #                  input/pxe_mapping_file.csv change -> deploy pipeline only
 #   Web UI       : Three manual play-buttons appear (Build, Deploy, Cleanup).
 #                  Click exactly one to run that pipeline independently.
@@ -35,8 +34,7 @@ workflow:
     - if: '$PIPELINE_TYPE'                                    # API/trigger with explicit type
     - changes:                                                # Auto-trigger on file changes
         - catalog_rhel.json
-        - omnia.env
-        - input/**/*
+        - input/pxe_mapping_file.csv
     - if: '$CI_PIPELINE_SOURCE == "web"'                      # Manual button click (no variable)
 
 stages:
@@ -57,12 +55,9 @@ build_pipeline:
     # Block when another type is explicitly requested
     - if: '$PIPELINE_TYPE'
       when: never
-    # Auto-trigger on catalog, domain input, or omnia.env changes
+    # Auto-trigger on catalog change
     - changes:
         - catalog_rhel.json
-        - omnia.env
-        - input/repo_manager/**/*
-        - input/image_build_manager/**/*
       when: on_success
     # Block auto-trigger meant for deploy
     - changes:
@@ -95,9 +90,6 @@ deploy_pipeline:
     # Block auto-trigger meant for build
     - changes:
         - catalog_rhel.json
-        - omnia.env
-        - input/repo_manager/**/*
-        - input/image_build_manager/**/*
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)
     - if: '$CI_PIPELINE_SOURCE == "web"'
@@ -122,8 +114,7 @@ cleanup_pipeline:
     # Block file-change auto-triggers (cleanup is never automatic)
     - changes:
         - catalog_rhel.json
-        - omnia.env
-        - input/**/*
+        - input/pxe_mapping_file.csv
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)
     - if: '$CI_PIPELINE_SOURCE == "web"'
