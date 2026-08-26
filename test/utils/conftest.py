@@ -62,7 +62,7 @@ from omnia_auto import (
 from library.functions.host_func import (
     sync_project_to_remote,
     sync_utils_input,
-    sync_utils_credentials,
+    sync_install_os_credentials,
 )
 from library.functions.utils_func import (
     check_target_connectivity,
@@ -246,18 +246,17 @@ def pytest_sessionstart(session):
         else:
             log(f"Input sync failed: {sync_result['error']}", "ERROR")
 
-    # Sync credentials (if applicable)
-    if not is_local_execution():
-        cred_result = sync_utils_credentials(host)
-        if cred_result["success"]:
-            if cred_result["details"]:
-                level = "WARN" if "skipping sync" in cred_result["details"] else "OK"
-                log(cred_result["details"], level)
+    # Sync install_os credentials (if applicable)
+        install_os_cred_result = sync_install_os_credentials(host)
+        if install_os_cred_result["success"]:
+            if install_os_cred_result["details"]:
+                level = "WARN" if "skipping sync" in install_os_cred_result["details"] else "OK"
+                log(install_os_cred_result["details"], level)
         else:
-            log(f"Credential sync failed: {cred_result['error']}", "WARN")
+            log(f"Install OS credential sync failed: {install_os_cred_result['error']}", "WARN")
 
     # Initialize test report
-    valid_scenarios = {"utils", "collect", "set_pxe_boot", "install_os", "precheck"}
+    valid_scenarios = {"utils", "collect", "install_os", "precheck"}
     module_name = "utils"
     test_paths = session.config.args if hasattr(session.config, 'args') else []
     for p in test_paths:

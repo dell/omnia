@@ -7,7 +7,6 @@ Functional Verification Testing (FVT) for the Omnia utils domain.
 This module provides automated testing for:
 
 - **Log Collector** (`collect.yml`) — Collects logs from cluster nodes
-- **PXE Boot** (`set_pxe_boot.yml`) — Sets PXE boot on Dell iDRAC nodes
 - **Install OS** (`install_os.yml`) — Generic OS installation via iDRAC virtual media
 
 ## Quick Start
@@ -21,6 +20,7 @@ This module provides automated testing for:
 
 # 3. Run tests
 ./run_validation.sh collect test
+./run_validation.sh install_os test
 ./run_validation.sh precheck verify
 ```
 
@@ -48,7 +48,7 @@ test/utils/
 └── fvt/                     # Functional Verification Tests
     ├── precheck/            # Environment checks
     ├── collect/             # Log collector tests
-    └── set_pxe_boot/        # PXE boot tests
+    └── install_os/          # Install OS tests
 ```
 
 ## Scenarios
@@ -57,8 +57,7 @@ test/utils/
 |----------|-------------|------|
 | `precheck` | Environment and connectivity checks | sanity |
 | `collect` | Log collector tests | setup, prepare, bundle |
-| `set_pxe_boot` | PXE boot tests | credentials, pxe_boot |
-| `install_os` | OS installation tests | validate, fetch, create, deliver |
+| `install_os` | OS installation tests | credentials, build_iso, deploy, generate_ks |
 
 ## Usage
 
@@ -98,12 +97,12 @@ pytest fvt/precheck/ -v --marker sanity
 ### test_config.yml
 
 ```yaml
-oim_server_ip: "192.168.1.100"  # Target server (empty = local mode)
+oim_server_ip: "10.0.0.100"  # Target server (empty = local mode)
 oim_ssh_user: "root"
 dataset: ""                     # Dataset name (empty = use src/)
 project_name: "project_default"
 clone_path: "/root/omnia"
-sync_utils_input: true
+sync_utils_input: false        # Sync input files to target
 report_path: "reports"
 report_name: "utils_test_report"
 ```
@@ -112,8 +111,9 @@ report_name: "utils_test_report"
 
 ```yaml
 oim_password: ""      # SSH password
-bmc_username: ""      # BMC credentials for PXE boot
+bmc_username: ""      # BMC credentials for install_os
 bmc_password: ""
+os_root_password: ""  # OS root password for install_os
 ```
 
 ## Test Cases
@@ -146,22 +146,6 @@ bmc_password: ""
 | TC_CL_024 | collect_metadata_sha256 | SHA256 in metadata |
 | TC_CL_025 | collect_bundle_contents | Bundle has expected dirs |
 
-### PXE Boot (TC_PX_*)
-
-| ID | Test | Description |
-|----|------|-------------|
-| TC_PX_001 | deploy_pxe_credentials | Deploy with credentials tag |
-| TC_PX_002 | deploy_pxe_boot | Deploy with pxe_boot tag |
-| TC_PX_003 | deploy_pxe_full | Full deployment |
-| TC_PX_010 | pxe_config_file_exists | Config file exists |
-| TC_PX_011 | pxe_config_valid | Config file valid |
-| TC_PX_012 | pxe_inventory_file_exists | Inventory file exists |
-| TC_PX_013 | pxe_inventory_valid | Inventory valid INI |
-| TC_PX_014 | pxe_credentials_file_exists | Credentials file exists |
-| TC_PX_020 | pxe_output_dir_exists | Output directory exists |
-| TC_PX_021 | pxe_failed_nodes_file | Failed nodes file created |
-| TC_PX_022 | pxe_failed_nodes_valid | Failed nodes valid JSON |
-
 ### Install OS (TC_IO_*)
 
 | ID | Test | Description |
@@ -179,6 +163,60 @@ bmc_password: ""
 | TC_IO_022 | install_os_status_valid | Status file valid |
 | TC_IO_030 | install_os_custom_iso_created | Custom ISO created (optional) |
 | TC_IO_031 | install_os_kickstart_generated | Kickstart generated (optional) |
+
+## Dataset Mode
+
+### Creating a Dataset
+
+```bash
+cd datasets/generator
+
+# Create a custom profile
+cat > profiles/my_dataset.yml << 'EOF'
+---
+# Log Collector Configuration
+service_kube_control_plane_x86_64:
+  - "10.0.0.10"
+
+service_kube_node_x86_64:
+  - "10.0.0.20"
+  - "10.0.0.21"
+
+# Install OS Configuration
+source_iso_path: "/path/to/RHEL-10.0-x86_64-dvd1.iso"
+custom_iso_path: "nfs-server:/export/path/RHEL-omnia.iso"
+target_bmc_ip: "10.0.0.100"
+target_hostname: "node1"
+target_admin_ip: "10.0.0.50"
+target_architecture: "x86_64"
+EOF
+
+# Generate dataset
+python generate_dataset.py --name my_dataset --profile my_dataset.yml
+```
+
+### Using Dataset Mode
+
+```yaml
+# test_config.yml
+dataset: "my_dataset"          # Use dataset mode
+sync_utils_input: true         # Sync files to target
+oim_server_ip: "10.0.0.100" # Target server
+```
+
+### Manual Mode (sync_utils_input=false)
+
+```yaml
+# test_config.yml
+dataset: ""                    # Empty = use src/ mode
+sync_utils_input: false         # No sync to target
+oim_server_ip: ""              # Empty = local mode
+```
+
+In manual mode:
+- Tests use files at `/opt/omnia/utils/input/project_default/`
+- No file synchronization occurs
+- User must manually maintain config files on target
 
 ## Reports
 

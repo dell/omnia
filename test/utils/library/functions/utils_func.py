@@ -27,7 +27,6 @@ from ..vars.common_vars import (
     FUNCTIONAL_GROUPS,
     LOG_BUNDLE_PATTERN,
     METADATA_FILE,
-    FAILED_NODES_FILE,
     CUSTOM_ISO_PATTERN,
     KICKSTART_FILE,
     INSTALL_OS_STATUS_FILE,
@@ -444,56 +443,6 @@ def validate_tar_contents(host, tar_path: str, expected_dirs: List[str]) -> Dict
             "missing_dirs": expected_dirs,
             "error": str(exc),
         }
-
-
-def validate_pxe_config(host, path: str) -> Dict[str, Any]:
-    """Validate set_pxe_boot_config.yml file structure.
-
-    Args:
-        host: Testinfra host object.
-        path: Absolute path to set_pxe_boot_config.yml.
-
-    Returns:
-        dict: {"success": bool, "config": dict, "error": str}
-    """
-    yaml_result = validate_yaml_file(host, path)
-    if not yaml_result["success"]:
-        return {
-            "success": False,
-            "config": {},
-            "error": yaml_result["error"],
-        }
-
-    data = yaml_result["data"]
-
-    # Check for expected fields (all have defaults, so just validate types)
-    expected_fields = {
-        "enable_phone_home": bool,
-        "phone_home_pause_minutes": int,
-        "phone_home_retries": int,
-        "phone_home_delay": int,
-        "restart_host": bool,
-        "force_restart": bool,
-    }
-
-    errors = []
-    for field, expected_type in expected_fields.items():
-        if field in data and not isinstance(data[field], expected_type):
-            errors.append(f"{field} should be {expected_type.__name__}")
-
-    if errors:
-        return {
-            "success": False,
-            "config": data,
-            "error": "; ".join(errors),
-        }
-
-    return {
-        "success": True,
-        "config": data,
-        "error": "",
-    }
-
 
 def validate_ini_inventory(host, path: str) -> Dict[str, Any]:
     """Validate INI inventory file format.

@@ -27,7 +27,7 @@ import re
 
 # =============================================================================
 # DIRECTORY PATHS
-# =============================================================================
+#============================================================================
 
 # Module root: test/utils/ directory (where conftest.py lives)
 MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
@@ -47,7 +47,7 @@ SRC_INPUT_DIR = os.path.join(
 
 # =============================================================================
 # DOMAIN IDENTITY
-# =============================================================================
+#============================================================================
 
 # Domain name used for remote path resolution
 DOMAIN_NAME = "utils"
@@ -58,15 +58,10 @@ ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 # =============================================================================
 # INPUT FILE NAMES
-# =============================================================================
+#============================================================================
 
 # Log collector input file
 COLLECT_PXE_FILE = "collect_pxe.yml"
-
-# PXE boot input files
-SET_PXE_BOOT_CONFIG_FILE = "set_pxe_boot_config.yml"
-SET_PXE_BOOT_INVENTORY_FILE = "set_pxe_boot.ini"
-SET_PXE_BOOT_CREDENTIALS_FILE = "set_pxe_boot_credentials.yml"
 
 # Install OS input files
 INSTALL_OS_CONFIG_FILE = "install_os_config.yml"
@@ -74,11 +69,10 @@ INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 
 # =============================================================================
 # PLAYBOOK CONFIGURATION (module-specific)
-# =============================================================================
+#============================================================================
 
 # Playbook entry points (relative to workdir)
 PLAYBOOK_COLLECT = "playbooks/collect.yml"
-PLAYBOOK_SET_PXE_BOOT = "playbooks/set_pxe_boot.yml"
 PLAYBOOK_INSTALL_OS = "playbooks/install_os.yml"
 PLAYBOOK_WORKDIR = "src/utils"
 
@@ -91,12 +85,6 @@ COLLECT_PLAYBOOK_TAGS = [
     "bundle",
 ]
 
-# Valid playbook tags for set_pxe_boot.yml
-SET_PXE_BOOT_TAGS = [
-    "credentials",
-    "pxe_boot",
-]
-
 # Valid playbook tags for install_os.yml
 INSTALL_OS_TAGS = [
     "credentials",
@@ -107,13 +95,13 @@ INSTALL_OS_TAGS = [
 
 # =============================================================================
 # SHARED PATH DEFAULTS (runtime output on target host)
-# =============================================================================
+#============================================================================
 
 SHARED_PATH = "/opt/omnia/utils"
 
 # =============================================================================
 # LOG COLLECTOR CONSTANTS
-# =============================================================================
+#============================================================================
 
 # Output bundle naming pattern
 LOG_BUNDLE_PATTERN = r"omnia_logs_\d{8}T\d{6}\.tar\.gz"
@@ -132,18 +120,6 @@ FUNCTIONAL_GROUPS = [
     "login_compiler_node_aarch64",
 ]
 
-# =============================================================================
-# PXE BOOT CONSTANTS
-# =============================================================================
-
-# Phone-home verification defaults
-PHONE_HOME_PAUSE_MINUTES = 3
-PHONE_HOME_RETRIES = 120
-PHONE_HOME_DELAY = 15
-
-# Output file for failed nodes
-FAILED_NODES_FILE = "failed_nodes.json"
-
 # Install OS constants
 INSTALL_OS_OUTPUT_DIR = "/opt/omnia/utils/output"
 INSTALL_OS_STATUS_FILE = "install_os_status.yml"
@@ -152,7 +128,7 @@ KICKSTART_FILE = "kickstart.ks"
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS
-# =============================================================================
+#============================================================================
 
 # IPv4 address regex pattern
 IPV4_PATTERN = re.compile(
@@ -171,16 +147,18 @@ REQUIRED_CONFIG_FIELDS = [
 # Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/collect_pxe.yml",
+    "input/install_os_config.yml",
 ]
 
 # Required files in src/ (when dataset is empty — default mode)
 REQUIRED_SRC_FILES = [
     "collect_pxe.yml",
+    "install_os_config.yml",
 ]
 
 # =============================================================================
 # CENTRALIZED SHELL COMMANDS
-# =============================================================================
+#============================================================================
 # All shell commands used by verification functions.
 # Use .format() with named placeholders to fill in runtime values.
 

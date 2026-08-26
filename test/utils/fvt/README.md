@@ -8,7 +8,6 @@ Complete registry of all Functional Verification Tests for the utils domain.
 |----------|-----------|-------------|
 | precheck | `fvt/precheck/` | Environment and connectivity checks |
 | collect | `fvt/collect/` | Log collector tests |
-| set_pxe_boot | `fvt/set_pxe_boot/` | PXE boot tests |
 | install_os | `fvt/install_os/` | OS installation tests |
 
 ## Test Case Index
@@ -50,31 +49,6 @@ Complete registry of all Functional Verification Tests for the utils domain.
 | TC_CL_030 | test_collect_env_vars_loaded | log_collector/test_log_collector.py | sanity, collect |
 | TC_CL_031 | test_collect_project_name_loaded | log_collector/test_log_collector.py | sanity, collect |
 
-### Set PXE Boot Scenario
-
-#### Deploy Tests
-
-| TC ID | Test Function | File | Markers |
-|-------|---------------|------|---------|
-| TC_PX_001 | test_deploy_pxe_credentials | test_playbook.py | deploy, sanity, pxe |
-| TC_PX_002 | test_deploy_pxe_boot | test_playbook.py | deploy, functional, pxe |
-| TC_PX_003 | test_deploy_pxe_full | test_playbook.py | deploy, functional, pxe |
-
-#### Verification Tests
-
-| TC ID | Test Function | File | Markers |
-|-------|---------------|------|---------|
-| TC_PX_010 | test_pxe_config_file_exists | pxe/test_pxe_boot.py | sanity, pxe |
-| TC_PX_011 | test_pxe_config_valid | pxe/test_pxe_boot.py | sanity, pxe |
-| TC_PX_012 | test_pxe_inventory_file_exists | pxe/test_pxe_boot.py | sanity, pxe |
-| TC_PX_013 | test_pxe_inventory_valid | pxe/test_pxe_boot.py | sanity, pxe |
-| TC_PX_014 | test_pxe_credentials_file_exists | pxe/test_pxe_boot.py | sanity, pxe |
-| TC_PX_020 | test_pxe_output_dir_exists | pxe/test_pxe_boot.py | functional, pxe |
-| TC_PX_021 | test_pxe_failed_nodes_file | pxe/test_pxe_boot.py | functional, pxe |
-| TC_PX_022 | test_pxe_failed_nodes_valid | pxe/test_pxe_boot.py | functional, pxe |
-| TC_PX_030 | test_pxe_phone_home_enabled | pxe/test_pxe_boot.py | sanity, pxe |
-| TC_PX_031 | test_pxe_phone_home_config | pxe/test_pxe_boot.py | sanity, pxe |
-
 ### Install OS Scenario
 
 #### Deploy Tests
@@ -108,7 +82,6 @@ Complete registry of all Functional Verification Tests for the utils domain.
 | `functional` | Extended functional verification |
 | `deploy` | Playbook deployment tests |
 | `collect` | Log collector tests |
-| `pxe` | PXE boot tests |
 | `install_os` | OS installation tests |
 
 ## Running Tests

@@ -97,7 +97,7 @@ target_admin_ip: ""
 
 # Target architecture (x86_64 or aarch64).
 # If empty, auto-detected from source ISO filename.
-target_architecture: ""
+target_architecture: "x86_64"
 
 # Network device name (e.g., "eno1", "eth0", "enP6s3f0np0").
 # If empty, kickstart uses "link" (first active device).

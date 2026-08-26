@@ -167,22 +167,6 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "  2. See src/utils/input/collect_pxe.yml for examples\n"
     ),
 
-    # --- PXE boot failures ---
-    "pxe_config_invalid": (
-        "PXE boot configuration is invalid: {error}\n"
-        "HOW TO FIX:\n"
-        "  1. Check set_pxe_boot_config.yml syntax\n"
-        "  2. Verify all required fields are present\n"
-        "  3. Compare with template in src/utils/input/\n"
-    ),
-    "inventory_invalid": (
-        "Inventory file has invalid format: {error}\n"
-        "HOW TO FIX:\n"
-        "  1. Verify INI format: [bmc] section with host entries\n"
-        "  2. Each host needs: admin_ip, hostname variables\n"
-        "  3. Example: 100.10.0.73 admin_ip=192.168.1.50 hostname=node01\n"
-    ),
-
     # --- Hostname/Domain failures ---
     "hostname_mismatch": (
         "Hostname mismatch: expected '{expected}', got '{actual}'\n"

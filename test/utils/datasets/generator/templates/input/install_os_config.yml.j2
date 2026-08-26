@@ -1,0 +1,45 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# OS Installation Configuration
+# Generated from template with profile variables
+
+# ISO Configuration
+source_iso_path: "{{ source_iso_path }}"
+source_iso_checksum: "{{ source_iso_checksum }}"
+custom_iso_path: "{{ custom_iso_path }}"
+
+# Kickstart Configuration
+kickstart_delivery_method: "{{ kickstart_delivery_method | default('embedded') }}"
+kickstart_file: "{{ kickstart_file | default('') }}"
+kickstart_template: "{{ kickstart_template | default('rhel10') }}"
+
+# Target Node Configuration
+target_bmc_ip: "{{ target_bmc_ip }}"
+target_hostname: "{{ target_hostname }}"
+target_admin_ip: "{{ target_admin_ip }}"
+target_architecture: "{{ target_architecture | default('x86_64') }}"
+network_device: "{{ network_device | default('') }}"
+netmask: "{{ netmask | default('255.255.255.0') }}"
+gateway: "{{ gateway | default('') }}"
+dns_server: "{{ dns_server | default('') }}"
+install_disk: "{{ install_disk | default('sda') }}"
+timezone: "{{ timezone | default('UTC') }}"
+
+# Execution Control
+rebuild_iso: {{ rebuild_iso | default(false) }}
+force_reinstall: {{ force_reinstall | default(false) }}
+ssh_verify_enabled: {{ ssh_verify_enabled | default(true) }}
+ssh_verify_retries: {{ ssh_verify_retries | default(60) }}
+ssh_verify_delay: {{ ssh_verify_delay | default(30) }}

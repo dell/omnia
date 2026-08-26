@@ -46,9 +46,6 @@ from .utils_func import (
     find_log_bundle,
     validate_metadata_file,
     validate_tar_contents,
-    validate_pxe_config,
-    validate_ini_inventory,
-    validate_failed_nodes_json,
     get_hostname,
     check_admin_ip_assigned,
     validate_install_os_config,
@@ -61,7 +58,7 @@ from .utils_func import (
 from .host_func import (
     sync_project_to_remote,
     sync_utils_input,
-    sync_utils_credentials,
+    sync_install_os_credentials,
     get_utils_input_path,
     get_utils_output_path,
 )
@@ -74,7 +71,6 @@ from .validation_func import (
 # --- Domain-specific vars ---
 from ..vars.common_vars import (
     PLAYBOOK_COLLECT,
-    PLAYBOOK_SET_PXE_BOOT,
     PLAYBOOK_INSTALL_OS,
     PLAYBOOK_WORKDIR,
 )
@@ -123,9 +119,6 @@ __all__ = [
     "find_log_bundle",
     "validate_metadata_file",
     "validate_tar_contents",
-    "validate_pxe_config",
-    "validate_ini_inventory",
-    "validate_failed_nodes_json",
     "get_hostname",
     "check_admin_ip_assigned",
     "validate_install_os_config",
@@ -135,7 +128,7 @@ __all__ = [
     "verify_kickstart_in_iso",
     "sync_project_to_remote",
     "sync_utils_input",
-    "sync_utils_credentials",
+    "sync_install_os_credentials",
     "get_utils_input_path",
     "get_utils_output_path",
     "validate_all",

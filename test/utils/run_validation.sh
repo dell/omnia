@@ -24,7 +24,6 @@
 # Scenarios:
 #   precheck      - Environment and connectivity checks
 #   collect       - Log collector tests
-#   set_pxe_boot  - PXE boot tests
 #   install_os    - OS installation tests
 #
 # Commands:
@@ -67,7 +66,6 @@ usage() {
     echo "Scenarios:"
     echo "  precheck      Environment and connectivity checks"
     echo "  collect       Log collector tests"
-    echo "  set_pxe_boot  PXE boot tests"
     echo "  install_os    OS installation tests"
     echo ""
     echo "Commands:"
@@ -200,7 +198,7 @@ if [[ -z "${SCENARIO}" ]] || [[ -z "${COMMAND}" ]]; then
 fi
 
 # Validate scenario
-VALID_SCENARIOS=("precheck" "collect" "set_pxe_boot" "install_os")
+VALID_SCENARIOS=("precheck" "collect" "install_os")
 if [[ ! " ${VALID_SCENARIOS[*]} " =~ " ${SCENARIO} " ]]; then
     log_error "Invalid scenario: ${SCENARIO}"
     log_error "Valid scenarios: ${VALID_SCENARIOS[*]}"

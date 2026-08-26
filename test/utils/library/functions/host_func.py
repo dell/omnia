@@ -39,9 +39,7 @@ from ..vars.common_vars import (
     MONOREPO_ROOT,
     SRC_INPUT_DIR,
     COLLECT_PXE_FILE,
-    SET_PXE_BOOT_CONFIG_FILE,
-    SET_PXE_BOOT_INVENTORY_FILE,
-    SET_PXE_BOOT_CREDENTIALS_FILE,
+    INSTALL_OS_CREDENTIALS_FILE,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
 )
@@ -161,32 +159,20 @@ def sync_utils_input(host) -> Dict[str, Any]:
             "error": str(exc),
         }
 
-
-def sync_utils_credentials(host) -> Dict[str, Any]:
-    """Sync utils credentials from test_creds.yml to target.
+def sync_install_os_credentials(host) -> Dict[str, Any]:
+    """Sync install_os credentials from test_creds.yml to target.
 
     Bridges credentials from test_creds.yml to the target's
-    set_pxe_boot_credentials.yml file matching manual playbook execution.
+    install_os_credentials.yml file matching manual playbook execution.
 
     Flow:
         1. Load test_creds.yml (decrypted via load_test_credentials).
-        2. Extract bmc_username, bmc_password.
+        2. Extract bmc_username, bmc_password, os_root_password.
         3. If any field has a non-empty value:
-           - Generate vault key (.pxe_vault_key)
            - Write plaintext credentials file
-           - Encrypt credentials file with ansible-vault
-           - Set proper permissions (0600)
+           - The playbook role collect_install_os_credentials will handle encryption
 
-    This matches the manual playbook execution where both the vault-encrypted
-    credentials file and vault key are created before the playbook runs.
-
-    The write uses base64 encoding over SSH so credential values
-    containing quotes, backslashes, or special chars are transported
-    without shell-escaping issues.
-
-    If no BMC credential fields are populated (all empty strings), the
-    function skips silently — the collect_pxe_credentials role will
-    prompt interactively or use the default template values.
+    This follows the image builder pattern: plaintext sync, playbook handles encryption.
 
     Args:
         host: Testinfra host object.
@@ -203,20 +189,21 @@ def sync_utils_credentials(host) -> Dict[str, Any]:
             "error": f"Cannot load test_creds.yml: {exc}",
         }
 
-    # Extract BMC credential fields
+    # Extract install_os credential fields
     bmc_username = creds.get("bmc_username", "")
     bmc_password = creds.get("bmc_password", "")
+    os_root_password = creds.get("os_root_password", "")
 
-    # Check if BMC credential fields have values
-    has_values = bool(bmc_username and bmc_password)
+    # Check if any credential fields have values
+    has_values = bool(bmc_username and bmc_password and os_root_password)
     if not has_values:
         return {
             "success": True,
             "details": (
-                "No BMC credentials in test_creds.yml — skipping sync. "
-                "The collect_pxe_credentials role will prompt interactively "
-                "for mandatory fields (bmc_username, bmc_password). To set "
-                "credentials non-interactively, run: "
+                "No install_os credentials in test_creds.yml — skipping sync. "
+                "The collect_install_os_credentials role will prompt interactively "
+                "for mandatory fields (bmc_username, bmc_password, os_root_password). "
+                "To set credentials non-interactively, run: "
                 "bash setup_env.sh --set-domain-creds"
             ),
             "error": "",
@@ -234,8 +221,7 @@ def sync_utils_credentials(host) -> Dict[str, Any]:
         }
 
     # File paths
-    creds_file = os.path.join(dest_path, SET_PXE_BOOT_CREDENTIALS_FILE)
-    vault_key_file = os.path.join(dest_path, ".set_pxe_boot_credentials_key")
+    creds_file = os.path.join(dest_path, INSTALL_OS_CREDENTIALS_FILE)
 
     # Step 1: Ensure target directory exists
     mkdir_cmd = f"mkdir -p {dest_path}"
@@ -247,39 +233,16 @@ def sync_utils_credentials(host) -> Dict[str, Any]:
             "error": f"Failed to create directory: {mkdir_result.stderr}",
         }
 
-    # Step 2: Generate vault key (if doesn't exist)
-    vault_key_gen_cmd = f"if [ ! -f {vault_key_file} ]; then openssl rand -base64 32 > {vault_key_file}; fi"
-    vault_key_result = host.run(vault_key_gen_cmd)
-    if vault_key_result.rc != 0:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Failed to generate vault key: {vault_key_result.stderr}",
-        }
-
-    # Step 3: Set vault key permissions (0600)
-    chmod_vault_cmd = f"chmod 600 {vault_key_file}"
-    chmod_vault_result = host.run(chmod_vault_cmd)
-    if chmod_vault_result.rc != 0:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Failed to set vault key permissions: {chmod_vault_result.stderr}",
-        }
-
-    # Step 4: Build YAML content matching the template format
-    yaml_content = (
-        "---\n"
-        "# PXE Boot Credentials (synced from test_creds.yml)\n"
-        "# Auto-populated by test framework from test_creds.yml.\n"
-        f'bmc_username: "{bmc_username}"\n'
-        f'bmc_password: "{bmc_password}"\n'
-    )
-
-    # Step 5: Base64-encode to avoid all shell quoting issues over SSH
+    # Step 2: Write plaintext credentials file (playbook will encrypt)
+    yaml_content = f"""---
+# OS Installation credentials (BMC/iDRAC + OS root password)
+bmc_username: "{bmc_username}"
+bmc_password: "{bmc_password}"
+os_root_password: "{os_root_password}"
+"""
     b64 = base64.b64encode(yaml_content.encode("utf-8")).decode("ascii")
 
-    # Step 6: Write plaintext credentials file
+    # Step 3: Write plaintext credentials file
     write_cmd = f"echo '{b64}' | base64 -d > {creds_file}"
     write_result = host.run(write_cmd)
     if write_result.rc != 0:
@@ -289,7 +252,7 @@ def sync_utils_credentials(host) -> Dict[str, Any]:
             "error": f"Failed to write credentials file: {write_result.stderr}",
         }
 
-    # Step 7: Set credentials file permissions (0600)
+    # Step 4: Set credentials file permissions (0600)
     chmod_creds_cmd = f"chmod 600 {creds_file}"
     chmod_creds_result = host.run(chmod_creds_cmd)
     if chmod_creds_result.rc != 0:
@@ -299,35 +262,12 @@ def sync_utils_credentials(host) -> Dict[str, Any]:
             "error": f"Failed to set credentials file permissions: {chmod_creds_result.stderr}",
         }
 
-    # Step 8: Encrypt credentials file using ansible-vault
-    encrypt_cmd = f"ansible-vault encrypt {creds_file} --vault-password-file {vault_key_file}"
-    encrypt_result = host.run(encrypt_cmd)
-    if encrypt_result.rc != 0:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Failed to encrypt credentials: {encrypt_result.stderr}",
-        }
-
-    # Step 9: Verify the file is vault-encrypted
-    verify_cmd = f"head -n1 {creds_file} | grep -q '^\\$ANSIBLE_VAULT;'"
-    verify = host.run(verify_cmd)
-    if verify.rc != 0:
-        return {
-            "success": False,
-            "details": "",
-            "error": (
-                f"Credential file encryption verification failed. "
-                f"Check {creds_file} on the target."
-            ),
-        }
-
     return {
         "success": True,
         "details": (
-            f"BMC credentials synced and vault-encrypted to {creds_file} "
-            f"with vault key at {vault_key_file} "
-            f"[bmc_username=set, bmc_password=set]"
+            f"Install OS credentials synced (plaintext) to {creds_file} "
+            f"[bmc_username=set, bmc_password=set, os_root_password=set]. "
+            f"The playbook role will handle encryption."
         ),
         "error": "",
     }

@@ -121,82 +121,6 @@ TEST_CASES = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SET_PXE_BOOT SCENARIO — Deploy Tests
-    # ══════════════════════════════════════════════════════════════════════════
-    "deploy_pxe_credentials": {
-        "id": "TC_PX_001",
-        "title": "Deploy set_pxe_boot.yml (credentials tag)",
-    },
-    "deploy_pxe_boot": {
-        "id": "TC_PX_002",
-        "title": "Deploy set_pxe_boot.yml (pxe_boot tag)",
-    },
-    "deploy_pxe_full": {
-        "id": "TC_PX_003",
-        "title": "Deploy set_pxe_boot.yml (full execution)",
-    },
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # SET_PXE_BOOT SCENARIO — Verification Tests
-    # ══════════════════════════════════════════════════════════════════════════
-    "pxe_config_file_exists": {
-        "id": "TC_PX_010",
-        "title": "Verify set_pxe_boot_config.yml exists on target",
-    },
-    "pxe_config_valid": {
-        "id": "TC_PX_011",
-        "title": "Verify set_pxe_boot_config.yml has valid structure",
-    },
-    "pxe_inventory_file_exists": {
-        "id": "TC_PX_012",
-        "title": "Verify set_pxe_boot.ini inventory file exists",
-    },
-    "pxe_inventory_valid": {
-        "id": "TC_PX_013",
-        "title": "Verify set_pxe_boot.ini has valid INI format",
-    },
-    "pxe_credentials_file_exists": {
-        "id": "TC_PX_014",
-        "title": "Verify set_pxe_boot_credentials.yml exists",
-    },
-    "pxe_output_dir_exists": {
-        "id": "TC_PX_020",
-        "title": "Verify PXE boot output directory exists",
-    },
-    "pxe_failed_nodes_file": {
-        "id": "TC_PX_021",
-        "title": "Verify failed_nodes.json output file created",
-    },
-    "pxe_failed_nodes_valid": {
-        "id": "TC_PX_022",
-        "title": "Verify failed_nodes.json has valid structure",
-    },
-    "pxe_phone_home_enabled": {
-        "id": "TC_PX_030",
-        "title": "Verify phone-home verification is enabled",
-    },
-    "pxe_phone_home_config": {
-        "id": "TC_PX_031",
-        "title": "Verify phone-home configuration values",
-    },
-    "pxe_boot_success_status": {
-        "id": "TC_PX_040",
-        "title": "Verify PXE boot operation completed successfully",
-    },
-    "pxe_boot_failure_details": {
-        "id": "TC_PX_041",
-        "title": "Verify detailed failure information is captured for failed nodes",
-    },
-    "pxe_phone_home_verification_status": {
-        "id": "TC_PX_042",
-        "title": "Verify phone-home verification completed successfully",
-    },
-    "pxe_boot_timestamp_validation": {
-        "id": "TC_PX_043",
-        "title": "Verify PXE boot operation has valid timestamp",
-    },
-
-    # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO — Deploy Tests
     # ══════════════════════════════════════════════════════════════════════════
     "deploy_install_os_credentials": {
@@ -270,26 +194,6 @@ TEST_CASES = {
     "collect_empty_groups_succeeds": {
         "id": "TC_NEG_003",
         "title": "Verify collect.yml succeeds with empty functional groups",
-    },
-    "pxe_missing_inventory_fails": {
-        "id": "TC_NEG_010",
-        "title": "Verify set_pxe_boot.yml fails without inventory",
-    },
-    "pxe_invalid_bmc_ip_fails": {
-        "id": "TC_NEG_011",
-        "title": "Verify set_pxe_boot.yml fails with invalid BMC IP",
-    },
-    "pxe_missing_admin_ip_fails": {
-        "id": "TC_NEG_012",
-        "title": "Verify set_pxe_boot.yml fails when admin_ip missing with phone-home enabled",
-    },
-    "pxe_invalid_credentials_fails": {
-        "id": "TC_NEG_013",
-        "title": "Verify set_pxe_boot.yml fails with invalid BMC credentials",
-    },
-    "pxe_invalid_config_params_fails": {
-        "id": "TC_NEG_014",
-        "title": "Verify set_pxe_boot.yml fails with invalid configuration parameters",
     },
     "install_os_missing_config_fails": {
         "id": "TC_NEG_020",

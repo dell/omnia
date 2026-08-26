@@ -33,7 +33,7 @@ clone_path: "/root/sujal/omnia"
 
 # --- Sync ---
 # Sync input files from dataset or src/ to target
-sync_utils_input: true
+sync_utils_input: false
 
 # --- Report ---
 report_path: "reports"

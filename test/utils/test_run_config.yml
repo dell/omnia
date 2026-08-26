@@ -41,17 +41,8 @@ scenarios:
     dataset: ""
     sync_input: true
 
-  set_pxe_boot:
-    order: 3
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
-    dataset: ""
-    sync_input: true
-
   install_os:
-    order: 4
+    order: 3
     run: false
     command: "test"
     suite: ""

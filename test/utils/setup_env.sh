@@ -84,9 +84,11 @@ _create_and_encrypt_creds() {
     # Args:  $1 = oim_password
     #        $2 = bmc_username   (optional; keep existing if not provided)
     #        $3 = bmc_password  (optional; keep existing if not provided)
+    #        $4 = os_root_password (optional; keep existing if not provided)
     local _oim_pass="${1:-}"
     local _bmc_user="${2:-}"
     local _bmc_pass="${3:-}"
+    local _os_root_pass="${4:-}"
 
     # If file already exists, preserve existing values for fields not being updated
     if [ -f "$CREDS_FILE" ]; then
@@ -94,6 +96,7 @@ _create_and_encrypt_creds() {
         [ -z "$_oim_pass" ]  && _oim_pass=$(grep -E '^oim_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^oim_password:[[:space:]]*//; s/[\"'\'']//g' || true)
         [ -z "$_bmc_user" ]  && _bmc_user=$(grep -E '^bmc_username:' "$DECRYPTED_CREDS_TMP" | sed 's/^bmc_username:[[:space:]]*//; s/[\"'\'']//g' || true)
         [ -z "$_bmc_pass" ]  && _bmc_pass=$(grep -E '^bmc_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^bmc_password:[[:space:]]*//; s/[\"'\'']//g' || true)
+        [ -z "$_os_root_pass" ] && _os_root_pass=$(grep -E '^os_root_password:' "$DECRYPTED_CREDS_TMP" | sed 's/^os_root_password:[[:space:]]*//; s/[\"'\'']//g' || true)
         rm -f "$DECRYPTED_CREDS_TMP"
     fi
 
@@ -107,10 +110,14 @@ _create_and_encrypt_creds() {
 # Leave empty to use key-based authentication.
 oim_password: "${_oim_pass}"
 
-# BMC credentials for PXE boot tests — synced to set_pxe_boot_credentials.yml on the target.
-# Required by the set_pxe_boot playbook for iDRAC/BMC access.
+# BMC credentials for install_os tests — synced to target credential files.
+# Required by the install_os playbook for iDRAC/BMC access.
 bmc_username: "${_bmc_user}"
 bmc_password: "${_bmc_pass}"
+
+# OS root password for install_os tests — synced to install_os_credentials.yml on the target.
+# Required by the install_os playbook for OS installation.
+os_root_password: "${_os_root_pass}"
 CREDS_EOF
     chmod 600 "$CREDS_FILE"
 
@@ -203,15 +210,18 @@ if [[ "${SET_DOMAIN_CREDS}" == "true" ]]; then
         # Non-interactive mode (JSON input)
         _bmc_user=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('bmc_username',''))" 2>/dev/null || true)
         _bmc_pass=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('bmc_password',''))" 2>/dev/null || true)
-        _create_and_encrypt_creds "" "$_bmc_user" "$_bmc_pass"
-        log_info "BMC credentials updated in test_creds.yml"
+        _os_root_pass=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('os_root_password',''))" 2>/dev/null || true)
+        _create_and_encrypt_creds "" "$_bmc_user" "$_bmc_pass" "$_os_root_pass"
+        log_info "Domain credentials updated in test_creds.yml"
     else
         # Interactive mode
         read -p "Enter BMC username: " bmc_user
         read -sp "Enter BMC password: " bmc_pass
         echo
-        _create_and_encrypt_creds "" "$bmc_user" "$bmc_pass"
-        log_info "BMC credentials saved to test_creds.yml"
+        read -sp "Enter OS root password: " os_root_pass
+        echo
+        _create_and_encrypt_creds "" "$bmc_user" "$bmc_pass" "$os_root_pass"
+        log_info "Domain credentials saved to test_creds.yml"
     fi
 fi
 

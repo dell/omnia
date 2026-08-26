@@ -1,36 +1,19 @@
-# Utils Domain — Dataset Generator
+# Dataset Generator Tool
 
-Generates test datasets from Jinja2 templates and YAML variable profiles.
+CLI tool for generating test datasets for the utils domain.
 
-## Usage
-
-```bash
-# Generate from template with default profile
-python generate_dataset.py data_set_01 defaults
-
-# Generate from template with custom profile
-python generate_dataset.py data_set_02 custom_profile
-
-# Copy from src/utils/input/
-python generate_dataset.py data_set_03 --from-src
-
-# Override variables
-python generate_dataset.py data_set_04 defaults --var enable_phone_home=false
-```
-
-## Directory Structure
+## Structure
 
 ```
 generator/
 ├── generate_dataset.py      # CLI tool
 ├── profiles/                # Variable profiles (YAML)
-│   └── defaults.yml         # Base profile
+│   ├── defaults.yml         # Base profile
+│   └── example_install_os.yml  # Example install_os profile
 └── templates/               # Jinja2 templates
     └── input/
         ├── collect_pxe.yml.j2
-        ├── set_pxe_boot_config.yml.j2
-        ├── set_pxe_boot.ini.j2
-        └── set_pxe_boot_credentials.yml.j2
+        └── install_os_config.yml.j2
 ```
 
 ## Profiles
@@ -50,8 +33,20 @@ Templates use Jinja2 syntax with `StrictUndefined` — missing variables cause e
 datasets/<name>/
 ├── input/
 │   ├── collect_pxe.yml
-│   ├── set_pxe_boot_config.yml
-│   ├── set_pxe_boot.ini
-│   └── set_pxe_boot_credentials.yml
+│   └── install_os_config.yml
 └── README.md
 ```
+
+## Usage
+
+```bash
+# Generate dataset with default profile
+python generate_dataset.py --name my_dataset
+
+# Generate dataset with custom profile
+python generate_dataset.py --name my_dataset --profile example_install_os.yml
+```
+
+## Profile Variables
+
+See `../README.md` for complete list of available variables.
