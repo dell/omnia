@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""omnia-auto — Messages"""
+"""CLI entry point for ``python -m omnia_auto``."""
 
-from .runner_msgs import (
-    RUNNER_LOG_MSGS,
-    RUNNER_ASSERT_MSGS,
-)
+import sys
 
-from .credential_msgs import (
-    CREDENTIAL_LOG_MSGS,
-    CREDENTIAL_ERROR_MSGS,
-)
+from .functions.credential_func import main
+
+sys.exit(main())

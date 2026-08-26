@@ -183,7 +183,8 @@ OME_KAFKA_CERT_FILES = ["ca.crt", "user.crt", "user.key"]
 # UFM (from deploy_ufm/vars/main.yml)
 UFM_SVC_NAME = "ufm-external"
 UFM_VMSCRAPE_NAME = "ufm-infiniband-metrics"
-UFM_SECRET_NAME = "ufm-telemetry-credentials"
+# K8s Secret object name, not a credential value
+UFM_SECRET_NAME = "ufm-telemetry-credentials"  # noqa: S105
 UFM_EXPECTED_METRICS = [
     "infiniband_CBW",
     "PortXmitDataExtended",
@@ -221,7 +222,6 @@ IPV4_PATTERN = re.compile(
 )
 
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
     "clone_path",
     "report_path",
     "report_name",

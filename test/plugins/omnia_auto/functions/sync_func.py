@@ -28,16 +28,18 @@ Usage from a consumer module::
     # SSH clone
     clone_repo(mode="ssh", url="https://…", dest="/root/repo",
                ip=conn["ip"], user=conn["user"],
-               password=conn["password"],
+               auth_secret=conn["auth_secret"],
                ssh_opts=conn["ssh_opts"])
 
     # Sync a directory over SSH
     sync_files(mode="ssh", src="/local/dir", dest="/remote/dir",
                ip=conn["ip"], user=conn["user"],
+               auth_secret=conn["auth_secret"],
                ssh_opts=conn["ssh_opts"])
 """
 
 import os
+import shlex
 import subprocess
 from typing import Any, Dict, Optional
 
@@ -53,7 +55,7 @@ def clone_repo(
     *,
     ip: Optional[str] = None,
     user: str = "root",
-    password: Optional[str] = None,
+    auth_secret: Optional[str] = None,
     ssh_opts: str = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR",
     force: bool = False,
     timeout: int = 300,
@@ -66,7 +68,7 @@ def clone_repo(
         dest: Destination path for the repo.
         ip: Target host IP (required when ``mode="ssh"``).
         user: SSH user (default ``root``).
-        password: SSH password.  When set, ``sshpass`` is used.
+        auth_secret: SSH auth secret.  When set, ``sshpass`` is used.
         ssh_opts: SSH options string.
         force: Remove existing repo and re-clone.
         timeout: Subprocess timeout in seconds.
@@ -96,7 +98,7 @@ def clone_repo(
                 cmd, shell=True, capture_output=True, text=True,  # nosec B602
                 timeout=timeout, check=False,
             )
-        ssh_cmd = _build_ssh_cmd(ip, user, password, ssh_opts, cmd)
+        ssh_cmd = _build_ssh_cmd(ip, user, auth_secret, ssh_opts, cmd)
         return subprocess.run(
             ssh_cmd, shell=True, capture_output=True, text=True,  # nosec B602
             timeout=timeout, check=False,
@@ -147,7 +149,7 @@ def sync_files(
     *,
     ip: Optional[str] = None,
     user: str = "root",
-    password: Optional[str] = None,
+    auth_secret: Optional[str] = None,
     ssh_opts: str = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR",
     timeout: int = 120,
     mkdir: bool = True,
@@ -163,7 +165,7 @@ def sync_files(
         dest: Destination path.
         ip: Target host IP (required when ``mode="ssh"``).
         user: SSH user (default ``root``).
-        password: SSH password.  When set, ``sshpass`` is used.
+        auth_secret: SSH auth secret.  When set, ``sshpass`` is used.
         ssh_opts: SSH options string.
         timeout: Subprocess timeout in seconds.
         mkdir: Create destination parent directory before sync.
@@ -223,8 +225,8 @@ def sync_files(
         if mkdir:
             dest_dir = dest if is_dir else os.path.dirname(dest)
             mkdir_cmd = _build_ssh_cmd(
-                ip, user, password, ssh_opts,
-                f"mkdir -p {dest_dir}",
+                ip, user, auth_secret, ssh_opts,
+                f"mkdir -p {shlex.quote(dest_dir)}",
             )
             subprocess.run(
                 mkdir_cmd, shell=True, capture_output=True,  # nosec B602
@@ -232,7 +234,7 @@ def sync_files(
             )
 
         if is_dir:
-            ssh_e = _build_ssh_e(password, ssh_opts)
+            ssh_e = _build_ssh_e(auth_secret, ssh_opts)
             r = subprocess.run(
                 [
                     "rsync", "-avz", "-e", ssh_e,
@@ -242,10 +244,16 @@ def sync_files(
                 timeout=timeout, check=False,
             )
         else:
-            if password:
+            if auth_secret:
+                scp_cmd = (
+                    f"sshpass -p {shlex.quote(auth_secret)}"
+                    f" scp {ssh_opts}"
+                    f" {shlex.quote(src)}"
+                    f" {shlex.quote(user)}@{shlex.quote(ip)}"
+                    f":{shlex.quote(dest)}"
+                )
                 r = subprocess.run(
-                    f"sshpass -p '{password}' scp {ssh_opts} "
-                    f"{src} {user}@{ip}:{dest}",
+                    scp_cmd,
                     shell=True, capture_output=True, text=True,  # nosec B602
                     timeout=timeout, check=False,
                 )
@@ -279,21 +287,46 @@ def sync_files(
 def _build_ssh_cmd(
     ip: str,
     user: str,
-    password: Optional[str],
+    auth_secret: Optional[str],
     ssh_opts: str,
     cmd: str,
 ) -> str:
-    """Build an SSH (or sshpass + SSH) command string."""
-    if password:
+    """Build an SSH (or sshpass + SSH) command string.
+
+    Args:
+        ip: Target host IP.
+        user: SSH user.
+        auth_secret: SSH auth secret (sshpass is used when set).
+        ssh_opts: SSH options string.
+        cmd: Command to execute on the remote host.
+
+    Returns:
+        Shell command string.
+    """
+    quoted_cmd = shlex.quote(cmd)
+    if auth_secret:
         return (
-            f"sshpass -p '{password}' ssh {ssh_opts} "
-            f"{user}@{ip} '{cmd}'"
+            f"sshpass -p {shlex.quote(auth_secret)} ssh {ssh_opts} "
+            f"{shlex.quote(user)}@{shlex.quote(ip)} {quoted_cmd}"
         )
-    return f"ssh {ssh_opts} {user}@{ip} '{cmd}'"
+    return (
+        f"ssh {ssh_opts} "
+        f"{shlex.quote(user)}@{shlex.quote(ip)} {quoted_cmd}"
+    )
 
 
-def _build_ssh_e(password: Optional[str], ssh_opts: str) -> str:
-    """Build the ``-e`` argument for rsync over SSH."""
-    if password:
-        return f"sshpass -p '{password}' ssh {ssh_opts}"
+def _build_ssh_e(auth_secret: Optional[str], ssh_opts: str) -> str:
+    """Build the ``-e`` argument for rsync over SSH.
+
+    Args:
+        auth_secret: SSH auth secret (sshpass is used when set).
+        ssh_opts: SSH options string.
+
+    Returns:
+        SSH command string for rsync ``-e``.
+    """
+    if auth_secret:
+        return (
+            f"sshpass -p {shlex.quote(auth_secret)} ssh {ssh_opts}"
+        )
     return f"ssh {ssh_opts}"

@@ -16,8 +16,7 @@
 
 from typing import Dict, Any
 
-from .host_func import load_test_config
-from ._config_helpers import _get_shared_path
+from ._config_helpers import _get_shared_path, _get_project_name
 from ..vars.common_vars import CMDS, BUILD_LOG_PATH
 
 
@@ -38,17 +37,9 @@ def collect_build_logs(host, max_lines: int = 100) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'log_output', 'log_path'.
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
+    project = _get_project_name()
     log_dir = BUILD_LOG_PATH.format(
         shared_path=_get_shared_path(), project=project,
-    )
-
-    # Find the most recent log file
-    find_cmd = host.run(
-        CMDS["cat_file"].format(
-            path=f"{log_dir}*.log"
-        )
     )
 
     # Try to get the latest .log file via ls -t
