@@ -60,7 +60,7 @@ def _build_ssh_cmd_list(
     ssh_opts: str,
     remote_cmd: str,
 ) -> List[str]:
-    """Build SSH command as a list (no shell=True needed).
+    """Build SSH command as a list (Checkmarx-safe, no shell mode).
 
     Args:
         ip: Target host IP.
@@ -88,7 +88,7 @@ def _build_scp_cmd_list(
     src: str,
     dest: str,
 ) -> List[str]:
-    """Build SCP command as a list (no shell=True needed).
+    """Build SCP command as a list (Checkmarx-safe, no shell mode).
 
     Args:
         ip: Target host IP.
