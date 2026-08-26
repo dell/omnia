@@ -93,6 +93,12 @@ TEST_LOG_MSGS = {
     "no_pvcs_remaining": "No PVCs remaining in telemetry namespace",
     "pvcs_remaining": "{count} PVC(s) still present in telemetry namespace",
 
+    # Cleanup - Idempotency / Playbook
+    "cleanup_failed": "Cleanup playbook failed",
+    "deploy_failed": "Deploy playbook failed",
+    "idempotent_passed": "Idempotency verified: second run exited 0 (duration={duration}s)",
+    "idempotent_failed": "Idempotency failed: second run exited {rc}",
+
     # All pods running
     "all_pods_running": "All {total} pods running in telemetry namespace",
     "some_pods_not_running": "{not_running}/{total} pod(s) not in Running state",
@@ -355,6 +361,14 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. kubectl get pvc -n telemetry\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+
+    # Idempotency
+    "idempotent_failed": (
+        "Idempotency check failed: second run exited {rc}\n"
+        "HOW TO FIX:\n"
+        "  1. Check the playbook output for tasks that failed on second run\n"
+        "  2. Ensure tasks use proper idempotency guards\n"
     ),
 
     # UFM
