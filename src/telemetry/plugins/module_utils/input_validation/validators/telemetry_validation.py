@@ -23,6 +23,7 @@ import subprocess
 import yaml
 from ansible.module_utils.input_validation.messages import en_us_validation_msg
 from ansible.module_utils.input_validation.core.validation_utils import create_error_msg
+from ansible.module_utils.input_validation.validators import powerscale_telemetry_validation
 
 
 def validate_telemetry_config(
@@ -555,135 +556,17 @@ def validate_telemetry_config(
     powerscale_configs = data.get("powerscale_configurations", {})
     powerscale_collection_targets = powerscale_source.get("collection_targets", [])
 
-    if powerscale_enabled:
-        logger.info("PowerScale metrics enabled — performing standalone PowerScale validation")
-
-        # powerscale_configurations section must exist
-        if not powerscale_configs:
-            errors.append(create_error_msg(
-                "powerscale_configurations",
-                "not defined",
-                en_us_validation_msg.POWERSCALE_CONFIGURATIONS_MISSING_MSG
-            ))
-        else:
-            # victoria_metrics must be in collection_targets
-            if 'victoria_metrics' not in powerscale_collection_targets:
-                errors.append(create_error_msg(
-                    "telemetry_sources.powerscale.collection_targets",
-                    powerscale_collection_targets,
-                    en_us_validation_msg.POWERSCALE_VICTORIA_REQUIRED_MSG
-                ))
-
-            # otel_collector_storage_size must be set
-            otel_storage = powerscale_configs.get("otel_collector_storage_size", "")
-            if not otel_storage or not isinstance(otel_storage, str):
-                errors.append(create_error_msg(
-                    "powerscale_configurations.otel_collector_storage_size",
-                    otel_storage,
-                    en_us_validation_msg.POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG
-                ))
-
-            # csi_powerscale_secret_path must be set and file must exist
-            csi_secret_path = powerscale_configs.get("csi_powerscale_secret_path", "")
-            if not csi_secret_path or (isinstance(csi_secret_path, str) and csi_secret_path.strip() == ""):
-                errors.append(create_error_msg(
-                    "powerscale_configurations.csi_powerscale_secret_path",
-                    csi_secret_path,
-                    en_us_validation_msg.POWERSCALE_CSI_SECRET_PATH_REQUIRED_MSG
-                ))
-            elif not os.path.exists(csi_secret_path):
-                errors.append(create_error_msg(
-                    "powerscale_configurations.csi_powerscale_secret_path",
-                    csi_secret_path,
-                    en_us_validation_msg.powerscale_csi_secret_not_found_msg(csi_secret_path)
-                ))
-
-            # csm_observability_values_file_path must be set and exist
-            csm_values_path = powerscale_configs.get("csm_observability_values_file_path", "")
-            if not csm_values_path or (isinstance(csm_values_path, str) and csm_values_path.strip() == ""):
-                errors.append(create_error_msg(
-                    "powerscale_configurations.csm_observability_values_file_path",
-                    csm_values_path,
-                    en_us_validation_msg.POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG
-                ))
-            elif not os.path.exists(csm_values_path):
-                errors.append(create_error_msg(
-                    "powerscale_configurations.csm_observability_values_file_path",
-                    csm_values_path,
-                    en_us_validation_msg.powerscale_csm_values_not_found_msg(csm_values_path)
-                ))
-            else:
-                try:
-                    with open(csm_values_path, 'r', encoding='utf-8') as csm_f:
-                        csm_values = yaml.safe_load(csm_f)
-                    if not isinstance(csm_values, dict):
-                        errors.append(create_error_msg(
-                            "powerscale_configurations.csm_observability_values_file_path",
-                            csm_values_path,
-                            en_us_validation_msg.POWERSCALE_CSM_VALUES_INVALID_YAML_MSG
-                        ))
-                    else:
-                        karavi_metrics = csm_values.get("karaviMetricsPowerscale", {})
-                        if not karavi_metrics:
-                            errors.append(create_error_msg(
-                                "csm_observability_values_file_path",
-                                csm_values_path,
-                                en_us_validation_msg.POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG
-                            ))
-                        else:
-                            if not karavi_metrics.get("image"):
-                                errors.append(create_error_msg(
-                                    "karaviMetricsPowerscale.image",
-                                    "not defined",
-                                    en_us_validation_msg.POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG
-                                ))
-                            karavi_auth = karavi_metrics.get("authorization", {})
-                            if karavi_auth.get("enabled", False):
-                                proxy_host = karavi_auth.get("proxyHost", "")
-                                if not proxy_host or (isinstance(proxy_host, str) and proxy_host.strip() == ""):
-                                    errors.append(create_error_msg(
-                                        "karaviMetricsPowerscale.authorization.proxyHost",
-                                        proxy_host,
-                                        en_us_validation_msg.POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG
-                                    ))
-                        otel_config = csm_values.get("otelCollector", {})
-                        if not otel_config or not otel_config.get("image"):
-                            errors.append(create_error_msg(
-                                "otelCollector.image",
-                                "not defined",
-                                en_us_validation_msg.POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG
-                            ))
-                        unsupported_metrics = {
-                            "karaviMetricsPowerflex": ("PowerFlex", "karaviMetricsPowerflex"),
-                            "karaviMetricsPowerstore": ("PowerStore", "karaviMetricsPowerstore"),
-                            "karaviMetricsPowermax": ("PowerMax", "karaviMetricsPowermax"),
-                        }
-                        for section_key, (component_name, section_name) in unsupported_metrics.items():
-                            section = csm_values.get(section_key, {})
-                            if isinstance(section, dict) and section.get("enabled", False):
-                                errors.append(create_error_msg(
-                                    f"{section_name}.enabled",
-                                    "true",
-                                    en_us_validation_msg.powerscale_unsupported_metrics_enabled_msg(
-                                        component_name, section_name, csm_values_path
-                                    )
-                                ))
-                        logger.info("CSM Observability values.yaml validation passed")
-                except (yaml.YAMLError, IOError) as e:
-                    errors.append(create_error_msg(
-                        "powerscale_configurations.csm_observability_values_file_path",
-                        csm_values_path,
-                        en_us_validation_msg.powerscale_csm_values_parse_error_msg(str(e))
-                    ))
-
-    if powerscale_logs_enabled:
-        logger.info("PowerScale logs enabled — validating victoria_logs collection target")
-        if 'victoria_logs' not in powerscale_collection_targets:
-            errors.append(create_error_msg(
-                "telemetry_sources.powerscale.collection_targets",
-                powerscale_collection_targets,
-                en_us_validation_msg.POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG
-            ))
+    if powerscale_enabled or powerscale_logs_enabled:
+        # Use standalone PowerScale validation module
+        powerscale_telemetry_validation.validate_powerscale_telemetry_config(
+            data=data,
+            powerscale_collection_targets=powerscale_collection_targets,
+            software_config_file_path=software_config_file_path,
+            is_service_cluster_defined=is_service_cluster_defined,
+            config_paths=config_paths,
+            logger=logger,
+            errors=errors
+        )
 
 
     # =========================================================================

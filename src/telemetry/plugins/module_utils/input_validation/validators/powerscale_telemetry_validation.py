@@ -180,144 +180,27 @@ def validate_powerscale_telemetry_config(
                     karavi_auth = (
                         karavi_metrics.get("authorization", {}) if karavi_metrics else {}
                     )
-                    if karavi_auth.get("enabled", False):
-                        proxy_host = karavi_auth.get("proxyHost", "")
-                        if (not proxy_host or not isinstance(proxy_host, str) or
-                                proxy_host.strip() == ""):
-                            errors.append(create_error_msg(
-                                "karaviMetricsPowerscale.authorization.proxyHost",
-                                proxy_host,
-                                en_us_validation_msg.POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG
-                            ))
+                    # Note: proxyHost validation removed - proxy mode is optional
 
-                    # Cross-validate image versions
-                    # between values.yaml and service_k8s (versioned)
-                    service_k8s_json_path = config_paths.get(
-                        "service_k8s_json_path", ""
+                    # Offline image availability check
+                    # Warn if required images are not available in local registry
+                    required_images = []
+                    if karavi_metrics and karavi_metrics.get("image"):
+                        required_images.append(karavi_metrics["image"])
+                    if otel_config and otel_config.get("image"):
+                        required_images.append(otel_config["image"])
+                    karavi_auth = (
+                        karavi_metrics.get("authorization", {}) if karavi_metrics else {}
                     )
-                    csi_driver_powerscale_json_path = config_paths.get(
-                        "csi_driver_powerscale_json_path", ""
-                    )
+                    sidecar_proxy = karavi_auth.get("sidecarProxy", {})
+                    if sidecar_proxy and sidecar_proxy.get("image"):
+                        required_images.append(sidecar_proxy["image"])
 
-                    if service_k8s_json_path and os.path.exists(service_k8s_json_path):
-                        try:
-                            with open(service_k8s_json_path, 'r', encoding='utf-8') as sk8s_f:
-                                service_k8s_data = json.load(sk8s_f)
-
-                            # Build lookup: package -> tag from service_k8s (versioned)
-                            sk8s_images = {}
-                            for entry in service_k8s_data.get(
-                                "service_k8s", {}
-                            ).get("cluster", []):
-                                if entry.get("type") == "image" and "tag" in entry:
-                                    sk8s_images[entry["package"]] = entry["tag"]
-
-                            # Images to cross-validate:
-                            # (description, values.yaml image, service_k8s package key)
-                            images_to_check = []
-
-                            if karavi_metrics and karavi_metrics.get("image"):
-                                images_to_check.append((
-                                    "csm-metrics-powerscale",
-                                    karavi_metrics["image"],
-                                    "quay.io/dell/container-storage-modules/"
-                                    "csm-metrics-powerscale"
-                                ))
-                            if otel_config and otel_config.get("image"):
-                                images_to_check.append((
-                                    "opentelemetry-collector",
-                                    otel_config["image"],
-                                    "ghcr.io/open-telemetry/"
-                                    "opentelemetry-collector-releases/"
-                                    "opentelemetry-collector"
-                                ))
-                            karavi_auth = (
-                                karavi_metrics.get("authorization", {}) if karavi_metrics else {}
-                            )
-                            sidecar_proxy = karavi_auth.get("sidecarProxy", {})
-                            if sidecar_proxy and sidecar_proxy.get("image"):
-                                # csm-authorization-sidecar is in
-                                # csi_driver_powerscale.json, not service_k8s (versioned)
-                                if (csi_driver_powerscale_json_path and
-                                        os.path.exists(csi_driver_powerscale_json_path)):
-                                    try:
-                                        with open(csi_driver_powerscale_json_path, 'r',
-                                                  encoding='utf-8') as csi_f:
-                                            csi_ps_data = json.load(csi_f)
-                                        for entry in csi_ps_data.get(
-                                            "csi_driver_powerscale", {}
-                                        ).get("cluster", []):
-                                            if (entry.get("type") == "image" and
-                                                    entry.get("package") ==
-                                                    "quay.io/dell/container-storage-modules/"
-                                                    "csm-authorization-sidecar"):
-                                                sidecar_values_tag = (
-                                                    sidecar_proxy["image"].split(":")[-1]
-                                                    if ":" in sidecar_proxy["image"] else ""
-                                                )
-                                                if (sidecar_values_tag and
-                                                        sidecar_values_tag != entry["tag"]):
-                                                    errors.append(create_error_msg(
-                                                        "powerscale image: "
-                                                        "csm-authorization-sidecar",
-                                                        sidecar_proxy["image"],
-                                                        en_us_validation_msg.
-                                                        powerscale_image_version_mismatch_msg(
-                                                            "csm-authorization-sidecar",
-                                                            sidecar_proxy["image"],
-                                                            f"{entry['package']}:{entry['tag']}"
-                                                        )
-                                                    ))
-                                                else:
-                                                    logger.info(
-                                                        f"Image version match for "
-                                                        f"csm-authorization-sidecar: "
-                                                        f"{sidecar_values_tag}"
-                                                    )
-                                                break
-                                    except (json.JSONDecodeError, IOError) as csi_err:
-                                        logger.warning(
-                                            f"Could not read csi_driver_powerscale.json: {csi_err}"
-                                        )
-
-                            for img_name, values_image, sk8s_key in images_to_check:
-                                if sk8s_key in sk8s_images:
-                                    # Extract tag from values.yaml image
-                                    # (format: registry/repo:tag)
-                                    values_tag = (
-                                        values_image.split(":")[-1]
-                                        if ":" in values_image else ""
-                                    )
-                                    sk8s_tag = sk8s_images[sk8s_key]
-                                    if values_tag and values_tag != sk8s_tag:
-                                        sk8s_full = f"{sk8s_key}:{sk8s_tag}"
-                                        errors.append(create_error_msg(
-                                            f"powerscale image: {img_name}",
-                                            values_image,
-                                            en_us_validation_msg.
-                                            powerscale_image_version_mismatch_msg(
-                                                img_name, values_image, sk8s_full
-                                            )
-                                        ))
-                                    else:
-                                        logger.info(
-                                            f"Image version match for {img_name}: {values_tag}"
-                                        )
-                                else:
-                                    logger.warning(
-                                        f"Image {sk8s_key} not found in service_k8s file, "
-                                        f"skipping version check"
-                                    )
-
-                        except (json.JSONDecodeError, IOError) as sk8s_err:
-                            logger.warning(
-                                f"Could not read service_k8s file for "
-                                f"image version validation: {sk8s_err}"
-                            )
-                    else:
+                    if required_images:
                         logger.warning(
-                            f"service_k8s file not found at {service_k8s_json_path}, "
-                            f"skipping image version validation"
+                            "PowerScale telemetry requires the following images to be available "
+                            f"in your container registry: {', '.join(required_images)}. "
+                            "Ensure these images are pulled or available offline before deployment."
                         )
 
                     # Validate unsupported metrics are not enabled
