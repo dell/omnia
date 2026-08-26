@@ -12,132 +12,170 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Telemetry test module — functions sub-package."""
+"""
+Telemetry — Functions
 
+Common utilities come from the omnia_auto package.
+Module-specific functions live in separate files:
+  - telemetry_func.py   — common (kube_vip, config, VM/VL queries, iDRAC VM data)
+  - k8s_func.py         — K8s resource verification (all pods, deploys, sts)
+  - powerscale_func.py  — PowerScale source verification
+  - ufm_func.py         — UFM source verification
+  - ome_func.py         — OME Kafka connectivity verification
+  - validation_func.py  — config validation
+"""
+
+# --- Common (from omnia_auto package) ---
 from omnia_auto import (
+    Colors,
+    Symbols,
+    log,
+    set_debug_mode,
+    TestLogger,
+    get_test_output,
+    get_testinfra_host,
     load_test_config,
     load_test_credentials,
-    get_testinfra_host,
+    get_module_root,
     run_on_host,
-    run_playbook,
-    log,
+    is_local_execution,
+    TestReport,
+    get_current_report,
+    set_current_report,
+    run_playbook as _run_playbook,
+)
+from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+
+# --- Telemetry common verification ---
+from .telemetry_func import (
+    resolve_kube_vip_ip,
+    get_kube_vip_host,
+    is_source_enabled,
+    is_logs_enabled,
+    is_sink_enabled,
+    load_telemetry_config_from_target,
+    check_target_connectivity,
+    check_env_vars_present,
+    run_on_kube_vip,
+    query_vm_metric_names,
+    query_vm_instant,
+    get_vmselect_endpoint,
+    get_vlselect_endpoint,
+    verify_idrac_vm_data,
+    get_idrac_service_tags,
 )
 
-from library.functions.telemetry_func import (
-    get_telemetry_input_path,
-    verify_input_file_exists,
-    verify_all_input_files_exist,
-    load_telemetry_config_from_target,
-    get_kube_vip_from_config,
-    is_source_enabled,
-    is_sink_enabled,
+# --- K8s resource verification ---
+from .k8s_func import (
+    verify_all_pods_running,
+    verify_pods_by_prefix,
+    verify_sts_ready,
+    verify_deploy_ready,
+    verify_deploy_pods_detail,
+    verify_pod_containers,
+    verify_kafka_ready,
+    verify_kafka_topics,
+    verify_kafka_topic_ready,
+    verify_services_exist,
+    verify_services_detail,
 )
-from library.functions.k8s_func import (
-    verify_kubectl_available,
-    verify_control_plane_ready,
-    verify_worker_nodes_ready,
-    verify_pods_healthy,
-    verify_kube_vip_reachable,
-    get_pods_by_prefix,
-    get_pod_count,
-    verify_secret_exists,
+
+# --- iDRAC verification ---
+from .idrac_func import (
+    verify_idrac_pod_count,
+    verify_mysql_data_in_pods,
+    verify_receiver_collecting,
 )
-from library.functions.host_func import (
-    sync_project_to_remote,
-    sync_telemetry_input,
-    get_dataset_input_dir,
+
+# --- OME verification ---
+from .ome_func import (
+    verify_ome_kafka_connectivity,
+    get_ome_forwarders,
+    run_external_kafka_playbook,
+    verify_external_kafka_certs,
+    convert_certs_to_pfx,
+    verify_ome_kafka_user_cr,
+    upload_ome_certs,
 )
-from library.functions.validation_func import (
+
+# --- Validation ---
+from .validation_func import (
+    validate_test_config,
     validate_all,
     ConfigValidationError,
 )
-from library.functions.sink_func import (
-    verify_vm_cluster_pods,
-    verify_vmagent_pods,
-    verify_vm_services,
-    verify_vm_pvc_sizes,
-    verify_vm_operator,
-    verify_vl_cluster_pods,
-    verify_vlagent_pods,
-    verify_kafka_pods,
-    verify_kafka_ready,
-    verify_kafka_topics,
-    verify_kafka_bridge,
-    verify_kafka_persistence,
-)
-from library.functions.source_func import (
-    verify_idrac_sts_ready,
-    verify_idrac_containers,
-    verify_idrac_kafka_topic,
-    verify_idrac_victoriapump,
-    verify_idrac_service,
-    verify_ldms_aggregator,
-    verify_ldms_store,
-    verify_vector_ldms,
-    verify_ldms_kafka_topic,
-    verify_ldms_sampler_config,
-    verify_vector_ome,
-    verify_ome_kafka_user,
-    verify_ome_sink_prerequisites,
-)
+
+
+def run_playbook(tag=None, **kwargs):
+    """Wrapper that injects module-specific playbook and workdir."""
+    return _run_playbook(
+        playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
+        playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
+        tag=tag,
+        **kwargs,
+    )
+
 
 __all__ = [
-    # omnia_auto re-exports
+    # omnia_auto common
+    "Colors",
+    "Symbols",
+    "log",
+    "set_debug_mode",
+    "TestLogger",
+    "get_test_output",
+    "get_testinfra_host",
     "load_test_config",
     "load_test_credentials",
-    "get_testinfra_host",
+    "get_module_root",
     "run_on_host",
+    "is_local_execution",
+    "TestReport",
+    "get_current_report",
+    "set_current_report",
     "run_playbook",
-    "log",
-    # telemetry domain functions
-    "get_telemetry_input_path",
-    "verify_input_file_exists",
-    "verify_all_input_files_exist",
-    "load_telemetry_config_from_target",
-    "get_kube_vip_from_config",
+    # telemetry common
+    "resolve_kube_vip_ip",
+    "get_kube_vip_host",
     "is_source_enabled",
+    "is_logs_enabled",
     "is_sink_enabled",
-    # k8s verification
-    "verify_kubectl_available",
-    "verify_control_plane_ready",
-    "verify_worker_nodes_ready",
-    "verify_pods_healthy",
-    "verify_kube_vip_reachable",
-    "get_pods_by_prefix",
-    "get_pod_count",
-    "verify_secret_exists",
-    # host/sync
-    "sync_project_to_remote",
-    "sync_telemetry_input",
-    "get_dataset_input_dir",
-    # validation
-    "validate_all",
-    "ConfigValidationError",
-    # sinks
-    "verify_vm_cluster_pods",
-    "verify_vmagent_pods",
-    "verify_vm_services",
-    "verify_vm_pvc_sizes",
-    "verify_vm_operator",
-    "verify_vl_cluster_pods",
-    "verify_vlagent_pods",
-    "verify_kafka_pods",
+    "load_telemetry_config_from_target",
+    "check_target_connectivity",
+    "check_env_vars_present",
+    "run_on_kube_vip",
+    "query_vm_metric_names",
+    "query_vm_instant",
+    "get_vmselect_endpoint",
+    "get_vlselect_endpoint",
+    "verify_idrac_vm_data",
+    "get_idrac_service_tags",
+    # k8s
+    "verify_all_pods_running",
+    "verify_pods_by_prefix",
+    "verify_sts_ready",
+    "verify_deploy_ready",
+    "verify_deploy_pods_detail",
+    "verify_pod_containers",
     "verify_kafka_ready",
     "verify_kafka_topics",
-    "verify_kafka_bridge",
-    "verify_kafka_persistence",
-    # sources
-    "verify_idrac_sts_ready",
-    "verify_idrac_containers",
-    "verify_idrac_kafka_topic",
-    "verify_idrac_victoriapump",
-    "verify_idrac_service",
-    "verify_ldms_aggregator",
-    "verify_ldms_store",
-    "verify_vector_ldms",
-    "verify_ldms_kafka_topic",
-    "verify_ldms_sampler_config",
-    "verify_vector_ome",
-    "verify_ome_kafka_user",
-    "verify_ome_sink_prerequisites",
+    "verify_kafka_topic_ready",
+    "verify_services_exist",
+    "verify_services_detail",
+    # idrac
+    "verify_idrac_pod_count",
+    "verify_mysql_data_in_pods",
+    "verify_receiver_collecting",
+    # ome
+    "verify_ome_kafka_connectivity",
+    "get_ome_forwarders",
+    "run_external_kafka_playbook",
+    "verify_external_kafka_certs",
+    "convert_certs_to_pfx",
+    "verify_ome_kafka_user_cr",
+    "upload_ome_certs",
+    # validation
+    "validate_test_config",
+    "validate_all",
+    "ConfigValidationError",
 ]

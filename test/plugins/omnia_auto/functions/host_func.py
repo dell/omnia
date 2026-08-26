@@ -453,6 +453,60 @@ def ensure_remote_dir(host, path: str) -> None:
     log(f"Ensured remote directory exists: {path}", "DEBUG")
 
 
+def read_remote_yaml(host, file_path: str) -> Dict[str, Any]:
+    """Read and parse a YAML file from the target host.
+
+    Args:
+        host: Testinfra host object.
+        file_path: Absolute path to the YAML file on the target.
+
+    Returns:
+        Parsed dict, or empty dict on failure.
+    """
+    result = host.run(f"cat {file_path} 2>/dev/null")
+    if result.rc != 0 or not result.stdout.strip():
+        return {}
+    try:
+        return yaml.safe_load(result.stdout) or {}
+    except yaml.YAMLError:
+        return {}
+
+
+def read_yaml_key(data: Dict[str, Any], key_path: str, default=None):
+    """Read a nested key from a dict using dot-separated path.
+
+    Supports dict keys and list indices (integer path segments).
+
+    Args:
+        data: Parsed YAML dict.
+        key_path: Dot-separated path (e.g. ``"telemetry_sources.powerscale.metrics_enabled"``).
+        default: Value returned when the key is not found.
+
+    Returns:
+        The value at the key path, or *default*.
+
+    Examples::
+
+        read_yaml_key(cfg, "telemetry_sources.idrac.metrics_enabled")
+        read_yaml_key(cfg, "telemetry_sinks.victoria_metrics")
+        read_yaml_key(cfg, "isilonClusters.0.endpoint")
+    """
+    current = data
+    for part in key_path.split("."):
+        if current is None:
+            return default
+        if isinstance(current, dict):
+            current = current.get(part)
+        elif isinstance(current, list):
+            try:
+                current = current[int(part)]
+            except (ValueError, IndexError):
+                return default
+        else:
+            return default
+    return current if current is not None else default
+
+
 def resolve_domain_input_path(
     host, domain: str, data_path_var: str, project_var: str
 ) -> str:

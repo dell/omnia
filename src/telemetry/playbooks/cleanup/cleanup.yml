@@ -44,7 +44,7 @@
 # Available tags:
 #   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
 #   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
-#            cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm
+#            cleanup_ufm, cleanup_vast, cleanup_sfm
 # Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
 # infrastructure that multiple sources depend on. They are ONLY cleaned
 # when --tags cleanup (all) is used, never individually.
@@ -63,7 +63,7 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   tasks:
     - name: Load telemetry configuration
       ansible.builtin.include_role:
@@ -93,7 +93,6 @@
         _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
         _cleanup_ufm: "{{ 'cleanup_ufm' in ansible_run_tags }}"
         _cleanup_vast: "{{ 'cleanup_vast' in ansible_run_tags }}"
-        _cleanup_dcgm: "{{ 'cleanup_dcgm' in ansible_run_tags }}"
         _cleanup_sfm: "{{ 'cleanup_sfm' in ansible_run_tags }}"
         cacheable: true
 
@@ -141,12 +140,6 @@
         tasks_from: vast
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_vast'] | bool
 
-    - name: "Cleanup DCGM telemetry"
-      ansible.builtin.include_role:
-        name: cleanup
-        tasks_from: dcgm
-      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_dcgm'] | bool
-
     - name: "Cleanup SFM telemetry"
       ansible.builtin.include_role:
         name: cleanup
@@ -160,9 +153,8 @@
         _source_apps: >-
           idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
           karavi-metrics-powerscale,otel-collector,
-          csi-volume-exporter,dcgm-exporter,sfm-telemetry,
-          ufm-external,vast-external,skyway-telemetry,
-          powervault-telemetry
+          csi-volume-exporter,sfm-telemetry,
+          ufm-external,vast-external,skyway-telemetry,powervault-telemetry
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }}
         --no-headers --ignore-not-found
@@ -184,9 +176,14 @@
     - name: "Wait for source pods to terminate before sink cleanup"
       vars:
         telemetry_namespace: "telemetry"
+        _source_apps: >-
+          idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
+          karavi-metrics-powerscale,otel-collector,
+          csi-volume-exporter,sfm-telemetry,
+          ufm-external,vast-external,skyway-telemetry,powervault-telemetry
       ansible.builtin.command: >
         kubectl wait --for=delete pods
-        -l 'app in (idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,karavi-metrics-powerscale,otel-collector,csi-volume-exporter)'
+        -l 'app in ({{ _source_apps | replace("\n", "") | trim }})'
         -n {{ telemetry_namespace }} --timeout=60s
       changed_when: false
       failed_when: false
@@ -219,7 +216,7 @@
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   vars:
     telemetry_namespace: "telemetry"
   tasks:
@@ -248,7 +245,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
   tasks:
     - name: Display cleanup summary
       vars:

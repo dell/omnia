@@ -17,6 +17,9 @@ Omnia CLI — Logs Command Verification.
 
 TC_OC_012: Verify omnia-cli logs --help runs successfully
 TC_OC_013: Verify omnia-cli logs searches only /var/log/omnia (not /opt/omnia/log)
+TC_OC_014: Verify omnia-cli logs --limit flag works
+TC_OC_015: Verify omnia-cli logs --limit rejects invalid values
+TC_OC_016: Verify omnia-cli logs -l short form works
 """
 
 import pytest
@@ -96,4 +99,88 @@ def test_cli_logs_no_opt_omnia_log(host):
         "omnia-cli should not search ${base}/log "
         "(was /opt/omnia/log). "
         "Only ANSIBLE_LOG_DEFAULT (/var/log/omnia) should be used."
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.order(13)
+def test_cli_logs_limit(host):
+    """TC_OC_014: Verify omnia-cli logs --limit flag works."""
+    tl = TestLogger(
+        TEST_NAMES["cli_logs_limit"], "TC_OC_014"
+    )
+    result = run_omnia_cli_cmd(
+        host, "omnia_cli_logs_limit",
+        domain="repo-manager",
+        limit=10,
+    )
+
+    ran_ok = result["rc"] in (0, 1)
+
+    if ran_ok:
+        tl.passed(LOG["cli_logs_limit_ok"].format(limit=10))
+    else:
+        tl.failed(
+            f"omnia-cli logs --limit 10 failed (rc={result['rc']})"
+        )
+
+    assert ran_ok, ASSERT["cli_status_failed"].format(
+        rc=result["rc"],
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.order(14)
+def test_cli_logs_limit_invalid(host):
+    """TC_OC_015: Verify omnia-cli logs --limit rejects invalid values."""
+    tl = TestLogger(
+        TEST_NAMES["cli_logs_limit_invalid"], "TC_OC_015"
+    )
+    result = run_omnia_cli_cmd(
+        host, "omnia_cli_logs_limit_invalid",
+        domain="repo-manager",
+        limit="abc",
+    )
+
+    # Should exit with error (rc != 0)
+    rejected = result["rc"] != 0
+
+    if rejected:
+        tl.passed(LOG["cli_logs_limit_invalid_ok"].format(
+            limit="abc", rc=result["rc"]
+        ))
+    else:
+        tl.failed(
+            f"omnia-cli logs --limit abc should have been rejected"
+        )
+
+    assert rejected, (
+        "omnia-cli logs --limit should reject non-integer values"
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.order(15)
+def test_cli_logs_limit_short(host):
+    """TC_OC_016: Verify omnia-cli logs -l short form works."""
+    tl = TestLogger(
+        TEST_NAMES["cli_logs_limit_short"], "TC_OC_016"
+    )
+    result = run_omnia_cli_cmd(
+        host, "omnia_cli_logs_limit_short",
+        domain="repo-manager",
+        limit=5,
+    )
+
+    ran_ok = result["rc"] in (0, 1)
+
+    if ran_ok:
+        tl.passed(LOG["cli_logs_limit_short_ok"].format(limit=5))
+    else:
+        tl.failed(
+            f"omnia-cli logs -l 5 failed (rc={result['rc']})"
+        )
+
+    assert ran_ok, ASSERT["cli_status_failed"].format(
+        rc=result["rc"],
     )

@@ -14,7 +14,7 @@
 
 """Build status and functional group verification."""
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 import yaml
 
@@ -23,7 +23,7 @@ from ._config_helpers import (
     _get_project_name,
     get_configured_functional_groups,
 )
-from ..vars.common_vars import CMDS
+from ..vars.common_vars import CMDS, S3_BOOT_IMAGES_BUCKET
 
 
 # =============================================================================
@@ -196,5 +196,123 @@ def check_functional_groups_built(
         ),
         "error": None if not missing else (
             f"Missing from build output: {', '.join(missing)}"
+        ),
+    }
+
+
+# =============================================================================
+# BUILD STATUS ↔ S3 IMAGE PATH CROSS-REFERENCE
+# =============================================================================
+
+def check_build_status_s3_match(host) -> Dict[str, Any]:
+    """Verify build_status.yml image paths exist in S3.
+
+    Reads the ``image`` field from each functional group entry in
+    build_status.yml and checks that the corresponding path exists
+    in the S3 boot-images bucket listing.
+
+    Returns:
+        Dict with 'success', 'matched', 'unmatched', 'details'.
+    """
+    status = check_build_status_file(host)
+    if not status.get("success") or "data" not in status:
+        return {
+            "success": False,
+            "prerequisite_failed": True,
+            "matched": [],
+            "unmatched": [],
+            "details": status.get(
+                "error", "build_status.yml not available"
+            ),
+            "error": status.get(
+                "error", "build_status.yml not available"
+            ),
+        }
+
+    # Collect image paths from build_status.yml
+    image_entries: List[Dict[str, str]] = []
+    fg_images = status["data"].get(
+        "functional_group_images", []
+    )
+    for arch_block in fg_images:
+        if not isinstance(arch_block, dict):
+            continue
+        for arch_name, entries in arch_block.items():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                fg_name = entry.get("functional_group", "")
+                image_path = entry.get("image", "")
+                if fg_name and image_path:
+                    image_entries.append({
+                        "functional_group": fg_name,
+                        "arch": arch_name,
+                        "image_path": image_path,
+                    })
+
+    if not image_entries:
+        return {
+            "success": False,
+            "prerequisite_failed": False,
+            "matched": [],
+            "unmatched": [],
+            "details": (
+                "No image entries in build_status.yml"
+            ),
+            "error": "No functional_group_images found",
+        }
+
+    # Get S3 listing
+    s3_list = host.run(
+        CMDS["s3cmd_ls_bucket"].format(
+            bucket=S3_BOOT_IMAGES_BUCKET,
+        )
+    )
+    s3_output = s3_list.stdout if s3_list.rc == 0 else ""
+
+    matched = []
+    unmatched = []
+
+    for entry in image_entries:
+        image_path = entry["image_path"]
+        # build_status uses relative paths like
+        # "boot-images/fg_name/rhel-fg_name_..."
+        # S3 listing uses "s3://boot-images/fg_name/..."
+        # Strip leading "boot-images/" for comparison
+        search_path = image_path
+        if search_path.startswith("boot-images/"):
+            search_path = search_path[len("boot-images/"):]
+
+        if search_path in s3_output:
+            matched.append({
+                "functional_group": entry[
+                    "functional_group"
+                ],
+                "image_path": image_path,
+                "status": "found",
+            })
+        else:
+            unmatched.append({
+                "functional_group": entry[
+                    "functional_group"
+                ],
+                "image_path": image_path,
+                "status": "not_found",
+            })
+
+    return {
+        "success": len(unmatched) == 0,
+        "prerequisite_failed": False,
+        "matched": matched,
+        "unmatched": unmatched,
+        "total": len(image_entries),
+        "details": (
+            f"{len(matched)}/{len(image_entries)} "
+            "image paths verified in S3"
+        ),
+        "error": None if not unmatched else (
+            f"{len(unmatched)} image path(s) not found in S3"
         ),
     }

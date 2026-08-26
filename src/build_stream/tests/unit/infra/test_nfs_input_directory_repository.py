@@ -48,10 +48,13 @@ class TestNfsInputRepository:
         assert isinstance(path, Path)
 
     def test_get_destination_input_repository_path(self, repository):
-        """Test getting destination input repository path."""
+        """Test getting destination input repository path (domain-segregated).
+
+        Omnia 2.3+: destination is <OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/
+        """
         path = repository.get_destination_input_repository_path()
 
-        expected = Path("/opt/omnia/input/project_default/")
+        expected = Path("/opt/omnia/repo_manager/input/project_default/")
         assert path == expected
         assert isinstance(path, Path)
 

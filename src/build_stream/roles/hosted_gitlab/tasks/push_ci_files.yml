@@ -56,6 +56,15 @@
     state: directory
     mode: '0755'
 
+- name: Ensure domain input subdirectories exist on GitLab host
+  ansible.builtin.file:
+    path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - repo_manager
+    - image_build_manager
+
 - name: Sync Omnia input files into GitLab repository
   ansible.builtin.include_tasks: sync_input_file.yml
   loop: "{{ gitlab_input_files }}"
@@ -64,6 +73,47 @@
   vars:
     input_file_name: "{{ item.name }}"
     input_file_src: "{{ item.src }}"
+
+- name: Check if omnia.env exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/omnia.env?ref={{ gitlab_default_branch }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: omnia_env_check
+  no_log: true
+
+- name: Create omnia.env when missing
+  when: omnia_env_check.status == 404
+  block:
+    - name: Copy omnia.env to GitLab host
+      ansible.builtin.copy:
+        src: "{{ gitlab_omnia_env_source }}"
+        dest: "{{ gitlab_hosted_payload_dir }}/omnia.env"
+        mode: '0644'
+
+    - name: Read omnia.env from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_payload_dir }}/omnia.env"
+      register: hosted_omnia_env_content
+
+    - name: Create omnia.env in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/omnia.env"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_omnia_env_content.content }}"
+          commit_message: "Add omnia.env — environment configuration for domain-segregated pipeline"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
 
 - name: Create catalog JSON when missing
   when: catalog_file_check.status == 404

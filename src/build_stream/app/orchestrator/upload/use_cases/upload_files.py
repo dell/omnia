@@ -15,6 +15,7 @@
 """Upload files use case implementation."""
 
 import hashlib
+import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +52,12 @@ DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_default/"
 # Restart state directory where the playbook reads failed_nodes.json for retry logic
 RESTART_STATE_DIR = "/opt/omnia/build_stream_root/restart_state"
 
+# System-wide Omnia environment file path
+OMNIA_ENV_SYSTEM_PATH = "/etc/omnia/omnia.env"
+
+# Catalog directory (OMNIA_DATA_PATH/catalog/)
+CATALOG_DIR = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "catalog")
+
 # Whitelist of allowed configuration files
 ALLOWED_CONFIG_FILES = {
     "local_repo_config.yml",
@@ -65,6 +72,8 @@ ALLOWED_CONFIG_FILES = {
     "omnia_config.yml",
     "build_stream_config.yml",
     "failed_nodes.json",
+    "catalog_rhel.json",
+    "omnia.env",
 }
 
 
@@ -308,10 +317,17 @@ class UploadFilesUseCase:
         # Always write to both NFS locations (job-scoped and shared)
         self._write_to_nfs_job_directory(job_id, filename, content)
 
-        # For failed_nodes.json, ONLY write to job-specific restart_state directory
-        # DO NOT write to shared input directory (not needed for this file)
+        # Route files to their correct destinations
         if filename == "failed_nodes.json":
+            # ONLY write to job-specific restart_state directory
             self._write_to_restart_state_directory(str(job_id), filename, content)
+        elif filename == "catalog_rhel.json":
+            # Write to catalog directory (OMNIA_DATA_PATH/catalog/)
+            self._write_to_directory(Path(CATALOG_DIR), filename, content)
+            log_secure_info('info', f"Catalog file written to {CATALOG_DIR}/{filename}")
+        elif filename == "omnia.env":
+            # Write to system-wide location (/etc/omnia/omnia.env)
+            self._write_omnia_env(content)
         elif filename == "pxe_mapping_file.csv":
             # pxe_mapping_file.csv destination is configurable via
             # provision_config.yml -> pxe_mapping_file_path.  Resolve the
@@ -473,6 +489,28 @@ class UploadFilesUseCase:
         target_file.write_bytes(content)
 
         log_secure_info('debug', f"Wrote {filename} to job-specific restart_state directory: {target_file}")
+
+    @staticmethod
+    def _write_omnia_env(content: bytes):
+        """Write omnia.env to the system-wide location.
+
+        Copies the uploaded omnia.env to /etc/omnia/omnia.env so that
+        services on the OIM host (playbook watcher, venv sessions) pick
+        up environment variables like CATALOG_FILE_PATH.
+
+        Args:
+            content: File content bytes.
+        """
+        env_dir = Path(OMNIA_ENV_SYSTEM_PATH).parent
+        env_dir.mkdir(parents=True, exist_ok=True)
+
+        env_path = Path(OMNIA_ENV_SYSTEM_PATH)
+        env_path.write_bytes(content)
+
+        log_secure_info(
+            'info',
+            f"omnia.env written to {OMNIA_ENV_SYSTEM_PATH}"
+        )
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
@@ -650,5 +688,3 @@ class UploadFilesUseCase:
             details=details,
         )
         self._audit_repo.save(event)
-     
-    

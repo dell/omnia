@@ -23,7 +23,7 @@
 #   source setup_env.sh -f  # Force recreate venv
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
@@ -61,33 +61,54 @@ pip install --upgrade pip -q
 pip install -r "${SCRIPT_DIR}/requirements.txt" -q
 
 # Tab-completion for run_validation.sh
+# Usage: ./run_validation.sh telemetry [tag] <command> [options]
 _run_validation_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local prev="${COMP_WORDS[COMP_CWORD-1]}"
+    local domain="telemetry"
+    local tags="precheck validate deploy cleanup"
+    local commands="exec verify test list help"
+    local options="--suite --marker -v --verbose --debug --config"
+    local markers="sanity functional sink source deploy nft"
 
     case "$COMP_CWORD" in
         1)
-            COMPREPLY=( $(compgen -W "precheck validate deploy cleanup telemetry nft all list --config help" -- "$cur") )
+            # First arg is always the domain name
+            COMPREPLY=( $(compgen -W "${domain} --config help --completion" -- "$cur") )
             ;;
         2)
-            COMPREPLY=( $(compgen -W "deploy verify test" -- "$cur") )
+            # After domain: tag or command
+            COMPREPLY=( $(compgen -W "${tags} ${commands}" -- "$cur") )
+            ;;
+        3)
+            # After tag: command; after command: options
+            if echo " ${tags} " | grep -q " ${prev} "; then
+                COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )
+            else
+                COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
+            fi
             ;;
         *)
             case "$prev" in
                 --suite)
                     local suites=""
-                    local scenario="${COMP_WORDS[1]}"
-                    local fvt_dir="${SCRIPT_DIR}/fvt/${scenario}"
-                    if [ -d "$fvt_dir" ]; then
-                        suites=$(find "$fvt_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || true)
+                    local tag_dir=""
+                    for w in "${COMP_WORDS[@]}"; do
+                        if echo " ${tags} " | grep -q " ${w} "; then
+                            tag_dir="${SCRIPT_DIR}/fvt/${w}"
+                            break
+                        fi
+                    done
+                    if [ -n "${tag_dir}" ] && [ -d "${tag_dir}" ]; then
+                        suites=$(find "${tag_dir}" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f\n' 2>/dev/null || true)
                     fi
-                    COMPREPLY=( $(compgen -W "$suites" -- "$cur") )
+                    COMPREPLY=( $(compgen -W "${suites}" -- "$cur") )
                     ;;
                 --marker)
-                    COMPREPLY=( $(compgen -W "sanity functional deploy sink source nft" -- "$cur") )
+                    COMPREPLY=( $(compgen -W "${markers}" -- "$cur") )
                     ;;
                 *)
-                    COMPREPLY=( $(compgen -W "--suite --marker -v --verbose" -- "$cur") )
+                    COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
                     ;;
             esac
             ;;
@@ -97,4 +118,4 @@ _run_validation_completions() {
 complete -F _run_validation_completions ./run_validation.sh
 
 echo -e "${GREEN}Environment ready. Tab-completion enabled.${NC}"
-echo -e "${GREEN}Run: ./run_validation.sh <scenario> <command>${NC}"
+echo -e "${GREEN}Run: ./run_validation.sh telemetry [tag] <command>${NC}"

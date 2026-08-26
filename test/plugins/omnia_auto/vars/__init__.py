@@ -20,3 +20,5 @@ from .common_vars import (
     init_module_root,
     get_module_root,
 )
+
+from .validation_vars import COMMANDS

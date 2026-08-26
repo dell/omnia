@@ -12,261 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI routes for ParseCatalog API."""
+"""FastAPI routes for ParseCatalog API.
 
-from typing import Annotated
+DEPRECATED (Omnia 2.3+): With domain segregation, the catalog is consumed
+directly by each domain.  The parse-catalog stage has been retired.
+This route is kept for backward compatibility and returns a deprecation notice.
+"""
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, UploadFile, status
+from fastapi.responses import JSONResponse
 
-from api.dependencies import require_catalog_read, verify_token, mark_stage_as_failed, get_db_session
-from api.parse_catalog.dependencies import get_parse_catalog_use_case
-from api.parse_catalog.schemas import ErrorResponse, ParseCatalogResponse, ParseCatalogStatus
-from api.parse_catalog.service import (
-    InvalidFileFormatError,
-    InvalidJSONError,
-    ParseCatalogService,
-)
-from core.catalog.exceptions import (
-    CatalogParseError,
-    InvalidCatalogFormatError,
-)
 from api.logging_utils import log_secure_info
-from core.image_group.exceptions import DuplicateImageGroupError
-from core.jobs.exceptions import (
-    InvalidStateTransitionError,
-    JobNotFoundError,
-    StageAlreadyCompletedError,
-    TerminalStateViolationError,
-)
 
-router = APIRouter(prefix="/jobs", tags=["Catalog Parsing"])
+router = APIRouter(prefix="/jobs", tags=["Catalog Parsing (Deprecated)"])
 
 
 @router.post(
     "/{job_id}/stages/parse-catalog",
-    response_model=ParseCatalogResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Parse a catalog file",
-    description="Upload a catalog JSON file to parse and generate output files.",
-    responses={
-        200: {
-            "description": "Catalog parsed successfully",
-            "model": ParseCatalogResponse,
-        },
-        400: {
-            "description": "Invalid request (bad file format or JSON)",
-            "model": ErrorResponse,
-        },
-        401: {
-            "description": "Unauthorized (missing or invalid token)",
-            "model": ErrorResponse,
-        },
-        403: {
-            "description": "Forbidden (insufficient scope)",
-            "model": ErrorResponse,
-        },
-        422: {
-            "description": "Validation error",
-            "model": ErrorResponse,
-        },
-        500: {
-            "description": "Internal server error during processing",
-            "model": ErrorResponse,
-        },
-    },
+    status_code=status.HTTP_410_GONE,
+    summary="[DEPRECATED] Parse a catalog file",
+    description=(
+        "DEPRECATED in Omnia 2.3. With domain segregation, the catalog "
+        "is consumed directly by each domain. This stage is no longer needed."
+    ),
 )
 async def parse_catalog(
     job_id: str,
-    file: UploadFile = File(..., description="The catalog JSON file to parse"),
-    token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
-    scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
-    parse_catalog_use_case = Depends(get_parse_catalog_use_case),
-    db_session = Depends(get_db_session),
-) -> ParseCatalogResponse:
-    """Parse a catalog from an uploaded JSON file.
+    file: UploadFile = File(None, description="Ignored — stage is deprecated"),
+) -> JSONResponse:
+    """[DEPRECATED] Parse-catalog stage — retired in Omnia 2.3.
 
-    This endpoint accepts a catalog JSON file, validates its format and content,
-    then processes it to generate the required output files. Requires a valid
-    JWT token and 'catalog:read' scope.
+    With domain segregation, the catalog is consumed directly by each domain
+    (repo_manager, image_build_manager).  This endpoint is no longer functional
+    and returns HTTP 410 Gone.
 
     Args:
-        job_id: The job identifier for the parsing operation.
-        file: The uploaded JSON file containing catalog data.
-        token_data: Validated token data from JWT (injected by dependency).
-        scope_data: Token data with validated scope (injected by dependency).
+        job_id: The job identifier (logged for traceability).
+        file: Ignored.
 
     Returns:
-        ParseCatalogResponse with status and message.
-
-    Raises:
-        HTTPException: With appropriate status code on failure.
+        JSONResponse with deprecation notice (HTTP 410).
     """
-    try:
-        contents = await file.read()
-        log_secure_info(
-            "info",
-            f"Parse-catalog request: job_id={job_id}, "
-            f"filename={file.filename}, size_bytes={len(contents)}",
-            job_id=job_id,
-        )
-
-        # Create service with injected use case
-        service = ParseCatalogService(parse_catalog_use_case=parse_catalog_use_case)
-
-        result = await service.parse_catalog(
-            filename=file.filename or "unknown.json",
-            contents=contents,
-            job_id=job_id,  # Pass job_id to service
-        )
-
-        log_secure_info(
-            "info",
-            f"Parse-catalog success: job_id={job_id}, status=200",
-            job_id=job_id,
-            end_section=True,
-        )
-        response_data = {
-            "status": ParseCatalogStatus.SUCCESS.value,
-            "message": result.message,
-        }
-        return response_data
-
-    except ValueError as e:
-        # Handle job_id format validation errors
-        error_msg = str(e)
-        if "Invalid UUID format" in error_msg or "Invalid job_id format" in error_msg:
-            log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_job_id, status=400", job_id=job_id, end_section=True)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error_code": "VALIDATION_ERROR",
-                    "message": f"Invalid job_id format: {job_id}",
-                    "correlation_id": "test-correlation-id"
-                },
-            ) from e
-
-        # Re-raise other ValueError as internal error
-        log_secure_info("error", f"Parse-catalog failed: job_id={job_id}, reason=unexpected_value_error, status=500", job_id=job_id, exc_info=True, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error_code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except JobNotFoundError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=job_not_found, status=404", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error_code": "JOB_NOT_FOUND",
-                "message": f"Job not found: {job_id}",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except TerminalStateViolationError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=terminal_state, status=412", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail={
-                "error_code": "PRECONDITION_FAILED",
-                "message": f"Job is in terminal state: {job_id}",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except StageAlreadyCompletedError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=stage_already_completed, status=409", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error_code": "STAGE_ALREADY_COMPLETED",
-                "message": f"Parse catalog stage already completed for job: {job_id}",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except InvalidStateTransitionError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_state_transition, status=409", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error_code": "INVALID_STATE_TRANSITION",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except InvalidFileFormatError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_file_format, status=400", job_id=job_id, end_section=True)
-        # Mark stage as failed since validation failed at API layer
-        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_FILE_FORMAT", str(e), db_session)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_FILE_FORMAT",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except InvalidJSONError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_json, status=400", job_id=job_id, end_section=True)
-        # Mark stage as failed since validation failed at API layer
-        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_JSON", str(e), db_session)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_JSON",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except DuplicateImageGroupError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=duplicate_image_group, status=409", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error_code": "DUPLICATE_IMAGE_GROUP",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except InvalidCatalogFormatError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_catalog_format, status=400", job_id=job_id, end_section=True)
-        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_CATALOG_FORMAT", str(e), db_session)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_CATALOG_FORMAT",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except CatalogParseError as e:
-        log_secure_info("error", f"Parse-catalog failed: job_id={job_id}, reason=catalog_parse_error, status=500", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error_code": "CATALOG_PARSE_ERROR",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except Exception as e:
-        log_secure_info("error", f"Parse-catalog failed: job_id={job_id}, reason=unexpected_error, status=500", job_id=job_id, exc_info=True, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error_code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
+    log_secure_info(
+        "warning",
+        f"Deprecated parse-catalog called: job_id={job_id}, returning 410 Gone",
+        job_id=job_id,
+        end_section=True,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_410_GONE,
+        content={
+            "error_code": "STAGE_RETIRED",
+            "message": (
+                "The parse-catalog stage has been retired in Omnia 2.3. "
+                "With domain segregation, the catalog is consumed directly "
+                "by each domain. Remove this stage from your pipeline."
+            ),
+            "job_id": job_id,
+        },
+    )

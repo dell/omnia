@@ -40,6 +40,7 @@ from omnia_auto import (
 
 # --- Omnia Main verification ---
 from .omnia_main_func import (
+    is_running_from_omnia_venv,
     run_omnia_cmd,
     run_omnia_cmd_expect_error,
     check_env_file_installed,
@@ -85,6 +86,7 @@ __all__ = [
     "TestReport",
     "get_current_report",
     "set_current_report",
+    "is_running_from_omnia_venv",
     "run_omnia_cmd",
     "run_omnia_cmd_expect_error",
     "check_env_file_installed",

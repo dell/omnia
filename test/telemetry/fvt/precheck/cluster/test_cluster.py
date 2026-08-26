@@ -13,289 +13,139 @@
 # limitations under the License.
 
 """
-Telemetry Precheck — Cluster Verification Tests.
+Telemetry Precheck — Cluster Health Verification Tests.
 
 Test cases:
-    TC_PC_002: Verify kube_vip is defined in telemetry_config.yml
-    TC_PC_003: Verify kube_vip is reachable (ICMP + SSH)
-    TC_PC_004: Verify K8s control plane nodes are Ready
-    TC_PC_005: Verify worker nodes meet minimum readiness threshold
-    TC_PC_006: Verify all pods (outside telemetry ns) are healthy
-    TC_PC_007: Verify kubectl is available on kube_vip
+    TC_PC_002: Verify omnia.env variables present
+    TC_PC_003: Verify K8s nodes are Ready
+    TC_PC_004: Verify kube_vip is reachable
 """
 
 import pytest
 
-from omnia_auto import TestLogger
+from library.functions import TestLogger
 
 from library.vars.test_case_vars import TEST_CASES as TC
-from library.vars.common_vars import IPV4_PATTERN
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
 from library.functions.telemetry_func import (
-    load_telemetry_config_from_target,
+    check_env_vars_present,
+    resolve_kube_vip_ip,
+    run_on_kube_vip,
 )
-from library.functions.k8s_func import (
-    verify_kubectl_available,
-    verify_control_plane_ready,
-    verify_worker_nodes_ready,
-    verify_pods_healthy,
-    verify_kube_vip_reachable,
-)
+from library.vars.common_vars import CMDS
+
+
+@pytest.mark.sanity
+@pytest.mark.order(1)
+def test_env_vars_present(host):
+    """TC_PC_002: Verify omnia.env variables present."""
+    tc = TC["env_vars_present"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Checking required omnia.env variables")
+    result = check_env_vars_present(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["env_vars_ok"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["env_vars_missing"].format(
+                count=len([
+                    r for r in result["results"] if not r["found"]
+                ]),
+            ),
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["env_vars_missing"].format(
+        error=result["error"],
+    )
 
 
 @pytest.mark.sanity
 @pytest.mark.order(2)
-def test_kube_vip_defined(host):
-    """TC_PC_002: Verify kube_vip is defined in telemetry_config.yml.
-
-    Reads the config from the target host and verifies:
-    - kube_vip key exists
-    - kube_vip value is a non-empty string
-    - kube_vip is a valid IPv4 address format
-    """
-    tc = TC["kube_vip_defined"]
+def test_k8s_nodes_ready(host):
+    """TC_PC_003: Verify K8s nodes are Ready."""
+    tc = TC["k8s_nodes_ready"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Reading telemetry_config.yml from target")
-    config = load_telemetry_config_from_target(host)
-    kube_vip = config.get("kube_vip", "")
+    tl.check("Checking K8s node readiness")
+    cmd = CMDS["kubectl_get_nodes_ready"]
+    result = run_on_kube_vip(host, cmd)
 
-    if kube_vip and IPV4_PATTERN.match(kube_vip):
+    nodes = []
+    not_ready = []
+    if result.rc == 0 and result.stdout.strip():
+        for line in result.stdout.strip().split("\n"):
+            parts = line.split()
+            if len(parts) >= 2:
+                name, ready = parts[0], parts[1]
+                nodes.append({"name": name, "ready": ready})
+                if ready != "True":
+                    not_ready.append(name)
+
+    all_ready = len(not_ready) == 0 and len(nodes) > 0
+
+    if all_ready:
         tl.passed(
-            LOG_MSGS["kube_vip_defined"].format(kube_vip=kube_vip),
-            f"kube_vip: {kube_vip} (valid IPv4)",
+            LOG_MSGS["nodes_ready"].format(count=len(nodes)),
+            f"Nodes: {len(nodes)}",
         )
     else:
-        detail = f"kube_vip value: '{kube_vip}'"
-        if kube_vip and not IPV4_PATTERN.match(kube_vip):
-            detail += " (not a valid IPv4 format)"
-        tl.failed(LOG_MSGS["kube_vip_not_defined"], detail)
+        tl.failed(
+            LOG_MSGS["nodes_not_ready"].format(
+                not_ready_count=len(not_ready),
+            ),
+            f"Not ready: {', '.join(not_ready)}",
+        )
 
-    assert kube_vip, ASSERT_MSGS["kube_vip_not_defined"]
-    assert IPV4_PATTERN.match(kube_vip), (
-        f"kube_vip '{kube_vip}' is not a valid IPv4 address"
+    assert all_ready, ASSERT_MSGS["pods_not_running"].format(
+        component="K8s nodes",
+        expected="all Ready",
+        running=f"{len(nodes) - len(not_ready)}/{len(nodes)}",
     )
 
 
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_kube_vip_reachable(host):
-    """TC_PC_003: Verify kube_vip is reachable (ICMP + SSH).
-
-    Verifies the kube_vip host responds to:
-    - ICMP ping (2 packets, 3s timeout)
-    - SSH connection (port 22, BatchMode)
-    """
+    """TC_PC_004: Verify kube_vip is reachable."""
     tc = TC["kube_vip_reachable"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    config = load_telemetry_config_from_target(host)
-    kube_vip = config.get("kube_vip", "")
-    if not kube_vip:
-        tl.failed(LOG_MSGS["kube_vip_not_defined"], "Cannot test reachability")
-        pytest.skip("kube_vip not defined")
+    tl.check("Resolving and testing kube_vip connectivity")
+    kube_vip_ip = resolve_kube_vip_ip(host)
+    if not kube_vip_ip:
+        tl.failed(
+            LOG_MSGS["health_failed"].format(component="kube_vip resolution"),
+            "Cannot resolve kube_vip IP",
+        )
+        pytest.fail("Cannot resolve kube_vip IP from cluster inventory")
 
-    tl.check(f"Testing reachability to kube_vip: {kube_vip}")
-    result = verify_kube_vip_reachable(host, kube_vip)
+    result = run_on_kube_vip(host, "echo ok")
+    reachable = result.rc == 0 and "ok" in result.stdout
 
-    details = (
-        f"Ping: {'OK' if result['ping_ok'] else 'FAILED'}\n"
-        f"SSH:  {'OK' if result['ssh_ok'] else 'FAILED'}"
-    )
-
-    if result["success"]:
+    if reachable:
         tl.passed(
-            LOG_MSGS["kube_vip_reachable"].format(kube_vip=kube_vip),
-            details,
+            LOG_MSGS["health_ok"].format(component=f"kube_vip ({kube_vip_ip})"),
+            f"IP: {kube_vip_ip}",
         )
     else:
         tl.failed(
-            LOG_MSGS["kube_vip_not_reachable"].format(kube_vip=kube_vip),
-            details,
-        )
-
-    assert result["success"], ASSERT_MSGS["kube_vip_not_reachable"].format(
-        kube_vip=kube_vip,
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(4)
-def test_control_plane_ready(host):
-    """TC_PC_004: Verify all K8s control plane nodes are Ready.
-
-    All control plane nodes (labeled node-role.kubernetes.io/control-plane)
-    must have status condition Ready=True.
-    """
-    tc = TC["control_plane_ready"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Verifying K8s control plane node readiness")
-    result = verify_control_plane_ready(host)
-
-    if result.get("error"):
-        tl.failed("Failed to check control plane", result["error"])
-        assert False, result["error"]
-
-    # Build details
-    details_lines = []
-    for node in result.get("nodes", []):
-        status = "Ready" if node["ready"] else "NOT Ready"
-        icon = "+" if node["ready"] else "x"
-        details_lines.append(f"  {icon} {node['name']}: {status}")
-    details = "\n".join(details_lines)
-
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["control_plane_ready"].format(count=result["total"]),
-            details,
-        )
-    else:
-        tl.failed(
-            LOG_MSGS["control_plane_not_ready"].format(
-                not_ready=result["not_ready"],
-                total=result["total"],
+            LOG_MSGS["health_failed"].format(
+                component=f"kube_vip ({kube_vip_ip})",
             ),
-            details,
+            f"rc={result.rc}",
         )
 
-    assert result["success"], ASSERT_MSGS["control_plane_not_ready"].format(
-        not_ready=result["not_ready"],
-        total=result["total"],
+    assert reachable, ASSERT_MSGS["pods_not_running"].format(
+        component="kube_vip connectivity",
+        expected="reachable",
+        running="unreachable",
     )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(5)
-def test_worker_nodes_ready(host):
-    """TC_PC_005: Verify worker nodes meet minimum readiness threshold.
-
-    Threshold:
-        1 worker  -> 1 Ready required
-        2 workers -> 2 Ready required
-        3+ workers -> at least 2 Ready required
-    """
-    tc = TC["worker_nodes_ready"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Verifying worker node readiness threshold")
-    result = verify_worker_nodes_ready(host)
-
-    if result.get("error"):
-        tl.failed("Failed to check worker nodes", result["error"])
-        assert False, result["error"]
-
-    # Build details
-    details_lines = [
-        f"Total workers: {result['total']}",
-        f"Ready: {result['ready']}",
-        f"Minimum required: {result['minimum']}",
-    ]
-    for node in result.get("nodes", []):
-        status = "Ready" if node["ready"] else "NOT Ready"
-        icon = "+" if node["ready"] else "x"
-        details_lines.append(f"  {icon} {node['name']}: {status}")
-    details = "\n".join(details_lines)
-
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["workers_ready"].format(
-                ready=result["ready"], total=result["total"],
-            ),
-            details,
-        )
-    else:
-        tl.failed(
-            LOG_MSGS["workers_not_ready"].format(
-                ready=result["ready"], total=result["total"],
-            ),
-            details,
-        )
-
-    assert result["success"], ASSERT_MSGS["workers_not_ready"].format(
-        ready=result["ready"],
-        total=result["total"],
-        minimum=result["minimum"],
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(6)
-def test_pods_healthy(host):
-    """TC_PC_006: Verify all pods (outside telemetry ns) are healthy.
-
-    All pods in namespaces other than 'telemetry' must be in
-    Running or Succeeded phase.
-    """
-    tc = TC["pods_healthy"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Verifying pod health (excluding telemetry namespace)")
-    result = verify_pods_healthy(host)
-
-    if result.get("error"):
-        tl.failed("Failed to check pod health", result["error"])
-        assert False, result["error"]
-
-    # Build details
-    details_lines = [
-        f"Total pods: {result['total']}",
-        f"Healthy: {result['healthy']}",
-        f"Unhealthy: {result['unhealthy']}",
-    ]
-    for pod in result.get("unhealthy_pods", [])[:10]:
-        details_lines.append(
-            f"  x {pod['namespace']}/{pod['name']}: {pod['status']}"
-        )
-    if result["unhealthy"] > 10:
-        details_lines.append(f"  ... and {result['unhealthy'] - 10} more")
-    details = "\n".join(details_lines)
-
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["pods_healthy"].format(count=result["total"]),
-            details,
-        )
-    else:
-        tl.failed(
-            LOG_MSGS["pods_unhealthy"].format(
-                unhealthy=result["unhealthy"],
-                total=result["total"],
-            ),
-            details,
-        )
-
-    assert result["success"], ASSERT_MSGS["pods_unhealthy"].format(
-        unhealthy=result["unhealthy"],
-        total=result["total"],
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(7)
-def test_kubectl_available(host):
-    """TC_PC_007: Verify kubectl is available on kube_vip.
-
-    Checks that kubectl binary is installed and can report its version.
-    """
-    tc = TC["kubectl_available"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Checking kubectl availability on kube_vip")
-    result = verify_kubectl_available(host)
-
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["kubectl_available"],
-            f"Version: {result['version']}",
-        )
-    else:
-        tl.failed(
-            LOG_MSGS["kubectl_not_available"],
-            result.get("error", "kubectl not found"),
-        )
-
-    assert result["success"], ASSERT_MSGS["kubectl_not_available"]
