@@ -113,6 +113,7 @@ def validate_telemetry_config(
     # NOT in telemetry_config.yml directly
     # =========================================================================
     kube_vip = ""
+    service_cluster_defined = False
 
     # Extract kube_vip from cluster_inventory
     if cluster_inventory:
@@ -130,6 +131,7 @@ def validate_telemetry_config(
                     cluster_inv_data = yaml.safe_load(inv_file)
                 # Extract kube_vip from cluster_inventory structure:
                 # all.children.kube_vip_group.hosts.<hostname>.ansible_host or <hostname>
+                # Check for service cluster nodes (service_kube_control_plane)
                 if cluster_inv_data and "all" in cluster_inv_data:
                     children = cluster_inv_data.get("all", {}).get("children", {})
                     kube_vip_group = children.get("kube_vip_group", {})
@@ -142,6 +144,27 @@ def validate_telemetry_config(
                         else:
                             kube_vip = first_host_name
                         logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory")
+                    
+                    # Check for service cluster nodes (service_kube_control_plane and service_kube_node)
+                    service_kube_control_plane_found = False
+                    service_kube_node_found = False
+                    for group_name in children.keys():
+                        if group_name.startswith("service_kube_control_plane"):
+                            service_kube_control_plane_found = True
+                            group_hosts = children.get(group_name, {}).get("hosts", {})
+                            if group_hosts and len(group_hosts) > 0:
+                                logger.info(f"Found service_kube_control_plane group: {group_name} with {len(group_hosts)} node(s)")
+                            else:
+                                logger.warning(f"service_kube_control_plane group '{group_name}' has no hosts")
+                        elif group_name.startswith("service_kube_node"):
+                            service_kube_node_found = True
+                            group_hosts = children.get(group_name, {}).get("hosts", {})
+                            if group_hosts and len(group_hosts) > 0:
+                                logger.info(f"Found service_kube_node group: {group_name} with {len(group_hosts)} node(s)")
+                            else:
+                                logger.warning(f"service_kube_node group '{group_name}' has no hosts")
+                    
+                    service_cluster_defined = service_kube_control_plane_found and service_kube_node_found
             except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
                 logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
 
@@ -560,7 +583,7 @@ def validate_telemetry_config(
     telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
     telemetry_input_dir = os.path.join(telemetry_root, "input")
     telemetry_packages_file_path = os.path.join(telemetry_input_dir, "telemetry_packages.yml")
-    is_service_cluster_defined = bool(kube_vip_valid)
+    is_service_cluster_defined = service_cluster_defined
     config_paths = {
         "service_k8s_json_path": os.path.join(telemetry_input_dir, "service_k8s.json"),
         "csi_driver_powerscale_json_path": os.path.join(telemetry_input_dir, "csi_driver_powerscale.json"),

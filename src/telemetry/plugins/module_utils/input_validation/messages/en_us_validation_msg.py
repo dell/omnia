@@ -37,8 +37,10 @@ POWERSCALE_CSI_DRIVER_MISSING_MSG = (
     "PowerScale telemetry requires the CSI driver for PowerScale to be configured."
 )
 POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
-    "service cluster is not defined in functional_groups_config.yml. "
-    "PowerScale telemetry requires a service cluster."
+    "service cluster is not found in orchestrator_inventory. "
+    "PowerScale telemetry requires a service cluster with at least one "
+    "service_kube_control_plane node and one service_kube_node. "
+    "Ensure orchestrator_inventory contains these groups with at least one host each."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
     "powerscale_configurations section is required in telemetry_config.yml when "
