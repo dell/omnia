@@ -13,61 +13,52 @@
 # limitations under the License.
 
 """
-Telemetry Precheck — Playbook Deployment Test.
+Telemetry Precheck — Playbook Execution.
 
-Test case:
-    TC_PC_001: Deploy telemetry (precheck)
-    Runs: ansible-playbook telemetry.yml --tags precheck
+Test cases:
+    TC_PC_001: Deploy telemetry (--tags precheck)
 """
 
 import pytest
 
-from omnia_auto import TestLogger, run_playbook
-
+from library.functions import TestLogger
 from library.vars.test_case_vars import TEST_CASES as TC
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
+from library.functions import run_playbook
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(1)
+@pytest.mark.order(0)
 def test_deploy_precheck(host):
-    """TC_PC_001: Run telemetry precheck playbook.
-
-    Executes ``ansible-playbook telemetry.yml --tags precheck`` on the
-    target host and verifies it exits with rc=0.
-    """
+    """TC_PC_001: Deploy telemetry (--tags precheck)."""
     tc = TC["deploy_precheck"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Running telemetry precheck playbook")
-    result = run_playbook(
-        host=host,
-        playbook=PLAYBOOK_ENTRY_POINT,
-        workdir=PLAYBOOK_WORKDIR,
-        tag="precheck",
-    )
+    tl.check("Running telemetry playbook --tags precheck")
+    result = run_playbook(tag="precheck")
 
-    if result["rc"] == 0:
+    if result["success"]:
         tl.passed(
-            LOG_MSGS["precheck_passed"],
-            f"Exit code: {result['rc']}\n"
-            f"Duration: {result.get('duration', 'N/A')}s",
+            LOG_MSGS["playbook_success"].format(
+                duration=f"{result['duration']:.1f}s",
+            ),
+            f"rc={result['rc']}",
         )
     else:
-        # Extract last 20 lines for failure context
-        output_lines = result.get("output", "").strip().split("\n")
-        tail = "\n".join(output_lines[-20:])
         tl.failed(
-            LOG_MSGS["precheck_failed"],
-            f"Exit code: {result['rc']}\n"
-            f"Last output:\n{tail}",
+            LOG_MSGS["playbook_failed"].format(
+                rc=result["rc"],
+                duration=f"{result['duration']:.1f}s",
+            ),
+            result.get("error", ""),
         )
 
-    assert result["rc"] == 0, ASSERT_MSGS["precheck_failed"].format(
+    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+        playbook="telemetry.yml",
+        tag="precheck",
         rc=result["rc"],
     )

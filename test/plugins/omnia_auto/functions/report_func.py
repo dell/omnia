@@ -389,19 +389,38 @@ class TestReport:
         """Print report save footer."""
         status_color = "\033[92m" if failed == 0 else "\033[91m"
         reset = "\033[0m"
-        line = "\u2500" * 68
+        # Box width: 70 chars total (68 dashes + 2 corners)
+        # Content: │ + 2 spaces + content (64 chars) + 2 spaces + │ = 70
+        width = 68
+        content_width = 64
+        line = "\u2500" * width
+
+        # Build result string without colors first for width calculation
+        result_plain = f"{passed} passed, {failed} failed, {skipped} skipped"
+
+        # Truncate paths if too long
+        json_display = json_path[:content_width - 6] if len(json_path) > content_width - 6 else json_path
+        html_display = html_path[:content_width - 6] if len(html_path) > content_width - 6 else html_path
 
         print(f"\n\u250c{line}\u2510")
-        print(f"\u2502  {'REPORT SAVED':<64} \u2502")
+        print(f"\u2502  {'REPORT SAVED':<{content_width}}  \u2502")
         print(f"\u251c{line}\u2524")
-        print(f"\u2502  {'Server:':<14} {server_ip:<50} \u2502")
-        print(f"\u2502  {'Report ID:':<14} {self.report_id:<50} \u2502")
-        print(f"\u2502  {'Duration:':<14} {duration:.2f}s{'':<46} \u2502")
-        result_str = f"{status_color}{passed} passed, {failed} failed{reset}, {skipped} skipped"
-        print(f"\u2502  {'Results:':<14} {result_str:<26} \u2502")
+        print(f"\u2502  {'Server:':<12}{server_ip:<{content_width - 12}}  \u2502")
+        print(f"\u2502  {'Report ID:':<12}{self.report_id:<{content_width - 12}}  \u2502")
+        print(f"\u2502  {'Duration:':<12}{duration:.2f}s{'':<{content_width - 12 - len(f'{duration:.2f}s')}}  \u2502")
+        # Use colored version but with pre-calculated padding
+        result_display = (
+            f"{status_color}{passed} passed{reset}, "
+            f"{status_color}{failed} failed{reset}, "
+            f"{skipped} skipped"
+        )
+        # Calculate visible length and add padding
+        padding_len = content_width - 12 - len(result_plain)
+        padding = " " * max(0, padding_len)
+        print(f"\u2502  {'Results:':<12}{result_display}{padding}  \u2502")
         print(f"\u251c{line}\u2524")
-        print(f"\u2502  JSON: {json_path:<60} \u2502")
-        print(f"\u2502  HTML: {html_path:<60} \u2502")
+        print(f"\u2502  JSON: {json_display:<{content_width - 6}}  \u2502")
+        print(f"\u2502  HTML: {html_display:<{content_width - 6}}  \u2502")
         print(f"\u2514{line}\u2518\n")
 
 

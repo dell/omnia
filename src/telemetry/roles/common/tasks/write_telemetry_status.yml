@@ -70,7 +70,6 @@
       powerscale: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
       ufm: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
       vast: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
-      dcgm: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool }}"
       sfm: "{{ telemetry_config.telemetry_sources.sfm.metrics_enabled | default(false) | bool }}"
       skyway: "{{ telemetry_config.telemetry_sources.skyway.metrics_enabled | default(false) | bool }}"
       powervault: "{{ telemetry_config.telemetry_sources.powervault.metrics_enabled | default(false) | bool }}"

@@ -16,7 +16,7 @@
 Pytest configuration for telemetry FVT.
 
 Provides:
-- host fixture (testinfra connection to kube_vip target)
+- host fixture (testinfra connection to OIM target)
 - Custom markers: sanity, functional, deploy, sink, source
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
@@ -34,7 +34,7 @@ if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -43,7 +43,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -54,21 +54,24 @@ from omnia_auto import (
     get_last_tc_id,
     encrypt_test_credentials,
     log,
+    set_verbose_mode,
     add_session_result,
     print_summary_table,
 )
 
 # --- Module-specific functions ---
-from library.functions.host_func import (
+from library.functions.host_func import (  # noqa: E402
     sync_project_to_remote,
     sync_telemetry_input,
-    get_dataset_input_dir,
 )
-from library.functions.validation_func import (
+from library.functions.telemetry_func import (  # noqa: E402
+    check_target_connectivity,
+)
+from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES
+from library.vars import TEST_CASES  # noqa: E402
 
 # Build test-function-name -> TC ID map for summary table fallback
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
@@ -87,7 +90,7 @@ def pytest_addoption(parser):
         default="",
         help=(
             "Marker filter expression. "
-            "Use '+' for AND (both required): sanity+sink. "
+            "Use '+' for AND (both required): source+sanity. "
             "Use ',' for OR (either matches): sink,source."
         ),
     )
@@ -98,7 +101,10 @@ def pytest_addoption(parser):
 # =============================================================================
 
 def pytest_configure(config):
-    """Register custom markers."""
+    """Register custom markers and set verbose mode."""
+    # Enable verbose logging when pytest -v is used or OMNIA_VERBOSE is set
+    if config.option.verbose > 0 or os.environ.get("OMNIA_VERBOSE"):
+        set_verbose_mode(True)
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
@@ -109,7 +115,7 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
-        "source": "Source (iDRAC/LDMS/DCGM/OME/etc.) tests",
+        "source": "Source (iDRAC/LDMS/OME) tests",
         "nft": "Non-functional tests (performance, idempotency)",
     }
     for name, desc in markers.items():
@@ -121,15 +127,7 @@ def pytest_configure(config):
 # =============================================================================
 
 def _parse_marker_expression(expr):
-    """Parse marker expression into (mode, marker_list).
-
-    '+' => AND (all markers must be present)
-    ',' => OR  (any marker must be present)
-    Single marker => exact match
-
-    Returns:
-        Tuple of ('and'|'or'|'single', list_of_markers)
-    """
+    """Parse marker expression into (mode, marker_list)."""
     expr = expr.strip()
     if not expr:
         return ("none", [])
@@ -161,9 +159,11 @@ def pytest_collection_modifyitems(session, config, items):
                 match = _item_has_marker(item, markers[0])
 
             if not match:
-                item.add_marker(pytest.mark.skip(
-                    reason=f"Marker filter: {marker_expr}"
-                ))
+                reason = (
+                    f"Marker filter: "
+                    f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
+                )
+                item.add_marker(pytest.mark.skip(reason=reason))
             filtered.append(item)
         items[:] = filtered
 
@@ -177,22 +177,11 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 # =============================================================================
-# SESSION STARTUP — ENCRYPT, CLONE, SYNC
+# SESSION STARTUP
 # =============================================================================
 
 def _apply_dataset_overrides(config):
-    """Apply dataset/sync overrides from environment variables.
-
-    Environment variables (set by run_validation.sh --config mode):
-      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
-      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_telemetry_input"]
-
-    Args:
-        config: Test configuration dict from load_test_config().
-
-    Returns:
-        dict: Updated config dict (mutated in place).
-    """
+    """Apply dataset/sync overrides from environment variables."""
     ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
     if ds_override:
         log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
@@ -206,99 +195,165 @@ def _apply_dataset_overrides(config):
 
 
 def pytest_sessionstart(session):
-    """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
-    # Validate config first — fail fast with clear errors
+    """Session startup: validate, encrypt, clone, sync, init report."""
+    # Validate config first
     try:
-        validate_all()
+        result = validate_all()
+        for warn in result.get("warnings", []):
+            log(f"Config warning: {warn}", "WARN")
     except ConfigValidationError as exc:
-        log(str(exc), "ERROR")
+        log(str(exc), "FAIL")
         pytest.exit(str(exc), returncode=1)
+
+    try:
+        encrypt_test_credentials()
+    except (ValueError, OSError):
+        pass
 
     config = load_test_config()
     config = _apply_dataset_overrides(config)
 
-    # Auto-encrypt credentials
-    encrypt_test_credentials()
+    host = get_testinfra_host()
 
-    # Init report
-    report_path = config.get("report_path", "reports")
-    report_name = config.get("report_name", "telemetry_test_report")
-    server_ip = config.get("target_host", "unknown")
+    # Pre-flight connectivity check (remote mode only)
+    if not is_local_execution():
+        conn_result = check_target_connectivity(host)
+        if conn_result["success"]:
+            log("Pre-flight: target is reachable", "OK")
+        else:
+            log(f"Pre-flight: {conn_result['error']}", "FAIL")
+            pytest.exit(
+                f"Target unreachable: {conn_result['error']}",
+                returncode=1,
+            )
+
+    if not is_local_execution():
+        sync_result = sync_project_to_remote(host)
+        if sync_result["success"]:
+            log(sync_result["details"], "OK")
+        else:
+            log(f"Project sync failed: {sync_result['error']}", "WARN")
+
+    if config.get("sync_telemetry_input", False):
+        sync_result = sync_telemetry_input(host)
+        if sync_result["success"]:
+            log(sync_result["details"], "OK")
+        else:
+            log(f"Input sync failed: {sync_result['error']}", "ERROR")
+
+    # Initialize test report
+    valid_scenarios = {
+        "telemetry", "deploy", "cleanup", "precheck", "validate",
+    }
+    module_name = "telemetry"
+    test_paths = session.config.args if hasattr(session.config, 'args') else []
+    for path in test_paths:
+        for part in path.replace("\\", "/").split("/"):
+            if part in valid_scenarios:
+                module_name = part
+                break
+
+    report_id = os.environ.get("REPORT_ID")
     report = TestReport(
-        module_name="telemetry",
-        report_path=os.path.join(_TEST_DIR, report_path),
-        report_name=report_name,
-        server_ip=server_ip,
+        module_name=module_name,
+        report_path=str(config.get("report_path", "/opt/omnia/reports")),
+        report_name=str(config.get("report_name", "telemetry_test_report")),
+        server_ip=str(config.get("oim_server_ip", "localhost")),
+        report_id=report_id,
     )
     set_current_report(report)
 
-    # Clone repo to target if configured
-    if config.get("sync_project", False):
-        host = get_testinfra_host()
-        sync_project_to_remote(host)
 
-    # Sync telemetry input files
-    if config.get("sync_telemetry_input", False):
-        host = get_testinfra_host()
-        dataset = config.get("dataset", "")
-        dataset_dir = get_dataset_input_dir(dataset) if dataset else ""
-        sync_telemetry_input(host, dataset_dir or None)
+@pytest.hookimpl(trylast=True)
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print report saved box and summary table AFTER pytest failure output."""
+    report = get_current_report()
+    if report and report.results:
+        try:
+            report.save()
+        except (OSError, IOError) as exc:
+            log(f"Report save failed: {exc}", "WARN")
+
+    print_summary_table()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture test results and output for the HTML report + summary."""
+    outcome = yield
+    result = outcome.get_result()
+
+    if result.when not in {"call", "setup"}:
+        return
+
+    if result.when == "setup" and not result.skipped:
+        return
+
+    status = "PASSED" if result.passed else (
+        "SKIPPED" if result.skipped else "FAILED"
+    )
+
+    output = get_test_output(item.name)
+    details = output if output else ""
+    skip_reason = ""
+
+    if result.skipped:
+        if hasattr(result, "wasxfail"):
+            status = "SKIPPED"
+        rep_text = str(result.longrepr) if result.longrepr else ""
+        if "Skipped:" in rep_text:
+            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
+        elif "SKIP" in rep_text:
+            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+
+    if status == "SKIPPED" and skip_reason:
+        details = (
+            (details + "\n" if details else "")
+            + f"SKIPPED: {skip_reason}"
+        )
+
+    tc_id = get_last_tc_id()
+    if not tc_id:
+        tc_id = _TC_ID_MAP.get(item.name, "")
+
+    add_session_result(
+        test_name=item.name,
+        status=status,
+        duration=getattr(result, "duration", 0),
+        tc_id=tc_id,
+    )
+
+    report = get_current_report()
+    if report:
+        report.add_result({
+            "test_name": item.name,
+            "status": status,
+            "duration": getattr(result, "duration", 0),
+            "details": details,
+            "error": str(result.longrepr) if result.failed else "",
+        })
 
 
 # =============================================================================
-# FIXTURES
+# SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
+# =============================================================================
+
+def pytest_report_teststatus(report, config):
+    """Replace pytest's default . s F characters with empty strings."""
+    if report.when == "call":
+        if report.passed:
+            return "passed", "", ""
+        if report.failed:
+            return "failed", "", ""
+    if report.skipped:
+        return "skipped", "", ""
+
+
+# =============================================================================
+# HOST FIXTURE
 # =============================================================================
 
 @pytest.fixture(scope="session")
 def host():
-    """Provide testinfra host connection to the kube_vip target."""
+    """Testinfra host connected to the OIM target server."""
     return get_testinfra_host()
-
-
-# =============================================================================
-# TEST RESULT HOOKS
-# =============================================================================
-
-def pytest_runtest_makereport(item, call):
-    """Capture test results for the summary table and report."""
-    if call.when != "call":
-        return
-
-    func_name = item.name
-    tc_id = _TC_ID_MAP.get(func_name, get_last_tc_id() or "")
-    test_output = get_test_output()
-
-    status = "PASSED" if call.excinfo is None else "FAILED"
-    if item.get_closest_marker("skip") or (
-        call.excinfo and call.excinfo.typename == "Skipped"
-    ):
-        status = "SKIPPED"
-
-    duration = getattr(call, "duration", 0)
-
-    # Add to session summary table
-    add_session_result(
-        test_name=func_name,
-        status=status,
-        duration=duration,
-        tc_id=tc_id,
-    )
-
-    # Add to report
-    report = get_current_report()
-    if report:
-        report.add_result(
-            test_name=func_name,
-            passed=(status == "PASSED"),
-            duration=duration,
-            details=test_output,
-        )
-
-
-def pytest_sessionfinish(session, exitstatus):
-    """Generate report and print summary at session end."""
-    report = get_current_report()
-    if report:
-        report.save()
-
-    print_summary_table()

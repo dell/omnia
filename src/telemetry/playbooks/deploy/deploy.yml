@@ -69,11 +69,6 @@
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
-- name: "Phase 2 | Deploy DCGM telemetry"
-  ansible.builtin.import_playbook: sources/deploy_dcgm.yml
-  tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.dcgm.metrics_enabled | default(false) | bool
-
 - name: "Phase 2 | Deploy SFM telemetry"
   ansible.builtin.import_playbook: sources/deploy_sfm.yml
   tags: deploy

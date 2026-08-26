@@ -134,6 +134,8 @@ VALID_CLI_COMMANDS: List[str] = [
 VALID_CLI_OPTIONS: List[str] = [
     "--deps-only",
     "--force-deps",
+    "--skip",
+    "--dry-run",
     "--skip-catalog",
     "--skip-omnia-cli",
     "--tags", "-t",
@@ -256,6 +258,39 @@ CMDS: Dict[str, str] = {
     "omnia_sh_force_deps_invalid": (
         "cd {clone_path} && bash {omnia_sh}"
         " --force-deps 2>&1"
+    ),
+    # --- --skip / --dry-run ---
+    "omnia_sh_skip_domain": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --skip {domain} 2>&1"
+    ),
+    "omnia_sh_skip_invalid_domain": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --skip nonexistent_domain_xyz 2>&1"
+    ),
+    "omnia_sh_skip_with_include": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init telemetry --skip utils 2>&1"
+    ),
+    "omnia_sh_skip_without_init": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --skip telemetry 2>&1"
+    ),
+    "omnia_sh_skip_no_args": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --skip 2>&1"
+    ),
+    "omnia_sh_dry_run": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --dry-run 2>&1"
+    ),
+    "omnia_sh_dry_run_with_skip": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --dry-run --skip {domain} 2>&1"
+    ),
+    "omnia_sh_dry_run_without_init": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --dry-run 2>&1"
     ),
     # --- Execution: actual omnia.sh operations ---
     "omnia_sh_run_domain_tag": (

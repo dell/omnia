@@ -16,7 +16,7 @@
 Image Build Validate — repo_ssl_verify Configuration Verification.
 
 TC_VL_004: Verify repo_ssl_verify is configured in image_build_config.yml
-TC_BD_012: Verify repo_ssl_verify is applied in build templates
+TC_BD_016: Verify repo_ssl_verify is applied in build templates
 """
 
 import pytest
@@ -52,7 +52,7 @@ def test_repo_ssl_verify_config(host):
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_repo_ssl_verify_applied(host):
-    """TC_BD_012: Verify repo_ssl_verify is applied in build templates."""
+    """TC_BD_016: Verify repo_ssl_verify is applied in build templates."""
     tc = TC["repo_ssl_verify_applied"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_ssl_verify_applied(host, arch="x86_64")

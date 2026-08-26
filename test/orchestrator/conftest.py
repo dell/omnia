@@ -16,8 +16,8 @@
 Pytest configuration for orchestrator FVT.
 
 Provides:
-- host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy
+- host fixture (testinfra connection to OIM target)
+- Custom markers: sanity, functional, regression, deploy
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -34,7 +34,7 @@ if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -43,7 +43,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -51,25 +51,30 @@ from omnia_auto import (
     set_current_report,
     get_current_report,
     get_test_output,
+    get_last_tc_id,
     encrypt_test_credentials,
     log,
+    set_verbose_mode,
     add_session_result,
     print_summary_table,
 )
 
 # --- Module-specific functions ---
-from library.functions.host_func import (
+from library.functions.host_func import (  # noqa: E402
     sync_project_to_remote,
     sync_orchestrator_input,
     sync_repo_manager_output,
 )
-from library.functions.validation_func import (
+from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
 
 
 # =============================================================================
+# CUSTOM CLI OPTIONS
+# =============================================================================
+
 def pytest_addoption(parser):
     """Add --marker option for custom marker expression filtering."""
     parser.addoption(
@@ -85,8 +90,14 @@ def pytest_addoption(parser):
 
 
 # =============================================================================
+# MARKER REGISTRATION
+# =============================================================================
+
 def pytest_configure(config):
-    """Register custom markers."""
+    """Register custom markers and set verbose mode."""
+    # Enable verbose logging when pytest -v is used or OMNIA_VERBOSE is set
+    if config.option.verbose > 0 or os.environ.get("OMNIA_VERBOSE"):
+        set_verbose_mode(True)
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
@@ -102,16 +113,11 @@ def pytest_configure(config):
 
 
 # =============================================================================
+# MARKER EXPRESSION FILTERING
+# =============================================================================
+
 def _parse_marker_expression(expr):
-    """Parse marker expression into (mode, marker_list).
-
-    '+' => AND (all markers must be present)
-    ',' => OR  (any marker must be present)
-    Single marker => exact match
-
-    Returns:
-        Tuple of ('and'|'or'|'single', list_of_markers)
-    """
+    """Parse marker expression into (mode, marker_list)."""
     expr = expr.strip()
     if not expr:
         return ("none", [])
@@ -136,35 +142,19 @@ def pytest_collection_modifyitems(session, config, items):
         filtered = []
         for item in items:
             if mode == "and":
-                if all(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"Missing marker(s) for AND expression: "
-                            f"{'+'.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
+                match = all(_item_has_marker(item, m) for m in markers)
             elif mode == "or":
-                if any(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"No matching marker for OR expression: "
-                            f"{','.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
-            elif mode == "single":
-                if _item_has_marker(item, markers[0]):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
-                    filtered.append(item)
+                match = any(_item_has_marker(item, m) for m in markers)
+            else:
+                match = _item_has_marker(item, markers[0])
+
+            if not match:
+                reason = (
+                    f"Marker filter: "
+                    f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
+                )
+                item.add_marker(pytest.mark.skip(reason=reason))
+            filtered.append(item)
         items[:] = filtered
 
     def _get_order(item):
@@ -177,8 +167,26 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 # =============================================================================
+# SESSION STARTUP
+# =============================================================================
+
+def _apply_dataset_overrides(config):
+    """Apply dataset/sync overrides from environment variables."""
+    ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    if ds_override:
+        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        config["dataset"] = ds_override
+
+    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+    if si_override:
+        config["sync_orchestrator_input"] = si_override.lower() == "true"
+
+    return config
+
+
 def pytest_sessionstart(session):
-    """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
+    """Session startup: validate, encrypt, clone, sync, init report."""
+    # Validate config first
     try:
         result = validate_all()
         for warn in result.get("warnings", []):
@@ -193,6 +201,8 @@ def pytest_sessionstart(session):
         pass
 
     config = load_test_config()
+    config = _apply_dataset_overrides(config)
+
     host = get_testinfra_host()
 
     if not is_local_execution():
@@ -207,20 +217,14 @@ def pytest_sessionstart(session):
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(
-                f"Input sync failed: {sync_result['error']}",
-                "ERROR",
-            )
+            log(f"Input sync failed: {sync_result['error']}", "ERROR")
 
     if config.get("sync_repo_manager_output", False):
         out_result = sync_repo_manager_output(host)
         if out_result["success"]:
             log(out_result["details"], "OK")
         else:
-            log(
-                f"Output sync failed: {out_result['error']}",
-                "WARN",
-            )
+            log(f"Output sync failed: {out_result['error']}", "WARN")
 
     # Initialize test report
     valid_scenarios = {
@@ -229,8 +233,8 @@ def pytest_sessionstart(session):
     }
     module_name = "orchestrator"
     test_paths = session.config.args if hasattr(session.config, 'args') else []
-    for p in test_paths:
-        for part in p.replace("\\", "/").split("/"):
+    for path in test_paths:
+        for part in path.replace("\\", "/").split("/"):
             if part in valid_scenarios:
                 module_name = part
                 break
@@ -246,11 +250,15 @@ def pytest_sessionstart(session):
     set_current_report(report)
 
 
-def pytest_sessionfinish(session, exitstatus):
-    """Save report and print summary table after all tests complete."""
+@pytest.hookimpl(trylast=True)
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print report saved box and summary table AFTER pytest failure output."""
     report = get_current_report()
     if report and report.results:
-        report.save()
+        try:
+            report.save()
+        except (OSError, IOError) as exc:
+            log(f"Report save failed: {exc}", "WARN")
 
     print_summary_table()
 
@@ -290,10 +298,11 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    tc_id = ""
-    doc = getattr(item.obj, "__doc__", "") or ""
-    if doc.strip().startswith("TC_"):
-        tc_id = doc.strip().split(":", 1)[0].strip()
+    tc_id = get_last_tc_id()
+    if not tc_id:
+        doc = getattr(item.obj, "__doc__", "") or ""
+        if doc.strip().startswith("TC_"):
+            tc_id = doc.strip().split(":", 1)[0].strip()
 
     add_session_result(
         test_name=item.name,
@@ -314,19 +323,25 @@ def pytest_runtest_makereport(item, call):
 
 
 # =============================================================================
+# SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
+# =============================================================================
+
 def pytest_report_teststatus(report, config):
     """Replace pytest's default . s F characters with empty strings."""
     if report.when == "call":
         if report.passed:
             return "passed", "", ""
-        elif report.failed:
+        if report.failed:
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
 
 
 # =============================================================================
+# HOST FIXTURE
+# =============================================================================
+
 @pytest.fixture(scope="session")
 def host():
-    """Testinfra host connected to the target server."""
+    """Testinfra host connected to the OIM target server."""
     return get_testinfra_host()
