@@ -196,7 +196,8 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "install_os configuration is invalid: {error}\n"
         "HOW TO FIX:\n"
         "  1. Check install_os_config.yml syntax\n"
-        "  2. Verify required fields are present for your tag (credentials/build_iso/deploy/generate_ks)\n"
+        "  2. Verify required fields are present for your tag "
+        "(credentials/build_iso/deploy/generate_ks)\n"
         "  3. Compare with template in src/utils/input/install_os_config.yml\n"
     ),
     "install_os_credentials_invalid": (
