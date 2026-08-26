@@ -133,6 +133,8 @@ def pytest_configure(config):
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
         "source": "Source (iDRAC/LDMS/OME) tests",
         "nft": "Non-functional tests (performance, idempotency)",
+        "performance": "Performance tests (execution time thresholds)",
+        "idempotency": "Idempotency tests (re-run verification)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
