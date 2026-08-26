@@ -108,6 +108,11 @@ netmask: "255.255.255.0"
 gateway: ""
 dns_server: ""
 
+# SSH public key path for passwordless authentication.
+# This key is injected into the kickstart file and used for post-install verification.
+# If empty, defaults to /root/.ssh/id_rsa.pub
+ssh_public_key_path: ""
+
 # Target install disk (e.g., "sda", "nvme0n1").
 # If empty, defaults to "sda".
 install_disk: "sda"
