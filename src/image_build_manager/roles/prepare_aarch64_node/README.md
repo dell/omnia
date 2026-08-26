@@ -8,24 +8,28 @@ This role runs on the OIM (localhost) and delegates tasks to the aarch64 build h
 No NFS mount is required — all work directories are created locally on the aarch64 node
 at `/opt/omnia/image_build_manager`.
 
-### Phases
+### Prerequisites (handled before this role)
 
-1. **SSH connectivity** — Adds host to known_hosts, sets up passwordless SSH via `ssh-copy-id`
-   if not already configured (uses `aarch64_ssh_password` from credentials).
-2. **Architecture validation** — Verifies the remote host is actually aarch64.
-3. **OIM hostname resolution** — Adds OIM PXE IP + hostname to `/etc/hosts` on the aarch64 node
+- **SSH connectivity** — `validate_aarch64_host.yml` (in `validate_build_runtime`) handles
+  ping check, known_hosts, ssh-copy-id, and passwordless SSH verification on localhost
+  *before* this role's play begins. By the time `hosts: admin_aarch64` runs, SSH works.
+
+### Phases (this role)
+
+1. **Architecture validation** — Verifies the remote host is actually aarch64.
+2. **OIM hostname resolution** — Adds OIM PXE IP + hostname to `/etc/hosts` on the aarch64 node
    so repo manager (Pulp) is reachable by name.
-4. **Local work directories** — Creates `/opt/omnia/image_build_manager/` tree on the aarch64 node
+3. **Local work directories** — Creates `/opt/omnia/image_build_manager/` tree on the aarch64 node
    (replaces the former NFS mount requirement).
-5. **Repo configuration** — Generates `repo_manager.repo` from `rpm_repos_aarch64` dict
+4. **Repo configuration** — Generates `repo_manager.repo` from `rpm_repos_aarch64` dict
    and copies the Pulp CA certificate (if configured).
-6. **Builder image pull** — Pulls the builder container image using a two-tier strategy:
+5. **Builder image pull** — Pulls the builder container image using a two-tier strategy:
    - Try repo manager (Pulp) first: `<oim_ip>:<port>/<image>`
    - Fall back to upstream registry (DockerHub/GHCR) if Pulp fails
-7. **regctl installation** — Installs the `regctl` binary on the aarch64 node using a two-tier strategy:
+6. **regctl installation** — Installs the `regctl` binary on the aarch64 node using a two-tier strategy:
    - Try copying from OIM localhost (`/usr/local/bin/regctl`)
    - Fall back to downloading from GitHub releases if copy fails
-8. **Registry configuration** — Configures regctl to use HTTP for the local OCI registry.
+7. **Registry configuration** — Configures regctl to use HTTP for the local OCI registry.
 
 ## Requirements
 

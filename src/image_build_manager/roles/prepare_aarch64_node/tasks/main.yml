@@ -16,44 +16,13 @@
 # No NFS dependency — uses local work directories on the aarch64 node.
 # Image pull: tries repo manager (Pulp) first, falls back to DockerHub/upstream.
 # regctl: copies from OIM localhost first, downloads from GitHub if copy fails.
+#
+# NOTE: SSH connectivity (known_hosts, ssh-copy-id, passwordless verify) is
+# handled by validate_aarch64_host.yml BEFORE this role runs. By the time
+# Ansible reaches this play (hosts: admin_aarch64), SSH must already work.
 
 # =========================================================================
-# Phase 1: SSH connectivity setup
-# =========================================================================
-
-- name: Add target host to known_hosts
-  ansible.builtin.known_hosts:
-    name: "{{ inventory_hostname }}"
-    key: "{{ lookup('pipe', 'ssh-keyscan -H ' + inventory_hostname) }}"
-  delegate_to: localhost
-
-- name: Check if passwordless SSH is enabled
-  ansible.builtin.command:
-    cmd: ssh -o BatchMode=yes -o ConnectTimeout=5 root@{{ inventory_hostname }} 'echo OK'
-  register: ssh_check
-  ignore_errors: true
-  changed_when: false
-  delegate_to: localhost
-
-- name: Setup passwordless SSH from localhost
-  ansible.builtin.expect:
-    command: "ssh-copy-id -i /root/.ssh/id_rsa.pub root@{{ inventory_hostname }}"
-    responses:
-      "password:": "{{ hostvars['localhost']['aarch64_ssh_password'] }}"
-  when: ssh_check.failed
-  delegate_to: localhost
-  no_log: true
-
-- name: Verify passwordless SSH
-  ansible.builtin.command:
-    cmd: ssh -o BatchMode=yes root@{{ inventory_hostname }} 'echo OK'
-  register: ssh_verify
-  failed_when: ssh_verify.stdout != "OK"
-  changed_when: false
-  delegate_to: localhost
-
-# =========================================================================
-# Phase 2: Architecture and host validation
+# Phase 1: Architecture validation
 # =========================================================================
 
 - name: Check machine architecture
@@ -67,7 +36,7 @@
   when: arch_result.stdout != "aarch64"
 
 # =========================================================================
-# Phase 3: OIM hostname resolution on aarch64 node
+# Phase 2: OIM hostname resolution on aarch64 node
 # =========================================================================
 
 - name: Remove any existing entries for OIM hostname in /etc/hosts
@@ -110,7 +79,7 @@
   when: ping_result.rc | default(1) != 0
 
 # =========================================================================
-# Phase 4: Create local work directories (replaces NFS mount)
+# Phase 3: Create local work directories (replaces NFS mount)
 # =========================================================================
 
 - name: Ensure aarch64 work directories exist
@@ -126,7 +95,7 @@
     - "{{ aarch64_work_dir }}/log"
 
 # =========================================================================
-# Phase 5: Repo manager configuration (optional — for Pulp-based pulls)
+# Phase 4: Repo manager configuration (optional — for Pulp-based pulls)
 # =========================================================================
 
 - name: Generate repo_manager.repo from rpm_repos.aarch64
@@ -159,7 +128,7 @@
   when: repo_cert_path | default('') | length > 0
 
 # =========================================================================
-# Phase 6: Pull builder container image (Pulp first, DockerHub fallback)
+# Phase 5: Pull builder container image (Pulp first, DockerHub fallback)
 # =========================================================================
 
 - name: Build repo manager image path for aarch64
@@ -227,7 +196,7 @@
             msg: "{{ aarch64_image_fail_msg }}"
 
 # =========================================================================
-# Phase 7: Install regctl (SCP from localhost first, download fallback)
+# Phase 6: Install regctl (SCP from localhost first, download fallback)
 # =========================================================================
 
 - name: Check if regctl already exists on aarch64 node
@@ -290,7 +259,7 @@
     msg: "regctl version: {{ _regctl_version.stdout | trim }}"
 
 # =========================================================================
-# Phase 8: Configure registry access on aarch64 node
+# Phase 7: Configure registry access on aarch64 node
 # =========================================================================
 
 - name: Compute aarch64 registry host
