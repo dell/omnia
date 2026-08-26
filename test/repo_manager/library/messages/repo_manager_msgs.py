@@ -8,11 +8,11 @@ Repo Manager — Test names and assertion/log messages.
 """
 
 TEST_NAMES = {
-    # Validate
-    "input_config_exists": "Validate repo_manager_config.yml exists",
-    "endpoint_config_exists": "Validate repo_manager_endpoint_config.yml exists",
-    "credentials_present": "Validate credentials file present",
-    # Deploy
+    # Precheck
+    "input_config_exists": "Precheck repo_manager_config.yml exists",
+    "endpoint_config_exists": "Precheck repo_manager_endpoint_config.yml exists",
+    "credentials_present": "Precheck credentials file present",
+    # Prepare
     "pulp_container_running": "Verify Pulp container is running",
     "pulp_status_healthy": "Verify Pulp status is healthy",
     "pulp_endpoint_reachable": "Verify Pulp endpoint reachable",
@@ -22,7 +22,7 @@ TEST_NAMES = {
     "pulp_api_detailed_status": (
         "Verify Pulp API detailed health (DB, workers, content apps, storage)"
     ),
-    # Download
+    # Execute
     "repo_status_exists": "Verify repo_status.yml generated",
     "repo_status_success": "Verify overall_status is success",
     "slurm_custom_repo_present": "Verify slurm_custom repo present",
@@ -54,14 +54,14 @@ TEST_NAMES = {
 }
 
 TEST_LOG_MSGS = {
-    # Validate
+    # Precheck
     "input_config_ok": "repo_manager_config.yml found",
     "input_config_missing": "repo_manager_config.yml is missing",
     "endpoint_config_ok": "repo_manager_endpoint_config.yml found",
     "endpoint_config_missing": "repo_manager_endpoint_config.yml is missing",
     "credentials_ok": "Credentials file found",
     "credentials_missing": "Credentials file is missing",
-    # Deploy
+    # Prepare
     "pulp_container_running": "Pulp container is running",
     "pulp_container_not_running": "Pulp container is not running",
     "pulp_status_ok": "Pulp status command succeeded",
@@ -76,7 +76,7 @@ TEST_LOG_MSGS = {
     "pulp_cli_repo_list_fail": "Pulp CLI repository list command failed",
     "pulp_api_detailed_ok": "Pulp API all components healthy",
     "pulp_api_detailed_fail": "Pulp API health check failed for some components",
-    # Download
+    # Execute
     "repo_status_exists": "repo_status.yml exists",
     "repo_status_missing": "repo_status.yml missing",
     "repo_status_success": "overall_status is success",
@@ -112,10 +112,10 @@ TEST_LOG_MSGS = {
 }
 
 TEST_ASSERT_MSGS = {
-    "input_config_missing": "repo_manager_config.yml is required for validation",
+    "input_config_missing": "repo_manager_config.yml is required for precheck",
     "endpoint_config_missing": "repo_manager_endpoint_config.yml is required",
     "credentials_missing": "Credentials file is required for Pulp deployment",
-    "pulp_container_not_running": "Pulp container must be running after deploy",
+    "pulp_container_not_running": "Pulp container must be running after prepare",
     "pulp_status_failed": "Pulp status command must succeed",
     "pulp_endpoint_not_reachable": "Pulp endpoint must be reachable",
     "pulp_cli_not_configured": "Pulp CLI must be configured",
