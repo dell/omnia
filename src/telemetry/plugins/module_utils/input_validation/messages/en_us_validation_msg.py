@@ -83,6 +83,16 @@ POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
     "OTEL Collector image is required in CSM Observability "
     "values.yaml (path specified in telemetry_config.yml)."
 )
+POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
+    "PowerScale image version mismatch detected in offline mode. "
+    "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
+)
+def powerscale_image_version_mismatch_msg(mismatched_images):
+    """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
+    return (
+        f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
+        f"{', '.join(mismatched_images)}"
+    )
 ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
     "Each additional_metric_remote_write_endpoint in "
     "telemetry_config.yml must have a non-empty 'url' field."
@@ -96,17 +106,17 @@ ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
 ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
     "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
-def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
-    """Returns error message when CSM values.yaml image version doesn't match service_k8s (versioned)."""
+POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
+    "PowerScale image version mismatch detected in offline mode. "
+    "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
+)
+def powerscale_image_version_mismatch_msg(mismatched_images):
+    """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
     return (
-        f"Image version mismatch for '{image_name}': "
-        f"CSM Observability values.yaml has '{values_image}' "
-        f"but service_k8s (versioned) has "
-        f"'{service_k8s_image}'. "
-        f"Please update service_k8s (versioned) to match the "
-        f"values.yaml version and re-run local_repo.yml to "
-        f"mirror the correct image to Pulp."
+        f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
+        f"{', '.join(mismatched_images)}"
     )
+
 # pylint: enable=invalid-name
 
 def boolean_fail_msg(value):

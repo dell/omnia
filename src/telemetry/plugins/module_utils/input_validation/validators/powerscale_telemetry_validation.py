@@ -262,10 +262,17 @@ def validate_powerscale_telemetry_config(
                                             )
                                         break
                         if mismatched_images:
-                            logger.warning(
-                                "PowerScale image version mismatch detected in offline mode. "
-                                f"Ensure these images match telemetry_packages.yml: "
-                                f"{', '.join(mismatched_images)}"
+                            errors.append(create_error_msg(
+                                "powerscale_configurations.csm_observability_values_file_path",
+                                csm_values_path,
+                                en_us_validation_msg.powerscale_image_version_mismatch_msg(
+                                    mismatched_images
+                                )
+                            ))
+                            logger.error(
+                                en_us_validation_msg.powerscale_image_version_mismatch_msg(
+                                    mismatched_images
+                                )
                             )
                         else:
                             logger.info(

@@ -579,9 +579,9 @@ def validate_telemetry_config(
     powerscale_configs = data.get("powerscale_configurations", {})
     powerscale_collection_targets = powerscale_source.get("collection_targets", [])
 
-    # Build config_paths for PowerScale validation
-    telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
-    telemetry_input_dir = os.path.join(telemetry_root, "input")
+    # Build config_paths for PowerScale validation using runtime data path
+    # Use the same directory as the input_file_path (telemetry_config.yml)
+    telemetry_input_dir = os.path.dirname(input_file_path)
     telemetry_packages_file_path = os.path.join(telemetry_input_dir, "telemetry_packages.yml")
     is_service_cluster_defined = service_cluster_defined
     config_paths = {
