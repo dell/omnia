@@ -132,7 +132,8 @@ def check_credentials_present(host) -> Dict[str, Any]:
     """
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    cred_path = f"/opt/omnia/input/{project}/{CREDENTIALS_FILE_NAME}"
+    input_path = INPUT_PATH_TEMPLATE.format(project=project)
+    cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
@@ -232,7 +233,7 @@ def check_openchami_containers(host) -> Dict[str, Any]:
 
 
 def check_services_active(host) -> Dict[str, Any]:
-    """Verify systemd services are active.
+    """Verify systemd services/targets are active.
 
     Args:
         host: Testinfra host connection.
@@ -244,19 +245,20 @@ def check_services_active(host) -> Dict[str, Any]:
     for service in SYSTEMD_SERVICES:
         cmd = CMDS["systemctl_is_active"].format(service=service)
         result = run_on_host(host, cmd)
-        if result.rc != 0 or "active" not in result.stdout:
+        stdout = result.stdout.strip() if result.stdout else ""
+        if result.rc != 0 or stdout != "active":
             inactive.append(service)
 
     if not inactive:
         return {
             "success": True,
-            "details": f"All {len(SYSTEMD_SERVICES)} services active",
+            "details": f"All {len(SYSTEMD_SERVICES)} services/targets active",
             "error": "",
         }
     return {
         "success": False,
         "details": f"Inactive: {inactive}",
-        "error": f"{len(inactive)} service(s) not active",
+        "error": f"{len(inactive)} service(s)/target(s) not active",
     }
 
 
