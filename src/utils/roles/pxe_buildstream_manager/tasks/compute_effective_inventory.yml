@@ -185,7 +185,7 @@
 
 - name: Read PXE mapping file for admin IPs
   community.general.read_csv:
-    path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/pxe_mapping_file.csv"
+    path: "{{ input_project_dir | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) + '/input/project_default') }}/pxe_mapping_file.csv"
   register: pxe_csv_for_phone_home
   when: groups['bmc'] is defined and groups['bmc'] | length > 0
 

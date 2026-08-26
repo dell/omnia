@@ -28,7 +28,7 @@
   gather_facts: false
   tags: always
   roles:
-    - role: omnia.orchestrator.orchestrator_setup
+    - role: orchestrator_setup
       vars:
         openchami_vars_support: true
         omnia_metadata_support: true
@@ -40,7 +40,7 @@
   tasks:
     - name: OpenCHAMI cluster authentication
       ansible.builtin.include_role:
-        name: omnia.orchestrator.orchestrator_common
+        name: orchestrator_common
         tasks_from: openchami_auth.yml
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
@@ -49,8 +49,8 @@
   hosts: oim
   connection: ssh
   roles:
-    - omnia.orchestrator.generate_inventories
-    - omnia.orchestrator.validate_provisioning
+    - generate_inventories
+    - validate_provisioning
 
 - name: Read nodes.yaml and derive Omnia node facts
   hosts: oim
@@ -58,5 +58,5 @@
   tasks:
     - name: Read nodes.yaml and derive Omnia node facts
       ansible.builtin.include_role:
-        name: omnia.orchestrator.passwordless_ssh
+        name: passwordless_ssh
         tasks_from: read_nodes_yaml.yml

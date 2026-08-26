@@ -67,10 +67,11 @@ DEFAULT_VENV_PATH = "/opt/omnia/venv"
 DEFAULT_PROJECT_NAME = "project_default"
 
 # Base directories created by omnia.sh --setup-venv
+# Note: domain-specific log/ and input/ dirs are created by domain-init.sh,
+# not by the base setup.  Only {data_path} and {data_path}/.data are
+# created by create_base_dirs().
 BASE_DIRS: List[str] = [
     "{data_path}",
-    "{data_path}/log",
-    "{data_path}/input",
     "{data_path}/.data",
 ]
 
@@ -96,6 +97,7 @@ DOMAINS_WITH_INIT: List[str] = [
     "orchestrator",
     "repo_manager",
     "telemetry",
+    "utils",
 ]
 
 # =============================================================================
@@ -132,7 +134,10 @@ VALID_CLI_COMMANDS: List[str] = [
 VALID_CLI_OPTIONS: List[str] = [
     "--deps-only",
     "--force-deps",
+    "--skip",
+    "--dry-run",
     "--skip-catalog",
+    "--skip-omnia-cli",
     "--tags", "-t",
     "--all",
 ]
@@ -144,10 +149,13 @@ VALID_CLI_OPTIONS: List[str] = [
 OMNIA_CLI_COMMANDS: List[str] = [
     "status",
     "check",
+    "edit",
     "repo-manager",
     "image-build",
     "version",
     "help",
+    "logs",
+    "vault",
 ]
 
 # Domains addressable via omnia-cli <domain>
@@ -158,6 +166,16 @@ OMNIA_CLI_DOMAINS: List[str] = [
     "discovery",
     "telemetry",
     "build-stream",
+    "utils",
+]
+
+# Generic tags shown in omnia.sh help (per domain)
+OMNIA_SH_GENERIC_TAGS: List[str] = [
+    "precheck",
+    "validate",
+    "prepare",
+    "execute",
+    "cleanup",
 ]
 
 # Expected sections in omnia-cli help output
@@ -233,9 +251,55 @@ CMDS: Dict[str, str] = {
         "cd {clone_path} && bash {omnia_sh}"
         " --setup-venv --deps-only --skip-catalog 2>&1"
     ),
+    "omnia_sh_setup_skip_omnia_cli": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --setup-venv --deps-only --skip-omnia-cli 2>&1"
+    ),
     "omnia_sh_force_deps_invalid": (
         "cd {clone_path} && bash {omnia_sh}"
         " --force-deps 2>&1"
+    ),
+    # --- --skip / --dry-run ---
+    "omnia_sh_skip_domain": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --skip {domain} 2>&1"
+    ),
+    "omnia_sh_skip_invalid_domain": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --skip nonexistent_domain_xyz 2>&1"
+    ),
+    "omnia_sh_skip_with_include": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init telemetry --skip utils 2>&1"
+    ),
+    "omnia_sh_skip_without_init": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --skip telemetry 2>&1"
+    ),
+    "omnia_sh_skip_no_args": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --skip 2>&1"
+    ),
+    "omnia_sh_dry_run": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --dry-run 2>&1"
+    ),
+    "omnia_sh_dry_run_with_skip": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --init --dry-run --skip {domain} 2>&1"
+    ),
+    "omnia_sh_dry_run_without_init": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --dry-run 2>&1"
+    ),
+    # --- Execution: actual omnia.sh operations ---
+    "omnia_sh_run_domain_tag": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --run {domain} --tags {tag} 2>&1"
+    ),
+    "omnia_sh_cleanup_yes": (
+        "cd {clone_path} && echo yes"
+        " | bash {omnia_sh} --cleanup 2>&1"
     ),
     # --- Files ---
     "file_exists": "test -f {path} && echo exists",
@@ -278,6 +342,14 @@ CMDS: Dict[str, str] = {
         "find {data_path}/{domain}/input/{project}"
         " -type f 2>/dev/null | wc -l"
     ),
+    "domain_output_dir_exists": (
+        "test -d {data_path}/{domain}/output/{project}"
+        " && echo exists"
+    ),
+    "domain_runtime_log_dir_exists": (
+        "test -d {data_path}/{domain}/log/{project}"
+        " && echo exists"
+    ),
     # --- System ---
     "hostname_cmd": "hostname 2>/dev/null",
     "which_cmd": "which {binary} 2>/dev/null",
@@ -317,5 +389,53 @@ CMDS: Dict[str, str] = {
     "omnia_cli_unknown": (
         "cd {clone_path} && bash {omnia_cli}"
         " nonexistent_cmd 2>&1"
+    ),
+    # --- omnia-cli logs ---
+    "omnia_cli_logs_help": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs --help 2>&1"
+    ),
+    "omnia_cli_logs_limit": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs {domain} --limit {limit} 2>&1"
+    ),
+    "omnia_cli_logs_limit_invalid": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs {domain} --limit {limit} 2>&1"
+    ),
+    "omnia_cli_logs_limit_short": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " logs {domain} -l {limit} 2>&1"
+    ),
+    # --- omnia.sh tags validation ---
+    "omnia_sh_run_tags": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --run {domain} --tags {tag} 2>&1"
+    ),
+    # --- env source validation ---
+    "omnia_sh_validate_env_bad_ip": (
+        "cd {clone_path} && bash -c '"
+        "env_file=$(mktemp);"
+        " sed \"s/^SYSTEM_ADMIN_NIC_IPV4=.*/SYSTEM_ADMIN_NIC_IPV4=/\""
+        " {omnia_env} > $env_file;"
+        " source {omnia_sh_dir}/omnia.sh --help >/dev/null 2>&1;"
+        " bash -c \"set -a; . $env_file; set +a;"
+        " if [ -z \\\"\\$SYSTEM_ADMIN_NIC_IPV4\\\" ]; then"
+        " exit 1; fi\";"
+        " rc=$?; rm -f $env_file; exit $rc"
+        "' 2>&1"
+    ),
+    # --- omnia-cli remaining domains ---
+    "omnia_cli_orchestrator": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " orchestrator 2>&1"
+    ),
+    "omnia_cli_telemetry": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " telemetry 2>&1"
+    ),
+    "omnia_cli_build_stream": (
+        "cd {clone_path} && bash {omnia_cli}"
+        " build-stream 2>&1"
     ),
 }

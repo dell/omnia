@@ -33,8 +33,7 @@
 # Granular cleanup tags (opt-in — requires explicit --tags):
 #   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
 #   cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
-#   cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm,
-#   cleanup_skyway, cleanup_powervault
+#   cleanup_ufm, cleanup_vast, cleanup_sfm
 #
 # Internal steps (always):
 #   Step 0: Setup — load env vars (omnia.env), validate host, derive paths, create dirs
@@ -85,32 +84,29 @@
 - name: "Precheck | Validate telemetry prerequisites"
   ansible.builtin.import_playbook: precheck/precheck.yml
   tags:
-    - never
+    # - never
     - precheck
 
 # =========================================================================
 # FLOW: cleanup — Remove telemetry components (opt-in only)
 # =========================================================================
-# Each component has its own tag (cleanup_kafka, cleanup_idrac, etc.)
-# --tags cleanup runs ALL cleanups; --tags cleanup_kafka runs kafka only.
+# Each source has its own tag (cleanup_idrac, cleanup_ome, etc.).
+# --tags cleanup runs ALL cleanups (sources + sinks).
+# Individual source tags (cleanup_powerscale, etc.) clean only that source.
+# Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared infrastructure
+# and are ONLY cleaned with --tags cleanup (full cleanup).
 - name: "Cleanup | Remove telemetry components"
   ansible.builtin.import_playbook: cleanup/cleanup.yml
   tags:
     - never
     - cleanup
-    - cleanup_kafka
-    - cleanup_victoria_metrics
-    - cleanup_victoria_logs
     - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
-    - cleanup_dcgm
     - cleanup_ufm
     - cleanup_vast
     - cleanup_sfm
-    - cleanup_skyway
-    - cleanup_powervault
 
 # =========================================================================
 # FLOW: upgrade — Upgrade telemetry (opt-in only, placeholder)
@@ -130,6 +126,15 @@
     - never
     - rollback
 
+# =========================================================================
+# UTILITY: external_kafka — Fetch Kafka connection details (opt-in only)
+# =========================================================================
+- name: "Utility | Fetch external Kafka connection details"
+  ansible.builtin.import_playbook: utils/external_kafka_connect.yml
+  tags:
+    - never
+    - external_kafka
+
 # ---------------------------------------------------------------------------
 # Summary — Display telemetry status file location
 # ---------------------------------------------------------------------------
@@ -147,9 +152,7 @@
           - "║              TELEMETRY DEPLOYMENT STATUS                                 ║"
           - "╚══════════════════════════════════════════════════════════════════════════╝"
           - ""
-          - "Deployment status has been saved to:"
-          - "  {{ playbook_dir }}/output/telemetry_status.yml"
-          - ""
-          - "View the file to see detailed deployment state and results for all components."
+          - "Deployment status:"
+          - "  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/telemetry_status.yml"
           - ""
           - "╚══════════════════════════════════════════════════════════════════════════╝"

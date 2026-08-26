@@ -82,6 +82,7 @@ PLAYBOOK_TAGS = [
     "prepare",
     "build",
     "cleanup",
+    "cleanup_images",
     "upgrade",
     "rollback",
 ]
@@ -151,6 +152,12 @@ IMAGE_TYPE_DISPLAY = {
 
 # Functional group packages filename
 FG_PACKAGES_FILENAME = "functional_group_packages.yml"
+
+# Package groups config filename (config-mode fallback)
+PACKAGE_GROUPS_FILENAME = "package_groups.yml"
+
+# Catalog file env var (catalog mode — on target host)
+ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
 
 # =============================================================================
 # SQUASHFS / IMAGE VERIFICATION PATHS
@@ -304,6 +311,13 @@ CMDS = {
     # --- Registry (regctl) ---
     "regctl_repo_ls": (
         "regctl repo ls --limit 500 {registry} 2>/dev/null"
+    ),
+    "regctl_tag_ls": (
+        "regctl tag ls {registry}/{repo} 2>/dev/null"
+    ),
+    # --- S3 (recursive list) ---
+    "s3cmd_ls_recursive": (
+        "s3cmd ls -Hr {bucket} 2>/dev/null"
     ),
     # --- Registry (curl, scheme-agnostic) ---
     "curl_registry_catalog_scheme": (

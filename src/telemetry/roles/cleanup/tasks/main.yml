@@ -1,0 +1,42 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Cleanup role — entry point
+# =============================================================================
+# This role consolidates all telemetry cleanup tasks into a single role.
+# Callers should use tasks_from to invoke specific component cleanup:
+#
+#   ansible.builtin.include_role:
+#     name: cleanup
+#     tasks_from: kafka           # Cleanup Kafka
+#     tasks_from: victoria_metrics # Cleanup VictoriaMetrics
+#     tasks_from: victoria_logs    # Cleanup VictoriaLogs
+#     tasks_from: idrac            # Cleanup iDRAC
+#     tasks_from: ldms             # Cleanup LDMS + Vector-LDMS
+#     tasks_from: ome              # Cleanup OME + Vector-OME
+#     tasks_from: powerscale       # Cleanup PowerScale
+#     tasks_from: ufm              # Cleanup UFM
+#     tasks_from: vast             # Cleanup VAST
+#     tasks_from: sfm              # Cleanup SFM
+#
+# Calling main.yml directly is a no-op (this file).
+# =============================================================================
+
+- name: "Cleanup | No component specified"
+  ansible.builtin.debug:
+    msg: >-
+      No cleanup component specified. Use tasks_from to select a component
+      (e.g., tasks_from: kafka, tasks_from: victoria_metrics).

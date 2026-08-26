@@ -57,6 +57,7 @@ from .registry_func import (                         # noqa: F401
 from .build_status_func import (                     # noqa: F401
     check_build_status_file,
     check_functional_groups_built,
+    check_build_status_s3_match,
 )
 
 # --- Image content (squashfs + RPM) ------------------------------------------
@@ -68,6 +69,7 @@ from .image_content_func import (                    # noqa: F401
 from .cleanup_func import (                          # noqa: F401
     check_containers_removed,
     check_s3_artifacts_removed,
+    check_s3_images_removed,
     check_services_removed,
     check_firewall_ports_removed,
     check_s3cfg_removed,
@@ -90,6 +92,8 @@ from .precheck_func import (                         # noqa: F401
     check_hostname_domain,
     check_admin_ip,
     check_omnia_setup,
+    check_repo_ssl_verify_config,
+    check_repo_ssl_verify_applied,
 )
 
 # --- Log collection ----------------------------------------------------------
@@ -111,11 +115,13 @@ __all__ = [
     # Build status / functional groups
     "check_build_status_file",
     "check_functional_groups_built",
+    "check_build_status_s3_match",
     # Image content
     "verify_image_packages",
     # Cleanup verification
     "check_containers_removed",
     "check_s3_artifacts_removed",
+    "check_s3_images_removed",
     "check_services_removed",
     "check_firewall_ports_removed",
     "check_s3cfg_removed",
@@ -135,6 +141,8 @@ __all__ = [
     "check_hostname_domain",
     "check_admin_ip",
     "check_omnia_setup",
+    "check_repo_ssl_verify_config",
+    "check_repo_ssl_verify_applied",
     # Log collection
     "collect_build_logs",
 ]

@@ -64,6 +64,9 @@ TEST_NAMES: Dict[str, str] = {
     "domain_log_dirs": (
         "Verify domain log directories created"
     ),
+    "domain_output_dirs": (
+        "Verify domain output directories created"
+    ),
     "domain_input_staged": (
         "Verify domain input files staged to data path"
     ),
@@ -117,6 +120,9 @@ TEST_NAMES: Dict[str, str] = {
     "skip_catalog_in_help": (
         "Verify --skip-catalog flag appears in help output"
     ),
+    "skip_omnia_cli_in_help": (
+        "Verify --skip-omnia-cli flag appears in help output"
+    ),
 
     # Init domain filtering
     "init_domain_filter": (
@@ -161,6 +167,100 @@ TEST_NAMES: Dict[str, str] = {
     ),
     "cli_unknown_command": (
         "Verify omnia-cli unknown command exits with error"
+    ),
+
+    # omnia-cli logs verification
+    "cli_logs_help": (
+        "Verify omnia-cli logs --help runs"
+    ),
+    "cli_logs_limit": (
+        "Verify omnia-cli logs --limit flag works"
+    ),
+    "cli_logs_limit_invalid": (
+        "Verify omnia-cli logs --limit rejects invalid values"
+    ),
+    "cli_logs_limit_short": (
+        "Verify omnia-cli logs -l short form works"
+    ),
+
+    # omnia.sh tags verification
+    "sh_generic_tags_in_help": (
+        "Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup)"
+    ),
+    "sh_tags_run": (
+        "Verify omnia.sh --run <domain> --tags <tag> accepts generic tags"
+    ),
+
+    # omnia-cli remaining domain status
+    "cli_orchestrator": (
+        "Verify omnia-cli orchestrator runs"
+    ),
+    "cli_telemetry": (
+        "Verify omnia-cli telemetry runs"
+    ),
+    "cli_build_stream": (
+        "Verify omnia-cli build-stream runs"
+    ),
+
+    # Setup — env source validation
+    "env_source_validation": (
+        "Verify env validation rejects missing SYSTEM_ADMIN_NIC_IPV4"
+    ),
+    "env_source_update": (
+        "Verify updated omnia.env propagates to /etc/omnia/omnia.env"
+    ),
+
+    # CLI — skip-catalog / skip-omnia-cli
+    "skip_catalog_accepted": (
+        "Verify --setup-venv --skip-catalog accepted"
+    ),
+    "skip_omnia_cli_accepted": (
+        "Verify --setup-venv --skip-omnia-cli accepted"
+    ),
+
+    # CLI — --skip / --dry-run
+    "skip_in_help": (
+        "Verify --skip flag appears in help output"
+    ),
+    "dry_run_in_help": (
+        "Verify --dry-run flag appears in help output"
+    ),
+    "skip_invalid_domain": (
+        "Verify --skip with invalid domain exits with error"
+    ),
+    "skip_with_include_error": (
+        "Verify --skip + explicit domain list is rejected"
+    ),
+    "skip_without_init_error": (
+        "Verify --skip without -s/-i exits with error"
+    ),
+    "skip_no_args_error": (
+        "Verify --skip without domain list exits with error"
+    ),
+    "dry_run_output": (
+        "Verify --dry-run shows domain list without executing"
+    ),
+    "dry_run_with_skip": (
+        "Verify --dry-run --skip shows filtered domain list"
+    ),
+    "dry_run_without_init_error": (
+        "Verify --dry-run without -s/-i exits with error"
+    ),
+    # Execution — actual omnia.sh operations
+    "exec_setup_full": (
+        "Execute omnia.sh --setup-venv (full setup)"
+    ),
+    "exec_init_domain": (
+        "Execute omnia.sh --init for single domain"
+    ),
+    "exec_run_validate": (
+        "Execute omnia.sh --run with --tags validate"
+    ),
+    "exec_run_precheck": (
+        "Execute omnia.sh --run with --tags precheck"
+    ),
+    "exec_cleanup": (
+        "Execute omnia.sh --cleanup"
     ),
 }
 
@@ -237,6 +337,12 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "log_dirs_missing": (
         "{count} domain log directory(ies) missing"
     ),
+    "output_dirs_ok": (
+        "All {count} domain output directories exist"
+    ),
+    "output_dirs_missing": (
+        "{count} domain output directory(ies) missing"
+    ),
     "input_staged_ok": (
         "Input files staged for {domain}: {count} file(s)"
     ),
@@ -268,6 +374,12 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "skip_catalog_not_in_help": (
         "--skip-catalog flag NOT found in help output"
+    ),
+    "skip_omnia_cli_in_help_ok": (
+        "--skip-omnia-cli flag found in help output"
+    ),
+    "skip_omnia_cli_not_in_help": (
+        "--skip-omnia-cli flag NOT found in help output"
     ),
     "check_deps_ok": (
         "--check-deps completed successfully"
@@ -344,6 +456,134 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "cli_unknown_error_ok": (
         "omnia-cli unknown command exited with error (rc={rc})"
+    ),
+
+    # omnia-cli logs
+    "cli_logs_help_ok": (
+        "omnia-cli logs --help ran successfully"
+    ),
+    "cli_logs_help_failed": (
+        "omnia-cli logs --help failed"
+    ),
+    "cli_logs_limit_ok": (
+        "omnia-cli logs --limit {limit} accepted"
+    ),
+    "cli_logs_limit_invalid_ok": (
+        "omnia-cli logs --limit {limit} rejected (rc={rc})"
+    ),
+    "cli_logs_limit_short_ok": (
+        "omnia-cli logs -l {limit} accepted"
+    ),
+
+    # omnia.sh tags
+    "sh_generic_tags_ok": (
+        "Help shows all 5 generic tags per domain"
+    ),
+    "sh_generic_tags_missing": (
+        "Help missing generic tags: {missing}"
+    ),
+
+    # omnia-cli remaining domains
+    "cli_orchestrator_ok": (
+        "omnia-cli orchestrator ran (rc={rc})"
+    ),
+    "cli_telemetry_ok": (
+        "omnia-cli telemetry ran (rc={rc})"
+    ),
+    "cli_build_stream_ok": (
+        "omnia-cli build-stream ran (rc={rc})"
+    ),
+
+    # Env source validation
+    "env_source_validation_ok": (
+        "validate_env_source correctly rejected "
+        "missing SYSTEM_ADMIN_NIC_IPV4"
+    ),
+    "env_source_validation_failed": (
+        "validate_env_source did NOT reject "
+        "missing SYSTEM_ADMIN_NIC_IPV4 (rc={rc})"
+    ),
+
+    # Env update propagation
+    "env_update_ok": (
+        "Source omnia.env update propagated to system copy"
+    ),
+    "env_update_failed": (
+        "Source omnia.env update did NOT propagate to system copy"
+    ),
+
+    # --skip / --dry-run
+    "skip_in_help_ok": (
+        "--skip flag found in help output"
+    ),
+    "skip_not_in_help": (
+        "--skip flag NOT found in help output"
+    ),
+    "dry_run_in_help_ok": (
+        "--dry-run flag found in help output"
+    ),
+    "dry_run_not_in_help": (
+        "--dry-run flag NOT found in help output"
+    ),
+    "skip_invalid_ok": (
+        "--skip with invalid domain exited with error (rc={rc})"
+    ),
+    "skip_include_error_ok": (
+        "--skip + explicit domain rejected (rc={rc})"
+    ),
+    "skip_without_init_ok": (
+        "--skip without -s/-i rejected (rc={rc})"
+    ),
+    "skip_no_args_ok": (
+        "--skip without domain list rejected (rc={rc})"
+    ),
+    "dry_run_ok": (
+        "--dry-run listed domains without executing"
+    ),
+    "dry_run_skip_ok": (
+        "--dry-run --skip listed filtered domains"
+    ),
+    "dry_run_without_init_ok": (
+        "--dry-run without -s/-i rejected (rc={rc})"
+    ),
+    # skip-catalog / skip-omnia-cli
+    "skip_catalog_ok": (
+        "--setup-venv --skip-catalog completed (rc={rc})"
+    ),
+    "skip_catalog_failed": (
+        "--setup-venv --skip-catalog failed (rc={rc})"
+    ),
+    "skip_omnia_cli_ok": (
+        "--setup-venv --skip-omnia-cli completed (rc={rc})"
+    ),
+    "skip_omnia_cli_failed": (
+        "--setup-venv --skip-omnia-cli failed (rc={rc})"
+    ),
+
+    # Execution — actual operations
+    "exec_setup_ok": (
+        "Full setup completed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_setup_failed": (
+        "Full setup failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_init_domain_ok": (
+        "--init {domain} completed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_init_domain_failed": (
+        "--init {domain} failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_run_ok": (
+        "--run {domain} --tags {tag} completed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_run_failed": (
+        "--run {domain} --tags {tag} failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "exec_cleanup_ok": (
+        "--cleanup completed (rc={rc})"
+    ),
+    "exec_cleanup_failed": (
+        "--cleanup failed (rc={rc})"
     ),
 }
 
@@ -470,6 +710,19 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Run: ./omnia.sh --init\n"
         "\u2551   2. Check /var/log/omnia/ permissions\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "output_dirs_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN OUTPUT DIRECTORIES MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing:\n"
+        "{missing_list}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run: ./omnia.sh --init\n"
+        "\u2551   2. Check OMNIA_DATA_PATH permissions\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -628,6 +881,187 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2560" + _BORDER + "\u2563\n"
         "\u2551 --force-deps requires --setup-venv or --init\n"
         "\u2551 Got: rc={rc}\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "env_source_validation_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 ENV SOURCE VALIDATION DID NOT REJECT BAD INPUT\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 validate_env_source should exit non-zero when\n"
+        "\u2551 SYSTEM_ADMIN_NIC_IPV4 is missing or invalid.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check validate_env_source() in omnia.sh\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_catalog_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-CATALOG NOT ACCEPTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv --skip-catalog should be\n"
+        "\u2551 accepted without error (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check --skip-catalog parsing in omnia.sh main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_omnia_cli_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-OMNIA-CLI FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--skip-omnia-cli' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --skip-omnia-cli to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "skip_omnia_cli_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP-OMNIA-CLI NOT ACCEPTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv --skip-omnia-cli should be\n"
+        "\u2551 accepted without error (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check --skip-omnia-cli parsing in omnia.sh main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    # --skip / --dry-run
+    "skip_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--skip' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --skip to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "dry_run_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --DRY-RUN FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--dry-run' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --dry-run to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_invalid_domain": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP WITH INVALID DOMAIN NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --skip nonexistent_domain_xyz should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check skip domain validation in init_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_with_include": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP + EXPLICIT DOMAIN NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --init telemetry --skip utils should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check mutual exclusion validation in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_without_init": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP WITHOUT -S/-I NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --skip without --init or --setup-venv should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check flag combination validation in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "skip_no_args": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --SKIP WITHOUT DOMAIN LIST NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --skip without a domain list should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check --skip argument parsing in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "dry_run_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --DRY-RUN DID NOT SHOW DOMAIN LIST\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --dry-run should print domain list without executing\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check dry-run logic in init_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "dry_run_without_init": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --DRY-RUN WITHOUT -I/-S NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --dry-run without --init or --setup-venv should exit non-zero\n"
+        "\u2551 Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check flag combination validation in main()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    # Execution tests
+    "exec_setup_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 FULL SETUP EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --setup-venv failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check omnia.env has valid SYSTEM_ADMIN_NIC_IPV4\n"
+        "\u2551   2. Verify Python >= 3.11 is installed\n"
+        "\u2551   3. Check domain-init.sh scripts exist\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_init_domain_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN INIT EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --init {domain} failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check domain-init.sh exists for {domain}\n"
+        "\u2551   2. Verify venv is set up first (omnia.sh -s)\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_run_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 DOMAIN RUN EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --run {domain} --tags {tag} failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify venv + domain init completed\n"
+        "\u2551   2. Check domain playbook supports --tags {tag}\n"
+        "\u2551   3. Review ansible-playbook output for errors\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "exec_cleanup_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 CLEANUP EXECUTION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 omnia.sh --cleanup failed (rc={rc}).\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check cleanup_omnia() in omnia.sh\n"
+        "\u2551   2. Verify file permissions on /etc/omnia/, /etc/profile.d/\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

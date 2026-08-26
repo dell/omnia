@@ -50,6 +50,7 @@ class BuildImageRequest:
     submitted_at: str
     request_id: str
     inventory_file_path: Optional[str] = None
+    tags: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
@@ -67,6 +68,10 @@ class BuildImageRequest:
         # Add inventory file path if present
         if self.inventory_file_path:
             request_dict["inventory_file_path"] = self.inventory_file_path
+
+        # Add tags if present (for selective playbook execution)
+        if self.tags:
+            request_dict["tags"] = self.tags
             
         return request_dict
 

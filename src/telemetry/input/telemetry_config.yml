@@ -28,7 +28,7 @@
 #
 # SECTIONS:
 #   1. Cluster Inventory    : Path to Ansible inventory for telemetry deployment
-#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST)
+#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, PowerScale, UFM, VAST)
 #   3. Telemetry Bridges    : Data routers (Vector pipelines)
 #   4. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
 #   5. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
@@ -94,7 +94,7 @@ cluster_inventory: ""
 # Each source can be independently enabled/disabled.
 # Sources produce telemetry data that flows through bridges to sinks.
 #
-# Supported sources: idrac, ldms, dcgm, powerscale, ufm, vast, ome
+# Supported sources: idrac, ldms, powerscale, ufm, vast, ome
 
 telemetry_sources:
 
@@ -133,16 +133,6 @@ telemetry_sources:
     # Vector-LDMS bridge consumes from Kafka and routes to victoria_metrics
     collection_targets:
       - "kafka"
-
-  # --------------------------------------------------------------------------
-  # DCGM — NVIDIA Data Center GPU Manager
-  # --------------------------------------------------------------------------
-  # Collects: GPU temperature, utilization, memory, ECC errors, power
-  # Requires: NVIDIA GPU driver installed on compute nodes
-  dcgm:
-    # Enable or disable DCGM metrics collection
-    # Default: true
-    metrics_enabled: true
 
   # --------------------------------------------------------------------------
   # PowerScale — Dell PowerScale (OneFS) storage telemetry
@@ -461,6 +451,11 @@ powerscale_configurations:
   # Required when telemetry_sources.powerscale.metrics_enabled: true
   # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.17.1/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
+
+  # Path to the CSI PowerScale driver secret.yaml file
+  # Contains isilonClusters with endpoint, username, and password for each PowerScale cluster
+  # Required when telemetry_sources.powerscale.metrics_enabled: true
+  csi_powerscale_secret_path: ""
 
 # --------------------------------------------------------------------------
 # UFM Telemetry Configuration

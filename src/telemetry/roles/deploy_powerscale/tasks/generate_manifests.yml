@@ -13,26 +13,20 @@
 # limitations under the License.
 ---
 
-# Generate PowerScale telemetry Kustomize manifests to NFS deployments/powerscale/
+# Generate PowerScale telemetry manifests to NFS deployments/ (root level)
 
-- name: Create PowerScale deployments directory
-  ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir }}/powerscale"
-    state: directory
-    mode: '0755'
-
-- name: Render PowerScale telemetry manifests
+- name: Render CSI Volume Exporter manifest
   ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ telemetry_deployments_dir }}/powerscale/{{ item.dest }}"
+    src: "csi-volume-exporter.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/csi-volume-exporter.yaml"
     mode: '0644'
-  loop:
-    - src: "kustomization.yaml.j2"
-      dest: "kustomization.yaml"
-    - src: "csi-volume-exporter.yaml.j2"
-      dest: "csi-volume-exporter.yaml"
+
+- name: Apply CSI Volume Exporter manifest
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/csi-volume-exporter.yaml
+  changed_when: false
 
 - name: Display PowerScale manifest generation complete
   ansible.builtin.debug:
-    msg: "PowerScale telemetry manifests generated to {{ telemetry_deployments_dir }}/powerscale/"
+    msg: "PowerScale telemetry manifests generated and applied"
     verbosity: 2

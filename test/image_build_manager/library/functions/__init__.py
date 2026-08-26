@@ -51,9 +51,11 @@ from .build_image_func import (
     check_registry_images,
     check_build_status_file,
     check_functional_groups_built,
+    check_build_status_s3_match,
     get_configured_functional_groups,
     check_containers_removed,
     check_s3_artifacts_removed,
+    check_s3_images_removed,
     verify_image_packages,
     check_services_removed,
     check_firewall_ports_removed,
@@ -73,6 +75,8 @@ from .build_image_func import (
     check_hostname_domain,
     check_admin_ip,
     check_omnia_setup,
+    check_repo_ssl_verify_config,
+    check_repo_ssl_verify_applied,
     collect_build_logs,
 )
 

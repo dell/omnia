@@ -16,8 +16,7 @@
 # =============================================================================
 # PowerScale Telemetry Cleanup
 # =============================================================================
-# Removes karavi-observability Helm release, CSM Metrics, OTEL Collector,
-# cert-manager resources, and PowerScale credentials.
+# Removes karavi-observability Helm release, CSI volume exporter, OTEL collector, and PVCs.
 #
 # Standalone usage:
 #   ansible-playbook cleanup/sources/cleanup_powerscale.yml
@@ -29,60 +28,8 @@
 - name: "Cleanup PowerScale Telemetry"
   hosts: kube_vip_group
   gather_facts: false
-  vars_files:
-    - ../../../vars/cleanup.yml
   tasks:
-    - name: "PowerScale | Uninstall Helm release"  # noqa: risky-shell-pipe
-      ansible.builtin.shell: |
-        if helm list -n {{ telemetry_namespace }} --filter {{ powerscale_helm_release }} -q 2>/dev/null | grep -q {{ powerscale_helm_release }}; then
-          helm uninstall {{ powerscale_helm_release }} -n {{ telemetry_namespace }} --wait --timeout {{ cleanup_helm_timeout }} 2>/dev/null || true
-        fi
-      changed_when: false
-      failed_when: false
-
-    - name: "PowerScale | Wait for Helm resources to terminate"
-      ansible.builtin.pause:
-        seconds: "{{ cleanup_post_delete_pause }}"
-
-    - name: "PowerScale | Delete label-selected resources"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} -l {{ item.label }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ powerscale_label_resources }}"
-      loop_control:
-        label: "{{ item.type }} ({{ item.label }})"
-      changed_when: false
-      failed_when: false
-
-    - name: "PowerScale | Delete named resources"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ powerscale_named_resources }}"
-      loop_control:
-        label: "{{ item.type }}/{{ item.name }}"
-      changed_when: false
-      failed_when: false
-
-    - name: "PowerScale | Delete cert-manager resources"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete {{ item }}
-        -l "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
-        --ignore-not-found=true --wait=false
-      loop:
-        - deployment
-        - pod
-      changed_when: false
-      failed_when: false
-
-    - name: "PowerScale | Force delete pods"
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
-        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-      loop: "{{ powerscale_pod_labels }}"
-      changed_when: false
-      failed_when: false
-
-    - name: "PowerScale | Cleanup complete"
-      ansible.builtin.debug:
-        msg: "PowerScale telemetry cleanup completed"
+    - name: "Run powerscale cleanup"
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: powerscale

@@ -31,9 +31,7 @@
 - name: Determine RPM download URL from release assets
   ansible.builtin.set_fact:
     openchami_rpm_url: >-
-      {{ (openchami_release_info.json.assets
-          | selectattr('name', 'match', '.*\\.rpm$')
-          | first).browser_download_url }}
+      https://github.com/{{ openchami_release_repo }}/releases/download/{{ openchami_release_info.json.tag_name }}/{{ openchami_rpm_name }}
   when: not _openchami_rpm_stat.stat.exists
 
 - name: Download the OpenCHAMI RPM from GitHub releases
@@ -54,6 +52,12 @@
   register: openchami_rpm_install
   changed_when: "'Nothing to do' not in openchami_rpm_install.stdout"
 
+- name: Ensure openchami.env exists
+  ansible.builtin.file:
+    path: /etc/openchami/configs/openchami.env
+    state: touch
+    mode: "{{ file_perm_rw }}"
+
 - name: Update openchami.env with cluster settings
   ansible.builtin.lineinfile:
     path: /etc/openchami/configs/openchami.env
@@ -63,6 +67,11 @@
     - { regexp: '^DOCKER_STEPCA_INIT_DNS_NAMES=', line: 'DOCKER_STEPCA_INIT_DNS_NAMES=step-ca,step-ca.{{ cluster_domain }}' }
     - { regexp: '^TOKENSMITH_CLUSTER_ID=', line: 'TOKENSMITH_CLUSTER_ID={{ cluster_name }}-cluster' }
     - { regexp: '^TOKENSMITH_OPENCHAMI_ID=', line: 'TOKENSMITH_OPENCHAMI_ID={{ cluster_name }}-openchami' }
+    - { regexp: '^SMD_DBHOST=', line: 'SMD_DBHOST={{ smd_dbhost }}' }
+    - { regexp: '^SMD_DBPORT=', line: 'SMD_DBPORT={{ smd_dbport }}' }
+    - { regexp: '^SMD_DBNAME=', line: 'SMD_DBNAME={{ smd_dbname }}' }
+    - { regexp: '^SMD_DBUSER=', line: 'SMD_DBUSER={{ smd_dbuser }}' }
+    - { regexp: '^SMD_DBOPTS=', line: 'SMD_DBOPTS={{ smd_dbopts }}' }
   loop_control:
     label: "{{ item.regexp }}"
 
@@ -89,6 +98,12 @@
   ansible.builtin.template:
     src: boot-service.yaml.j2
     dest: "{{ openchami_config_dir }}/boot-service.yaml"
+    mode: "{{ file_perm_rw }}"
+
+- name: Template metadata-service config
+  ansible.builtin.template:
+    src: metadata-service.yaml.j2
+    dest: "{{ openchami_config_dir }}/metadata-service.yaml"
     mode: "{{ file_perm_rw }}"
 
 - name: Template haproxy config

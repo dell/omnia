@@ -104,7 +104,7 @@ AI agents (Devin, Copilot, Cursor, ChatGPT, Claude, or any other AI-assisted cod
 2. **AI-generated code MUST be reviewed by a human** before merge — the developer who submits the PR is responsible for every line, regardless of whether it was AI-generated.
 3. **AI agents MUST NOT modify security policies**, compliance controls, branch protection rules, or CI gate configurations.
 4. **AI-generated commit messages MUST be reviewed** — ensure they accurately describe the change and do not contain hallucinated details.
-5. **Co-authored-by tags** (e.g., `Co-Authored-By: Devin <...>`) are acceptable in commits but do NOT constitute sign-off.
+5. **Co-authored-by tags** (e.g., `Co-Authored-By: Devin <...>`) MUST NOT be included in commits. Only the human developer's `Signed-off-by` line should appear.
 
 ## 8. Version Control
 
@@ -135,7 +135,7 @@ sdd(plan):        scaffold add-idrac-telemetry-source Story workspace
 - **No period** at end of description line
 - **Body** (optional): blank line, then explain the WHY — reference ER ID and Story ID
 - **Signed-off-by**: auto-added by `--signoff` flag (required for DCO)
-- **Co-Authored-By tags** (e.g., `Co-Authored-By: Devin <...>`) are acceptable but do NOT constitute sign-off — human review is always required
+- **Co-Authored-By tags** (e.g., `Co-Authored-By: Devin <...>`) MUST NOT be included — only the human developer's `Signed-off-by` line should appear
 - Include **Story ID** in scope or description for every code commit
 
 ### 8.3 Branch Naming

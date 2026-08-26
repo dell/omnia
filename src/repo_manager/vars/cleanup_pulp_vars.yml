@@ -32,6 +32,8 @@ pulp_cleanup_directory:
   - "{{ repo_manager_offline_repo_dir }}"
   - "{{ repo_manager_log_dir }}"
   - "{{ repo_manager_data_dir }}"
+  # Clean up output directory (repo_status.yml, status files)
+  - "{{ output_project_dir }}"
   # Clean up STALE Pulp data (old /opt/omnia/pulp_config/ structure)
   - "{{ omnia_base_dir }}/pulp_config"
   - "{{ omnia_base_dir }}/log/pulp"

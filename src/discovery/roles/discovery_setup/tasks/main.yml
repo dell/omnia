@@ -53,33 +53,63 @@
     - upgrade_lock.stat.exists
     - not (upgrade_mode | default(false) | bool)
 
-# Step 2: Set discovery domain paths
-- name: Set discovery project name
+# Step 2: Resolve configuration from environment variables
+- name: Resolve configuration from environment
   ansible.builtin.set_fact:
-    discovery_project_name: "{{ project_name | default('project_default') }}"
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    discovery_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default(project_name | default('project_default'), true) }}"
     cacheable: true
 
+- name: Set domain root directory
+  ansible.builtin.set_fact:
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
+    cacheable: true
+
+# Step 3: Set input/output dirs using domain-scoped paths
 - name: Set discovery input/output paths
   ansible.builtin.set_fact:
-    discovery_input_dir: "{{ omnia_input_dir }}/{{ discovery_project_name }}/discovery"
-    discovery_output_dir: "{{ omnia_output_dir }}/{{ discovery_project_name }}/discovery"
-    input_project_dir: "{{ omnia_input_dir }}/{{ discovery_project_name }}"
+    discovery_input_dir: "{{ omnia_data_path }}/discovery/input/{{ discovery_project_name }}"
+    discovery_output_dir: "{{ omnia_data_path }}/discovery/output/{{ discovery_project_name }}"
+    input_project_dir: "{{ omnia_data_path }}/discovery/input/{{ discovery_project_name }}"
     cacheable: true
 
-# Step 3: Verify input directory
+# Step 4: Verify input directory — auto-copy from source if missing
 - name: Verify discovery input directory exists
   ansible.builtin.stat:
     path: "{{ discovery_input_dir }}"
   register: discovery_input_stat
 
-- name: Fail if discovery input directory does not exist
-  ansible.builtin.fail:
-    msg: >-
-      Discovery input directory '{{ discovery_input_dir }}' does not exist.
-      Please create it and populate with discovery_config.yml and network_spec.yml.
+- name: Auto-copy input files from source if runtime input dir is missing
   when: not discovery_input_stat.stat.exists
+  block:
+    - name: Check if source input directory exists
+      ansible.builtin.stat:
+        path: "{{ _domain_root_dir }}/input"
+      register: _source_dir_check
 
-# Step 4: Ensure output directory
+    - name: Create runtime input directory
+      ansible.builtin.file:
+        path: "{{ discovery_input_dir }}"
+        state: directory
+        mode: '0755'
+      when: _source_dir_check.stat.exists
+
+    - name: Copy input files from source to runtime directory
+      ansible.builtin.command:
+        cmd: "cp -a {{ _domain_root_dir }}/input/. {{ discovery_input_dir }}/"
+      when: _source_dir_check.stat.exists
+      changed_when: true
+
+    - name: Fail if no input files available
+      ansible.builtin.fail:
+        msg: >-
+          Discovery input directory '{{ discovery_input_dir }}' does not exist
+          and no source input files found at '{{ _domain_root_dir }}/input/'.
+          Run domain-init.sh or manually create the directory with discovery_config.yml
+          and network_spec.yml.
+      when: not _source_dir_check.stat.exists
+
+# Step 5: Ensure output directory
 - name: Ensure discovery output directory exists
   ansible.builtin.file:
     path: "{{ discovery_output_dir }}"

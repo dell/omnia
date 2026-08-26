@@ -67,21 +67,21 @@
         overall_status: "{{ 'success' if (sts_ready.stdout | default('0') | int) >= 1 else 'failed' }}"
         components:
           kafka:
-            status: "{{ existing_status.telemetry_results.components.kafka.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.kafka.status | default('not_deployed') }}"
           victoria_metrics:
-            status: "{{ existing_status.telemetry_results.components.victoria_metrics.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.victoria_metrics.status | default('not_deployed') }}"
           victoria_logs:
-            status: "{{ existing_status.telemetry_results.components.victoria_logs.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.victoria_logs.status | default('not_deployed') }}"
           idrac:
             status: "{{ 'success' if (sts_ready.stdout | default('0') | int) >= 1 else 'failed' }}"
           ldms:
-            status: "{{ existing_status.telemetry_results.components.ldms.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.ldms.status | default('not_deployed') }}"
           powerscale:
-            status: "{{ existing_status.telemetry_results.components.powerscale.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.powerscale.status | default('not_deployed') }}"
           ufm:
-            status: "{{ existing_status.telemetry_results.components.ufm.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.ufm.status | default('not_deployed') }}"
           vast:
-            status: "{{ existing_status.telemetry_results.components.vast.status | default('') }}"
+            status: "{{ existing_status.telemetry_results.components.vast.status | default('not_deployed') }}"
     mode: "0644"
 
 - name: Log status update

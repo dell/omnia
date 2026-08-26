@@ -10,6 +10,8 @@ defaults
   timeout connect 5s
   timeout server 10s
   timeout http-request 10s
+  retries 3
+  option redispatch
   log global
 
 frontend stats

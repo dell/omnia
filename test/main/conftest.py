@@ -17,7 +17,7 @@ Pytest configuration for omnia main FVT.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy
+- Custom markers: sanity, functional, deploy, cleanup, nft
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -95,7 +95,9 @@ def pytest_configure(config):
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
         "regression": "Regression tests",
-        "deploy": "Script execution tests",
+        "deploy": "Script execution tests (setup, init, run)",
+        "cleanup": "Teardown tests (run after verify, may destroy state)",
+        "nft": "Non-functional tests (performance, idempotency, permissions)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -201,7 +203,7 @@ def pytest_sessionstart(session):
     config = load_test_config()
 
     # Initialize test report
-    valid_scenarios = {"main", "setup", "init", "cli"}
+    valid_scenarios = {"main", "setup", "init", "cli", "omnia_cli", "nft"}
     module_name = "main"
     test_paths = (
         session.config.args if hasattr(session.config, "args") else []
@@ -233,6 +235,8 @@ def pytest_sessionfinish(session, exitstatus):
     """Save report and print summary table after all tests complete."""
     report = get_current_report()
     if report and report.results:
+        # Ensure report directory exists (may have been removed by cleanup)
+        os.makedirs(report.report_path, exist_ok=True)
         report.save()
 
     print_summary_table()

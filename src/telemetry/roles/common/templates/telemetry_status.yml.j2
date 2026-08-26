@@ -1,0 +1,96 @@
+---
+# telemetry_status.yml — telemetry domain output
+# Producer: write_telemetry_status (Phase 5 of deploy)
+# Consumer: omnia-cli check, operators
+
+domain: "telemetry"
+project_name: "{{ project_name | default('project_default') }}"
+overall_status: "{{ _overall_status }}"
+generated_at: "{{ ansible_date_time.iso8601 }}"
+namespace: "{{ telemetry_namespace }}"
+kube_vip: "{{ kube_vip | default('') }}"
+
+packages:
+  install_mode: "{{ telemetry_packages_config.install_mode | default('offline') }}"
+  repo_url: "{{ telemetry_packages_config.repo_url | default('') }}"
+  container_registry: "{{ telemetry_registry.host | default('') }}"
+
+sinks:
+  kafka:
+    deployed: {{ _kafka_deployed | default(false) | lower }}
+{% if _kafka_deployed | default(false) | bool %}
+    version: "{{ telemetry_registry.images.kafka.broker | default('') }}"
+{% if _kafka_topics | default([]) | length > 0 %}
+    topics_created:
+{% for t in _kafka_topics %}
+      - "{{ t }}"
+{% endfor %}
+{% else %}
+    topics_created: []
+{% endif %}
+{% endif %}
+  victoria_metrics:
+    deployed: {{ _victoria_metrics_deployed | default(false) | lower }}
+{% if _victoria_metrics_deployed | default(false) | bool %}
+    version: "{{ telemetry_registry.images.victoria.vmstorage | default('') }}"
+    deployment_mode: "cluster"
+    operator: "{{ telemetry_registry.images.victoria.operator | default('') }}"
+{% endif %}
+  victoria_logs:
+    deployed: {{ _victoria_logs_deployed | default(false) | lower }}
+{% if _victoria_logs_deployed | default(false) | bool %}
+    version: "{{ telemetry_registry.images.victoria.vlstorage | default('') }}"
+{% endif %}
+
+sources:
+  idrac:
+    deployed: {{ (_deployed_sources.idrac | default(false)) | lower }}
+{% if _deployed_sources.idrac | default(false) | bool %}
+    version: "{{ telemetry_registry.images.idrac.telemetry_receiver | default('') }}"
+    bmc_servers_configured: {{ _idrac_bmc_count | default(0) }}
+{% endif %}
+  ldms:
+    deployed: {{ (_deployed_sources.ldms | default(false)) | lower }}
+{% if _deployed_sources.ldms | default(false) | bool %}
+    version: "{{ telemetry_registry.images.ldms.sampler | default('') }}"
+    sampler_nodes: {{ _ldms_sampler_nodes | default(0) }}
+{% endif %}
+  ome:
+    deployed: {{ (_deployed_sources.ome | default(false)) | lower }}
+  powerscale:
+    deployed: {{ (_deployed_sources.powerscale | default(false)) | lower }}
+  ufm:
+    deployed: {{ (_deployed_sources.ufm | default(false)) | lower }}
+  vast:
+    deployed: {{ (_deployed_sources.vast | default(false)) | lower }}
+  sfm:
+    deployed: {{ (_deployed_sources.sfm | default(false)) | lower }}
+  skyway:
+    deployed: {{ (_deployed_sources.skyway | default(false)) | lower }}
+  powervault:
+    deployed: {{ (_deployed_sources.powervault | default(false)) | lower }}
+
+bridges:
+  vector_ome:
+    deployed: {{ _ome_deployed | default(false) | lower }}
+{% if _ome_deployed | default(false) | bool %}
+    version: "{{ telemetry_registry.images.vector.vector | default('') }}"
+    metrics_enabled: {{ (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false)) | lower }}
+    logs_enabled: {{ (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false)) | lower }}
+{% endif %}
+  vector_ldms:
+    deployed: {{ _vector_ldms_deployed | default(false) | lower }}
+{% if _vector_ldms_deployed | default(false) | bool %}
+    version: "{{ telemetry_registry.images.vector.vector | default('') }}"
+{% endif %}
+
+pods:
+  total: {{ _pod_total | default(0) }}
+  ready: {{ _pod_ready | default(0) }}
+  failed: {{ _pod_failed | default(0) }}
+{% if (_pod_failed | default(0) | int) > 0 %}
+  failed_pods:
+{% for pod in _failed_pod_names | default([]) %}
+    - "{{ pod }}"
+{% endfor %}
+{% endif %}

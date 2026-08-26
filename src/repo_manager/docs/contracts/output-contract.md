@@ -193,7 +193,7 @@ ansible-playbook repo_manager.yml --tags status --check
 **Example Integration**:
 ```yaml
 # In image_build_manager
-repo_status_file: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+repo_status_file: "{{ output_project_dir }}/repo_status.yml"
 rpm_repos: "{{ lookup('file', repo_status_file) | from_yaml | rpm_repos }}"
 ```
 

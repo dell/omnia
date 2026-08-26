@@ -30,6 +30,28 @@ from ansible.module_utils.repo_manager.config import (
 remote_creation_lock = multiprocessing.Lock()
 repository_creation_lock = multiprocessing.Lock()
 
+# Per-distribution locks for container operations
+_container_distribution_locks = {}
+_container_dist_locks_lock = multiprocessing.Lock()
+
+def get_container_distribution_lock(dist_name):
+    """
+    Get or create lock for specific container distribution.
+    
+    This allows different container distributions to be processed in parallel
+    while preventing race conditions for the same distribution.
+    
+    Args:
+        dist_name (str): The distribution name to get a lock for.
+    
+    Returns:
+        Lock: The lock for this specific distribution.
+    """
+    with _container_dist_locks_lock:
+        if dist_name not in _container_distribution_locks:
+            _container_distribution_locks[dist_name] = multiprocessing.Lock()
+        return _container_distribution_locks[dist_name]
+
 
 def create_container_repository(repo_name, logger):
     """
@@ -96,15 +118,19 @@ def create_container_distribution(repo_name, package_content, logger):
         Exception: If there is an error creating or updating the distribution.
     """
     try:
-        if not execute_command(pulp_container_commands["show_container_distribution"] % (repo_name),
-            logger):
-            command = pulp_container_commands["distribute_container_repository"] % (repo_name,
-                      repo_name, package_content)
-            return execute_command(command, logger)
-        else:
-            command = pulp_container_commands["update_container_distribution"] % (repo_name,
-                      repo_name, package_content)
-            return execute_command(command, logger)
+        # Get lock for this specific distribution
+        dist_lock = get_container_distribution_lock(repo_name)
+        
+        with dist_lock:
+            if not execute_command(pulp_container_commands["show_container_distribution"] % (repo_name),
+                logger):
+                command = pulp_container_commands["distribute_container_repository"] % (repo_name,
+                          repo_name, package_content)
+                return execute_command(command, logger)
+            else:
+                command = pulp_container_commands["update_container_distribution"] % (repo_name,
+                          repo_name, package_content)
+                return execute_command(command, logger)
     except Exception as e:
         logger.error(f"Error creating distribution {repo_name}: {e}")
         return False

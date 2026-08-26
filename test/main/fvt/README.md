@@ -2,6 +2,45 @@
 
 All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
+## Deploy / Verify / Cleanup Architecture
+
+Every scenario follows a three-phase pattern:
+
+| Phase | What it does | Marker | When it runs |
+|-------|-------------|--------|--------------|
+| `deploy` | **Executes** the actual omnia.sh command (setup, init, run). Changes state. | `@pytest.mark.deploy` | Step 1 |
+| `verify` | **Checks results** after deploy. Read-only — inspects files, dirs, env vars. | *(no marker)* | Step 2 |
+| `cleanup` | **Tears down** state (e.g. `--cleanup`). Must be explicitly requested. | `@pytest.mark.cleanup` | Explicit only |
+
+Usage:
+
+```bash
+# Full flow: deploy + verify (cleanup NOT included)
+./run_validation.sh execution test
+
+# Only execute the scripts (no verification, no cleanup)
+./run_validation.sh execution deploy
+
+# Only verify results (assumes scripts already ran)
+./run_validation.sh execution verify
+
+# Run cleanup explicitly (never automatic)
+./run_validation.sh execution cleanup
+```
+
+### Intelligent Skip Logic
+
+Setup (`--setup-venv`) and cleanup (`--cleanup`) are destructive — they
+modify or destroy the omnia production venv at `OMNIA_VENV_PATH`.
+
+If the test runner is activated **from that same venv** (e.g. the user ran
+`source /opt/omnia/venv/bin/activate`), these operations would destroy the
+interpreter running the tests, causing a hang.
+
+The `is_running_from_omnia_venv()` helper detects this and **automatically
+skips** setup and cleanup with a clear message.  When tests run from the
+test harness venv (`test/main/.venv`), all operations execute normally.
+
 ---
 
 ## setup (omnia.sh --setup-venv)
@@ -14,7 +53,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_SU_004 | `test_env_vars_loaded` | environment/ | sanity | Verify environment variables are set after install |
 | TC_SU_005 | `test_venv_created` | venv/ | sanity | Verify Python venv created at OMNIA_VENV_PATH |
 | TC_SU_006 | `test_ansible_available` | venv/ | sanity | Verify ansible is available in venv |
-| TC_SU_007 | `test_base_dirs_created` | directories/ | sanity | Verify base directories created (log, .data, input) |
+| TC_SU_007 | `test_base_dirs_created` | directories/ | sanity | Verify base directories created (.data) |
 | TC_SU_008 | `test_activate_helper` | directories/ | sanity | Verify activate-omnia.sh helper script created |
 | TC_SU_009 | `test_pip_packages_installed` | venv/ | sanity | Verify pip packages installed in venv (ansible-core) |
 | TC_SU_010 | `test_galaxy_collections_installed` | venv/ | sanity | Verify Galaxy collections installed in venv |
@@ -52,6 +91,28 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_CL_010 | `test_skip_catalog_in_help` | commands/ | sanity | Verify --skip-catalog flag appears in help output |
 | TC_CL_011 | `test_force_deps_invalid` | commands/ | sanity | Verify --force-deps without -s/-i exits with error |
 | TC_CL_012 | `test_check_deps_runs` | commands/ | sanity | Verify --check-deps command runs |
+| TC_CL_013 | `test_generic_tags_in_help` | tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
+| TC_CL_014 | `test_execution_order_in_help` | tags/ | sanity | Verify execution order in help text |
+| TC_CL_015 | `test_skip_catalog_accepted` | commands/ | sanity | Verify --setup-venv --skip-catalog --deps-only is accepted |
+| TC_CL_016 | `test_skip_omnia_cli_in_help` | commands/ | sanity | Verify --skip-omnia-cli flag appears in help output |
+| TC_CL_017 | `test_skip_omnia_cli_accepted` | commands/ | sanity | Verify --setup-venv --skip-omnia-cli --deps-only is accepted |
+| TC_CL_018 | `test_skip_in_help` | commands/ | sanity | Verify --skip flag appears in help output |
+| TC_CL_019 | `test_dry_run_in_help` | commands/ | sanity | Verify --dry-run flag appears in help output |
+| TC_CL_020 | `test_skip_invalid_domain` | commands/ | sanity | Verify --skip with invalid domain exits with error |
+| TC_CL_021 | `test_skip_with_include_error` | commands/ | sanity | Verify --skip + explicit domain list is mutually exclusive |
+| TC_CL_022 | `test_skip_without_init_error` | commands/ | sanity | Verify --skip without -s/-i exits with error |
+| TC_CL_023 | `test_skip_no_args_error` | commands/ | sanity | Verify --skip without domain list exits with error |
+| TC_CL_024 | `test_dry_run_output` | commands/ | sanity | Verify --dry-run shows domain list without executing |
+| TC_CL_025 | `test_dry_run_with_skip` | commands/ | sanity | Verify --dry-run --skip shows filtered domain list |
+| TC_CL_026 | `test_dry_run_without_init_error` | commands/ | sanity | Verify --dry-run without -s/-i exits with error |
+
+---
+
+## setup — environment
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_SU_011 | `test_env_source_validation` | environment/ | sanity | Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4 |
 
 ---
 
@@ -70,15 +131,45 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_OC_009 | `test_cli_help_repo_manager` | diagnostics/ | sanity | Verify omnia-cli help repo-manager shows domain help |
 | TC_OC_010 | `test_cli_help_discovery` | diagnostics/ | sanity | Verify omnia-cli help discovery shows domain help |
 | TC_OC_011 | `test_cli_unknown_command` | errors/ | sanity | Verify omnia-cli unknown command exits with error |
+| TC_OC_012 | `test_cli_logs_help` | logs/ | sanity | Verify omnia-cli logs --help runs |
+| TC_OC_013 | `test_cli_logs_no_opt_omnia_log` | logs/ | sanity | Verify omnia-cli logs searches /var/log/omnia only |
+| TC_OC_014 | `test_cli_logs_limit` | logs/ | functional | Verify omnia-cli logs --limit flag works |
+| TC_OC_015 | `test_cli_logs_limit_invalid` | logs/ | functional | Verify omnia-cli logs --limit rejects invalid values |
+| TC_OC_016 | `test_cli_logs_limit_short` | logs/ | functional | Verify omnia-cli logs -l short form works |
+| TC_OC_017 | `test_cli_orchestrator` | diagnostics/ | sanity | Verify omnia-cli orchestrator runs |
+| TC_OC_018 | `test_cli_telemetry` | diagnostics/ | sanity | Verify omnia-cli telemetry runs |
+| TC_OC_019 | `test_cli_build_stream` | diagnostics/ | sanity | Verify omnia-cli build-stream runs |
 
 ---
 
-## nft (Non-Functional Tests)
+## execution (actual omnia.sh operations)
 
-| TC ID | Test | File | Markers | Description |
-|-------|------|------|---------|-------------|
-| NFT_MA_001 | `test_setup_venv_performance` | nft/test_performance.py | nft | --setup-venv --deps-only completes within 300s threshold |
-| NFT_MA_002 | `test_init_performance` | nft/test_performance.py | nft | --init completes within 120s threshold |
-| NFT_MA_003 | `test_setup_venv_idempotent` | nft/test_idempotency.py | nft | Running --setup-venv twice produces no errors; venv and env file stable |
-| NFT_MA_004 | `test_init_idempotent` | nft/test_idempotency.py | nft | Running --init twice leaves domain log dirs and input files unchanged |
-| NFT_MA_005 | `test_check_deps_performance` | nft/test_performance.py | nft | --check-deps completes within 10s threshold |
+Tests actual execution of omnia.sh commands — not just help output or flag parsing.
+
+### Phase 1 — Deploy tests (test_deploy_execution.py)
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_001 | `test_deploy_setup_deps_only` | *(root)* | deploy, sanity | Deploy omnia.sh --setup-venv --deps-only (skip if inside omnia venv) |
+| TC_EX_002 | `test_deploy_init_domain` | *(root)* | deploy, sanity | Deploy omnia.sh --init image_build_manager |
+| TC_EX_003 | `test_deploy_run_precheck` | *(root)* | deploy, sanity, functional | Deploy --run image_build_manager --tags precheck |
+| TC_EX_004 | `test_deploy_run_validate` | *(root)* | deploy, sanity, functional | Deploy --run image_build_manager --tags validate |
+
+### Phase 2 — Verify tests (setup_exec/)
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_006 | `test_verify_venv_exists` | setup_exec/ | sanity | Verify venv created with ansible after deploy |
+| TC_EX_007 | `test_verify_env_installed` | setup_exec/ | sanity | Verify system env files installed after deploy |
+| TC_EX_008 | `test_verify_domain_log_dirs` | setup_exec/ | sanity | Verify domain log directories created after init |
+| TC_EX_009 | `test_verify_domain_input_staged` | setup_exec/ | sanity | Verify domain input files staged after init |
+
+### Phase 3 — Cleanup tests (test_deploy_execution.py)
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_EX_005 | `test_deploy_cleanup` | *(root)* | cleanup, sanity | Cleanup omnia.sh --cleanup (runs after verify, skip if inside omnia venv) |
+
+---
+
+> **NFT tests** are documented separately in [`nft/README.md`](../nft/README.md) (11 tests: performance, idempotency, permissions).

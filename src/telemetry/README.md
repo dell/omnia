@@ -2,7 +2,7 @@
 
 Dell Omnia Telemetry deploys and manages a comprehensive telemetry stack for
 HPC and AI clusters. It collects metrics and logs from multiple sources
-(iDRAC, LDMS, DCGM, OME, UFM, PowerScale, VAST, SFM, Skyway, PowerVault)
+(iDRAC, LDMS, OME, UFM, PowerScale, VAST, SFM)
 and stores them in sink backends (Kafka, VictoriaMetrics, VictoriaLogs).
 
 ## Prerequisites
@@ -81,13 +81,10 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_idrac` | iDRAC telemetry (receiver, pumps, DB) |
 | `cleanup_ldms` | LDMS + Vector-LDMS bridge |
 | `cleanup_ome` | OME + Vector-OME bridge |
-| `cleanup_dcgm` | DCGM GPU exporter |
 | `cleanup_powerscale` | PowerScale telemetry |
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
 | `cleanup_sfm` | SFM network telemetry |
-| `cleanup_skyway` | Skyway telemetry |
-| `cleanup_powervault` | PowerVault storage telemetry |
 
 **Tag safety**: `cleanup`, `precheck`, `upgrade`, `rollback` use Ansible's `never`
 tag — they NEVER execute unless explicitly requested with `--tags`.
@@ -101,14 +98,12 @@ tag — they NEVER execute unless explicitly requested with `--tags`.
 | | VictoriaLogs | Log aggregation and querying |
 | **Compute** | iDRAC | Dell server BMC hardware telemetry |
 | | LDMS | Lightweight Distributed Metric Service (HPC) |
-| | DCGM | NVIDIA GPU telemetry |
+
 | **Infrastructure** | OME | OpenManage Enterprise monitoring |
 | | UFM | Unified Fabric Manager (InfiniBand) |
 | | SFM | Smart Fabric Manager (network) |
 | **Storage** | PowerScale | Dell PowerScale (Isilon) |
 | | VAST | VAST Data storage |
-| | PowerVault | Dell PowerVault storage |
-| | Skyway | Skyway telemetry |
 
 ## Directory Structure
 
@@ -142,14 +137,11 @@ telemetry/
 │   │   └── sources/               # Per-source deploy playbooks
 │   │       ├── deploy_idrac_telemetry.yml
 │   │       ├── deploy_ldms.yml
-│   │       ├── deploy_dcgm.yml
 │   │       ├── deploy_ome.yml
 │   │       ├── deploy_ufm.yml
 │   │       ├── deploy_powerscale.yml
 │   │       ├── deploy_vast.yml
-│   │       ├── deploy_sfm.yml
-│   │       ├── deploy_skyway.yml
-│   │       └── deploy_powervault.yml
+│   │       └── deploy_sfm.yml
 │   ├── cleanup/
 │   │   ├── cleanup.yml            # Cleanup orchestrator
 │   │   ├── sinks/                 # Sink cleanup playbooks
@@ -181,7 +173,6 @@ telemetry/
 │   ├── deploy_victoria/           # VictoriaMetrics + VictoriaLogs
 │   ├── deploy_idrac_telemetry/    # iDRAC telemetry
 │   ├── deploy_ldms/               # LDMS telemetry
-│   ├── deploy_dcgm/               # DCGM GPU telemetry
 │   ├── deploy_ome/                # OME telemetry
 │   ├── deploy_ufm/                # UFM telemetry
 │   ├── deploy_powerscale/         # PowerScale telemetry

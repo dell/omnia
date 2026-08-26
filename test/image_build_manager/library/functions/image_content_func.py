@@ -14,7 +14,7 @@
 
 """Image content verification (squashfs mount + RPM package check)."""
 
-import os
+import json
 from typing import Dict, Any, List
 
 import yaml
@@ -29,8 +29,10 @@ from .s3_func import check_s3_buckets
 from ..vars.common_vars import (
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
+    ENV_CATALOG_FILE_PATH,
     CMDS,
-    FG_PACKAGES_FILENAME,
+    DOMAIN_NAME,
+    PACKAGE_GROUPS_FILENAME,
     IMAGE_VERIFY_TEMP_IMAGE,
     IMAGE_VERIFY_TEMP_MOUNT,
     SQUASHFS_PACKAGE,
@@ -75,52 +77,162 @@ def _check_squashfs_tools(host) -> Dict[str, Any]:
     }
 
 
+def _get_packages_from_catalog(
+    host, functional_group: str
+) -> List[str]:
+    """Resolve expected packages from the catalog JSON on target.
+
+    Follows the catalog resolution chain:
+        functionallayer[name].components[]
+        -> groups[comp].components[]
+        -> packages[key].name
+
+    Returns:
+        List of RPM package names, or empty list if unavailable.
+    """
+    catalog_path = read_remote_env(host, ENV_CATALOG_FILE_PATH)
+    if not catalog_path:
+        return []
+
+    cmd = host.run(CMDS["cat_file"].format(path=catalog_path))
+    if cmd.rc != 0 or not cmd.stdout.strip():
+        return []
+
+    try:
+        raw = json.loads(cmd.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return []
+
+    catalog = raw.get("catalog", raw)
+    layers = catalog.get("functionallayer", [])
+    groups = catalog.get("groups", {})
+    packages = catalog.get("packages", {})
+
+    # Find the matching functional layer
+    target_layer = None
+    for layer in layers:
+        if layer.get("name") == functional_group:
+            target_layer = layer
+            break
+    if not target_layer:
+        return []
+
+    # Resolve RPM packages through groups
+    pkg_names: list[str] = []
+    for comp_name in target_layer.get("components", []):
+        group = groups.get(comp_name, {})
+        for pkg_key in group.get("components", []):
+            pkg_data = packages.get(pkg_key, {})
+            if pkg_data.get("packagetype", "") != "rpm":
+                continue
+            rpm_name = pkg_data.get("name", "")
+            if rpm_name:
+                pkg_names.append(rpm_name)
+
+    return list(dict.fromkeys(pkg_names))
+
+
+def _map_catalog_name_to_config_name(
+    functional_group: str, os_type: str, os_version: str
+) -> str:
+    """Map catalog-mode group name to config-mode group name.
+
+    Catalog names: ``{role}_{os}_{ver}_{arch}``
+        (e.g. slurm_node_rhel_10_0_x86_64)
+    Config names:  ``{role}_{arch}``
+        (e.g. slurm_node_x86_64)
+
+    Strips ``_{os}_{ver}`` from the name when present.
+    """
+    os_ver_underscored = os_version.replace(".", "_")
+    os_suffix = f"_{os_type}_{os_ver_underscored}"
+    if os_suffix in functional_group:
+        return functional_group.replace(os_suffix, "")
+    return functional_group
+
+
+def _get_packages_from_package_groups(
+    host, functional_group: str
+) -> List[str]:
+    """Get packages from package_groups.yml in the input directory.
+
+    Falls back to config-mode name mapping when the exact
+    functional group name is not found (catalog mode uses
+    ``{role}_{os}_{ver}_{arch}`` while config mode uses
+    ``{role}_{arch}``).
+    """
+    data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+    pkg_path = (
+        f"{data_path}/{DOMAIN_NAME}/input/{project}/"
+        f"{PACKAGE_GROUPS_FILENAME}"
+    )
+
+    cmd = host.run(CMDS["cat_file"].format(path=pkg_path))
+    if cmd.rc != 0 or not cmd.stdout.strip():
+        return []
+    try:
+        data = yaml.safe_load(cmd.stdout)
+    except yaml.YAMLError:
+        return []
+
+    base = data.get("base_packages", [])
+    fg_data = data.get("functional_groups", {})
+    if not isinstance(fg_data, dict):
+        return list(dict.fromkeys(base)) if base else []
+
+    # Try exact name first
+    group_info = fg_data.get(functional_group, {})
+    if not group_info or not isinstance(group_info, dict):
+        # Try config-mode name mapping
+        os_type = data.get("os", "")
+        os_version = data.get("os_version", "")
+        if os_type and os_version:
+            config_name = _map_catalog_name_to_config_name(
+                functional_group, os_type, os_version,
+            )
+            group_info = fg_data.get(config_name, {})
+            if not isinstance(group_info, dict):
+                group_info = {}
+
+    fg_pkgs = group_info.get("packages", [])
+    return list(dict.fromkeys(base + fg_pkgs))
+
+
 def _get_image_packages_from_config(
     host, functional_group: str
 ) -> List[str]:
-    """Get expected packages for a functional group from deployed config.
+    """Get expected packages for a functional group.
 
-    Reads functional_group_packages.yml on the target host.
+    Reads ``functional_groups_source`` from image_build_config.yml
+    to determine the resolution mode:
 
-    Resolves the repo_manager output directory from the deployed
-    image_build_config.yml (repo_manager_output_path) or falls
-    back to ``<OMNIA_DATA_PATH>/repo_manager/output/<project>/``.
+    **catalog** mode:
+        Resolve packages from catalog JSON (``CATALOG_FILE_PATH``
+        env var) via the ``functionallayer -> groups -> packages``
+        chain.
+
+    **config** mode:
+        Read packages from ``package_groups.yml`` in the
+        image_build_manager input directory.
+
+    Returns:
+        Deduplicated list of RPM package names.
     """
-    # Resolve repo_manager output dir from deployed config
     ibm_cfg = _load_remote_ibm_config(host)
-    configured_path = ibm_cfg.get("repo_manager_output_path", "")
-    if configured_path:
-        repo_output_dir = os.path.dirname(configured_path)
-    else:
-        data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
-        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
-        repo_output_dir = f"{data_path}/repo_manager/output/{project}"
+    fg_source = ibm_cfg.get(
+        "functional_groups_source", "config",
+    )
 
-    paths_to_try = [
-        f"{repo_output_dir}/{FG_PACKAGES_FILENAME}",
-    ]
+    if fg_source == "catalog":
+        return _get_packages_from_catalog(
+            host, functional_group,
+        )
 
-    for pkg_path in paths_to_try:
-        cmd = host.run(CMDS["cat_file"].format(path=pkg_path))
-        if cmd.rc != 0 or not cmd.stdout.strip():
-            continue
-        try:
-            data = yaml.safe_load(cmd.stdout)
-        except yaml.YAMLError:
-            continue
-
-        base = data.get("base_packages", [])
-        fg_data = data.get("functional_groups", {})
-        fg_pkgs = []
-        if isinstance(fg_data, dict):
-            group_info = fg_data.get(functional_group, {})
-            if isinstance(group_info, dict):
-                fg_pkgs = group_info.get("packages", [])
-
-        # Combine base + group packages (deduplicated)
-        return list(dict.fromkeys(base + fg_pkgs))
-
-    return []
+    # config mode
+    return _get_packages_from_package_groups(
+        host, functional_group,
+    )
 
 
 def verify_image_packages(

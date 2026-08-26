@@ -62,6 +62,11 @@
       "type": "boolean",
       "description": "Whether to verify SSL certificates for S3 connections.",
       "default": false
+    },
+    "dcgm_enabled": {
+      "type": "boolean",
+      "description": "Enable NVIDIA DCGM (Data Center GPU Manager) installation on GPU nodes. DCGM is part of the CUDA toolkit and provides GPU monitoring and management capabilities.",
+      "default": true
     }
   },
   "required": [

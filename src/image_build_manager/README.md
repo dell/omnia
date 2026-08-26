@@ -60,10 +60,38 @@ ansible-playbook image_build_manager.yml --tags cleanup
 | `prepare` | Deploy MinIO S3 + OCI container registry | Yes |
 | `build` / `execute` | Build x86_64 + aarch64 OS images | Yes |
 | `cleanup` | Remove services, artifacts, credentials | No |
+| `cleanup_images` | Delete built images from S3 + registry (by pattern or all) | No |
 | `upgrade` | Upgrade flow (placeholder) | Yes |
 | `rollback` | Rollback flow (placeholder) | Yes |
 
 Sub-tags: `x86_64`, `aarch64` (run specific architecture only).
+
+### Image Cleanup (`cleanup_images`)
+
+Delete built OS images from S3 buckets and OCI registry without tearing down
+the MinIO/registry infrastructure itself. Supports pattern-based deletion.
+
+```bash
+# Delete ALL images (prompts for confirmation)
+ansible-playbook image_build_manager.yml --tags cleanup_images
+
+# Delete images matching a pattern
+ansible-playbook image_build_manager.yml --tags cleanup_images \
+  -e cleanup_image_pattern="rhel-slurm_*"
+
+# Delete only a specific functional group
+ansible-playbook image_build_manager.yml --tags cleanup_images \
+  -e cleanup_image_pattern="rhel-os_x86_64*"
+
+# Skip approval prompt (for test automation)
+ansible-playbook image_build_manager.yml --tags cleanup_images \
+  -e skip_approval=true
+```
+
+| Extra Variable | Default | Description |
+|---------------|---------|-------------|
+| `cleanup_image_pattern` | `*` | Glob pattern for images to delete |
+| `skip_approval` | `false` | Skip interactive approval prompt (for automation) |
 
 ---
 

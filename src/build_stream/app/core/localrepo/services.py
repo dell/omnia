@@ -14,7 +14,6 @@
 
 """Domain services for Local Repository module."""
 
-import shutil
 from pathlib import Path
 from typing import Callable
 
@@ -54,107 +53,47 @@ class InputFileService:
         job_id: str,
         correlation_id: str = "",
     ) -> bool:
-        """Prepare input files for playbook execution.
+        """Validate that domain-specific input files are in place.
 
-        Validates source input files exist, then copies them to the
-        destination directory expected by the playbook.
+        With domain segregation (Omnia 2.3+), input files are placed directly
+        into domain-specific directories by domain-init.sh or the GitLab CI
+        pipeline (e.g., /opt/omnia/repo_manager/input/project_default/).
+        There is no longer a software_config.json or config/ directory to copy.
+
+        This method validates that the destination input directory exists and
+        contains the expected files for the repo_manager domain.
 
         Args:
-            job_id: Job identifier to prepare input for.
+            job_id: Job identifier (for logging / error context).
             correlation_id: Request correlation ID for tracing.
 
         Returns:
-            True if input preparation was successful.
+            True if input validation was successful.
 
         Raises:
-            InputFilesMissingError: If source input files not found.
-            InputDirectoryInvalidError: If source directory is invalid.
+            InputFilesMissingError: If domain input files not found.
+            InputDirectoryInvalidError: If input directory is invalid.
         """
-        source_path = self._input_repo.get_source_input_repository_path(job_id)
         destination_path = self._input_repo.get_destination_input_repository_path()
 
-        if not self._input_repo.validate_input_directory(source_path):
-            log_secure_info('error', f"Input files not found for job {job_id} at {source_path}, correlation_id={correlation_id}")
+        if not self._input_repo.validate_input_directory(destination_path):
+            log_secure_info(
+                'error',
+                f"Domain input files not found at {destination_path} for "
+                f"job {job_id}, correlation_id={correlation_id}",
+            )
             raise InputFilesMissingError(
                 job_id=job_id,
-                input_path=str(source_path),
+                input_path=str(destination_path),
                 correlation_id=correlation_id,
             )
 
-        try:
-            destination_path.mkdir(parents=True, exist_ok=True)
-            
-            # Copy software_config.json file if it exists
-            software_config_file = source_path / "software_config.json"
-            if software_config_file.is_file():
-                dest_file = destination_path / "software_config.json"
-                shutil.copy2(str(software_config_file), str(dest_file))
-                log_secure_info('info', f"Copied software_config.json for job {job_id}")
-            
-            # Copy config directory completely if it exists
-            config_dir = source_path / "config"
-            if config_dir.is_dir():
-                dest_config_dir = destination_path / "config"
-                shutil.copytree(str(config_dir), str(dest_config_dir), dirs_exist_ok=True)
-                log_secure_info('info', f"Copied config directory for job {job_id}")
-
-            # Reset software.csv files for both architectures
-            # (temporary fix to ensure new packages are downloaded when catalog changes)
-            self._reset_software_csv_files()
-
-            log_secure_info(
-                "info",
-                f"Input files prepared for job {job_id}",
-                str(correlation_id),
-            )
-            return True
-
-        except OSError as exc:
-            log_secure_info(
-                "error",
-                f"Failed to prepare input files for job {job_id}",
-                str(correlation_id),
-            )
-            raise InputDirectoryInvalidError(
-                job_id=job_id,
-                input_path=str(source_path),
-                reason=str(exc),
-                correlation_id=correlation_id,
-            ) from exc
-
-    def _reset_software_csv_files(self) -> None:
-        """Reset software.csv files for both architectures.
-
-        This is a temporary fix to ensure new packages are downloaded when the
-        catalog changes. Eventually, the playbook should be modified to handle
-        package-level status instead of relying on software.csv.
-
-        Removes software.csv files at:
-        - /opt/omnia/log/local_repo/x86_64/software.csv
-        - /opt/omnia/log/local_repo/aarch64/software.csv
-
-        Only attempts removal if parent directories exist.
-        """
-        architectures = ["x86_64", "aarch64"]
-        base_path = Path("/opt/omnia/log/local_repo")
-
-        for arch in architectures:
-            software_csv_path = base_path / arch / "software.csv"
-
-            # Check if parent directory exists before attempting removal
-            if not software_csv_path.parent.exists():
-                log_secure_info('debug', f"Parent directory does not exist for {software_csv_path}, skipping removal")
-                continue
-
-            # Remove file if it exists
-            if software_csv_path.exists():
-                try:
-                    software_csv_path.unlink()
-                    log_secure_info('info', f"Reset software.csv for architecture {arch} at {software_csv_path}")
-                except (PermissionError, FileNotFoundError, IsADirectoryError):
-                    log_secure_info('warning', f"Failed to remove software.csv for architecture {arch}")
-            else:
-                log_secure_info('debug', f"software.csv does not exist for architecture {arch} at {software_csv_path}")
+        log_secure_info(
+            "info",
+            f"Domain input files validated for job {job_id} at {destination_path}",
+            str(correlation_id),
+        )
+        return True
 
 
 class PlaybookQueueRequestService:

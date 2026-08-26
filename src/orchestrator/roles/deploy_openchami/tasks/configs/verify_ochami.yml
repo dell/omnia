@@ -13,9 +13,21 @@
 # limitations under the License.
 ---
 
+- name: Wait for tokensmith to be active before generating access token
+  ansible.builtin.systemd:
+    name: tokensmith.service
+  register: tokensmith_status
+  until: tokensmith_status.status.ActiveState == "active"
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  changed_when: false
+
 - name: Generate access token # noqa: command-instead-of-shell
   ansible.builtin.shell: sudo bash -lc 'gen_access_token'
   register: access_token_result
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: access_token_result.rc == 0
   changed_when: false
 
 - name: Set ochami_env
@@ -39,6 +51,32 @@
       ansible.builtin.debug:
         msg: "{{ openchami_dependencies.stdout_lines }}"
 
+    - name: Verify postgres is active
+      ansible.builtin.systemd:
+        name: postgres.service
+      register: openchami_postgres_status
+      until: openchami_postgres_status.status.ActiveState == "active"
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Collect postgres container logs on failure
+      ansible.builtin.command: podman logs --tail 30 postgres
+      register: postgres_logs
+      changed_when: false
+      failed_when: false
+      when: openchami_postgres_status.status.ActiveState != "active"
+
+    - name: Fail if postgres is not running
+      ansible.builtin.fail:
+        msg: >-
+          postgres is not running after {{ max_retries }} retries
+          (state={{ openchami_postgres_status.status.ActiveState }}).
+          Logs: {{ postgres_logs.stdout | default('unavailable') }}
+          {{ postgres_logs.stderr | default('') }}
+      when: openchami_postgres_status.status.ActiveState != "active"
+
     - name: Verify boot-service is active
       ansible.builtin.systemd:
         name: boot-service.service
@@ -54,6 +92,32 @@
         msg: "boot-service is not running after {{ max_retries }} retries."
       when: openchami_boot_service_status.status.ActiveState != "active"
 
+    - name: Verify smd systemd service is active
+      ansible.builtin.systemd:
+        name: smd.service
+      register: openchami_smd_service_status
+      until: openchami_smd_service_status.status.ActiveState == "active"
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Collect smd container logs if service not active
+      ansible.builtin.command: podman logs --tail 50 smd
+      register: smd_container_logs
+      changed_when: false
+      failed_when: false
+      when: openchami_smd_service_status.status.ActiveState != "active"
+
+    - name: Fail if smd systemd service is not running
+      ansible.builtin.fail:
+        msg: >-
+          smd.service is not active after {{ max_retries }} retries
+          (state={{ openchami_smd_service_status.status.ActiveState }}).
+          Container logs: {{ smd_container_logs.stdout | default('unavailable') }}
+          {{ smd_container_logs.stderr | default('') }}
+      when: openchami_smd_service_status.status.ActiveState != "active"
+
     - name: Verify ochami smd status
       ansible.builtin.command:
         ochami smd service status
@@ -64,9 +128,44 @@
       changed_when: false
       failed_when: false
 
+    - name: Collect diagnostic info on smd status failure
+      when: openchami_smd_status.rc != 0
+      block:
+        - name: Collect smd container logs
+          ansible.builtin.command: podman logs --tail 50 smd
+          register: smd_diag_logs
+          changed_when: false
+          failed_when: false
+
+        - name: Collect haproxy container logs
+          ansible.builtin.command: podman logs --tail 30 haproxy
+          register: haproxy_diag_logs
+          changed_when: false
+          failed_when: false
+
+        - name: Collect smd-init service status
+          ansible.builtin.command: journalctl -u smd-init.service --no-pager -n 20
+          register: smd_init_diag_logs
+          changed_when: false
+          failed_when: false
+
+        - name: Display diagnostic info
+          ansible.builtin.debug:
+            msg:
+              - "=== SMD container logs ==="
+              - "{{ smd_diag_logs.stdout_lines | default([]) }}"
+              - "{{ smd_diag_logs.stderr_lines | default([]) }}"
+              - "=== HAProxy container logs ==="
+              - "{{ haproxy_diag_logs.stdout_lines | default([]) }}"
+              - "=== smd-init service journal ==="
+              - "{{ smd_init_diag_logs.stdout_lines | default([]) }}"
+
     - name: Fail if ochami smd status check failed
       ansible.builtin.fail:
-        msg: "ochami smd service is not running after {{ max_retries }} retries. {{ openchami_smd_status.stderr | default('') }}"
+        msg: >-
+          ochami smd service is not running after {{ max_retries }} retries.
+          {{ openchami_smd_status.stderr | default('') }}
+          Run 'podman logs smd' and 'podman logs haproxy' on the OIM host for details.
       when: openchami_smd_status.rc != 0
 
     - name: Openchami smd status output

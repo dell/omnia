@@ -48,16 +48,16 @@ class TestInputFileService:
         return InputFileService(input_repo=input_repo)
 
     def test_prepare_success(self, tmp_path):
-        """Successful preparation should return True."""
-        source = tmp_path / "source"
-        source.mkdir()
-        (source / "software_config.json").write_text('{"key": "value"}')
-        (source / "config").mkdir()
-        (source / "config" / "nested.json").write_text('{"nested": "value"}')
+        """Successful validation of domain input directory returns True.
+
+        Omnia 2.3+: prepare_playbook_input only validates that the
+        destination input directory exists — no file copying.
+        """
         dest = tmp_path / "dest"
+        dest.mkdir()
+        (dest / "repo_manager_config.yml").write_text("repo_config: partial")
 
         repo = MagicMock()
-        repo.get_source_input_repository_path.return_value = source
         repo.get_destination_input_repository_path.return_value = dest
         repo.validate_input_directory.return_value = True
 
@@ -65,13 +65,11 @@ class TestInputFileService:
         result = service.prepare_playbook_input(job_id="job-1")
 
         assert result is True
-        assert (dest / "software_config.json").exists()
-        assert (dest / "config" / "nested.json").exists()
 
     def test_prepare_missing_input_raises(self):
-        """Missing input files should raise InputFilesMissingError."""
+        """Missing domain input directory should raise InputFilesMissingError."""
         repo = MagicMock()
-        repo.get_source_input_repository_path.return_value = Path("/nonexistent")
+        repo.get_destination_input_repository_path.return_value = Path("/nonexistent")
         repo.validate_input_directory.return_value = False
 
         service = self._make_service(input_repo=repo)
@@ -79,67 +77,22 @@ class TestInputFileService:
         with pytest.raises(InputFilesMissingError):
             service.prepare_playbook_input(job_id="job-1")
 
-    def test_prepare_copies_only_specific_files(self, tmp_path):
-        """Should copy only software_config.json and config directory."""
-        source = tmp_path / "source"
-        source.mkdir()
-
-        # Create the files that should be copied
-        (source / "software_config.json").write_text('{"software": "config"}')
-        config_dir = source / "config"
-        config_dir.mkdir()
-        (config_dir / "nested.txt").write_text("nested content")
-
-        # Create files that should NOT be copied
-        (source / "other_file.txt").write_text("should not be copied")
-        other_dir = source / "other_dir"
-        other_dir.mkdir()
-        (other_dir / "ignored.txt").write_text("should be ignored")
-
+    def test_prepare_validates_destination_only(self, tmp_path):
+        """Omnia 2.3+: only validates destination, does not copy files."""
         dest = tmp_path / "dest"
+        dest.mkdir()
+        (dest / "repo_manager_config.yml").write_text("repo_config: partial")
 
         repo = MagicMock()
-        repo.get_source_input_repository_path.return_value = source
-        repo.get_destination_input_repository_path.return_value = dest
-        repo.validate_input_directory.return_value = True
-
-        service = self._make_service(input_repo=repo)
-        service.prepare_playbook_input(job_id="job-1")
-
-        # Should exist - these are copied
-        assert (dest / "software_config.json").exists()
-        assert (dest / "config" / "nested.txt").exists()
-
-        # Should NOT exist - these are ignored
-        assert not (dest / "other_file.txt").exists()
-        assert not (dest / "other_dir").exists()
-
-    def test_prepare_handles_missing_specific_files(self, tmp_path):
-        """Should succeed even when software_config.json or config directory don't exist."""
-        source = tmp_path / "source"
-        source.mkdir()
-
-        # Create only files that should NOT be copied
-        (source / "other_file.txt").write_text("should not be copied")
-        other_dir = source / "other_dir"
-        other_dir.mkdir()
-        (other_dir / "ignored.txt").write_text("should be ignored")
-
-        dest = tmp_path / "dest"
-
-        repo = MagicMock()
-        repo.get_source_input_repository_path.return_value = source
         repo.get_destination_input_repository_path.return_value = dest
         repo.validate_input_directory.return_value = True
 
         service = self._make_service(input_repo=repo)
         result = service.prepare_playbook_input(job_id="job-1")
 
-        # Should still succeed
         assert result is True
-
-        # Destination should be empty (no specific files copied)
-        assert not any(dest.iterdir())
+        # get_source_input_repository_path should NOT be called
+        repo.get_source_input_repository_path.assert_not_called()
 
 
 class TestPlaybookQueueRequestService:

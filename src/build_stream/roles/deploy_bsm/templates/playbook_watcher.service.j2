@@ -28,13 +28,23 @@ RestartSec={{ watcher_restart_sec }}
 StandardOutput=journal
 StandardError=journal
 
-# Environment variables
+# Load Omnia environment (CATALOG_FILE_PATH, OMNIA_DATA_PATH, etc.)
+# This file is updated by the BSM API when the GitLab pipeline uploads omnia.env.
+EnvironmentFile=-/etc/omnia/omnia.env
+
+# Environment variables (override omnia.env defaults for watcher-specific settings)
 Environment="PLAYBOOK_QUEUE_BASE={{ build_stream_watcher_playbook_queue_base }}"
 Environment="NFS_SHARE_PATH={{ oim_shared_path }}"
 Environment="POLL_INTERVAL_SECONDS={{ watcher_poll_interval_seconds }}"
 Environment="MAX_CONCURRENT_JOBS={{ watcher_max_concurrent_jobs }}"
 Environment="DEFAULT_TIMEOUT_MINUTES={{ watcher_default_timeout_minutes }}"
 Environment="LOG_LEVEL={{ watcher_log_level }}"
+Environment="OMNIA_SRC_PATH={{ omnia_src_path }}"
+Environment="OMNIA_DATA_PATH={{ oim_shared_path }}"
+Environment="OMNIA_VENV_PATH={{ venv_path }}"
+Environment="PATH={{ venv_path }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+Environment="SYSTEM_ADMIN_NIC_IPV4={{ system_admin_nic_ipv4 }}"
+Environment="OMNIA_PROJECT_NAME={{ omnia_project_name }}"
 
 # Security hardening
 NoNewPrivileges={{ watcher_no_new_privileges | lower }}

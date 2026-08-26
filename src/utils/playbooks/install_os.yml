@@ -14,282 +14,168 @@
 ---
 
 # ─────────────────────────────────────────────────────────────────────────
-# Generic OS Installation via iDRAC Virtual Media
+# Standalone OS Installation via iDRAC Virtual Media
 #
-# This playbook is designed to be called by architecture-specific
-# orchestrators (e.g., install_os_arm_node.yml). It accepts parameters
-# for ISO path, Kickstart configuration, and target node details.
+# This playbook installs an OS on a bare-metal target node using iDRAC
+# virtual media. It is fully standalone — no dependency on external
+# orchestrators or other Omnia modules.
 #
-# Credential Handling:
-#   Option 1: Encrypted credentials file (recommended for automation)
-#     - encrypted_credentials_file: path to ansible-vault encrypted YAML file
-#       containing credentials (bmc_username, bmc_password, os_root_password)
-#     - vault_password_file: path to vault password file for decryption
-#     - Example: -e "encrypted_credentials_file=/opt/omnia/input/project_default/os_install_credentials.yml"
-#                -e "vault_password_file=/opt/omnia/input/project_default/.os_install_credentials_key"
-#     - Note: ARM orchestrator passes credentials as facts, no file decryption needed
+# Execution modes (via Ansible tags):
 #
-#   Option 2: Direct extra-vars (less secure, visible in process list)
-#     - bmc_username: iDRAC username
-#     - bmc_password: iDRAC password
-#     - os_root_password: root password for the installed OS
+#   --tags credentials   Collect and store BMC + OS root credentials only
+#   --tags build_iso     Build custom ISO with kickstart (embedded or NFS)
+#   --tags deploy        Deploy an existing custom ISO via iDRAC
+#   --tags generate_ks   Generate kickstart file only
+#   (no tags)            End-to-end: credentials → build → deploy → verify
 #
-#   Option 3: Interactive prompts (when silent_install=false)
-#     - If credentials not provided, playbook will prompt for them
-#     - os_root_password will be hashed internally to ks_root_password_hash
+# Configuration:
+#   - input/install_os_config.yml      — ISO, kickstart, target node settings
+#   - install_os_credentials.yml       — BMC + OS credentials (auto-created)
 #
-# Required variables (set by the calling playbook or extra vars):
-#   - iso_source_path:      path to the pre-placed source ISO
-#   - target_bmc_ip:        BMC/iDRAC IP of the target node
-#   - target_node_ip:       admin IP of the target node (for verification)
-#   - iso_nfs_share:        NFS share path mapping to /opt/omnia
-#   - os_root_password:   root password for installed OS (will be hashed internally)
-#   - ks_ssh_public_key:    SSH public key to inject
-#   - ks_hostname:          hostname for the installed node
-#   - ks_static_ip:         static IP for the installed node
-#
-# Optional variables:
-#   - iso_source_checksum:  SHA-256 checksum for source ISO verification
-#   - iso_target_directory: output directory for repacked ISO (default: /opt/omnia/iso_output)
-#   - kickstart_file:       user-provided kickstart file path
-#   - kickstart_template:   Jinja2 template name (default: rhel10)
-#   - ks_install_disk:      target install disk (default: auto-detect)
-#   - force_reinstall:      proceed even if target is reachable (default: false)
-#   - silent_install:       suppress all interactive prompts (default: false)
-#   - rebuild_iso:          force ISO rebuild when it exists (default: false)
+# NFS path handling:
+#   - custom_iso_path in config is an NFS URI: "server:/path/filename.iso"
+#   - The NFS directory must be mounted locally for build operations
+#   - iDRAC accesses the ISO via the same NFS URI for virtual media
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 0: Load or prompt for BMC credentials
+# Play 1: Validate configuration
 # ─────────────────────────────────────────────────────────────────────────
-- name: Load or prompt for BMC credentials
+- name: Validate install_os configuration
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: [always]
+  roles:
+    - role: validate_install_os_config
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 2: Collect credentials
+# ─────────────────────────────────────────────────────────────────────────
+- name: Collect OS installation credentials
   hosts: localhost
   connection: local
   gather_facts: false
-  pre_tasks:
-    - name: Include variable file iso_config.yml
-      ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/iso_config.yml"
-      tags: always
-  tasks:
-    - name: Check if encrypted credentials file is provided
-      ansible.builtin.stat:
-        path: "{{ encrypted_credentials_file }}"
-      register: creds_file_stat
-      when:
-        - encrypted_credentials_file is defined
-        - encrypted_credentials_file | length > 0
-        - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
-
-    - name: Decrypt and include encrypted credentials file
-      when:
-        - encrypted_credentials_file is defined
-        - encrypted_credentials_file | length > 0
-        - creds_file_stat.stat.exists | default(false)
-        - vault_password_file is defined
-        - vault_password_file | length > 0
-        - bmc_username is not defined or bmc_password is not defined or os_root_password is not defined
-      block:
-        - name: Create temporary directory for decryption
-          ansible.builtin.tempfile:
-            state: directory
-            prefix: "os_install_decrypt_"
-          register: temp_decrypt_dir
-
-        - name: Decrypt credentials file to temporary location
-          ansible.builtin.command:
-            cmd: >-
-              ansible-vault decrypt
-              {{ encrypted_credentials_file }}
-              --output {{ temp_decrypt_dir.path }}/decrypted_creds.yml
-              --vault-password-file {{ vault_password_file }}
-          no_log: true
-          changed_when: false
-
-        - name: Include decrypted credentials
-          ansible.builtin.include_vars:
-            file: "{{ temp_decrypt_dir.path }}/decrypted_creds.yml"
-          no_log: true
-
-        - name: Remove temporary decrypted file
-          ansible.builtin.file:
-            path: "{{ temp_decrypt_dir.path }}"
-            state: absent
-          no_log: true
-
-    - name: Prompt for BMC username if not provided
-      ansible.builtin.pause:
-        prompt: "Enter BMC/iDRAC username"
-      register: bmc_username_prompt
-      when:
-        - bmc_username is not defined or bmc_username | length == 0
-        - not (silent_install | default(false) | bool)
-      no_log: false
-
-    - name: Set BMC username from prompt
-      ansible.builtin.set_fact:
-        bmc_username: "{{ bmc_username_prompt.user_input }}"
-      when:
-        - bmc_username_prompt is defined
-        - bmc_username_prompt.user_input is defined
-      no_log: true
-
-    - name: Prompt for BMC password if not provided
-      ansible.builtin.pause:
-        prompt: "Enter BMC/iDRAC password"
-        echo: false
-      register: bmc_password_prompt
-      when:
-        - bmc_password is not defined or bmc_password | length == 0
-        - not (silent_install | default(false) | bool)
-      no_log: true
-
-    - name: Set BMC password from prompt
-      ansible.builtin.set_fact:
-        bmc_password: "{{ bmc_password_prompt.user_input }}"
-      when:
-        - bmc_password_prompt is defined
-        - bmc_password_prompt.user_input is defined
-      no_log: true
-
-    - name: Prompt for OS root password if not provided
-      ansible.builtin.pause:
-        prompt: "Enter root password for the installed OS"
-        echo: false
-      register: os_root_password_prompt
-      when:
-        - os_root_password is not defined or os_root_password | length == 0
-        - not (silent_install | default(false) | bool)
-      no_log: true
-
-    - name: Set OS root password from prompt
-      ansible.builtin.set_fact:
-        os_root_password: "{{ os_root_password_prompt.user_input }}"
-      when:
-        - os_root_password_prompt is defined
-        - os_root_password_prompt.user_input is defined
-      no_log: true
-
-    - name: Generate SHA-512 hash of OS root password
-      ansible.builtin.set_fact:
-        ks_root_password_hash: "{{ os_root_password | password_hash('sha512') }}"
-      when:
-        - os_root_password is defined
-        - os_root_password | length > 0
-      no_log: true
+  tags: [credentials, build_iso, deploy]
+  roles:
+    - role: collect_install_os_credentials
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 1: Validate required parameters
-# ─────────────────────────────────────────────────────────────────────────
-- name: Validate required OS installation parameters
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Infer architecture from ISO filename
-      ansible.builtin.set_fact:
-        os_arch: "{{ (iso_source_path | basename | regex_search('(x86_64|aarch64)', ignorecase=True)) | lower }}"
-      when:
-        - os_arch is not defined or os_arch | length == 0
-        - iso_source_path is defined
-        - iso_source_path | length > 0
-
-    - name: Prompt for architecture if not provided or inferred
-      ansible.builtin.pause:
-        prompt: "Enter target architecture (x86_64 or aarch64)"
-      register: os_arch_prompt
-      when:
-        - os_arch is not defined or os_arch | length == 0
-        - not (silent_install | default(false) | bool)
-
-    - name: Set architecture from prompt
-      ansible.builtin.set_fact:
-        os_arch: "{{ os_arch_prompt.user_input | lower }}"
-      when:
-        - os_arch_prompt is defined
-        - os_arch_prompt.user_input is defined
-        - os_arch_prompt.user_input | length > 0
-
-    - name: Fail if architecture is invalid
-      ansible.builtin.fail:
-        msg: "Architecture must be 'x86_64' or 'aarch64', but got '{{ os_arch }}'"
-      when:
-        - os_arch is defined
-        - os_arch | length > 0
-        - os_arch not in ['x86_64', 'aarch64']
-
-    - name: Build list of missing mandatory parameters
-      ansible.builtin.set_fact:
-        missing_params: >-
-          {{ missing_params | default([]) + [item.name] }}
-      when: item.value | length == 0
-      loop:
-        - { name: "Source ISO path", value: "{{ iso_source_path | default('') }}" }
-        - { name: "Target BMC IP", value: "{{ target_bmc_ip | default('') }}" }
-        - { name: "BMC username", value: "{{ bmc_username | default('') }}" }
-        - { name: "BMC password", value: "{{ bmc_password | default('') }}" }
-        - { name: "Target node admin IP", value: "{{ target_node_ip | default('') }}" }
-        - { name: "NFS share for /opt/omnia", value: "{{ iso_nfs_share | default('') }}" }
-        - { name: "OS root password", value: "{{ os_root_password | default('') }}" }
-        - { name: "SSH public key", value: "{{ ks_ssh_public_key | default('') }}" }
-        - { name: "Target hostname", value: "{{ ks_hostname | default('') }}" }
-        - { name: "Target static IP", value: "{{ ks_static_ip | default('') }}" }
-        - { name: "Target architecture", value: "{{ os_arch | default('') }}" }
-
-    - name: Fail if mandatory parameters are missing
-      ansible.builtin.fail:
-        msg: >-
-          Missing mandatory parameters: {{ missing_params | join(', ') }}.
-          Provide them via extra-vars (e.g., -e "iso_source_path=/path/to.iso")
-          or call this playbook through the appropriate orchestrator.
-      when: missing_params | default([]) | length > 0
-
-    - name: Confirm OS installation on target node
-      ansible.builtin.pause:
-        prompt: |-
-          ==============================================================
-              WARNING: ALL DATA ON THE TARGET NODE WILL BE ERASED
-              AN OPERATING SYSTEM INSTALLATION WILL BE PERFORMED
-          ==============================================================
-
-          Target Hostname : {{ ks_hostname | default('unknown') }}
-          Target Arch     : {{ os_arch | default('unknown') }}
-          Target Admin IP : {{ target_node_ip | default('unknown') }}
-          Target BMC IP   : {{ target_bmc_ip | default('unknown') }}
-          Install Disk    : {{ ks_install_disk | default('auto-detect') }}
-          Source ISO      : {{ iso_source_path | default('unknown') }}
-          Kickstart       : {{ kickstart_file if (kickstart_file | default('')) | length > 0 else (kickstart_template | default('rhel10') + ' template') }}
-
-          ==============================================================
-          Press ENTER to continue, or Ctrl+C then 'A' to abort.
-          ==============================================================
-      when: not (silent_install | default(false) | bool)
-
-# ─────────────────────────────────────────────────────────────────────────
-# Play 2: Validate ISO source and required tooling
+# Play 3: Validate ISO source and install required tooling
 # ─────────────────────────────────────────────────────────────────────────
 - name: Validate ISO source and required tooling
   hosts: localhost
   connection: local
   gather_facts: true
+  tags: [build_iso, generate_ks]
   roles:
     - role: fetch_iso
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 3: Create custom ISO with Kickstart
+# Play 4: Create custom ISO with Kickstart
 # ─────────────────────────────────────────────────────────────────────────
 - name: Create custom ISO with Kickstart
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: [build_iso]
   roles:
     - role: iso_creation
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 4: Deliver ISO via iDRAC virtual media and boot target node
+# Play 5: Generate kickstart file only (no ISO build)
+# ─────────────────────────────────────────────────────────────────────────
+- name: Generate kickstart file only
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: [generate_ks]
+  tasks:
+    - name: Resolve local NFS path for kickstart output
+      ansible.builtin.shell: |
+        set -o pipefail
+        mount | grep '{{ _nfs_server }}:' | awk '{print $1 " " $3}'
+      register: _ks_nfs_mounts
+      changed_when: false
+      failed_when: false
+
+    - name: Resolve local kickstart output path
+      ansible.builtin.set_fact:
+        _ks_local_dir: >-
+          {% set mounts = _ks_nfs_mounts.stdout_lines %}
+          {% set target_nfs_dir = _nfs_dir %}
+          {% for line in mounts %}
+          {% set parts = line.split() %}
+          {% set nfs_export = parts[0].split(':')[1] %}
+          {% set local_mount = parts[1] %}
+          {% if target_nfs_dir.startswith(nfs_export) %}
+          {% set rel_path = target_nfs_dir[nfs_export | length :].lstrip('/') %}
+          {% if rel_path | length > 0 %}
+          {{ local_mount }}/{{ rel_path }}
+          {% else %}
+          {{ local_mount }}
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+
+    - name: Render Kickstart from template
+      ansible.builtin.template:
+        src: "{{ role_path | default(playbook_dir + '/../roles/iso_creation') }}/templates/{{ kickstart_template }}.ks.j2"
+        dest: "{{ _ks_local_dir | trim }}/kickstart.ks"
+        mode: "0644"
+      when: kickstart_file | default('') | length == 0
+
+    - name: Log kickstart generation
+      ansible.builtin.debug:
+        msg: "Kickstart file generated at {{ _ks_local_dir | trim }}/kickstart.ks"
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 6: Deploy ISO via iDRAC virtual media
 # ─────────────────────────────────────────────────────────────────────────
 - name: Deliver ISO via iDRAC virtual media
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: [deploy]
   roles:
     - role: iso_delivery
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 7: Write status file for omnia-cli
+# ─────────────────────────────────────────────────────────────────────────
+- name: Write install_os status file
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: [build_iso, deploy]
+  tasks:
+    - name: Set status output directory
+      ansible.builtin.set_fact:
+        _status_dir: >-
+          {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/utils/output/{{
+             lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}
+
+    - name: Ensure status output directory exists
+      ansible.builtin.file:
+        path: "{{ _status_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Write install_os_status.yml
+      ansible.builtin.copy:
+        content: |
+          ---
+          # install_os status file — generated by omnia.utils install_os
+          utility: install_os
+          status: "{{ 'success' if (_os_verify is defined and _os_verify.rc | default(1) == 0) else 'completed' }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          target_bmc_ip: "{{ target_bmc_ip | default('') }}"
+          target_admin_ip: "{{ target_admin_ip | default('') }}"
+          target_hostname: "{{ target_hostname | default('') }}"
+          custom_iso_path: "{{ custom_iso_path | default('') }}"
+          architecture: "{{ os_arch | default('') }}"
+          kickstart_delivery_method: "{{ kickstart_delivery_method | default('embedded') }}"
+          ssh_verified: "{{ (_os_verify is defined and _os_verify.rc | default(1) == 0) | string | lower }}"
+        dest: "{{ _status_dir }}/install_os_status.yml"
+        mode: "0644"
+      failed_when: false

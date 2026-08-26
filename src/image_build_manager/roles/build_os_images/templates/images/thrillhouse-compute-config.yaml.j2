@@ -18,8 +18,8 @@ layer:
         [{{ repo.name }}]
         name={{ repo.name }}
         baseurl={{ repo.base_url }}
-        gpgcheck=0
-        sslverify=0
+        gpgcheck={{ '0' if not (repo_ssl_verify | default(true) | bool) else '1' }}
+        sslverify={{ '0' if not (repo_ssl_verify | default(true) | bool) else '1' }}
         priority={{ repo.priority | default("99") }}
 {% endif %}
 {% endfor %}
@@ -29,7 +29,8 @@ layer:
 {% for pkg in compute_packages %}
         - {{ pkg }}
 {% endfor %}
-{% set command_var = functional_group + '_compute_commands' %}
+{% set _fg_base = functional_group | regex_replace('_rhel_[0-9]+_[0-9]+', '') %}
+{% set command_var = _fg_base + '_compute_commands' %}
 {% set commands_list = lookup('vars', command_var, default=[]) %}
 {% if commands_list | length > 0 %}
     commands:

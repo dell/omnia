@@ -98,18 +98,16 @@ class StageType(str, Enum):
     for validation and by domain logic to avoid raw string comparisons.
     """
 
-    # Existing (Release 1)
-    PARSE_CATALOG = "parse-catalog"
-    GENERATE_INPUT_FILES = "generate-input-files"
+    # Build Pipeline stages (Release 2.3 — domain-segregated)
+    # With domain segregation, each domain playbook (repo_manager.yml,
+    # image_build_manager.yml) consumes the catalog directly and handles
+    # all architecture-specific logic internally.
     CREATE_LOCAL_REPOSITORY = "create-local-repository"
-    #CREATE_IMAGE_REPOSITORY = "create-image-repository"
-    BUILD_IMAGE_X86_64 = "build-image-x86_64"
-    BUILD_IMAGE_AARCH64 = "build-image-aarch64"
+    BUILD_IMAGE = "build-image"
     VALIDATE = "validate"
     RESTART = "restart"
-    #PROMOTE = "promote"
 
-    # New (Release 2 — Deploy Pipeline)
+    # Deploy Pipeline stages
     UPLOAD = "upload"
     DEPLOY = "deploy"
 

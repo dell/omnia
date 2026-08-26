@@ -18,26 +18,26 @@
 # - vast-telemetry-secret.yaml (K8s Secret with VAST credentials + optional CA cert)
 # - vast-external-service.yaml (ExternalName/Endpoints service for VAST endpoint)
 
-- name: Create VAST deployments directory
-  ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir }}/vast"
-    state: directory
-    mode: '0755'
-
 - name: Render VAST telemetry manifests
   ansible.builtin.template:
     src: "{{ item.src }}"
-    dest: "{{ telemetry_deployments_dir }}/vast/{{ item.dest }}"
+    dest: "{{ telemetry_deployments_dir }}/{{ item.dest }}"
     mode: '0644'
   loop:
     - src: "vast-telemetry-secret.yaml.j2"
       dest: "vast-telemetry-secret.yaml"
     - src: "vast-external-service.yaml.j2"
       dest: "vast-external-service.yaml"
-    - src: "kustomization.yaml.j2"
-      dest: "kustomization.yaml"
+
+- name: Apply VAST telemetry manifests
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
+  loop:
+    - vast-telemetry-secret.yaml
+    - vast-external-service.yaml
+  changed_when: false
 
 - name: Display VAST manifest generation complete
   ansible.builtin.debug:
-    msg: "VAST telemetry manifests generated to {{ telemetry_deployments_dir }}/vast/"
+    msg: "VAST telemetry manifests generated and applied"
     verbosity: 2

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.test_creds.key
+.run_validation_rc
+*.egg-info/
+.pytest_cache/
+reports/
+datasets/*/output/

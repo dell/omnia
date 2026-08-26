@@ -38,8 +38,8 @@ ms_defaults_dest: "{{ metadata_svc_dir }}/ms-defaults.yaml"
 ms_group_common_dest: "{{ metadata_svc_dir }}/ms-group-common.yaml"
 
 # SSH keys
-ssh_key_path: /root/.ssh/oim_rsa.pub
-ssh_private_key_path: /root/.ssh/oim_rsa
+ssh_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa.pub"
+ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"
 
 # Service retry settings
 service_retries: 16
@@ -72,7 +72,7 @@ login_compiler_node_present: "{{ hostvars['oim']['login_compiler_node_present'] 
 slurm_node_present: "{{ hostvars['oim']['slurm_node_present'] | default(false) }}"
 
 # DCGM
-dcgm_support: "{{ hostvars['localhost'].get('telemetry_sources', {}).get('dcgm', {}).get('metrics_enabled', true) | bool }}"
+dcgm_support: "{{ hostvars['localhost'].get('dcgm_support', true) | bool }}"
 dcgm_service_name: "nvidia-dcgm"
 
 # Slurm defaults

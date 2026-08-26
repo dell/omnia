@@ -40,6 +40,7 @@ from omnia_auto import (
 
 # --- Omnia Main verification ---
 from .omnia_main_func import (
+    is_running_from_omnia_venv,
     run_omnia_cmd,
     run_omnia_cmd_expect_error,
     check_env_file_installed,
@@ -51,6 +52,7 @@ from .omnia_main_func import (
     check_activate_helper,
     check_domain_log_dirs,
     check_domain_input_staged,
+    check_domain_output_dirs,
     check_help_output,
     check_error_contains,
     check_pip_packages,
@@ -84,6 +86,7 @@ __all__ = [
     "TestReport",
     "get_current_report",
     "set_current_report",
+    "is_running_from_omnia_venv",
     "run_omnia_cmd",
     "run_omnia_cmd_expect_error",
     "check_env_file_installed",
@@ -95,6 +98,7 @@ __all__ = [
     "check_activate_helper",
     "check_domain_log_dirs",
     "check_domain_input_staged",
+    "check_domain_output_dirs",
     "check_help_output",
     "check_error_contains",
     "check_pip_packages",

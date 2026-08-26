@@ -111,6 +111,22 @@ TEST_CASES = {
         "id": "TC_BD_006",
         "title": "Verify all configured x86_64 functional groups built",
     },
+    "registry_images_aarch64": {
+        "id": "TC_BD_012",
+        "title": "Verify aarch64 images in registry",
+    },
+    "functional_groups_aarch64": {
+        "id": "TC_BD_013",
+        "title": "Verify all configured aarch64 functional groups built",
+    },
+    "packages_x86_64": {
+        "id": "TC_BD_014",
+        "title": "Verify packages installed in x86_64 S3 images",
+    },
+    "packages_aarch64": {
+        "id": "TC_BD_015",
+        "title": "Verify packages installed in aarch64 S3 images",
+    },
 
     # ── Build — naming convention (TC_BD_007-011) ─────────────────────────
     "registry_naming_ib_x86_64": {
@@ -132,56 +148,6 @@ TEST_CASES = {
     "artifact_suffix_isolation": {
         "id": "TC_BD_011",
         "title": "Verify -imgbld and -imgth artifact paths are fully isolated",
-    },
-
-    # ── Full (image_build_manager) ────────────────────────────────────────
-    "ib_storage_backend": {
-        "id": "TC_IB_002",
-        "title": "Verify S3 storage backend (MinIO or PowerScale)",
-    },
-    "ib_registry_container": {
-        "id": "TC_IB_003",
-        "title": "Verify registry container is running",
-    },
-    "ib_s3_buckets": {
-        "id": "TC_IB_004",
-        "title": "Verify required S3 buckets exist",
-    },
-    "ib_s3_images_x86_64": {
-        "id": "TC_IB_005",
-        "title": "Verify x86_64 images pushed to S3",
-    },
-    "ib_s3_images_aarch64": {
-        "id": "TC_IB_006",
-        "title": "Verify aarch64 images pushed to S3",
-    },
-    "ib_registry_x86_64": {
-        "id": "TC_IB_007",
-        "title": "Verify x86_64 images in registry",
-    },
-    "ib_registry_aarch64": {
-        "id": "TC_IB_008",
-        "title": "Verify aarch64 images in registry",
-    },
-    "ib_build_status": {
-        "id": "TC_IB_009",
-        "title": "Verify build_status.yml reports success",
-    },
-    "ib_groups_x86_64": {
-        "id": "TC_IB_010",
-        "title": "Verify x86_64 functional groups built",
-    },
-    "ib_groups_aarch64": {
-        "id": "TC_IB_011",
-        "title": "Verify aarch64 functional groups built",
-    },
-    "ib_packages_x86_64": {
-        "id": "TC_IB_012",
-        "title": "Verify packages installed in x86_64 S3 images",
-    },
-    "ib_packages_aarch64": {
-        "id": "TC_IB_013",
-        "title": "Verify packages installed in aarch64 S3 images",
     },
 
     # ── Precheck ──────────────────────────────────────────────────────────
@@ -210,7 +176,29 @@ TEST_CASES = {
         "title": "Verify omnia.sh setup completed on target",
     },
 
+    # ── Validate — repo_ssl_verify ──────────────────────────────────────
+    "repo_ssl_verify_config": {
+        "id": "TC_VL_004",
+        "title": "Verify repo_ssl_verify is configured in image_build_config",
+    },
+    "repo_ssl_verify_applied": {
+        "id": "TC_BD_016",
+        "title": "Verify repo_ssl_verify is applied in build templates",
+    },
+
     # ── Cleanup ───────────────────────────────────────────────────────────
+    "deploy_cleanup_images": {
+        "id": "TC_CI_001",
+        "title": "Deploy image_build_manager (cleanup_images)",
+    },
+    "s3_images_cleaned": {
+        "id": "TC_CI_002",
+        "title": "Verify S3 images deleted after cleanup_images",
+    },
+    "registry_images_cleaned": {
+        "id": "TC_CI_003",
+        "title": "Verify registry images deleted after cleanup_images",
+    },
     "containers_removed": {
         "id": "TC_CL_002",
         "title": "Verify containers removed after cleanup",

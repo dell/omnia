@@ -256,6 +256,7 @@
         ucx_support: "{{ _catalog_group_names | select('match', '.*ucx.*') | list | length > 0 }}"
         openmpi_support: "{{ _catalog_group_names | select('match', '.*openmpi.*') | list | length > 0 }}"
         csi_driver_powerscale_support: "{{ _catalog_group_names | select('match', '.*csi.*powerscale.*') | list | length > 0 }}"
+        dcgm_support: "{{ _orch_config.dcgm_enabled | default(true) | bool }}"
         cacheable: true
 
 - name: Warn if catalog file is missing
@@ -273,6 +274,7 @@
     slurm_support: false
     openldap_support: false
     ucx_support: false
+    dcgm_support: "{{ _orch_config.dcgm_enabled | default(true) | bool }}"
     openmpi_support: false
     csi_driver_powerscale_support: false
     cacheable: true
