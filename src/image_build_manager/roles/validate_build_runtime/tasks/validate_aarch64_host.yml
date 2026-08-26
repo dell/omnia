@@ -12,77 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# validate_aarch64_host.yml — Validate aarch64_inventory_host_ip from
-# image_build_config.yml and dynamically create admin_aarch64 group.
-# Modeled after gitlab/roles/hosted_gitlab/tasks/validate_prerequisites.yml
+# validate_aarch64_host.yml — Dynamically create admin_aarch64 inventory group
+# from aarch64_inventory_host_ip in image_build_config.yml.
+# All validation (IP format, reserved IPs, cross-field logic) is handled by
+# Python modules: L1 JSON schema + L2 validator in image_build_config_validator.py.
 
-# --- 1. Check if aarch64 IP is configured ---
-- name: Check if aarch64_inventory_host_ip is set
+- name: Check if aarch64 IP is configured
   ansible.builtin.set_fact:
-    aarch64_build_enabled: "{{ (aarch64_inventory_host_ip | default('') | length) > 0 }}"
+    aarch64_build_enabled: >-
+      {{ (aarch64_inventory_host_ip | default('') | length > 0) | bool }}
+    cacheable: true
 
-- name: Skip aarch64 validation if IP not configured
+- name: Skip aarch64 group creation if IP not configured
   ansible.builtin.debug:
     msg: "aarch64_inventory_host_ip is not set — aarch64 image build will be skipped."
-  when: not aarch64_build_enabled | bool
+  when: not (aarch64_build_enabled | bool)
 
-# --- 2. Validate IP format ---
-- name: Validate aarch64 host IP format
-  when: aarch64_build_enabled | bool
-  ansible.builtin.assert:
-    that:
-      - aarch64_inventory_host_ip | ansible.utils.ipv4
-    fail_msg: >
-      Invalid IP address format for aarch64_inventory_host_ip: '{{ aarch64_inventory_host_ip }}'.
-      Please provide a valid IPv4 address in image_build_config.yml.
-    quiet: true
-
-# --- 3. Check IP is not loopback or broadcast ---
-- name: Validate IP is not loopback or broadcast
-  when: aarch64_build_enabled | bool
-  ansible.builtin.assert:
-    that:
-      - aarch64_inventory_host_ip != '127.0.0.1'
-      - aarch64_inventory_host_ip != '0.0.0.0'
-      - aarch64_inventory_host_ip != '255.255.255.255'
-    fail_msg: >
-      aarch64_inventory_host_ip cannot be loopback (127.0.0.1), unspecified (0.0.0.0),
-      or broadcast (255.255.255.255). Got: '{{ aarch64_inventory_host_ip }}'.
-    quiet: true
-
-# --- 4. Check connectivity (ping) ---
-- name: Check connectivity to aarch64 build host
-  when: aarch64_build_enabled | bool
-  ansible.builtin.command: ping -c 3 -W 2 {{ aarch64_inventory_host_ip }}
-  register: aarch64_host_ping
-  changed_when: false
-  failed_when: false
-
-- name: Validate aarch64 build host is reachable
-  when: aarch64_build_enabled | bool
-  ansible.builtin.assert:
-    that:
-      - aarch64_host_ping.rc == 0
-    fail_msg: >
-      Cannot reach aarch64 build host at {{ aarch64_inventory_host_ip }}.
-      Verify the IP is correct and the host is powered on and accessible.
-      Ping output: {{ aarch64_host_ping.stderr | default('') }}
-    quiet: true
-
-# --- 5. Check SSH connectivity ---
+# ---  Check SSH connectivity ---
 - name: Check SSH connectivity to aarch64 build host
   when: aarch64_build_enabled | bool
-  ansible.builtin.command: >
+  ansible.builtin.command: >-
     ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
     {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
   register: aarch64_ssh_check
   changed_when: false
   failed_when: false
 
+- name: Set SSH passwordless status
+  when: aarch64_build_enabled | bool
+  ansible.builtin.set_fact:
+    aarch64_ssh_passwordless: "{{ (aarch64_ssh_check.rc | default(1) == 0) | bool }}"
+    cacheable: true
+
 - name: Warn if SSH passwordless access not yet configured
   when:
     - aarch64_build_enabled | bool
-    - aarch64_ssh_check.rc | default(1) != 0
+    - not (aarch64_ssh_passwordless | bool)
   ansible.builtin.debug:
     msg: >
       SSH passwordless access to {{ aarch64_inventory_host_ip }} is not yet configured.

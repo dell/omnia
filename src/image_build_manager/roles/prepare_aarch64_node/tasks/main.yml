@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# prepare_aarch64_node/tasks/main.yml — Prepare a remote aarch64 build host.
+# No NFS dependency — uses local work directories on the aarch64 node.
+# Image pull: tries repo manager (Pulp) first, falls back to DockerHub/upstream.
+# regctl: copies from OIM localhost first, downloads from GitHub if copy fails.
+
+# =========================================================================
+# Phase 1: SSH connectivity setup
+# =========================================================================
 
 - name: Add target host to known_hosts
   ansible.builtin.known_hosts:
@@ -27,7 +35,6 @@
   changed_when: false
   delegate_to: localhost
 
-# Set up passwordless SSH from localhost if not already enabled
 - name: Setup passwordless SSH from localhost
   ansible.builtin.expect:
     command: "ssh-copy-id -i /root/.ssh/id_rsa.pub root@{{ inventory_hostname }}"
@@ -45,17 +52,23 @@
   changed_when: false
   delegate_to: localhost
 
-# Check the machine architecture of the target host
+# =========================================================================
+# Phase 2: Architecture and host validation
+# =========================================================================
+
 - name: Check machine architecture
   ansible.builtin.command: uname -m
   register: arch_result
   changed_when: false
 
-# Fail the play if the target machine is not aarch64
 - name: Fail if machine is not aarch64
   ansible.builtin.fail:
     msg: "{{ not_aarch64_error_msg }}"
   when: arch_result.stdout != "aarch64"
+
+# =========================================================================
+# Phase 3: OIM hostname resolution on aarch64 node
+# =========================================================================
 
 - name: Remove any existing entries for OIM hostname in /etc/hosts
   ansible.builtin.lineinfile:
@@ -69,10 +82,9 @@
     path: /etc/hosts
     line: "{{ hostvars['localhost']['oim_pxe_ip'] }} {{ hostvars['localhost']['oim_hostname'] }}"
     state: present
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "{{ file_permissions_644 }}"
     create: true
 
-# Verify the entry exists in /etc/hosts
 - name: Verify OIM PXE IP and hostname in /etc/hosts
   ansible.builtin.command:
     cmd: "grep {{ hostvars['localhost']['oim_pxe_ip'] }} /etc/hosts"
@@ -88,31 +100,39 @@
   ansible.builtin.raw: "ping -c 2 {{ hostvars['localhost']['oim_hostname'] }}"
   register: ping_result
   changed_when: false
-  failed_when: ping_result.rc != 0
+  failed_when: false
 
-- name: Show ping result
+- name: Warn if OIM is not reachable from aarch64 node
   ansible.builtin.debug:
-    msg: "{{ ping_result.stdout }}"
+    msg: >
+      WARNING: Cannot ping OIM ({{ hostvars['localhost']['oim_hostname'] }}) from aarch64 node.
+      Image pull from repo manager will likely fail. DockerHub fallback will be attempted.
+  when: ping_result.rc | default(1) != 0
 
-# Register NFS details
-- name: Set NFS info fact
-  ansible.builtin.set_fact:
-    nfs_info:
-      server_ip: "{{ hostvars['localhost']['nfs_server_ip'] }}"
-      server_share_path: "{{ hostvars['localhost']['nfs_server_share_path'] }}"
-      shared_path: "{{ hostvars['localhost']['shared_path'] }}"
+# =========================================================================
+# Phase 4: Create local work directories (replaces NFS mount)
+# =========================================================================
 
-- name: Ensure NFS mount point directory exists
+- name: Ensure aarch64 work directories exist
   ansible.builtin.file:
-    path: "{{ nfs_info.shared_path }}"
+    path: "{{ item }}"
     state: directory
-    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+    mode: "{{ dir_permissions_755 }}"
   become: true
+  loop:
+    - "{{ aarch64_work_dir }}"
+    - "{{ ochami_aarch_64_dir }}"
+    - "{{ aarch64_work_dir }}/workdir"
+    - "{{ aarch64_work_dir }}/log"
+
+# =========================================================================
+# Phase 5: Repo manager configuration (optional — for Pulp-based pulls)
+# =========================================================================
 
 - name: Generate repo_manager.repo from rpm_repos.aarch64
   ansible.builtin.copy:
     dest: "{{ repo_file_path }}"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "{{ file_permissions_644 }}"
     content: |
       {% for repo_name, repo_url in (hostvars['localhost']['rpm_repos_aarch64'] | default({})).items() %}
       [{{ repo_name }}]
@@ -122,12 +142,13 @@
       gpgcheck=0
       sslverify=1
       {% endfor %}
+  when: (hostvars['localhost']['rpm_repos_aarch64'] | default({})) | length > 0
 
 - name: Copy repo manager certificate to target host
   ansible.builtin.copy:
     src: "{{ repo_cert_path }}"
     dest: "{{ anchors_path }}"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "{{ file_permissions_644 }}"
   become: true
   when: repo_cert_path | default('') | length > 0
 
@@ -137,51 +158,24 @@
   changed_when: false
   when: repo_cert_path | default('') | length > 0
 
-- name: Check if NFS is mounted
-  ansible.builtin.command:
-    cmd: "mountpoint -q {{ nfs_info.shared_path }}"
-  register: nfs_mounted
-  ignore_errors: true
-  changed_when: false
+# =========================================================================
+# Phase 6: Pull builder container image (Pulp first, DockerHub fallback)
+# =========================================================================
 
-# Install NFS client package
-- name: Install NFS client package
-  ansible.builtin.dnf:
-    name: nfs-utils
-    state: present
-  when: nfs_mounted.rc != 0
-  become: true
-
-# Mount NFS share if not mounted
-- name: Mount NFS share
-  ansible.builtin.mount:
-    path: "{{ nfs_info.shared_path }}"
-    src: "{{ nfs_info.server_ip }}:{{ nfs_info.server_share_path }}"
-    fstype: nfs
-    opts: defaults
-    state: mounted
-  when: nfs_mounted.rc != 0
-  become: true
-
-# Verify the mount
-- name: Verify NFS mount
-  ansible.builtin.command:
-    cmd: "mountpoint -q {{ nfs_info.shared_path }}"
-  register: verify_nfs
-  failed_when: verify_nfs.rc != 0
-  changed_when: false
-
-- name: Display NFS mount status
-  ansible.builtin.debug:
-    msg: "NFS share {{ nfs_info.server_ip }}:{{ nfs_info.server_share_path }} is mounted on {{ nfs_info.shared_path }}"
-
-- name: Build full Podman image path
+- name: Build repo manager image path for aarch64
   ansible.builtin.set_fact:
-    builder_image_path: "{{ hostvars['localhost']['oim_pxe_ip'] }}:{{ hostvars['localhost']['repo_port'] | default(2225) }}/{{ repo_builder_image }}"
+    builder_image_path: >-
+      {{ hostvars['localhost']['oim_pxe_ip'] }}:{{ hostvars['localhost']['repo_port'] | default(2225) }}/{{ repo_builder_image }}
 
-- name: Pull and tag aarch64 image
+- name: Check if builder image already exists locally
+  containers.podman.podman_image_info:
+    name: "{{ local_tag }}"
+  register: local_image_info
+
+- name: Pull and tag aarch64 builder image
+  when: local_image_info.images | length == 0
   block:
-    - name: Pull aarch64 image using Podman
+    - name: Pull aarch64 image from repo manager registry (Pulp)
       containers.podman.podman_image:
         name: "{{ builder_image_path }}"
         state: present
@@ -191,7 +185,7 @@
       until: podman_pull_result is not failed
       changed_when: false
 
-    - name: Tag pulled image
+    - name: Tag pulled image for aarch64 build
       containers.podman.podman_tag:
         image: "{{ builder_image_path }}"
         target_names:
@@ -199,34 +193,112 @@
       changed_when: false
 
   rescue:
-    - name: Fail if Podman pull failed
-      ansible.builtin.fail:
-        msg: "Failed to pull image {{ builder_image_path }}"
+    - name: Attempt direct pull from upstream registry (internet fallback)
+      block:
+        - name: Display fallback notice
+          ansible.builtin.debug:
+            msg: "{{ pull_image_fallback_msg.format(repo_path=builder_image_path, upstream_image=repo_builder_image) }}"
 
-- name: Check if regctl binary exists
+        - name: Pull image directly from upstream registry
+          containers.podman.podman_image:
+            name: "{{ repo_builder_image }}"
+            state: present
+          register: direct_pull_result
+          retries: "{{ pull_image_retries }}"
+          delay: "{{ pull_image_delay }}"
+          until: direct_pull_result is not failed
+          changed_when: false
+
+        - name: Tag directly pulled image for aarch64 build
+          containers.podman.podman_tag:
+            image: "{{ repo_builder_image }}"
+            target_names:
+              - "{{ local_tag }}"
+          changed_when: false
+
+        - name: Display direct pull success
+          ansible.builtin.debug:
+            msg: "{{ pull_image_success_msg.format(upstream_image=repo_builder_image) }}"
+            verbosity: 1
+
+      rescue:
+        - name: Fail if both pull methods failed
+          ansible.builtin.fail:
+            msg: "{{ aarch64_image_fail_msg }}"
+
+# =========================================================================
+# Phase 7: Install regctl (SCP from localhost first, download fallback)
+# =========================================================================
+
+- name: Check if regctl already exists on aarch64 node
   ansible.builtin.stat:
-    path: "{{ ochami_aarch_64_dir }}/regctl"
-  register: regctl_stat
-  delegate_to: localhost
+    path: "{{ regctl_bin_path }}"
+  register: _regctl_remote_stat
 
-- name: Fail if regctl binary not found
-  ansible.builtin.fail:
-    msg: "{{ regctl_not_found_msg }}"
-  when: not regctl_stat.stat.exists
+- name: Install regctl on aarch64 node
+  when: not _regctl_remote_stat.stat.exists
+  block:
+    # --- Try 1: Copy from OIM localhost ---
+    - name: Check if regctl exists on OIM localhost
+      ansible.builtin.stat:
+        path: /usr/local/bin/regctl
+      register: _regctl_localhost_stat
+      delegate_to: localhost
 
-- name: Copy regctl binary to /usr/local/bin on target host
-  ansible.builtin.copy:
-    src: "{{ ochami_aarch_64_dir }}/regctl"
-    dest: "{{ regctl_bin_path }}"
-    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
-  become: true
+    - name: Copy regctl from OIM localhost to aarch64 node
+      ansible.builtin.copy:
+        src: /usr/local/bin/regctl
+        dest: "{{ regctl_bin_path }}"
+        mode: "{{ dir_permissions_755 }}"
+      become: true
+      when: _regctl_localhost_stat.stat.exists
+      register: _regctl_copy_result
+      failed_when: false
+
+    # --- Try 2: Download from GitHub releases ---
+    - name: Download regctl from GitHub (fallback)
+      when: >-
+        (not _regctl_localhost_stat.stat.exists) or
+        (_regctl_copy_result is defined and _regctl_copy_result is failed)
+      block:
+        - name: Display regctl download notice
+          ansible.builtin.debug:
+            msg: "regctl not available from OIM localhost. Downloading {{ regctl_download_url }}"
+
+        - name: Download regctl binary for aarch64
+          ansible.builtin.get_url:
+            url: "{{ regctl_download_url }}"
+            dest: "{{ regctl_bin_path }}"
+            mode: "{{ dir_permissions_755 }}"
+            timeout: 60
+          become: true
+          register: _regctl_download_result
+
+      rescue:
+        - name: Fail if regctl cannot be obtained
+          ansible.builtin.fail:
+            msg: "{{ regctl_not_found_msg }}"
+
+- name: Verify regctl binary is functional
+  ansible.builtin.command: "{{ regctl_bin_path }} version"
+  register: _regctl_version
+  changed_when: false
+  failed_when: _regctl_version.rc != 0
+
+- name: Display regctl version
+  ansible.builtin.debug:
+    msg: "regctl version: {{ _regctl_version.stdout | trim }}"
+
+# =========================================================================
+# Phase 8: Configure registry access on aarch64 node
+# =========================================================================
 
 - name: Compute aarch64 registry host
   ansible.builtin.set_fact:
     _aarch64_registry_host: >-
       {{ hostvars['localhost']['admin_nic_ip']
          if hostvars['localhost']['standalone_mode'] | default(false) | bool
-         else oim_hostname }}
+         else hostvars['localhost']['oim_hostname'] }}
 
 - name: Configure regctl to use HTTP for local registry
   ansible.builtin.command: "{{ regctl_bin_path }} registry set --tls disabled {{ _aarch64_registry_host }}:5000"

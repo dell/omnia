@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# gather_oim_data.yml — Validate admin_aarch64 inventory and set OIM
+# network facts for the aarch64 build flow. Runs on localhost.
 
 # Inventory Validation
 - name: Fail if no inventory provided
@@ -29,16 +31,6 @@
     msg: "{{ admin_aarch64_count_error_msg }}"
   when: groups['admin_aarch64'] | length != 1
 
-# # Validate share option
-# - name: Set share option fact
-#   ansible.builtin.set_fact:
-#     omnia_share_option: "{{ hostvars['localhost']['omnia_share_option'] }}"
-
-# - name: Fail if share option is not NFS
-#   ansible.builtin.fail:
-#     msg: "{{ nfs_not_configured_msg }}"
-#   when: omnia_share_option != "NFS"
-
 # Set OIM PXE IP and hostname from localhost facts
 - name: Set OIM network facts
   ansible.builtin.set_fact:
@@ -49,8 +41,8 @@
          else hostvars['localhost']['host_name'] + '.' + hostvars['localhost']['domain_name'] }}
     cacheable: true
 
-- name: Create aarch64 directory if not exists
+- name: Ensure aarch64 openchami directory exists on localhost
   ansible.builtin.file:
     path: "{{ ochami_aarch_64_dir }}"
     state: directory
-    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+    mode: "0755"
