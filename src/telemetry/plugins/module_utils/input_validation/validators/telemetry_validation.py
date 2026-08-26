@@ -559,7 +559,6 @@ def validate_telemetry_config(
     # Build config_paths for PowerScale validation
     telemetry_root = os.path.dirname(os.path.dirname(module_utils_base))
     telemetry_input_dir = os.path.join(telemetry_root, "input")
-    software_config_file_path = os.path.join(telemetry_input_dir, "software_config.json")
     telemetry_packages_file_path = os.path.join(telemetry_input_dir, "telemetry_packages.yml")
     is_service_cluster_defined = bool(kube_vip_valid)
     config_paths = {
@@ -572,7 +571,6 @@ def validate_telemetry_config(
         powerscale_telemetry_validation.validate_powerscale_telemetry_config(
             data=data,
             powerscale_collection_targets=powerscale_collection_targets,
-            software_config_file_path=software_config_file_path,
             is_service_cluster_defined=is_service_cluster_defined,
             config_paths=config_paths,
             logger=logger,
