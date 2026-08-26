@@ -18,6 +18,15 @@ PyJWT>=2.8.0
 # Web framework (required by conftest.py for TestClient fixture)
 fastapi>=0.104.0
 
+# Password hashing (required by api.auth.password_handler)
+argon2-cffi>=21.0.0
+
+# Dependency injection (required by container.py)
+dependency-injector>=4.41.0
+
+# Form data parsing (required by FastAPI routes)
+python-multipart>=0.0.26
+
 # Code quality
 pylint>=3.0.0
 black>=26.5.0
