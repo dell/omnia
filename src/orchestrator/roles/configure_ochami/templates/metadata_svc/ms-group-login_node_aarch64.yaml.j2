@@ -242,44 +242,11 @@
         - setenforce 0
         - systemctl enable firewalld
         - systemctl start firewalld
-        - |
-            # Default values in case parsing slurm.conf fails
-            DEFAULT_SRUN_RANGE="60001-63000"
-            DEFAULT_SLURMD_PORT="6818"
-
-            CTLD_SLURM_DIR_MNT="/mnt/slurm_ctld_etc_slurm"
-            SLURM_CONF_PATH="$CTLD_SLURM_DIR_MNT/slurm.conf"
-
-            echo "[INFO] Mounting controller slurm.conf from NFS: {{ metadata_svc_nfs_path }}/{{ ctld_list[0] }}/etc/slurm -> $CTLD_SLURM_DIR_MNT"
-            mkdir -p "$CTLD_SLURM_DIR_MNT"
-            mount -t nfs "{{ metadata_svc_nfs_path }}/{{ ctld_list[0] }}/etc/slurm" "$CTLD_SLURM_DIR_MNT" || {
-              echo "[WARN] Failed to mount controller slurm.conf directory, falling back to defaults."
-              SRUN_RANGE="$DEFAULT_SRUN_RANGE"
-              SLURMD_PORT="$DEFAULT_SLURMD_PORT"
-            }
-
-            if [ -f "$SLURM_CONF_PATH" ]; then
-              echo "[INFO] Parsing SlurmdPort and SrunPortRange from $SLURM_CONF_PATH"
-
-              SLURMD_PORT=$(grep -iE '^SlurmdPort=' "$SLURM_CONF_PATH" | sed -E 's/^SlurmdPort=//; s/#.*//; s/\s+$//')
-              SRUN_RANGE=$(grep -iE '^SrunPortRange=' "$SLURM_CONF_PATH" | sed -E 's/^SrunPortRange=//; s/#.*//; s/\s+$//')
-
-              [ -z "$SLURMD_PORT" ] && SLURMD_PORT="$DEFAULT_SLURMD_PORT" && echo "[WARN] SlurmdPort not found in slurm.conf, using default $SLURMD_PORT"
-              [ -z "$SRUN_RANGE" ] && SRUN_RANGE="$DEFAULT_SRUN_RANGE" && echo "[WARN] SrunPortRange not found in slurm.conf, using default $SRUN_RANGE"
-            else
-              echo "[WARN] slurm.conf not found at $SLURM_CONF_PATH, using defaults."
-              SRUN_RANGE="$DEFAULT_SRUN_RANGE"
-              SLURMD_PORT="$DEFAULT_SLURMD_PORT"
-            fi
-
-            echo "[INFO] Using SlurmdPort=$SLURMD_PORT and SrunPortRange=$SRUN_RANGE for firewall configuration"
-
-            echo "[INFO] Configuring firewall rules for SSH and Slurm ports"
-            firewall-cmd --permanent --add-service=ssh
-            firewall-cmd --permanent --add-port="${SRUN_RANGE}"/tcp
-            firewall-cmd --permanent --add-port="${SRUN_RANGE}"/udp
-            firewall-cmd --permanent --add-port="${SLURMD_PORT}"/tcp
-            firewall-cmd --permanent --add-port="${SLURMD_PORT}"/udp
+        - firewall-cmd --permanent --add-service=ssh
+        - firewall-cmd --permanent --add-port={{ slurm_conf_dict.SrunPortRange }}/tcp
+        - firewall-cmd --permanent --add-port={{ slurm_conf_dict.SrunPortRange }}/udp
+        - firewall-cmd --permanent --add-port={{  slurm_conf_dict.SlurmdPort }}/tcp
+        - firewall-cmd --permanent --add-port={{ slurm_conf_dict.SlurmdPort }}/udp
         
         # Add PXE network to trusted zone for ORTE communication
         - echo "[INFO] Adding PXE network to trusted zone for ORTE communication"
