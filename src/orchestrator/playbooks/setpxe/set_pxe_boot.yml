@@ -330,6 +330,46 @@
                 }}
               - Output: {{ orchestrator_output_dir }}/failed_nodes.json
 
+        - name: Build per-node status list
+          ansible.builtin.set_fact:
+            all_nodes_status: "{{ all_nodes_status | default([]) + [node_entry] }}"
+          loop: "{{ groups['bmc'] }}"
+          vars:
+            _admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
+            _hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
+            _svc_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
+            _is_pxe_fail: "{{ item in (pxe_boot_failed_bmc_ips | default([])) }}"
+            _is_ph_fail: "{{ item in (phone_home_failed_bmc_ips | default([])) }}"
+            node_entry:
+              bmc_ip: "{{ item }}"
+              admin_ip: "{{ _admin_ip }}"
+              hostname: "{{ _hostname }}"
+              service_tag: "{{ _svc_tag }}"
+              status: >-
+                {{ 'failed' if (_is_pxe_fail | bool or _is_ph_fail | bool) else 'success' }}
+              failure_stage: >-
+                {{ 'pxe_boot' if _is_pxe_fail | bool
+                   else ('phone_home' if _is_ph_fail | bool else '') }}
+
+        - name: Compute overall status
+          ansible.builtin.set_fact:
+            orchestrator_overall_status: >-
+              {{ 'failed' if (failed_nodes_list | default([]) | length > 0) else 'success' }}
+
+        - name: Write orchestrator_status.yml
+          ansible.builtin.copy:
+            content: "{{ orchestrator_status_report | to_nice_yaml }}"
+            dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+            mode: "0644"
+          vars:
+            orchestrator_status_report:
+              overall_status: "{{ orchestrator_overall_status }}"
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+              total_nodes: "{{ groups['bmc'] | length }}"
+              success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
+              failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+              nodes: "{{ all_nodes_status | default([]) }}"
+
         - name: Fail if any nodes failed PXE boot or phone-home
           ansible.builtin.fail:
             msg: >-

@@ -13,27 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Ensure 127.0.0.1 localhost entry exists
+# Container-mount safe: lineinfile/blockinfile use atomic rename() which fails
+# on overlay/bind-mounted filesystems (EXDEV). Use shell redirect instead.
+- name: Write hosts file (container-mount safe)
   ansible.builtin.shell: |
     set -o pipefail
-    grep -qxF '127.0.0.1 localhost.localdomain localhost' {{ hosts_file_path }} || echo '127.0.0.1 localhost.localdomain localhost' >> {{ hosts_file_path }}
+    cat > {{ hosts_file_path }} << 'HOSTS_EOF'
+    127.0.0.1 localhost.localdomain localhost
+    # BEGIN OMNIA MANAGED HOSTS
+    {% for item in read_mapping_file.dict | dict2items | sort(attribute='value.HOSTNAME') %}
+    {{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}
+    {% endfor %}
+    # END OMNIA MANAGED HOSTS
+    HOSTS_EOF
+    chmod 0644 {{ hosts_file_path }}
   changed_when: true
-
-- name: Update /etc/hosts with PXE mapping hostnames
-  block:
-    - name: Remove stale entries for IPs and hostnames that are being updated
-      ansible.builtin.shell: |
-        set -o pipefail
-        grep -v '^{{ item.value.ADMIN_IP }}\s' {{ hosts_file_path }} | \
-        grep -v '\s{{ item.value.HOSTNAME }}$' > {{ hosts_file_path }}.tmp
-        cat {{ hosts_file_path }}.tmp > {{ hosts_file_path }}
-        rm -f {{ hosts_file_path }}.tmp
-      changed_when: true
-      loop: "{{ read_mapping_file.dict | dict2items }}"
-
-    - name: Add hosts file entry for cluster
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo '{{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}' >> {{ hosts_file_path }}
-      changed_when: true
-      loop: "{{ read_mapping_file.dict | dict2items }}"

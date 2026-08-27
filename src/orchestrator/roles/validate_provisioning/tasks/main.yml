@@ -78,3 +78,30 @@
     content: "{{ provisioning_summary | to_nice_yaml }}"
     dest: "{{ orchestrator_output_dir }}/provisioning_report.yml"
     mode: "0644"
+
+# Write orchestrator_status.yml — the canonical status contract consumed by
+# external tools. During the provisioning-only path (no PXE boot) the node
+# status is derived from SMD registration.  When PXE boot is enabled the
+# set_pxe_boot.yml playbook overwrites this file with phone-home results.
+- name: Compute per-node provisioning status from SMD
+  ansible.builtin.set_fact:
+    provisioning_nodes_status: >-
+      {{ provisioning_nodes_status | default([]) +
+         [{'xname': item,
+           'status': ('success' if item in registered_xnames else 'failed'),
+           'failure_reason': ('' if item in registered_xnames else 'not registered in SMD')}] }}
+  loop: "{{ expected_nodes }}"
+
+- name: Write orchestrator_status.yml (provisioning path)
+  ansible.builtin.copy:
+    content: "{{ orchestrator_status | to_nice_yaml }}"
+    dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+    mode: "0644"
+  vars:
+    orchestrator_status:
+      overall_status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      total_nodes: "{{ expected_nodes | length }}"
+      success_count: "{{ registered_xnames | intersect(expected_nodes) | length }}"
+      failure_count: "{{ missing_nodes | length }}"
+      nodes: "{{ provisioning_nodes_status | default([]) }}"

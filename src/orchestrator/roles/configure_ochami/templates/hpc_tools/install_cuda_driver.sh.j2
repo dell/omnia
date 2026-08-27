@@ -3,7 +3,30 @@
 # Never touches NFS lock artifacts. Never touches /hpc_tools/cuda contents.
 set -euo pipefail
 
-DRIVER_VERSION="580.159.04"
+# NVIDIA driver version defaults.
+#
+# 580.159.04 is NOT the latest NVIDIA driver release.
+# It was chosen as the default because it is a validated and packaged
+# version in the Omnia local repository for Omnia 2.2, for both x86_64
+# and aarch64 compute nodes running RHEL 10.0.
+#
+# We do not automatically use the latest NVIDIA release because the
+# matching nvidia-driver-<version> and nvidia-driver-cuda-<version>
+# packages must exist in the local repository and be tested on the
+# target OS/arch before they can be installed safely. If you change
+# this to a newer NVIDIA release, ensure the matching packages are
+# available; otherwise the install will fail.
+
+DRIVER_VERSION_x86_64="{{ hostvars['localhost']['nvidia_driver_version_x86_64'] | default('580.159.04') }}"
+DRIVER_VERSION_aarch64="{{ hostvars['localhost']['nvidia_driver_version_aarch64'] | default('580.159.04') }}"
+
+ARCH=$(uname -m)
+if [ "$ARCH" == "aarch64" ]; then
+    DRIVER_VERSION="$DRIVER_VERSION_aarch64"
+else
+    DRIVER_VERSION="$DRIVER_VERSION_x86_64"
+fi
+
 LOGFILE="/var/log/nvidia_install.log"
 
 # ── Ensure full PATH (non-interactive shells may miss /usr/sbin) ──
