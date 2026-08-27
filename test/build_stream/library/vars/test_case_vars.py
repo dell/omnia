@@ -27,9 +27,9 @@ from typing import Dict
 
 TEST_CASES: Dict[str, Dict[str, str]] = {
     # --- Deploy (TC_GI_000) ---
-    "deploy_gitlab_install": {
+    "deploy_buildstream_install": {
         "id": "TC_GI_000",
-        "title": "Deploy build_stream --tags gitlab_install",
+        "title": "Deploy build_stream --tags buildstream_install",
     },
 
     # --- GitLab Install (TC_GI_xxx) ---
@@ -143,28 +143,20 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "TC_BH_005",
         "title": "Verify GitLab runner running",
     },
-    "playbook_paths_yml_exists": {
-        "id": "TC_BH_006",
-        "title": "Verify playbook_paths.yml exists",
-    },
-    "playbook_paths_resolvable": {
-        "id": "TC_BH_007",
-        "title": "Verify playbook paths resolve to files",
-    },
     "omnia_venv_exists": {
-        "id": "TC_BH_008",
+        "id": "TC_BH_006",
         "title": "Verify shared Python venv exists",
     },
     "bsm_tls_certificate_valid": {
-        "id": "TC_BH_009",
+        "id": "TC_BH_007",
         "title": "Verify BSM TLS certificate valid",
     },
     "nfs_queue_directory_accessible": {
-        "id": "TC_BH_010",
+        "id": "TC_BH_008",
         "title": "Verify NFS queue directory accessible",
     },
     "playbook_watcher_running": {
-        "id": "TC_BH_011",
+        "id": "TC_BH_009",
         "title": "Verify playbook watcher running",
     },
 
@@ -284,5 +276,75 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "buildstream_oauth_credentials_removed": {
         "id": "TC_BC_017",
         "title": "Verify OAuth credentials removed",
+    },
+
+    # =================================================================
+    # SECTION D: Build Pipeline (TC_BP_xxx)
+    #
+    # Stage names match the BSM StageType enum in
+    # src/build_stream/app/core/jobs/value_objects.py:
+    #   create-local-repository, build-image, upload   (build pipeline)
+    #   validate, restart, deploy                      (deploy pipeline)
+    #
+    # test_playbook.py  (deploy marker — runs with --test only)
+    #   TC_BP_001  Push catalog and trigger pipeline
+    #
+    # build_pipeline/   (verify tests — runs with --test and --verify)
+    #   TC_BP_PRE        Credentials pre-check
+    #   TC_BP_002 – 012  Post-execution verification
+    # =================================================================
+
+    # --- test_playbook.py (deploy) ---
+    "deploy_build_pipeline": {
+        "id": "TC_BP_001",
+        "title": "Push catalog, trigger pipeline, monitor stages",
+    },
+
+    # --- build_pipeline/ (verify) --- credentials gate ---
+    "build_credentials_configured": {
+        "id": "TC_BP_PRE",
+        "title": "Verify build_stream credentials configured",
+    },
+
+    # --- build_pipeline/ (verify) ---
+    "build_bsm_health_check": {
+        "id": "TC_BP_002",
+        "title": "Verify BSM API /health endpoint",
+    },
+    "build_oauth_auth": {
+        "id": "TC_BP_003",
+        "title": "Verify OAuth credentials registered",
+    },
+    "build_job_created": {
+        "id": "TC_BP_004",
+        "title": "Verify job created in DB",
+    },
+    "build_job_accessible_via_api": {
+        "id": "TC_BP_005",
+        "title": "Verify job accessible via BSM API",
+    },
+    "build_stage_create_local_repository": {
+        "id": "TC_BP_006",
+        "title": "Verify create-local-repository stage completed",
+    },
+    "build_stage_build_image": {
+        "id": "TC_BP_007",
+        "title": "Verify build-image stage completed",
+    },
+    "build_repo_status": {
+        "id": "TC_BP_008",
+        "title": "Verify repo_status.yml overall_status success",
+    },
+    "build_registry_images": {
+        "id": "TC_BP_009",
+        "title": "Verify container images in registry",
+    },
+    "build_s3_boot_images": {
+        "id": "TC_BP_010",
+        "title": "Verify boot images in S3",
+    },
+    "build_pipeline_result": {
+        "id": "TC_BP_011",
+        "title": "Build pipeline final result",
     },
 }
