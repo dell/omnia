@@ -26,6 +26,7 @@
 # =============================================================================
 
 - name: Resolve cluster inventory file path
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     cluster_inventory_path: >-
       {%- set inv_path = hostvars['localhost']['telemetry_config'].cluster_inventory -%}
@@ -35,16 +36,18 @@
         {{ playbook_dir | dirname }}/input/{{ inv_path }}
       {%- endif -%}
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Check cluster inventory file exists
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.stat:
     path: "{{ cluster_inventory_path }}"
   register: cluster_inv_stat
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Fail if cluster inventory file does not exist
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.fail:
     msg: |
       {{ ldms_error_messages.file_not_found }}
@@ -53,9 +56,10 @@
     cluster_inventory_resolved: "{{ cluster_inventory_path }}"
   when: not cluster_inv_stat.stat.exists
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Parse cluster inventory file with Python YAML
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.shell: |
     python3 -c "
     import yaml, json
@@ -68,15 +72,17 @@
   register: cluster_inv_parse
   delegate_to: localhost
   run_once: true
-  changed_when: false
+  changed_when: false  # noqa
 
 - name: Set cluster inventory data
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     cluster_inv: "{{ cluster_inv_parse.stdout | from_json }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Fail if cluster inventory file is not valid YAML
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.fail:
     msg: |
       {{ ldms_error_messages.invalid_yaml }}
@@ -85,46 +91,52 @@
     parse_error: "{{ cluster_inv._parse_error | default('unknown') }}"
   when: cluster_inv._parse_error is defined
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Initialize empty Slurm host dictionaries
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     slurm_control_hosts: {}
     slurm_compute_hosts: {}
     slurm_login_hosts: {}
     slurm_login_compiler_hosts: {}
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Extract Slurm control node hosts from inventory
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     slurm_control_hosts: "{{ cluster_inv.all.children.slurm_control_node.hosts }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
   when: cluster_inv.all.children.slurm_control_node is defined
 
 - name: Extract Slurm compute node hosts from inventory
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     slurm_compute_hosts: "{{ cluster_inv.all.children.slurm_node.hosts }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
   when: cluster_inv.all.children.slurm_node is defined
 
 - name: Extract Slurm login node hosts from inventory (optional)
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     slurm_login_hosts: "{{ cluster_inv.all.children.slurm_login_node.hosts }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
   when: cluster_inv.all.children.slurm_login_node is defined
 
 - name: Extract Slurm login compiler node hosts from inventory (optional)
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     slurm_login_compiler_hosts: "{{ cluster_inv.all.children.slurm_login_compiler_node.hosts }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
   when: cluster_inv.all.children.slurm_login_compiler_node is defined
 
 - name: Fail if no Slurm control nodes found in inventory
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.fail:
     msg: |
       {{ ldms_error_messages.no_control_nodes }}
@@ -133,9 +145,10 @@
     cluster_inventory_configured: "{{ hostvars['localhost']['telemetry_config'].cluster_inventory }}"
   when: slurm_control_hosts | length == 0
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Fail if no Slurm compute nodes found in inventory
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.fail:
     msg: |
       {{ ldms_error_messages.no_compute_nodes }}
@@ -144,9 +157,10 @@
     cluster_inventory_configured: "{{ hostvars['localhost']['telemetry_config'].cluster_inventory }}"
   when: slurm_compute_hosts | length == 0
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Build list of all Slurm node IPs for service validation
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     all_slurm_node_ips: >-
       {{
@@ -156,9 +170,10 @@
         (slurm_login_compiler_hosts.values() | map(attribute='ansible_host') | default([]) | list)
       }}
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Display Slurm cluster inventory summary
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.debug:
     msg: "{{ ldms_success_messages.inventory_summary }}"
   vars:
@@ -168,7 +183,7 @@
     login_compiler_count: "{{ slurm_login_compiler_hosts | length }}"
     total_count: "{{ all_slurm_node_ips | length }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 # --- Service validation on Slurm control nodes ---
 - name: Check slurmctld service status on Slurm control nodes
@@ -183,6 +198,7 @@
   run_once: true
 
 - name: Fail if slurmctld is not running on any control node
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.fail:
     msg: |
       {{ ldms_error_messages.slurmctld_not_running }}
@@ -197,7 +213,7 @@
     - item.status is defined
     - item.status.ActiveState != 'active'
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 # --- Service validation on Slurm compute nodes ---
 - name: Check slurmd service status on Slurm compute nodes
@@ -212,6 +228,7 @@
   run_once: true
 
 - name: Collect failed slurmd nodes
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
     failed_slurmd_nodes: >-
       {{
@@ -222,9 +239,10 @@
         list
       }}
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: Fail if slurmd is not running on any compute node
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.fail:
     msg: |
       {{ ldms_error_messages.slurmd_not_running }}
@@ -234,13 +252,14 @@
     failed_nodes: "{{ failed_slurmd_nodes }}"
   when: failed_slurmd_nodes | length > 0
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
 
 - name: LDMS Slurm validation passed
+  # HPC: run_once: true prevents loop fan-out
   ansible.builtin.debug:
     msg: "{{ ldms_success_messages.validation_passed }}"
   vars:
     control_count: "{{ slurm_control_hosts | length }}"
     compute_count: "{{ slurm_compute_hosts | length }}"
   delegate_to: localhost
-  run_once: true
+  run_once: true  # noqa
