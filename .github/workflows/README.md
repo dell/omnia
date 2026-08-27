@@ -9,14 +9,15 @@ All workflows run on pull requests targeting `main`, `staging`, `release_*`, `is
 | 1 | **Ansible Lint** | `ansible-lint.yml` | 1 | Blocking | Runs `ansible-lint` with production profile (FQCN, named tasks, module-vs-shell) |
 | 2 | **Bandit Security Scan** | `bandit.yml` | 1 | Blocking | Python SAST -- `bandit -r` to detect security issues in Python code |
 | 3 | **Commit Hygiene** | `commit-hygiene.yml` | 3 | Blocking (Job 1) | Validates commit authors, messages, copyright headers, and test co-changes |
-| 4 | **HPC Compliance Scanner** | `ansible-module-lint.yml` | 1 | Mixed | HPC anti-patterns + Checkmarx pre-scan (see below) |
-| 5 | **Secret Leak Scan** | `gitleaks.yml` | 1 | Blocking | Scans for secrets and credentials using `gitleaks` with custom `.gitleaks.toml` |
-| 6 | **Dependency Vulnerability Scan** | `pip-audit.yml` | 1 | Blocking | `pip-audit` scans Python dependencies for known CVEs |
-| 7 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
-| 8 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
-| 9 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
+| 4 | **HPC Compliance Scanner** | `hpc-compliance.yml` | 1 | Mixed | HPC anti-patterns + Checkmarx pre-scan (see below) |
+| 5 | **PR Hygiene** | `pr-hygiene.yml` | 1 | Blocking | Validates PR title format, branch naming, and spec/code separation |
+| 6 | **Secret Leak Scan** | `gitleaks.yml` | 1 | Blocking | Scans for secrets and credentials using `gitleaks` with custom `.gitleaks.toml` |
+| 7 | **Dependency Vulnerability Scan** | `pip-audit.yml` | 1 | Blocking | `pip-audit` scans Python dependencies for known CVEs |
+| 8 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
+| 9 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
+| 10 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
 
-**Total: 9 workflows, 11 jobs**
+**Total: 10 workflows, 12 jobs**
 
 > **Note:** YAML linting is handled by `ansible-lint` (production profile). A separate `yamllint` workflow is not required.
 
@@ -24,7 +25,7 @@ All workflows run on pull requests targeting `main`, `staging`, `release_*`, `is
 
 ## HPC Compliance Scanner Details
 
-The `ansible-module-lint.yml` workflow enforces Omnia-specific HPC rules that `ansible-lint` does not cover.
+The `hpc-compliance.yml` workflow enforces Omnia-specific HPC rules that `ansible-lint` does not cover.
 
 ### Ansible Checks (Advisory)
 
@@ -65,6 +66,7 @@ The `ansible-module-lint.yml` workflow enforces Omnia-specific HPC rules that `a
 | Ansible Lint | `ansible-lint` | Zero errors (production profile) | `ansible.md` §14.1 |
 | Pylint | `pylint` | Score >= 8.0 per file | `python.md` §7.1 |
 | ShellCheck | `shellcheck` | Zero errors | `ansible.md` §14 |
+| PR Hygiene | `pr-hygiene.yml` | Valid PR title format, branch naming, spec/code separation | `general.md` §11 |
 
 ### Security
 
@@ -74,6 +76,7 @@ The `ansible-module-lint.yml` workflow enforces Omnia-specific HPC rules that `a
 | Secret Leak | `gitleaks` | Zero findings | `ansible.md` §14.4 |
 | Dependency CVE | `pip-audit` | Zero known vulnerabilities | `python.md` §7 |
 | Checkmarx Pre-scan | HPC Compliance Scanner | No `shell=True`, `os.system()`, `eval()`, `exec()`, unsafe `yaml.load()` | `python.md` §8.3 |
+| PR Hygiene | `pr-hygiene.yml` | Valid PR title format, branch naming, spec/code separation | `general.md` §11 |
 
 ---
 
@@ -95,6 +98,20 @@ The `commit-hygiene.yml` workflow enforces the AI Agent Usage Policy from `docs/
 
 ---
 
+## PR Hygiene Details
+
+The `pr-hygiene.yml` workflow enforces PR-level validation rules:
+
+| Check | Description | Severity |
+|-------|-------------|----------|
+| **PR Title Format** | Validates Conventional Commit format: `<type>(<scope>): <description>` | ERROR |
+| **Branch Naming** | Enforces `pub/<name>` prefix for protected branches | ERROR |
+| **Spec/Code Separation** | Warns when `specs/` and `src/`/`test/` changes are mixed in the same PR | WARN |
+
+**Protected branches**: Branches matching `pub/*` pattern require PR reviews and status checks before merge.
+
+---
+
 ## Security Scanning
 
 | Scanner | Tool | What It Checks |
@@ -103,6 +120,13 @@ The `commit-hygiene.yml` workflow enforces the AI Agent Usage Policy from `docs/
 | Checkmarx Pre-scan | HPC Compliance Scanner | `shell=True`, `os.system()`, `eval()`, `exec()`, `yaml.load()`, hardcoded credentials |
 | Secrets | `gitleaks` | Leaked credentials, API keys, tokens in code and history |
 | Dependencies | `pip-audit` | Known CVEs in Python package dependencies |
+
+## PR-Level Validation
+
+| Workflow | What It Checks |
+|----------|----------------|
+| **Commit Hygiene** | Commit author validation, message format, copyright headers, test co-changes |
+| **PR Hygiene** | PR title format, branch naming (`pub/*`), spec/code separation |
 
 ---
 
