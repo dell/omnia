@@ -38,9 +38,10 @@
 
 - name: Ensure ldms_sampler_password is available
   ansible.builtin.set_fact:
-    ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+    ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
   when:
-    - hostvars['localhost']['ldms_sampler_password'] is defined
+    - telemetry_credentials is defined
+    - telemetry_credentials.ldms_sampler_password is defined
   no_log: true
 
 - name: Render LDMS authentication configuration

@@ -80,11 +80,16 @@
                 done
             fi
 
+        - path: /root/.ssh/oim_rsa
+          permissions: '0600'
+          content: |
+            {{ read_ssh_private_key.stdout | indent(12) }}
+
         - path: /root/.ssh/config
           permissions: '0600'
           content: |
             Host {{ k8s_control_ssh_patterns }}
-                IdentityFile {{ k8s_client_mount_path }}/ssh/oim_rsa
+                IdentityFile /root/.ssh/oim_rsa
                 IdentitiesOnly yes
                 StrictHostKeyChecking no
                 UserKnownHostsFile /dev/null
@@ -271,7 +276,7 @@
 {% endfor %}
 {% endif %}
 {% raw %}
-      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
+      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map is mapping and ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
       {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
       {% if mymounts %}
       {% for mount in mymounts.get("mounts", []) %}

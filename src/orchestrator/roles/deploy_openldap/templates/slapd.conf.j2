@@ -1,6 +1,10 @@
 # {{ ansible_managed }}
 # slapd.conf — OpenLDAP server configuration for omnia_auth container
 
+# Load MDB backend module (required for Wolfi-based container)
+modulepath /usr/lib/openldap
+moduleload back_mdb.so
+
 include     /etc/openldap/schema/core.schema
 include     /etc/openldap/schema/cosine.schema
 include     /etc/openldap/schema/inetorgperson.schema
