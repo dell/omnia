@@ -66,5 +66,4 @@
 - name: Verify LDMS telemetry
   ansible.builtin.include_tasks: verify_ldms.yml
 
-- name: Update telemetry status
-  ansible.builtin.include_tasks: update_status.yml
+## Status is now collected centrally in deploy.yml Phase 4.

@@ -79,7 +79,6 @@ from ..vars.common_vars import (
     ENV_OMNIA_PROJECT_NAME,
     IBM_CONFIG_FILE,
     CREDENTIALS_FILE_NAME,
-    CREDENTIALS_KEY_NAME,
     SRC_INPUT_DIR,
     SRC_REPO_OUTPUT_DIR,
 )
@@ -119,7 +118,7 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
         dest=config["clone_path"],
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
 
@@ -168,7 +167,7 @@ def sync_image_build_input(host) -> Dict[str, Any]:
     return sync_files(
         mode=conn["mode"], src=local_input, dest=remote_input,
         ip=conn["ip"], user=conn["user"],
-        password=conn["password"], ssh_opts=conn["ssh_opts"],
+        auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
     )
 
 
@@ -214,7 +213,7 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
     return sync_files(
         mode=conn["mode"], src=local_output, dest=remote_output_dir,
         ip=conn["ip"], user=conn["user"],
-        password=conn["password"], ssh_opts=conn["ssh_opts"],
+        auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
     )
 
 

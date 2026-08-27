@@ -60,3 +60,14 @@ from .sync_func import clone_repo, sync_files
 
 # --- Validation Runner ---
 from .validation_runner import ValidationRunner
+
+# --- Credential Management ---
+from .credential_func import (
+    ensure_vault_key,
+    is_vault_encrypted,
+    vault_encrypt,
+    vault_decrypt_to_dict,
+    read_credential_field,
+    write_credential_fields,
+    prompt_credential,
+)

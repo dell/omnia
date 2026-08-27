@@ -5,12 +5,13 @@ Functional Verification Testing (FVT) and Non-Functional Testing (NFT) for the `
 ## Quick Start
 
 ```bash
-# 1. One-time setup (creates venv, installs deps)
-source setup_env.sh
+# 1. One-time setup (installs deps)
+bash setup_env.sh
 
 # 2. Configure target server
-#    Edit test_config.yml: set oim_server_ip, project_name
-#    Edit test_creds.yml: set SSH credentials (auto-encrypted)
+#    Edit test_config.yml: set oim_server_ip
+#    Set SSH credentials:
+bash setup_env.sh --set-creds
 
 # 3. Run tests
 ./run_validation.sh fvt_telemetry precheck verify
@@ -116,12 +117,13 @@ Sinks:   VictoriaMetrics, VictoriaLogs, Kafka (Strimzi)
 
 ```
 test/telemetry/
-├── setup_env.sh              # Environment setup (--venv, --set-password, etc.)
+├── setup_env.sh              # Environment setup (--venv, --set-creds, etc.)
 ├── run_validation.sh         # Shell entry point (delegates to _run.py)
 ├── _run.py                   # Python entry point (loads domain vars, creates runner)
 ├── conftest.py               # Pytest hooks, fixtures, report generation
 ├── test_config.yml           # Non-sensitive settings (IPs, paths)
-├── test_creds.yml            # Credentials (auto-encrypted, gitignored)
+├── test_creds.yml            # SSH creds (created by --set-creds, auto-encrypted)
+├── .test_creds.key           # Vault key for test_creds.yml (auto-created)
 ├── test_run_config.yml       # Batch execution: scenario order, markers, suites
 │
 ├── library/                  # Reusable automation library
@@ -148,7 +150,8 @@ test/telemetry/
 │   │       ├── test_ldms.py
 │   │       ├── test_ome.py
 │   │       ├── test_powerscale.py
-│   │       └── test_ufm.py
+│   │       ├── test_ufm.py
+│   │       └── test_vast.py
 │   └── cleanup/              # Cleanup tag tests
 │       ├── test_playbook.py  # Playbook --tags cleanup
 │       └── status/           # Verify sources/sinks/pods/PVCs removed

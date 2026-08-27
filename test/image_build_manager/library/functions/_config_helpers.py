@@ -20,6 +20,7 @@ Shared helpers for build image verification functions.
 - Functional group resolution
 """
 
+import os
 import time
 from typing import List
 
@@ -27,7 +28,6 @@ import yaml
 
 from omnia_auto import resolve_domain_input_path
 
-from .host_func import load_test_config
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
@@ -72,20 +72,25 @@ def _retry_run(host, cmd_str, retries: int = 2, delay: float = 3.0):
 # =============================================================================
 
 def _get_shared_path() -> str:
-    """Get shared_path from test_config or fall back to constant.
+    """Get shared_path from OMNIA_DATA_PATH env var.
 
-    The shared_path is derived from OMNIA_DATA_PATH env var on the target:
-        <OMNIA_DATA_PATH>/image_build_manager
-    Falls back to the SHARED_PATH constant (/opt/omnia/image_build_manager).
+    Constructs ``<OMNIA_DATA_PATH>/image_build_manager`` from the
+    local environment (sourced from /etc/omnia/omnia.env).
+    Falls back to the SHARED_PATH constant.
     """
-    config = load_test_config()
-    return config.get("shared_path", SHARED_PATH)
+    data_path = os.environ.get(ENV_OMNIA_DATA_PATH, "")
+    if data_path:
+        return f"{data_path}/{DOMAIN_NAME}"
+    return SHARED_PATH
 
 
 def _get_project_name() -> str:
-    """Get project_name from test_config or default."""
-    config = load_test_config()
-    return config["project_name"]
+    """Get project_name from OMNIA_PROJECT_NAME env var.
+
+    Reads from the local environment (sourced from /etc/omnia/omnia.env).
+    Falls back to 'project_default' if not set.
+    """
+    return os.environ.get(ENV_OMNIA_PROJECT_NAME, "project_default")
 
 
 def _get_remote_ibm_config_path(host) -> str:

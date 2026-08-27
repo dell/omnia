@@ -42,10 +42,23 @@ telemetry_usage_info_msg:
   - "  cleanup_powerscale         - PowerScale only"
   - "  cleanup_ufm                - UFM only"
   - "  cleanup_vast               - VAST only"
-  - "  cleanup_sfm                - SFM only"
+
   - ""
   - "Examples:"
   - "  ansible-playbook playbooks/telemetry.yml --tags deploy"
   - "  ansible-playbook playbooks/telemetry.yml --tags precheck"
   - "  ansible-playbook playbooks/telemetry.yml --tags cleanup_powerscale"
   - "================================"
+
+# -----------------------------------------------------------------------------
+# ERROR MESSAGES
+# -----------------------------------------------------------------------------
+kubernetes_install_failure_msg: >-
+  Failed to install Python kubernetes module.
+  - Online installation failed (no internet or pip unavailable)
+  - Offline packages not found at {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
+
+  To fix:
+  1. Ensure internet connectivity, OR
+  2. Download packages: pip3 download kubernetes -d /opt/omnia/telemetry/packages/python/
+  3. Re-run the playbook

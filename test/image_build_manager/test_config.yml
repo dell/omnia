@@ -59,11 +59,6 @@ oim_ssh_port: 22
 #               resolved automatically from the source tree.
 clone_path: "/omnia"
 
-# venv_path:    Path to Python virtual environment on the target server.
-#               If set, the venv is activated before running ansible-playbook.
-#               Leave empty to use system-wide ansible.
-venv_path: ""
-
 # =============================================================================
 # DATASET CONFIGURATION
 # =============================================================================
@@ -84,12 +79,6 @@ venv_path: ""
 #     input/package_groups.yml          (optional)
 #     repo_manager_output/repo_status.yml (optional, for sync_output)
 dataset: ""
-
-# Project name on the target server.
-# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
-# Input syncs to: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
-# Output read from: <OMNIA_DATA_PATH>/image_build_manager/output/<project_name>/
-project_name: "project_default"
 
 # =============================================================================
 # SYNC — REPO MANAGER OUTPUT
