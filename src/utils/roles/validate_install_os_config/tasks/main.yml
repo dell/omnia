@@ -125,9 +125,12 @@
 
 # Step 8a: Resolve local NFS mount path for deploy mode
 - name: Get NFS mounts for deploy mode
-  ansible.builtin.shell: "mount | grep -E ' type nfs[0-9]?' || true"
+  ansible.builtin.shell: |
+    set -o pipefail
+    mount | grep -E ' type nfs[0-9]?' || true
   register: _deploy_nfs_mounts
   changed_when: false
+  failed_when: false
   when:
     - _mode_deploy | bool
     - custom_iso_path | default('') | length > 0
@@ -137,6 +140,7 @@
     - _mode_deploy | bool
     - custom_iso_path | default('') | length > 0
   ansible.builtin.shell: |
+    set -o pipefail
     mount | grep -E ' type nfs[0-9]?' | while read -r line; do
       nfs_export=$(echo "$line" | awk '{print $1}')
       local_mount=$(echo "$line" | awk '{print $3}')
@@ -226,12 +230,7 @@
 
 - name: Fail if SSH public key not found
   ansible.builtin.fail:
-    msg: >-
-      SSH public key not found at {{ ssh_public_key_path }}.
-      Passwordless SSH verification requires this key for OS installation.
-      Generate an SSH key with the following command:
-      ssh-keygen -t rsa -b 4096 -N "" -f {{ ssh_public_key_path | dirname }}/id_rsa
-      Or specify a different path in install_os_config.yml: ssh_public_key_path
+    msg: "{{ ssh_key_not_found_msg }}"
   when:
     - not (_mode_credentials_only | bool)
     - (_mode_build_iso | bool or _mode_generate_ks | bool or ansible_run_tags | length == 0)
@@ -253,13 +252,5 @@
 
 - name: Log validated configuration summary
   ansible.builtin.debug:
-    msg: >-
-      OS Install config validated.
-      Mode: build={{ _mode_build_iso }}, deploy={{ _mode_deploy }}, generate_ks={{ _mode_generate_ks }}.
-      Arch: {{ os_arch | default('N/A') }}.
-      Source ISO: {{ source_iso_path | default('N/A') }}.
-      Custom ISO: {{ custom_iso_path | default('N/A') }}.
-      KS delivery: {{ kickstart_delivery_method | default('embedded') }}.
-      Target BMC: {{ target_bmc_ip | default('N/A') }}.
-      SSH key: {{ ssh_public_key_path | default('N/A') }} (validated).
+    msg: "{{ config_validated_msg }}"
   when: not _mode_credentials_only
