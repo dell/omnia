@@ -1,0 +1,73 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Namespace for all Victoria components
+victoria_namespace: "telemetry"
+
+# VMCluster service names (derived from VMCluster CR name "victoria-cluster")
+vm_vminsert_service: "vminsert-victoria-cluster"
+vm_vmselect_service: "vmselect-victoria-cluster"
+
+# VMCluster ports
+vm_vminsert_port: 8480
+vm_vmselect_port: 8481
+
+# VLCluster service names (derived from VLCluster CR name "victoria-logs-cluster")
+vl_vlinsert_service: "vlinsert-victoria-logs-cluster"
+vl_vlselect_service: "vlselect-victoria-logs-cluster"
+
+# VLCluster ports
+vl_vlinsert_port: 9481
+vl_vlselect_port: 9471
+
+# VLAgent service name and syslog port
+vl_vlagent_service: "vlagent"
+vl_vlagent_syslog_port: 514
+
+# TLS secret names (used when TLS is enabled)
+victoria_tls_secret: "victoria-tls-certs"
+victoria_cert_dir_remote: "/opt/omnia/telemetry/certs/victoria"
+
+# Output paths
+victoria_output_dir: >-
+  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/external_victoria
+victoria_output_file: "{{ victoria_output_dir }}/external_victoria_connect_details.yml"
+
+# Error messages
+victoria_err_kube_vip_unreachable: >-
+  kube_vip host is not reachable over SSH: {{ ansible_host | default(inventory_hostname) }}.
+  Ensure the Kubernetes control plane VIP is reachable from this host.
+victoria_err_no_vm_pods: >-
+  No VictoriaMetrics pods found in namespace '{{ victoria_namespace }}'.
+  Ensure telemetry has been deployed with --tags deploy before running this utility.
+victoria_err_vm_pods_not_running: >-
+  One or more VictoriaMetrics pods are not in Running state in namespace '{{ victoria_namespace }}'.
+  Check: kubectl get pods -n {{ victoria_namespace }} -l app.kubernetes.io/component=monitoring
+victoria_err_vminsert_ip_missing: >-
+  Failed to fetch vminsert LoadBalancer external IP. Ensure service '{{ vm_vminsert_service }}'
+  exists in namespace '{{ victoria_namespace }}' and has an external IP assigned.
+victoria_err_vmselect_ip_missing: >-
+  Failed to fetch vmselect LoadBalancer external IP. Ensure service '{{ vm_vmselect_service }}'
+  exists in namespace '{{ victoria_namespace }}' and has an external IP assigned.
+victoria_err_vlagent_ip_missing: >-
+  Failed to fetch VLAgent LoadBalancer external IP. Ensure service '{{ vl_vlagent_service }}'
+  exists in namespace '{{ victoria_namespace }}' and has an external IP assigned.
+
+# SFM integration instructions
+sfm_remote_write_enable_value: "ON"
+sfm_remote_write_message_version: "v1"
+sfm_remote_write_target_name: "victoria"
+sfm_ui_navigation: "Observability -> Settings -> Prometheus Remote Write"
+sfm_tls_server_cert_file_name: "ca.crt"

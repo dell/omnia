@@ -42,7 +42,7 @@ telemetry_usage_info_msg:
   - "  cleanup_powerscale         - PowerScale only"
   - "  cleanup_ufm                - UFM only"
   - "  cleanup_vast               - VAST only"
-  - "  cleanup_sfm                - SFM only"
+
   - ""
   - "Examples:"
   - "  ansible-playbook playbooks/telemetry.yml --tags deploy"

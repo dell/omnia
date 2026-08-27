@@ -58,11 +58,6 @@ oim_ssh_port: 22
 #               resolved automatically from the source tree.
 clone_path: "/root/monorepo/omnia"
 
-# venv_path:    Path to Python virtual environment on the target server.
-#               If set, the venv is activated before running ansible-playbook.
-#               Leave empty to use system-wide ansible.
-venv_path: ""
-
 # =============================================================================
 # DATASET CONFIGURATION
 # =============================================================================
@@ -81,12 +76,6 @@ venv_path: ""
 #     input/telemetry_storage_config.yml  (optional)
 #     input/telemetry_packages.yml
 dataset: ""
-
-# Project name on the target server.
-# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
-# Input read from: <OMNIA_DATA_PATH>/telemetry/input/<project_name>/
-# Output read from: <OMNIA_DATA_PATH>/telemetry/output/<project_name>/
-project_name: "project_default"
 
 # =============================================================================
 # SYNC — TELEMETRY INPUT

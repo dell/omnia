@@ -27,7 +27,6 @@ valid_cleanup_components:
   - cleanup_powerscale
   - cleanup_ufm
   - cleanup_vast
-  - cleanup_sfm
 
 # Timeouts
 cleanup_kafka_wait_timeout: "300s"
@@ -312,16 +311,6 @@ vast_resources:
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
 
 vast_pod_label: "app=vast-external"
-
-# ---------------------------------------------------------------------------
-# SFM cleanup resources
-# ---------------------------------------------------------------------------
-sfm_resources:
-  - { type: "deployment", name: "sfm-exporter" }
-  - { type: "service", name: "sfm-exporter" }
-  - { type: "configmap", name: "sfm-scrape-config" }
-
-sfm_pod_label: "app=sfm-telemetry"
 
 # ---------------------------------------------------------------------------
 # Victoria Operator cleanup (shared between VictoriaMetrics and VictoriaLogs)
