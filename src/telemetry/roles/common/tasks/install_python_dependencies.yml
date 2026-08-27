@@ -84,7 +84,6 @@
       register: module_check
       failed_when: false
       changed_when: false
-      delegate_to: "{{ inventory_hostname }}"
 
     - name: Install {{ item.key }} module
       when: module_check.rc != 0
@@ -100,7 +99,6 @@
               ansible.builtin.command: >
                 python3 -m pip install {{ item.key }}=={{ item.value }}
               register: pip_install_online
-              delegate_to: "{{ inventory_hostname }}"
 
             - name: Fail if online installation failed
               ansible.builtin.fail:
@@ -115,7 +113,6 @@
                 python3 -m pip install --index-url {{ pip_index_url }}
                 {{ item.key }}=={{ item.value }}
               register: pip_install_offline
-              delegate_to: "{{ inventory_hostname }}"
 
             - name: Fail if offline installation failed
               ansible.builtin.fail:
@@ -126,7 +123,6 @@
       ansible.builtin.command: python3 -c "import {{ item.key }}; print({{ item.key }}.__version__)"
       register: module_verify
       changed_when: false
-      delegate_to: "{{ inventory_hostname }}"
 
     - name: Log successful installation
       ansible.builtin.debug:
