@@ -202,7 +202,8 @@ TEST_ASSERT_MSGS = {
     "pulp_mode_must_be_streamed": "Pulp mode must be streamed",
     "subscription_repos_must_support_override": "Subscription repos must support per-repo override",
     "url_repos_must_support_override": "URL repos must support per-repo override",
-    "repo_types_must_behave_identically": "Subscription and URL repos must both support per-repo overrides",  # noqa: E501
+    "repo_types_must_behave_identically": "Subscription and URL repos must both support " \
+                                          "per-repo overrides",
     "repo_status_must_reflect_pulp_mode": "repo_status.yml must reflect correct Pulp mode",
     "pulp_repo_must_have_correct_policy": "Pulp repository must have correct policy",
     "on_demand_must_save_disk_space": "On-demand repos must save disk space",
