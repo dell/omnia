@@ -37,8 +37,10 @@ POWERSCALE_CSI_DRIVER_MISSING_MSG = (
     "PowerScale telemetry requires the CSI driver for PowerScale to be configured."
 )
 POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
-    "service cluster is not defined in functional_groups_config.yml. "
-    "PowerScale telemetry requires a service cluster."
+    "service cluster is not found in orchestrator_inventory. "
+    "PowerScale telemetry requires a service cluster with at least one "
+    "service_kube_control_plane node and one service_kube_node. "
+    "Ensure orchestrator_inventory contains these groups with at least one host each."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
     "powerscale_configurations section is required in telemetry_config.yml when "
@@ -48,18 +50,6 @@ POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
 POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
     "must be a non-empty string in format 'XGi' (e.g., '5Gi') in telemetry_config.yml"
 )
-POWERSCALE_CSI_SECRET_PATH_REQUIRED_MSG = (
-    "csi_powerscale_secret_path is required in telemetry_config.yml when "
-    "telemetry_sources.powerscale.metrics_enabled is true. "
-    "Please provide the path to the CSI PowerScale driver secret.yaml file."
-)
-def powerscale_csi_secret_not_found_msg(path):
-    """Returns error message when CSI PowerScale secret file is not found."""
-    return (
-        f"CSI PowerScale driver secret file not found at '{path}'. "
-        "Please verify the file path is correct in "
-        "telemetry_config.yml (csi_powerscale_secret_path)."
-    )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
     "csm_observability_values_file_path is required in telemetry_config.yml when "
     "telemetry_sources.powerscale.metrics_enabled is true. "
@@ -93,6 +83,16 @@ POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
     "OTEL Collector image is required in CSM Observability "
     "values.yaml (path specified in telemetry_config.yml)."
 )
+POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
+    "PowerScale image version mismatch detected in offline mode. "
+    "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
+)
+def powerscale_image_version_mismatch_msg(mismatched_images):
+    """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
+    return (
+        f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
+        f"{', '.join(mismatched_images)}"
+    )
 ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
     "Each additional_metric_remote_write_endpoint in "
     "telemetry_config.yml must have a non-empty 'url' field."
@@ -106,17 +106,17 @@ ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
 ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
     "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
-def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
-    """Returns error message when CSM values.yaml image version doesn't match service_k8s (versioned)."""
+POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
+    "PowerScale image version mismatch detected in offline mode. "
+    "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
+)
+def powerscale_image_version_mismatch_msg(mismatched_images):
+    """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
     return (
-        f"Image version mismatch for '{image_name}': "
-        f"CSM Observability values.yaml has '{values_image}' "
-        f"but service_k8s (versioned) has "
-        f"'{service_k8s_image}'. "
-        f"Please update service_k8s (versioned) to match the "
-        f"values.yaml version and re-run local_repo.yml to "
-        f"mirror the correct image to Pulp."
+        f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
+        f"{', '.join(mismatched_images)}"
     )
+
 # pylint: enable=invalid-name
 
 def boolean_fail_msg(value):

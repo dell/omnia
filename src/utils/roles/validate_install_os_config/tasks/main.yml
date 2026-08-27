@@ -86,6 +86,7 @@
     ssh_verify_enabled: "{{ install_os_config.ssh_verify_enabled | default(true) }}"
     ssh_verify_retries: "{{ install_os_config.ssh_verify_retries | default(60) }}"
     ssh_verify_delay: "{{ install_os_config.ssh_verify_delay | default(30) }}"
+    ssh_public_key_path: "{{ install_os_config.ssh_public_key_path | default('/root/.ssh/id_rsa.pub') }}"
     cacheable: true
 
 # Step 6: Validate kickstart_delivery_method
@@ -122,6 +123,62 @@
     _nfs_iso_filename: "{{ custom_iso_path.split(':')[1] | basename }}"
     cacheable: true
 
+# Step 8a: Resolve local NFS mount path for deploy mode
+- name: Get NFS mounts for deploy mode
+  ansible.builtin.shell: |
+    set -o pipefail
+    mount | grep -E ' type nfs[0-9]?' || true
+  register: _deploy_nfs_mounts
+  changed_when: false
+  failed_when: false
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+
+- name: Resolve local ISO path from NFS mounts for deploy mode
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+  ansible.builtin.shell: |
+    set -o pipefail
+    mount | grep -E ' type nfs[0-9]?' | while read -r line; do
+      nfs_export=$(echo "$line" | awk '{print $1}')
+      local_mount=$(echo "$line" | awk '{print $3}')
+      if [[ "$nfs_export" == "{{ _nfs_server }}:"* ]]; then
+        remote_export="${nfs_export#{{ _nfs_server }}:}"
+        if [[ "{{ _nfs_dir }}" == "$remote_export" ]]; then
+          echo "$local_mount"
+          exit 0
+        elif [[ "{{ _nfs_dir }}" == "$remote_export"/* ]]; then
+          rel_path="{{ _nfs_dir }}"
+          rel_path="${rel_path#$remote_export/}"
+          echo "$local_mount/$rel_path"
+          exit 0
+        fi
+      fi
+    done
+  register: _local_iso_dir_result
+  changed_when: false
+  failed_when: false
+
+- name: Set local ISO directory fact for deploy mode
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+    - _local_iso_dir_result.stdout | default('') | trim | length > 0
+  ansible.builtin.set_fact:
+    _local_iso_dir: "{{ _local_iso_dir_result.stdout | trim }}"
+    cacheable: true
+
+- name: Set local ISO path for deploy mode
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+    - _local_iso_dir | default('') | trim | length > 0
+  ansible.builtin.set_fact:
+    _local_iso_path: "{{ _local_iso_dir | trim }}/{{ _nfs_iso_filename }}"
+    cacheable: true
+
 # Step 9: Validate source_iso_path for build modes
 - name: Validate source_iso_path for build modes
   ansible.builtin.fail:
@@ -143,6 +200,7 @@
   ansible.builtin.fail:
     msg: "{{ invalid_architecture_msg }}"
   when:
+    - not (_mode_credentials_only | bool)
     - _os_arch | default('') | length > 0
     - _os_arch not in ['x86_64', 'aarch64']
 
@@ -161,7 +219,24 @@
     - _mode_deploy | bool
     - target_admin_ip | default('') | length == 0
 
-# Step 12: Set derived variables for downstream roles
+# Step 12: Validate SSH public key availability
+- name: Check if SSH public key exists
+  ansible.builtin.stat:
+    path: "{{ ssh_public_key_path }}"
+  register: _ssh_key_stat
+  when:
+    - not (_mode_credentials_only | bool)
+    - (_mode_build_iso | bool or _mode_generate_ks | bool or ansible_run_tags | length == 0)
+
+- name: Fail if SSH public key not found
+  ansible.builtin.fail:
+    msg: "{{ ssh_key_not_found_msg }}"
+  when:
+    - not (_mode_credentials_only | bool)
+    - (_mode_build_iso | bool or _mode_generate_ks | bool or ansible_run_tags | length == 0)
+    - not (_ssh_key_stat.stat.exists | default(false))
+
+# Step 13: Set derived variables for downstream roles
 - name: Set derived variables for downstream roles
   ansible.builtin.set_fact:
     os_arch: "{{ _os_arch }}"
@@ -177,11 +252,5 @@
 
 - name: Log validated configuration summary
   ansible.builtin.debug:
-    msg: >-
-      OS Install config validated.
-      Mode: build={{ _mode_build_iso }}, deploy={{ _mode_deploy }}, generate_ks={{ _mode_generate_ks }}.
-      Arch: {{ os_arch | default('N/A') }}.
-      Source ISO: {{ source_iso_path | default('N/A') }}.
-      Custom ISO: {{ custom_iso_path | default('N/A') }}.
-      KS delivery: {{ kickstart_delivery_method | default('embedded') }}.
-      Target BMC: {{ target_bmc_ip | default('N/A') }}.
+    msg: "{{ config_validated_msg }}"
+  when: not _mode_credentials_only
