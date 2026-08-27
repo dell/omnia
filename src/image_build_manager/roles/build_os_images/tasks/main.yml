@@ -128,7 +128,10 @@
 
 - name: Build image list entries (using actual S3 filenames)
   vars:
-    _resolved_name: "{{ _s3_artifacts[item.key].image_name | default('rhel-' + item.key + omnia_suffix + (compute_image_suffix | default('')) + _build_type_suffix) }}"
+    _resolved_name: >-
+      {{ _s3_artifacts[item.key].image_name
+      | default('rhel-' + item.key + omnia_suffix
+      + (compute_image_suffix | default('')) + _build_type_suffix) }}
     _kernel_file: "{{ _s3_artifacts[item.key].kernel | default('') }}"
     _initrd_file: "{{ _s3_artifacts[item.key].initrd | default('') }}"
     _rootfs_file: "{{ _s3_artifacts[item.key].rootfs | default('') }}"
