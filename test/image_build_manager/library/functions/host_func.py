@@ -175,7 +175,7 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
     """Push repo_manager_output from local source to target.
 
     Reads repo_manager_output_dir from image_build_config.yml.
-    Falls back to /opt/omnia/repo_manager/output/<project_name>/.
+    Falls back to <OMNIA_DATA_PATH>/repo_manager/output/<project_name>/.
 
     Source: src/.../samples/repo_manager_output/ (default) or
             datasets/<dataset>/repo_manager_output/ (when dataset is set).

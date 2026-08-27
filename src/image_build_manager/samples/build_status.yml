@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# SAMPLE: build_status.yml -- image_build_manager output contract
+# ============================================================================
+#
+# This is a REFERENCE TEMPLATE showing the output produced by
+# image_build_manager after a successful build.
+#
+# Runtime location (created by image_build_manager):
+#   /opt/omnia/image_build_manager/output/<project_name>/build_status.yml
+#
+# Producer: image_build_manager domain (build_os_images role)
+# Consumer: provisioning workflow (image validation and BSS template rendering)
+#
+# Fields:
+#   overall_status  -- "success" or "failed"
+#   s3_configurations:
+#     endpoint_url  -- S3 endpoint (auto-detected for MinIO, user-provided for PowerScale)
+#     bucket        -- Always "boot-images"
+#   functional_group_images:
+#     - x86_64      -- List of x86_64 image entries
+#     - aarch64     -- List of aarch64 image entries (if aarch64 build was configured)
+#
+# Each image entry contains:
+#   functional_group -- Group name with architecture suffix
+#   kernel           -- S3 key for vmlinuz (includes kernel-version suffix)
+#   initrd           -- S3 key for initramfs (includes kernel-version suffix)
+#   image            -- Full S3 object key for rootfs file
+# ============================================================================
+
+overall_status: "success"
+
+s3_configurations:
+  endpoint_url: "http://10.20.0.1:9000"
+  bucket: "boot-images"
+
+functional_group_images:
+  - x86_64:
+      - functional_group: "os_x86_64"
+        kernel: "boot-images/efi-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0/vmlinuz-5.14.0-503.46.1.el10_0.x86_64" # noqa: yaml[line-length]
+        initrd: "boot-images/efi-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0/initramfs-5.14.0-503.46.1.el10_0.x86_64.img" # noqa: yaml[line-length]
+        image: "boot-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0/rhel10.0-rhel-os_x86_64_omnia_omnia-services-rhel-10-0-10.0" # noqa: yaml[line-length]
+      - functional_group: "slurm_control_node_x86_64"
+        kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0/vmlinuz-5.14.0-503.46.1.el10_0.x86_64" # noqa: yaml[line-length]
+        initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0/initramfs-5.14.0-503.46.1.el10_0.x86_64.img" # noqa: yaml[line-length]
+        image: "boot-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0/rhel10.0-rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0-10.0" # noqa: yaml[line-length]
+  - aarch64:
+      - functional_group: "slurm_node_aarch64"
+        kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0/vmlinuz-5.14.0-503.46.1.el10_0.aarch64" # noqa: yaml[line-length]
+        initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0/initramfs-5.14.0-503.46.1.el10_0.aarch64.img" # noqa: yaml[line-length]
+        image: "boot-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0/rhel10.0-rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0-10.0" # noqa: yaml[line-length]

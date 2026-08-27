@@ -4,9 +4,8 @@ The `omnia.utils` collection provides utility roles and modules for Omnia HPC cl
 
 ## Features
 
-- **OS Installation**: Bare-metal OS provisioning via ISO creation, delivery, and PXE boot
+- **OS Installation**: Bare-metal OS provisioning via ISO creation and delivery
 - **Log Collection**: Centralized log gathering from cluster nodes for troubleshooting
-- **PXE Boot Management**: iDRAC integration for network boot configuration
 - **Slurm Utilities**: Configuration backup, rollback, and cleanup operations
 - **ARM Support**: ARM64/aarch64 architecture-specific provisioning
 - **Credential Validation**: Custom modules for secure credential handling
@@ -73,7 +72,6 @@ ansible-playbook playbooks/slurm_config_util.yml
 | `utils_setup` | Environment validation and initialization |
 | `iso_creation` | Create custom OS installation ISOs |
 | `iso_delivery` | Deliver ISOs via iDRAC virtual media |
-| `idrac_pxe_boot` | Configure iDRAC for PXE boot |
 | `pxe_buildstream_manager` | Manage PXE boot with BuildStream |
 | `fetch_iso` | Download and validate OS ISOs |
 | `log_collector` | Collect logs from cluster nodes |
@@ -123,13 +121,6 @@ Performs OS installation on ARM64/aarch64 nodes.
 
 ```bash
 ansible-playbook playbooks/install_os_arm_node.yml
-```
-
-### set_pxe_boot.yml
-Configures PXE boot and BuildStream Manager.
-
-```bash
-ansible-playbook playbooks/set_pxe_boot.yml
 ```
 
 ### slurm_config_util.yml

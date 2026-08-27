@@ -66,6 +66,7 @@ kafka_service_resources:
   - "kafka-kafka-brokers"
   - "kafka-kafka-controllers"
 
+kafka_topic_label: "strimzi.io/cluster=kafka"
 kafka_pvc_label: "strimzi.io/cluster=kafka"
 kafka_secret_label: "strimzi.io/cluster=kafka"
 kafka_pod_labels:

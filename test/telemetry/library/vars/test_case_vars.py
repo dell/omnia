@@ -305,4 +305,82 @@ TEST_CASES = {
         "id": "TC_CL_003",
         "title": "Verify Kafka topics removed after cleanup",
     },
+
+    # -- Cleanup: Sinks -----------------------------------------------------
+    "cleanup_kafka": {
+        "id": "TC_CL_002",
+        "title": "Verify Kafka pods removed after cleanup",
+    },
+    "cleanup_victoria_metrics": {
+        "id": "TC_CL_003",
+        "title": "Verify VictoriaMetrics pods removed after cleanup",
+    },
+    "cleanup_victoria_logs": {
+        "id": "TC_CL_004",
+        "title": "Verify VictoriaLogs pods removed after cleanup",
+    },
+
+    # -- Cleanup: Sources ---------------------------------------------------
+    "cleanup_idrac": {
+        "id": "TC_CL_005",
+        "title": "Verify iDRAC pods removed after cleanup",
+    },
+    "cleanup_ldms": {
+        "id": "TC_CL_006",
+        "title": "Verify LDMS pods removed after cleanup",
+    },
+    "cleanup_ome": {
+        "id": "TC_CL_007",
+        "title": "Verify OME pods removed after cleanup",
+    },
+    "cleanup_dcgm": {
+        "id": "TC_CL_008",
+        "title": "Verify DCGM pods removed after cleanup",
+    },
+    "cleanup_ufm": {
+        "id": "TC_CL_009",
+        "title": "Verify UFM resources removed after cleanup",
+    },
+    "cleanup_vast": {
+        "id": "TC_CL_010",
+        "title": "Verify VAST resources removed after cleanup",
+    },
+    "cleanup_sfm": {
+        "id": "TC_CL_011",
+        "title": "Verify SFM pods removed after cleanup",
+    },
+
+    # -- Cleanup: Final State -----------------------------------------------
+    "no_pods_after_full_cleanup": {
+        "id": "TC_CL_012",
+        "title": "Verify no pods remain after full cleanup",
+    },
+    "no_pvcs_after_full_cleanup": {
+        "id": "TC_CL_013",
+        "title": "Verify no PVCs remain after full cleanup",
+    },
+
+    # -- NFT: Performance ---------------------------------------------------
+    "nft_validate_perf": {
+        "id": "NFT_TL_001",
+        "title": "Validate playbook performance (< 30s)",
+    },
+    "nft_deploy_perf": {
+        "id": "NFT_TL_002",
+        "title": "Deploy playbook performance (< 600s)",
+    },
+    "nft_cleanup_perf": {
+        "id": "NFT_TL_003",
+        "title": "Cleanup playbook performance (< 300s)",
+    },
+
+    # -- NFT: Idempotency ---------------------------------------------------
+    "nft_deploy_idempotent": {
+        "id": "NFT_TL_004",
+        "title": "Deploy playbook idempotency (second run exits 0)",
+    },
+    "nft_cleanup_idempotent": {
+        "id": "NFT_TL_005",
+        "title": "Cleanup playbook idempotency (second run exits 0)",
+    },
 }

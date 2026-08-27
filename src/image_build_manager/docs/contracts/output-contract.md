@@ -12,7 +12,7 @@
 
 **Producer**: `build_os_images` role (write_build_status task)
 
-**Consumer**: `orchestrator` domain (image validation and BSS template rendering)
+**Consumer**: Provisioning workflow (image validation and BSS template rendering)
 
 ### Structure
 

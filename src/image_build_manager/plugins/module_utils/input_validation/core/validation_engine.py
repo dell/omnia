@@ -100,6 +100,23 @@ def logic(config_data, logger=None):
     return image_build_config_validator.validate(config_data, logger)
 
 
+def logic_catalog(catalog_file, logger=None):
+    """
+    Runs L2 (referential integrity) validation on catalog JSON.
+
+    Args:
+        catalog_file (str): Absolute path to catalog JSON file.
+        logger: Optional logger instance.
+
+    Returns:
+        list: List of error message strings (empty if valid).
+    """
+    from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+        catalog_validator,
+    )
+    return catalog_validator.validate(catalog_file, logger)
+
+
 def logic_credentials(cred_data, config_data, logger=None):
     """
     Runs L2 (business logic) validation on credential data.
