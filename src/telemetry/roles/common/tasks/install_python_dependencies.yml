@@ -99,6 +99,7 @@
               ansible.builtin.command: >
                 python3 -m pip install {{ item.key }}=={{ item.value }}
               register: pip_install_online
+              changed_when: true
 
             - name: Fail if online installation failed
               ansible.builtin.fail:
@@ -113,6 +114,7 @@
                 python3 -m pip install --index-url {{ pip_index_url }}
                 {{ item.key }}=={{ item.value }}
               register: pip_install_offline
+              changed_when: true
 
             - name: Fail if offline installation failed
               ansible.builtin.fail:

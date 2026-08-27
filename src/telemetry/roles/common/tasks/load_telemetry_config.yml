@@ -49,10 +49,8 @@
       ansible.builtin.set_fact:
         input_project_dir: >-
           {% if omnia_data_path | length > 0 -%}
-          {{ omnia_data_path | regex_replace('/$', '') }}/telemetry/input/project_default
-          {%- else -%}
-          {{ input_project_dir | default('/opt/omnia/telemetry/input/project_default') }}
-          {%- endif %}
+          {{ omnia_data_path | regex_replace('/$', '') }}/telemetry/input/project_default{%- else -%}
+          {{ input_project_dir | default('/opt/omnia/telemetry/input/project_default') }}{%- endif %}
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
