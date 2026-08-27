@@ -21,6 +21,8 @@ Domain-specific functions for verifying log collector and PXE boot functionality
 import json
 import re
 import yaml
+import tempfile
+import shutil
 from typing import Dict, Any, List
 
 from ..vars.common_vars import (
@@ -459,10 +461,11 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
             "error": str
         }
     """
+    temp_dir = None
     try:
         # Extract bundle to temp directory
-        temp_dir = "/tmp/log_bundle_verify"
-        extract_cmd = f"rm -rf {temp_dir} && mkdir -p {temp_dir} && tar -xzf {tar_path} -C {temp_dir}"
+        temp_dir = tempfile.mkdtemp(prefix="log_bundle_verify_")
+        extract_cmd = f"tar -xzf {tar_path} -C {temp_dir}"
         result = host.run(extract_cmd)
 
         if result.rc != 0:
@@ -567,9 +570,6 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
         if has_slurm and slurm_result.stdout.strip() == "no":
             missing_files.append("slurm log files (expected but not found)")
 
-        # Clean up temp directory
-        host.run(f"rm -rf {temp_dir}")
-
         return {
             "success": True,
             "collected_files": collected_files,
@@ -585,6 +585,10 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
             "missing_files": [],
             "error": str(exc),
         }
+    finally:
+        # Clean up temp directory
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 def validate_ini_inventory(host, path: str) -> Dict[str, Any]:
     """Validate INI inventory file format.
