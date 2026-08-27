@@ -25,37 +25,37 @@
 
 - name: Check if values.yaml already exists
   ansible.builtin.stat:
-    path: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
+    path: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml"
   register: values_file_exists
 
 - name: Copy LDMS aggregator Helm chart files
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nersc-ldms-aggr"
-    dest: "{{ ldms_share_path }}"
+    dest: "{{ ldms_aggregator_share_path }}"
     mode: "{{ common_mode }}"
   when: not values_file_exists.stat.exists
 
 - name: Copy LDMS decompose.json
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nersc-ldms-aggr/scripts/decomp.json"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/scripts/decomp.json"
+    dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/scripts/decomp.json"
     mode: "{{ file_permissions_644 }}"
 
 - name: Generate LDMS machine config
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/ldms_machine_config.json.j2"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/ldms_machine_config.json"
+    dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/ldms_machine_config.json"
     mode: "{{ file_permissions_644 }}"
 
 - name: Generate LDMS host map
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/host_map.slurm-cluster.json.j2"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json"
+    dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json"
     mode: "{{ file_permissions_644 }}"
 
 - name: Clean up previous build artifacts before make
   ansible.builtin.file:
-    path: "{{ ldms_share_path }}/nersc-ldms-aggr/{{ item }}"
+    path: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/{{ item }}"
     state: absent
   failed_when: false
   loop:
@@ -67,18 +67,18 @@
   ansible.builtin.shell: make clean all && make
   changed_when: true
   args:
-    chdir: "{{ ldms_share_path }}/nersc-ldms-aggr"
+    chdir: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr"
 
 - name: Render values.yaml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/values.yaml.j2"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
+    dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml"
     mode: "{{ file_permissions_644 }}"
 
 - name: Copy munge key to kube_vip host
   ansible.builtin.copy:
     src: "/tmp/munge.key"
-    dest: "{{ ldms_share_path }}/munge.key"
+    dest: "{{ ldms_aggregator_share_path }}/munge.key"
     mode: "{{ file_permissions_400 }}"
   delegate_to: localhost
   when: munge_key_check_result | default(false) | bool
@@ -86,18 +86,18 @@
 - name: Render ldmsauth.conf to LDMS directory
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/ldmsauth.conf.j2"
-    dest: "{{ ldms_share_path }}/ldmsauth.conf"
+    dest: "{{ ldms_aggregator_share_path }}/ldmsauth.conf"
     mode: "{{ file_permissions_600 }}"
 
 - name: Log LDMS aggregator configuration complete
   ansible.builtin.debug:
-    msg: "LDMS aggregator configuration rendered to {{ ldms_share_path }}/nersc-ldms-aggr/"
+    msg: "LDMS aggregator configuration rendered to {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/"
 
 # ---- Deploy LDMS aggregator Helm chart to Kubernetes ----
 
 - name: Check if host map has nodes (non-empty)
   ansible.builtin.shell: >
-    cat {{ ldms_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json | jq '. | length'
+    cat {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json | jq '. | length'
   register: host_map_count
   changed_when: false
   failed_when: false
@@ -121,7 +121,7 @@
 - name: Create nersc-munge-key secret from munge key file
   ansible.builtin.command: >
     kubectl create secret generic nersc-munge-key
-    --from-file=munge.key={{ ldms_share_path }}/munge.key
+    --from-file=munge.key={{ ldms_aggregator_share_path }}/munge.key
     -n {{ telemetry_namespace }}
   changed_when: true
   when:
@@ -140,7 +140,7 @@
 - name: Create nersc-ldms-ovis-auth secret from ldmsauth.conf
   ansible.builtin.command: >
     kubectl create secret generic nersc-ldms-ovis-auth
-    --from-file=ldmsauth.conf={{ ldms_share_path }}/ldmsauth.conf
+    --from-file=ldmsauth.conf={{ ldms_aggregator_share_path }}/ldmsauth.conf
     -n {{ telemetry_namespace }}
   changed_when: true
   when:
@@ -160,9 +160,9 @@
 - name: Install nersc-ldms-aggr Helm chart (fresh install)
   ansible.builtin.command: >
     helm install nersc-ldms-aggr
-    {{ ldms_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr
+    {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr
     --namespace {{ telemetry_namespace }}
-    --values {{ ldms_share_path }}/nersc-ldms-aggr/values.yaml
+    --values {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml
   register: ldms_helm_install
   changed_when: "'deployed' in ldms_helm_install.stdout | default('')"
   when:
@@ -172,9 +172,9 @@
 - name: Upgrade nersc-ldms-aggr Helm chart (existing release)
   ansible.builtin.command: >
     helm upgrade nersc-ldms-aggr
-    {{ ldms_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr
+    {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr
     --namespace {{ telemetry_namespace }}
-    --values {{ ldms_share_path }}/nersc-ldms-aggr/values.yaml
+    --values {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml
   register: ldms_helm_upgrade
   changed_when: "'deployed' in ldms_helm_upgrade.stdout | default('')"
   when:

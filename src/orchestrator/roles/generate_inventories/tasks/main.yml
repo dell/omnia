@@ -30,13 +30,13 @@
 
 - name: Check if high_availability_config.yml exists
   ansible.builtin.stat:
-    path: "{{ hostvars['localhost']['orchestrator_input_dir'] }}/high_availability_config.yml"
+    path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
   register: ha_config_stat
   delegate_to: localhost
 
 - name: Load high_availability_config.yml to get kube_vip
   ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['orchestrator_input_dir'] }}/high_availability_config.yml"
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
     name: ha_config
   delegate_to: localhost
   when: ha_config_stat.stat.exists | default(false)

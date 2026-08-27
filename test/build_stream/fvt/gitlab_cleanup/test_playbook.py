@@ -15,16 +15,18 @@
 """
 Build Stream GitLab Cleanup — Playbook Deployment.
 
-Deploys build_stream.yml --tags gitlab_cleanup and verifies the
-playbook completes successfully. Used in regression runs to execute
-the cleanup before verifying results.
+Runs cleanup/cleanup_gitlab.yml with -e standalone_mode=true to remove
+GitLab from the target host.  No --tags filter is applied so that all
+plays execute.
+
+The standalone_mode=true flag tells the playbook to use local paths
+instead of requiring container-based paths.
 """
 
 import pytest
 
 from library.functions import TestLogger, run_playbook
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -32,13 +34,17 @@ from library.messages import (
 
 
 @pytest.mark.deploy
-@pytest.mark.regression
+@pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_gitlab_cleanup(host):
-    """Deploy build_stream playbook with --tags gitlab_cleanup."""
+    """Run cleanup/cleanup_gitlab.yml -e standalone_mode=true."""
     tc = TC["deploy_gitlab_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(tag="gitlab_cleanup", timeout=1800)
+    result = run_playbook(
+        playbook="cleanup/cleanup_gitlab.yml",
+        timeout=1800,
+        extra_vars={"standalone_mode": True},
+    )
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -53,8 +59,8 @@ def test_deploy_gitlab_cleanup(host):
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        tag="gitlab_cleanup",
+        playbook="cleanup_gitlab.yml",
+        tag="all",
         rc=result["rc"],
         duration=result["duration"],
     )

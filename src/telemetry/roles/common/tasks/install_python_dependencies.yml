@@ -16,67 +16,116 @@
 # =============================================================================
 # Install Python Dependencies for Telemetry
 # =============================================================================
-# Installs required Python packages for telemetry custom Ansible modules
-# Supports both online and offline installation modes
+# Generic task to install Python packages for telemetry components
+# Supports both online and offline installation modes based on telemetry_packages.yml
 #
-# Required for:
-#   - idrac_telemetry: kubernetes, pyyaml
-#   - Custom modules that interact with K8s API
+# Usage:
+#   - include_tasks: install_python_dependencies.yml
+#     vars:
+#       component: idrac
+#
+# Installation modes:
+#   - online:  Install from PyPI (pip install <package>==<version>)
+#   - offline: Install from Pulp repo (pip install --index-url <repo_url>/pip_module/ <package>==<version>)
+#
+# Parameters:
+#   component: Component name to look up in telemetry_packages.yml (required)
+#   telemetry_packages_file: Path to telemetry_packages.yml (default: from common vars)
 # =============================================================================
 
-- name: Check if Python kubernetes module is installed
-  ansible.builtin.command: python3 -c "import kubernetes"
-  register: kubernetes_check
-  failed_when: false
-  changed_when: false
-  delegate_to: "{{ inventory_hostname }}"
+- name: Validate component is provided
+  ansible.builtin.assert:
+    that:
+      - component is defined
+      - component | length > 0
+    fail_msg: "component variable must be provided (e.g., idrac, powerscale)"
 
-- name: Install Python kubernetes module
-  when: kubernetes_check.rc != 0
+- name: Load telemetry_packages.yml to get install_mode, repo_url, and pip_modules
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_packages_file | default(telemetry_packages_file_path) }}"
+    name: telemetry_packages
+  when: telemetry_packages is not defined
+
+- name: Set installation mode variables
+  ansible.builtin.set_fact:
+    install_mode: "{{ telemetry_packages.install_mode | default('offline') }}"
+    repo_url: "{{ telemetry_packages.repo_url | default('') }}"
+    pip_modules: "{{ telemetry_packages.pip_modules | default({}) }}"
+
+- name: Validate repo_url is set for offline mode
+  ansible.builtin.assert:
+    that:
+      - repo_url | length > 0
+    fail_msg: "repo_url must be set in telemetry_packages.yml when install_mode is 'offline'"
+  when: install_mode == "offline"
+
+- name: Build pip index URL from repo_url
+  ansible.builtin.set_fact:
+    pip_index_url: "{{ repo_url }}/pip_module/"
+  when: install_mode == "offline"
+
+- name: Get packages for component from telemetry_packages.yml
+  ansible.builtin.set_fact:
+    component_packages: "{{ pip_modules[component] | default({}) }}"
+
+- name: Validate component exists in pip_modules
+  ansible.builtin.assert:
+    that:
+      - component_packages | length > 0
+    fail_msg: "Component '{{ component }}' not found in telemetry_packages.yml pip_modules section"
+
+- name: Install Python packages for component
+  loop: "{{ component_packages | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
   block:
-    - name: Log Python dependency installation
-      ansible.builtin.debug:
-        msg: "Installing Python kubernetes module (required for iDRAC telemetry MySQL operations)"
-
-    - name: Try installing kubernetes from pip (online mode)
-      ansible.builtin.command: python3 -m pip install kubernetes
-      register: pip_install_online
+    - name: Check if Python module is installed
+      ansible.builtin.command: python3 -c "import {{ item.key }}"
+      register: module_check
       failed_when: false
-      changed_when: pip_install_online.rc == 0
-      delegate_to: "{{ inventory_hostname }}"
+      changed_when: false
 
-    - name: Install from offline package if online installation fails
-      when: pip_install_online.rc != 0
+    - name: Install Python module
+      when: module_check.rc != 0
       block:
-        - name: Check if offline Python packages directory exists
-          ansible.builtin.stat:
-            path: "{{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}"
-          register: offline_dir_stat
-          delegate_to: "{{ inventory_hostname }}"
+        - name: Log Python dependency installation
+          ansible.builtin.debug:
+            msg: "Installing Python {{ item.key }} module for {{ component }} - Mode: {{ install_mode }}"
 
-        - name: Install kubernetes from offline packages
-          ansible.builtin.command: >
-            python3 -m pip install --no-index
-            --find-links={{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
-            kubernetes
-          when: offline_dir_stat.stat.exists
-          register: pip_install_offline
-          failed_when: false
-          changed_when: pip_install_offline.rc == 0
-          delegate_to: "{{ inventory_hostname }}"
+        - name: Install Python module in online mode (from PyPI)
+          when: install_mode == "online"
+          block:
+            - name: Install Python module from PyPI
+              ansible.builtin.command: >
+                python3 -m pip install {{ item.key }}=={{ item.value }}
+              register: pip_install_online
+              changed_when: true
 
-        - name: Fail if kubernetes module could not be installed
-          ansible.builtin.fail:
-            msg: "{{ kubernetes_install_failure_msg }}"
-          when:
-            - not offline_dir_stat.stat.exists or pip_install_offline.rc != 0
+            - name: Fail if online installation failed
+              ansible.builtin.fail:
+                msg: "Failed to install {{ item.key }} module from PyPI. Check internet connectivity."
+              when: pip_install_online.rc != 0
 
-- name: Verify Python kubernetes module is now available
-  ansible.builtin.command: python3 -c "import kubernetes; print(kubernetes.__version__)"
-  register: kubernetes_verify
-  changed_when: false
-  delegate_to: "{{ inventory_hostname }}"
+        - name: Install Python module in offline mode (from Pulp repo)
+          when: install_mode == "offline"
+          block:
+            - name: Install Python module from Pulp repo
+              ansible.builtin.command: >
+                python3 -m pip install --index-url {{ pip_index_url }}
+                {{ item.key }}=={{ item.value }}
+              register: pip_install_offline
+              changed_when: true
 
-- name: Log successful installation
-  ansible.builtin.debug:
-    msg: "Python kubernetes module version {{ kubernetes_verify.stdout }} is available"
+            - name: Fail if offline installation failed
+              ansible.builtin.fail:
+                msg: "Failed to install {{ item.key }}=={{ item.value }} from {{ pip_index_url }}. Check Pulp repo availability."
+              when: pip_install_offline.rc != 0
+
+    - name: Verify Python module is now available
+      ansible.builtin.command: python3 -c "import {{ item.key }}; print({{ item.key }}.__version__)"
+      register: module_verify
+      changed_when: false
+
+    - name: Log successful installation
+      ansible.builtin.debug:
+        msg: "Python {{ item.key }} module version {{ module_verify.stdout }} is available (installed via {{ install_mode }} mode)"

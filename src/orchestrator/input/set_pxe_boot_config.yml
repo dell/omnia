@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# PXE Boot Configuration
+# This file configures PXE boot and phone-home verification timing
+#
+# Usage:
+#   - To run PXE boot: ansible-playbook orchestrator.yml --tags setpxe
+#   - Standalone: ansible-playbook setpxe/set_pxe_boot.yml
+
+# ─────────────────────────────────────────────────────────────────────────
+# Phone-Home Verification Configuration
+# ─────────────────────────────────────────────────────────────────────────
+
+# Enable/disable phone-home verification (default: true)
+# When enabled, the playbook waits for nodes to boot and send cloud-init callbacks
+# When disabled, the playbook exits immediately after PXE boot
+enable_phone_home: true
+
+# Initial wait time before starting phone-home polling (in minutes)
+# Nodes need time to boot and begin cloud-init before we start checking
+# Recommended: 3-5 minutes for typical hardware
+phone_home_pause_minutes: 3
+
+# Maximum number of phone-home polling retries
+# Total wait time = phone_home_retries × phone_home_delay
+# Example: 120 retries × 15 seconds = 30 minutes
+phone_home_retries: 120
+
+# Delay between phone-home polling retries (in seconds)
+phone_home_delay: 15
+
+# Journal log pattern to search for phone-home callbacks
+# This pattern is used to grep the cloud-init-server journal on OIM
+# Do not change unless you've customized cloud-init configuration
+phone_home_log_pattern: "Phone home request from"
+
+# ─────────────────────────────────────────────────────────────────────────
+# PXE Boot Configuration (Advanced)
+# ─────────────────────────────────────────────────────────────────────────
+
+# Restart host after setting PXE boot (default: true)
+# When false, only sets boot source without restarting
+restart_host: true
+
+# Use ForceRestart instead of GracefulRestart (default: true)
+# ForceRestart: Immediate power cycle (faster)
+# GracefulRestart: Attempts graceful OS shutdown first (safer)
+force_restart: true
+
+# Boot source override mode (default: continuous)
+# Options: once, continuous, disabled
+# continuous: Boot from PXE on every restart until changed
+# once: Boot from PXE only once, then revert to normal boot order
+boot_source_override_enabled: continuous
+
+# Boot source override target (default: pxe)
+# Options: pxe, uefi_http, hdd, cd, floppy, sd_card, utilities, bios_setup, none
+boot_source_override_target: pxe

@@ -45,6 +45,7 @@ from ansible.module_utils.input_validation.core.file_utils import (
 from ansible.module_utils.input_validation.core.utils import create_logger
 from ansible.module_utils.input_validation.core.validation_engine import (
     logic as validate_image_build_config,
+    logic_catalog as validate_catalog_logic,
     logic_credentials as validate_credentials_logic_new,
     schema as validate_against_schema,
 )
@@ -56,7 +57,7 @@ DOCUMENTATION = r'''
 ---
 module: validate_image_build_config
 short_description: Validate image build configuration files
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Performs L1 (JSON schema) validation on image_build_config.yml and
     image_build_credentials.yml.
@@ -206,6 +207,21 @@ def run_module():
         if l2_errors:
             all_errors.extend(l2_errors)
             logger.error(f"L2 validation errors: {l2_errors}")
+
+        # Catalog validation (when functional_groups_source == 'catalog')
+        fg_source = config_data.get("functional_groups_source", "config")
+        if fg_source == "catalog":
+            catalog_file = os.environ.get("CATALOG_FILE_PATH", "")
+            if catalog_file:
+                catalog_errors = validate_catalog_logic(catalog_file, logger)
+                if catalog_errors:
+                    all_errors.extend(catalog_errors)
+                    logger.error(f"Catalog validation errors: {catalog_errors}")
+            else:
+                logger.info(
+                    "Catalog mode enabled but CATALOG_FILE_PATH not set — "
+                    "catalog validation deferred to runtime."
+                )
 
         # Cross-validate credentials against config if both exist and decrypted
         cred_path = os.path.join(

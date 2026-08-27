@@ -20,5 +20,4 @@ galaxy_info:
     - dell
     - idrac
 
-dependencies:
-  - role: iso_creation
+dependencies: []

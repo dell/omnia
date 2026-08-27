@@ -27,6 +27,9 @@ supported_tags:
   - prepare
   - provision
   - pxe
+  - pxe_boot
+  - setpxe
+  - set_pxe
   - cleanup
   - validate
   - upgrade
@@ -40,6 +43,9 @@ invalid_tag_combinations:
   - [prepare, cleanup]
   - [provision, cleanup]
   - [pxe, cleanup]
+  - [pxe_boot, cleanup]
+  - [setpxe, cleanup]
+  - [set_pxe, cleanup]
   - [prepare, upgrade]
   - [provision, upgrade]
   - [cleanup, upgrade]

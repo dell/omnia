@@ -41,7 +41,7 @@ def src_dir():
 
 @pytest.fixture
 def input_dir():
-    """Return the input/project_default/ directory path."""
+    """Return the input/ directory path."""
     return INPUT_DIR
 
 
@@ -52,10 +52,15 @@ def repo_manager_output():
 
 
 @pytest.fixture
-def functional_group_packages(repo_manager_output):
-    """Load and return functional_group_packages.yml as a dict."""
-    pkg_file = repo_manager_output / "functional_group_packages.yml"
-    assert pkg_file.exists(), f"functional_group_packages.yml not found at {pkg_file}"
+def functional_group_packages(input_dir):
+    """Load and return package_groups.yml (functional group mapping) as a dict.
+
+    The authoritative source for functional-group-to-package mapping is
+    ``input/package_groups.yml``.  Structure is identical to the old
+    ``functional_group_packages.yml`` (base_packages + functional_groups).
+    """
+    pkg_file = input_dir / "package_groups.yml"
+    assert pkg_file.exists(), f"package_groups.yml not found at {pkg_file}"
     with open(pkg_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 

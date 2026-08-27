@@ -22,7 +22,7 @@ pipeline files, and CI/CD variables.
 import json
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, load_test_credentials, run_on_host
+from omnia_auto import load_test_config, run_on_host
 
 from library.vars.common_vars import (
     CMDS,
@@ -77,17 +77,18 @@ def _get_gitlab_config(host) -> Dict[str, str]:
     return values
 
 
-def _get_gitlab_ssh_password() -> str:
-    """Load gitlab_ssh_password from test_creds.yml.
+def _get_gitlab_ssh_password(host) -> str:
+    """Load gitlab_ssh_password from server credentials file.
+
+    Args:
+        host: Testinfra host connection.
 
     Returns:
         Password string, or empty string if not found.
     """
-    try:
-        creds = load_test_credentials()
-        return creds.get("gitlab_ssh_password", "")
-    except (ValueError, OSError):
-        return ""
+    from library.functions.pipeline_func import load_server_credentials
+    creds = load_server_credentials(host)
+    return creds.get("gitlab_ssh_password", "")
 
 
 def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
@@ -131,7 +132,7 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
         }
 
     # Key-based failed — try sshpass with gitlab_ssh_password
-    password = _get_gitlab_ssh_password()
+    password = _get_gitlab_ssh_password(host)
     if password:
         sshpass_cmd = CMDS["sshpass_to_gitlab"].format(
             password=password,

@@ -34,6 +34,9 @@ ansible-galaxy collection install omnia.orchestrator
 | `omnia.orchestrator.mount_config` | NFS/shared filesystem mount configuration |
 | `omnia.orchestrator.openldap` | OpenLDAP directory service configuration |
 | `omnia.orchestrator.telemetry` | Telemetry and monitoring stack deployment |
+| `omnia.orchestrator.collect_pxe_credentials` | Vault-encrypted BMC credential management for PXE boot |
+| `omnia.orchestrator.idrac_pxe_boot` | Configure Dell iDRAC PXE boot via Redfish API |
+| `omnia.orchestrator.verify_phone_home` | Cloud-init phone-home verification after PXE boot |
 
 ### Modules
 

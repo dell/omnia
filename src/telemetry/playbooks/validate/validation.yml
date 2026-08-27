@@ -20,7 +20,7 @@
 # input files:
 #   - telemetry_config.yml      : kube_vip, sources, bridges, sinks, configs
 #   - telemetry_storage_config.yml : storage sections per enabled sinks
-#   - telemetry_packages.yml    : registry, package URLs, cluster_mount
+#   - telemetry_packages.yml    : registry, package URLs, k8s_cluster_mount
 #
 # L1 schemas  : plugins/module_utils/input_validation/schema/
 # L2 logic    : plugins/module_utils/input_validation/validators/

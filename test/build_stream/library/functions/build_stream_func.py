@@ -367,7 +367,9 @@ def check_bsm_tls_certificate(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    cert_path = "/opt/omnia/build_stream/certs/tls.crt"
+    from library.vars.common_vars import BSM_TLS_CERT_PATH
+
+    cert_path = BSM_TLS_CERT_PATH
     cmd = CMDS["openssl_verify_cert"].format(cert_path=cert_path)
     cmd_result = run_on_host(host, cmd)
 
