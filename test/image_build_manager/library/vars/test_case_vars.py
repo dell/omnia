@@ -128,6 +128,28 @@ TEST_CASES = {
         "title": "Verify packages installed in aarch64 S3 images",
     },
 
+    # ── Build — aarch64 infrastructure (TC_BD_017-021) ─────────────────────
+    "aarch64_ssh_connectivity": {
+        "id": "TC_BD_017",
+        "title": "Verify passwordless SSH to aarch64 node",
+    },
+    "aarch64_work_dirs": {
+        "id": "TC_BD_018",
+        "title": "Verify aarch64 work directories exist",
+    },
+    "aarch64_builder_image": {
+        "id": "TC_BD_019",
+        "title": "Verify builder image on aarch64 node",
+    },
+    "aarch64_regctl_installed": {
+        "id": "TC_BD_020",
+        "title": "Verify regctl installed on aarch64 node",
+    },
+    "aarch64_architecture": {
+        "id": "TC_BD_021",
+        "title": "Verify aarch64 node is ARM architecture",
+    },
+
     # ── Build — naming convention (TC_BD_007-011) ─────────────────────────
     "registry_naming_ib_x86_64": {
         "id": "TC_BD_007",
