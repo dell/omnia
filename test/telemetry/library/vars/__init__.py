@@ -50,6 +50,10 @@ from .common_vars import (
     REQUIRED_CONFIG_FIELDS,
     REQUIRED_SRC_FILES,
     CMDS,
+    VAST_SVC_NAME,
+    VAST_VMSCRAPE_NAME,
+    VAST_SECRET_NAME,
+    VAST_EXPECTED_METRICS,
 )
 
 from .test_case_vars import TEST_CASES
@@ -94,6 +98,10 @@ __all__ = [
     "REQUIRED_CONFIG_FIELDS",
     "REQUIRED_SRC_FILES",
     "CMDS",
+    "VAST_SVC_NAME",
+    "VAST_VMSCRAPE_NAME",
+    "VAST_SECRET_NAME",
+    "VAST_EXPECTED_METRICS",
     "TEST_CASES",
     "VALIDATION_DOMAIN",
     "FVT_TAGS",

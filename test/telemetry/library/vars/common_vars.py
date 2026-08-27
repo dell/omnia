@@ -199,6 +199,30 @@ CFG_KEY_UFM_METRICS_ENABLED = "telemetry_sources.ufm.metrics_enabled"
 CFG_KEY_UFM_ENDPOINT = "ufm_configuration.ufm_endpoint"
 CFG_KEY_UFM_PORT = "ufm_configuration.ufm_metrics_port"
 
+# VAST (from deploy_vast/vars/main.yml)
+VAST_SVC_NAME = "vast-external"
+VAST_VMSCRAPE_NAME = "vast-storage-metrics"
+# K8s Secret object name, not a credential value
+VAST_SECRET_NAME = "vast-telemetry-credentials"  # noqa: S105
+# Expected VAST metrics based on documentation and screenshot
+# The screenshot shows: vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count
+VAST_EXPECTED_METRICS = [
+    "vast_read_throughput",
+    "vast_write_throughput",
+    "vast_read_iops",
+    "vast_write_iops",
+    "vast_capacity_total_bytes",
+    "vast_capacity_used_bytes",
+    "vast_capacity_avail_bytes",
+    "vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count",
+]
+
+# Telemetry config key paths for VAST
+CFG_KEY_VAST_METRICS_ENABLED = "telemetry_sources.vast.metrics_enabled"
+CFG_KEY_VAST_LOGS_ENABLED = "telemetry_sources.vast.logs_enabled"
+CFG_KEY_VAST_ENDPOINT = "vast_configuration.vast_endpoint"
+CFG_KEY_VAST_PORT = "vast_configuration.vast_metrics_port"
+
 # Telemetry sources list
 TELEMETRY_SOURCES = [
     "idrac", "ldms", "dcgm", "powerscale", "ufm",

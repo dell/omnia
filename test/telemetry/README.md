@@ -137,7 +137,8 @@ test/telemetry/
 │   │       ├── test_ldms.py
 │   │       ├── test_ome.py
 │   │       ├── test_powerscale.py
-│   │       └── test_ufm.py
+│   │       ├── test_ufm.py
+│   │       └── test_vast.py
 │   └── cleanup/              # Cleanup tag tests
 │       ├── test_playbook.py  # Playbook --tags cleanup
 │       └── cleanup/          # Verify pods removed, topics removed
@@ -156,7 +157,8 @@ test/telemetry/
 | Sources: OME | 3 | sanity + functional |
 | Sources: PowerScale | 6 | sanity + functional |
 | Sources: UFM | 4 | sanity + functional |
-| **Total** | **29** | |
+| Sources: VAST | 5 | sanity + functional |
+| **Total** | **34** | |
 
 ## Output Format
 
