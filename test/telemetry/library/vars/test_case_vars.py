@@ -204,6 +204,28 @@ TEST_CASES = {
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
 
+    # -- Sources: VAST -------------------------------------------------------
+    "vast_external_svc": {
+        "id": "TC_SR_060",
+        "title": "Verify VAST external service exists with correct endpoint",
+    },
+    "vast_vmscrape": {
+        "id": "TC_SR_061",
+        "title": "Verify VAST VMServiceScrape CR exists",
+    },
+    "vast_credentials_secret": {
+        "id": "TC_SR_062",
+        "title": "Verify VAST credentials K8s secret exists",
+    },
+    "vast_metrics_in_vm": {
+        "id": "TC_SR_063",
+        "title": "Verify VAST storage metrics in VictoriaMetrics",
+    },
+    "vast_logs_in_vl": {
+        "id": "TC_SR_064",
+        "title": "Verify VAST logs in VictoriaLogs",
+    },
+
     # -- Sources: OME -------------------------------------------------------
     "ome_vector_bridge": {
         "id": "TC_SR_050",

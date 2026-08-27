@@ -18,3 +18,8 @@ from .runner_msgs import (
     RUNNER_LOG_MSGS,
     RUNNER_ASSERT_MSGS,
 )
+
+from .credential_msgs import (
+    CREDENTIAL_LOG_MSGS,
+    CREDENTIAL_ERROR_MSGS,
+)

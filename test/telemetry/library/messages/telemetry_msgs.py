@@ -118,6 +118,18 @@ TEST_LOG_MSGS = {
     "logs_missing": "No log entries found in VictoriaLogs for {source}",
     "syslog_configured": "PowerScale syslog forwarding configured to {target}",
     "syslog_not_configured": "PowerScale syslog not forwarding to {target}",
+
+    # VAST
+    "vast_svc_exists": "VAST external service '{service}' exists with endpoint {endpoint}",
+    "vast_svc_missing": "VAST external service '{service}' not found",
+    "vast_vmscrape_exists": "VAST VMServiceScrape '{name}' exists",
+    "vast_vmscrape_missing": "VAST VMServiceScrape '{name}' not found",
+    "vast_secret_exists": "VAST credentials secret '{secret}' exists",
+    "vast_secret_missing": "VAST credentials secret '{secret}' not found",
+    "vast_metrics_found": "{count} VAST metric(s) found in VictoriaMetrics",
+    "vast_metrics_missing": "Missing VAST metrics in VictoriaMetrics: {missing}",
+    "vast_logs_found": "{count} VAST log entries found in VictoriaLogs",
+    "vast_logs_missing": "No VAST logs found in VictoriaLogs",
 }
 
 # --- Assertion Messages ---
@@ -305,5 +317,40 @@ TEST_ASSERT_MSGS = {
         "     isi audit settings global modify --config-syslog-servers={target}:514\n"
         "     isi audit settings global modify --system-syslog-servers={target}:514\n"
         "     isi audit settings global modify --protocol-syslog-servers={target}:514\n"
+    ),
+
+    # VAST
+    "vast_svc_missing": (
+        "VAST external service '{service}' not found\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get svc -n telemetry | grep vast\n"
+        "  2. Re-run telemetry deploy with VAST enabled\n"
+    ),
+    "vast_vmscrape_missing": (
+        "VAST VMServiceScrape '{name}' not found\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get vmservicescrape -n telemetry | grep vast\n"
+        "  2. Re-run telemetry deploy with VAST enabled\n"
+    ),
+    "vast_secret_missing": (
+        "VAST credentials secret '{secret}' not found\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get secret -n telemetry | grep vast\n"
+        "  2. Re-run telemetry deploy with VAST credentials\n"
+    ),
+    "vast_metrics_missing": (
+        "VAST metrics not found in VictoriaMetrics: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. Check vmagent scrape targets for VAST\n"
+        "  2. Verify VAST endpoint is reachable: "
+        "curl -sk https://<vast-ip>:443/api/prometheusmetrics/all\n"
+        "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
+    ),
+    "vast_logs_missing": (
+        "No VAST logs found in VictoriaLogs\n"
+        "HOW TO FIX:\n"
+        "  1. Check VAST syslog config in VAST UI: Settings > Notifications > Syslog Setup\n"
+        "  2. Verify VLAgent is listening: kubectl get svc vlagent-vlagent -n telemetry\n"
+        "  3. Check VLAgent logs: kubectl logs vlagent-vlagent-0 -n telemetry\n"
     ),
 }

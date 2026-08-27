@@ -185,7 +185,6 @@ IPV4_PATTERN = re.compile(
 
 # Required fields in test_config.yml
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
     "clone_path",
     "report_path",
     "report_name",
