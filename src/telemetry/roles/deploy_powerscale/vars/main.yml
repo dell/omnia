@@ -69,6 +69,8 @@ ps_cert_manager_disabled_msg: >-
 ps_auth_mode_direct_msg: "PowerScale telemetry authentication mode: Direct Authentication (Mode A)"
 ps_auth_mode_karavi_msg: "PowerScale telemetry authentication mode: Karavi Authorization (Mode B)"
 
+ps_clusters_found_msg: "PowerScale clusters detected in CSM Observability configuration"
+
 ps_telemetry_prepared_msg: >-
   PowerScale telemetry files prepared on NFS share.
   Proceeding with karavi-observability Helm deployment.

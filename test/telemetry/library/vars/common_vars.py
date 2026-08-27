@@ -140,6 +140,7 @@ LDMS_KAFKA_TOPIC = "ldms"
 # PowerScale (from deploy_powerscale/vars/main.yml)
 POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
 POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
+POWERSCALE_CSI_EXPORTER_DEPLOY_NAME = "csi-volume-exporter"
 POWERSCALE_SECRET_NAME = "isilon-creds"
 POWERSCALE_EXPECTED_METRICS = [
     "powerscale_cluster_cpu_use_rate",
@@ -442,6 +443,11 @@ CMDS = {
     "kubectl_get_svc_lb_ip": (
         "kubectl get svc {name} -n {namespace}"
         " -o jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_svc_json": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o json"
         " 2>/dev/null"
     ),
     "kubectl_get_svc_port": (

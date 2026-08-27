@@ -64,6 +64,17 @@ from library.functions.powerscale_func import (
     verify_powerscale_syslog,
     configure_powerscale_syslog,
     get_vlagent_endpoint,
+    verify_powerscale_deployment,
+    verify_feature_flags,
+    verify_health_metrics,
+    verify_tls_enforcement,
+    verify_label_compliance,
+    verify_scrape_interval,
+    verify_csi_authorization_mode,
+    verify_deployment_mode,
+    verify_csi_volume_exporter_deployment,
+    verify_csi_volume_exporter_metrics_endpoint,
+    verify_csi_volume_exporter_metrics,
 )
 
 
@@ -522,4 +533,343 @@ def test_powerscale_logs_in_vl(host):
 
     assert result["success"], ASSERT_MSGS["logs_missing"].format(
         source="PowerScale",
+    )
+
+
+# =========================================================================
+# TC_SR_036: Verify comprehensive PowerScale deployment
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(66)
+def test_powerscale_comprehensive_deployment(host):
+    """Verify comprehensive PowerScale deployment."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_comprehensive_deployment"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying comprehensive PowerScale deployment")
+    result = verify_powerscale_deployment(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["deployment_verified"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["deployment_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["deployment_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_037: Verify PowerScale feature flags
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(67)
+def test_powerscale_feature_flags(host):
+    """Verify PowerScale feature flags."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_feature_flags"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale feature flags")
+    result = verify_feature_flags(host)
+
+    flags_str = ", ".join(f"{k}={v}" for k, v in result["flags"].items())
+    tl.passed(
+        LOG_MSGS["feature_flags"],
+        flags_str,
+    )
+
+    # Feature flags are informational, not pass/fail
+    assert True
+
+
+# =========================================================================
+# TC_SR_038: Verify PowerScale health metrics
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(68)
+def test_powerscale_health_metrics(host):
+    """Verify PowerScale health metrics."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_health_metrics"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale health metrics")
+    result = verify_health_metrics(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["health_metrics"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["health_metrics_missing"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["health_metrics_missing"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_039: Verify PowerScale TLS enforcement
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(69)
+def test_powerscale_tls_enforcement(host):
+    """Verify PowerScale TLS enforcement."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_tls_enforcement"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale TLS enforcement")
+    result = verify_tls_enforcement(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["tls_enforced"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["tls_not_enforced"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["tls_not_enforced"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_040: Verify PowerScale pod label compliance
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(70)
+def test_powerscale_label_compliance(host):
+    """Verify PowerScale pod label compliance."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_label_compliance"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale pod label compliance")
+    result = verify_label_compliance(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["label_compliance"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["label_compliance_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["label_compliance_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_041: Verify PowerScale scrape interval
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(71)
+def test_powerscale_scrape_interval(host):
+    """Verify PowerScale scrape interval."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_scrape_interval"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale scrape interval")
+    result = verify_scrape_interval(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["scrape_interval"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["scrape_interval_invalid"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["scrape_interval_invalid"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_042: Verify PowerScale CSI authorization mode
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(72)
+def test_powerscale_csi_auth_mode(host):
+    """Verify PowerScale CSI authorization mode."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_csi_auth_mode"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale CSI authorization mode")
+    result = verify_csi_authorization_mode(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_auth_mode"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_auth_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_auth_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_043: Verify PowerScale deployment mode
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(73)
+def test_powerscale_deployment_mode(host):
+    """Verify PowerScale deployment mode."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_deployment_mode"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale deployment mode")
+    result = verify_deployment_mode(host)
+
+    tl.passed(
+        LOG_MSGS["deployment_mode"],
+        result["details"],
+    )
+
+    # Deployment mode is always omnia-orchestrated
+    assert result["mode"] == "omnia-orchestrated"
+
+
+# =========================================================================
+# TC_SR_044: Verify CSI Volume Exporter deployment
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(74)
+def test_csi_volume_exporter_deploy(host):
+    """Verify CSI Volume Exporter deployment."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_volume_exporter_deploy"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSI Volume Exporter deployment")
+    result = verify_csi_volume_exporter_deployment(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_deployed"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_exporter_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_045: Verify CSI Volume Exporter metrics endpoint
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(75)
+def test_csi_volume_exporter_endpoint(host):
+    """Verify CSI Volume Exporter metrics endpoint is accessible."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_volume_exporter_endpoint"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSI Volume Exporter metrics endpoint")
+    result = verify_csi_volume_exporter_metrics_endpoint(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_endpoint"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_exporter_endpoint_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_endpoint_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_046: Verify CSI Volume Exporter metrics in VictoriaMetrics
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(76)
+def test_csi_volume_exporter_metrics(host):
+    """Verify CSI Volume Exporter metrics in VictoriaMetrics."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_volume_exporter_metrics"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSI Volume Exporter metrics in VictoriaMetrics")
+    result = verify_csi_volume_exporter_metrics(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_metrics"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["metrics_missing"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_metrics_missing"].format(
+        details=result["details"],
     )

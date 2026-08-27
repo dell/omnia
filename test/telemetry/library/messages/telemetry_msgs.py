@@ -118,6 +118,20 @@ TEST_LOG_MSGS = {
     "logs_missing": "No log entries found in VictoriaLogs for {source}",
     "syslog_configured": "PowerScale syslog forwarding configured to {target}",
     "syslog_not_configured": "PowerScale syslog not forwarding to {target}",
+    "deployment_verified": "PowerScale deployment verified: {details}",
+    "deployment_failed": "PowerScale deployment verification failed: {details}",
+    "feature_flags": "PowerScale feature flags: {flags}",
+    "health_metrics": "PowerScale health metrics: {details}",
+    "tls_enforced": "PowerScale TLS enforcement: {details}",
+    "label_compliance": "PowerScale pod label compliance: {details}",
+    "scrape_interval": "PowerScale scrape interval: {details}",
+    "csi_auth_mode": "PowerScale CSI authorization mode: {details}",
+    "deployment_mode": "PowerScale deployment mode: {details}",
+    "csi_exporter_deployed": "CSI Volume Exporter deployment verified: {details}",
+    "csi_exporter_failed": "CSI Volume Exporter deployment failed: {details}",
+    "csi_exporter_endpoint": "CSI Volume Exporter metrics endpoint: {details}",
+    "csi_exporter_endpoint_failed": "CSI Volume Exporter metrics endpoint not accessible: {details}",
+    "csi_exporter_metrics": "CSI Volume Exporter metrics: {details}",
 
     # VAST
     "vast_svc_exists": "VAST external service '{service}' exists with endpoint {endpoint}",
@@ -317,6 +331,66 @@ TEST_ASSERT_MSGS = {
         "     isi audit settings global modify --config-syslog-servers={target}:514\n"
         "     isi audit settings global modify --system-syslog-servers={target}:514\n"
         "     isi audit settings global modify --protocol-syslog-servers={target}:514\n"
+    ),
+    "deployment_failed": (
+        "PowerScale deployment verification failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep karavi\n"
+        "  2. kubectl logs deployment/karavi-metrics-powerscale -n telemetry\n"
+        "  3. kubectl logs deployment/otel-collector -n telemetry\n"
+    ),
+    "health_metrics_missing": (
+        "PowerScale health metrics not found: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check CSM Metrics PowerScale logs\n"
+        "  2. Verify PowerScale API connectivity\n"
+        "  3. Check vmagent scrape targets\n"
+    ),
+    "tls_not_enforced": (
+        "PowerScale TLS not enforced: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify cert-manager is deployed\n"
+        "  2. Check OTEL TLS secret exists\n"
+        "  3. Review csm_observability Helm values\n"
+    ),
+    "label_compliance_failed": (
+        "PowerScale pod label compliance failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check pod labels: kubectl get pods -n telemetry -o jsonpath='{.items[*].metadata.labels}'\n"
+        "  2. Review Helm chart values for label configuration\n"
+    ),
+    "scrape_interval_invalid": (
+        "PowerScale scrape interval invalid: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Update scrape_interval in telemetry_config.yml\n"
+        "  2. Acceptable range: 15s-300s\n"
+    ),
+    "csi_auth_failed": (
+        "PowerScale CSI authorization check failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Review csm_observability Helm values\n"
+        "  2. Check karavi authorization configuration\n"
+    ),
+    "csi_exporter_failed": (
+        "CSI Volume Exporter deployment failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep csi-volume-exporter\n"
+        "  2. kubectl logs deployment/csi-volume-exporter -n telemetry\n"
+        "  3. Check PowerScale CSI driver is installed\n"
+    ),
+    "csi_exporter_endpoint_failed": (
+        "CSI Volume Exporter metrics endpoint not accessible: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get svc csi-volume-exporter -n telemetry\n"
+        "  2. kubectl port-forward svc/csi-volume-exporter 9090:9090 -n telemetry\n"
+        "  3. Check pod logs: kubectl logs deployment/csi-volume-exporter -n telemetry\n"
+    ),
+    "csi_exporter_metrics_missing": (
+        "CSI Volume Exporter metrics not found in VictoriaMetrics: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check vmagent scrape targets for CSI Volume Exporter\n"
+        "  2. Verify metrics endpoint is accessible\n"
+        "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
     ),
 
     # VAST

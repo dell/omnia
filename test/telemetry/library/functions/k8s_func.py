@@ -339,6 +339,35 @@ def verify_services_exist(host, service_names, namespace=None):
     }
 
 
+def get_service(host, service_name, namespace=None):
+    """Get K8s service details.
+
+    Args:
+        host: Testinfra host (OIM).
+        service_name: Service name.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with service details (cluster_ip, ports, etc.) or None if not found.
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    cmd = CMDS["kubectl_get_svc_json"].format(name=service_name, namespace=ns)
+    result = run_on_kube_vip(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return None
+
+    try:
+        service_data = json.loads(result.stdout)
+        return {
+            "name": service_data.get("metadata", {}).get("name", ""),
+            "cluster_ip": service_data.get("spec", {}).get("clusterIP", ""),
+            "ports": service_data.get("spec", {}).get("ports", []),
+        }
+    except json.JSONDecodeError:
+        return None
+
+
 def verify_deploy_pods_detail(host, deploy_name, namespace=None):
     """Get detailed pod info for a Deployment (name, status, node, restarts, age).
 

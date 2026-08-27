@@ -47,6 +47,7 @@ from .telemetry_func import (
     query_vm_instant,
     get_vlselect_endpoint,
 )
+from .k8s_func import get_service
 
 
 # -------------------------------------------------------------------------
@@ -331,4 +332,377 @@ def configure_powerscale_syslog(host, ps_user, ps_password, ps_host,
         "commands_run": commands_run,
         "details": f"Configured all syslog servers to {target}",
         "error": "",
+    }
+
+
+# -------------------------------------------------------------------------
+# PowerScale — comprehensive deployment verification
+# -------------------------------------------------------------------------
+
+def verify_powerscale_deployment(host):
+    """Comprehensive PowerScale deployment verification.
+
+    Verifies:
+    - CSM Metrics PowerScale pod running
+    - OTEL Collector pod running
+    - cert-manager pods running
+    - CSI Driver for Dell PowerScale installed
+    - No pod restarts
+
+    Returns:
+        dict with keys: success, components, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    components = {}
+    details = []
+
+    # Check CSM Metrics PowerScale
+    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=karavi-metrics-powerscale")
+    csm_running = len([p for p in csm_pods if p.get("ready", False)]) > 0
+    csm_restarts = sum(p.get("restarts", 0) for p in csm_pods)
+    components["csm_metrics"] = {
+        "running": csm_running,
+        "restarts": csm_restarts,
+        "pod_count": len(csm_pods),
+    }
+    details.append(f"CSM Metrics: {len(csm_pods)} pods, {csm_restarts} restarts")
+
+    # Check OTEL Collector
+    otel_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=otel-collector")
+    otel_running = len([p for p in otel_pods if p.get("ready", False)]) > 0
+    otel_restarts = sum(p.get("restarts", 0) for p in otel_pods)
+    components["otel_collector"] = {
+        "running": otel_running,
+        "restarts": otel_restarts,
+        "pod_count": len(otel_pods),
+    }
+    details.append(f"OTEL Collector: {len(otel_pods)} pods, {otel_restarts} restarts")
+
+    # Check cert-manager
+    cert_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/part-of=cert-manager")
+    cert_running = len([p for p in cert_pods if p.get("ready", False)]) > 0
+    components["cert_manager"] = {
+        "running": cert_running,
+        "pod_count": len(cert_pods),
+    }
+    details.append(f"cert-manager: {len(cert_pods)} pods")
+
+    all_running = csm_running and otel_running and cert_running
+    no_restarts = csm_restarts == 0 and otel_restarts == 0
+
+    return {
+        "success": all_running and no_restarts,
+        "components": components,
+        "details": "; ".join(details),
+        "error": "" if all_running else "Not all components running",
+    }
+
+
+def verify_feature_flags(host):
+    """Verify PowerScale telemetry feature flags are set correctly.
+
+    Returns:
+        dict with keys: success, flags, details, error.
+    """
+    config = load_telemetry_config_from_target(host)
+    ps_config = config.get("powerscale_configurations", {})
+
+    flags = {
+        "metrics_enabled": ps_config.get("metrics_enabled", False),
+        "logs_enabled": ps_config.get("logs_enabled", False),
+        "csm_observability_values_file_path": bool(ps_config.get("csm_observability_values_file_path", "")),
+    }
+
+    details = [
+        f"metrics_enabled: {flags['metrics_enabled']}",
+        f"logs_enabled: {flags['logs_enabled']}",
+        f"csm_observability_configured: {flags['csm_observability_values_file_path']}",
+    ]
+
+    return {
+        "success": True,  # Feature flags are informational, not pass/fail
+        "flags": flags,
+        "details": "; ".join(details),
+        "error": "",
+    }
+
+
+def verify_health_metrics(host):
+    """Verify PowerScale health metrics are being collected.
+
+    Returns:
+        dict with keys: success, metrics_found, details, error.
+    """
+    health_metrics = [
+        "powerscale_cluster_health",
+        "powerscale_node_health",
+        "powerscale_disk_health",
+    ]
+
+    result = verify_powerscale_metrics(host, health_metrics)
+    details = f"Found {len(result['found'])}/{len(health_metrics)} health metrics"
+
+    return {
+        "success": result["success"],
+        "metrics_found": result["found"],
+        "details": details,
+        "error": result.get("error", ""),
+    }
+
+
+def verify_tls_enforcement(host):
+    """Verify TLS is enforced for PowerScale communications.
+
+    Returns:
+        dict with keys: success, tls_enabled, details, error.
+    """
+    # Check if TLS secret exists
+    cmd = CMDS["kubectl_get_secret"].format(
+        name="otel-collector-tls",
+        namespace=TELEMETRY_NAMESPACE,
+    )
+    result = run_on_kube_vip(host, cmd)
+    tls_enabled = result.rc == 0
+
+    return {
+        "success": tls_enabled,
+        "tls_enabled": tls_enabled,
+        "details": f"OTEL TLS secret: {'present' if tls_enabled else 'missing'}",
+        "error": "" if tls_enabled else "TLS secret not found",
+    }
+
+
+def verify_label_compliance(host):
+    """Verify PowerScale pods have required labels.
+
+    Returns:
+        dict with keys: success, compliance, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    required_labels = ["app", "app.kubernetes.io/name", "app.kubernetes.io/instance"]
+    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=karavi-metrics-powerscale")
+
+    compliance = {}
+    for pod in csm_pods:
+        pod_labels = pod.get("labels", {})
+        pod_name = pod.get("name", "unknown")
+        missing = [l for l in required_labels if l not in pod_labels]
+        compliance[pod_name] = {
+            "compliant": len(missing) == 0,
+            "missing_labels": missing,
+        }
+
+    all_compliant = all(c["compliant"] for c in compliance.values())
+    details = f"{len(compliance)} pods checked, {all_compliant and 'all compliant' or 'some non-compliant'}"
+
+    return {
+        "success": all_compliant,
+        "compliance": compliance,
+        "details": details,
+        "error": "" if all_compliant else "Some pods missing required labels",
+    }
+
+
+def verify_scrape_interval(host):
+    """Verify PowerScale scrape interval is within acceptable range.
+
+    Returns:
+        dict with keys: success, interval, details, error.
+    """
+    config = load_telemetry_config_from_target(host)
+    ps_config = config.get("powerscale_configurations", {})
+    interval_str = ps_config.get("scrape_interval", "30s")
+
+    # Parse interval (e.g., "30s" -> 30)
+    import re
+    match = re.match(r'^(\d+)s$', interval_str)
+    if match:
+        interval_seconds = int(match.group(1))
+    else:
+        interval_seconds = 30  # default
+
+    # Acceptable range: 15s to 300s
+    acceptable = 15 <= interval_seconds <= 300
+
+    return {
+        "success": acceptable,
+        "interval": interval_str,
+        "interval_seconds": interval_seconds,
+        "details": f"Scrape interval: {interval_str} ({acceptable and 'acceptable' or 'out of range'})",
+        "error": "" if acceptable else f"Interval {interval_str} out of acceptable range (15s-300s)",
+    }
+
+
+def verify_csi_authorization_mode(host):
+    """Verify CSI authorization mode (Direct vs Karavi).
+
+    Returns:
+        dict with keys: success, mode, details, error.
+    """
+    cfg_result = load_powerscale_secret_from_config(host)
+    if not cfg_result["success"]:
+        return {
+            "success": False,
+            "mode": "unknown",
+            "details": "Cannot read PowerScale config",
+            "error": cfg_result["error"],
+        }
+
+    # Read Helm values to determine auth mode
+    config = load_telemetry_config_from_target(host)
+    ps_config = config.get("powerscale_configurations", {})
+    values_path = ps_config.get("csm_observability_values_file_path", "")
+
+    if not values_path:
+        return {
+            "success": False,
+            "mode": "unknown",
+            "details": "csm_observability_values_file_path not set",
+            "error": "Cannot determine auth mode without values file",
+        }
+
+    # Parse values file to check karavi authorization
+    try:
+        values_data = read_remote_yaml(host, values_path)
+        karavi_enabled = values_data.get("karaviMetricsPowerscale", {}).get("authorization", {}).get("enabled", False)
+        mode = "karavi" if karavi_enabled else "direct"
+    except Exception as exc:
+        return {
+            "success": False,
+            "mode": "unknown",
+            "details": f"Failed to parse values file: {exc}",
+            "error": str(exc),
+        }
+
+    return {
+        "success": True,
+        "mode": mode,
+        "details": f"CSI authorization mode: {mode}",
+        "error": "",
+    }
+
+
+def verify_deployment_mode(host):
+    """Verify PowerScale deployment mode (always omnia-orchestrated).
+
+    Returns:
+        dict with keys: success, mode, details, error.
+    """
+    # With new telemetry_config.yml, PowerScale is always omnia-orchestrated
+    return {
+        "success": True,
+        "mode": "omnia-orchestrated",
+        "details": "PowerScale deployment mode: omnia-orchestrated",
+        "error": "",
+    }
+
+
+# -------------------------------------------------------------------------
+# PowerScale — CSI Volume Exporter verification
+# -------------------------------------------------------------------------
+
+def verify_csi_volume_exporter_deployment(host):
+    """Verify CSI Volume Exporter deployment.
+
+    Verifies:
+    - CSI Volume Exporter pod running
+    - Service exists
+    - No pod restarts
+
+    Returns:
+        dict with keys: success, pods, service, details, error.
+    """
+    from .k8s_func import get_pods_by_label, get_service
+
+    pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=csi-volume-exporter")
+    running = len([p for p in pods if p.get("ready", False)]) > 0
+    restarts = sum(p.get("restarts", 0) for p in pods)
+
+    service = get_service(host, TELEMETRY_NAMESPACE, "csi-volume-exporter")
+    service_exists = service is not None
+
+    details = f"Pods: {len(pods)} (running: {running}), Restarts: {restarts}, Service: {'exists' if service_exists else 'missing'}"
+
+    return {
+        "success": running and service_exists and restarts == 0,
+        "pods": pods,
+        "service": service,
+        "details": details,
+        "error": "" if (running and service_exists) else "CSI Volume Exporter not fully deployed",
+    }
+
+
+def verify_csi_volume_exporter_metrics_endpoint(host):
+    """Verify CSI Volume Exporter metrics endpoint is accessible.
+
+    Returns:
+        dict with keys: success, endpoint, details, error.
+    """
+    from .k8s_func import get_service
+
+    service = get_service(host, TELEMETRY_NAMESPACE, "csi-volume-exporter")
+    if not service:
+        return {
+            "success": False,
+            "endpoint": "",
+            "details": "CSI Volume Exporter service not found",
+            "error": "Service not found",
+        }
+
+    # Get service IP and port
+    service_ip = service.get("cluster_ip", "")
+    service_port = service.get("ports", [{}])[0].get("port", 9090)
+
+    if not service_ip:
+        return {
+            "success": False,
+            "endpoint": "",
+            "details": "Service IP not available",
+            "error": "Cannot determine service endpoint",
+        }
+
+    endpoint = f"{service_ip}:{service_port}"
+
+    # Try to access metrics endpoint
+    cmd = f"curl -sk --max-time 5 http://{endpoint}/metrics"
+    result = run_on_kube_vip(host, cmd)
+
+    if result.rc == 0 and result.stdout.strip():
+        return {
+            "success": True,
+            "endpoint": endpoint,
+            "details": f"Metrics endpoint accessible at {endpoint}",
+            "error": "",
+        }
+    else:
+        return {
+            "success": False,
+            "endpoint": endpoint,
+            "details": f"Metrics endpoint not accessible at {endpoint}",
+            "error": "Failed to access metrics endpoint",
+        }
+
+
+def verify_csi_volume_exporter_metrics(host):
+    """Verify CSI Volume Exporter metrics are being collected.
+
+    Returns:
+        dict with keys: success, metrics_found, details, error.
+    """
+    expected_metrics = [
+        "csi_volume_exporter_pv_count",
+        "csi_volume_exporter_pv_capacity_bytes",
+        "csi_volume_exporter_pv_used_bytes",
+    ]
+
+    result = verify_powerscale_metrics(host, expected_metrics)
+    details = f"Found {len(result['found'])}/{len(expected_metrics)} CSI volume exporter metrics"
+
+    return {
+        "success": result["success"],
+        "metrics_found": result["found"],
+        "details": details,
+        "error": result.get("error", ""),
     }

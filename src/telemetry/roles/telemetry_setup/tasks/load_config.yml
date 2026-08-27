@@ -33,7 +33,7 @@
 # --- Resolve configuration from environment variables ---
 - name: Resolve configuration from environment
   ansible.builtin.set_fact:
-    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) | regex_replace('/$', '') }}"
     omnia_version: "{{ lookup('env', 'OMNIA_VERSION') | default('', true) }}"
     project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
     admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"

@@ -185,6 +185,50 @@ TEST_CASES = {
         "id": "TC_SR_035",
         "title": "Verify PowerScale syslog forwarding configured",
     },
+    "powerscale_comprehensive_deployment": {
+        "id": "TC_SR_036",
+        "title": "Verify comprehensive PowerScale deployment",
+    },
+    "powerscale_feature_flags": {
+        "id": "TC_SR_037",
+        "title": "Verify PowerScale feature flags",
+    },
+    "powerscale_health_metrics": {
+        "id": "TC_SR_038",
+        "title": "Verify PowerScale health metrics",
+    },
+    "powerscale_tls_enforcement": {
+        "id": "TC_SR_039",
+        "title": "Verify PowerScale TLS enforcement",
+    },
+    "powerscale_label_compliance": {
+        "id": "TC_SR_040",
+        "title": "Verify PowerScale pod label compliance",
+    },
+    "powerscale_scrape_interval": {
+        "id": "TC_SR_041",
+        "title": "Verify PowerScale scrape interval",
+    },
+    "powerscale_csi_auth_mode": {
+        "id": "TC_SR_042",
+        "title": "Verify PowerScale CSI authorization mode",
+    },
+    "powerscale_deployment_mode": {
+        "id": "TC_SR_043",
+        "title": "Verify PowerScale deployment mode",
+    },
+    "csi_volume_exporter_deploy": {
+        "id": "TC_SR_044",
+        "title": "Verify CSI Volume Exporter deployment",
+    },
+    "csi_volume_exporter_endpoint": {
+        "id": "TC_SR_045",
+        "title": "Verify CSI Volume Exporter metrics endpoint",
+    },
+    "csi_volume_exporter_metrics": {
+        "id": "TC_SR_046",
+        "title": "Verify CSI Volume Exporter metrics in VictoriaMetrics",
+    },
 
     # -- Sources: UFM --------------------------------------------------------
     "ufm_external_svc": {
