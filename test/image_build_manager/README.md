@@ -340,11 +340,11 @@ See [`fvt/README.md`](fvt/README.md) for the complete test case registry.
 | precheck | TC_PC_ | 6 | 001–006 |
 | validate | TC_VL_ | 4 | 001–004 (includes repo_ssl_verify_config) |
 | prepare | TC_PR_ | 8 | 001–008 |
-| build | TC_BD_ | 16 | 001–016 (007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify) |
+| build | TC_BD_ | 21 | 001–021 (007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify, 017–021 aarch64 infra) |
 | cleanup | TC_CL_ | 8 | 001–008 |
 | cleanup_images | TC_CI_ | 3 | 001–003 |
 | nft | NFT_ | 4 | |
-| **Total** | | **50** | Plus TC_IB_001 (full-stack deploy) |
+| **Total** | | **55** | Plus TC_IB_001 (full-stack deploy) |
 
 ### Build-type naming convention tests (TC_BD_007 – TC_BD_011)
 

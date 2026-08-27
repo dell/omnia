@@ -1,6 +1,10 @@
 # Image Build Manager — Bare-Metal Design
 
-## Status: ACTIVE v1.1
+## Status: SUPERSEDED by [standalone-design.md](standalone-design.md) v3.1
+
+> **Note**: This document (v1.1) is the original bare-metal design.
+> See [standalone-design.md](standalone-design.md) for the current version (v3.1)
+> with the full independence audit and dependency resolution details.
 
 This document describes how `image_build_manager` operates directly on a
 RHEL bare-metal host using Ansible + Python, without any container or Omnia core dependency.

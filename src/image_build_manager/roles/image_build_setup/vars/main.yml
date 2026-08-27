@@ -31,6 +31,7 @@ file_permissions_400: "0400"
 supported_tags:
   - precheck
   - validate
+  - credentials
   - prepare
   - execute
   - build
@@ -75,6 +76,14 @@ invalid_tag_combinations:
   - [precheck, cleanup_images]
   - [precheck, upgrade]
   - [precheck, rollback]
+  - [credentials, prepare]
+  - [credentials, build]
+  - [credentials, execute]
+  - [credentials, cleanup]
+  - [credentials, cleanup_images]
+  - [credentials, upgrade]
+  - [credentials, rollback]
+  - [credentials, precheck]
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
   Invalid tag usage detected.

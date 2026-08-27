@@ -16,35 +16,73 @@
 # input files
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 
+# ---------------------------------------------------------------------------
+# Local work directory on the aarch64 node (no NFS mount required)
+# ---------------------------------------------------------------------------
+aarch64_work_dir: "/opt/omnia/image_build_manager"
+ochami_aarch_64_dir: "{{ aarch64_work_dir }}/openchami/aarch64"
+
+# ---------------------------------------------------------------------------
 # Build type switching for aarch64
+# ---------------------------------------------------------------------------
 _image_build_type: "{{ hostvars['localhost']['image_build_type'] | default('image-builder') }}"
 _is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
-_builder_aarch64_image: "dellhpcomniaaisolution/image-build-aarch64:1.1"
+_builder_aarch64_image: "docker.io/dellhpcomniaaisolution/image-build-aarch64:1.2"
 _thrillhouse_aarch64_image: "ghcr.io/openchami/image-thrillhouse:latest"
 repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_aarch64_image, _builder_aarch64_image) }}"
 local_tag: "{{ (_is_thrillhouse | bool) | ternary('aarch64-image-thrillhouse/ochami', 'aarch64-image-builder/ochami') }}"
 pull_image_retries: "5"
 pull_image_delay: "10"
-ochami_aarch_64_dir: "{{ hostvars['localhost']['shared_path'] }}/omnia/openchami/aarch64"
+
+# ---------------------------------------------------------------------------
+# File paths on aarch64 node
+# ---------------------------------------------------------------------------
 repo_file_path: "/etc/yum.repos.d/repo_manager.repo"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 regctl_bin_path: "/usr/local/bin/regctl"
 
-# Error messages
+# regctl download URL for aarch64 (fallback when SCP from localhost fails)
+regctl_version: "v0.7.1"
+regctl_download_url: "https://github.com/regclient/regclient/releases/download/{{ regctl_version }}/regctl-linux-arm64"
+
+# Permissions constants
+dir_permissions_755: "0755"
+file_permissions_644: "0644"
+
+# ---------------------------------------------------------------------------
+# Error / status messages
+# ---------------------------------------------------------------------------
 no_inventory_error_msg: "No inventory provided. Please specify an inventory with -i option."
 admin_aarch64_empty_error_msg: "The inventory group 'admin_aarch64' does not exist or has no hosts."
 admin_aarch64_count_error_msg: "The inventory group 'admin_aarch64' must have exactly one host."
 repo_file_missing_error_msg: "repo_manager.repo file not found. Please run local_repo.yml playbook to create a repo file."
 not_aarch64_error_msg: "This is not an aarch64 machine. Only ARM nodes can be used to build the image."
 repo_not_found_error_msg: "The baseos repo section is not available in repo_manager.repo"
-nfs_not_configured_msg: >
-  To build aarch64 images on an ARM node, the NFS server must be configured on the OIM.
-  Please run oim_cleanup.yml and reinstall the omnia_core container with the NFS option.
+
 aarch64_image_fail_msg: >
-  Unable to pull the Ochami aarch64 image builder image.
-  Make sure the aarch64 image builder image is available in your container registry.
-  Verify image_build_config.yml and catalog/package_groups configuration are correct.
+  Unable to pull the aarch64 image builder image from both repo manager and upstream registry.
+  Tried: 1) Repo manager (Pulp): {{ builder_image_path | default('N/A') }}
+         2) Upstream registry: {{ repo_builder_image }}
+  Ensure either the repo manager has synced the image or the aarch64 node has internet access.
+
+pull_image_fallback_msg: >-
+  Pull from repo manager ({repo_path}) failed. Attempting direct pull from {upstream_image}...
+
+pull_image_success_msg: >-
+  Successfully pulled {upstream_image} directly from upstream registry on aarch64 node.
+
 regctl_not_found_msg: >
-  regctl binary not found at {{ ochami_aarch_64_dir }}/regctl.
-  Please run prepare_oim.yml playbook to download the regctl binary.
+  regctl binary could not be obtained for the aarch64 node.
+  Tried: 1) Copy from OIM localhost
+         2) Download from {{ regctl_download_url }}
+  Ensure the OIM has regctl installed or the aarch64 node has internet access.
+
+ssh_setup_fail_msg: >
+  Failed to establish passwordless SSH to {{ aarch64_inventory_host_ip }}.
+  Possible causes:
+    1) SSH keypair missing — check /root/.ssh/id_rsa exists on OIM
+    2) aarch64_ssh_password is incorrect in image_build_credentials.yml
+    3) SSH service not running on aarch64 node
+    4) Firewall blocking port 22
+  Manual fix: ssh-keygen -t rsa -b 4096 && ssh-copy-id {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}

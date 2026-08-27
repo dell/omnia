@@ -1,0 +1,164 @@
+name: PR Hygiene Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PR Hygiene Checks
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+
+          # Fetch base branch explicitly
+          git fetch --no-tags origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+          BASE="origin/${BASE_REF}"
+          MERGE_BASE=$(git merge-base "$BASE" HEAD)
+
+          echo "============================================="
+          echo "  PR #${PR_NUMBER} Hygiene Check"
+          echo "============================================="
+          echo "Base branch : ${BASE_REF}"
+          echo "Merge base  : ${MERGE_BASE}"
+
+          FAILED=false
+          DUP_COUNT=0
+
+          # ─────────────────────────────────────────────
+          # CHECK 1: Detect merge commits in PR
+          # ─────────────────────────────────────────────
+          echo ""
+          echo "── CHECK 1: Merge Commits ──"
+
+          MERGE_COMMITS=$(git log --merges --oneline "${MERGE_BASE}..HEAD" || true)
+          MERGE_COUNT=0
+
+          if [ -n "$MERGE_COMMITS" ]; then
+            MERGE_COUNT=$(echo "$MERGE_COMMITS" | wc -l | tr -d ' ')
+          fi
+
+          if [ "$MERGE_COUNT" -gt 0 ]; then
+            echo "❌ FAILED: Found ${MERGE_COUNT} merge commit(s):"
+            echo "$MERGE_COMMITS"
+            echo ""
+            echo "These are created when you sync using 'git merge'."
+            echo "Use 'git rebase' instead (see fix below)."
+            FAILED=true
+          else
+            echo "✅ PASSED: No merge commits found"
+          fi
+
+          # ─────────────────────────────────────────────
+          # CHECK 2: Branch must not be too far behind
+          # ─────────────────────────────────────────────
+          echo ""
+          echo "── CHECK 2: Branch Freshness ──"
+
+          BEHIND=$(git rev-list --count "HEAD..${BASE}")
+          echo "Behind ${BASE_REF} by: ${BEHIND} commits"
+
+          if [ "$BEHIND" -gt 10 ]; then
+            echo "❌ FAILED: Branch is ${BEHIND} commits behind '${BASE_REF}'."
+            echo "Please rebase onto latest '${BASE_REF}'."
+            FAILED=true
+          else
+            echo "✅ PASSED: Branch is reasonably up-to-date"
+          fi
+
+          # ─────────────────────────────────────────────
+          # CHECK 3: Commit count limit
+          # ─────────────────────────────────────────────
+          echo ""
+          echo "── CHECK 3: Commit Count ──"
+
+          TOTAL_COMMITS=$(git rev-list --count "${MERGE_BASE}..HEAD")
+          COMMIT_LIMIT=20
+
+          echo "Total commits in PR : ${TOTAL_COMMITS}"
+          echo "Commit limit        : ${COMMIT_LIMIT}"
+
+          if [ "$TOTAL_COMMITS" -gt "$COMMIT_LIMIT" ]; then
+            echo "❌ FAILED: PR contains ${TOTAL_COMMITS} commits (limit: ${COMMIT_LIMIT})."
+            echo "Please squash or rebase your commits before merging."
+            echo ""
+            echo "Suggested:"
+            echo "  git fetch origin"
+            echo "  git rebase -i origin/${BASE_REF}"
+            FAILED=true
+          else
+            echo "✅ PASSED: Commit count is within limit"
+          fi
+
+          # ─────────────────────────────────────────────
+          # CHECK 4: Duplicate Commits (using git cherry)
+          # ─────────────────────────────────────────────
+          echo ""
+          echo "── CHECK 4: Duplicate Commits ──"
+
+          DUPLICATES=$(git cherry -v "$BASE" HEAD | grep '^-' || true)
+
+          if [ -n "$DUPLICATES" ]; then
+            DUP_COUNT=$(echo "$DUPLICATES" | wc -l | tr -d ' ')
+            echo "❌ FAILED: Found ${DUP_COUNT} commit(s) already present in base branch:"
+            echo "$DUPLICATES"
+            echo ""
+            echo "These commits have already been merged into '${BASE_REF}'."
+            echo "Rebase your branch to remove them (see fix below)."
+            FAILED=true
+          else
+            echo "✅ PASSED: No duplicate commits found"
+          fi
+
+          # ─────────────────────────────────────────────
+          # FINAL RESULT
+          # ─────────────────────────────────────────────
+          echo ""
+          echo "============================================="
+
+          if [ "$FAILED" = true ]; then
+            echo "❌ PR HYGIENE CHECK FAILED"
+            echo ""
+            echo "╔═════════════════════════════════════════════════╗"
+            echo "║           HOW TO FIX YOUR BRANCH               ║"
+            echo "╠═════════════════════════════════════════════════╣"
+            echo "║                                                 ║"
+            echo "║  # Step 1: Fetch latest base branch             ║"
+            echo "║  git fetch origin                               ║"
+            echo "║                                                 ║"
+            echo "║  # Step 2: Rebase onto base (NOT merge!)        ║"
+            echo "║  git rebase origin/${BASE_REF}                  ║"
+            echo "║                                                 ║"
+            echo "║  # Step 3: Squash commits if too many           ║"
+            echo "║  git rebase -i origin/${BASE_REF}               ║"
+            echo "║                                                 ║"
+            echo "║  # Step 4: If conflicts arise:                  ║"
+            echo "║  git add .                                      ║"
+            echo "║  git rebase --continue                          ║"
+            echo "║                                                 ║"
+            echo "║  # Step 5: Force push cleaned branch            ║"
+            echo "║  git push --force-with-lease                    ║"
+            echo "║                                                 ║"
+            echo "║  Your PR will auto-update with ONLY             ║"
+            echo "║  your actual work commits.                      ║"
+            echo "╚═════════════════════════════════════════════════╝"
+            exit 1
+          fi
+
+          echo "✅ ALL PR HYGIENE CHECKS PASSED"
+          echo ""
+          echo "Summary:"
+          echo "  Merge commits : ${MERGE_COUNT}"
+          echo "  Behind base   : ${BEHIND} commits"
+          echo "  PR commits    : ${TOTAL_COMMITS}"
+          echo "  Duplicates    : ${DUP_COUNT:-0}"
