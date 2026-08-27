@@ -48,6 +48,7 @@ readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly BLUE='\033[0;34m'
 readonly YELLOW='\033[0;33m'
+readonly DIM='\033[2m'
 readonly NC='\033[0m'
 
 # Omnia release metadata
@@ -181,21 +182,62 @@ readonly SYSTEM_ENV_DIR="/etc/omnia"
 readonly SYSTEM_ENV_FILE="${SYSTEM_ENV_DIR}/omnia.env"
 readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 
+validate_env_source() {
+    local env_file="$1"
+    local errors=0
+
+    # Source env file in a subshell to validate without polluting current env
+    local ip_value
+    ip_value="$(bash -c "set -a; . \"$env_file\"; echo \"\$SYSTEM_ADMIN_NIC_IPV4\"")"
+
+    if [ -z "$ip_value" ]; then
+        echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set in ${env_file}${NC}"
+        echo -e "${YELLOW}  Edit ${env_file} and set SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>${NC}"
+        errors=$((errors + 1))
+    fi
+
+    # Validate IP format (basic IPv4 check)
+    if [ -n "$ip_value" ]; then
+        if ! echo "$ip_value" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
+            echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo -e "${RED}Environment file validation failed. Fix ${env_file} before running setup.${NC}"
+        exit 1
+    fi
+}
+
 install_system_env() {
     local env_file="$SCRIPT_DIR/omnia.env"
 
     echo -e "${BLUE}Installing environment to system...${NC}"
 
+    if [ ! -f "$env_file" ]; then
+        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
+        return 0
+    fi
+
+    # Validate source env file BEFORE installing to system
+    validate_env_source "$env_file"
+
     mkdir -p "$SYSTEM_ENV_DIR"
 
     if [ -f "$SYSTEM_ENV_FILE" ]; then
-        echo -e "  ${YELLOW}Existing: ${SYSTEM_ENV_FILE} (not overwritten)${NC}"
-        echo -e "  ${YELLOW}  Edit ${SYSTEM_ENV_FILE} to change settings.${NC}"
-    else
-        if [ ! -f "$env_file" ]; then
-            echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
-            return 0
+        # Compare source with installed — update if source has changed
+        if ! diff -q "$env_file" "$SYSTEM_ENV_FILE" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}Source omnia.env differs from installed copy.${NC}"
+            echo -e "  ${BLUE}Updating: ${SYSTEM_ENV_FILE}${NC}"
+            cp -f "$env_file" "$SYSTEM_ENV_FILE"
+            chmod 0644 "$SYSTEM_ENV_FILE"
+            echo -e "  ${GREEN}Updated: ${SYSTEM_ENV_FILE}${NC}"
+        else
+            echo -e "  ${GREEN}Existing: ${SYSTEM_ENV_FILE} (matches source)${NC}"
         fi
+    else
         cp -f "$env_file" "$SYSTEM_ENV_FILE"
         chmod 0644 "$SYSTEM_ENV_FILE"
         echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
@@ -235,8 +277,6 @@ PROFILE_EOF
 create_base_dirs() {
     echo -e "${BLUE}Creating base directory structure at ${OMNIA_DATA_PATH}...${NC}"
     mkdir -p "${OMNIA_DATA_PATH}"
-    mkdir -p "${OMNIA_DATA_PATH}/log"
-    mkdir -p "${OMNIA_DATA_PATH}/input"
     mkdir -p "${OMNIA_DATA_PATH}/.data"
     echo -e "${GREEN}Base directories created. Domain directories will be created by respective playbooks.${NC}"
 }
@@ -245,6 +285,18 @@ create_base_dirs() {
 # Venv Setup
 # ─────────────────────────────────────────────────────────────────────────────
 setup_venv() {
+    local start_time=$SECONDS
+    local setup_complete=false
+
+    cleanup_on_failure() {
+        if [ "$setup_complete" = false ]; then
+            echo -e "\n${RED}Setup interrupted. Venv may be incomplete.${NC}"
+            echo -e "${YELLOW}Re-run: ./omnia.sh -s${NC}"
+            deactivate 2>/dev/null || true
+        fi
+    }
+    trap cleanup_on_failure EXIT INT TERM
+
     install_system_env
     load_env
     validate_env
@@ -332,6 +384,11 @@ else
     echo "ERROR: Virtual environment not found at ${OMNIA_VENV_PATH}"
     return 1 2>/dev/null || exit 1
 fi
+
+# Load omnia-cli bash completion
+if [ -f /etc/bash_completion.d/omnia-cli ]; then
+    source /etc/bash_completion.d/omnia-cli
+fi
 ACTIVATE_EOF
     chmod +x "${OMNIA_DATA_PATH}/activate-omnia.sh"
 
@@ -347,6 +404,15 @@ ACTIVATE_EOF
     echo -e "${BLUE}Dependencies will be installed by each domain's domain-init.sh.${NC}"
     echo ""
 
+    local elapsed=$(( SECONDS - start_time ))
+    local mins=$(( elapsed / 60 ))
+    local secs=$(( elapsed % 60 ))
+    echo -e "  ${GREEN}Setup completed in ${mins}m ${secs}s${NC}"
+    echo ""
+
+    setup_complete=true
+    trap - EXIT INT TERM
+
     deactivate 2>/dev/null || true
 }
 
@@ -357,6 +423,7 @@ ACTIVATE_EOF
 # ─────────────────────────────────────────────────────────────────────────────
 init_domains() {
     local domain_filter="${1:-}"
+    local start_time=$SECONDS
     load_env
 
     # Activate venv so domain-init.sh can install pip/galaxy deps
@@ -369,15 +436,46 @@ init_domains() {
         exit 1
     fi
 
-    # Build the list of domains to initialize
+    # ── Build skip set ──
+    declare -A skip_set
+    if [ -n "$SKIP_DOMAINS" ]; then
+        IFS=',' read -ra skip_list <<< "$SKIP_DOMAINS"
+        for skip in "${skip_list[@]}"; do
+            skip="$(echo "$skip" | xargs)"  # trim whitespace
+            # Validate that the skipped domain actually exists
+            local valid=false
+            for d in "${DOMAINS[@]}"; do
+                if [ "$d" = "$skip" ]; then
+                    valid=true
+                    break
+                fi
+            done
+            if [ "$valid" = false ]; then
+                echo -e "${RED}ERROR: Unknown domain in --skip: '$skip'${NC}"
+                echo -e "${YELLOW}Available domains: ${DOMAINS[*]}${NC}"
+                exit 1
+            fi
+            skip_set["$skip"]=1
+        done
+    fi
+
+    # ── Build the list of domains to initialize ──
     local target_domains=()
+
     if [ -z "$domain_filter" ] || [ "$domain_filter" = "all" ]; then
-        target_domains=("${DOMAINS[@]}")
+        # Start with all domains, then apply skip filter
+        for d in "${DOMAINS[@]}"; do
+            if [ -z "${skip_set[$d]+_}" ]; then
+                target_domains+=("$d")
+            else
+                echo -e "${YELLOW}Skipping domain: $d (--skip)${NC}"
+            fi
+        done
     else
-        # Split comma-separated list and validate each
+        # Explicit include list — skip filter not allowed (validated earlier)
         IFS=',' read -ra requested <<< "$domain_filter"
         for req in "${requested[@]}"; do
-            req="$(echo "$req" | xargs)"  # trim whitespace
+            req="$(echo "$req" | xargs)"
             local found=false
             for d in "${DOMAINS[@]}"; do
                 if [ "$d" = "$req" ]; then
@@ -395,6 +493,13 @@ init_domains() {
         done
     fi
 
+    # ── Bail if nothing to init ──
+    if [ ${#target_domains[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No domains to initialize (all were skipped).${NC}"
+        deactivate 2>/dev/null || true
+        return 0
+    fi
+
     local domain_init_args=()
     if [ "$DEPS_ONLY" = true ]; then
         domain_init_args+=(--deps-only)
@@ -406,8 +511,26 @@ init_domains() {
         domain_init_args+=(--force-deps)
     fi
 
-    if [ ${#target_domains[@]} -lt ${#DOMAINS[@]} ]; then
-        echo -e "${BLUE}  Targets: ${target_domains[*]}${NC}"
+    # Show target list (always useful when skipping)
+    echo -e "${BLUE}  Targets: ${target_domains[*]}${NC}"
+    if [ -n "$SKIP_DOMAINS" ]; then
+        echo -e "${YELLOW}  Skipped: ${SKIP_DOMAINS}${NC}"
+    fi
+
+    # ── Dry-run mode ──
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${BLUE}DRY RUN — would initialize these domains:${NC}"
+        for domain in "${target_domains[@]}"; do
+            local init_script="$SRC_DIR/$domain/domain-init.sh"
+            local has_script=" (no domain-init.sh)"
+            [ -f "$init_script" ] && has_script=""
+            echo -e "  ${GREEN}${domain}${has_script}${NC}"
+        done
+        if [ -n "$SKIP_DOMAINS" ]; then
+            echo -e "${YELLOW}  Skipped: ${SKIP_DOMAINS}${NC}"
+        fi
+        deactivate 2>/dev/null || true
+        return 0
     fi
 
     local initialized=0
@@ -422,6 +545,7 @@ init_domains() {
             fi
         fi
     done
+
     if [ "$initialized" -eq 0 ]; then
         echo -e "${YELLOW}No domain-init.sh scripts found in any domain${NC}"
     else
@@ -435,6 +559,11 @@ init_domains() {
         echo -e "${BLUE}Installed collections:${NC}"
         ansible-galaxy collection list 2>/dev/null | grep -E "^(ansible\.|containers\.|community\.|kubernetes\.|omnia\.)" || true
     fi
+
+    local elapsed=$(( SECONDS - start_time ))
+    local mins=$(( elapsed / 60 ))
+    local secs=$(( elapsed % 60 ))
+    echo -e "  ${GREEN}Domain init completed in ${mins}m ${secs}s${NC}"
 
     deactivate 2>/dev/null || true
 }
@@ -575,13 +704,17 @@ cleanup_omnia() {
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
     else
-        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, and dependency cache:${NC}"
+        echo -e "${YELLOW}This will remove the Omnia venv, system environment files, omnia-cli, and dependency cache:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
+        echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
@@ -629,6 +762,20 @@ cleanup_omnia() {
     if [ -f "$PROFILE_DROP_IN" ]; then
         echo -e "${BLUE}Removing profile drop-in: ${PROFILE_DROP_IN}${NC}"
         rm -f "$PROFILE_DROP_IN"
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove omnia-cli from /usr/local/bin
+    if [ -f "/usr/local/bin/omnia-cli" ]; then
+        echo -e "${BLUE}Removing omnia-cli from /usr/local/bin/omnia-cli${NC}"
+        rm -f /usr/local/bin/omnia-cli
+        echo -e "  ${GREEN}Removed.${NC}"
+    fi
+
+    # Remove bash completion
+    if [ -f "/etc/bash_completion.d/omnia-cli" ]; then
+        echo -e "${BLUE}Removing bash completion from /etc/bash_completion.d/omnia-cli${NC}"
+        rm -f /etc/bash_completion.d/omnia-cli
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -741,22 +888,24 @@ check_deps() {
     done
 
     local pip_mismatches=0
-    for pkg in $(echo "${!pip_versions[@]}" | tr ' ' '\n' | sort); do
-        local entries="${pip_versions[$pkg]}"
-        # Extract unique version specs
-        local unique_specs
-        unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
-        if [ "$unique_specs" -gt 1 ]; then
-            echo -e "  ${RED}MISMATCH: ${pkg}${NC}"
-            for entry in $entries; do
-                local d="${entry%%:*}"
-                local v="${entry#*:}"
-                echo -e "    ${YELLOW}${d}: ${v}${NC}"
-            done
-            pip_mismatches=$((pip_mismatches + 1))
-            has_mismatch=true
-        fi
-    done
+    if [ ${#pip_versions[@]} -gt 0 ]; then
+        for pkg in $(echo "${!pip_versions[@]}" | tr ' ' '\n' | sort); do
+            local entries="${pip_versions[$pkg]}"
+            # Extract unique version specs
+            local unique_specs
+            unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
+            if [ "$unique_specs" -gt 1 ]; then
+                echo -e "  ${RED}MISMATCH: ${pkg}${NC}"
+                for entry in $entries; do
+                    local d="${entry%%:*}"
+                    local v="${entry#*:}"
+                    echo -e "    ${YELLOW}${d}: ${v}${NC}"
+                done
+                pip_mismatches=$((pip_mismatches + 1))
+                has_mismatch=true
+            fi
+        done
+    fi
 
     if [ "$pip_mismatches" -eq 0 ]; then
         echo -e "  ${GREEN}No pip version mismatches found.${NC}"
@@ -788,21 +937,23 @@ check_deps() {
     done
 
     local galaxy_mismatches=0
-    for col in $(echo "${!galaxy_versions[@]}" | tr ' ' '\n' | sort); do
-        local entries="${galaxy_versions[$col]}"
-        local unique_specs
-        unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
-        if [ "$unique_specs" -gt 1 ]; then
-            echo -e "  ${RED}MISMATCH: ${col}${NC}"
-            for entry in $entries; do
-                local d="${entry%%:*}"
-                local v="${entry#*:}"
-                echo -e "    ${YELLOW}${d}: ${v}${NC}"
-            done
-            galaxy_mismatches=$((galaxy_mismatches + 1))
-            has_mismatch=true
-        fi
-    done
+    if [ ${#galaxy_versions[@]} -gt 0 ]; then
+        for col in $(echo "${!galaxy_versions[@]}" | tr ' ' '\n' | sort); do
+            local entries="${galaxy_versions[$col]}"
+            local unique_specs
+            unique_specs=$(echo "$entries" | tr ' ' '\n' | grep -v '^$' | sed 's/^[^:]*://' | sort -u | wc -l)
+            if [ "$unique_specs" -gt 1 ]; then
+                echo -e "  ${RED}MISMATCH: ${col}${NC}"
+                for entry in $entries; do
+                    local d="${entry%%:*}"
+                    local v="${entry#*:}"
+                    echo -e "    ${YELLOW}${d}: ${v}${NC}"
+                done
+                galaxy_mismatches=$((galaxy_mismatches + 1))
+                has_mismatch=true
+            fi
+        done
+    fi
 
     if [ "$galaxy_mismatches" -eq 0 ]; then
         echo -e "  ${GREEN}No Galaxy version mismatches found.${NC}"
@@ -926,7 +1077,17 @@ OPTIONS:
                         Cannot be used standalone; requires -s or -i.
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
+  --skip <domain,...>   With -s or -i: skip specific domains during init.
+                        Cannot be combined with an explicit domain list.
+                        Examples:
+                          ./omnia.sh -i --skip telemetry
+                          ./omnia.sh -s --skip telemetry,utils
+                          ./omnia.sh -i --skip build_stream --deps-only
+  --dry-run             With -s or -i: show which domains would be initialized
+                        without executing. Useful for previewing --skip behavior.
   --skip-catalog        With -s: skip the automatic catalog copy.
+  --skip-omnia-cli      With -s: skip installing omnia-cli and bash completion
+                        to /usr/local/bin/ and /etc/bash_completion.d/.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -946,9 +1107,10 @@ DIAGNOSTICS (see omnia-cli):
   omnia-cli version                           Version info
   omnia-cli help [<domain>]                   CLI help
 
-INSTALL omnia-cli TO PATH:
-  sudo cp omnia-cli /usr/local/bin/
-  sudo chmod +x /usr/local/bin/omnia-cli
+INSTALL omnia-cli TO PATH (automatic during --setup-venv):
+  omnia-cli and bash completion are installed automatically.
+  To skip: omnia.sh -s --skip-omnia-cli
+  Manual: sudo cp omnia-cli /usr/local/bin/ && sudo chmod +x /usr/local/bin/omnia-cli
 
 SYSTEM ENVIRONMENT:
   After --setup-venv, omnia.env is installed to:
@@ -976,6 +1138,16 @@ EXAMPLES:
   ./omnia.sh -i repo_manager,telemetry         # Comma-separated
   ./omnia.sh -i --force-deps                   # Force reinstall even if cached
   ./omnia.sh -i telemetry --deps-only          # Only deps for telemetry
+
+  # Skip specific domains during init:
+  ./omnia.sh -i --skip telemetry               # All except telemetry
+  ./omnia.sh -i --skip telemetry,utils         # All except telemetry and utils
+  ./omnia.sh -s --skip build_stream            # Full setup, skip build_stream init
+  ./omnia.sh -i --skip telemetry --deps-only   # Deps only, skip telemetry
+
+  # Dry-run to preview init:
+  ./omnia.sh -i --dry-run                      # Preview which domains would be initialized
+  ./omnia.sh -i --dry-run --skip telemetry     # Preview with skip filter
 
   # Check dependency versions across all domains:
   ./omnia.sh --check-deps                      # Lists any pip/Galaxy version mismatches
@@ -1007,8 +1179,11 @@ EOF
 main() {
     DEPS_ONLY=false    # Global — used by init_domains()
     FORCE_DEPS=false   # Global — passed to domain-init.sh
+    SKIP_DOMAINS=""    # Global — comma-separated domains to skip during init
+    DRY_RUN=false      # Global — preview mode for init
     local CLEANUP_ALL=false
     local SKIP_CATALOG=false
+    local SKIP_OMNIA_CLI=false
     local command=""
     local init_domain_filter=""
     local run_domain_name=""
@@ -1036,6 +1211,24 @@ main() {
                 ;;
             --skip-catalog)
                 SKIP_CATALOG=true
+                shift
+                ;;
+            --skip-omnia-cli)
+                SKIP_OMNIA_CLI=true
+                shift
+                ;;
+            --skip)
+                if [ $# -lt 2 ] || [[ "$2" == --* ]]; then
+                    echo -e "${RED}ERROR: --skip requires a comma-separated list of domains${NC}"
+                    echo -e "${YELLOW}Usage: $0 -i --skip telemetry,utils${NC}"
+                    echo -e "${YELLOW}Domains: ${DOMAINS[*]}${NC}"
+                    exit 1
+                fi
+                SKIP_DOMAINS="$2"
+                shift 2
+                ;;
+            --dry-run)
+                DRY_RUN=true
                 shift
                 ;;
             --init|-i)
@@ -1100,6 +1293,22 @@ main() {
         echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
         exit 1
     fi
+    if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
+        echo -e "${RED}ERROR: --skip requires --setup-venv (-s) or --init (-i)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --skip telemetry or $0 -i --skip telemetry${NC}"
+        exit 1
+    fi
+    if [ -n "$SKIP_DOMAINS" ] && [ -n "$init_domain_filter" ]; then
+        echo -e "${RED}ERROR: Cannot use --skip with an explicit domain list${NC}"
+        echo -e "${YELLOW}Use either: $0 -i telemetry  OR  $0 -i --skip telemetry${NC}"
+        echo -e "${YELLOW}Not both.${NC}"
+        exit 1
+    fi
+    if [ "$DRY_RUN" = true ] && [ "$command" != "init" ] && [ "$command" != "setup-venv" ]; then
+        echo -e "${RED}ERROR: --dry-run requires --init (-i) or --setup-venv (-s)${NC}"
+        echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 -i --dry-run --skip telemetry${NC}"
+        exit 1
+    fi
 
     case "$command" in
         setup-venv)
@@ -1109,6 +1318,23 @@ main() {
             # Auto-copy catalog unless --skip-catalog
             if [ "$SKIP_CATALOG" = false ]; then
                 copy_catalog
+            fi
+
+            # Install omnia-cli and bash completion unless --skip-omnia-cli
+            if [ "$SKIP_OMNIA_CLI" = false ]; then
+                local cli_src="${SCRIPT_DIR}/omnia-cli"
+                local completion_src="${SCRIPT_DIR}/omnia-cli-completion.bash"
+                if [ -f "$cli_src" ]; then
+                    cp "$cli_src" /usr/local/bin/omnia-cli
+                    chmod +x /usr/local/bin/omnia-cli
+                    echo -e "${GREEN}Installed omnia-cli to /usr/local/bin/omnia-cli${NC}"
+                fi
+                if [ -f "$completion_src" ]; then
+                    cp "$completion_src" /etc/bash_completion.d/omnia-cli
+                    echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
+                fi
+            else
+                echo -e "${DIM}Skipping omnia-cli install (--skip-omnia-cli)${NC}"
             fi
 
             # ── Post-setup activation instructions (shown LAST) ──

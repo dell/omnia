@@ -87,6 +87,7 @@ class Symbols:
 # =============================================================================
 
 _debug_mode = False
+_verbose_mode = bool(os.environ.get("OMNIA_VERBOSE", ""))
 
 
 def set_debug_mode(enabled: bool) -> None:
@@ -95,9 +96,26 @@ def set_debug_mode(enabled: bool) -> None:
     _debug_mode = enabled
 
 
+def set_verbose_mode(enabled: bool) -> None:
+    """Enable or disable verbose mode globally.
+
+    When verbose is off, INFO-level log messages are suppressed.
+    WARN, ERROR, and OK messages always display.
+    """
+    global _verbose_mode
+    _verbose_mode = enabled
+
+
 def log(message: str, level: str = "INFO") -> None:
-    """Print log message with timestamp and color."""
+    """Print log message with timestamp and color.
+
+    INFO-level messages are suppressed unless verbose mode is on
+    (set via ``set_verbose_mode(True)`` or ``OMNIA_VERBOSE`` env var).
+    DEBUG messages require debug mode.  WARN, ERROR, and OK always print.
+    """
     if level == "DEBUG" and not _debug_mode:
+        return
+    if level == "INFO" and not _verbose_mode:
         return
 
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -201,7 +219,7 @@ class TestLogger:
             for line in details.split('\n'):
                 self._add_line(
                     f"    {Colors.GRAY}{Symbols.PIPE}"
-                    f"{Colors.RESET} {self._truncate(line)}"
+                    f"{Colors.RESET} {line}"
                 )
 
     def skipped(self, message: str, details: str = None):
@@ -214,7 +232,7 @@ class TestLogger:
             for line in details.split('\n'):
                 self._add_line(
                     f"    {Colors.GRAY}{Symbols.PIPE}"
-                    f"{Colors.RESET} {self._truncate(line)}"
+                    f"{Colors.RESET} {line}"
                 )
         else:
             self._add_line(
@@ -232,7 +250,7 @@ class TestLogger:
             for line in details.split('\n'):
                 self._add_line(
                     f"    {Colors.GRAY}{Symbols.PIPE}"
-                    f"{Colors.RESET} {self._truncate(line)}"
+                    f"{Colors.RESET} {line}"
                 )
 
     def get_output(self) -> str:

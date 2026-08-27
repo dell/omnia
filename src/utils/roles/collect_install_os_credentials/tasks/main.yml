@@ -209,7 +209,7 @@
     # Step 8: Read SSH public key for kickstart injection
     - name: Read OIM SSH public key
       ansible.builtin.slurp:
-        src: /root/.ssh/id_rsa.pub
+        src: "{{ ssh_public_key_path | default('/root/.ssh/id_rsa.pub') }}"
       register: _ssh_pub_key
       failed_when: false
 

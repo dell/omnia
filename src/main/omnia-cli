@@ -21,11 +21,14 @@
 # Separated from omnia.sh to keep the main entrypoint clean.
 # omnia.sh handles setup (venv, env). This CLI handles status & diagnostics.
 #
+# NOTE: This script requires GNU coreutils (find -printf, stat -c)
+#       and is designed for RHEL/Rocky Linux on Dell infrastructure.
+#
 # Usage:
 #   ./omnia-cli status [--project <name>]
 #   ./omnia-cli check [--project <name>]
 #   ./omnia-cli edit <domain> [--project <name>]
-#   ./omnia-cli logs <domain> [--project <name>]
+#   ./omnia-cli logs <domain> [--project <name>] [--limit <n>]
 #   ./omnia-cli repo-manager [--project <name>]
 #   ./omnia-cli image-build [--project <name>]
 #   ./omnia-cli <domain> [--project <name>]
@@ -33,7 +36,13 @@
 #   ./omnia-cli help [<domain>]
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
+
+# Require Bash 4.4+ for safe empty-array expansion under set -u
+if ((BASH_VERSINFO[0] < 4)) || { ((BASH_VERSINFO[0] == 4)) && ((BASH_VERSINFO[1] < 4)); }; then
+    echo "Error: omnia-cli requires Bash 4.4+. Current: ${BASH_VERSION}" >&2
+    exit 1
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -50,14 +59,25 @@ readonly BOLD=$'\033[1m'
 readonly DIM=$'\033[2m'
 readonly NC=$'\033[0m'
 
-# Status symbols
-readonly PASS="${GREEN}✔${NC}"
-readonly FAIL="${RED}✗${NC}"
-readonly WARN="${YELLOW}⚠${NC}"
-readonly SKIP="${DIM}–${NC}"
+# Status symbols (with ASCII fallback for non-UTF-8 terminals)
+if [[ "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" != *UTF-8* ]] && \
+   [[ "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" != *utf8* ]]; then
+    readonly PASS="${GREEN}[OK]${NC}"
+    readonly FAIL="${RED}[FAIL]${NC}"
+    readonly WARN="${YELLOW}[WARN]${NC}"
+    readonly SKIP="${DIM}[--]${NC}"
+else
+    readonly PASS="${GREEN}✔${NC}"
+    readonly FAIL="${RED}✗${NC}"
+    readonly WARN="${YELLOW}⚠${NC}"
+    readonly SKIP="${DIM}–${NC}"
+fi
 
 # Omnia release metadata
 readonly OMNIA_RELEASE="2.3.0.0"
+
+# Default log display limit (can be overridden with --limit)
+readonly DEFAULT_LOG_LIMIT=30
 
 # Known domains with their output status file patterns
 declare -A DOMAIN_STATUS_FILES=(
@@ -67,6 +87,7 @@ declare -A DOMAIN_STATUS_FILES=(
     [discovery]="discovery_status.yml"
     [telemetry]="telemetry_status.yml"
     [build_stream]="build_stream_status.yml"
+    [utils]="utils_status.yml"
 )
 
 declare -A DOMAIN_DESCRIPTIONS=(
@@ -76,6 +97,7 @@ declare -A DOMAIN_DESCRIPTIONS=(
     [discovery]="Hardware discovery and inventory"
     [telemetry]="Monitoring and telemetry stack"
     [build_stream]="CI/CD build pipeline (GitLab)"
+    [utils]="Shared utilities and helper roles"
 )
 
 # Known domain input config file names (relative to input/<project>/)
@@ -86,6 +108,7 @@ declare -A DOMAIN_INPUT_FILES=(
     [discovery]="discovery_config.yml"
     [telemetry]="telemetry_config.yml"
     [build_stream]="build_stream_config.yml"
+    [utils]="utils_config.yml"
 )
 
 readonly DOMAIN_ORDER=(
@@ -95,16 +118,7 @@ readonly DOMAIN_ORDER=(
     discovery
     telemetry
     build_stream
-)
-
-# Known log directory patterns (relative to OMNIA_DATA_PATH/<domain>/)
-declare -A DOMAIN_LOG_DIRS=(
-    [repo_manager]="log"
-    [image_build_manager]="log"
-    [orchestrator]="log"
-    [discovery]="log"
-    [telemetry]="log"
-    [build_stream]="log"
+    utils
 )
 
 # Ansible log default location
@@ -132,16 +146,16 @@ load_env() {
 _parse_status() {
     local file="$1"
     grep -E '^\s*overall_status:' "$file" 2>/dev/null \
-        | head -1 \
-        | sed 's/.*: *"\?\([^"]*\)"\?/\1/' \
+        | head -n 1 \
+        | sed -E 's/.*: *"?([^"]*)"?/\1/' \
         | tr -d '[:space:]'
 }
 
 _parse_yaml_key() {
     local file="$1" key="$2"
     grep -E "^\s*${key}:" "$file" 2>/dev/null \
-        | head -1 \
-        | sed 's/.*: *"\?\([^"]*\)"\?/\1/' \
+        | head -n 1 \
+        | sed -E 's/.*: *"?([^"]*)"?/\1/' \
         | tr -d '[:space:]'
 }
 
@@ -166,7 +180,7 @@ _resolve_input_dir() {
 _last_modified() {
     local dir="$1"
     local newest
-    newest=$(find "$dir" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+    newest=$(find "$dir" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)
     if [ -n "$newest" ]; then
         local mod_time
         mod_time=$(stat -c '%y' "$newest" 2>/dev/null | cut -d. -f1)
@@ -299,10 +313,9 @@ cmd_status() {
             echo -e "  ${PASS} ${BOLD}${display_name}${NC}  ${GREEN}completed${NC}"
         elif [ -n "$overall_status" ]; then
             echo -e "  ${FAIL} ${BOLD}${display_name}${NC}  ${RED}${overall_status}${NC}"
-        elif [ -d "$output_dir" ]; then
-            echo -e "  ${WARN} ${BOLD}${display_name}${NC}  ${YELLOW}output exists, no status${NC}"
         else
-            echo -e "  ${SKIP} ${BOLD}${display_name}${NC}"
+            # output_dir exists (guaranteed by continue above) but no status parsed
+            echo -e "  ${WARN} ${BOLD}${display_name}${NC}  ${YELLOW}output exists, no status${NC}"
         fi
 
         echo -e "    ${DIM}${desc}${NC}"
@@ -379,7 +392,7 @@ cmd_repo_manager() {
 
     # Check functional_group_packages.yml (from package_list or default)
     local pkg_list_path
-    pkg_list_path=$(grep -E '^\s*package_list:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+    pkg_list_path=$(grep -E '^\s*package_list:' "$status_file" 2>/dev/null | head -n 1 | sed 's/.*: *//' | tr -d '[:space:]')
     if [ -n "$pkg_list_path" ] && [ -f "$pkg_list_path" ]; then
         echo -e "  ${PASS} functional_group_packages  (from package_list: ${DIM}${pkg_list_path}${NC})"
     elif [ -f "$pkg_file" ]; then
@@ -390,7 +403,7 @@ cmd_repo_manager() {
 
     # Check certificates
     local cert_path
-    cert_path=$(grep -E '^\s*server_crt:' "$status_file" 2>/dev/null | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+    cert_path=$(grep -E '^\s*server_crt:' "$status_file" 2>/dev/null | head -n 1 | sed 's/.*: *//' | tr -d '[:space:]')
     if [ -n "$cert_path" ]; then
         if [ -f "$cert_path" ]; then
             echo -e "  ${PASS} Repo manager certificate  (${DIM}${cert_path}${NC})"
@@ -487,7 +500,7 @@ cmd_image_build() {
     local log_dir="${image_build_base}/log/${project}"
     if [ -d "$log_dir" ]; then
         local latest_log
-        latest_log=$(find "$log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        latest_log=$(find "$log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)
         if [ -n "$latest_log" ]; then
             echo ""
             echo -e "  Latest log: ${DIM}${latest_log}${NC}"
@@ -576,6 +589,22 @@ cmd_domain_status() {
         echo -e "  ${WARN} No status files found in output directory"
     fi
 
+    # List any output files in the directory
+    local output_files
+    output_files=$(find "$output_dir" -maxdepth 1 -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.log" -o -name "*.txt" \) 2>/dev/null | sort)
+    if [ -n "$output_files" ]; then
+        local file_count
+        file_count=$(echo "$output_files" | wc -l)
+        echo ""
+        echo -e "  ${BOLD}Output files${NC}  ${DIM}(${file_count} file(s))${NC}"
+        while IFS= read -r ofile; do
+            local ofname ofsize
+            ofname=$(basename "$ofile")
+            ofsize=$(stat -c '%s' "$ofile" 2>/dev/null || echo "?")
+            echo -e "    ${DIM}${ofname}  (${ofsize} bytes)${NC}"
+        done <<< "$output_files"
+    fi
+
     # Last modified
     local last_mod
     last_mod=$(_last_modified "$output_dir")
@@ -591,7 +620,7 @@ cmd_domain_status() {
 # ─────────────────────────────────────────────────────────────────────────────
 _is_vault_encrypted() {
     local file="$1"
-    head -1 "$file" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT;' 2>/dev/null
+    head -n 1 "$file" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT;' 2>/dev/null
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -645,7 +674,7 @@ _edit_file() {
         fi
     else
         echo -e "  Opening ${target} in ${editor}..."
-        $editor "$target"
+        "$editor" "$target"
     fi
 }
 
@@ -740,7 +769,7 @@ cmd_edit() {
                 fi
                 if [ "${#plain_files[@]}" -gt 0 ]; then
                     echo -e "  Opening ${#plain_files[@]} file(s) in ${editor}..."
-                    $editor "${plain_files[@]}"
+                    "$editor" "${plain_files[@]}"
                 else
                     echo -e "  ${DIM}No plain-text files to open.${NC}"
                 fi
@@ -765,10 +794,13 @@ cmd_edit() {
 # Command: logs — View domain execution logs or ansible logs
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_logs() {
-    local domain="$1" project="$2" follow="${3:-false}"
+    local domain="$1" project="$2" limit="$3"
     local base="${OMNIA_DATA_PATH:-/opt/omnia}"
     local display_name
     display_name=$(echo "$domain" | tr '_' ' ')
+    
+    # Use provided limit or default
+    local log_limit="${limit:-$DEFAULT_LOG_LIMIT}"
 
     echo ""
     echo -e "${BOLD}${BLUE}${display_name} Logs${NC}  ${DIM}(project: ${project})${NC}"
@@ -779,54 +811,78 @@ cmd_logs() {
     local log_arr=()
     local idx=0
 
-    # 1. Domain-specific logs (under <base>/<domain>/log/<project>/)
-    local domain_log_dir="${base}/${domain}/log/${project}"
-    if [ -d "$domain_log_dir" ]; then
-        local log_files
-        log_files=$(find "$domain_log_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn)
-        if [ -n "$log_files" ]; then
-            found_logs=1
-            local count
-            count=$(echo "$log_files" | wc -l)
-            echo -e "  ${BOLD}Domain logs${NC}  ${DIM}(${domain_log_dir})${NC}"
-            echo -e "  ${DIM}Found ${count} log file(s) — most recent first:${NC}"
-            echo ""
-
-            while IFS= read -r line; do
-                idx=$((idx + 1))
-                local fpath
-                fpath=$(echo "$line" | cut -d' ' -f2-)
-                local fname
-                fname=$(basename "$fpath")
-                local fsize
-                fsize=$(stat -c '%s' "$fpath" 2>/dev/null || echo "?")
-                local fmod
-                fmod=$(stat -c '%y' "$fpath" 2>/dev/null | cut -d. -f1 || echo "?")
-                echo -e "    ${CYAN}${idx})${NC} ${fname}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
-                log_arr+=("$fpath")
-                [ "$idx" -ge 10 ] && break
-            done <<< "$log_files"
-            echo ""
-        fi
+    # 1. Domain-specific logs
+    #    Search both <base>/<domain>/log/<project>/ and <base>/<domain>/log/
+    local domain_log_project="${base}/${domain}/log/${project}"
+    local domain_log_flat="${base}/${domain}/log"
+    local domain_log_dirs_to_check=("$domain_log_project")
+    # Also check the flat log dir (logs may live directly under log/)
+    if [ "$domain_log_flat" != "$domain_log_project" ] && [ -d "$domain_log_flat" ]; then
+        domain_log_dirs_to_check+=("$domain_log_flat")
     fi
+
+    for domain_log_dir in "${domain_log_dirs_to_check[@]}"; do
+        if [ -d "$domain_log_dir" ]; then
+            local log_files find_args
+            # Use -maxdepth 6 to catch deeply nested structures (e.g., rhel/10.0/x86_64/group/logs/)
+            find_args=("$domain_log_dir" -maxdepth 6 -name "*.log" -type f)
+            # When scanning the flat dir, exclude the project subdir (already scanned)
+            if [ "$domain_log_dir" = "$domain_log_flat" ] && [ -d "$domain_log_project" ]; then
+                find_args+=(-not -path "${domain_log_project}/*")
+            fi
+            log_files=$(find "${find_args[@]}" -printf '%T@ %p\n' 2>/dev/null | sort -rn)
+            if [ -n "$log_files" ]; then
+                found_logs=1
+                local count
+                count=$(echo "$log_files" | wc -l)
+                echo -e "  ${BOLD}Domain logs${NC}  ${DIM}(${domain_log_dir})${NC}"
+                echo -e "  ${DIM}Found ${count} log file(s) — most recent first:${NC}"
+                echo ""
+
+                while IFS= read -r line; do
+                    idx=$((idx + 1))
+                    local fpath
+                    fpath=$(echo "$line" | cut -d' ' -f2-)
+                    local fname
+                    fname=$(basename "$fpath")
+                    local fsize
+                    fsize=$(stat -c '%s' "$fpath" 2>/dev/null || echo "?")
+                    local fmod
+                    fmod=$(stat -c '%y' "$fpath" 2>/dev/null | cut -d. -f1 || echo "?")
+                    echo -e "    ${CYAN}${idx})${NC} ${fname}  ${DIM}(${fsize} bytes, ${fmod})${NC}"
+                    log_arr+=("$fpath")
+                    [ "$idx" -ge "$log_limit" ] && break
+                done <<< "$log_files"
+                echo ""
+            fi
+        fi
+    done
 
     # 2. Ansible logs (under /var/log/omnia/)
     local ansible_log_dirs=("${ANSIBLE_LOG_DEFAULT}")
     for alog_dir in "${ansible_log_dirs[@]}"; do
         if [ -d "$alog_dir" ]; then
             local ansible_logs
-            ansible_logs=$(find "$alog_dir" \( -name "*${domain}*" -o -name "ansible*.log" \) -type f 2>/dev/null | sort -rn | head -5)
+            ansible_logs=$(find "$alog_dir" -maxdepth 3 \
+                \( -name "*${domain}*" -o -name "ansible*.log" \) \
+                -type f -printf '%T@ %p\n' 2>/dev/null \
+                | sort -rn | head -n "$log_limit")
             if [ -n "$ansible_logs" ]; then
                 found_logs=1
                 echo -e "  ${BOLD}Ansible logs${NC}  ${DIM}(${alog_dir})${NC}"
-                while IFS= read -r alog; do
+                while IFS= read -r line; do
                     idx=$((idx + 1))
+                    local alog
+                    alog=$(echo "$line" | cut -d' ' -f2-)
                     local aname
                     aname=$(basename "$alog")
                     local asize
                     asize=$(stat -c '%s' "$alog" 2>/dev/null || echo "?")
-                    echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes)${NC}"
+                    local amod
+                    amod=$(stat -c '%y' "$alog" 2>/dev/null | cut -d. -f1 || echo "?")
+                    echo -e "    ${CYAN}${idx})${NC} ${aname}  ${DIM}(${asize} bytes, ${amod})${NC}"
                     log_arr+=("$alog")
+                    [ "$idx" -ge "$log_limit" ] && break
                 done <<< "$ansible_logs"
                 echo ""
             fi
@@ -838,18 +894,24 @@ cmd_logs() {
     output_dir=$(_resolve_output_dir "$domain" "$project")
     if [ -d "$output_dir" ]; then
         local output_logs
-        output_logs=$(find "$output_dir" -name "*.log" -type f 2>/dev/null | sort -rn | head -5)
+        output_logs=$(find "$output_dir" -maxdepth 3 -name "*.log" -type f \
+            -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n "$log_limit")
         if [ -n "$output_logs" ]; then
             found_logs=1
             echo -e "  ${BOLD}Output logs${NC}  ${DIM}(${output_dir})${NC}"
-            while IFS= read -r olog; do
+            while IFS= read -r line; do
                 idx=$((idx + 1))
+                local olog
+                olog=$(echo "$line" | cut -d' ' -f2-)
                 local oname
                 oname=$(basename "$olog")
                 local osize
                 osize=$(stat -c '%s' "$olog" 2>/dev/null || echo "?")
-                echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes)${NC}"
+                local omod
+                omod=$(stat -c '%y' "$olog" 2>/dev/null | cut -d. -f1 || echo "?")
+                echo -e "    ${CYAN}${idx})${NC} ${oname}  ${DIM}(${osize} bytes, ${omod})${NC}"
                 log_arr+=("$olog")
+                [ "$idx" -ge "$log_limit" ] && break
             done <<< "$output_logs"
             echo ""
         fi
@@ -860,7 +922,8 @@ cmd_logs() {
         echo ""
         echo -e "  ${DIM}Logs are created when you run the domain via omnia.sh --run ${domain}${NC}"
         echo -e "  ${DIM}Expected locations:${NC}"
-        echo -e "    ${DIM}${domain_log_dir}/*.log${NC}"
+        echo -e "    ${DIM}${domain_log_project}/*.log${NC}"
+        echo -e "    ${DIM}${domain_log_flat}/*.log${NC}"
         echo -e "    ${DIM}${ANSIBLE_LOG_DEFAULT}/*${domain}*.log${NC}"
         echo ""
         return 1
@@ -887,7 +950,7 @@ cmd_logs() {
                     local target="${log_arr[$((choice - 1))]}"
                     local pager="${PAGER:-less}"
                     echo -e "  Opening ${target} in ${pager}..."
-                    $pager "$target"
+                    "$pager" "$target"
                 else
                     echo -e "  ${RED}Invalid selection: ${choice}${NC}"
                 fi
@@ -993,8 +1056,10 @@ EDIT:
 
 LOGS:
   Shows domain logs from \${OMNIA_DATA_PATH}/${domain}/log/<project>/
+  Also checks \${OMNIA_DATA_PATH}/${domain}/log/ directly
   Shows ansible logs from /var/log/omnia/
   Offers to tail or view selected log in \$PAGER (default: less)
+  Default limit: 30 logs (use --limit <n> to change)
 EOF
             ;;
     esac
@@ -1008,24 +1073,26 @@ show_help() {
 ${BOLD}omnia-cli${NC} — Omnia Domain Status & Diagnostics CLI  v${OMNIA_RELEASE}
 
 USAGE:
-  omnia-cli <command> [--project <name>]
+  omnia-cli <command> [--project <name>] [--limit <n>]
 
 COMMANDS:
   ${BOLD}status${NC}              Show all domain statuses for a project
   ${BOLD}check${NC}               Validate input files and output existence for all domains
   ${BOLD}edit${NC} <domain>        List and edit input configuration files for a domain
-  ${BOLD}logs${NC} <domain>        View domain execution logs and ansible logs
+  ${BOLD}logs${NC} <domain>        View domain execution logs and ansible logs (default: 30, use --limit <n>)
   ${BOLD}repo-manager${NC}        Detailed repo_manager diagnostics
   ${BOLD}image-build${NC}         Detailed image_build_manager diagnostics
   ${BOLD}orchestrator${NC}        Orchestrator status
   ${BOLD}discovery${NC}           Discovery domain status
   ${BOLD}telemetry${NC}           Telemetry stack status
   ${BOLD}build-stream${NC}        Build stream (GitLab) status
+  ${BOLD}utils${NC}               Shared utilities status
   ${BOLD}version${NC}             Show Omnia version info
   ${BOLD}help${NC} [<domain>]     Show help (or domain-specific help)
 
 OPTIONS:
   --project <name>    Project name (default: \$OMNIA_PROJECT_NAME or project_default)
+  --limit <n>         Max log entries to display (default: 30, logs command only)
 
 ENVIRONMENT:
   Export these variables (or source omnia.env) before running:
@@ -1043,6 +1110,7 @@ EXAMPLES:
   omnia-cli edit repo-manager               # Edit repo_manager input config files
   omnia-cli logs image-build                # View image_build_manager logs
   omnia-cli logs orchestrator --project prod # View orchestrator logs for 'prod'
+  omnia-cli logs repo-manager --limit 50     # Show up to 50 logs
   omnia-cli help repo-manager               # Domain-specific help
 
 SEE ALSO:
@@ -1062,6 +1130,7 @@ _domain_from_arg() {
         discovery)                   echo "discovery" ;;
         telemetry)                   echo "telemetry" ;;
         build-stream|build_stream)   echo "build_stream" ;;
+        utils)                       echo "utils" ;;
         *)                           echo "" ;;
     esac
 }
@@ -1076,13 +1145,19 @@ main() {
     shift || true
 
     # Parse --project flag and positional args from remaining args
-    local project="${OMNIA_PROJECT_NAME:-project_default}"
+    local project_flag=""
+    local project=""
+    local log_limit=""
     local positional_args=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --project|-p)
-                project="${2:-project_default}"
+                project_flag="${2:-project_default}"
                 shift 2 || { echo -e "${RED}--project requires a value${NC}"; exit 1; }
+                ;;
+            --limit|-l)
+                log_limit="${2:-}"
+                shift 2 || { echo -e "${RED}--limit requires a value${NC}"; exit 1; }
                 ;;
             *)
                 positional_args+=("$1")
@@ -1091,30 +1166,42 @@ main() {
         esac
     done
 
-    # For commands that don't need a domain arg, first positional is project
-    # For edit/logs, first positional is domain
+    # --project flag takes priority over env var; positional args never override --project
+    project="${project_flag:-${OMNIA_PROJECT_NAME:-project_default}}"
+
+    # Validate project name (prevent path traversal)
+    if [[ ! "$project" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]]; then
+        echo -e "${RED}Invalid project name: '${project}'${NC}" >&2
+        echo -e "${DIM}Allowed: letters, digits, underscore, hyphen, dot${NC}" >&2
+        exit 1
+    fi
+
+    # Validate log limit (must be a positive integer)
+    if [ -n "$log_limit" ] && ! [[ "$log_limit" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}Invalid --limit value: '${log_limit}'${NC}" >&2
+        echo -e "${DIM}Must be a positive integer${NC}" >&2
+        exit 1
+    fi
+
+    # Dispatch: edit/logs use first positional as domain; others ignore positional args
     case "$command" in
         status)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_status "$project"
+            cmd_status "$project" || true
             ;;
         check)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_check "$project"
+            cmd_check "$project" || true
             ;;
         repo-manager|repo_manager)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_repo_manager "$project"
+            cmd_repo_manager "$project" || true
             ;;
         image-build|image_build|image-build-manager|image_build_manager)
-            [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-            cmd_image_build "$project"
+            cmd_image_build "$project" || true
             ;;
         edit)
             if [ "${#positional_args[@]}" -eq 0 ]; then
                 echo -e "${RED}edit requires a domain argument${NC}"
                 echo -e "Usage: omnia-cli edit <domain> [--project <name>]"
-                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream"
+                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream, utils"
                 exit 1
             fi
             local domain
@@ -1123,14 +1210,13 @@ main() {
                 echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
                 exit 1
             fi
-            [ "${#positional_args[@]}" -gt 1 ] && project="${positional_args[1]}"
-            cmd_edit "$domain" "$project"
+            cmd_edit "$domain" "$project" || true
             ;;
         logs|log)
             if [ "${#positional_args[@]}" -eq 0 ]; then
                 echo -e "${RED}logs requires a domain argument${NC}"
-                echo -e "Usage: omnia-cli logs <domain> [--project <name>]"
-                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream"
+                echo -e "Usage: omnia-cli logs <domain> [--project <name>] [--limit <n>]"
+                echo -e "Domains: repo-manager, image-build, orchestrator, discovery, telemetry, build-stream, utils"
                 exit 1
             fi
             local domain
@@ -1139,8 +1225,7 @@ main() {
                 echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
                 exit 1
             fi
-            [ "${#positional_args[@]}" -gt 1 ] && project="${positional_args[1]}"
-            cmd_logs "$domain" "$project"
+            cmd_logs "$domain" "$project" "$log_limit" || true
             ;;
         version|--version|-v)
             cmd_version
@@ -1164,8 +1249,7 @@ main() {
             local domain
             domain=$(_domain_from_arg "$command")
             if [ -n "$domain" ]; then
-                [ "${#positional_args[@]}" -gt 0 ] && project="${positional_args[0]}"
-                cmd_domain_status "$domain" "$project"
+                cmd_domain_status "$domain" "$project" || true
             else
                 echo -e "${RED}Unknown command: ${command}${NC}"
                 echo ""

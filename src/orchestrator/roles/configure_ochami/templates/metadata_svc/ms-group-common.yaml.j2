@@ -1,7 +1,7 @@
 - name: ssh
   description: "ssh config"
   meta-data:
-    host_mount_map: {{ host_mount_map | default({}) }}
+    host_mount_map: {{ host_mount_map | default({}) | to_json }}
   file:
     encoding: plain
     content: |
@@ -13,6 +13,15 @@
         - name: dict
           settings: [no_replace, recurse_list]
  
+      ssh_pwauth: true
+
+      chpasswd:
+        expire: false
+        users:
+          - name: root
+            password: "{{ hashed_password_output.stdout }}"
+            type: hash
+
       write_files:
         - path: /usr/local/bin/set-ssh-config.sh
           permissions: '0755'

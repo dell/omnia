@@ -21,6 +21,7 @@ installation, venv creation, domain initialization, and CLI behavior.
 All functions return a dict with keys: success, details, error.
 """
 
+import os
 import time
 from typing import Any, Dict, List
 
@@ -38,6 +39,40 @@ from ..vars.common_vars import (
     OPTIONAL_ENV_VARS,
     OMNIA_CLI_HELP_SECTIONS,
 )
+
+
+# =============================================================================
+# VENV DETECTION
+# =============================================================================
+
+def is_running_from_omnia_venv() -> bool:
+    """Check if tests are running from the omnia production venv.
+
+    Compares the active VIRTUAL_ENV against the configured venv_path
+    (default: /opt/omnia/venv).  When they match, destructive operations
+    like --setup-venv and --cleanup must be skipped because they would
+    destroy the interpreter that is currently executing the test suite.
+
+    Uses both os.path.realpath and normpath to handle symlinks and
+    trailing slashes consistently.
+
+    Returns:
+        True if the active venv IS the omnia production venv.
+        False if running from test/main/.venv or no venv is active.
+    """
+    active_venv = os.environ.get("VIRTUAL_ENV", "")
+    if not active_venv:
+        return False
+    config = load_test_config()
+    omnia_venv = config.get("venv_path", "/opt/omnia/venv")
+
+    # Normalize both paths: resolve symlinks AND strip trailing slashes
+    active_norm = os.path.normpath(os.path.realpath(active_venv))
+    omnia_norm = os.path.normpath(os.path.realpath(omnia_venv))
+
+    # Also check if active venv starts with the omnia venv path
+    # (handles cases like /opt/omnia/venv vs /opt/omnia/venv/)
+    return active_norm == omnia_norm or active_norm.startswith(omnia_norm + os.sep)
 
 
 # =============================================================================
@@ -106,6 +141,71 @@ def run_omnia_cmd_expect_error(
         "rc": result.rc,
         "output": result.stdout.strip(),
         "error": result.stderr.strip(),
+    }
+
+
+# =============================================================================
+# ENVIRONMENT VALIDATION (source-level)
+# =============================================================================
+
+def check_env_source_validation(host) -> Dict[str, Any]:
+    """Verify validate_env_source rejects a bad env file.
+
+    Creates a temp copy of omnia.env with SYSTEM_ADMIN_NIC_IPV4
+    blanked out, then calls validate_env_source on it.
+    Expects a non-zero exit code.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, rc.
+    """
+    config = load_test_config()
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        import os
+        clone_path = os.getcwd()
+
+    omnia_sh = f"{clone_path}/{OMNIA_SH_PATH}"
+    omnia_env = f"{clone_path}/src/main/omnia.env"
+
+    # Create a temp env file with empty SYSTEM_ADMIN_NIC_IPV4,
+    # then source omnia.sh functions and call validate_env_source
+    cmd = (
+        f"bash -c '"
+        f"tmp=$(mktemp); "
+        f"sed \"s/^SYSTEM_ADMIN_NIC_IPV4=.*/SYSTEM_ADMIN_NIC_IPV4=/\" "
+        f"{omnia_env} > \"$tmp\"; "
+        f"source <(grep -A100 \"^validate_env_source()\" {omnia_sh}"
+        f" | head -30); "
+        f"validate_env_source \"$tmp\"; "
+        f"rc=$?; rm -f \"$tmp\"; exit $rc"
+        f"' 2>&1"
+    )
+    result = run_on_host(host, cmd)
+
+    # validate_env_source should exit 1 for a blank IP
+    rejected = result.rc != 0
+
+    if rejected:
+        return {
+            "success": True,
+            "details": (
+                "validate_env_source correctly rejected "
+                "empty SYSTEM_ADMIN_NIC_IPV4"
+            ),
+            "error": "",
+            "rc": result.rc,
+        }
+    return {
+        "success": False,
+        "details": "",
+        "error": (
+            "validate_env_source accepted empty "
+            "SYSTEM_ADMIN_NIC_IPV4 (should have failed)"
+        ),
+        "rc": result.rc,
     }
 
 
@@ -344,19 +444,24 @@ def check_activate_helper(host) -> Dict[str, Any]:
 # DOMAIN INIT VERIFICATION
 # =============================================================================
 
-def check_domain_log_dirs(host) -> Dict[str, Any]:
+def check_domain_log_dirs(
+    host, domains: List[str] = None
+) -> Dict[str, Any]:
     """Verify domain log directories created under /var/log/omnia/.
 
     Args:
         host: Testinfra host connection.
+        domains: Optional list of domains to check.
+                 Defaults to DOMAINS_WITH_INIT (all domains).
 
     Returns:
-        Dict with keys: success, details, error, missing.
+        Dict with keys: success, details, error, missing, found.
     """
     missing: List[str] = []
     present: List[str] = []
 
-    for domain in DOMAINS_WITH_INIT:
+    check_domains = domains if domains is not None else DOMAINS_WITH_INIT
+    for domain in check_domains:
         cmd = CMDS["domain_log_dir_exists"].format(domain=domain)
         result = run_on_host(host, cmd)
         log_dir = f"/var/log/omnia/{domain}"
@@ -371,12 +476,14 @@ def check_domain_log_dirs(host) -> Dict[str, Any]:
             "details": f"{len(present)} log directories present",
             "error": "",
             "missing": [],
+            "found": present,
         }
     return {
         "success": False,
         "details": f"{len(present)} present, {len(missing)} missing",
         "error": f"Missing: {', '.join(missing)}",
         "missing": missing,
+        "found": present,
     }
 
 
@@ -418,11 +525,13 @@ def check_domain_input_staged(
             "success": True,
             "details": f"{file_count} file(s) for {domain}",
             "error": "",
+            "file_count": file_count,
         }
     return {
         "success": False,
         "details": "",
         "error": f"No input files staged for {domain}",
+        "file_count": 0,
     }
 
 

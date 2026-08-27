@@ -121,6 +121,7 @@ images:
   powerscale:
     csm_metrics: "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.12.0"
     otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.150.1"
+    csm_authorization_sidecar: "quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.5.0"
     cert_manager_controller: "quay.io/jetstack/cert-manager-controller:v1.10.0"
     cert_manager_cainjector: "quay.io/jetstack/cert-manager-cainjector:v1.10.0"
     cert_manager_webhook: "quay.io/jetstack/cert-manager-webhook:v1.10.0"
@@ -208,9 +209,91 @@ git_repos:
 # Online:  installed from PyPI (https://pypi.org)
 pip_modules:
   # Source: https://pypi.org/project/kubernetes/
+  # Required for: CSI volume exporter, PowerScale telemetry
   kubernetes:
     version: "33.1.0"
 
   # Source: https://pypi.org/project/prometheus-client/
+  # Required for: CSI volume exporter metrics export
   prometheus_client:
     version: "0.20.0"
+
+  # Source: https://pypi.org/project/requests/
+  # Required for: PowerScale API calls, HTTP requests
+  requests:
+    version: "2.32.3"
+
+  # Source: https://pypi.org/project/urllib3/
+  # Required for: HTTP connection pooling (dependency of requests)
+  urllib3:
+    version: "2.2.3"
+
+  # Source: https://pypi.org/project/certifi/
+  # Required for: SSL certificate verification
+  certifi:
+    version: "2024.8.30"
+
+  # Source: https://pypi.org/project/charset-normalizer/
+  # Required for: Character encoding detection (dependency of requests)
+  charset_normalizer:
+    version: "3.4.0"
+
+  # Source: https://pypi.org/project/idna/
+  # Required for: Internationalized domain names (dependency of requests)
+  idna:
+    version: "3.10"
+
+  # Source: https://pypi.org/project/pyyaml/
+  # Required for: YAML configuration parsing
+  pyyaml:
+    version: "6.0.2"
+
+  # Source: https://pypi.org/project/python-dateutil/
+  # Required for: Date/time parsing (dependency of kubernetes)
+  python_dateutil:
+    version: "2.9.0.post0"
+
+  # Source: https://pypi.org/project/six/
+  # Required for: Python 2/3 compatibility (dependency of python-dateutil)
+  six:
+    version: "1.17.0"
+
+  # Source: https://pypi.org/project/oauthlib/
+  # Required for: OAuth authentication (dependency of kubernetes)
+  oauthlib:
+    version: "3.2.2"
+
+  # Source: https://pypi.org/project/requests-oauthlib/
+  # Required for: OAuth for requests (dependency of kubernetes)
+  requests_oauthlib:
+    version: "2.0.0"
+
+  # Source: https://pypi.org/project/websocket-client/
+  # Required for: WebSocket connections (dependency of kubernetes)
+  websocket_client:
+    version: "1.8.0"
+
+  # Source: https://pypi.org/project/google-auth/
+  # Required for: Google authentication (dependency of kubernetes)
+  google_auth:
+    version: "2.36.0"
+
+  # Source: https://pypi.org/project/cachetools/
+  # Required for: Caching utilities (dependency of google-auth)
+  cachetools:
+    version: "5.5.0"
+
+  # Source: https://pypi.org/project/pyasn1/
+  # Required for: ASN.1 parsing (dependency of google-auth)
+  pyasn1:
+    version: "0.6.1"
+
+  # Source: https://pypi.org/project/pyasn1-modules/
+  # Required for: ASN.1 modules (dependency of google-auth)
+  pyasn1_modules:
+    version: "0.4.1"
+
+  # Source: https://pypi.org/project/rsa/
+  # Required for: RSA encryption (dependency of google-auth)
+  rsa:
+    version: "4.9"

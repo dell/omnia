@@ -111,9 +111,8 @@ def check_credentials_present(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    cred_path = f"/opt/omnia/input/{project}/{CREDENTIALS_FILE_NAME}"
+    input_path = _get_input_path()
+    cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:

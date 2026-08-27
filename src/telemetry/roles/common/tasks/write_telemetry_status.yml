@@ -16,10 +16,10 @@
 # Write telemetry_status.yml to the output project directory
 # ============================================================================
 # Writes a single authoritative status file after deployment completes.
-# Pattern follows image_build_manager/roles/build_os_images/tasks/write_build_status.yml
+# Status values: passed, failed, skipped
 #
 # Expected to run on localhost after all deployment tasks complete.
-# Requires: telemetry_pods (from kubectl get pods on kube_vip)
+# Deployment results are collected from hostvars set during Phase 4.
 
 - name: Set output paths
   ansible.builtin.set_fact:
@@ -31,119 +31,83 @@
     state: directory
     mode: "0755"
 
-# -- Gather sink deployment state from kube_vip hostvars --------------------
-- name: Gather sink deployment state
+# -- Aggregate deployment results from Phase 4 hostvars ----------------------
+- name: Aggregate sink deployment results
+  ansible.builtin.set_fact:
+    _sink_results:
+      kafka: "{{ hostvars['localhost']['_deploy_result_kafka'] | default('skipped') }}"
+      victoria_metrics: "{{ hostvars['localhost']['_deploy_result_victoria_metrics'] | default('skipped') }}"
+      victoria_logs: "{{ hostvars['localhost']['_deploy_result_victoria_logs'] | default('skipped') }}"
+
+- name: Aggregate source deployment results
+  ansible.builtin.set_fact:
+    _source_results:
+      idrac_metrics: "{{ hostvars['localhost']['_deploy_result_idrac_metrics'] | default('skipped') }}"
+      ldms_metrics: "{{ hostvars['localhost']['_deploy_result_ldms_metrics'] | default('skipped') }}"
+      powerscale_metrics: "{{ hostvars['localhost']['_deploy_result_powerscale_metrics'] | default('skipped') }}"
+      powerscale_logs: "{{ hostvars['localhost']['_deploy_result_powerscale_logs'] | default('skipped') }}"
+      ufm_metrics: "{{ hostvars['localhost']['_deploy_result_ufm_metrics'] | default('skipped') }}"
+      ufm_logs: "{{ hostvars['localhost']['_deploy_result_ufm_logs'] | default('skipped') }}"
+      vast_metrics: "{{ hostvars['localhost']['_deploy_result_vast_metrics'] | default('skipped') }}"
+      vast_logs: "{{ hostvars['localhost']['_deploy_result_vast_logs'] | default('skipped') }}"
+      ome_metrics: "{{ hostvars['localhost']['_deploy_result_ome_metrics'] | default('skipped') }}"
+      ome_logs: "{{ hostvars['localhost']['_deploy_result_ome_logs'] | default('skipped') }}"
+
+- name: Aggregate bridge deployment results
+  ansible.builtin.set_fact:
+    _bridge_results:
+      vector_ldms: "{{ hostvars['localhost']['_deploy_result_vector_ldms'] | default('skipped') }}"
+      vector_ome: "{{ hostvars['localhost']['_deploy_result_vector_ome'] | default('skipped') }}"
+
+# -- Determine overall deployment status -------------------------------------
+- name: Determine overall deployment status
   vars:
-    _kv: "{{ hostvars[kube_vip] }}"
+    _all_results: >-
+      {{ [_sink_results.kafka, _sink_results.victoria_metrics, _sink_results.victoria_logs]
+         + [_source_results.idrac_metrics, _source_results.ldms_metrics]
+         + [_source_results.powerscale_metrics, _source_results.powerscale_logs]
+         + [_source_results.ufm_metrics, _source_results.ufm_logs]
+         + [_source_results.vast_metrics, _source_results.vast_logs]
+         + [_source_results.ome_metrics, _source_results.ome_logs]
+         + [_bridge_results.vector_ldms, _bridge_results.vector_ome] }}
+    _has_failed: "{{ 'failed' in _all_results }}"
+    _has_passed: "{{ 'passed' in _all_results }}"
   ansible.builtin.set_fact:
-    _kafka_deployed: >-
-      {{ _kv['kafka_deployed']
-         | default(_kv['sink_kafka_result'] | default('') == 'DEPLOYED')
-         | bool }}
-    _victoria_metrics_deployed: >-
-      {{ _kv['victoria_metrics_deployed']
-         | default(_kv['sink_victoria_metrics_result'] | default('') == 'DEPLOYED')
-         | bool }}
-    _victoria_logs_deployed: >-
-      {{ _kv['victoria_logs_deployed']
-         | default(_kv['sink_victoria_logs_result'] | default('') == 'DEPLOYED')
-         | bool }}
-  when: kube_vip is defined
+    _deployment_status: >-
+      {% if _has_failed %}failed{%- elif _has_passed %}passed{%- else %}skipped{% endif %}
 
-# -- Gather source/bridge flags from telemetry_config ----------------------
-- name: Gather source and bridge deployment flags
-  ansible.builtin.set_fact:
-    _ome_deployed: >-
-      {{
-        (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool) or
-        (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool)
-      }}
-    _vector_ldms_deployed: "{{ telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}"
-    _deployed_sources:
-      idrac: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
-      ldms: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
-      ome: >-
-        {{
-          (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool) or
-          (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)
-        }}
-      powerscale: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
-      ufm: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
-      vast: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
-      dcgm: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool }}"
-      sfm: "{{ telemetry_config.telemetry_sources.sfm.metrics_enabled | default(false) | bool }}"
-      skyway: "{{ telemetry_config.telemetry_sources.skyway.metrics_enabled | default(false) | bool }}"
-      powervault: "{{ telemetry_config.telemetry_sources.powervault.metrics_enabled | default(false) | bool }}"
-
-# -- Kafka topics: derive from config collection_targets -------------------
-- name: Derive Kafka topics from enabled sources
-  ansible.builtin.set_fact:
-    _kafka_topics: >-
-      {%- set topics = [] -%}
-      {%- if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
-             and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) -%}
-        {%- set _ = topics.append('idrac') -%}
-      {%- endif -%}
-      {%- if telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool
-             and 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) -%}
-        {%- set _ = topics.append('ldms') -%}
-      {%- endif -%}
-      {{ topics }}
-
-# -- iDRAC BMC count -------------------------------------------------------
-- name: Count configured BMC servers
-  vars:
-    _bmc_ips: >-
-      {{ telemetry_config.idrac_telemetry_configurations.oim_bmc_ips
-         | default({}) }}
-  ansible.builtin.set_fact:
-    _idrac_bmc_count: >-
-      {{ _bmc_ips | dict2items
-         | selectattr('value', 'ne', '') | list | length }}
-  when: >-
-    telemetry_config.telemetry_sources.idrac.metrics_enabled
-    | default(false) | bool
-  failed_when: false
-
-# -- LDMS sampler node count -----------------------------------------------
-- name: Count LDMS sampler nodes
-  ansible.builtin.set_fact:
-    _ldms_sampler_nodes: "{{ (telemetry_config.ldms_configurations.sampler_plugins | default([]) | length) }}"
-  when: telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool
-  failed_when: false
-
-# -- Pod counts from kubectl output -----------------------------------------
-- name: Count pods from telemetry_pods output
-  vars:
-    _status_pod_lines: "{{ hostvars[kube_vip]['telemetry_pods'].stdout_lines | default([]) }}"
-  ansible.builtin.set_fact:
-    _pod_total: "{{ _status_pod_lines | length }}"
-    _pod_ready: "{{ _status_pod_lines | select('search', '\\s+Running\\s+') | list | length }}"
-    _pod_failed: "{{ _status_pod_lines | select('search', 'CrashLoopBackOff|Error|ImagePullBackOff|ErrImagePull') | list | length }}"
-    _failed_pod_names: "{{ _status_pod_lines | select('search', 'CrashLoopBackOff|Error|ImagePullBackOff|ErrImagePull') | map('split') | map('first') | list }}"
-  when:
-    - kube_vip is defined
-    - hostvars[kube_vip]['telemetry_pods'] is defined
-
-# -- Overall status ---------------------------------------------------------
-- name: Determine overall status
-  ansible.builtin.set_fact:
-    _overall_status: >-
-      {% if (_pod_failed | default(0) | int) > 0 %}failed{% elif (_pod_ready | default(0) | int) > 0 %}success{% else %}partial{% endif %}
-
-# -- Write the template -----------------------------------------------------
-- name: Write telemetry_status.yml (latest)
+# -- Write the template ------------------------------------------------------
+- name: Write telemetry_status.yml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/telemetry_status.yml.j2"
     dest: "{{ _output_base }}/telemetry_status.yml"
     mode: "0644"
 
-- name: Display telemetry status output location
+# -- Display summary ---------------------------------------------------------
+- name: Display telemetry deployment status
   ansible.builtin.debug:
-    msg:
-      - "Status: {{ _output_base }}/telemetry_status.yml"
-      - >-
-        Overall: {{ _overall_status | trim }} |
-        Pods: {{ _pod_total | default(0) }} total,
-        {{ _pod_ready | default(0) }} ready,
-        {{ _pod_failed | default(0) }} failed
+    msg: "{{ _status_lines }}"
+  vars:
+    _status_lines:
+      - "======================================================"
+      - "Telemetry Deployment Status: {{ _deployment_status | upper | trim }}"
+      - "======================================================"
+      - "Output: {{ _output_base }}/telemetry_status.yml"
+      - ""
+      - "Sinks:"
+      - "  kafka:             {{ _sink_results.kafka }}"
+      - "  victoria_metrics:  {{ _sink_results.victoria_metrics }}"
+      - "  victoria_logs:     {{ _sink_results.victoria_logs }}"
+      - ""
+      - "Sources:"
+      - "  idrac:             metrics={{ _source_results.idrac_metrics }}"
+      - "  ldms:              metrics={{ _source_results.ldms_metrics }}"
+      - "  powerscale:        metrics={{ _source_results.powerscale_metrics }}, logs={{ _source_results.powerscale_logs }}"
+      - "  ufm:               metrics={{ _source_results.ufm_metrics }}, logs={{ _source_results.ufm_logs }}"
+      - "  vast:              metrics={{ _source_results.vast_metrics }}, logs={{ _source_results.vast_logs }}"
+      - "  ome:               metrics={{ _source_results.ome_metrics }}, logs={{ _source_results.ome_logs }}"
+      - ""
+      - "Bridges:"
+      - "  vector_ldms:       {{ _bridge_results.vector_ldms }}"
+      - "  vector_ome:        {{ _bridge_results.vector_ome }}"
+      - "======================================================"

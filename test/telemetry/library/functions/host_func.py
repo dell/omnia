@@ -13,96 +13,96 @@
 # limitations under the License.
 
 """
-Telemetry — Host Sync Functions.
+Telemetry — Module-specific host utilities.
 
-Functions for syncing project, input files, and datasets to the target.
-Re-exports common omnia_auto host functions.
+Reads module config and passes ALL params to omnia_auto's
+``sync_files()``.  No logic in the package -- only in this consumer.
+
+Monorepo changes vs multi-repo:
+- Input path resolved from target env vars (OMNIA_DATA_PATH, OMNIA_PROJECT_NAME)
+- sync_project_to_remote() copies local project code to target clone_path
+- No separate config.yml sync (env vars replace it)
 """
 
 import os
+from typing import Dict, Any
 
 from omnia_auto import (
     load_test_config,
-    clone_repo,
+    get_module_root,
     sync_files,
-    log,
+    connection_params,
+    resolve_domain_input_path,
+    ensure_remote_dir,
 )
 
-from library.vars.common_vars import (
+from ..vars.common_vars import (
     DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
     SRC_INPUT_DIR,
-    DEFAULT_OMNIA_DATA_PATH,
-    DEFAULT_PROJECT_NAME,
-    MODULE_ROOT,
 )
 
+__all__ = [
+    "sync_project_to_remote",
+    "sync_telemetry_input",
+]
 
-def sync_project_to_remote(host):
-    """Clone/sync the omnia repo to the target server.
 
-    Uses omnia_auto.clone_repo() to ensure the source is available.
+def sync_project_to_remote(_host) -> Dict[str, Any]:
+    """Sync the local omnia project tree to clone_path on target.
 
-    Args:
-        host: testinfra host connection.
+    Source: ``<repo_root>/`` (the omnia monorepo root)
+    Dest:   ``<clone_path>/`` on the target server
     """
     config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    repo_url = config.get("repo_url", "")
-    branch = config.get("branch", "main")
+    conn = connection_params()
 
-    if not clone_path:
-        log("clone_path not set in test_config.yml, skipping repo sync", "WARN")
-        return
+    repo_root = os.path.dirname(os.path.dirname(get_module_root()))
 
-    clone_repo(
-        mode="ssh",
-        host=host,
-        repo_url=repo_url,
-        dest_path=clone_path,
-        branch=branch,
+    return sync_files(
+        mode=conn["mode"],
+        src=repo_root,
+        dest=config["clone_path"],
+        ip=conn["ip"],
+        user=conn["user"],
+        auth_secret=conn["auth_secret"],
+        ssh_opts=conn["ssh_opts"],
     )
 
 
-def sync_telemetry_input(host, dataset_dir=None):
-    """Sync telemetry input files to the target's runtime path.
+def _resolve_input_dir(config):
+    """Resolve local input directory from dataset or src/."""
+    dataset = config.get("dataset", "")
+    if dataset:
+        return os.path.join(
+            get_module_root(), "datasets", dataset, "input",
+        )
+    return SRC_INPUT_DIR
 
-    If dataset_dir is provided, syncs from the dataset. Otherwise
-    syncs from src/telemetry/input/.
 
-    Args:
-        host: testinfra host connection.
-        dataset_dir: Local path to dataset input/ directory (optional).
+def sync_telemetry_input(host) -> Dict[str, Any]:
+    """Push telemetry input files from local source to target.
+
+    Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
+    server's environment to resolve the correct destination::
+
+        <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/
+
+    Source: src/telemetry/input/ (default) or
+            datasets/<dataset>/input/ (when dataset is set).
     """
     config = load_test_config()
-    project = config.get("project_name", DEFAULT_PROJECT_NAME)
-    omnia_data_path = config.get("omnia_data_path", DEFAULT_OMNIA_DATA_PATH)
-    dest = f"{omnia_data_path}/{DOMAIN_NAME}/input/{project}/"
+    conn = connection_params()
 
-    if dataset_dir and os.path.isdir(dataset_dir):
-        src = dataset_dir
-        log(f"Syncing telemetry input from dataset: {src}", "INFO")
-    else:
-        src = SRC_INPUT_DIR
-        log(f"Syncing telemetry input from src: {src}", "INFO")
-
-    sync_files(
-        mode="ssh",
-        host=host,
-        src=src + "/",
-        dest=dest,
+    local_input = _resolve_input_dir(config)
+    remote_input = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
     )
+    ensure_remote_dir(host, remote_input)
 
-
-def get_dataset_input_dir(dataset_name):
-    """Resolve the local path to a dataset's input/ directory.
-
-    Args:
-        dataset_name: Name of the dataset (e.g. 'data_set_01').
-
-    Returns:
-        str: Absolute path to datasets/<name>/input/ or empty string.
-    """
-    dataset_dir = os.path.join(MODULE_ROOT, "datasets", dataset_name, "input")
-    if os.path.isdir(dataset_dir):
-        return dataset_dir
-    return ""
+    return sync_files(
+        mode=conn["mode"], src=local_input, dest=remote_input,
+        ip=conn["ip"], user=conn["user"],
+        auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
+    )

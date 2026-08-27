@@ -1,5 +1,5 @@
 [
-{% set slurm_nodes = slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) | dict2items %}
+{% set slurm_nodes = slurm_inv.all.children.slurm_node.hosts | default({}) | dict2items %}
 {% for item in slurm_nodes %}
     {
         "hostname": "{{ item.key }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",

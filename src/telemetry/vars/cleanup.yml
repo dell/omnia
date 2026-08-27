@@ -25,10 +25,8 @@ valid_cleanup_components:
   - cleanup_ldms
   - cleanup_ome
   - cleanup_powerscale
-  - cleanup_dcgm
   - cleanup_ufm
   - cleanup_vast
-  - cleanup_sfm
 
 # Timeouts
 cleanup_kafka_wait_timeout: "300s"
@@ -293,17 +291,6 @@ powerscale_pod_labels:
   - "app=csi-volume-exporter"
 
 # ---------------------------------------------------------------------------
-# DCGM cleanup resources
-# ---------------------------------------------------------------------------
-dcgm_resources:
-  - { type: "daemonset", name: "dcgm-exporter" }
-  - { type: "deployment", name: "dcgm-exporter" }
-  - { type: "service", name: "dcgm-exporter" }
-  - { type: "configmap", name: "dcgm-exporter-config" }
-
-dcgm_pod_label: "app=dcgm-exporter"
-
-# ---------------------------------------------------------------------------
 # UFM cleanup resources
 # ---------------------------------------------------------------------------
 ufm_resources:
@@ -324,16 +311,6 @@ vast_resources:
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
 
 vast_pod_label: "app=vast-external"
-
-# ---------------------------------------------------------------------------
-# SFM cleanup resources
-# ---------------------------------------------------------------------------
-sfm_resources:
-  - { type: "deployment", name: "sfm-exporter" }
-  - { type: "service", name: "sfm-exporter" }
-  - { type: "configmap", name: "sfm-scrape-config" }
-
-sfm_pod_label: "app=sfm-telemetry"
 
 # ---------------------------------------------------------------------------
 # Victoria Operator cleanup (shared between VictoriaMetrics and VictoriaLogs)

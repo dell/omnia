@@ -33,6 +33,13 @@
   changed_when: false
   failed_when: false
 
+- name: Kafka | Delete KafkaTopic CRDs
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete kafkatopic -l {{ kafka_topic_label }}
+    --ignore-not-found=true --wait=false
+  changed_when: false
+  failed_when: false
+
 - name: Kafka | Delete Kafka cluster
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}

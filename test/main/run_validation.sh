@@ -25,7 +25,8 @@
 # Commands:
 #   deploy    Run the script/playbook only (tests marked @deploy)
 #   verify    Run verification tests only (exclude @deploy)
-#   test      Deploy + Verify (full flow)
+#   test      Deploy + Verify (full flow; cleanup NOT included)
+#   cleanup   Run cleanup only (tests marked @cleanup; must be explicit)
 #
 # Options:
 #   --suite <name>    Filter by subfolder (environment, venv, commands, etc.)
@@ -33,15 +34,22 @@
 #   -v, --verbose     Increase verbosity
 #
 # Scenarios:
-#   setup    omnia.sh --setup-venv tests
-#   init     omnia.sh --init tests
-#   cli      CLI argument parsing tests
+#   setup      omnia.sh --setup-venv tests
+#   init       omnia.sh --init tests
+#   cli        CLI argument parsing tests
+#   execution  Actual omnia.sh operations (setup, init, run --tags)
+#   omnia_cli  omnia-cli diagnostics, logs, errors
+#
+# Cleanup:
+#   Cleanup is NEVER run automatically.  Use an explicit command:
+#     ./run_validation.sh execution cleanup
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FVT_DIR="${SCRIPT_DIR}/fvt"
+NFT_DIR="${SCRIPT_DIR}/nft"
 CONFIG_FILE="${SCRIPT_DIR}/test_run_config.yml"
 
 RED='\033[0;31m'
@@ -51,7 +59,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-SUPPORTED_COMMANDS="deploy verify test"
+SUPPORTED_COMMANDS="deploy verify test cleanup"
 
 # Change to script dir
 cd "$SCRIPT_DIR"
@@ -105,9 +113,28 @@ fi
 # Helper functions
 # =============================================================================
 get_scenarios() {
+    # Ordered list: setup first, execution last (cleanup may destroy state)
+    local ordered=()
+    local deferred=()
     for dir in "$FVT_DIR"/*/; do
         name=$(basename "$dir")
         [[ "$name" == __pycache__ ]] && continue
+        if [[ "$name" == "execution" ]]; then
+            deferred+=("$name")
+        else
+            ordered+=("$name")
+        fi
+    done
+    # Print non-execution scenarios first
+    for name in "${ordered[@]}"; do
+        echo "$name"
+    done
+    # NFT lives in nft/ (sibling of fvt/)
+    if [ -d "$NFT_DIR" ]; then
+        echo "nft"
+    fi
+    # Execution last (has cleanup that destroys venv)
+    for name in "${deferred[@]}"; do
         echo "$name"
     done
 }
@@ -130,7 +157,7 @@ build_pytest_args() {
     fi
 
     if [[ "$exclude_deploy" == "yes" ]]; then
-        args="${args} -m 'not deploy'"
+        args="${args} -m 'not deploy and not cleanup'"
     fi
 
     echo "$args"
@@ -220,6 +247,11 @@ run_pytest() {
         rc=$?
         set -e
     fi
+
+    # pytest exit code 5 = no tests collected (all skipped/deselected) — not a failure
+    if [[ $rc -eq 5 ]]; then
+        return 0
+    fi
     return $rc
 }
 
@@ -304,7 +336,11 @@ case "$SCENARIO" in
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
         for name in $(get_scenarios); do
-            scenario_dir="${FVT_DIR}/${name}"
+            if [[ "$name" == "nft" ]]; then
+                scenario_dir="${NFT_DIR}"
+            else
+                scenario_dir="${FVT_DIR}/${name}"
+            fi
             if [ -d "$scenario_dir" ]; then
                 test_count=$(find "$scenario_dir" -name 'test_*.py' 2>/dev/null | wc -l)
                 suites=$(find "$scenario_dir" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f ' 2>/dev/null)
@@ -349,7 +385,7 @@ case "$SCENARIO" in
             echo ""
         done
         echo -e "${BLUE}=================================================================${NC}"
-        echo -e "  Total: ${total}  ${GREEN}Passed: ${pass_count}${NC}  ${RED}Failed: ${fail_count}${NC}"
+        echo -e "  Scenarios: ${total}  ${GREEN}Passed: ${pass_count}${NC}  ${RED}Failed: ${fail_count}${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         [[ $fail_count -eq 0 ]] || exit 1
         exit 0
@@ -359,8 +395,8 @@ case "$SCENARIO" in
         echo -e "${BLUE}  Omnia Main — Validation Runner${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         echo ""
-        echo -e "  Tests for ${GREEN}omnia.sh${NC} (setup, init, CLI) and ${GREEN}omnia-cli${NC} diagnostics."
-        echo -e "  Module: ${CYAN}main${NC}   Test dir: ${CYAN}test/main/fvt/${NC}"
+        echo -e "  Tests for ${GREEN}omnia.sh${NC} (setup, init, CLI args) and ${GREEN}omnia-cli${NC} diagnostics."
+        echo -e "  Module: ${CYAN}main${NC}   FVT: ${CYAN}test/main/fvt/${NC}   NFT: ${CYAN}test/main/nft/${NC}"
         echo ""
         echo -e "${YELLOW}USAGE${NC}"
         echo "  $0 <scenario> <command> [options]"
@@ -371,19 +407,24 @@ case "$SCENARIO" in
         echo -e "${YELLOW}COMMANDS${NC}"
         echo "  deploy    Execute the omnia.sh command (tests marked @deploy)"
         echo "  verify    Run verification tests only (no script execution)"
-        echo "  test      Deploy + verify (full flow)"
+        echo "  test      Deploy + verify (full flow; cleanup NOT included)"
+        echo "  cleanup   Run cleanup only (must be explicit, never automatic)"
         echo ""
         echo -e "${YELLOW}OPTIONS${NC}"
         echo "  --suite <name>    Run only tests in a subfolder (environment, venv, etc.)"
-        echo "  --marker <expr>   Filter by pytest marker (sanity, functional, deploy)"
+        echo "  --marker <expr>   Filter by pytest marker (sanity, functional, deploy, cleanup)"
         echo "  -v, --verbose     Increase pytest verbosity"
         echo "  --debug           Full debug output (pytest -vvs)"
         echo ""
-        echo -e "${YELLOW}SCENARIOS${NC}"
-        echo "  setup      Tests for omnia.sh --setup-venv (env install, venv, dirs)"
-        echo "  init       Tests for omnia.sh --init (domain-init.sh scripts, input staging)"
-        echo "  cli        Tests for CLI argument parsing (help output, error handling)"
-        echo "  omnia_cli  Tests for omnia-cli diagnostic commands (status, check, help)"
+        echo -e "${YELLOW}SCENARIOS (FVT)${NC}"
+        echo "  setup      omnia.sh --setup-venv: env install, venv, dirs, env validation"
+        echo "  init       omnia.sh --init: domain-init.sh scripts, input staging (7 domains)"
+        echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog"
+        echo "  omnia_cli  omnia-cli diagnostics: status, check, domain cmds, logs, help, errors"
+        echo "  execution  Actual execution: setup, init, run --tags (cleanup via explicit cmd)"
+        echo ""
+        echo -e "${YELLOW}SCENARIOS (NFT)${NC}"
+        echo "  nft        Performance, idempotency, file permissions, CLI performance"
         echo ""
         echo -e "${YELLOW}MARKERS${NC}"
         echo "  sanity       Baseline must-pass tests"
@@ -401,11 +442,17 @@ case "$SCENARIO" in
         echo "  # Just check CLI help output:"
         echo "  $0 cli verify"
         echo ""
+        echo "  # Run cleanup explicitly (NOT done in 'test' or 'all test'):"
+        echo "  $0 execution cleanup"
+        echo ""
         echo -e "${YELLOW}TYPICAL WORKFLOW${NC}"
         echo "  $0 setup test                    # 1. Install env + venv + verify"
         echo "  $0 init test                     # 2. Stage domain input files + verify"
         echo "  $0 cli verify                    # 3. Verify CLI argument handling"
         echo "  $0 omnia_cli verify              # 4. Verify omnia-cli diagnostics"
+        echo "  $0 execution test                # 5. Full lifecycle (setup/init/run)"
+        echo "  $0 execution cleanup             # 5b. Cleanup (only when explicitly needed)"
+        echo "  $0 nft test                      # 6. Performance + idempotency + permissions"
         echo "  $0 all verify                    # Or: verify everything at once"
         echo ""
         echo -e "${YELLOW}CONFIGURATION${NC}"
@@ -419,10 +466,14 @@ esac
 # =============================================================================
 # Validate scenario
 # =============================================================================
-SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+if [[ "$SCENARIO" == "nft" ]]; then
+    SCENARIO_DIR="${NFT_DIR}"
+else
+    SCENARIO_DIR="${FVT_DIR}/${SCENARIO}"
+fi
 
 if [[ ! -d "$SCENARIO_DIR" ]]; then
-    echo -e "${RED}Error: Scenario '${SCENARIO}' not found in fvt/${NC}"
+    echo -e "${RED}Error: Scenario '${SCENARIO}' not found${NC}"
     echo ""
     echo -e "${YELLOW}Available scenarios:${NC}"
     get_scenarios | while read -r s; do echo "  $s"; done
@@ -491,6 +542,24 @@ case "$COMMAND" in
         echo -e "${GREEN}Deployment completed.${NC}"
         ;;
 
+    cleanup)
+        export OMNIA_COMMAND_TYPE="cleanup"
+        has_cleanup=$(grep -rl '@pytest\.mark\.cleanup\|pytest\.mark\.cleanup' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1 || true)
+        if [[ -z "$has_cleanup" ]]; then
+            echo -e "${YELLOW}No cleanup tests in ${SCENARIO} — nothing to do${NC}"
+            exit 0
+        fi
+        marker_cmd="-m cleanup"
+        [[ -n "$MARKER" ]] && marker_cmd="${marker_cmd} --marker ${MARKER}"
+        run_pytest \
+            "${SCENARIO_DIR}" \
+            "${marker_cmd}" \
+            "Running cleanup for ${SCENARIO}"
+
+        echo ""
+        echo -e "${GREEN}Cleanup completed.${NC}"
+        ;;
+
     verify)
         export OMNIA_COMMAND_TYPE="verify"
         test_path=$(build_test_path "${SCENARIO_DIR}")
@@ -511,28 +580,42 @@ case "$COMMAND" in
         export OMNIA_SUPPRESS_SUMMARY="true"
         export OMNIA_RESULTS_FILE=$(mktemp /tmp/omnia_results_XXXXXX.json)
 
-        # Step 1: Deploy
-        export OMNIA_COMMAND_TYPE="deploy"
-        echo -e "${YELLOW}=================================================================${NC}"
-        echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
-        echo -e "${YELLOW}=================================================================${NC}"
-        echo ""
+        # Check if scenario has deploy tests (grep for @pytest.mark.deploy)
+        has_deploy=$(grep -rl '@pytest\.mark\.deploy\|pytest\.mark\.deploy' "${SCENARIO_DIR}" --include='*.py' 2>/dev/null | head -1 || true)
 
-        deploy_args="-m deploy"
-        [[ -n "$MARKER" ]] && deploy_args="${deploy_args} --marker ${MARKER}"
-        if run_pytest "${SCENARIO_DIR}" "${deploy_args}" "Running deployment"; then
-            echo -e "${GREEN}Deployment succeeded${NC}"
+        # Step 1: Deploy (skip if no deploy-marked tests in this scenario)
+        if [[ -n "$has_deploy" ]]; then
+            export OMNIA_COMMAND_TYPE="deploy"
+            echo -e "${YELLOW}=================================================================${NC}"
+            echo -e "${YELLOW}  Step 1/2: Deploy${NC}"
+            echo -e "${YELLOW}=================================================================${NC}"
+            echo ""
+
+            deploy_args="-m deploy"
+            [[ -n "$MARKER" ]] && deploy_args="${deploy_args} --marker ${MARKER}"
+            if run_pytest "${SCENARIO_DIR}" "${deploy_args}" "Running deployment"; then
+                echo -e "${GREEN}Deployment succeeded${NC}"
+            else
+                echo -e "${RED}Deployment failed${NC}"
+                FAILED=1
+            fi
+            echo ""
         else
-            echo -e "${RED}Deployment failed${NC}"
-            FAILED=1
+            echo -e "${YELLOW}No deploy tests in ${SCENARIO} — skipping deploy step${NC}"
+            echo ""
         fi
-        echo ""
 
-        # Step 2: Verify (only if deploy succeeded)
+        # Calculate total steps (deploy + verify only; cleanup is explicit)
+        total_steps=1  # verify is always present
+        [[ -n "$has_deploy" ]] && total_steps=$((total_steps + 1))
+        current_step=1
+
+        # Step 2: Verify (only if deploy succeeded or was skipped)
         if [[ $FAILED -eq 0 ]]; then
             export OMNIA_COMMAND_TYPE="verify"
+            [[ -n "$has_deploy" ]] && current_step=2
             echo -e "${YELLOW}=================================================================${NC}"
-            echo -e "${YELLOW}  Step 2/2: Verify${NC}"
+            echo -e "${YELLOW}  Step ${current_step}/${total_steps}: Verify${NC}"
             echo -e "${YELLOW}=================================================================${NC}"
             echo ""
 

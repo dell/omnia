@@ -32,6 +32,10 @@ watcher_service_name: "playbook-watcher.service"
 watcher_service_src_path: "templates/playbook_watcher.service.j2"
 watcher_systemd_path: "/etc/systemd/system"
 build_stream_watcher_exec: "/usr/bin/python3 {{ omnia_path }}/build_stream/playbook-watcher/playbook_watcher_service.py"
+omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default(playbook_dir ~ '/../../../', true) }}"
+venv_path: "{{ lookup('env', 'OMNIA_VENV_PATH') | default('/opt/omnia/venv', true) }}"
+system_admin_nic_ipv4: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
 watcher_restart_sec: 10
 watcher_startup_delay_seconds: 20
 watcher_no_new_privileges: true
@@ -39,7 +43,7 @@ watcher_private_tmp: true
 watcher_limit_nofile: 4096
 watcher_memory_max: "512M"
 watcher_cpu_quota: "50%"
-build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/build_stream/playbook_queue"
+build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/playbook_queue"
 watcher_poll_interval_seconds: 2
 watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150

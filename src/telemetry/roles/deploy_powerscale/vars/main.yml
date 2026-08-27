@@ -48,11 +48,6 @@ csm_metrics_powerscale_resources:
 file_permissions_644: "0644"
 
 # Validation messages
-ps_csi_secret_path_missing_msg: >-
-  csi_powerscale_secret_path is required in telemetry_config.yml (powerscale_configurations section)
-  when telemetry_sources.powerscale.metrics_enabled is true.
-  Provide the path to the CSI PowerScale driver secret.yaml file containing isilonClusters.
-
 ps_helm_values_path_missing_msg: >-
   csm_observability_values_file_path is required in telemetry_config.yml when telemetry_sources.powerscale.metrics_enabled is true.
   Provide the path to your customized karavi-observability Helm values file.
@@ -73,17 +68,6 @@ ps_cert_manager_disabled_msg: >-
 
 ps_auth_mode_direct_msg: "PowerScale telemetry authentication mode: Direct Authentication (Mode A)"
 ps_auth_mode_karavi_msg: "PowerScale telemetry authentication mode: Karavi Authorization (Mode B)"
-
-ps_csi_secret_read_fail_msg: >-
-  Failed to load CSI PowerScale driver secret from '{{ ps_csi_secret_path | default('') }}'.
-  Please verify the file exists and contains valid isilonClusters configuration.
-
-ps_no_clusters_found_msg: >-
-  No PowerScale clusters found in CSI driver secret.yaml.
-  Please define at least one cluster in isilonClusters.
-
-ps_clusters_found_msg: >-
-  Found {{ ps_clusters | default([]) | length }} PowerScale cluster(s) for telemetry deployment.
 
 ps_telemetry_prepared_msg: >-
   PowerScale telemetry files prepared on NFS share.

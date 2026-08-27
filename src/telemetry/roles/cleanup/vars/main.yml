@@ -66,6 +66,7 @@ kafka_service_resources:
   - "kafka-kafka-brokers"
   - "kafka-kafka-controllers"
 
+kafka_topic_label: "strimzi.io/cluster=kafka"
 kafka_pvc_label: "strimzi.io/cluster=kafka"
 kafka_secret_label: "strimzi.io/cluster=kafka"
 kafka_pod_labels:
@@ -288,26 +289,4 @@ vast_resources:
   - { type: "endpoints", name: "vast-external" }
   - { type: "service", name: "vast-external" }
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
-
 vast_pod_label: "app=vast-external"
-
-# =============================================================================
-# DCGM cleanup resources
-# =============================================================================
-dcgm_resources:
-  - { type: "daemonset", name: "dcgm-exporter" }
-  - { type: "deployment", name: "dcgm-exporter" }
-  - { type: "service", name: "dcgm-exporter" }
-  - { type: "configmap", name: "dcgm-exporter-config" }
-
-dcgm_pod_label: "app=dcgm-exporter"
-
-# =============================================================================
-# SFM cleanup resources
-# =============================================================================
-sfm_resources:
-  - { type: "deployment", name: "sfm-exporter" }
-  - { type: "service", name: "sfm-exporter" }
-  - { type: "configmap", name: "sfm-scrape-config" }
-
-sfm_pod_label: "app=sfm-telemetry"

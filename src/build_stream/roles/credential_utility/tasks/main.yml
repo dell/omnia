@@ -17,49 +17,205 @@
 # Build Stream Domain — Credential Utility
 # ============================================================================
 # Domain-specific credential handling for Build Stream.
-# Validates, creates, and updates build_stream_credentials.yml only.
+# Handles: validate → create → load → prompt → encrypt → expose
+# Idempotent — skips if credentials are already loaded in this run.
 # ============================================================================
 
-# --- Step 1: Load build_stream_config.yml to check enable_build_stream ---
-- name: Load build_stream_config.yml
+# --- Guard: Skip if already loaded this run ---
+- name: Skip credential flow if already loaded
+  ansible.builtin.debug:
+    msg: "Build stream credentials already loaded — skipping."
+  when: build_stream_credentials_loaded | default(false) | bool
+
+- name: Build stream credential flow
+  when: not (build_stream_credentials_loaded | default(false) | bool)
   block:
-    - name: Include build_stream_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
-  rescue:
-    - name: Set enable_build_stream to false if config not found
+    # --- Step 1: Load build_stream_config.yml to check enable_build_stream ---
+    - name: Load build_stream_config.yml
+      block:
+        - name: Include build_stream_config.yml
+          ansible.builtin.include_vars:
+            file: "{{ input_project_dir }}/build_stream_config.yml"
+      rescue:
+        - name: Set enable_build_stream to false if config not found
+          ansible.builtin.set_fact:
+            enable_build_stream: false
+
+    # --- Step 2: Check if credential file and vault key exist ---
+    - name: Check if build stream credential file exists
+      ansible.builtin.stat:
+        path: "{{ bs_credential_file_path }}"
+      register: bs_cred_file_stat
+
+    - name: Check if vault key exists
+      ansible.builtin.stat:
+        path: "{{ bs_credential_vault_path }}"
+      register: bs_vault_key_stat
+
+    # --- Step 3: Create credential file from template if missing ---
+    - name: Create credential file if missing
+      when: not bs_cred_file_stat.stat.exists
+      block:
+        - name: Ensure parent directory exists
+          ansible.builtin.file:
+            path: "{{ bs_credential_file_path | dirname }}"
+            state: directory
+            mode: "0755"
+
+        - name: Create credential file from template
+          ansible.builtin.template:
+            src: "{{ credential_files[0].template }}"
+            dest: "{{ credential_files[0].file_path }}"
+            mode: "{{ credential_files[0].file_mode }}"
+          register: bs_file_created
+
+        - name: Create vault key file
+          ansible.builtin.lineinfile:
+            path: "{{ bs_credential_vault_path }}"
+            line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+            mode: "0600"
+            owner: root
+            create: true
+          when: not bs_vault_key_stat.stat.exists
+
+        - name: Encrypt newly created credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+
+    # --- Step 3b: Create vault key if file exists but key is missing ---
+    - name: Ensure vault key exists for existing credential file
+      ansible.builtin.lineinfile:
+        path: "{{ bs_credential_vault_path }}"
+        line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+        mode: "0600"
+        owner: root
+        create: true
+      when:
+        - bs_cred_file_stat.stat.exists
+        - not bs_vault_key_stat.stat.exists
+
+    # --- Step 4: Detect if credential file is vault-encrypted or plaintext ---
+    - name: Check if credential file is vault-encrypted
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -n1 "{{ bs_credential_file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+      register: _bs_is_vault_encrypted
+      changed_when: false
+      failed_when: false
+      when:
+        - bs_cred_file_stat.stat.exists or bs_file_created is defined
+        - bs_vault_key_stat.stat.exists or bs_file_created is defined
+
+    # --- Step 4a: File is vault-encrypted — decrypt, load, re-encrypt ---
+    - name: Load vault-encrypted credentials
+      when:
+        - (bs_cred_file_stat.stat.exists or bs_file_created is defined)
+        - _bs_is_vault_encrypted.rc | default(1) == 0
+      block:
+        - name: Decrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _bs_cred_decrypt_result
+
+        - name: Load credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ bs_credential_file_path }}"
+            name: build_stream_loaded_creds
+          no_log: true
+          when: _bs_cred_decrypt_result.rc | default(1) == 0
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _bs_cred_decrypt_result.rc | default(1) == 0
+
+    # --- Step 4b: File is plaintext (left unencrypted from a prior failed run) — load and encrypt ---
+    - name: Load plaintext credentials (recovery)
+      when:
+        - (bs_cred_file_stat.stat.exists or bs_file_created is defined)
+        - _bs_is_vault_encrypted.rc | default(1) != 0
+      block:
+        - name: Load plaintext credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ bs_credential_file_path }}"
+            name: build_stream_loaded_creds
+          no_log: true
+
+        - name: Encrypt plaintext credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+
+        - name: Fix credential file permissions
+          ansible.builtin.file:
+            path: "{{ bs_credential_file_path }}"
+            mode: "{{ credential_files[0].file_mode }}"
+
+    - name: Default build_stream_loaded_creds if not loaded
       ansible.builtin.set_fact:
-        enable_build_stream: false
+        build_stream_loaded_creds: {}
+      when: build_stream_loaded_creds is not defined
 
-# --- Step 2: Validate credential file exists ---
-- name: Validate build_stream credential file
-  ansible.builtin.include_tasks: validate_cred_file.yml
-  vars:
-    credential_type: "Build Stream"
-    credential_file_path: "{{ bs_credential_file_path }}"
-    status_var_name: "bs_cred_file_status"
+    # --- Step 5: Prompt for mandatory credentials (only if value is empty) ---
+    - name: Prompt for mandatory build stream credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ bs_cred_config.mandatory }}"
+      loop_control:
+        loop_var: cred_field
 
-# --- Step 3: Create credential file if it does not exist ---
-- name: Create build_stream credential file if absent
-  ansible.builtin.include_tasks: create_credential_file.yml
-  vars:
-    credential_type: "Build Stream"
-    credential_template: "{{ credential_files[0].template }}"
-    credential_file_path: "{{ credential_files[0].file_path }}"
-    credential_file_mode: "{{ credential_files[0].file_mode }}"
-    vault_password_file: "{{ credential_files[0].vault_path }}"
-    credential_condition: "{{ credential_files[0].condition | default(false) }}"
-  when: credential_files[0].file_path is not file
+    # --- Step 6: Prompt for conditional mandatory credentials (only if value is empty) ---
+    - name: Prompt for conditional mandatory build stream credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ bs_cred_config.conditional_mandatory }}"
+      loop_control:
+        loop_var: cred_field
+      when: cred_field.condition | default(false) | bool
 
-# --- Step 4: Load existing credentials ---
-- name: Load existing build_stream credentials
-  ansible.builtin.include_tasks: decrypt_include_encrypt.yml
-  vars:
-    credential_file_path: "{{ bs_credential_file_path }}"
-    vault_password_file: "{{ bs_credential_vault_path }}"
-  when: bs_credential_file_path is file
+    # --- Step 7: Expose credentials as facts for downstream roles ---
+    - name: Reload final credentials
+      when: bs_credential_file_path is file
+      block:
+        - name: Check if final credential file is vault-encrypted
+          ansible.builtin.shell: |
+            set -o pipefail
+            head -n1 "{{ bs_credential_file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+          register: _bs_final_is_vault
+          changed_when: false
+          failed_when: false
 
-# --- Step 5: Prompt and update credentials ---
-- name: Prompt and update build_stream credentials
-  ansible.builtin.include_tasks: fetch_bs_credentials.yml
-  when: enable_build_stream | default(false) | bool
+        - name: Decrypt for final load
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _bs_final_decrypt_result
+          when: _bs_final_is_vault.rc | default(1) == 0
+
+        - name: Load final credentials
+          ansible.builtin.include_vars:
+            file: "{{ bs_credential_file_path }}"
+          no_log: true
+          when: _bs_final_decrypt_result.rc | default(0) == 0
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
+
+    # --- Step 8: Mark credentials as loaded to prevent re-prompting ---
+    - name: Set credentials loaded guard
+      ansible.builtin.set_fact:
+        build_stream_credentials_loaded: true
+        cacheable: true

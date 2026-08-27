@@ -19,7 +19,7 @@
 #
 # Trigger behaviour:
 #   Auto-trigger : catalog_rhel.json change   -> build pipeline only
-#                  pxe_mapping_file.csv change -> deploy pipeline only
+#                  input/pxe_mapping_file.csv change -> deploy pipeline only
 #   Web UI       : Three manual play-buttons appear (Build, Deploy, Cleanup).
 #                  Click exactly one to run that pipeline independently.
 #   API trigger  : Set PIPELINE_TYPE to "build", "deploy", or "cleanup".
@@ -114,8 +114,6 @@ cleanup_pipeline:
     # Block file-change auto-triggers (cleanup is never automatic)
     - changes:
         - catalog_rhel.json
-      when: never
-    - changes:
         - input/pxe_mapping_file.csv
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)

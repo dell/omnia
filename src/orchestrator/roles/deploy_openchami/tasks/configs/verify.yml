@@ -15,6 +15,17 @@
 
 - name: Verify ochami installation
   block:
+    - name: Ensure OpenCHAMI Podman networks are created
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+        daemon_reload: true
+      loop:
+        - openchami-internal-network.service
+        - openchami-external-network.service
+        - openchami-cert-internal-network.service
+        - openchami-jwt-internal-network.service
+
     - name: Start the openchami service (This task will take some time)
       ansible.builtin.systemd:
         name: openchami.target
@@ -54,6 +65,20 @@
     - name: Display pre-restart diagnostics
       ansible.builtin.debug:
         msg: "{{ pre_restart_diag.stdout_lines | default([]) }}"
+
+    - name: Reset failed services before retry # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: false
+
+    - name: Ensure OpenCHAMI Podman networks are recreated on retry
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - openchami-internal-network.service
+        - openchami-external-network.service
+        - openchami-cert-internal-network.service
+        - openchami-jwt-internal-network.service
 
     - name: Restart openchami in case of error
       ansible.builtin.systemd:

@@ -30,11 +30,11 @@ vi omnia.env                         # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
 # 2. Set up env + venv + copy input files (one-time)
 #    Installs env to /etc/omnia/omnia.env (system-wide)
 #    Creates /etc/profile.d/omnia-env.sh (auto-loaded on login)
+#    Installs omnia-cli + bash completion to /usr/local/bin/ and /etc/bash_completion.d/
 ./omnia.sh -s
 
-# 3. Install omnia-cli to PATH (optional, one-time)
-sudo cp omnia-cli /usr/local/bin/
-sudo chmod +x /usr/local/bin/omnia-cli
+# 3. (Optional) Skip omnia-cli install during setup
+./omnia.sh -s --skip-omnia-cli
 
 # 4. Check domain status
 omnia-cli status
@@ -50,14 +50,19 @@ omnia-cli status
 ## Setup (`omnia.sh`)
 
 ```bash
-./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog
+./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog + omnia-cli
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
 ./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
 ./omnia.sh --init                  # Init all domains (stage input files + deps)
 ./omnia.sh -i telemetry            # Init single domain
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
 ./omnia.sh -i --force-deps         # Force reinstall deps for all domains
+./omnia.sh -i --skip telemetry     # Init all domains except telemetry
+./omnia.sh -i --skip telemetry,utils  # Skip multiple domains
+./omnia.sh -i --dry-run            # Preview which domains would be initialized
+./omnia.sh -i --dry-run --skip telemetry  # Preview with skip filter
 ./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --cleanup               # Remove venv + env (preserve data)
 ./omnia.sh --cleanup --all         # Full reset (remove everything including data)
@@ -66,19 +71,21 @@ omnia-cli status
 
 **What `-s` does:**
 
-1. **Installs env system-wide** — copies `omnia.env` to `/etc/omnia/omnia.env`, creates `/etc/profile.d/omnia-env.sh`
-2. Validates environment (required variables like `SYSTEM_ADMIN_NIC_IPV4`)
-3. Creates `/opt/omnia/{log,.data}` base directories
-4. Finds Python 3.11+, creates/updates venv at `$OMNIA_VENV_PATH`
-5. Runs each domain's `domain-init.sh` which:
+1. **Validates env source file** — checks `SYSTEM_ADMIN_NIC_IPV4` is set and valid IPv4 before copying
+2. **Installs env system-wide** — copies `omnia.env` to `/etc/omnia/omnia.env` (auto-updates if source differs), creates `/etc/profile.d/omnia-env.sh`
+3. Validates full environment (hostname, domain, admin NIC match)
+4. Creates `/opt/omnia/{log,.data}` base directories
+5. Finds Python 3.11+, creates/updates venv at `$OMNIA_VENV_PATH`
+6. Runs each domain's `domain-init.sh` which:
    - Installs pip packages from the domain's `requirements.txt`
    - Installs Ansible Galaxy collections from the domain's `requirements.yml`
    - Creates Ansible log directories
    - Copies input files from flat `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
-6. Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
+7. Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
+8. Installs `omnia-cli` to `/usr/local/bin/omnia-cli` and bash completion to `/etc/bash_completion.d/omnia-cli` (use `--skip-omnia-cli` to suppress)
 
 After setup, all new login shells automatically have the environment variables.
-Step 5 ensures each domain's dependencies are installed and Ansible roles read
+Step 6 ensures each domain's dependencies are installed and Ansible roles read
 input from a stable runtime location (`/opt/omnia/<domain>/input/<project>/`)
 rather than the git checkout. Use `--deps-only` to skip input file staging in this step (e.g., in CI
 or if you manage input files externally). Dependencies are still installed.
@@ -106,6 +113,44 @@ bash src/image_build_manager/domain-init.sh --force-deps
 
 # Run with --force (overwrite without prompting)
 bash src/image_build_manager/domain-init.sh --force
+```
+
+### Domain Skip (`--skip`)
+
+Exclude specific domains during init instead of listing all the ones you want:
+
+```bash
+./omnia.sh -i --skip telemetry              # All domains except telemetry
+./omnia.sh -i --skip telemetry,utils        # Skip multiple domains
+./omnia.sh -s --skip build_stream           # Full setup, skip build_stream init
+./omnia.sh -i --skip telemetry --deps-only  # Combine with other flags
+```
+
+`--skip` is mutually exclusive with an explicit domain list:
+```bash
+./omnia.sh -i telemetry --skip utils   # ERROR: can't combine include + skip
+./omnia.sh --run repo_manager --skip utils  # ERROR: --skip requires -s or -i
+```
+
+### Dry Run (`--dry-run`)
+
+Preview which domains would be initialized without executing:
+
+```bash
+./omnia.sh -i --dry-run                      # Show all domains
+./omnia.sh -i --dry-run --skip telemetry     # Show filtered list
+```
+
+Output shows each domain and whether it has a `domain-init.sh` script:
+```
+DRY RUN — would initialize these domains:
+  build_stream
+  discovery
+  image_build_manager
+  orchestrator
+  repo_manager
+  utils
+  Skipped: telemetry
 ```
 
 ## Execution (`omnia.sh`)
@@ -136,11 +181,18 @@ omnia-cli vault edit <domain>             # Edit domain credentials (Vault)
 
 ### Install to PATH
 
+`omnia-cli` is installed automatically during `./omnia.sh -s` to `/usr/local/bin/omnia-cli`. Bash completion is installed to `/etc/bash_completion.d/omnia-cli`.
+
+To skip the install:
+```bash
+./omnia.sh -s --skip-omnia-cli
+```
+
+Manual install (if needed):
 ```bash
 sudo cp omnia-cli /usr/local/bin/
 sudo chmod +x /usr/local/bin/omnia-cli
-# Now use from anywhere:
-omnia-cli status
+sudo cp omnia-cli-completion.bash /etc/bash_completion.d/omnia-cli
 ```
 
 ---
@@ -162,7 +214,7 @@ After `./omnia.sh -s`, the following structure is created at `$OMNIA_DATA_PATH`:
     └── log/<project>/                 # Domain logs
 ```
 
-Domains: `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `telemetry`, `build_stream`.
+Domains: `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `telemetry`, `build_stream`, `utils`.
 
 ---
 

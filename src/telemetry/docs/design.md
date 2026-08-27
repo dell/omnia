@@ -12,7 +12,6 @@ cluster. It consists of:
 
 2. **Sources** — Telemetry collectors:
    - iDRAC (Dell server hardware BMC)
-   - DCGM (NVIDIA GPU)
    - LDMS (Lightweight Distributed Metric Service, HPC)
    - OME (OpenManage Enterprise)
    - UFM (Unified Fabric Manager, InfiniBand)
