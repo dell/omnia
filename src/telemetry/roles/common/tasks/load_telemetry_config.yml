@@ -35,6 +35,7 @@
         telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
         telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] }}"
         k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] | default('/opt/omnia/k8s_mount') }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] | default('/share_omnia') }}"
         kube_vip: "{{ hostvars['localhost']['kube_vip'] | default('') }}"
 
 - name: Load configs from files when not cached
@@ -128,6 +129,11 @@
         k8s_cluster_mount: "{{ _pkg_raw.k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}"
       when: _pkg_raw is defined
 
+    - name: Set slurm_cluster_mount from telemetry_packages.yml
+      ansible.builtin.set_fact:
+        slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
+      when: _pkg_raw is defined
+
     # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog
     # -----------------------------------------------------------------------
@@ -145,6 +151,7 @@
           install_mode: "{{ _mode }}"
           repo_url: "{{ _base }}"
           k8s_cluster_mount: "{{ _pkg_raw.k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}"
+          slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
           images: "{{ _pkg_raw.images | default({}) }}"
           container_registry: "{{ _pkg_raw.container_registry | default('') }}"
           helm_charts: "{{ _hc }}"
@@ -211,5 +218,5 @@
             ldms: "{{ _images.ldms | default({}) }}"
             vector: "{{ _images.vector | default({}) }}"
             support: "{{ _images.support | default({}) }}"
-        cluster_mount: "{{ _pkg_raw.cluster_mount | default('/share_omnia_k8s') }}"
+        slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
         cacheable: true

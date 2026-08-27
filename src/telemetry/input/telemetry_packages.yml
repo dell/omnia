@@ -70,6 +70,14 @@ repo_url: ""
 # Default: /opt/omnia/k8s_mount (matches orchestrator k8s mount for service_kube group)
 k8s_cluster_mount: "/opt/omnia/k8s_mount"
 
+# -----------------------------------------------------------------------------
+# NFS Slurm Mount
+# -----------------------------------------------------------------------------
+# Local mount point on Slurm cluster nodes (already-mounted NFS share).
+# LDMS stores configuration and data at: <slurm_cluster_mount>/telemetry/ldms/
+# Default: /share_omnia (matches orchestrator slurm mount for slurm/login groups)
+slurm_cluster_mount: "/share_omnia"
+
 # =============================================================================
 # Container Images
 # =============================================================================
