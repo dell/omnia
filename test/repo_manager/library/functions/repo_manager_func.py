@@ -123,6 +123,39 @@ def check_credentials_present(host) -> Dict[str, Any]:
     }
 
 
+def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Check if a specific repository is configured in repo_manager_config.yml."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    # Check if config file exists
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+    
+    # Read the config file and check if the repo is configured
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); print('configured' if repo and repo.get('url') else 'not_configured')\""
+    result = run_on_host(host, cmd)
+    
+    # Check for exact match of "configured" (not "not_configured")
+    if result.rc == 0 and result.stdout.strip() == "configured":
+        return {
+            "success": True,
+            "details": f"Repository '{repo_name}' is configured in repo_manager_config.yml",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Repository '{repo_name}' is not configured in repo_manager_config.yml",
+        "error": f"Repository '{repo_name}' not configured",
+    }
+
+
 def check_pulp_container_running(host) -> Dict[str, Any]:
     """Verify Pulp container is running."""
     cmd = CMDS["container_running"].format(name=PULP_CONTAINER_NAME)

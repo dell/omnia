@@ -32,6 +32,7 @@ from library.functions import (
     check_repo_status_success,
     check_repo_status_has_repo,
     check_repo_status_has_file_repo,
+    check_repo_configured,
     check_software_download_status,
     check_per_software_package_status,
     check_pulp_repositories_synced,
@@ -100,7 +101,15 @@ def test_repo_status_success(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_slurm_custom_repo_present(host):
-    """TC_RM_EX_003: Verify slurm_custom repo present."""
+    """TC_RM_EX_003: Verify slurm_custom repo present (if configured)."""
+    # Check if slurm_custom is configured in repo_manager_config.yml
+    config_result = check_repo_configured(host, "slurm_custom", arch="x86_64")
+    
+    if not config_result["success"]:
+        # Skip test if slurm_custom is not configured
+        pytest.skip("slurm_custom not configured in repo_manager_config.yml")
+    
+    # Only test if slurm_custom is configured
     tl = TestLogger(TEST_NAMES["slurm_custom_repo_present"], "TC_RM_EX_003")
     result = check_repo_status_has_repo(host, "slurm_custom", arch="x86_64")
 
@@ -116,7 +125,15 @@ def test_slurm_custom_repo_present(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_epel_repo_present(host):
-    """TC_RM_EX_004: Verify epel repo present."""
+    """TC_RM_EX_004: Verify epel repo present (if configured)."""
+    # Check if epel is configured in repo_manager_config.yml
+    config_result = check_repo_configured(host, "epel", arch="x86_64")
+    
+    if not config_result["success"]:
+        # Skip test if epel is not configured
+        pytest.skip("epel not configured in repo_manager_config.yml")
+    
+    # Only test if epel is configured
     tl = TestLogger(TEST_NAMES["epel_repo_present"], "TC_RM_EX_004")
     result = check_repo_status_has_repo(host, "epel", arch="x86_64")
 
@@ -128,26 +145,48 @@ def test_epel_repo_present(host):
     assert result["success"], ASSERT["repo_not_found"]
 
 
-@pytest.mark.functional
+@pytest.mark.sanity
 @pytest.mark.positive
 @pytest.mark.order(5)
 def test_x86_64_repos_present(host):
-    """TC_RM_EX_005: Verify x86_64 baseos and appstream present."""
+    """TC_RM_EX_005: Verify x86_64 baseos and appstream present (if configured)."""
+    # Check if base repos are configured in repo_manager_config.yml
+    base_repos = ["baseos", "appstream", "codeready-builder"]
+    configured_repos = []
+    
+    for repo in base_repos:
+        config_result = check_repo_configured(host, repo, arch="x86_64")
+        if config_result["success"]:
+            configured_repos.append(repo)
+    
+    if not configured_repos:
+        # Skip test if no base repos are configured
+        pytest.skip("No base repos (baseos, appstream, codeready-builder) configured in repo_manager_config.yml")
+    
+    # Only test configured repos
     tl = TestLogger(TEST_NAMES["x86_64_repos_present"], "TC_RM_EX_005")
-    for repo in ["baseos", "appstream", "codeready-builder"]:
+    for repo in configured_repos:
         result = check_repo_status_has_repo(host, repo, arch="x86_64")
         if not result["success"]:
             tl.failed(LOG["repo_missing"].format(repo=repo), result["details"])
             assert False, result["error"]
 
-    tl.passed("x86_64 base repos present", "")
+    tl.passed(f"x86_64 base repos present: {', '.join(configured_repos)}", "")
 
 
 @pytest.mark.functional
 @pytest.mark.positive
 @pytest.mark.order(6)
 def test_file_repos_present(host):
-    """TC_RM_EX_006: Verify file repos (tarball) present."""
+    """TC_RM_EX_006: Verify file repos (tarball) present (if configured)."""
+    # Check if imb is configured in repo_manager_config.yml
+    config_result = check_repo_configured(host, "imb", arch="x86_64")
+    
+    if not config_result["success"]:
+        # Skip test if imb is not configured
+        pytest.skip("imb file repo not configured in repo_manager_config.yml")
+    
+    # Only test if imb is configured
     tl = TestLogger(TEST_NAMES["file_repos_present"], "TC_RM_EX_006")
     result = check_repo_status_has_file_repo(host, "imb", arch="x86_64")
 
