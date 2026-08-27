@@ -119,6 +119,10 @@ TEST_CASES = {
         "id": "TC_CL_031",
         "title": "Verify OMNIA_PROJECT_NAME loaded from environment",
     },
+    "collect_bundle_log_files_content": {
+        "id": "TC_CL_032",
+        "title": "Verify log bundle contains log files with content",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO — Deploy Tests

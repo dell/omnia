@@ -444,6 +444,88 @@ def validate_tar_contents(host, tar_path: str, expected_dirs: List[str]) -> Dict
             "error": str(exc),
         }
 
+def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
+    """Validate log bundle contains log files with content.
+
+    Args:
+        host: Testinfra host object.
+        tar_path: Path to the tar.gz file.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "collected_files": list,
+            "empty_files": list,
+            "missing_files": list,
+            "error": str
+        }
+    """
+    try:
+        # Extract bundle to temp directory
+        temp_dir = "/tmp/log_bundle_verify"
+        extract_cmd = f"rm -rf {temp_dir} && mkdir -p {temp_dir} && tar -xzf {tar_path} -C {temp_dir}"
+        result = host.run(extract_cmd)
+
+        if result.rc != 0:
+            return {
+                "success": False,
+                "collected_files": [],
+                "empty_files": [],
+                "missing_files": [],
+                "error": f"Failed to extract bundle: {result.stderr}",
+            }
+
+        # Find all log files in k8s and slurm directories
+        find_cmd = f"find {temp_dir} -type f \\( -path '*/k8s/*' -o -path '*/slurm/*' \\) -name '*.log' 2>/dev/null"
+        result = host.run(find_cmd)
+
+        if result.rc != 0:
+            return {
+                "success": False,
+                "collected_files": [],
+                "empty_files": [],
+                "missing_files": [],
+                "error": f"Failed to find log files: {result.stderr}",
+            }
+
+        log_files = result.stdout.strip().split("\n") if result.stdout.strip() else []
+        collected_files = []
+        empty_files = []
+
+        for log_file in log_files:
+            if not log_file:
+                continue
+
+            # Check if file has content
+            size_cmd = f"stat -c %s {log_file} 2>/dev/null || echo 0"
+            size_result = host.run(size_cmd)
+            file_size = int(size_result.stdout.strip()) if size_result.stdout.strip() else 0
+
+            relative_path = log_file.replace(temp_dir + "/", "")
+            if file_size > 0:
+                collected_files.append(relative_path)
+            else:
+                empty_files.append(relative_path)
+
+        # Clean up temp directory
+        host.run(f"rm -rf {temp_dir}")
+
+        return {
+            "success": True,
+            "collected_files": collected_files,
+            "empty_files": empty_files,
+            "missing_files": [],
+            "error": "",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "collected_files": [],
+            "empty_files": [],
+            "missing_files": [],
+            "error": str(exc),
+        }
+
 def validate_ini_inventory(host, path: str) -> Dict[str, Any]:
     """Validate INI inventory file format.
 

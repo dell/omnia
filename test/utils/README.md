@@ -145,6 +145,7 @@ os_root_password: ""  # OS root password for install_os
 | TC_CL_023 | collect_metadata_valid | Metadata valid JSON |
 | TC_CL_024 | collect_metadata_sha256 | SHA256 in metadata |
 | TC_CL_025 | collect_bundle_contents | Bundle has expected dirs |
+| TC_CL_032 | collect_bundle_log_files_content | Log files have content |
 
 ### Install OS (TC_IO_*)
 

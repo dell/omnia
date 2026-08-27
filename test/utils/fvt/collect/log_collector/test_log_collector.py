@@ -29,6 +29,7 @@ from library.functions import (
     find_log_bundle,
     validate_metadata_file,
     validate_tar_contents,
+    validate_bundle_log_files,
     check_env_var,
     get_utils_input_path,
     get_utils_output_path,
@@ -274,6 +275,48 @@ def test_collect_bundle_contents(host):
         tl.failed(f"Missing directories: {', '.join(result['missing_dirs'])}")
 
     assert result["success"], f"Bundle missing directories: {result['missing_dirs']}"
+
+
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.order(26)
+def test_collect_bundle_log_files_content(host):
+    """Verify log bundle contains log files with content in k8s and slurm directories."""
+    tc = TC["collect_bundle_log_files_content"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    bundle_result = find_log_bundle(host, output_path)
+
+    if not bundle_result["success"]:
+        tl.skipped("No log bundle found, skipping log file verification")
+        pytest.skip("No log bundle found")
+
+    result = validate_bundle_log_files(host, bundle_result["bundle_path"])
+
+    if not result["success"]:
+        tl.failed(f"Failed to verify log files: {result['error']}")
+        pytest.fail(f"Failed to verify log files: {result['error']}")
+
+    # Report collected files
+    if result["collected_files"]:
+        tl.passed(f"Collected {len(result['collected_files'])} log files with content")
+        for file_path in result["collected_files"]:
+            tl.info(f"  - {file_path}")
+
+    # Report empty files
+    if result["empty_files"]:
+        tl.info(f"Found {len(result['empty_files'])} empty log files")
+        for file_path in result["empty_files"]:
+            tl.info(f"  - {file_path} (empty)")
+
+    # Overall test passes if at least some files were collected
+    if len(result["collected_files"]) > 0:
+        tl.passed(f"Log collection successful: {len(result['collected_files'])} files with content")
+    else:
+        tl.failed("No log files with content found in bundle")
+
+    assert len(result["collected_files"]) > 0, "No log files with content found in bundle"
 
 
 # =============================================================================

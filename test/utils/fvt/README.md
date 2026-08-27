@@ -48,6 +48,7 @@ Complete registry of all Functional Verification Tests for the utils domain.
 | TC_CL_025 | test_collect_bundle_contents | log_collector/test_log_collector.py | functional, collect |
 | TC_CL_030 | test_collect_env_vars_loaded | log_collector/test_log_collector.py | sanity, collect |
 | TC_CL_031 | test_collect_project_name_loaded | log_collector/test_log_collector.py | sanity, collect |
+| TC_CL_032 | test_collect_bundle_log_files_content | log_collector/test_log_collector.py | functional, collect |
 
 ### Install OS Scenario
 
