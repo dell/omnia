@@ -1,0 +1,45 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# CATALOG VALIDATE OPERATION
+# =============================================================================
+
+- name: "Ensure log directory exists"
+  ansible.builtin.file:
+    path: "{{ catalog_log_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "Validate catalog"
+  ansible.builtin.command:
+    cmd: >-
+      python3 {{ catalog_scripts_dir }}/catalog_manager.py
+      --log-dir {{ catalog_log_dir }}
+      validate
+      --catalog {{ catalog_file }}
+      --schema {{ schema_file }}
+  register: val_result
+  changed_when: false
+  failed_when: false
+
+- name: "Show validation result"
+  ansible.builtin.debug:
+    msg: "{{ val_result.stdout_lines }}"
+  when: val_result is defined and val_result.stdout_lines is defined
+
+- name: "Fail on validation errors"
+  ansible.builtin.fail:
+    msg: "{{ catalog_validation_failed_msg }}"
+  when: val_result is defined and val_result.rc == 1
