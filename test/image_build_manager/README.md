@@ -44,6 +44,8 @@ on every login shell (via `/etc/profile.d/omnia-env.sh`):
 
 The test framework reads these from the target at runtime (sourcing
 `/etc/omnia/omnia.env`) to resolve input sync paths and playbook parameters.
+All test assertions derive runtime paths from these variables — no hardcoded
+`/opt/omnia` paths in test code.
 
 ---
 
@@ -247,6 +249,67 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 ./run_validation.sh nft_image_build_manager test                        # 6. Performance
 ```
 
+### Complete Commands by Flow
+
+#### End-to-End (full lifecycle)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck verify     # Env check
+./run_validation.sh fvt_image_build_manager validate test        # Validate + verify
+./run_validation.sh fvt_image_build_manager prepare test         # Prepare + verify
+./run_validation.sh fvt_image_build_manager build test           # Build + verify (all arch)
+./run_validation.sh nft_image_build_manager test                 # Performance + idempotency
+./run_validation.sh fvt_image_build_manager cleanup test         # Cleanup + verify
+```
+
+#### x86_64 Only
+
+```bash
+./run_validation.sh fvt_image_build_manager build test --marker x86_64
+./run_validation.sh fvt_image_build_manager build verify --marker x86_64+sanity
+```
+
+#### AArch64 Only
+
+```bash
+./run_validation.sh fvt_image_build_manager build test --marker aarch64
+./run_validation.sh fvt_image_build_manager build verify --marker aarch64+sanity
+```
+
+#### Naming Convention Tests
+
+```bash
+./run_validation.sh fvt_image_build_manager build verify --suite naming
+```
+
+#### Cleanup Images (selective delete)
+
+```bash
+./run_validation.sh fvt_image_build_manager cleanup_images test
+```
+
+#### Unit Tests
+
+```bash
+./run_validation.sh ut_image_build_manager test                  # All UTs
+./run_validation.sh ut_image_build_manager verify                # Just verify (no exec)
+```
+
+#### Verify Only (no playbook execution)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck verify
+./run_validation.sh fvt_image_build_manager prepare verify
+./run_validation.sh fvt_image_build_manager build verify
+./run_validation.sh fvt_image_build_manager cleanup verify
+```
+
+#### Config-Driven Batch Run
+
+```bash
+./run_validation.sh --config                                     # Runs all flows from test_run_config.yml
+```
+
 ---
 
 ## Configuration
@@ -328,7 +391,7 @@ The generated dataset contains all required input files:
 
 ## Reports
 
-Generated in the configured `report_path` (default `/opt/omnia/reports`):
+Generated in the configured `report_path` (default `$OMNIA_DATA_PATH/reports`):
 
 | File | Format |
 |------|--------|

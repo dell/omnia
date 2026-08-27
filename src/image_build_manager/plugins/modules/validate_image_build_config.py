@@ -57,7 +57,7 @@ DOCUMENTATION = r'''
 ---
 module: validate_image_build_config
 short_description: Validate image build configuration files
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Performs L1 (JSON schema) validation on image_build_config.yml and
     image_build_credentials.yml.

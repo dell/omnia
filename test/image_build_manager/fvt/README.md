@@ -66,6 +66,14 @@ These tests verify that the aarch64 build node was correctly prepared by
 `build_image_aarch64.yml` (SSH setup, work dirs, builder image, regctl).
 All auto-skip when `aarch64_inventory_host_ip` is not configured.
 
+> **Path resolution**: All tests derive runtime paths from the target's
+> `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` environment variables.
+> No hardcoded `/opt/omnia` paths are used in test assertions.
+>
+> **regctl installation**: `regctl` for aarch64 is downloaded on the OIM host
+> during `gather_oim_data.yml`, then SCP'd to the aarch64 node during
+> `prepare_aarch64_node`. Direct download is used as a fallback.
+
 | TC ID | Test | Suite | Order | Markers | Description |
 |-------|------|-------|-------|---------|-------------|
 | TC_BD_017 | `test_aarch64_ssh_connectivity` | aarch64/ | 10 | aarch64, sanity | Verify passwordless SSH to aarch64 node |

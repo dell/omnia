@@ -46,3 +46,28 @@
     path: "{{ ochami_aarch_64_dir }}"
     state: directory
     mode: "0755"
+
+# Pre-download regctl for aarch64 on OIM so it can be SCP'd to the aarch64 node
+- name: Ensure aarch64 staging directory exists on OIM
+  ansible.builtin.file:
+    path: "{{ regctl_oim_staging_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check if regctl aarch64 binary already staged on OIM
+  ansible.builtin.stat:
+    path: "{{ regctl_oim_staging_path }}"
+  register: _regctl_oim_stat
+
+- name: Download regctl aarch64 binary to OIM staging directory
+  ansible.builtin.get_url:
+    url: "{{ regctl_download_url }}"
+    dest: "{{ regctl_oim_staging_path }}"
+    mode: "0755"
+    timeout: 120
+  register: _regctl_oim_download
+  retries: 3
+  delay: 10
+  until: _regctl_oim_download is succeeded
+  when: not _regctl_oim_stat.stat.exists
+  failed_when: false

@@ -28,20 +28,28 @@ from library.functions import (
     load_test_config,
 )
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import CMDS, SHARED_PATH
+from library.vars.common_vars import CMDS, ENV_OMNIA_DATA_PATH
 
 
 # =============================================================================
 # HELPERS
 # =============================================================================
 
+def _get_data_path(host) -> str:
+    """Read OMNIA_DATA_PATH from the target host environment."""
+    result = host.check_output(f"echo ${ENV_OMNIA_DATA_PATH}").strip()
+    assert result, (
+        f"${ENV_OMNIA_DATA_PATH} is not set on the target host. "
+        "Run omnia.sh --setup-venv first."
+    )
+    return result
+
+
 def _get_aarch64_ip(host):
     """Read aarch64_inventory_host_ip from image_build_config.yml on target."""
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    data_path = host.check_output(
-        "echo $OMNIA_DATA_PATH"
-    ).strip() or "/opt/omnia"
+    data_path = _get_data_path(host)
     cfg_path = (
         f"{data_path}/image_build_manager/input/{project}"
         f"/image_build_config.yml"
@@ -106,6 +114,8 @@ def test_aarch64_work_dirs(host):
     tl = TestLogger(tc["title"], tc["id"])
     ip = _skip_if_no_aarch64(host)
 
+    # Work dirs on the aarch64 node use a fixed path — the remote node
+    # does not run omnia.sh and has no OMNIA_DATA_PATH env var.
     work_dir = "/opt/omnia/image_build_manager"
     dirs = [
         work_dir,

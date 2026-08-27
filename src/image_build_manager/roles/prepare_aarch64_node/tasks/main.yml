@@ -15,7 +15,8 @@
 # prepare_aarch64_node/tasks/main.yml — Prepare a remote aarch64 build host.
 # No NFS dependency — uses local work directories on the aarch64 node.
 # Image pull: tries repo manager (Pulp) first, falls back to DockerHub/upstream.
-# regctl: copies from OIM localhost first, downloads from GitHub if copy fails.
+# regctl: pre-downloaded on OIM to omnia data path, copied to aarch64 node via SCP.
+#         Falls back to direct download on aarch64 node if copy fails.
 #
 # Prerequisites (completed before this role runs):
 #   - validate_aarch64_host.yml: ping check, admin_aarch64 group creation
@@ -196,7 +197,7 @@
             msg: "{{ aarch64_image_fail_msg }}"
 
 # =========================================================================
-# Phase 6: Install regctl (SCP from localhost first, download fallback)
+# Phase 6: Install regctl (copy from OIM first, download fallback)
 # =========================================================================
 
 - name: Check if regctl already exists on aarch64 node
@@ -207,46 +208,32 @@
 - name: Install regctl on aarch64 node
   when: not _regctl_remote_stat.stat.exists
   block:
-    # --- Try 1: Copy from OIM localhost ---
-    - name: Check if regctl exists on OIM localhost
-      ansible.builtin.stat:
-        path: /usr/local/bin/regctl
-      register: _regctl_localhost_stat
-      delegate_to: localhost
-
-    - name: Copy regctl from OIM localhost to aarch64 node
+    - name: Copy regctl binary from OIM staging directory
       ansible.builtin.copy:
-        src: /usr/local/bin/regctl
+        src: "{{ regctl_oim_staging_path }}"
         dest: "{{ regctl_bin_path }}"
         mode: "{{ dir_permissions_755 }}"
       become: true
-      when: _regctl_localhost_stat.stat.exists
       register: _regctl_copy_result
+
+  rescue:
+    - name: Download regctl binary directly on aarch64 node (fallback)
+      ansible.builtin.get_url:
+        url: "{{ regctl_download_url }}"
+        dest: "{{ regctl_bin_path }}"
+        mode: "{{ dir_permissions_755 }}"
+        timeout: 120
+      become: true
+      register: _regctl_download_result
+      retries: 3
+      delay: 10
+      until: _regctl_download_result is succeeded
       failed_when: false
 
-    # --- Try 2: Download from GitHub releases ---
-    - name: Download regctl from GitHub (fallback)
-      when: >-
-        (not _regctl_localhost_stat.stat.exists) or
-        (_regctl_copy_result is defined and _regctl_copy_result is failed)
-      block:
-        - name: Display regctl download notice
-          ansible.builtin.debug:
-            msg: "regctl not available from OIM localhost. Downloading {{ regctl_download_url }}"
-
-        - name: Download regctl binary for aarch64
-          ansible.builtin.get_url:
-            url: "{{ regctl_download_url }}"
-            dest: "{{ regctl_bin_path }}"
-            mode: "{{ dir_permissions_755 }}"
-            timeout: 60
-          become: true
-          register: _regctl_download_result
-
-      rescue:
-        - name: Fail if regctl cannot be obtained
-          ansible.builtin.fail:
-            msg: "{{ regctl_not_found_msg }}"
+    - name: Fail if regctl cannot be obtained
+      ansible.builtin.fail:
+        msg: "{{ regctl_not_found_msg }}"
+      when: _regctl_download_result is failed
 
 - name: Verify regctl binary is functional
   ansible.builtin.command: "{{ regctl_bin_path }} version"

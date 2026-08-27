@@ -90,8 +90,11 @@ PLAYBOOK_TAGS = [
 # =============================================================================
 # SHARED PATH DEFAULTS (runtime output on target host)
 # =============================================================================
+# Derived from OMNIA_DATA_PATH env var when available; falls back for dev boxes.
 
-SHARED_PATH = "/opt/omnia/image_build_manager"
+SHARED_PATH = os.environ.get(
+    ENV_OMNIA_DATA_PATH, "/opt/omnia"
+) + "/image_build_manager"
 
 # =============================================================================
 # CONTAINER NAMES

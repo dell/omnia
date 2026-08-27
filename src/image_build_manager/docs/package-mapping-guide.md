@@ -117,7 +117,7 @@ base_packages:
 
 ## Valid Functional Groups
 
-From `FUNCTIONAL_GROUP_LAYER_MAP` in `plugins/module_utils/build_image/config.py`:
+Supported functional groups:
 
 | x86_64 | Layer | aarch64 | Layer |
 |--------|-------|---------|-------|
