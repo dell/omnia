@@ -23,11 +23,11 @@ telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
 telemetry_namespace: "telemetry"
 
 # Deploy directory on NFS share (where manifests are staged)
-telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
+telemetry_deploy_dir: "{{ k8s_cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # LDMS NFS share path
-ldms_share_path: "{{ cluster_mount }}/telemetry/ldms"
+ldms_share_path: "{{ k8s_cluster_mount }}/telemetry/ldms"
 
 # File permissions
 file_permissions_644: "0644"

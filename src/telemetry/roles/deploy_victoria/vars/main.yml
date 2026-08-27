@@ -23,10 +23,10 @@ telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
 telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
-cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
+k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
 
 # Deploy directory
-telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
+telemetry_deploy_dir: "{{ k8s_cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # VictoriaMetrics Cluster Configuration
@@ -54,7 +54,7 @@ victoria_operator_auto_install_msg: "VictoriaMetrics operator auto-installed for
 victoria_operator_skip_existing_msg: "VictoriaMetrics operator already installed; skipping helm install"
 victoria_tarball_not_found_msg: >-
   VictoriaMetrics operator tarball not found at
-  {{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | basename) }}.
+  {{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | basename) }}.
   Download from {{ telemetry_packages_config.telemetry_packages.victoria_metrics_operator }} may have failed.
 
 # Download timeout
