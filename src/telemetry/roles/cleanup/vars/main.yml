@@ -22,7 +22,7 @@ telemetry_namespace: "telemetry"
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"
-telemetry_deployments_dir: "{{ cluster_mount | default('/share_omnia_k8s') }}/telemetry/deployments"
+telemetry_deployments_dir: "{{ k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}/telemetry/deployments"
 
 # =============================================================================
 # Kafka cleanup resources

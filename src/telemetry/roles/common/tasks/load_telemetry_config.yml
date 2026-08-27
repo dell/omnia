@@ -17,7 +17,7 @@
 # Common task: Load telemetry configuration files
 # =============================================================================
 # Loads telemetry_config.yml, telemetry_storage_config.yml, telemetry_packages.yml, and cluster_inventory
-# Sets kube_vip (from cluster_inventory specified in telemetry_config.yml), telemetry_registry, and cluster_mount variables
+# Sets kube_vip (from cluster_inventory specified in telemetry_config.yml), telemetry_registry, and k8s_cluster_mount variables
 # Used by: telemetry.yml, deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, etc.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
@@ -34,15 +34,23 @@
         telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
         telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
         telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] }}"
-        cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
+        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] | default('/opt/omnia/k8s_mount') }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] | default('/share_omnia') }}"
         kube_vip: "{{ hostvars['localhost']['kube_vip'] | default('') }}"
 
 - name: Load configs from files when not cached
   when: not (configs_already_loaded | bool)
   block:
-    - name: Set default input project directory if not provided
+    - name: Get OMNIA_DATA_PATH from environment
       ansible.builtin.set_fact:
-        input_project_dir: "{{ input_project_dir | default('/opt/omnia/telemetry/input/project_default') }}"
+        omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('') }}"
+
+    - name: Set input project directory based on OMNIA_DATA_PATH
+      ansible.builtin.set_fact:
+        input_project_dir: >-
+          {% if omnia_data_path | length > 0 -%}
+          {{ omnia_data_path | regex_replace('/$', '') }}/telemetry/input/project_default{%- else -%}
+          {{ input_project_dir | default('/opt/omnia/telemetry/input/project_default') }}{%- endif %}
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
@@ -114,6 +122,16 @@
       register: packages_load_result
       failed_when: false
 
+    - name: Set k8s_cluster_mount from telemetry_packages.yml
+      ansible.builtin.set_fact:
+        k8s_cluster_mount: "{{ _pkg_raw.k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}"
+      when: _pkg_raw is defined
+
+    - name: Set slurm_cluster_mount from telemetry_packages.yml
+      ansible.builtin.set_fact:
+        slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
+      when: _pkg_raw is defined
+
     # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog
     # -----------------------------------------------------------------------
@@ -130,7 +148,8 @@
         telemetry_packages_config:
           install_mode: "{{ _mode }}"
           repo_url: "{{ _base }}"
-          cluster_mount: "{{ _pkg_raw.cluster_mount | default('') }}"
+          k8s_cluster_mount: "{{ _pkg_raw.k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}"
+          slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
           images: "{{ _pkg_raw.images | default({}) }}"
           container_registry: "{{ _pkg_raw.container_registry | default('') }}"
           helm_charts: "{{ _hc }}"
@@ -197,5 +216,5 @@
             ldms: "{{ _images.ldms | default({}) }}"
             vector: "{{ _images.vector | default({}) }}"
             support: "{{ _images.support | default({}) }}"
-        cluster_mount: "{{ _pkg_raw.cluster_mount | default('') }}"
+        slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
         cacheable: true

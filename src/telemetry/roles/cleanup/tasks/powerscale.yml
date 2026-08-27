@@ -76,7 +76,7 @@
 
 - name: PowerScale | Remove generated manifest
   ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir | default('/share_omnia_k8s/telemetry/deployments') }}/csi-volume-exporter.yaml"
+    path: "{{ telemetry_deployments_dir | default('/opt/omnia/k8s_mount/telemetry/deployments') }}/csi-volume-exporter.yaml"
     state: absent
   failed_when: false
 

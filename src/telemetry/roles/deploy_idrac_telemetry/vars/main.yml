@@ -27,7 +27,7 @@ idrac_telemetry_k8s_name: "idrac-telemetry"
 idrac_telemetry_service_name: "idrac-telemetry-service"
 
 # Deploy directory on NFS share (where manifests are staged)
-telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
+telemetry_deploy_dir: "{{ k8s_cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # Verification timeouts
