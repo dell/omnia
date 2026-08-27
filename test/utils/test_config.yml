@@ -29,7 +29,7 @@ oim_ssh_port: 22
 # Leave empty to use src/utils/input/ directly
 dataset: ""
 project_name: "project_default"
-clone_path: "/root/sujal/omnia"
+clone_path: "/opt/omnia"
 
 # --- Sync ---
 # Sync input files from dataset or src/ to target
