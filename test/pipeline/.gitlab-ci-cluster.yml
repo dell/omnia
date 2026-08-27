@@ -15,26 +15,54 @@
 # ---------------------------------------------------------------------------
 # Omnia Single-Cluster Child Pipeline
 # ---------------------------------------------------------------------------
-# Triggered by the parent pipeline (.gitlab-ci.yml) with a CLUSTER variable.
-# Runs all stages independently for that single cluster.
+# Triggered by the parent pipeline (.gitlab-ci.yml) with CLUSTER and
+# PIPELINE_MODE variables. Supports three modes:
+#
+#   PIPELINE_MODE=default  ->  Full cycle (setup + cleanup + deploy + tests)
+#   PIPELINE_MODE=deploy   ->  Deploy only (domain playbooks)
+#   PIPELINE_MODE=cleanup  ->  Tear down all omnia domain state
+#
+# Domain selection (mandatory):
+#   DOMAIN=default             ->  All domains
+#   DOMAIN=repo_manager        ->  Only repo_manager
+#   DOMAIN=image_build_manager ->  Only image_build_manager
+#   DOMAIN=orchestrator        ->  Only orchestrator
+#
+# Stage control variables:
+#   ENABLE_SETUP=true      ->  Force setup_environment in deploy/cleanup modes
+#   TEST_MODE=true         ->  Enable test stages (test_omnia_installation + per-domain)
+#   DRY_RUN=true           ->  Log commands without executing ansible playbooks
+#   VERBOSE=true           ->  Run ansible playbooks with -vvv instead of -v
+#
+# Per-stage ansible tags (optional):
+#   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
+#   CLEANUP_REPO_MANAGER_TAGS, CLEANUP_IMAGE_BUILD_TAGS, CLEANUP_ORCHESTRATOR_TAGS
 #
 # Repository layout:
-#   clusters/<name>/cluster.env           -> connection details (TARGET_IP, TARGET_USER, etc.)
-#   clusters/<name>/Inputs/omnia.env      -> Omnia environment configuration (per-cluster)
+#   clusters/<name>/cluster.env           -> connection details
+#   clusters/<name>/Inputs/omnia.env      -> Omnia environment config
+#   clusters/<name>/Inputs/<domain>/      -> Domain input files
 #   clusters/<name>/catalogs/             -> Catalog files (optional)
 #
-# Stages:
-#   1. initialization        -> Load cluster config, validate connectivity
-#   2. setup_environment     -> Clone omnia repo, copy omnia.env, setup venv, copy catalog
-#   3. clean_up              -> Per-domain cleanup + omnia.sh --cleanup --all + re-setup venv
-#   4. repo_manager          -> Copy inputs, encrypt credentials, run repo_manager.yml
-#   5. image_build_manager   -> Copy inputs, encrypt credentials, run image_build_manager.yml
-#   6. orchestrator          -> Copy inputs, encrypt credentials, run orchestrator.yml
-#   7. email_notification    -> Send pipeline report via SMTP
+# Default mode stages (full cycle):
+#   1. initialization          -> Load cluster config, validate connectivity
+#   2. setup_environment       -> Clone repo, copy omnia.env, setup venv
+#   3. cleanup_repo_manager    -> repo_manager --tags cleanup
+#   4. cleanup_image_build     -> image_build_manager --tags cleanup
+#   5. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
+#   6. cleanup_omnia           -> omnia.sh --cleanup --all
+#   7. test_installation       -> Validate omnia setup via test framework
+#   8. repo_manager            -> Copy inputs, encrypt creds, run playbook
+#   9. test_repo_manager       -> Run repo_manager validation tests
+#  10. image_build_manager     -> Copy inputs, encrypt creds, run playbook
+#  11. test_image_build_manager -> Run image_build_manager validation tests
+#  12. orchestrator            -> Copy inputs, encrypt creds, run playbook
+#  13. test_orchestrator       -> Run orchestrator validation tests
+#  14. summary                 -> Pipeline report + email
 #
-# NOTE: The omnia venv is activated in every stage via the default
-#       before_script, which sources /opt/omnia/activate-omnia.sh on the
-#       target server.
+# VENV GATE: Every domain stage verifies that /opt/omnia/venv and
+#            /opt/omnia/activate-omnia.sh exist on the target before
+#            running. If either is missing the job fails immediately.
 # ---------------------------------------------------------------------------
 
 workflow:
@@ -47,22 +75,34 @@ variables:
   OMNIA_REPO: "https://github.com/dell/omnia.git"
   OMNIA_BRANCH: "main"
   OMNIA_INSTALL_PATH: "/root/omnia"
-  PIPELINE_VERSION: "1.0"
+  PIPELINE_VERSION: "3.0"
+  # Credential files are stored as GitLab CI/CD File Type Variables.
+  # Naming convention: <CLUSTER_PREFIX>_<CRED_NAME>
+  #   e.g. CLUSTER1_REPO_MANAGER_CREDS, CLUSTER2_IMAGE_BUILD_CREDS
+  # See README.md for full setup instructions.
 
 stages:
   - initialization
   - setup_environment
-  - clean_up
+  - cleanup_repo_manager
+  - cleanup_image_build
+  - cleanup_orchestrator
+  - cleanup_omnia
+  - test_installation
   - repo_manager
+  - test_repo_manager
   - image_build_manager
+  - test_image_build_manager
   - orchestrator
-  - email_notification
+  - test_orchestrator
+  - summary
 
-# ===========================  INPUT RE-SYNC  ================================
-# When a stage is retried, only that job re-runs (same commit SHA).
-# setup_environment does NOT re-run, so input files on the target are stale.
-# This before_script activates the omnia venv on the target server before
-# every stage, and re-copies the omnia.env input file.
+# ===========================  VENV GATE  ====================================
+# Every domain stage sources target.env, refreshes input files from the
+# latest branch commit, re-copies omnia.env, and then GATES on the omnia
+# venv.  If /opt/omnia/venv or /opt/omnia/activate-omnia.sh is missing the
+# job fails immediately with a clear error.
+# initialization and setup_environment override this with before_script: [].
 # ---------------------------------------------------------------------------
 default:
   before_script:
@@ -79,35 +119,54 @@ default:
         git fetch origin "$CI_COMMIT_REF_NAME" 2>/dev/null && \
           git checkout "origin/$CI_COMMIT_REF_NAME" -- clusters/ 2>/dev/null || true
 
-        # Re-copy cluster-specific omnia.env to the cloned omnia repo on the target
+        # Re-copy cluster-specific omnia.env to the cloned omnia repo
         if [ -f "$CI_PROJECT_DIR/clusters/$CLUSTER/Inputs/omnia.env" ]; then
           echo "Syncing cluster-specific omnia.env to target server"
           $SCP_CMD $CI_PROJECT_DIR/clusters/$CLUSTER/Inputs/omnia.env \
             $TARGET:$OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null || true
         fi
 
-        # Activate omnia venv on target (verify it exists)
+        # GATE: venv and activate-omnia.sh MUST exist
         echo "Verifying omnia venv on target"
-        $SSH_CMD $TARGET \
-          "if [ -f /opt/omnia/activate-omnia.sh ]; then
-            source /opt/omnia/activate-omnia.sh && echo 'Omnia venv active'
-          else
-            echo 'WARNING: Omnia venv not yet set up (expected during initialization)'
-          fi" 2>/dev/null || true
+        $SSH_CMD $TARGET "
+          if [ ! -d /opt/omnia/venv ]; then
+            echo 'ERROR: /opt/omnia/venv directory not found on target'
+            echo 'Run setup_environment stage first or verify omnia.sh -s completed'
+            exit 1
+          fi
+          if [ ! -f /opt/omnia/activate-omnia.sh ]; then
+            echo 'ERROR: /opt/omnia/activate-omnia.sh not found on target'
+            echo 'Run setup_environment stage first or verify omnia.sh -s completed'
+            exit 1
+          fi
+          source /opt/omnia/activate-omnia.sh
+          echo 'Omnia venv verified and active'
+        "
       fi
 
 # ===========================  INITIALIZATION  ==============================
+# Shared by all pipeline modes.
+# Loads cluster config, validates SSH, writes target.env for later stages.
+# ---------------------------------------------------------------------------
 initialization:
   stage: initialization
-  when: on_success
+  rules:
+    - if: '$PIPELINE_MODE == "default" || $PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "deploy"'
+      when: on_success
   allow_failure: false
   timeout: 3h
   before_script: []
   script:
     - echo "========================================================"
     - echo "  Omnia Pipeline v${PIPELINE_VERSION} — Initialization"
+    - echo "  Cluster — ${CLUSTER}"
+    - echo "  Mode    — ${PIPELINE_MODE}"
+    - echo "  Domain  — ${DOMAIN}"
+    - echo "  Setup   — ${ENABLE_SETUP}"
+    - echo "  Test    — ${TEST_MODE}"
+    - echo "  DryRun  — ${DRY_RUN}"
+    - echo "  Verbose — ${VERBOSE}"
     - echo "========================================================"
-    - echo "Current Cluster - $CLUSTER"
 
     # Load cluster configuration
     - echo "Loading cluster configuration for $CLUSTER"
@@ -161,16 +220,27 @@ initialization:
     when: always
 
 # ========================  SETUP ENVIRONMENT  ==============================
+# Optional stage — runs automatically in "default" mode, or when
+# ENABLE_SETUP=true in deploy/cleanup modes.
+# Clones the omnia repo on the target, copies omnia.env, runs omnia.sh -s.
+# Deploy/default mode also copies the cluster-specific catalog file.
+# ---------------------------------------------------------------------------
 setup_environment:
   stage: setup_environment
   timeout: 3h
   before_script: []
+  rules:
+    - if: '$PIPELINE_MODE == "default"'
+      when: on_success
+    - if: '$ENABLE_SETUP == "true"'
+      when: on_success
   needs:
     - job: initialization
       artifacts: true
   script:
     - echo "========================================================"
     - echo "  Setting up Omnia environment on cluster $CLUSTER"
+    - echo "  Mode — ${PIPELINE_MODE}"
     - echo "========================================================"
     - source target.env
     - export SSHPASS="$TARGET_PASS"
@@ -221,174 +291,346 @@ setup_environment:
         ansible --version | head -1
       "
 
-    # Step 8: Read OMNIA_DATA_PATH from omnia.env and copy catalog
-    - echo "Step 8 - Copying catalog file to OMNIA_DATA_PATH/catalog/"
+    # Step 8: Copy cluster-specific catalog (deploy/default mode only)
     - |
-      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh && echo \$OMNIA_DATA_PATH
-      " | tail -1)
-      echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
-      if [ -z "$OMNIA_DATA_PATH" ]; then
-        echo "ERROR: Could not determine OMNIA_DATA_PATH from target"
-        exit 1
-      fi
-      # Create catalog directory on target
-      $SSH_CMD $TARGET "mkdir -p $OMNIA_DATA_PATH/catalog"
-      # Copy catalog file if it exists in the pipeline
-      if [ -f "$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json" ]; then
-        $SCP_CMD $CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json \
-          $TARGET:$OMNIA_DATA_PATH/catalog/catalog_rhel.json
-        echo "  Catalog copied to $OMNIA_DATA_PATH/catalog/catalog_rhel.json"
-        $SSH_CMD $TARGET "ls -la $OMNIA_DATA_PATH/catalog/"
+      echo "Step 8 - Checking if catalog copy is needed"
+      echo "  PIPELINE_MODE = $PIPELINE_MODE"
+      if [ "$PIPELINE_MODE" = "deploy" ] || [ "$PIPELINE_MODE" = "default" ]; then
+        echo "Step 8 - Copying catalog file to OMNIA_DATA_PATH/catalog/"
+        OMNIA_DATA_PATH=$($SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh && echo \$OMNIA_DATA_PATH
+        " | tail -1)
+        echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
+        if [ -z "$OMNIA_DATA_PATH" ]; then
+          echo "ERROR: Could not determine OMNIA_DATA_PATH from target"
+          exit 1
+        fi
+        # Create catalog directory on target
+        $SSH_CMD $TARGET "mkdir -p $OMNIA_DATA_PATH/catalog"
+        # Copy catalog file if it exists in the pipeline
+        CATALOG_PATH="$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json"
+        echo "  Looking for catalog at: $CATALOG_PATH"
+        if [ -f "$CATALOG_PATH" ]; then
+          echo "  Found catalog file, copying..."
+          $SCP_CMD "$CATALOG_PATH" $TARGET:$OMNIA_DATA_PATH/catalog/catalog_rhel.json || {
+            echo "ERROR: Failed to copy catalog file"
+            exit 1
+          }
+          echo "  Catalog copied to $OMNIA_DATA_PATH/catalog/catalog_rhel.json"
+          $SSH_CMD $TARGET "ls -la $OMNIA_DATA_PATH/catalog/"
+        else
+          echo "  WARNING: No catalog file found at $CATALOG_PATH"
+          echo "  Available files:"
+          ls -la "$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/" || echo "  catalogs directory not found"
+        fi
       else
-        echo "  WARNING: No catalog file found at clusters/$CLUSTER/catalogs/catalog_rhel.json"
+        echo "Step 8 - Skipping catalog copy (cleanup mode)"
       fi
 
     - echo "========================================================"
     - echo "  Environment setup completed for cluster $CLUSTER"
     - echo "========================================================"
 
-# =============================  CLEAN UP  ==================================
-# Cleans any previous omnia domain state to ensure a fresh run.
-#
-# Sequence:
-#   1. repo_manager cleanup      (ansible-playbook --tags cleanup)
-#   2. image_build_manager cleanup (ansible-playbook --tags cleanup)
-#   3. orchestrator cleanup      (standalone cleanup playbook)
-#   4. omnia.sh --cleanup --all  (destroys venv, /opt/omnia/, /etc/omnia/)
-#   5. omnia.sh -s               (re-creates venv + deps + domain init)
-#   6. Re-copy cluster catalog   (cluster-specific, not part of omnia.sh -s)
-#   7. Verify clean environment
-#
-# Steps 1-3 require a working venv (set up by setup_environment).
-# Step 4 destroys the venv, so step 5 rebuilds it for downstream stages.
-# Domain cleanups are non-fatal: on a first run there is nothing to clean.
-#
-# NOTE: orchestrator.yml does not have a cleanup tag.  Its cleanup is a
-#       standalone playbook at playbooks/cleanup/cleanup_orchestrator.yml.
+# =========================================================================
+#                        C L E A N U P   P I P E L I N E
+# =========================================================================
+# Cleanup stages run when PIPELINE_MODE is "cleanup" or "default".
+# Each domain cleanup is its own stage so failures are isolated and visible.
+# Domain cleanups are non-fatal (allow_failure) — first run has nothing to
+# clean.
+# =========================================================================
+
+# ========================  CLEANUP: REPO MANAGER  ==========================
+# Uses --tags cleanup which triggers cleanup_pulp and cleanup_repos plays
+# (gated behind the 'never' tag by default).
+# -e flags auto-approve credential and log deletion (no prompts).
 # ---------------------------------------------------------------------------
-clean_up:
-  stage: clean_up
+cleanup_repo_manager:
+  stage: cleanup_repo_manager
   timeout: 3h
+  allow_failure: true
+  rules:
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN == "repo_manager")'
+      when: on_success
   needs:
     - job: setup_environment
       artifacts: true
+      optional: true
     - job: initialization
       artifacts: true
   script:
     - echo "========================================================"
-    - echo "  Running Omnia cleanup on cluster $CLUSTER"
+    - echo "  Cleanup — repo_manager on cluster $CLUSTER"
     - echo "========================================================"
     - source target.env
-    - source pipeline_time.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running repo_manager cleanup"
+    - 'TAGS_FLAG=$( [ -n "$CLEANUP_REPO_MANAGER_TAGS" ] && echo "--tags $CLEANUP_REPO_MANAGER_TAGS" || echo "" )'
+    - echo "  Tags: ${CLEANUP_REPO_MANAGER_TAGS:-<none>}"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute repo_manager.yml $TAGS_FLAG on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/repo_manager/playbooks/
+          ansible-playbook repo_manager.yml $TAGS_FLAG \
+            -e cleanup_credentials=true -e cleanup_logs=true $ANSIBLE_VERBOSITY
+        " || echo 'repo_manager cleanup skipped (no previous state or not applicable)'
+      fi
+
+    - echo "========================================================"
+    - echo "  repo_manager cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ====================  CLEANUP: IMAGE BUILD MANAGER  =======================
+# Uses --tags cleanup which triggers cleanup_image_build_manager.yml
+# (gated behind the 'never' tag by default).
+# ---------------------------------------------------------------------------
+cleanup_image_build_manager:
+  stage: cleanup_image_build
+  timeout: 3h
+  allow_failure: true
+  rules:
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN == "image_build_manager")'
+      when: on_success
+  needs:
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — image_build_manager on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running image_build_manager cleanup"
+    - 'TAGS_FLAG=$( [ -n "$CLEANUP_IMAGE_BUILD_TAGS" ] && echo "--tags $CLEANUP_IMAGE_BUILD_TAGS" || echo "" )'
+    - echo "  Tags: ${CLEANUP_IMAGE_BUILD_TAGS:-<none>}"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute image_build_manager.yml $TAGS_FLAG on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/image_build_manager/playbooks
+          ansible-playbook image_build_manager.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+        " || echo 'image_build_manager cleanup skipped (no previous state or not applicable)'
+      fi
+
+    - echo "========================================================"
+    - echo "  image_build_manager cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ======================  CLEANUP: ORCHESTRATOR  ============================
+# orchestrator.yml does not define a cleanup tag, so the standalone
+# cleanup playbook at playbooks/cleanup/cleanup_orchestrator.yml is used.
+# ---------------------------------------------------------------------------
+cleanup_orchestrator:
+  stage: cleanup_orchestrator
+  timeout: 3h
+  allow_failure: true
+  rules:
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN == "orchestrator")'
+      when: on_success
+  needs:
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — orchestrator on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running orchestrator cleanup"
+    - 'TAGS_FLAG=$( [ -n "$CLEANUP_ORCHESTRATOR_TAGS" ] && echo "--tags $CLEANUP_ORCHESTRATOR_TAGS" || echo "" )'
+    - echo "  Tags: ${CLEANUP_ORCHESTRATOR_TAGS:-<none>}"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute cleanup_orchestrator.yml $TAGS_FLAG on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/cleanup
+          ansible-playbook cleanup_orchestrator.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+        " || echo 'orchestrator cleanup skipped (no previous state or not applicable)'
+      fi
+
+    - echo "========================================================"
+    - echo "  orchestrator cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ========================  CLEANUP: OMNIA.SH  ==============================
+# Full omnia cleanup — destroys venv, /opt/omnia/, /etc/omnia/.
+# The git repo at $OMNIA_INSTALL_PATH is NOT removed.
+# After this stage the venv is gone; no rebuild is performed (cleanup is
+# the final goal).
+# ---------------------------------------------------------------------------
+cleanup_omnia:
+  stage: cleanup_omnia
+  timeout: 3h
+  rules:
+    - if: '$PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default"'
+      when: on_success
+  needs:
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — omnia.sh --cleanup --all on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    - echo "Running omnia.sh --cleanup --all"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute omnia.sh --cleanup --all on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh 2>/dev/null || true
+          cd $OMNIA_INSTALL_PATH/src/main
+          echo 'yes' | ./omnia.sh --cleanup --all
+        " || echo 'WARNING: omnia.sh --cleanup --all reported errors (continuing)'
+      fi
+
+    # Verify cleanup removed the venv
+    - echo "Verifying cleanup removed omnia artifacts"
+    - |
+      if [ "$DRY_RUN" != "true" ]; then
+        $SSH_CMD $TARGET "
+          if [ -d /opt/omnia/venv ]; then
+            echo 'WARNING: /opt/omnia/venv still exists after cleanup'
+          else
+            echo 'Confirmed: /opt/omnia/venv removed'
+          fi
+          if [ -f /opt/omnia/activate-omnia.sh ]; then
+            echo 'WARNING: /opt/omnia/activate-omnia.sh still exists after cleanup'
+          else
+            echo 'Confirmed: /opt/omnia/activate-omnia.sh removed'
+          fi
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  omnia.sh cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# =========================================================================
+#                        D E P L O Y   P I P E L I N E
+# =========================================================================
+# Deploy stages run when PIPELINE_MODE is "deploy" or "default".
+# The test_installation stage validates the omnia setup before running
+# domain playbooks. Domain stages copy inputs, encrypt credentials,
+# and run the Ansible playbooks.
+# Per-domain test stages (test_repo_manager, test_image_build_manager,
+# test_orchestrator) run after each deploy stage when TEST_MODE=true.
+# =========================================================================
+
+# ======================  TEST OMNIA INSTALLATION  ==========================
+# Validates the omnia.sh installation using the test framework at
+# $OMNIA_INSTALL_PATH/test/main/.
+#
+# Sequence:
+#   1. Run setup_env.sh to install the test venv (separate from omnia venv)
+#   2. Activate the test venv
+#   3. Run run_validation.sh all verify (all scenarios, verify-only)
+#
+# The test framework runs in local mode (oim_server_ip is empty) since
+# the tests execute directly on the target server where omnia is installed.
+# ---------------------------------------------------------------------------
+test_omnia_installation:
+  stage: test_installation
+  timeout: 3h
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true"'
+      when: on_success
+  needs:
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: cleanup_omnia
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Testing omnia.sh installation on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
     - export SSHPASS="$TARGET_PASS"
     - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
 
-    # ------------------------------------------------------------------
-    # Step 1: Clean repo_manager domain state
-    # ------------------------------------------------------------------
-    # Uses --tags cleanup which triggers the cleanup_pulp and
-    # cleanup_repos plays (gated behind the 'never' tag by default).
-    # -e flags auto-approve credential and log deletion (no prompts).
-    - echo "Step 1 - Cleaning repo_manager domain state"
+    # Step 1: Copy test configuration files from pipeline to target
+    - echo "Step 1 - Copying test configuration files to target"
     - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        cd $OMNIA_INSTALL_PATH/src/repo_manager/playbooks/
-        ansible-playbook repo_manager.yml --tags cleanup \
-          -e cleanup_credentials=true -e cleanup_logs=true -v
-      " || echo 'repo_manager cleanup skipped (no previous state or not applicable)'
-
-    # ------------------------------------------------------------------
-    # Step 2: Clean image_build_manager domain state
-    # ------------------------------------------------------------------
-    # Uses --tags cleanup which triggers cleanup_image_build_manager.yml
-    # (gated behind the 'never' tag by default).
-    - echo "Step 2 - Cleaning image_build_manager domain state"
-    - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        cd $OMNIA_INSTALL_PATH/src/image_build_manager/playbooks
-        ansible-playbook image_build_manager.yml --tags cleanup -v
-      " || echo 'image_build_manager cleanup skipped (no previous state or not applicable)'
-
-    # ------------------------------------------------------------------
-    # Step 3: Clean orchestrator domain state
-    # ------------------------------------------------------------------
-    # orchestrator.yml does not define a cleanup tag, so we invoke the
-    # standalone cleanup playbook directly.
-    - echo "Step 3 - Cleaning orchestrator domain state"
-    - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/cleanup
-        ansible-playbook cleanup_orchestrator.yml -v
-      " || echo 'orchestrator cleanup skipped (no previous state or not applicable)'
-
-    # ------------------------------------------------------------------
-    # Step 4: Full omnia cleanup (destroys venv + all data at /opt/omnia)
-    # ------------------------------------------------------------------
-    # Removes: venv, /etc/omnia/omnia.env, /etc/profile.d/omnia-env.sh,
-    #          /opt/omnia/ (activation script, data, logs, everything).
-    # The git repo at $OMNIA_INSTALL_PATH is NOT removed.
-    - echo "Step 4 - Running omnia.sh --cleanup --all"
-    - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh 2>/dev/null || true
-        cd $OMNIA_INSTALL_PATH/src/main
-        echo 'yes' | ./omnia.sh --cleanup --all
-      " || echo 'WARNING: omnia.sh --cleanup --all reported errors (continuing)'
-
-    # ------------------------------------------------------------------
-    # Step 5: Re-setup omnia environment from the existing repo clone
-    # ------------------------------------------------------------------
-    # Rebuilds: venv, /etc/omnia/omnia.env, /etc/profile.d/omnia-env.sh,
-    #           /opt/omnia/activate-omnia.sh, domain init (deps + input dirs).
-    # omnia.sh -s also copies catalog from src/main/samples/.
-    - echo "Step 5 - Re-setting up omnia venv after cleanup"
-    - |
-      $SSH_CMD $TARGET "
-        cd $OMNIA_INSTALL_PATH/src/main
-        ./omnia.sh -s
-      "
-
-    # ------------------------------------------------------------------
-    # Step 6: Re-copy cluster-specific catalog file
-    # ------------------------------------------------------------------
-    # omnia.sh -s copies the default catalog from src/main/samples/.
-    # The cluster-specific catalog from the pipeline must be re-copied.
-    - echo "Step 6 - Re-copying cluster-specific catalog file"
-    - |
-      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh && echo \$OMNIA_DATA_PATH
-      " | tail -1)
-      echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
-      if [ -f "$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json" ]; then
-        $SSH_CMD $TARGET "mkdir -p $OMNIA_DATA_PATH/catalog"
-        $SCP_CMD $CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json \
-          $TARGET:$OMNIA_DATA_PATH/catalog/catalog_rhel.json
-        echo "  Catalog re-copied to $OMNIA_DATA_PATH/catalog/"
+      if [ -f "$CI_PROJECT_DIR/clusters/$CLUSTER/Inputs/test/test_config.yml" ]; then
+        $SCP_CMD $CI_PROJECT_DIR/clusters/$CLUSTER/Inputs/test/test_config.yml \
+          $TARGET:$OMNIA_INSTALL_PATH/test/main/test_config.yml
+        echo "  Copied test_config.yml to $OMNIA_INSTALL_PATH/test/main/"
       else
-        echo "  No cluster-specific catalog to copy"
+        echo "WARNING: test_config.yml not found in pipeline — using defaults"
+      fi
+      
+      # Copy test credentials from CI/CD File Variable
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$OMNIA_INSTALL_PATH/test/main/test_creds.yml 2>/dev/null
+        echo "  test_creds.yml copied to target"
+      else
+        echo "WARNING: CI/CD File Variable $CRED_VAR not set — using defaults"
       fi
 
-    # ------------------------------------------------------------------
-    # Step 7: Verify clean environment is ready for domain stages
-    # ------------------------------------------------------------------
-    - echo "Step 7 - Verifying clean environment"
+    # Step 2: Install the test venv
+    - echo "Step 2 - Installing test venv via setup_env.sh"
     - |
       $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        echo 'Omnia venv active'
-        echo \"  Python: \$(python3 --version 2>&1)\"
-        echo \"  Ansible: \$(ansible --version 2>&1 | head -1)\"
-        echo \"  OMNIA_DATA_PATH: \$OMNIA_DATA_PATH\"
-        echo \"  OMNIA_PROJECT_NAME: \$OMNIA_PROJECT_NAME\"
+        cd $OMNIA_INSTALL_PATH/test/main
+        bash setup_env.sh
       "
+
+    # Step 3: Activate test venv and run all verification tests
+    - echo "Step 3 - Running run_validation.sh all verify"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute run_validation.sh all verify on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/main
+          source .venv/bin/activate
+          ./run_validation.sh all verify
+        "
+      fi
+
     - echo "========================================================"
-    - echo "  Cleanup and re-setup completed for cluster $CLUSTER"
+    - echo "  omnia.sh installation tests passed for cluster $CLUSTER"
     - echo "========================================================"
 
 # ============================  REPO MANAGER  ===============================
@@ -398,9 +640,13 @@ clean_up:
 repo_manager:
   stage: repo_manager
   timeout: 3h
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN == "repo_manager")'
+      when: on_success
   needs:
-    - job: clean_up
+    - job: setup_environment
       artifacts: true
+      optional: true
     - job: initialization
       artifacts: true
   script:
@@ -414,6 +660,7 @@ repo_manager:
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
     - STAGE_RC=0
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
 
     # Step 1: Read OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
     - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
@@ -444,8 +691,24 @@ repo_manager:
         exit 1
       fi
 
-    # Step 3: Encrypt repo_manager_config_credentials.yml with ansible-vault
-    - echo "Step 3 - Encrypting repo_manager_config_credentials.yml"
+    # Step 3: Copy credential file from CI/CD File Variable
+    - echo "Step 3 - Copying credential file from CI/CD variable"
+    - |
+      # Derive variable name: cluster1 -> CLUSTER1_REPO_MANAGER_CREDS
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_REPO_MANAGER_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/repo_manager_config_credentials.yml 2>/dev/null
+        echo "  Credential file copied to target"
+      else
+        echo "ERROR: CI/CD File Variable $CRED_VAR not set or file not found"
+        echo "  Go to Settings > CI/CD > Variables and add $CRED_VAR as File type"
+        exit 1
+      fi
+
+    # Step 4: Encrypt repo_manager_config_credentials.yml with ansible-vault
+    - echo "Step 4 - Encrypting repo_manager_config_credentials.yml"
     - |
       $SSH_CMD $TARGET "
         source /opt/omnia/activate-omnia.sh
@@ -470,14 +733,20 @@ repo_manager:
         fi
       "
 
-    # Step 4: Run repo_manager.yml playbook
-    - echo "Step 4 - Running repo_manager.yml playbook"
+    # Step 5: Run repo_manager.yml playbook
+    - echo "Step 5 - Running repo_manager.yml playbook"
+    - 'TAGS_FLAG=$( [ -n "$REPO_MANAGER_TAGS" ] && echo "--tags $REPO_MANAGER_TAGS" || echo "" )'
+    - echo "  Tags: ${REPO_MANAGER_TAGS:-<none>}"
     - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        cd $OMNIA_INSTALL_PATH/src/repo_manager
-        ansible-playbook playbooks/repo_manager.yml -v
-      " || STAGE_RC=$?
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute repo_manager.yml $TAGS_FLAG $ANSIBLE_VERBOSITY on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/repo_manager
+          ansible-playbook playbooks/repo_manager.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+        " || STAGE_RC=$?
+      fi
 
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
@@ -486,6 +755,79 @@ repo_manager:
       fi
       echo "repo_manager completed successfully for cluster $CLUSTER"
 
+# ========================  TEST: REPO MANAGER  =============================
+# Runs repo_manager validation tests from test/repo_manager/.
+# Only executes when TEST_MODE=true and repo_manager domain is selected.
+# ---------------------------------------------------------------------------
+test_repo_manager:
+  stage: test_repo_manager
+  timeout: 3h
+  allow_failure: true
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAIN == "default" || $DOMAIN == "repo_manager")'
+      when: on_success
+  needs:
+    - job: repo_manager
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Testing repo_manager on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    # Step 1: Copy test configuration if available
+    - echo "Step 1 - Copying repo_manager test config to target"
+    - |
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$OMNIA_INSTALL_PATH/test/repo_manager/test_creds.yml 2>/dev/null
+        echo "  test_creds.yml copied to target"
+      else
+        echo "WARNING: CI/CD File Variable $CRED_VAR not set — using defaults"
+      fi
+
+    # Step 2: Install the test venv
+    - echo "Step 2 - Installing repo_manager test venv"
+    - |
+      $SSH_CMD $TARGET "
+        cd $OMNIA_INSTALL_PATH/test/repo_manager
+        if [ -f setup_env.sh ]; then
+          bash setup_env.sh
+        else
+          echo 'WARNING: setup_env.sh not found — skipping test venv setup'
+        fi
+      "
+
+    # Step 3: Run repo_manager validation tests
+    - echo "Step 3 - Running repo_manager validation tests"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute repo_manager run_validation.sh all verify on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/repo_manager
+          if [ -f run_validation.sh ]; then
+            source .venv/bin/activate 2>/dev/null || true
+            ./run_validation.sh all verify
+          else
+            echo 'WARNING: run_validation.sh not found — skipping tests'
+          fi
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  repo_manager tests completed for cluster $CLUSTER"
+    - echo "========================================================"
+
 # ========================  IMAGE BUILD MANAGER  ============================
 # Copies image_build_manager input files from the pipeline to the target,
 # encrypts image_build_credentials.yml, and runs the playbook.
@@ -493,9 +835,16 @@ repo_manager:
 image_build_manager:
   stage: image_build_manager
   timeout: 3h
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN == "image_build_manager")'
+      when: on_success
   needs:
     - job: repo_manager
       artifacts: true
+      optional: true
+    - job: test_repo_manager
+      artifacts: true
+      optional: true
     - job: initialization
       artifacts: true
   script:
@@ -509,6 +858,7 @@ image_build_manager:
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
     - STAGE_RC=0
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
 
     # Step 1: Read OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
     - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
@@ -539,8 +889,23 @@ image_build_manager:
         exit 1
       fi
 
-    # Step 3: Encrypt image_build_credentials.yml with ansible-vault
-    - echo "Step 3 - Encrypting image_build_credentials.yml"
+    # Step 3: Copy credential file from CI/CD File Variable
+    - echo "Step 3 - Copying credential file from CI/CD variable"
+    - |
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_IMAGE_BUILD_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/image_build_credentials.yml 2>/dev/null
+        echo "  Credential file copied to target"
+      else
+        echo "ERROR: CI/CD File Variable $CRED_VAR not set or file not found"
+        echo "  Go to Settings > CI/CD > Variables and add $CRED_VAR as File type"
+        exit 1
+      fi
+
+    # Step 4: Encrypt image_build_credentials.yml with ansible-vault
+    - echo "Step 4 - Encrypting image_build_credentials.yml"
     - |
       $SSH_CMD $TARGET "
         source /opt/omnia/activate-omnia.sh
@@ -565,14 +930,20 @@ image_build_manager:
         fi
       "
 
-    # Step 4: Run image_build_manager.yml playbook
-    - echo "Step 4 - Running image_build_manager.yml playbook"
+    # Step 5: Run image_build_manager.yml playbook
+    - echo "Step 5 - Running image_build_manager.yml playbook"
+    - 'TAGS_FLAG=$( [ -n "$IMAGE_BUILD_MANAGER_TAGS" ] && echo "--tags $IMAGE_BUILD_MANAGER_TAGS" || echo "" )'
+    - echo "  Tags: ${IMAGE_BUILD_MANAGER_TAGS:-<none>}"
     - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        cd $OMNIA_INSTALL_PATH/src/image_build_manager
-        ansible-playbook playbooks/image_build_manager.yml -v
-      " || STAGE_RC=$?
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute image_build_manager.yml $TAGS_FLAG $ANSIBLE_VERBOSITY on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/image_build_manager
+          ansible-playbook playbooks/image_build_manager.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+        " || STAGE_RC=$?
+      fi
 
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
@@ -581,27 +952,96 @@ image_build_manager:
       fi
       echo "image_build_manager completed successfully for cluster $CLUSTER"
 
+# ====================  TEST: IMAGE BUILD MANAGER  ==========================
+# Runs image_build_manager validation tests from test/image_build_manager/.
+# Only executes when TEST_MODE=true and image_build_manager domain is selected.
+# ---------------------------------------------------------------------------
+test_image_build_manager:
+  stage: test_image_build_manager
+  timeout: 3h
+  allow_failure: true
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAIN == "default" || $DOMAIN == "image_build_manager")'
+      when: on_success
+  needs:
+    - job: image_build_manager
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Testing image_build_manager on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    # Step 1: Copy test configuration if available
+    - echo "Step 1 - Copying image_build_manager test config to target"
+    - |
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$OMNIA_INSTALL_PATH/test/image_build_manager/test_creds.yml 2>/dev/null
+        echo "  test_creds.yml copied to target"
+      else
+        echo "WARNING: CI/CD File Variable $CRED_VAR not set — using defaults"
+      fi
+
+    # Step 2: Install the test venv
+    - echo "Step 2 - Installing image_build_manager test venv"
+    - |
+      $SSH_CMD $TARGET "
+        cd $OMNIA_INSTALL_PATH/test/image_build_manager
+        if [ -f setup_env.sh ]; then
+          bash setup_env.sh
+        else
+          echo 'WARNING: setup_env.sh not found — skipping test venv setup'
+        fi
+      "
+
+    # Step 3: Run image_build_manager validation tests
+    - echo "Step 3 - Running image_build_manager validation tests"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute image_build_manager run_validation.sh all verify on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/image_build_manager
+          if [ -f run_validation.sh ]; then
+            source .venv/bin/activate 2>/dev/null || true
+            ./run_validation.sh all verify
+          else
+            echo 'WARNING: run_validation.sh not found — skipping tests'
+          fi
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  image_build_manager tests completed for cluster $CLUSTER"
+    - echo "========================================================"
+
 # ============================  ORCHESTRATOR  ================================
 # Copies orchestrator input files from the pipeline to the target,
 # encrypts omnia_config_credentials.yml, and runs orchestrator.yml.
-#
-# Input files (from clusters/<name>/Inputs/orchestrator/):
-#   - omnia_config.yml
-#   - omnia_config_credentials.yml  (encrypted with ansible-vault)
-#   - orchestrator_config.yml
-#   - network_spec.yml
-#   - security_config.yml
-#   - storage_config.yml
-#   - high_availability_config.yml
-#   - additional_cloud_init.yml
-#   - pxe_mapping_file.csv
 # ---------------------------------------------------------------------------
 orchestrator:
   stage: orchestrator
   timeout: 3h
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN == "orchestrator")'
+      when: on_success
   needs:
     - job: image_build_manager
       artifacts: true
+      optional: true
+    - job: test_image_build_manager
+      artifacts: true
+      optional: true
     - job: initialization
       artifacts: true
   script:
@@ -615,6 +1055,7 @@ orchestrator:
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
     - STAGE_RC=0
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
 
     # Step 1: Read OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
     - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
@@ -645,8 +1086,23 @@ orchestrator:
         exit 1
       fi
 
-    # Step 3: Encrypt omnia_config_credentials.yml with ansible-vault
-    - echo "Step 3 - Encrypting omnia_config_credentials.yml"
+    # Step 3: Copy credential file from CI/CD File Variable
+    - echo "Step 3 - Copying credential file from CI/CD variable"
+    - |
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_ORCHESTRATOR_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/omnia_config_credentials.yml 2>/dev/null
+        echo "  Credential file copied to target"
+      else
+        echo "ERROR: CI/CD File Variable $CRED_VAR not set or file not found"
+        echo "  Go to Settings > CI/CD > Variables and add $CRED_VAR as File type"
+        exit 1
+      fi
+
+    # Step 4: Encrypt omnia_config_credentials.yml with ansible-vault
+    - echo "Step 4 - Encrypting omnia_config_credentials.yml"
     - |
       $SSH_CMD $TARGET "
         source /opt/omnia/activate-omnia.sh
@@ -669,14 +1125,20 @@ orchestrator:
         fi
       "
 
-    # Step 4: Run orchestrator.yml playbook
-    - echo "Step 4 - Running orchestrator.yml playbook"
+    # Step 5: Run orchestrator.yml playbook
+    - echo "Step 5 - Running orchestrator.yml playbook"
+    - 'TAGS_FLAG=$( [ -n "$ORCHESTRATOR_TAGS" ] && echo "--tags $ORCHESTRATOR_TAGS" || echo "" )'
+    - echo "  Tags: ${ORCHESTRATOR_TAGS:-<none>}"
     - |
-      $SSH_CMD $TARGET "
-        source /opt/omnia/activate-omnia.sh
-        cd $OMNIA_INSTALL_PATH/src/orchestrator
-        ansible-playbook playbooks/orchestrator.yml -v
-      " || STAGE_RC=$?
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute orchestrator.yml $TAGS_FLAG $ANSIBLE_VERBOSITY on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source /opt/omnia/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/
+          ansible-playbook orchestrator.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+        " || STAGE_RC=$?
+      fi
 
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
@@ -685,54 +1147,133 @@ orchestrator:
       fi
       echo "orchestrator completed successfully for cluster $CLUSTER"
 
-# ==========================  EMAIL NOTIFICATION  ============================
-# Sends pipeline logs and summary via SMTP email.
-# Requires GitLab CI/CD variables:
-#   - EMAIL_RECIPIENTS: Comma-separated list of recipient emails
-#   - EMAIL_SENDER: From address for the email
-#   - SMTP_SERVER: SMTP relay host
-#   - SMTP_PORT: SMTP relay port (default: 25)
-#   - SMTP_USER: SMTP username (optional)
-#   - SMTP_PASSWORD: SMTP password (optional)
+# ========================  TEST: ORCHESTRATOR  =============================
+# Runs orchestrator validation tests from test/orchestrator/.
+# Only executes when TEST_MODE=true and orchestrator domain is selected.
 # ---------------------------------------------------------------------------
-email_notification:
-  stage: email_notification
-  when: always
+test_orchestrator:
+  stage: test_orchestrator
+  timeout: 3h
   allow_failure: true
-  before_script: []
+  rules:
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAIN == "default" || $DOMAIN == "orchestrator")'
+      when: on_success
   needs:
-    - job: initialization
-      artifacts: true
     - job: orchestrator
+      artifacts: true
+      optional: true
+    - job: initialization
       artifacts: true
   script:
     - echo "========================================================"
-    - echo "  Sending pipeline notification email for cluster $CLUSTER"
+    - echo "  Testing orchestrator on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    # Step 1: Copy test configuration if available
+    - echo "Step 1 - Copying orchestrator test config to target"
+    - |
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$OMNIA_INSTALL_PATH/test/orchestrator/test_creds.yml 2>/dev/null
+        echo "  test_creds.yml copied to target"
+      else
+        echo "WARNING: CI/CD File Variable $CRED_VAR not set — using defaults"
+      fi
+
+    # Step 2: Install the test venv
+    - echo "Step 2 - Installing orchestrator test venv"
+    - |
+      $SSH_CMD $TARGET "
+        cd $OMNIA_INSTALL_PATH/test/orchestrator
+        if [ -f setup_env.sh ]; then
+          bash setup_env.sh
+        else
+          echo 'WARNING: setup_env.sh not found — skipping test venv setup'
+        fi
+      "
+
+    # Step 3: Run orchestrator validation tests
+    - echo "Step 3 - Running orchestrator validation tests"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute orchestrator run_validation.sh all verify on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/orchestrator
+          if [ -f run_validation.sh ]; then
+            source .venv/bin/activate 2>/dev/null || true
+            ./run_validation.sh all verify
+          else
+            echo 'WARNING: run_validation.sh not found — skipping tests'
+          fi
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  orchestrator tests completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# =========================================================================
+#                           S U M M A R Y
+# =========================================================================
+# Both pipelines end with a summary + email notification stage.
+# The cleanup summary depends on cleanup_omnia; the deploy summary
+# depends on orchestrator/test_orchestrator.  Both run 'when: always'
+# so the report is sent even if earlier stages failed.
+# =========================================================================
+
+# ==========================  CLEANUP SUMMARY  ==============================
+cleanup_summary:
+  stage: summary
+  when: always
+  allow_failure: true
+  before_script: []
+  rules:
+    - if: '$PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default"'
+      when: always
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_omnia
+      artifacts: true
+      optional: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup Summary — cluster $CLUSTER"
     - echo "========================================================"
     - source target.env
     - source pipeline_time.env
     - mkdir -p pipeline_reports
     - |
-      cat > pipeline_reports/pipeline_summary.txt << 'EOF'
+      cat > pipeline_reports/pipeline_summary.txt << EOF
       ========================================
       Omnia Pipeline Execution Summary
       ========================================
-      Cluster Name:     $(source target.env && echo $CLUSTER_NAME)
-      Cluster IP:       $(source target.env && echo $TARGET_IP)
+      Mode:             CLEANUP
+      Cluster Name:     $CLUSTER_NAME
+      Cluster IP:       $TARGET_IP
       Pipeline ID:      $CI_PIPELINE_ID
       Pipeline URL:     $CI_PIPELINE_URL
       Project:          $CI_PROJECT_NAME
       Branch:           $CI_COMMIT_REF_NAME
       Commit SHA:       $CI_COMMIT_SHA
       Trigger Time:     $PIPELINE_TRIGGER_TIME
+      DRY_RUN:          $DRY_RUN
 
       Stages Executed:
         - initialization
         - setup_environment
-        - clean_up
-        - repo_manager
-        - image_build_manager
-        - orchestrator
+        - cleanup_repo_manager
+        - cleanup_image_build_manager
+        - cleanup_orchestrator
+        - cleanup_omnia
 
       Status: COMPLETED
       ========================================
@@ -741,7 +1282,74 @@ email_notification:
     - export REPORT_PATH="pipeline_reports/pipeline_summary.txt"
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
     - echo "========================================================"
-    - echo "  Email notification completed for cluster $CLUSTER"
+    - echo "  Cleanup summary completed for cluster $CLUSTER"
+    - echo "========================================================"
+  artifacts:
+    paths:
+      - pipeline_reports/
+    when: always
+
+# ==========================  DEPLOY SUMMARY  ===============================
+deploy_summary:
+  stage: summary
+  when: always
+  allow_failure: true
+  before_script: []
+  rules:
+    - if: '$PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default"'
+      when: always
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: orchestrator
+      artifacts: true
+      optional: true
+    - job: test_orchestrator
+      artifacts: true
+      optional: true
+  script:
+    - echo "========================================================"
+    - echo "  Deploy Summary — cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - source pipeline_time.env
+    - mkdir -p pipeline_reports
+    - |
+      cat > pipeline_reports/pipeline_summary.txt << EOF
+      ========================================
+      Omnia Pipeline Execution Summary
+      ========================================
+      Mode:             DEPLOY
+      Cluster Name:     $CLUSTER_NAME
+      Cluster IP:       $TARGET_IP
+      Pipeline ID:      $CI_PIPELINE_ID
+      Pipeline URL:     $CI_PIPELINE_URL
+      Project:          $CI_PROJECT_NAME
+      Branch:           $CI_COMMIT_REF_NAME
+      Commit SHA:       $CI_COMMIT_SHA
+      Trigger Time:     $PIPELINE_TRIGGER_TIME
+      TEST_MODE:        $TEST_MODE
+      DRY_RUN:          $DRY_RUN
+
+      Stages Executed:
+        - initialization
+        - setup_environment
+        - test_installation
+        - repo_manager
+        - test_repo_manager (TEST_MODE=$TEST_MODE)
+        - image_build_manager
+        - test_image_build_manager (TEST_MODE=$TEST_MODE)
+        - orchestrator
+        - test_orchestrator (TEST_MODE=$TEST_MODE)
+
+      Status: COMPLETED
+      ========================================
+      EOF
+    - echo "Sending email notification"
+    - export REPORT_PATH="pipeline_reports/pipeline_summary.txt"
+    - python3 send_email.py || echo "Email notification failed (non-fatal)"
+    - echo "========================================================"
+    - echo "  Deploy summary completed for cluster $CLUSTER"
     - echo "========================================================"
   artifacts:
     paths:

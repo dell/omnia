@@ -13,11 +13,56 @@
 # limitations under the License.
 
 # ---------------------------------------------------------------------------
-# Omnia Multi-Cluster Parent Pipeline
+# Omnia Single/Multi-Cluster Parent Pipeline
 # ---------------------------------------------------------------------------
 # Triggers an independent child pipeline for each cluster defined in the
-# CLUSTER matrix. Each cluster runs all stages independently — if one
-# cluster fails, it does not affect the others.
+# CLUSTERS CI/CD variable. Each cluster runs all stages independently — if
+# one cluster fails, it does not affect the others.
+#
+# CLUSTER CONFIGURATION
+# ~~~~~~~~~~~~~~~~~~~~~
+# By default, this pipeline supports a single cluster (cluster1).
+# To add more clusters, use the setup_gitlab_project.py script:
+#
+#   python3 setup_gitlab_project.py --update \
+#     --gitlab-url https://gitlab.example.com \
+#     --token glpat-xxxx \
+#     --project-name omnia-pipeline \
+#     --clusters cluster1,cluster2,cluster3
+#
+# The script will automatically:
+#   - Add cluster variables (CLUSTER2_PIPELINE_MODE, CLUSTER2_DOMAIN, etc.)
+#   - Add trigger jobs (trigger_cluster_cluster2, trigger_cluster_cluster3)
+#   - Update the .gitlab-ci.yml file
+#
+# CLUSTER-LEVEL VARIABLES
+# ~~~~~~~~~~~~~~~~~~~~~~~
+# Each cluster has its own configuration variables:
+#   CLUSTER1_PIPELINE_MODE  -> deploy, cleanup, or default
+#   CLUSTER1_DOMAIN         -> default, repo_manager, image_build_manager, orchestrator
+#   CLUSTER1_ENABLE_SETUP   -> true or false
+#   CLUSTER1_TEST_MODE      -> true or false
+#   CLUSTER1_DRY_RUN        -> true or false
+#   CLUSTER1_VERBOSE        -> true or false
+#
+# Example: Deploy repo_manager on cluster1, cleanup orchestrator on cluster2:
+#   CLUSTER1_PIPELINE_MODE=deploy   CLUSTER1_DOMAIN=repo_manager
+#   CLUSTER2_PIPELINE_MODE=cleanup  CLUSTER2_DOMAIN=orchestrator
+#
+# Pipeline modes:
+#   PIPELINE_MODE=default  -> Full cycle (setup + cleanup + deploy + tests)
+#   PIPELINE_MODE=deploy   -> Deploy only (domain playbooks)
+#   PIPELINE_MODE=cleanup  -> Tear down all omnia domain state
+#
+# Domain selection:
+#   DOMAIN=default             -> All domains
+#   DOMAIN=repo_manager        -> Only repo_manager
+#   DOMAIN=image_build_manager -> Only image_build_manager
+#   DOMAIN=orchestrator        -> Only orchestrator
+#
+# Per-stage ansible tags (global, applied to all clusters):
+#   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
+#   CLEANUP_REPO_MANAGER_TAGS, CLEANUP_IMAGE_BUILD_TAGS, CLEANUP_ORCHESTRATOR_TAGS
 #
 # Repository layout in GitLab:
 #   .gitlab-ci.yml                              -> This parent pipeline
@@ -27,9 +72,8 @@
 #   clusters/<name>/catalogs/                   -> Per-cluster catalog files (optional)
 #
 # To add a new cluster:
-#   1. Create clusters/<name>/cluster.env with connection details
-#   2. Add the cluster name to the CLUSTER matrix below
-#   3. Set the cluster's TARGET_PASS as a GitLab CI/CD masked variable
+#   Use setup_gitlab_project.py --update --clusters cluster1,cluster2,cluster3
+#   The script will automatically update this file and create all necessary variables.
 # ---------------------------------------------------------------------------
 
 workflow:
@@ -48,26 +92,34 @@ workflow:
 stages:
   - trigger
 
+# ---------------------------------------------------------------------------
+# NOTE: All other variables (SSH_CONNECT_TIMEOUT, OMNIA_REPO, OMNIA_BRANCH,
+# CLUSTERS, etc.) are configured in GitLab Project > Settings > CI/CD > Variables
+# and are automatically passed to child pipelines. Do NOT redefine them here.
+# ---------------------------------------------------------------------------
 variables:
-  PIPELINE_VERSION: "1.0"
-
-  # GitLab CI/CD Variables - Configure in Project > Settings > CI/CD > Variables
-  SSH_CONNECT_TIMEOUT: "30"
-  OMNIA_REPO: "https://github.com/dell/omnia.git"
-  OMNIA_BRANCH: "main"
-  GIT_CLONE_BASE_DIR: "/root"
-  REMOTE_OMNIA_DIR: "/root/omnia"
-
-  # Multi-Cluster Configuration
-  # CLUSTERS is set as a GitLab CI/CD variable. To change clusters:
-  # Update the CLUSTERS variable in: Project > Settings > CI/CD > Variables
-  # Format: comma-separated list, e.g., "cluster1,cluster2,cluster3"
+  # ---- Cluster-Level Configuration Variables ----
+  # Each cluster has its own configuration. Set via GitLab UI or CI/CD variables.
+  # Example: CLUSTER1_PIPELINE_MODE=deploy, CLUSTER1_DOMAIN=repo_manager
+  #
+  # Default cluster (cluster1):
+  CLUSTER1_PIPELINE_MODE: "default"
+  CLUSTER1_DOMAIN: "default"
+  CLUSTER1_ENABLE_SETUP: "false"
+  CLUSTER1_TEST_MODE: "false"
+  CLUSTER1_DRY_RUN: "false"
+  CLUSTER1_VERBOSE: "false"
+  CLUSTER1_REPO_MANAGER_TAGS: ""
+  CLUSTER1_IMAGE_BUILD_MANAGER_TAGS: ""
+  CLUSTER1_ORCHESTRATOR_TAGS: ""
 
 # ---------------------------------------------------------------------------
-# Independent child pipeline triggers — one per cluster.
+# Child pipeline trigger — one per cluster.
 # Each cluster triggers its own pipeline completely independently.
 # If one cluster fails, it does NOT affect the others.
-# To add a new cluster: add a new trigger_cluster_<name> job below.
+#
+# To add more clusters, use setup_gitlab_project.py --update with multiple clusters.
+# The script will automatically generate additional trigger jobs.
 # ---------------------------------------------------------------------------
 trigger_cluster_cluster1:
   stage: trigger
@@ -77,33 +129,16 @@ trigger_cluster_cluster1:
     strategy: depend
   variables:
     CLUSTER: "cluster1"
+    PIPELINE_MODE: "$CLUSTER1_PIPELINE_MODE"
+    DOMAIN: "$CLUSTER1_DOMAIN"
+    ENABLE_SETUP: "$CLUSTER1_ENABLE_SETUP"
+    TEST_MODE: "$CLUSTER1_TEST_MODE"
+    DRY_RUN: "$CLUSTER1_DRY_RUN"
+    VERBOSE: "$CLUSTER1_VERBOSE"
+    REPO_MANAGER_TAGS: "$CLUSTER1_REPO_MANAGER_TAGS"
+    IMAGE_BUILD_MANAGER_TAGS: "$CLUSTER1_IMAGE_BUILD_MANAGER_TAGS"
+    ORCHESTRATOR_TAGS: "$CLUSTER1_ORCHESTRATOR_TAGS"
   allow_failure: true
   rules:
     - if: '$CLUSTERS =~ /cluster1/'
-      when: on_success
-
-trigger_cluster_cluster2:
-  stage: trigger
-  trigger:
-    include:
-      - local: .gitlab-ci-cluster.yml
-    strategy: depend
-  variables:
-    CLUSTER: "cluster2"
-  allow_failure: true
-  rules:
-    - if: '$CLUSTERS =~ /cluster2/'
-      when: on_success
-
-trigger_cluster_cluster3:
-  stage: trigger
-  trigger:
-    include:
-      - local: .gitlab-ci-cluster.yml
-    strategy: depend
-  variables:
-    CLUSTER: "cluster3"
-  allow_failure: true
-  rules:
-    - if: '$CLUSTERS =~ /cluster3/'
       when: on_success
