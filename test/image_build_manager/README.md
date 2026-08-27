@@ -61,12 +61,12 @@ bash setup_env.sh                    # Baremetal (default) or active venv
 bash setup_env.sh --venv             # Create .venv/ and install there
 bash setup_env.sh --venv --force     # Recreate .venv/ from scratch
 
-# Step 4 — Set SSH password (required for remote mode)
-bash setup_env.sh --set-password     # Interactive prompt (2× confirmation)
-bash setup_env.sh --password 'pass'  # Non-interactive
+# Step 4 — Set SSH credentials (optional; for remote mode)
+bash setup_env.sh --set-creds        # Interactive prompt (2x confirmation)
+bash setup_env.sh --creds 'pass'     # Non-interactive
 
 # Step 4b — Set domain credentials (S3 + aarch64)
-bash setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret + aarch64 pw
+bash setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret + aarch64
 
 # Step 5 — Activate environment (if using --venv mode)
 source .venv/bin/activate            # For --venv mode
@@ -94,42 +94,50 @@ cd ../..
 
 ### Credential Management
 
-All credentials are stored in `test_creds.yml` and auto-encrypted with Ansible Vault.
-SSH credential flags require `oim_server_ip` to be set in `test_config.yml`.
-Domain credential flags (`--set-domain-creds` / `--domain-creds`) do **not** require
-`oim_server_ip` — they only write to the local `test_creds.yml` file.
+Two separate credential files are managed by `setup_env.sh`:
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `test_creds.yml` | Local (this directory) | SSH credentials for remote test execution |
+| `.test_creds.key` | Local (this directory) | Vault key for `test_creds.yml` (auto-created) |
+| `image_build_credentials.yml` | `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/` | S3 + aarch64 domain credentials |
+| `.image_build_credentials_key` | Same directory as above | Vault key for domain credentials |
+
+All files are auto-encrypted with Ansible Vault and gitignored.
+`oim_server_ip` is **not** required for credential setup — credentials are saved locally
+and used when tests run (local or remote).
 
 #### SSH Credentials (OIM server access)
 
 | Flag | Description |
 |------|-------------|
-| `--set-password` | Interactive prompt (asks twice). If password exists, asks yes/no to update. |
-| `--update-password` | Force-update existing SSH password (no confirmation prompt). |
-| `--password PWD` | Non-interactive. Overwrites any existing SSH credentials. |
+| `--set-creds` | Interactive prompt (asks twice). If exists, asks yes/no to update. |
+| `--update-creds` | Force-update existing SSH credentials (no confirmation prompt). |
+| `--creds PWD` | Non-interactive. Overwrites any existing SSH credentials. |
 
 #### Domain Credentials (S3 / aarch64)
 
 The image build playbook (`image_build_manager.yml`) requires access to S3/MinIO
-for image storage and optionally to a remote aarch64 host.  These credentials are
-stored alongside the SSH password in `test_creds.yml` (vault-encrypted) and are
-read by `collect_build_credentials` during the test deployment step.
-These flags do **not** require `oim_server_ip` — they only write to the local file.
+for image storage and optionally to a remote aarch64 host. These credentials are
+stored in a separate file (`image_build_credentials.yml`) at
+`$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/`.
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `s3_access_id` | Yes | MinIO / S3 access key ID |
 | `s3_secret_key` | Yes | MinIO / S3 secret key |
-| `aarch64_ssh_password` | No | SSH password for the aarch64 build host. Leave empty for key-based auth or if no aarch64 build is needed. |
+| `aarch64_ssh_password` | No | SSH auth for the aarch64 build host. Leave empty for key-based auth or if no aarch64 build is needed. |
 
 | Flag | Description |
 |------|-------------|
-| `--set-domain-creds` | Interactive prompt for S3 access ID, secret, and aarch64 password. |
+| `--set-domain-creds` | Interactive prompt for S3 access ID, secret, and aarch64. |
+| `--update-domain-creds` | Force-update domain credentials (no "exists" check). |
 | `--domain-creds JSON` | Non-interactive. Pass a JSON string with `s3_access_id`, `s3_secret_key`, `aarch64_ssh_password`. |
 
-> **Note**: `--set-password` and `--set-domain-creds` are independent — run each separately, or combine in one invocation:
+> **Note**: `--set-creds` and `--set-domain-creds` are independent — run each separately:
 > ```bash
-> bash setup_env.sh --set-password      # sets oim_password (requires oim_server_ip)
-> bash setup_env.sh --set-domain-creds  # sets S3 + aarch64 creds (no oim_server_ip needed)
+> bash setup_env.sh --set-creds          # SSH creds (saved locally)
+> bash setup_env.sh --set-domain-creds   # S3 + aarch64 (saved to $OMNIA_DATA_PATH)
 > ```
 > Existing fields not updated by a given flag are **preserved**.
 
@@ -246,8 +254,8 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 | File | Purpose | Git Status |
 |------|---------|------------|
 | `test_config.yml` | Target server IP, sync settings, dataset, report options | Tracked |
-| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) | **Gitignored** |
-| `.test_creds.key` | Vault encryption key (auto-generated) | **Gitignored** |
+| `test_creds.yml` | SSH creds (created by `--set-creds`, auto-encrypted) | **Gitignored** |
+| `.test_creds.key` | Vault key for `test_creds.yml` (auto-created) | **Gitignored** |
 | `test_run_config.yml` | Batch execution: scenario order, markers, suites | Tracked |
 
 ### Key Settings in `test_config.yml`
@@ -256,9 +264,7 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 |---------|----------|---------|-------------|
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
-| `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
 | `dataset` | No | `""` | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. |
-| `project_name` | No | `project_default` | Project name for input/output paths on target. |
 
 ### Execution Modes
 
@@ -362,12 +368,12 @@ See [`fvt/README.md`](fvt/README.md) for the complete test case registry.
 
 ```
 test/image_build_manager/
-├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
+├── setup_env.sh                 # Environment setup (--venv, --set-creds, etc.)
 ├── run_validation.sh            # Shell entry point (delegates to _run.py)
 ├── _run.py                      # Python entry point (loads domain vars, creates runner)
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
-├── test_creds.yml               # All credentials: SSH + S3 + aarch64 (Ansible Vault, gitignored)
+├── test_creds.yml               # SSH credentials (auto-encrypted, gitignored)
 ├── test_run_config.yml          # Batch execution config
 ├── requirements.txt             # Python dependencies
 │

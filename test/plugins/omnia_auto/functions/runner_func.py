@@ -30,6 +30,7 @@ Usage::
 
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -64,7 +65,7 @@ _ANSI_RE = re.compile(
 
 def run_playbook(
     playbook: Optional[str] = None,
-    tag = None,
+    tag=None,
     extra_vars: Optional[Dict[str, str]] = None,
     verbosity: Optional[int] = None,
     timeout: Optional[int] = None,
@@ -127,18 +128,19 @@ def run_playbook(
     logger_name = get_setting("runner_logger_name", "playbook_runner")  # safe default
     log = TestLogger(logger_name)
 
-    password = credentials.get("oim_password", "")
-    if not local_mode and password and not shutil.which("sshpass"):
+    oim_auth = credentials.get("oim_password", "")
+    if not local_mode and oim_auth and not shutil.which("sshpass"):
         return _fail(
             playbook, 0.0,
             RUNNER_ASSERT_MSGS["sshpass_missing"],
         )
 
-    venv_path = config.get("venv_path", "")
-    # venv_path is optional - if provided, venv is activated before ansible-playbook
+    # venv_path: derived from OMNIA_VENV_PATH in /etc/omnia/omnia.env
+    # on the target (or local) host — never from test_config.yml.
+    venv_env_var = "OMNIA_VENV_PATH"
 
     ansible_cmd = _build_ansible_cmd(
-        playbook, workdir, v, extra_vars, tag, limit, venv_path,
+        playbook, workdir, v, extra_vars, tag, limit, venv_env_var,
     )
 
     if local_mode:
@@ -172,28 +174,37 @@ def _build_ansible_cmd(
     extra_vars: Optional[Dict[str, str]],
     tag,
     limit: Optional[str],
-    venv_path: str = "",
+    venv_env_var: str = "OMNIA_VENV_PATH",
 ) -> str:
-    """Build the ``ansible-playbook`` command string."""
-    v_flag = f" -{'v' * verbosity}" if verbosity > 0 else ""
+    """Build the ``ansible-playbook`` command string.
 
-    parts = []
-    # Activate venv if specified
-    if venv_path:
-        parts.append(f"source {venv_path}/bin/activate &&")
-    parts.extend([
-        f"cd {workdir} &&",
-        f"COLUMNS={get_setting('line_width', 160)} ansible-playbook {playbook}{v_flag}",  # 160 safe default
-    ])
+    The venv path is sourced from the ``OMNIA_VENV_PATH`` env var
+    defined in ``/etc/omnia/omnia.env`` on the target host.  If the
+    env var is unset the command falls through without activation.
+    """
+    v_flag = f" -{'v' * verbosity}" if verbosity > 0 else ""
+    env_file = "/etc/omnia/omnia.env"
+
+    parts = [
+        # Source omnia.env and activate venv from env var
+        f"set -a && . {env_file} && set +a &&",
+        f'if [ -n "${{{venv_env_var}}}" ]; then'
+        f' source "${{{venv_env_var}}}/bin/activate"; fi &&',
+        f"cd {shlex.quote(workdir)} &&",
+        f"COLUMNS={get_setting('line_width', 160)}"
+        f" ansible-playbook {shlex.quote(playbook)}{v_flag}",
+    ]
 
     if extra_vars:
         for key, val in extra_vars.items():
-            parts.append(f'--extra-vars "{key}={val}"')
+            parts.append(
+                f"--extra-vars {shlex.quote(f'{key}={val}')}",
+            )
     if tag:
         tag_str = ",".join(tag) if isinstance(tag, list) else tag
-        parts.append(f"--tags {tag_str}")
+        parts.append(f"--tags {shlex.quote(tag_str)}")
     if limit:
-        parts.append(f"--limit {limit}")
+        parts.append(f"--limit {shlex.quote(limit)}")
 
     return " ".join(parts)
 
@@ -207,10 +218,13 @@ def _wrap_ssh(
     host = config["oim_server_ip"]
     user = config.get("oim_ssh_user", "root")
     port = str(config.get("oim_ssh_port", 22))
-    password = credentials.get("oim_password", "")
+    oim_auth = credentials.get("oim_password", "")
 
-    if password:
-        parts = ["sshpass", f"-p '{password}'", "ssh", "-T"]
+    if oim_auth:
+        parts = [
+            "sshpass", "-p", shlex.quote(oim_auth),
+            "ssh", "-T",
+        ]
     else:
         parts = ["ssh", "-T"]
 
@@ -219,7 +233,11 @@ def _wrap_ssh(
         "-o", "UserKnownHostsFile=/dev/null",
         "-o", "LogLevel=ERROR",
     ]))
-    parts.extend(["-p", port, f"{user}@{host}", f"'{cmd}'"])
+    parts.extend([
+        "-p", shlex.quote(port),
+        f"{shlex.quote(user)}@{shlex.quote(host)}",
+        shlex.quote(cmd),
+    ])
     return " ".join(parts)
 
 

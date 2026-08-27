@@ -21,7 +21,7 @@ authors:
 description: >-
   Dell Omnia Telemetry — deploys and manages a telemetry stack for HPC and AI
   clusters. Supports VictoriaMetrics, VictoriaLogs, Kafka (Strimzi), LDMS,
-  iDRAC, UFM, OME, PowerScale, VAST, and SFM
+  iDRAC, UFM, OME, PowerScale, and VAST
   telemetry sources with tag-based deployment and cleanup.
 license:
   - Apache-2.0

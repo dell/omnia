@@ -107,8 +107,8 @@ def load_test_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
     path = _resolve_config_path(config_path)
     if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+        with open(path, "r", encoding="utf-8") as cfg_fh:
+            return yaml.safe_load(cfg_fh) or {}
     return {}
 
 
@@ -126,7 +126,7 @@ def _is_vault_encrypted(file_path: str) -> bool:
 
 
 def _create_vault_key(key_path: str) -> None:
-    """Create a new vault key file with random 32-char password."""
+    """Create a new vault key file with a random 32-char token."""
     import secrets
     key = secrets.token_urlsafe(32)[:32]
     with open(key_path, "w", encoding="utf-8") as f:
@@ -204,8 +204,8 @@ def load_test_credentials(
             f"Credentials encrypted but key not found: {key_path}"
         )
 
-    with open(creds_path, "r", encoding="utf-8") as f:
-        creds = yaml.safe_load(f) or {}
+    with open(creds_path, "r", encoding="utf-8") as creds_fh:
+        creds = yaml.safe_load(creds_fh) or {}
 
     if not os.path.exists(key_path):
         _create_vault_key(key_path)
@@ -293,7 +293,7 @@ def get_testinfra_host():
     # Remote — SSH
     ssh_user = config["oim_ssh_user"]
     ssh_port = config.get("oim_ssh_port", 22)
-    ssh_password = credentials.get("oim_password", "")
+    ssh_auth = credentials.get("oim_password", "")
 
     inventory_dir = os.path.join(
         tempfile.gettempdir(), "omnia_auto_testinfra"
@@ -308,13 +308,13 @@ def get_testinfra_host():
         "-o LogLevel=ERROR",
     )
 
-    with open(inventory_path, "w", encoding="utf-8") as f:
-        f.write("[all]\n")
-        f.write(
+    with open(inventory_path, "w", encoding="utf-8") as inv_fh:
+        inv_fh.write("[all]\n")
+        inv_fh.write(
             f"target ansible_host={oim_ip} "
             f"ansible_user={ssh_user} "
             f"ansible_port={ssh_port} "
-            f"ansible_ssh_pass={ssh_password} "
+            f"ansible_ssh_pass={ssh_auth} "
             f"ansible_connection=ssh "
             f"ansible_ssh_common_args='{ssh_args}'\n"
         )
@@ -345,7 +345,7 @@ _DEFAULT_ENV_FILE = "/etc/omnia/omnia.env"
 
 
 def connection_params() -> dict:
-    """Build mode / ip / user / password / ssh_opts from test config.
+    """Build mode / ip / user / auth_secret / ssh_opts from test config.
 
     Returns a dict ready to unpack into ``sync_files()`` or other
     functions that need SSH connection details::
@@ -354,7 +354,7 @@ def connection_params() -> dict:
         sync_files(mode=conn["mode"], ip=conn["ip"], ...)
 
     Returns:
-        Dict with keys: mode, ip, user, password, ssh_opts.
+        Dict with keys: mode, ip, user, auth_secret, ssh_opts.
 
     Raises:
         ValueError: If required config keys are missing for remote mode.
@@ -380,11 +380,12 @@ def connection_params() -> dict:
         oim_ip = None
         oim_user = config.get("oim_ssh_user", "root")
 
+    oim_auth = creds.get("oim_password") or None
     return {
         "mode": "local" if local else "ssh",
         "ip": oim_ip,
         "user": oim_user,
-        "password": creds.get("oim_password") or None,
+        "auth_secret": oim_auth,
         "ssh_opts": get_setting(
             "ssh_opts",
             "-o StrictHostKeyChecking=no "

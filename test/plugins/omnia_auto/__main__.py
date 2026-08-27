@@ -11,21 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-# Generate SFM telemetry Kustomize manifests to NFS deployments/sfm/
+"""CLI entry point for ``python -m omnia_auto``."""
 
-- name: Create SFM deployments directory
-  ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir }}/sfm"
-    state: directory
-    mode: '0755'
+import sys
 
-# TODO: Add SFM manifest templates when available
-# - sfm-scrape-config.yaml.j2
-# - kustomization.yaml.j2
+from .functions.credential_func import main
 
-- name: Display SFM manifest generation complete
-  ansible.builtin.debug:
-    msg: "SFM telemetry manifests directory created at {{ telemetry_deployments_dir }}/sfm/"
-    verbosity: 2
+sys.exit(main())
