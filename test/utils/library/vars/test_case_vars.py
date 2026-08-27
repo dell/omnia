@@ -1,0 +1,218 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Utils Domain — Test Case Registry.
+
+Central registry mapping every test to its TC ID and title.
+Test files reference ``TEST_CASES["key"]`` to get a consistent
+test-case identifier and display name.
+
+Usage in test files::
+
+    from library.vars.test_case_vars import TEST_CASES as TC
+
+    tc = TC["deploy_collect"]
+    tl = TestLogger(tc["title"], tc["id"])
+"""
+
+TEST_CASES = {
+    # ══════════════════════════════════════════════════════════════════════════
+    # PRECHECK SCENARIO
+    # ══════════════════════════════════════════════════════════════════════════
+    "target_connectivity": {
+        "id": "TC_PC_001",
+        "title": "Verify target host connectivity and SSH",
+    },
+    "env_vars_present": {
+        "id": "TC_PC_002",
+        "title": "Verify OMNIA env vars present on target",
+    },
+    "hostname_domain": {
+        "id": "TC_PC_003",
+        "title": "Verify hostname and domain match omnia.env",
+    },
+    "admin_ip_assigned": {
+        "id": "TC_PC_004",
+        "title": "Verify admin IP assigned to local interface",
+    },
+    "omnia_setup": {
+        "id": "TC_PC_005",
+        "title": "Verify omnia.sh setup completed on target",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # COLLECT SCENARIO — Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_collect_setup": {
+        "id": "TC_CL_001",
+        "title": "Deploy collect.yml (setup stage)",
+    },
+    "deploy_collect_prepare": {
+        "id": "TC_CL_002",
+        "title": "Deploy collect.yml (prepare stage)",
+    },
+    "deploy_collect_bundle": {
+        "id": "TC_CL_003",
+        "title": "Deploy collect.yml (bundle stage)",
+    },
+    "deploy_collect_full": {
+        "id": "TC_CL_004",
+        "title": "Deploy collect.yml (full execution)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # COLLECT SCENARIO — Verification Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "collect_input_file_exists": {
+        "id": "TC_CL_010",
+        "title": "Verify collect_pxe.yml input file exists on target",
+    },
+    "collect_input_file_valid": {
+        "id": "TC_CL_011",
+        "title": "Verify collect_pxe.yml has valid YAML structure",
+    },
+    "collect_functional_groups_valid": {
+        "id": "TC_CL_012",
+        "title": "Verify collect_pxe.yml contains valid functional groups",
+    },
+    "collect_output_dir_exists": {
+        "id": "TC_CL_020",
+        "title": "Verify log collection output directory exists",
+    },
+    "collect_bundle_created": {
+        "id": "TC_CL_021",
+        "title": "Verify log bundle tar.gz file created",
+    },
+    "collect_metadata_exists": {
+        "id": "TC_CL_022",
+        "title": "Verify metadata.json file exists",
+    },
+    "collect_metadata_valid": {
+        "id": "TC_CL_023",
+        "title": "Verify metadata.json has valid structure",
+    },
+    "collect_metadata_sha256": {
+        "id": "TC_CL_024",
+        "title": "Verify metadata.json contains SHA256 checksum",
+    },
+    "collect_bundle_contents": {
+        "id": "TC_CL_025",
+        "title": "Verify log bundle contains expected directories",
+    },
+    "collect_env_vars_loaded": {
+        "id": "TC_CL_030",
+        "title": "Verify OMNIA_DATA_PATH loaded from environment",
+    },
+    "collect_project_name_loaded": {
+        "id": "TC_CL_031",
+        "title": "Verify OMNIA_PROJECT_NAME loaded from environment",
+    },
+    "collect_bundle_log_files_content": {
+        "id": "TC_CL_032",
+        "title": "Verify log bundle contains log files with content",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # INSTALL_OS SCENARIO — Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_install_os_credentials": {
+        "id": "TC_IO_001",
+        "title": "Deploy install_os.yml (credentials tag)",
+    },
+    "deploy_install_os_build_iso": {
+        "id": "TC_IO_002",
+        "title": "Deploy install_os.yml (build_iso tag)",
+    },
+    "deploy_install_os_deploy": {
+        "id": "TC_IO_003",
+        "title": "Deploy install_os.yml (deploy tag)",
+    },
+    "deploy_install_os_generate_ks": {
+        "id": "TC_IO_004",
+        "title": "Deploy install_os.yml (generate_ks tag)",
+    },
+    "deploy_install_os_full": {
+        "id": "TC_IO_005",
+        "title": "Deploy install_os.yml (full execution)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # INSTALL_OS SCENARIO — Verification Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "install_os_config_file_exists": {
+        "id": "TC_IO_010",
+        "title": "Verify install_os_config.yml exists on target",
+    },
+    "install_os_config_valid": {
+        "id": "TC_IO_011",
+        "title": "Verify install_os_config.yml has valid structure",
+    },
+    "install_os_credentials_file_exists": {
+        "id": "TC_IO_012",
+        "title": "Verify install_os_credentials.yml exists",
+    },
+    "install_os_output_dir_exists": {
+        "id": "TC_IO_020",
+        "title": "Verify install_os output directory exists",
+    },
+    "install_os_status_file_exists": {
+        "id": "TC_IO_021",
+        "title": "Verify install_os_status.yml output file created",
+    },
+    "install_os_status_valid": {
+        "id": "TC_IO_022",
+        "title": "Verify install_os_status.yml has valid structure",
+    },
+    "install_os_custom_iso_created": {
+        "id": "TC_IO_030",
+        "title": "Verify custom ISO with Kickstart created",
+    },
+    "install_os_kickstart_generated": {
+        "id": "TC_IO_031",
+        "title": "Verify kickstart.ks file generated",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # NEGATIVE TEST CASES
+    # ══════════════════════════════════════════════════════════════════════════
+    "collect_missing_input_fails": {
+        "id": "TC_NEG_001",
+        "title": "Verify collect.yml fails when input file missing",
+    },
+    "collect_invalid_yaml_fails": {
+        "id": "TC_NEG_002",
+        "title": "Verify collect.yml fails with invalid YAML input",
+    },
+    "collect_empty_groups_succeeds": {
+        "id": "TC_NEG_003",
+        "title": "Verify collect.yml succeeds with empty functional groups",
+    },
+    "install_os_missing_config_fails": {
+        "id": "TC_NEG_020",
+        "title": "Verify install_os.yml fails when config file missing",
+    },
+    "install_os_invalid_config_params_fails": {
+        "id": "TC_NEG_021",
+        "title": "Verify install_os.yml fails with invalid configuration parameters",
+    },
+    "install_os_missing_iso_path_fails": {
+        "id": "TC_NEG_022",
+        "title": "Verify install_os.yml fails when source ISO path missing",
+    },
+    "install_os_missing_bmc_ip_fails": {
+        "id": "TC_NEG_023",
+        "title": "Verify install_os.yml fails when BMC IP missing for deploy",
+    },
+}
