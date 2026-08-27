@@ -27,5 +27,11 @@ from .repo_manager_func import (
     check_pulp_container_removed,
     check_pulp_cli_removed,
     check_pulp_directories_removed,
+    check_repo_policy,
+    check_repo_caching,
+    check_pulp_mode,
+    verify_repo_status_pulp_mode,
+    check_global_repo_config,
+    check_global_caching_policy,
 )
 from omnia_auto import TestLogger
