@@ -209,4 +209,5 @@
       Custom ISO: {{ custom_iso_path | default('N/A') }}.
       KS delivery: {{ kickstart_delivery_method | default('embedded') }}.
       Target BMC: {{ target_bmc_ip | default('N/A') }}.
-      SSH key: {{ ssh_public_key_path }} (validated).
+      SSH key: {{ ssh_public_key_path | default('N/A') }} (validated).
+  when: not _mode_credentials_only
