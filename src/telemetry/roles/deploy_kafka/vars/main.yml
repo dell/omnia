@@ -23,7 +23,7 @@ telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
 telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
 telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
 telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] | default({}) }}"
-cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
+cluster_mount: "{{ hostvars['localhost']['telemetry_packages_config']['cluster_mount'] | default('/share_omnia_k8s') }}"
 
 # Deploy directory
 telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"

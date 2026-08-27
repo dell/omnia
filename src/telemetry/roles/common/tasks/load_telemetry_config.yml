@@ -34,15 +34,24 @@
         telemetry_storage_config: "{{ hostvars['localhost']['telemetry_storage_config'] }}"
         telemetry_packages_config: "{{ hostvars['localhost']['telemetry_packages_config'] }}"
         telemetry_registry: "{{ hostvars['localhost']['telemetry_registry'] }}"
-        cluster_mount: "{{ hostvars['localhost']['cluster_mount'] }}"
+        cluster_mount: "{{ hostvars['localhost']['cluster_mount'] | default('/share_omnia_k8s') }}"
         kube_vip: "{{ hostvars['localhost']['kube_vip'] | default('') }}"
 
 - name: Load configs from files when not cached
   when: not (configs_already_loaded | bool)
   block:
-    - name: Set default input project directory if not provided
+    - name: Get OMNIA_DATA_PATH from environment
       ansible.builtin.set_fact:
-        input_project_dir: "{{ input_project_dir | default('/opt/omnia/telemetry/input/project_default') }}"
+        omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('') }}"
+
+    - name: Set input project directory based on OMNIA_DATA_PATH
+      ansible.builtin.set_fact:
+        input_project_dir: >-
+          {% if omnia_data_path | length > 0 -%}
+          {{ omnia_data_path }}/telemetry/input/project_default
+          {%- else -%}
+          {{ input_project_dir | default('/opt/omnia/telemetry/input/project_default') }}
+          {%- endif %}
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
@@ -114,6 +123,11 @@
       register: packages_load_result
       failed_when: false
 
+    - name: Set cluster_mount from telemetry_packages.yml
+      ansible.builtin.set_fact:
+        cluster_mount: "{{ _pkg_raw.cluster_mount | default('/share_omnia_k8s') }}"
+      when: _pkg_raw is defined
+
     # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog
     # -----------------------------------------------------------------------
@@ -130,7 +144,7 @@
         telemetry_packages_config:
           install_mode: "{{ _mode }}"
           repo_url: "{{ _base }}"
-          cluster_mount: "{{ _pkg_raw.cluster_mount | default('') }}"
+          cluster_mount: "{{ _pkg_raw.cluster_mount | default('/share_omnia_k8s') }}"
           images: "{{ _pkg_raw.images | default({}) }}"
           container_registry: "{{ _pkg_raw.container_registry | default('') }}"
           helm_charts: "{{ _hc }}"
@@ -197,5 +211,5 @@
             ldms: "{{ _images.ldms | default({}) }}"
             vector: "{{ _images.vector | default({}) }}"
             support: "{{ _images.support | default({}) }}"
-        cluster_mount: "{{ _pkg_raw.cluster_mount | default('') }}"
+        cluster_mount: "{{ _pkg_raw.cluster_mount | default('/share_omnia_k8s') }}"
         cacheable: true

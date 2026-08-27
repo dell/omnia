@@ -74,28 +74,28 @@
       - component_packages | length > 0
     fail_msg: "Component '{{ component }}' not found in telemetry_packages.yml pip_modules section"
 
-- name: Install Python packages for {{ component }}
+- name: Install Python packages for component
   loop: "{{ component_packages | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
   block:
-    - name: Check if {{ item.key }} module is installed
+    - name: Check if Python module is installed
       ansible.builtin.command: python3 -c "import {{ item.key }}"
       register: module_check
       failed_when: false
       changed_when: false
 
-    - name: Install {{ item.key }} module
+    - name: Install Python module
       when: module_check.rc != 0
       block:
         - name: Log Python dependency installation
           ansible.builtin.debug:
             msg: "Installing Python {{ item.key }} module for {{ component }} - Mode: {{ install_mode }}"
 
-        - name: Install {{ item.key }} in online mode (from PyPI)
+        - name: Install Python module in online mode (from PyPI)
           when: install_mode == "online"
           block:
-            - name: Install {{ item.key }} from PyPI
+            - name: Install Python module from PyPI
               ansible.builtin.command: >
                 python3 -m pip install {{ item.key }}=={{ item.value }}
               register: pip_install_online
@@ -105,10 +105,10 @@
                 msg: "Failed to install {{ item.key }} module from PyPI. Check internet connectivity."
               when: pip_install_online.rc != 0
 
-        - name: Install {{ item.key }} in offline mode (from Pulp repo)
+        - name: Install Python module in offline mode (from Pulp repo)
           when: install_mode == "offline"
           block:
-            - name: Install {{ item.key }} from Pulp repo
+            - name: Install Python module from Pulp repo
               ansible.builtin.command: >
                 python3 -m pip install --index-url {{ pip_index_url }}
                 {{ item.key }}=={{ item.value }}
@@ -119,7 +119,7 @@
                 msg: "Failed to install {{ item.key }}=={{ item.value }} from {{ pip_index_url }}. Check Pulp repo availability."
               when: pip_install_offline.rc != 0
 
-    - name: Verify {{ item.key }} module is now available
+    - name: Verify Python module is now available
       ansible.builtin.command: python3 -c "import {{ item.key }}; print({{ item.key }}.__version__)"
       register: module_verify
       changed_when: false
