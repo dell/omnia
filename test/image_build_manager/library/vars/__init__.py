@@ -59,3 +59,11 @@ from .common_vars import (
 )
 
 from .test_case_vars import TEST_CASES
+
+from .domain_vars import (
+    DOMAIN_NAME as VALIDATION_DOMAIN,
+    FVT_TAGS,
+    MARKERS,
+    SUITES,
+    EXCLUDE_TAGS,
+)

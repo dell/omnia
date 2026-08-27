@@ -13,10 +13,12 @@
 # limitations under the License.
 
 """
-Image Build Build — Deploy.
+Image Build Build — Playbook Execution.
 
-Deploy image_build_manager --tags build
+Deploy image_build_manager.yml with the configured tag.
 """
+
+import os
 
 import pytest
 
@@ -35,14 +37,29 @@ from library.messages import (
 )
 
 
+def _get_deploy_tag():
+    """Get deploy tag from OMNIA_DEPLOY_TAG env var."""
+    return os.environ.get("OMNIA_DEPLOY_TAG", "")
+
+
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_build(host):
-    """Deploy image_build_manager --tags build."""
-    tc = TC["deploy_build"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag="build")
+def test_deploy_image_build_manager(host):
+    """Deploy image_build_manager.yml with the configured tag."""
+    tag = _get_deploy_tag()
+    if tag:
+        tc = TC[f"deploy_{tag}"]
+        tl = TestLogger(tc["title"], tc["id"])
+        tl.check(f"Running image_build_manager.yml --tags {tag}")
+        result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag=tag)
+        tag_label = tag
+    else:
+        tc = TC["deploy_full"]
+        tl = TestLogger(tc["title"], tc["id"])
+        tl.check("Running image_build_manager.yml (full stack)")
+        result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT)
+        tag_label = "(none)"
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -63,7 +80,7 @@ def test_deploy_build(host):
 
     config = load_test_config()
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="image_build_manager.yml", tag="build",
+        playbook="image_build_manager.yml", tag=tag_label,
         rc=result["rc"], duration=result["duration"],
         log_path=BUILD_LOG_PATH.format(
             shared_path=SHARED_PATH,

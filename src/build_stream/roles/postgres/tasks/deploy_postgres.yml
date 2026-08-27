@@ -118,8 +118,9 @@
       changed_when: false
 
     - name: Wait for PostgreSQL to be ready
-      ansible.builtin.pause:
-        seconds: "{{ postgres_ready_wait_seconds }}"
+      ansible.builtin.wait_for:
+        timeout: "{{ postgres_ready_wait_seconds }}"
+      delegate_to: localhost
 
     - name: Check if postgres container is running after deployment
       containers.podman.podman_container_info:

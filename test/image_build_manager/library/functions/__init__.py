@@ -51,6 +51,7 @@ from .build_image_func import (
     check_registry_images,
     check_build_status_file,
     check_functional_groups_built,
+    check_build_status_s3_match,
     get_configured_functional_groups,
     check_containers_removed,
     check_s3_artifacts_removed,

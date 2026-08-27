@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# generate_inventories — Query SMD and generate all inventory files in one pass.
+# generate_inventories — Query SMD and generate inventory files in one pass.
 # Called from validate_provisioning.yml after all provision_*.yml playbooks.
 # SMD is the single source of truth — query once, generate everything.
 #
 # Outputs:
 #   - orchestrator_inventory.yml (all nodes)
 #   - bmc_group_data.yml (all nodes)
-#   - kube_inventory.yml (FGs matching kubernetes category)
-#   - slurm_inventory.yml (FGs matching slurm category)
 
 - name: Load functional groups configuration
   ansible.builtin.include_vars:
@@ -29,6 +27,24 @@
 - name: Load classification rules
   ansible.builtin.include_vars:
     file: "{{ role_path }}/../../vars/functional_group_classification.yml"
+
+- name: Check if high_availability_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+  register: ha_config_stat
+  delegate_to: localhost
+
+- name: Load high_availability_config.yml to get kube_vip
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+    name: ha_config
+  delegate_to: localhost
+  when: ha_config_stat.stat.exists | default(false)
+
+- name: Set kube_vip fact
+  ansible.builtin.set_fact:
+    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+  when: ha_config_stat.stat.exists | default(false)
 
 # Inventory templates and output paths (from configure_ochami/vars/main.yml)
 - name: Set inventory variables
@@ -78,6 +94,7 @@
     mode: "{{ file_permissions_644 }}"
   vars:
     mapping_nodes_var: "{{ mapping_nodes }}"
+    kube_vip: "{{ kube_vip | default('') }}"
 
 - name: Copy orchestrator inventory to localhost
   ansible.builtin.fetch:
@@ -85,46 +102,7 @@
     dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
     flat: true
 
-- name: Generate Kubernetes inventory file
-  ansible.builtin.template:
-    src: "{{ ochami_template_dir }}/nodes/kube_inventory.yml.j2"
-    dest: "{{ playbook_dir }}/output/kube_inventory.yml"
-    mode: "{{ file_permissions_644 }}"
-  vars:
-    mapping_nodes_var: "{{ mapping_nodes }}"
-    kube_vip: "{{ hostvars['oim']['kube_vip'] | default('') }}"
-    k8s_functional_groups: >-
-      {{ functional_groups
-         | selectattr('name', 'match', '^service_kube_')
-         | map(attribute='name') | list }}
-
-- name: Copy Kubernetes inventory to localhost
-  ansible.builtin.fetch:
-    src: "{{ playbook_dir }}/output/kube_inventory.yml"
-    dest: "{{ playbook_dir }}/output/kube_inventory.yml"
-    flat: true
-
-- name: Generate Slurm inventory file
-  ansible.builtin.template:
-    src: "{{ ochami_template_dir }}/nodes/slurm_inventory.yml.j2"
-    dest: "{{ playbook_dir }}/output/slurm_inventory.yml"
-    mode: "{{ file_permissions_644 }}"
-  vars:
-    mapping_nodes_var: "{{ mapping_nodes }}"
-    slurm_functional_groups: >-
-      {{ functional_groups
-         | selectattr('name', 'match', '^slurm_|^login_')
-         | map(attribute='name') | list }}
-
-- name: Copy Slurm inventory to localhost
-  ansible.builtin.fetch:
-    src: "{{ playbook_dir }}/output/slurm_inventory.yml"
-    dest: "{{ playbook_dir }}/output/slurm_inventory.yml"
-    flat: true
-
 - name: Inventory generation complete
   ansible.builtin.debug:
     msg: >-
-      Generated inventories: orchestrator_inventory.yaml, bmc_group_data.csv,
-      kube_inventory.yml ({{ functional_groups | selectattr('name', 'match', '^service_kube_') | list | length }} k8s FGs),
-      slurm_inventory.yml ({{ functional_groups | selectattr('name', 'match', '^slurm_|^login_') | list | length }} slurm FGs)
+      Generated inventories: orchestrator_inventory.yaml, bmc_group_data.csv

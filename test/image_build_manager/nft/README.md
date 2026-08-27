@@ -47,15 +47,17 @@ containers, lose data, or produce errors on re-execution.
 
 ## Prerequisites
 
-NFT tests require a **fully deployed** environment. Run FVT first:
+NFT tests require a **fully deployed** environment with `OMNIA_DATA_PATH` and
+`OMNIA_PROJECT_NAME` set on the target host (via `omnia.sh --setup-venv`).
+Run FVT first:
 
 ```bash
 # Deploy the environment
-./run_validation.sh prepare test
-./run_validation.sh build test --marker x86_64
+./run_validation.sh fvt_image_build_manager prepare test
+./run_validation.sh fvt_image_build_manager build test --marker x86_64
 
 # Then run NFT
-./run_validation.sh nft test
+./run_validation.sh nft_image_build_manager test
 ```
 
 ---
@@ -64,13 +66,13 @@ NFT tests require a **fully deployed** environment. Run FVT first:
 
 ```bash
 # Run all NFT tests
-./run_validation.sh nft test
+./run_validation.sh nft_image_build_manager test
 
 # Run NFT with verbose output
-./run_validation.sh nft test -v
+./run_validation.sh nft_image_build_manager test -v
 
 # Run NFT with debug output
-./run_validation.sh nft test --debug
+./run_validation.sh nft_image_build_manager test --debug
 ```
 
 ---

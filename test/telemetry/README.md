@@ -1,84 +1,205 @@
 # Telemetry Test Automation
 
-Functional Verification Testing (FVT) and Non-Functional Testing (NFT)
-for the `telemetry` Ansible domain.
+Functional Verification Testing (FVT) and Non-Functional Testing (NFT) for the `telemetry` Ansible domain.
 
 ## Quick Start
 
 ```bash
-# 1. One-time setup (creates venv, installs deps)
-source setup_env.sh
+# 1. One-time setup (installs deps)
+bash setup_env.sh
 
 # 2. Configure target server
-#    Edit test_config.yml: set target_host, project_name
-#    Edit test_creds.yml: set SSH credentials
+#    Edit test_config.yml: set oim_server_ip
+#    Set SSH credentials:
+bash setup_env.sh --set-creds
 
 # 3. Run tests
-./run_validation.sh precheck test      # Precheck scenario
-./run_validation.sh validate test      # Validation scenario
-./run_validation.sh all test           # All FVT scenarios
+./run_validation.sh fvt_telemetry precheck verify
 ```
+
+## Running Tests
+
+Run from inside the `test/telemetry/` directory:
+
+```
+./run_validation.sh fvt_telemetry <command>             # All tags except cleanup
+./run_validation.sh fvt_telemetry <tag> <command>        # Specific tag
+./run_validation.sh fvt_telemetry list                   # List available tags
+./run_validation.sh --config                             # Batch from test_run_config.yml
+./run_validation.sh --help                               # Full help
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `exec` | Run the Ansible playbook only (no verification tests) |
+| `verify` | Run verification tests only (no playbook) |
+| `test` | Full flow: exec + verify |
+
+### FVT Tags
+
+| Tag | Playbook Tag | What It Tests |
+|-----|-------------|---------------|
+| `precheck` | `--tags precheck` | Env vars, K8s cluster health, connectivity |
+| `validate` | `--tags validate` | Input config and credentials validation |
+| `deploy` | `--tags deploy` | Deploy sinks + sources (Kafka, VM, VL, iDRAC, etc.) |
+| `cleanup` | `--tags cleanup` | Cleanup resources (pods, services, topics) |
+| *(none)* | *(no tag)* | Full end-to-end (all tags) |
+
+### NFT Tags
+
+| Tag | What It Tests |
+|-----|---------------|
+| `performance` | Validate, deploy, and cleanup performance thresholds |
+| `idempotency` | Deploy and cleanup idempotency (second run exits 0) |
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--suite <name>` | Filter by subfolder (`sinks`, `sources`, `cluster`, `input`) |
+| `--marker <expr>` | Filter by pytest marker expression |
+| `-v, --verbose` | Increase pytest verbosity |
+| `--debug` | Full debug output (pytest `-vvs`) |
+
+### Marker Expressions
+
+| Syntax | Example | Meaning |
+|--------|---------|---------|
+| Single | `--marker sanity` | Tests with `@pytest.mark.sanity` |
+| AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
+| OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
+
+Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `performance`, `idempotency`
+
+### Examples
+
+```bash
+# FVT
+./run_validation.sh fvt_telemetry deploy test --marker sanity
+./run_validation.sh fvt_telemetry deploy verify --suite sources
+./run_validation.sh fvt_telemetry deploy verify --suite sinks
+./run_validation.sh fvt_telemetry cleanup test
+./run_validation.sh fvt_telemetry list
+
+# NFT
+./run_validation.sh nft test                          # All NFT tests
+./run_validation.sh nft test --marker performance     # Performance only
+./run_validation.sh nft test --marker idempotency     # Idempotency only
+
+# Config-driven batch
+./run_validation.sh --config
+```
+
+### Typical Workflow
+
+```bash
+./run_validation.sh fvt_telemetry precheck test                     # 1. Precheck environment
+./run_validation.sh fvt_telemetry validate test                     # 2. Validate inputs
+./run_validation.sh fvt_telemetry deploy test --marker sanity        # 3. Deploy + verify sanity
+./run_validation.sh fvt_telemetry verify --marker sanity              # 4. Full sanity verification
+./run_validation.sh fvt_telemetry cleanup test                       # 5. Cleanup + verify
+```
+
+---
 
 ## Architecture
 
 ```
-SOURCES (10 collectors) -> BRIDGES (Vector) -> SINKS (3 backends)
+SOURCES (collectors) -> BRIDGES (Vector) -> SINKS (backends)
 
 Sources: iDRAC, LDMS, DCGM, PowerScale, UFM, VAST, OME, SFM, Skyway, PowerVault
 Sinks:   VictoriaMetrics, VictoriaLogs, Kafka (Strimzi)
 ```
 
-## Test Tags (match playbook tags)
-
-| Tag | Scope |
-|-----|-------|
-| precheck | K8s cluster readiness |
-| validate | Input file L1+L2 validation |
-| deploy/execute | Full telemetry deployment |
-| cleanup | Tag-based component removal |
-
 ## Module Structure
 
 ```
 test/telemetry/
-├── conftest.py           # Session setup
-├── run_validation.sh     # CLI runner
-├── setup_env.sh          # Venv setup
-├── test_config.yml       # Target server settings
-├── test_creds.yml        # SSH credentials (auto-encrypted)
-├── datasets/             # Test input data + generator
-├── library/              # Functions, vars, messages
-│   ├── functions/        # Verification logic
-│   ├── vars/             # Constants, TC IDs, CMDS
-│   └── messages/         # Log + assert messages
-├── fvt/                  # Functional Verification Tests
-│   ├── precheck/         # Precheck scenario (7 TCs)
-│   ├── validate/         # Validate scenario (6 TCs)
-│   ├── deploy/           # Deploy scenario
-│   │   ├── test_playbook.py    # TC_DP_001 (deploy playbook)
-│   │   ├── sinks/              # Sink verification
-│   │   │   ├── vm/             # VictoriaMetrics (6 TCs)
-│   │   │   ├── vl/             # VictoriaLogs (2 TCs)
-│   │   │   └── kafka/          # Kafka (4 TCs)
-│   │   └── sources/            # Source verification
-│   │       ├── idrac/          # iDRAC (5 TCs)
-│   │       ├── ldms/           # LDMS (5 TCs)
-│   │       └── ome/            # OME (3 TCs)
-│   └── cleanup/          # Cleanup scenario (planned)
-└── nft/                  # Non-Functional Tests (planned)
+├── setup_env.sh              # Environment setup (--venv, --set-creds, etc.)
+├── run_validation.sh         # Shell entry point (delegates to _run.py)
+├── _run.py                   # Python entry point (loads domain vars, creates runner)
+├── conftest.py               # Pytest hooks, fixtures, report generation
+├── test_config.yml           # Non-sensitive settings (IPs, paths)
+├── test_creds.yml            # SSH creds (created by --set-creds, auto-encrypted)
+├── .test_creds.key           # Vault key for test_creds.yml (auto-created)
+├── test_run_config.yml       # Batch execution: scenario order, markers, suites
+│
+├── library/                  # Reusable automation library
+│   ├── functions/            # telemetry_func, k8s_func, cleanup_func, etc.
+│   ├── vars/                 # Constants, component names (common_vars, test_case_vars)
+│   └── messages/             # Test names, log/assert messages
+│
+├── fvt/                      # Functional Verification Tests
+│   ├── precheck/             # Precheck tag tests
+│   │   ├── test_playbook.py  # Playbook --tags precheck
+│   │   └── cluster/          # Env vars, K8s nodes, kube_vip
+│   ├── validate/             # Validate tag tests
+│   │   ├── test_playbook.py  # Playbook --tags validate
+│   │   └── input/            # Config validation
+│   ├── deploy/               # Deploy tag tests
+│   │   ├── test_playbook.py  # Playbook --tags execute
+│   │   ├── test_namespace.py # All-pods-running check
+│   │   ├── sinks/
+│   │   │   ├── test_kafka.py
+│   │   │   ├── test_victoriametrics.py
+│   │   │   └── test_victorialogs.py
+│   │   └── sources/
+│   │       ├── test_idrac.py
+│   │       ├── test_ldms.py
+│   │       ├── test_ome.py
+│   │       ├── test_powerscale.py
+│   │       ├── test_ufm.py
+│   │       └── test_vast.py
+│   └── cleanup/              # Cleanup tag tests
+│       ├── test_playbook.py  # Playbook --tags cleanup
+│       └── status/           # Verify sources/sinks/pods/PVCs removed
+│           ├── test_cleanup_sources.py
+│           ├── test_cleanup_sinks.py
+│           └── test_cleanup_final.py
+│
+└── nft/                      # Non-Functional Tests
+    ├── test_performance.py   # Performance thresholds (validate, deploy, cleanup)
+    └── test_idempotency.py   # Idempotency tests (deploy, cleanup)
 ```
 
-## Phase Summary
+## Test Case Summary
 
-| Phase | TCs | Status |
-|-------|-----|--------|
-| Phase 1: precheck + validate | 13 | Implemented |
-| Phase 2: sinks (VM, VL, Kafka) | 13 | Implemented |
-| Phase 3: sources (iDRAC, LDMS, OME) | 13 | Implemented |
-| Phase 4: sources (PowerScale, UFM, VAST, SFM) | 8 | Planned |
-| Phase 5: cleanup (tag-wise) | 12 | Planned |
-| Phase 6: NFT (perf, idempotency) | 5 | Planned |
-| **Total** | **64** | |
+### FVT (Functional Verification Tests)
+
+| Area | TCs | Marker |
+|------|-----|--------|
+| Precheck | 7 | sanity |
+| Validate | 6 | sanity |
+| Deploy | 1 | deploy |
+| Sinks | 12 | sanity + sink |
+| Sources | 27 | sanity + functional + source |
+| Cleanup | 13 | sanity + functional |
+| **FVT Total** | **66** | |
+
+### NFT (Non-Functional Tests)
+
+| Area | TCs | Marker |
+|------|-----|--------|
+| Performance | 3 | nft + performance |
+| Idempotency | 4 | nft + idempotency |
+| **NFT Total** | **7** | |
+
+### Grand Total: **73 Tests**
+
+## Output Format
+
+```
+  ▶ [TC_NS_001] Verify all telemetry pods running
+  → Checking all pods in telemetry namespace
+  ✔ PASS: All 43 pods running
+
+  ▶ [TC_SR_019] Verify UFM InfiniBand metrics in VictoriaMetrics
+  → Querying VictoriaMetrics for UFM InfiniBand metrics
+  ✔ PASS: 6 UFM metric(s) found
+    │   ✓ infiniband_CBW: 0 (2026-08-24 12:59:50)
+    │   ✓ PortXmitDataExtended: 94017600 (2026-08-24 12:59:50)
+```
 
 See `fvt/README.md` for the complete test case registry.
-See `PLAN.md` for the detailed phased implementation plan.

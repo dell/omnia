@@ -13,67 +13,53 @@
 # limitations under the License.
 
 """
-Telemetry Validate — Playbook Deployment Test.
+Telemetry Validate — Playbook Execution.
 
-Test case:
-    TC_VL_001: Deploy telemetry (validate)
-    Runs: ansible-playbook telemetry.yml --tags validate
+Test cases:
+    TC_VL_001: Deploy telemetry (--tags validate)
 """
 
 import pytest
 
-from omnia_auto import TestLogger, run_playbook
+from library.functions import TestLogger
 
 from library.vars.test_case_vars import TEST_CASES as TC
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
+from library.functions import run_playbook
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(10)
+@pytest.mark.order(0)
 def test_deploy_validate(host):
-    """TC_VL_001: Run telemetry validation playbook.
-
-    Executes ``ansible-playbook telemetry.yml --tags validate`` on the
-    target host and verifies it exits with rc=0.
-
-    This runs L1 (JSON schema) and L2 (cross-field logic) validation
-    for all three telemetry input files:
-    - telemetry_config.yml
-    - telemetry_storage_config.yml
-    - telemetry_packages.yml
-    """
+    """TC_VL_001: Deploy telemetry (--tags validate)."""
     tc = TC["deploy_validate"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Running telemetry validation playbook")
-    result = run_playbook(
-        host=host,
-        playbook=PLAYBOOK_ENTRY_POINT,
-        workdir=PLAYBOOK_WORKDIR,
-        tag="validate",
-    )
+    tl.check("Running telemetry playbook --tags validate")
+    result = run_playbook(tag="validate")
 
-    if result["rc"] == 0:
+    if result["success"]:
         tl.passed(
-            LOG_MSGS["validate_passed"],
-            f"Exit code: {result['rc']}\n"
-            f"Duration: {result.get('duration', 'N/A')}s\n"
-            f"All input files validated (L1 + L2)",
+            LOG_MSGS["playbook_success"].format(
+                duration=f"{result['duration']:.1f}s",
+            ),
+            f"rc={result['rc']}",
         )
     else:
-        output_lines = result.get("output", "").strip().split("\n")
-        tail = "\n".join(output_lines[-20:])
         tl.failed(
-            LOG_MSGS["validate_failed"],
-            f"Exit code: {result['rc']}\n"
-            f"Last output:\n{tail}",
+            LOG_MSGS["playbook_failed"].format(
+                rc=result["rc"],
+                duration=f"{result['duration']:.1f}s",
+            ),
+            result.get("error", ""),
         )
 
-    assert result["rc"] == 0, ASSERT_MSGS["validate_failed"].format(
+    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+        playbook="telemetry.yml",
+        tag="validate",
         rc=result["rc"],
     )

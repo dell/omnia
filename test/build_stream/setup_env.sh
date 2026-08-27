@@ -630,8 +630,36 @@ fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Domain credential dispatch  (--set-domain-creds / --domain-creds)
-# NOTE: These do NOT require oim_server_ip — they only write to local test_creds.yml.
+#
+# Domain credentials are primarily stored on the target server at:
+#   /opt/omnia/build_stream/input/<project>/build_stream_credentials.yml
+#
+# The build_stream.yml playbook creates this file during deployment.
+# --set-domain-creds checks the server first; if creds already exist
+# there, prompting is skipped.
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Check if domain credentials already exist on the target server
+_check_server_creds_exist() {
+    local oim_ip
+    oim_ip=$(grep -E '^oim_server_ip:' "$TEST_CONFIG" 2>/dev/null | sed 's/^oim_server_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true)
+    if [ -z "$oim_ip" ]; then
+        return 1  # can't check server, proceed with prompts
+    fi
+
+    local server_creds_path="/opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
+
+    # Try SSH to check if the file exists and has content
+    local ssh_result
+    ssh_result=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+        "$oim_ip" "test -s ${server_creds_path} && echo 'exists'" 2>/dev/null || true)
+
+    if [ "$ssh_result" = "exists" ]; then
+        return 0  # creds exist on server
+    fi
+    return 1  # creds don't exist or SSH failed
+}
+
 if [ -n "$DOMAIN_CREDS_JSON" ]; then
     # --domain-creds JSON: non-interactive
     info "Setting domain credentials from --domain-creds flag"
@@ -645,9 +673,17 @@ if [ -n "$DOMAIN_CREDS_JSON" ]; then
     ok "Domain credentials set"
 
 elif [ "$SET_DOMAIN_CREDS" = true ]; then
-    # --set-domain-creds: interactive prompt
-    _prompt_domain_creds
-    ok "Domain credentials saved to test_creds.yml"
+    # --set-domain-creds: check server first before prompting
+    if _check_server_creds_exist; then
+        ok "Domain credentials already configured on the target server."
+        ok "Source: /opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
+        ok "Test cases will read credentials directly from the server."
+        ok "To force update, use: --domain-creds '{...}'"
+    else
+        info "Server credentials not found — prompting for domain credentials"
+        _prompt_domain_creds
+        ok "Domain credentials saved to test_creds.yml"
+    fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

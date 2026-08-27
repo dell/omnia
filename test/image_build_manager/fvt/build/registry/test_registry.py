@@ -16,8 +16,9 @@
 Image Build Build — Registry & Status Verification.
 
 Verify x86_64 images in registry after build
+Verify aarch64 images in registry after build
 Verify build_status.yml after build
-Verify functional groups built
+Verify functional groups built (x86_64 and aarch64)
 """
 
 import pytest
@@ -64,8 +65,40 @@ def test_registry_images_x86_64(host):
     )
 
 
+@pytest.mark.aarch64
 @pytest.mark.sanity
 @pytest.mark.order(4)
+def test_registry_images_aarch64(host):
+    """Verify aarch64 images in registry after build."""
+    tc = TC["registry_images_aarch64"]
+    arch = "aarch64"
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_registry_images(host, arch=arch)
+
+    if result.get("skipped"):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+
+    url = result.get("registry_url", "unknown")
+    if result["success"]:
+        tl.passed(LOG["registry_images_ok"].format(arch=arch))
+    else:
+        tl.failed(
+            LOG["registry_images_missing"].format(
+                count=len(result["missing_images"])
+            )
+        )
+
+    assert result["success"], ASSERT["registry_images_missing"].format(
+        registry_url=url,
+        missing_list="\n".join(
+            f"\u2551   - {i}" for i in result["missing_images"]
+        ),
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(5)
 def test_build_status(host):
     """Verify build_status.yml after build."""
     tc = TC["build_status_file"]
@@ -86,11 +119,41 @@ def test_build_status(host):
 
 @pytest.mark.x86_64
 @pytest.mark.sanity
-@pytest.mark.order(5)
+@pytest.mark.order(6)
 def test_functional_groups_x86_64(host):
     """Verify functional groups built after build tag."""
     tc = TC["functional_groups_x86_64"]
     arch = "x86_64"
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_functional_groups_built(host, arch=arch)
+
+    if result.get("skipped"):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+
+    if result["success"]:
+        tl.passed(
+            LOG["functional_groups_ok"].format(
+                count=len(result["found"]), arch=arch,
+            )
+        )
+    else:
+        tl.failed(
+            LOG["functional_groups_missing"].format(
+                count=len(result["missing"])
+            )
+        )
+
+    assert result["success"], result.get("error", "Check failed")
+
+
+@pytest.mark.aarch64
+@pytest.mark.sanity
+@pytest.mark.order(7)
+def test_functional_groups_aarch64(host):
+    """Verify aarch64 functional groups built after build tag."""
+    tc = TC["functional_groups_aarch64"]
+    arch = "aarch64"
     tl = TestLogger(tc["title"], tc["id"])
     result = check_functional_groups_built(host, arch=arch)
 

@@ -96,6 +96,15 @@ test harness venv (`test/main/.venv`), all operations execute normally.
 | TC_CL_015 | `test_skip_catalog_accepted` | commands/ | sanity | Verify --setup-venv --skip-catalog --deps-only is accepted |
 | TC_CL_016 | `test_skip_omnia_cli_in_help` | commands/ | sanity | Verify --skip-omnia-cli flag appears in help output |
 | TC_CL_017 | `test_skip_omnia_cli_accepted` | commands/ | sanity | Verify --setup-venv --skip-omnia-cli --deps-only is accepted |
+| TC_CL_018 | `test_skip_in_help` | commands/ | sanity | Verify --skip flag appears in help output |
+| TC_CL_019 | `test_dry_run_in_help` | commands/ | sanity | Verify --dry-run flag appears in help output |
+| TC_CL_020 | `test_skip_invalid_domain` | commands/ | sanity | Verify --skip with invalid domain exits with error |
+| TC_CL_021 | `test_skip_with_include_error` | commands/ | sanity | Verify --skip + explicit domain list is mutually exclusive |
+| TC_CL_022 | `test_skip_without_init_error` | commands/ | sanity | Verify --skip without -s/-i exits with error |
+| TC_CL_023 | `test_skip_no_args_error` | commands/ | sanity | Verify --skip without domain list exits with error |
+| TC_CL_024 | `test_dry_run_output` | commands/ | sanity | Verify --dry-run shows domain list without executing |
+| TC_CL_025 | `test_dry_run_with_skip` | commands/ | sanity | Verify --dry-run --skip shows filtered domain list |
+| TC_CL_026 | `test_dry_run_without_init_error` | commands/ | sanity | Verify --dry-run without -s/-i exits with error |
 
 ---
 

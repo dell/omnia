@@ -1,0 +1,244 @@
+---
+# HPC Compliance Scanner
+#
+# Enforces Omnia-specific HPC production rules that ansible-lint
+# does NOT cover (docs/code-style/ansible.md §13, python.md §8):
+#
+#   Ansible (HPC-specific only):
+#     - loop/with_* + delegate_to: fan-out anti-pattern (advisory)
+#
+#   Python (Checkmarx pre-scan):
+#     - shell=True in subprocess calls
+#     - os.system()
+#     - exec() / eval()
+#     - yaml.load() / yaml.full_load() / UnsafeLoader / FullLoader
+#     - pickle usage (warning)
+#     - Hardcoded credentials (warning, best-effort, excludes tests/)
+#
+name: HPC Compliance Scanner
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+
+permissions:
+  contents: read
+
+jobs:
+  hpc-compliance:
+    name: HPC Compliance Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          BASE=$(git merge-base HEAD "origin/${{ github.base_ref }}")
+          CHANGED=$(git diff --name-only --diff-filter=d \
+            "$BASE" HEAD -- \
+            '*.yml' '*.yaml' '*.py' || true)
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      # ─── HPC Anti-Pattern Detection (Ansible) ───
+      - name: Detect potential HPC fan-out anti-patterns
+        if: steps.changed.outputs.files != ''
+        run: |
+          set -euo pipefail
+          WARNINGS=0
+
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            [ -f "$f" ] || continue
+            case "$f" in *.yml|*.yaml) ;; *) continue ;; esac
+            case "$f" in .github/*) continue ;; esac
+
+            # Strip comments before scanning
+            CLEAN=$(sed 's/#.*$//' "$f")
+
+            # Find all delegate_to: lines (any indentation level)
+            DELEGATE_LINES=$(echo "$CLEAN" | grep -nE '^[[:space:]]*delegate_to:[[:space:]]' 2>/dev/null || true)
+
+            if [ -n "$DELEGATE_LINES" ]; then
+              while IFS= read -r match; do
+                [ -n "$match" ] || continue
+                LINE_NUM=$(echo "$match" | cut -d: -f1)
+
+                # Look backward 15 lines from delegate_to for loop context
+                START=$((LINE_NUM - 15))
+                [ "$START" -lt 1 ] && START=1
+
+                TASK_BLOCK=$(sed -n "${START},${LINE_NUM}p" "$f" | sed 's/#.*$//')
+
+                # Respect task boundaries — only check within current task
+                LAST_TASK_START=$(echo "$TASK_BLOCK" | grep -nE '^\s*-\s+name:' | tail -1 | cut -d: -f1 || true)
+
+                if [ -n "$LAST_TASK_START" ]; then
+                  TASK_BLOCK=$(echo "$TASK_BLOCK" | tail -n +"$LAST_TASK_START")
+                fi
+
+                # Check for any loop variant within this task block
+                HAS_LOOP=false
+                if echo "$TASK_BLOCK" | grep -qE '^[[:space:]]+(loop|with_[a-z_]+):[[:space:]]' 2>/dev/null; then
+                  HAS_LOOP=true
+                fi
+
+                if [ "$HAS_LOOP" = true ]; then
+                  WARNINGS=$((WARNINGS + 1))
+                  echo "::warning file=${f},line=${LINE_NUM}::HPC: loop/with_* + delegate_to in same task — potential fan-out anti-pattern. Review ansible.md §13.1"
+                fi
+
+              done <<< "$DELEGATE_LINES"
+            fi
+
+          done <<< "${{ steps.changed.outputs.files }}"
+
+          echo ""
+          echo "==========================================="
+          echo "     HPC ANTI-PATTERN SUMMARY (Ansible)"
+          echo "==========================================="
+          if [ "$WARNINGS" -gt 0 ]; then
+            echo "Advisory warnings: $WARNINGS"
+            echo ""
+            echo "These warnings indicate potential HPC fan-out patterns."
+            echo "Manual review required."
+            echo "Review: docs/code-style/ansible.md §13"
+          else
+            echo "No HPC anti-patterns detected."
+          fi
+          echo "==========================================="
+
+      # ─── Checkmarx Pre-Scan (Python) ───
+      - name: Checkmarx pre-scan on changed Python files
+        if: steps.changed.outputs.files != ''
+        run: |
+          set -euo pipefail
+          ERRORS=0
+          WARNINGS=0
+
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            [ -f "$f" ] || continue
+            case "$f" in *.py) ;; *) continue ;; esac
+            case "$f" in build/*|dist/*|.venv/*|venv/*) continue ;; esac
+
+            # --- Blocking checks (report all occurrences) ---
+
+            # shell=True (OS Command Injection) — exclude comments
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: shell=True — use subprocess.run() with list args (python.md §8.3)"
+            done < <(grep -nE 'shell[[:space:]]*=[[:space:]]*True' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # os.system() (OS Command Injection)
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: os.system() — use subprocess.run() with list args (python.md §8.3)"
+            done < <(grep -nE 'os\.system\(' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # eval() (Code Injection) — excludes my_eval(), safe_eval(), etc.
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: eval() — use json.loads() or ast.literal_eval() (python.md §8.3)"
+            done < <(grep -nE '(^|[^[:alnum:]_])eval\(' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # exec() (Code Injection) — excludes my_exec(), safe_exec(), etc.
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: exec() — avoid dynamic code execution (python.md §8.3)"
+            done < <(grep -nE '(^|[^[:alnum:]_])exec\(' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # yaml.load() without SafeLoader (Insecure Deserialization)
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: yaml.load() without SafeLoader — use yaml.safe_load() (python.md §8.3)"
+            done < <(grep -nE 'yaml\.load\(' "$f" 2>/dev/null \
+              | grep -v 'safe_load' \
+              | grep -v 'SafeLoader' \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # yaml.full_load() (unsafe loader)
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: yaml.full_load() — use yaml.safe_load() (python.md §8.3)"
+            done < <(grep -nE 'yaml\.full_load\(' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # UnsafeLoader / FullLoader
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              ERRORS=$((ERRORS + 1))
+              echo "::error file=${f},line=${LINE}::Checkmarx: UnsafeLoader/FullLoader — use yaml.safe_load() or Loader=yaml.SafeLoader (python.md §8.3)"
+            done < <(grep -nE 'yaml\.(UnsafeLoader|FullLoader)' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # --- Warning checks (report all occurrences) ---
+
+            # pickle (may have valid internal uses)
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              WARNINGS=$((WARNINGS + 1))
+              echo "::warning file=${f},line=${LINE}::Checkmarx: pickle — ensure input is trusted; prefer json.loads() for untrusted data"
+            done < <(grep -nE 'pickle\.(loads|load)\(' "$f" 2>/dev/null \
+              | grep -v '^[[:space:]]*#' || true)
+
+            # Hardcoded credentials (best-effort, exclude test/docs paths)
+            case "$f" in
+              test/*|tests/*|molecule/*|examples/*|docs/*) continue ;;
+            esac
+            while IFS= read -r match; do
+              [ -n "$match" ] || continue
+              LINE=$(echo "$match" | cut -d: -f1)
+              WARNINGS=$((WARNINGS + 1))
+              echo "::warning file=${f},line=${LINE}::Possible hardcoded credential — review and use Ansible Vault if needed"
+            done < <(grep -nEi '(password|passwd|secret|secret_key|api_key|token|access_token|auth_token|aws_secret_access_key|client_secret)\s*=\s*["\x27][^"\x27]{3,}["\x27]' "$f" 2>/dev/null \
+              | grep -v '# noqa' \
+              | grep -v 'DOCUMENTATION' \
+              | grep -v 'EXAMPLES' \
+              | grep -v 'description' \
+              | grep -v 'help=' \
+              | grep -v '^[[:space:]]*#' || true)
+
+          done <<< "${{ steps.changed.outputs.files }}"
+
+          echo ""
+          echo "==========================================="
+          echo "     CHECKMARX PRE-SCAN SUMMARY"
+          echo "==========================================="
+          echo "Errors   : $ERRORS"
+          echo "Warnings : $WARNINGS"
+          echo "==========================================="
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "Review: docs/code-style/python.md §8.3"
+            exit 1
+          fi

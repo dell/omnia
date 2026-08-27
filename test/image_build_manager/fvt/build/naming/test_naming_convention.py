@@ -38,7 +38,13 @@ from library.functions import (
     get_configured_functional_groups,
 )
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import CMDS, REGISTRY_PORT, S3_BOOT_IMAGES_BUCKET
+from library.vars.common_vars import (
+    CMDS,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    REGISTRY_PORT,
+    S3_BOOT_IMAGES_BUCKET,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -56,10 +62,23 @@ _SUFFIX_MAP = {
 # ---------------------------------------------------------------------------
 
 def _get_build_type(host) -> str:
-    """Return the image_build_type configured on the target."""
+    """Return the image_build_type configured on the target.
+
+    Resolves the config path from OMNIA_DATA_PATH / OMNIA_PROJECT_NAME
+    environment variables on the target host.
+    """
+    data_path = host.check_output(
+        f"echo ${ENV_OMNIA_DATA_PATH}"
+    ).strip()
+    project = host.check_output(
+        f"echo ${ENV_OMNIA_PROJECT_NAME}"
+    ).strip() or "project_default"
+    cfg_path = (
+        f"{data_path}/image_build_manager/input/{project}"
+        "/image_build_config.yml"
+    )
     result = host.run(
-        "grep -E '^image_build_type:' "
-        "$(find /opt/omnia -name 'image_build_config.yml' 2>/dev/null | head -1) "
+        f"grep -E '^image_build_type:' {cfg_path} "
         "2>/dev/null | awk '{print $2}' || echo 'image-builder'"
     )
     build_type = result.stdout.strip().strip('"').strip("'")
@@ -112,7 +131,7 @@ def _get_s3_image_paths(host) -> List[str]:
 # TC_BD_007 — image-builder registry naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(7)
+@pytest.mark.order(8)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_registry_naming_image_builder_x86_64(host):
@@ -176,7 +195,7 @@ def test_registry_naming_image_builder_x86_64(host):
 # TC_BD_008 — image-builder S3 naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(8)
+@pytest.mark.order(9)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_s3_naming_image_builder_x86_64(host):
@@ -233,7 +252,7 @@ def test_s3_naming_image_builder_x86_64(host):
 # TC_BD_009 — image-thrillhouse registry naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(9)
+@pytest.mark.order(10)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_registry_naming_image_thrillhouse_x86_64(host):
@@ -295,7 +314,7 @@ def test_registry_naming_image_thrillhouse_x86_64(host):
 # TC_BD_010 — image-thrillhouse S3 naming (x86_64)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(10)
+@pytest.mark.order(11)
 @pytest.mark.x86_64
 @pytest.mark.sanity
 def test_s3_naming_image_thrillhouse_x86_64(host):
@@ -351,7 +370,7 @@ def test_s3_naming_image_thrillhouse_x86_64(host):
 # TC_BD_011 — Suffix isolation: -imgbld and -imgth paths never collide
 # ---------------------------------------------------------------------------
 
-@pytest.mark.order(11)
+@pytest.mark.order(12)
 @pytest.mark.x86_64
 @pytest.mark.functional
 def test_artifact_suffix_isolation(host):

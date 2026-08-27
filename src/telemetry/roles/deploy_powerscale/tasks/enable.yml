@@ -34,18 +34,8 @@
 
 - name: Set PowerScale configuration facts
   ansible.builtin.set_fact:
-    ps_csi_secret_path: >-
-      {{ telemetry_config.powerscale_configurations.csi_powerscale_secret_path
-         | default(hostvars['localhost']['service_cluster_info'].csi_powerscale_driver_secret_file_path | default(''))
-      }}
     ps_helm_values_file: "{{ telemetry_config.powerscale_configurations.csm_observability_values_file_path }}"
     csm_observability_namespace: "{{ csm_namespace }}"
-
-- name: Validate CSI PowerScale secret path
-  ansible.builtin.assert:
-    that:
-      - ps_csi_secret_path | trim | length > 0
-    fail_msg: "{{ ps_csi_secret_path_missing_msg }}"
 
 - name: Validate user-provided Helm values file path
   ansible.builtin.assert:
@@ -97,28 +87,6 @@
     fail_msg: "{{ ps_cert_manager_disabled_msg }}"
 
 # --- Load CSI PowerScale credentials from vault ---
-
-- name: Load CSI PowerScale credentials from vault
-  block:
-    - name: Read CSI driver secret.yaml
-      ansible.builtin.include_vars:
-        file: "{{ ps_csi_secret_path }}"
-        name: csi_powerscale_secret
-      no_log: true
-
-    - name: Extract isilon clusters from secret
-      ansible.builtin.set_fact:
-        ps_clusters: "{{ csi_powerscale_secret.isilonClusters | default([]) }}"
-      no_log: true
-  rescue:
-    - name: Failed to load CSI PowerScale credentials
-      ansible.builtin.fail:
-        msg: "{{ ps_csi_secret_read_fail_msg }}"
-
-- name: Fail if no PowerScale clusters defined
-  ansible.builtin.fail:
-    msg: "{{ ps_no_clusters_found_msg }}"
-  when: ps_clusters | length == 0
 
 - name: Display PowerScale clusters found
   ansible.builtin.debug:

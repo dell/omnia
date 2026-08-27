@@ -23,7 +23,7 @@ DOCUMENTATION = r'''
 ---
 module: parse_catalog
 short_description: Parse catalog JSON and resolve packages by architecture
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Reads a catalog JSON file produced by repo_manager.
   - Resolves functional layers matching the target architecture.

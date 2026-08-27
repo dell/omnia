@@ -25,7 +25,7 @@ DOCUMENTATION = r'''
 ---
 module: parse_repo_status
 short_description: Parse repo_status.yml and build per-architecture repo lists
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Reads the C(repo_status.yml) file produced by repo_manager.
   - Extracts C(cluster_os_type) and derives C(cluster_os_version) from

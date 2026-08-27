@@ -40,6 +40,7 @@ from core.build_image.exceptions import (
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
+    StageAlreadyCompletedError,
     StageNotFoundError,
     TerminalStateViolationError,
     UpstreamStageNotCompletedError,
@@ -125,7 +126,7 @@ def create_build_image(
         # Handle None request_body (empty JSON body)
         if request_body is None:
             request_body = CreateBuildImageRequest()
-        
+
         command = CreateBuildImageCommand(
             job_id=validated_job_id,
             client_id=client_id,
@@ -214,6 +215,22 @@ def create_build_image(
             ).model_dump(),
         ) from exc
 
+    except StageAlreadyCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Build image failed: job_id={job_id}, reason=stage_already_completed, status=409",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_build_error_response(
+                "STAGE_ALREADY_COMPLETED",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
     except TerminalStateViolationError as exc:
         log_secure_info(
             "warning",
@@ -221,16 +238,11 @@ def create_build_image(
             job_id=job_id,
             end_section=True,
         )
-        if exc.state == "FAILED":
-            message = f"Job {job_id} stage is in {exc.state} state and cannot be retried. Reset the stage using /stages/build-image/reset endpoint."
-        else:
-            message = f"Job {job_id} stage is in {exc.state} state and cannot be modified."
-
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail=_build_error_response(
                 "TERMINAL_STATE_VIOLATION",
-                message,
+                f"Job {job_id} stage is in {exc.state} state and cannot be modified.",
                 correlation_id.value,
             ).model_dump(),
         ) from exc

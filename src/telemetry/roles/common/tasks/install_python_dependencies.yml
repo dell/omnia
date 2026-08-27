@@ -1,0 +1,131 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Install Python Dependencies for Telemetry
+# =============================================================================
+# Generic task to install Python packages for telemetry components
+# Supports both online and offline installation modes based on telemetry_packages.yml
+#
+# Usage:
+#   - include_tasks: install_python_dependencies.yml
+#     vars:
+#       component: idrac
+#
+# Installation modes:
+#   - online:  Install from PyPI (pip install <package>==<version>)
+#   - offline: Install from Pulp repo (pip install --index-url <repo_url>/pip_module/ <package>==<version>)
+#
+# Parameters:
+#   component: Component name to look up in telemetry_packages.yml (required)
+#   telemetry_packages_file: Path to telemetry_packages.yml (default: from common vars)
+# =============================================================================
+
+- name: Validate component is provided
+  ansible.builtin.assert:
+    that:
+      - component is defined
+      - component | length > 0
+    fail_msg: "component variable must be provided (e.g., idrac, powerscale)"
+
+- name: Load telemetry_packages.yml to get install_mode, repo_url, and pip_modules
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_packages_file | default(telemetry_packages_file_path) }}"
+    name: telemetry_packages
+  when: telemetry_packages is not defined
+
+- name: Set installation mode variables
+  ansible.builtin.set_fact:
+    install_mode: "{{ telemetry_packages.install_mode | default('offline') }}"
+    repo_url: "{{ telemetry_packages.repo_url | default('') }}"
+    pip_modules: "{{ telemetry_packages.pip_modules | default({}) }}"
+
+- name: Validate repo_url is set for offline mode
+  ansible.builtin.assert:
+    that:
+      - repo_url | length > 0
+    fail_msg: "repo_url must be set in telemetry_packages.yml when install_mode is 'offline'"
+  when: install_mode == "offline"
+
+- name: Build pip index URL from repo_url
+  ansible.builtin.set_fact:
+    pip_index_url: "{{ repo_url }}/pip_module/"
+  when: install_mode == "offline"
+
+- name: Get packages for component from telemetry_packages.yml
+  ansible.builtin.set_fact:
+    component_packages: "{{ pip_modules[component] | default({}) }}"
+
+- name: Validate component exists in pip_modules
+  ansible.builtin.assert:
+    that:
+      - component_packages | length > 0
+    fail_msg: "Component '{{ component }}' not found in telemetry_packages.yml pip_modules section"
+
+- name: Install Python packages for component
+  loop: "{{ component_packages | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  block:
+    - name: Check if Python module is installed
+      ansible.builtin.command: python3 -c "import {{ item.key }}"
+      register: module_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Python module
+      when: module_check.rc != 0
+      block:
+        - name: Log Python dependency installation
+          ansible.builtin.debug:
+            msg: "Installing Python {{ item.key }} module for {{ component }} - Mode: {{ install_mode }}"
+
+        - name: Install Python module in online mode (from PyPI)
+          when: install_mode == "online"
+          block:
+            - name: Install Python module from PyPI
+              ansible.builtin.command: >
+                python3 -m pip install {{ item.key }}=={{ item.value }}
+              register: pip_install_online
+              changed_when: true
+
+            - name: Fail if online installation failed
+              ansible.builtin.fail:
+                msg: "Failed to install {{ item.key }} module from PyPI. Check internet connectivity."
+              when: pip_install_online.rc != 0
+
+        - name: Install Python module in offline mode (from Pulp repo)
+          when: install_mode == "offline"
+          block:
+            - name: Install Python module from Pulp repo
+              ansible.builtin.command: >
+                python3 -m pip install --index-url {{ pip_index_url }}
+                {{ item.key }}=={{ item.value }}
+              register: pip_install_offline
+              changed_when: true
+
+            - name: Fail if offline installation failed
+              ansible.builtin.fail:
+                msg: "Failed to install {{ item.key }}=={{ item.value }} from {{ pip_index_url }}. Check Pulp repo availability."
+              when: pip_install_offline.rc != 0
+
+    - name: Verify Python module is now available
+      ansible.builtin.command: python3 -c "import {{ item.key }}; print({{ item.key }}.__version__)"
+      register: module_verify
+      changed_when: false
+
+    - name: Log successful installation
+      ansible.builtin.debug:
+        msg: "Python {{ item.key }} module version {{ module_verify.stdout }} is available (installed via {{ install_mode }} mode)"

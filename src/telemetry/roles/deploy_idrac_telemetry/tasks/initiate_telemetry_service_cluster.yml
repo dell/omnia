@@ -44,10 +44,38 @@
 
 - name: Load BMC inventory from bmc_group_data.csv
   ansible.builtin.set_fact:
-    bmc_ips_dict: "{{ lookup('file', telemetry_config.idrac_telemetry_configurations.bmc_group_data_path) | from_yaml }}"
+    bmc_group_data_lines: "{{ lookup('file', telemetry_config.idrac_telemetry_configurations.bmc_group_data_path).split('\n') }}"
   when:
     - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
     - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0
+
+- name: Parse BMC group data CSV and create parent-to-IP mapping
+  ansible.builtin.set_fact:
+    bmc_ips_dict: >-
+      {%- set result = {'MGMT_node': []} -%}
+      {%- for line in bmc_group_data_lines[1:] if line.strip() -%}
+        {%- set parts = line.split(',') -%}
+        {%- if parts | length >= 3 -%}
+          {%- set bmc_ip = parts[0].strip() -%}
+          {%- set parent = parts[2].strip() -%}
+          {%- if parent -%}
+            {%- set _ = result.update({parent: result.get(parent, []) + [bmc_ip]}) -%}
+          {%- else -%}
+            {%- set _ = result['MGMT_node'].append(bmc_ip) -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Create service_cluster_metadata for single-pod iDRAC telemetry deployment
+  ansible.builtin.set_fact:
+    service_cluster_metadata:
+      MGMT_node:
+        parent_status: true
+        service_tag: MGMT_node
+        role: service_kube_control_plane
+        idrac_podname: idrac-telemetry-0
+  when: service_cluster_metadata is not defined
 
 - name: Fetch iDRAC BMC IPs for each pod
   fetch_idrac_ips:
@@ -156,11 +184,98 @@
 - name: Remove deleted nodes from telemetry (nodes not in bmc_group_data.csv)
   ansible.builtin.include_tasks: remove_deleted_nodes.yml
 
+- name: Test SSH connectivity to worker node
+  ansible.builtin.command: >
+    ssh -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no
+    {{ worker_node }} echo reachable
+  register: worker_ssh_test
+  failed_when: false
+  changed_when: false
+  when:
+    - worker_node is defined
+    - filtered_bmc_ip_list | length > 0
+
+- name: Set worker node reachability flag
+  ansible.builtin.set_fact:
+    worker_node_reachable: "{{ worker_ssh_test.rc | default(1) == 0 }}"
+  when: worker_node is defined
+
 - name: Validate BMC reachability from worker node
   ansible.builtin.include_tasks: validate_bmcips_reachability.yml
   when:
     - worker_node is defined
+    - worker_node_reachable | default(false) | bool
     - filtered_bmc_ip_list | length > 0
+
+- name: Validate BMC reachability from control plane (worker node unreachable)
+  when:
+    - filtered_bmc_ip_list | length > 0
+    - not (worker_node_reachable | default(false) | bool)
+  block:
+    - name: Log fallback to control plane for BMC validation
+      ansible.builtin.debug:
+        msg: >-
+          Worker node {{ worker_node | default('undefined') }} is not SSH-reachable.
+          Running BMC validation from control plane instead.
+
+    - name: Validate BMC reachability from control plane
+      update_bmc_group_entry:
+        nodes: "{{ filtered_bmc_ip_dict_list }}"
+        bmc_username: "{{ telemetry_credentials.bmc_username }}"
+        bmc_password: "{{ telemetry_credentials.bmc_password }}"
+        verify_bmc: true
+      register: bmc_result
+
+    - name: Show verified BMC entries
+      when: bmc_result.verified_bmc | length > 0
+      ansible.builtin.debug:
+        msg: "BMC entries valid for IPs: {{ bmc_result.verified_bmc | join(', ') }}"
+
+    - name: Show Unreachable BMC IPs
+      when: bmc_result.unreachable_bmc | length > 0
+      ansible.builtin.debug:
+        msg: "Unreachable BMC IPs: {{ bmc_result.unreachable_bmc | join(', ') }}"
+
+    - name: Set fact for BMC IPs validation result
+      ansible.builtin.set_fact:
+        idrac_redfish_disabled: "{{ bmc_result.redfish_disabled }}"
+        idrac_invalid_creds: "{{ bmc_result.invalid_creds }}"
+        idrac_unreachable: "{{ bmc_result.unreachable_bmc }}"
+        invalid_idrac_count: >-
+          {{ (bmc_result.invalid_creds + bmc_result.unreachable_bmc + bmc_result.redfish_disabled) | length }}
+        invalid_idrac_list: >-
+          {{ bmc_result.invalid_creds + bmc_result.unreachable_bmc + bmc_result.redfish_disabled }}
+
+    - name: Filter iDRACs matching telemetry pre-requisites from control plane
+      idrac_telemetry_filter:
+        bmc_ip_list: "{{ bmc_result.verified_bmc }}"
+        bmc_username: "{{ telemetry_credentials.bmc_username }}"
+        bmc_password: "{{ telemetry_credentials.bmc_password }}"
+        min_firmware_version_reqd: "{{ min_firmware_version_reqd }}"
+      register: filter_idrac_output
+      when:
+        - bmc_result.verified_bmc is defined
+        - bmc_result.verified_bmc | length > 0
+
+    - name: Update the telemetry variables with filtered iDRACs
+      ansible.builtin.set_fact:
+        telemetry_idrac: "{{ filter_idrac_output.telemetry_idrac }}"
+        telemetry_idrac_count: "{{ filter_idrac_output.telemetry_idrac_count }}"
+        failed_idrac_count: "{{ filter_idrac_output.failed_idrac_count }}"
+        failed_idrac: "{{ filter_idrac_output.failed_idrac }}"
+      when:
+        - filter_idrac_output is defined
+        - filter_idrac_output.telemetry_idrac is defined
+
+    - name: Enable telemetry collection on iDRAC from control plane
+      enable_telemetry_service:
+        idrac_ips: "{{ telemetry_idrac }}"
+        username: "{{ telemetry_credentials.bmc_username }}"
+        password: "{{ telemetry_credentials.bmc_password }}"
+      register: enable_telemetry_output
+      when:
+        - telemetry_idrac is defined
+        - telemetry_idrac | length > 0
 
 # If there are unreachable BMCs and a second worker node is available,
 # retry those BMCs from the second worker node.
@@ -168,6 +283,7 @@
   when:
     - idrac_unreachable | default([]) | length > 0
     - worker_node_list | default([]) | length > 1
+    - worker_node_reachable | default(false) | bool
   block:
     - name: Build retry BMC list from unreachable IPs
       ansible.builtin.set_fact:

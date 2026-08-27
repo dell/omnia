@@ -56,7 +56,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [credentials, build_iso, deploy]
+  tags: [credentials, build_iso, deploy, generate_ks]
   roles:
     - role: collect_install_os_credentials
 
@@ -91,7 +91,12 @@
   gather_facts: true
   tags: [generate_ks]
   tasks:
-    - name: Resolve local NFS path for kickstart output
+    - name: Initialize NFS auto-mount flag
+      ansible.builtin.set_fact:
+        _nfs_auto_mounted: false
+        cacheable: false
+
+    - name: Check if NFS is already mounted
       ansible.builtin.shell: |
         set -o pipefail
         mount | grep '{{ _nfs_server }}:' | awk '{print $1 " " $3}'
@@ -99,10 +104,41 @@
       changed_when: false
       failed_when: false
 
+    - name: Auto-mount NFS if not already mounted
+      when: _ks_nfs_mounts.stdout | default('') | trim | length == 0
+      block:
+        - name: Create temporary NFS mount point
+          ansible.builtin.file:
+            path: /tmp/install_os_nfs
+            state: directory
+            mode: "0755"
+
+        - name: Mount NFS share
+          ansible.builtin.mount:
+            src: "{{ _nfs_server }}:{{ _nfs_dir | dirname }}"
+            path: /tmp/install_os_nfs
+            fstype: nfs
+            state: mounted
+
+        - name: Re-check NFS mounts after auto-mount
+          ansible.builtin.shell: |
+            set -o pipefail
+            mount | grep '{{ _nfs_server }}:' | awk '{print $1 " " $3}'
+          register: _ks_nfs_remount_check
+          changed_when: false
+        - name: Update _ks_nfs_mounts with remount check
+          ansible.builtin.set_fact:
+            _ks_nfs_mounts: "{{ _ks_nfs_remount_check }}"
+
+        - name: Set flag for cleanup
+          ansible.builtin.set_fact:
+            _nfs_auto_mounted: true
+            cacheable: false
+
     - name: Resolve local kickstart output path
       ansible.builtin.set_fact:
         _ks_local_dir: >-
-          {% set mounts = _ks_nfs_mounts.stdout_lines %}
+          {% set mounts = _ks_nfs_mounts.stdout_lines | default([]) %}
           {% set target_nfs_dir = _nfs_dir %}
           {% for line in mounts %}
           {% set parts = line.split() %}
@@ -118,6 +154,11 @@
           {% endif %}
           {% endfor %}
 
+    - name: Fail if path resolution failed
+      ansible.builtin.fail:
+        msg: "Failed to resolve local path for kickstart output. NFS mount may have failed or path is incorrect."
+      when: _ks_local_dir | trim | length == 0
+
     - name: Render Kickstart from template
       ansible.builtin.template:
         src: "{{ role_path | default(playbook_dir + '/../roles/iso_creation') }}/templates/{{ kickstart_template }}.ks.j2"
@@ -128,6 +169,13 @@
     - name: Log kickstart generation
       ansible.builtin.debug:
         msg: "Kickstart file generated at {{ _ks_local_dir | trim }}/kickstart.ks"
+
+    - name: Unmount auto-mounted NFS
+      ansible.builtin.command:
+        cmd: umount /tmp/install_os_nfs
+      when: _nfs_auto_mounted | default(false) | bool
+      changed_when: true
+      failed_when: false
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 6: Deploy ISO via iDRAC virtual media

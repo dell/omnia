@@ -33,7 +33,7 @@
 # Granular cleanup tags (opt-in — requires explicit --tags):
 #   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
 #   cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
-#   cleanup_dcgm, cleanup_ufm, cleanup_vast, cleanup_sfm
+#   cleanup_ufm, cleanup_vast
 #
 # Internal steps (always):
 #   Step 0: Setup — load env vars (omnia.env), validate host, derive paths, create dirs
@@ -72,13 +72,6 @@
   tags: [validate, validation]
 
 # =========================================================================
-# Step 2: Deploy — Full telemetry deployment (default flow)
-# =========================================================================
-- name: "Execute | Deploy all telemetry sources"
-  ansible.builtin.import_playbook: deploy/deploy.yml
-  tags: [execute, deploy]
-
-# =========================================================================
 # FLOW: precheck — Environment validation (opt-in only)
 # =========================================================================
 - name: "Precheck | Validate telemetry prerequisites"
@@ -86,6 +79,13 @@
   tags:
     # - never
     - precheck
+
+# =========================================================================
+# Step 2: Deploy — Full telemetry deployment (default flow)
+# =========================================================================
+- name: "Execute | Deploy all telemetry sources"
+  ansible.builtin.import_playbook: deploy/deploy.yml
+  tags: [execute, deploy]
 
 # =========================================================================
 # FLOW: cleanup — Remove telemetry components (opt-in only)
@@ -104,10 +104,9 @@
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
-    - cleanup_dcgm
     - cleanup_ufm
     - cleanup_vast
-    - cleanup_sfm
+
 
 # =========================================================================
 # FLOW: upgrade — Upgrade telemetry (opt-in only, placeholder)
@@ -135,6 +134,15 @@
   tags:
     - never
     - external_kafka
+
+# =========================================================================
+# UTILITY: external_victoria — Fetch Victoria connection details (opt-in)
+# =========================================================================
+- name: "Utility | Fetch external Victoria connection details"
+  ansible.builtin.import_playbook: utils/external_victoria_connect.yml
+  tags:
+    - never
+    - external_victoria
 
 # ---------------------------------------------------------------------------
 # Summary — Display telemetry status file location

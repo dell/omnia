@@ -103,6 +103,10 @@
   register: read_ssh_key
   no_log: true
 
+# NOTE: The private key is embedded into cloud-init write_files so that
+# nodes can perform passwordless SSH without depending on an NFS mount.
+# The metadata-service endpoint is HTTP-only on the admin network;
+# ensure the admin network is trusted and not exposed externally.
 - name: Read the ssh private key
   ansible.builtin.command: cat {{ ssh_private_key_path }}
   changed_when: false

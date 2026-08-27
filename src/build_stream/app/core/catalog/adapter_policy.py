@@ -227,7 +227,7 @@ def generate_software_config(
     config: Dict[str, Any] = {
         "cluster_os_type": os_family,
         "cluster_os_version": os_version,
-        "repo_config": "always",
+        "repo_config": "partial",
         "softwares": softwares,
     }
     config.update(subgroup_sections)

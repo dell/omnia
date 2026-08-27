@@ -47,6 +47,7 @@ from .functions.formatting_func import (
     Symbols,
     log,
     set_debug_mode,
+    set_verbose_mode,
     TestLogger,
     get_test_output,
     get_last_tc_id,
@@ -67,6 +68,8 @@ from .functions.host_func import (
     connection_params,
     read_remote_env,
     ensure_remote_dir,
+    read_remote_yaml,
+    read_yaml_key,
     resolve_domain_input_path,
 )
 
@@ -83,6 +86,28 @@ from .functions.runner_func import run_playbook
 # --- Sync ---
 from .functions.sync_func import clone_repo, sync_files
 
+# --- Validation Runner ---
+from .functions.validation_runner import ValidationRunner
+
+# --- Credential Management ---
+from .functions.credential_func import (
+    ensure_vault_key,
+    is_vault_encrypted,
+    vault_encrypt,
+    vault_decrypt_to_dict,
+    read_credential_field,
+    write_credential_fields,
+    prompt_credential,
+    prompt_and_confirm,
+)
+
+# --- Credential Vars ---
+from .vars.credential_vars import (
+    get_data_path,
+    get_project_name,
+    get_domain_input_path,
+)
+
 __all__ = [
     "__version__",
     # Config
@@ -95,6 +120,7 @@ __all__ = [
     "Symbols",
     "log",
     "set_debug_mode",
+    "set_verbose_mode",
     "TestLogger",
     "get_test_output",
     "get_last_tc_id",
@@ -112,6 +138,8 @@ __all__ = [
     "connection_params",
     "read_remote_env",
     "ensure_remote_dir",
+    "read_remote_yaml",
+    "read_yaml_key",
     "resolve_domain_input_path",
     # Report
     "TestReport",
@@ -122,4 +150,19 @@ __all__ = [
     # Sync
     "clone_repo",
     "sync_files",
+    # Validation Runner
+    "ValidationRunner",
+    # Credential Management
+    "ensure_vault_key",
+    "is_vault_encrypted",
+    "vault_encrypt",
+    "vault_decrypt_to_dict",
+    "read_credential_field",
+    "write_credential_fields",
+    "prompt_credential",
+    "prompt_and_confirm",
+    # Credential Vars
+    "get_data_path",
+    "get_project_name",
+    "get_domain_input_path",
 ]

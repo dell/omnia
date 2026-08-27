@@ -108,7 +108,7 @@ with the appropriate `os`, `os_version`, and package names.
 
 ## 5. catalog JSON (catalog mode)
 
-**Purpose**: Full package catalog with three-level resolution (functionallayer → groups → packages).
+**Purpose**: Full package catalog with three-level resolution (functionallayer -> groups -> packages).
 
 **Producer**: `repo_manager` domain
 
@@ -131,8 +131,8 @@ Layers are classified as **base OS** or **compute** by their **name prefix**:
 
 | Pattern | Classification | Result |
 |---------|---------------|--------|
-| Name starts with `baseos` | Base OS | Packages → `base_image_packages` |
-| Any other name | Compute | Non-baseos packages → `compute_images_dict` |
+| Name starts with `baseos` | Base OS | Packages -> `base_image_packages` |
+| Any other name | Compute | Non-baseos packages -> `compute_images_dict` |
 
 Compute layers that reference `baseos_group_*` components extract `os_version` and
 `os` (OS type) but skip those packages (already in the base image).

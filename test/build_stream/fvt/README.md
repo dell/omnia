@@ -1,10 +1,10 @@
 # Build Stream — FVT Test Cases
 
-## Section A: GitLab Installation & Infrastructure (22 test cases)
+## Section A: BuildStream Installation & Infrastructure (22 test cases)
 
 | TC ID | Test Function | Description |
 |-------|---------------|-------------|
-| TC_GI_000 | test_deploy_gitlab_install | Deploy build_stream --tags gitlab_install |
+| TC_GI_000 | test_deploy_buildstream_install | Deploy build_stream --tags buildstream_install |
 | TC_GI_001 | test_gitlab_packages_installed | Verify GitLab packages installed |
 | TC_GI_002 | test_gitlab_server_reachable | Verify GitLab server reachable from OIM |
 | TC_GI_003 | test_gitlab_runner_container | Verify gitlab-runner container running |
@@ -28,7 +28,7 @@
 | TC_GI_021 | test_omnia_env_exists | Verify omnia.env in GitLab repo (2.3) |
 | TC_GI_022 | test_domain_input_dirs_in_repo | Verify domain input dirs in repo (2.3) |
 
-## Section B: BuildStream Service Health (11 test cases)
+## Section B: BuildStream Service Health (9 test cases)
 
 | TC ID | Test Function | Description |
 |-------|---------------|-------------|
@@ -37,12 +37,27 @@
 | TC_BH_003 | test_postgres_tables | Verify Postgres tables exist |
 | TC_BH_004 | test_gitlab_server_running | Verify GitLab server running |
 | TC_BH_005 | test_gitlab_runner_running | Verify GitLab runner running |
-| TC_BH_006 | test_playbook_paths_yml_exists | Verify playbook_paths.yml (2.3) |
-| TC_BH_007 | test_playbook_paths_resolvable | Verify playbook paths resolve (2.3) |
-| TC_BH_008 | test_omnia_venv_exists | Verify shared venv exists (2.3) |
-| TC_BH_009 | test_bsm_tls_certificate_valid | Verify BSM TLS certificate (2.3) |
-| TC_BH_010 | test_nfs_queue_directory_accessible | Verify NFS queue dir (2.3) |
-| TC_BH_011 | test_playbook_watcher_running | Verify watcher service (2.3) |
+| TC_BH_006 | test_omnia_venv_exists | Verify shared venv exists (2.3) |
+| TC_BH_007 | test_bsm_tls_certificate_valid | Verify BSM TLS certificate (2.3) |
+| TC_BH_008 | test_nfs_queue_directory_accessible | Verify NFS queue dir (2.3) |
+| TC_BH_009 | test_playbook_watcher_running | Verify watcher service (2.3) |
+
+## Section D: Build Pipeline (13 test cases)
+
+| TC ID | Test Function | Description | Mode |
+|-------|---------------|-------------|------|
+| TC_BP_001 | test_deploy_build_pipeline | Push catalog, trigger pipeline, monitor stages | --test only |
+| TC_BP_PRE | test_build_credentials_configured | Verify server credentials configured | --test, --verify |
+| TC_BP_002 | test_build_bsm_health_check | Verify BSM API /health endpoint | --test, --verify |
+| TC_BP_003 | test_build_oauth_auth | Verify OAuth credentials registered | --test, --verify |
+| TC_BP_004 | test_build_job_created | Verify job created in DB | --test, --verify |
+| TC_BP_005 | test_build_job_accessible_via_api | Verify job accessible via BSM API | --test, --verify |
+| TC_BP_006 | test_build_stage_create_local_repository | Verify create-local-repository stage | --test, --verify |
+| TC_BP_007 | test_build_stage_build_image | Verify build-image stage completed | --test, --verify |
+| TC_BP_008 | test_build_repo_status | Verify repo_status.yml overall_status | --test, --verify |
+| TC_BP_009 | test_build_registry_images | Verify container images in registry | --test, --verify |
+| TC_BP_010 | test_build_s3_boot_images | Verify boot images in S3 | --test, --verify |
+| TC_BP_011 | test_build_pipeline_result | Build pipeline final result (build stages only) | --test, --verify |
 
 ## Execution
 
@@ -52,14 +67,20 @@ bash setup_env.sh
 source .venv/bin/activate
 
 # Configure
-vi test_config.yml
+vi test_config.yml    # Set catalog_name, oim_server_ip
 
-# Run GitLab install verification
-./run_validation.sh gitlab_install verify --marker sanity
+# Run buildstream install verification
+./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
 
 # Run health check verification
-./run_validation.sh gitlab_install verify --suite health
+./run_validation.sh fvt_build_stream buildstream_install verify --suite health
 
 # Full deploy + verify
-./run_validation.sh gitlab_install test
+./run_validation.sh fvt_build_stream buildstream_install test
+
+# Build pipeline — full flow (push catalog, trigger, monitor, verify)
+./run_validation.sh fvt_build_stream build_pipeline test
+
+# Build pipeline — verify only (requires job_id in test_config.yml)
+./run_validation.sh fvt_build_stream build_pipeline verify
 ```

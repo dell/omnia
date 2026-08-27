@@ -59,6 +59,10 @@ omnia-cli status
 ./omnia.sh -i telemetry            # Init single domain
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
 ./omnia.sh -i --force-deps         # Force reinstall deps for all domains
+./omnia.sh -i --skip telemetry     # Init all domains except telemetry
+./omnia.sh -i --skip telemetry,utils  # Skip multiple domains
+./omnia.sh -i --dry-run            # Preview which domains would be initialized
+./omnia.sh -i --dry-run --skip telemetry  # Preview with skip filter
 ./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --cleanup               # Remove venv + env (preserve data)
 ./omnia.sh --cleanup --all         # Full reset (remove everything including data)
@@ -109,6 +113,44 @@ bash src/image_build_manager/domain-init.sh --force-deps
 
 # Run with --force (overwrite without prompting)
 bash src/image_build_manager/domain-init.sh --force
+```
+
+### Domain Skip (`--skip`)
+
+Exclude specific domains during init instead of listing all the ones you want:
+
+```bash
+./omnia.sh -i --skip telemetry              # All domains except telemetry
+./omnia.sh -i --skip telemetry,utils        # Skip multiple domains
+./omnia.sh -s --skip build_stream           # Full setup, skip build_stream init
+./omnia.sh -i --skip telemetry --deps-only  # Combine with other flags
+```
+
+`--skip` is mutually exclusive with an explicit domain list:
+```bash
+./omnia.sh -i telemetry --skip utils   # ERROR: can't combine include + skip
+./omnia.sh --run repo_manager --skip utils  # ERROR: --skip requires -s or -i
+```
+
+### Dry Run (`--dry-run`)
+
+Preview which domains would be initialized without executing:
+
+```bash
+./omnia.sh -i --dry-run                      # Show all domains
+./omnia.sh -i --dry-run --skip telemetry     # Show filtered list
+```
+
+Output shows each domain and whether it has a `domain-init.sh` script:
+```
+DRY RUN — would initialize these domains:
+  build_stream
+  discovery
+  image_build_manager
+  orchestrator
+  repo_manager
+  utils
+  Skipped: telemetry
 ```
 
 ## Execution (`omnia.sh`)

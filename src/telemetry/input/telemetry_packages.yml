@@ -66,8 +66,17 @@ repo_url: ""
 # NFS Cluster Mount
 # -----------------------------------------------------------------------------
 # Local mount point on Kubernetes cluster nodes (already-mounted NFS share).
-# Telemetry stages Helm charts and packages at: <cluster_mount>/telemetry/
-cluster_mount: "/share_omnia_k8s"
+# Telemetry stages Helm charts and packages at: <k8s_cluster_mount>/telemetry/
+# Default: /opt/omnia/k8s_mount (matches orchestrator k8s mount for service_kube group)
+k8s_cluster_mount: "/opt/omnia/k8s_mount"
+
+# -----------------------------------------------------------------------------
+# NFS Slurm Mount
+# -----------------------------------------------------------------------------
+# Local mount point on Slurm cluster nodes (already-mounted NFS share).
+# LDMS stores configuration and data at: <slurm_cluster_mount>/telemetry/ldms/
+# Default: /share_omnia (matches orchestrator slurm mount for slurm/login groups)
+slurm_cluster_mount: "/share_omnia"
 
 # =============================================================================
 # Container Images
@@ -121,6 +130,7 @@ images:
   powerscale:
     csm_metrics: "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.12.0"
     otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.150.1"
+    csm_authorization_sidecar: "quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.5.0"
     cert_manager_controller: "quay.io/jetstack/cert-manager-controller:v1.10.0"
     cert_manager_cainjector: "quay.io/jetstack/cert-manager-cainjector:v1.10.0"
     cert_manager_webhook: "quay.io/jetstack/cert-manager-webhook:v1.10.0"
@@ -203,14 +213,50 @@ git_repos:
 # =============================================================================
 # Python Pip Modules
 # =============================================================================
-# Pip packages installed at runtime (CSI volume-exporter, PowerScale scripts).
+# Pip packages installed at runtime for telemetry components.
 # Offline: installed from <repo_url>/pip_module/<package>==<version>/
 # Online:  installed from PyPI (https://pypi.org)
+#
+# Structure:
+#   pip_modules:
+#     <component_name>:
+#       <package_name>: <version>
+#       <package_name>: <version>
+#       ...
+#
+# Available components:
+#   - idrac: iDRAC telemetry (MySQL operations via kubernetes module)
+#   - powerscale: PowerScale / CSI volume exporter (K8s API + PowerScale API)
+# =============================================================================
 pip_modules:
-  # Source: https://pypi.org/project/kubernetes/
-  kubernetes:
-    version: "33.1.0"
+  # iDRAC telemetry
+  # Required for: MySQL operations via kubernetes module
+  idrac:
+    kubernetes: "33.1.0"
 
-  # Source: https://pypi.org/project/prometheus-client/
-  prometheus_client:
-    version: "0.20.0"
+  # PowerScale / CSI volume exporter
+  # Required for: K8s API interaction, PowerScale API calls, metrics export
+  powerscale:
+    # K8s API client
+    kubernetes: "33.1.0"
+    # K8s dependencies
+    python_dateutil: "2.9.0.post0"
+    six: "1.17.0"
+    oauthlib: "3.2.2"
+    requests_oauthlib: "2.0.0"
+    websocket_client: "1.8.0"
+    google_auth: "2.36.0"
+    cachetools: "5.5.0"
+    pyasn1: "0.6.1"
+    pyasn1_modules: "0.4.1"
+    rsa: "4.9"
+    # PowerScale API
+    requests: "2.32.3"
+    urllib3: "2.2.3"
+    certifi: "2024.8.30"
+    charset_normalizer: "3.4.0"
+    idna: "3.10"
+    # Metrics export
+    prometheus_client: "0.20.0"
+    # YAML parsing
+    pyyaml: "6.0.2"

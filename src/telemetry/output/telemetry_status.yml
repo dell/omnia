@@ -62,8 +62,6 @@ sources:
     deployed: false
   powerscale:
     deployed: false
-  dcgm:
-    deployed: false
   ufm:
     deployed: false
   vast:

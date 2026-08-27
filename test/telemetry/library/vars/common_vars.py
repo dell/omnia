@@ -15,11 +15,8 @@
 """
 Telemetry — Module-Specific Variables
 
-Common vars (ssh_opts, config names, timeouts) live in the
-``omnia_auto`` package and are set via ``omnia_auto.configure()``
-in conftest.py.
-
-Only module-specific constants remain here.
+Constants, component names, and shell command templates for telemetry FVT.
+Paths are resolved from environment variables on the target host at runtime.
 """
 
 import os
@@ -40,7 +37,7 @@ TEST_ROOT = os.path.dirname(MODULE_ROOT)
 # Omnia monorepo root: omnia/
 MONOREPO_ROOT = os.path.dirname(TEST_ROOT)
 
-# src/ paths — used when dataset is empty (default: use src/ directly)
+# src/ paths - used when dataset is empty (default: use src/ directly)
 SRC_INPUT_DIR = os.path.join(
     MONOREPO_ROOT, "src", "telemetry", "input",
 )
@@ -60,14 +57,7 @@ ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 # =============================================================================
 
 TELEMETRY_CONFIG_FILE = "telemetry_config.yml"
-TELEMETRY_STORAGE_CONFIG_FILE = "telemetry_storage_config.yml"
 TELEMETRY_PACKAGES_FILE = "telemetry_packages.yml"
-
-INPUT_FILES = [
-    TELEMETRY_CONFIG_FILE,
-    TELEMETRY_STORAGE_CONFIG_FILE,
-    TELEMETRY_PACKAGES_FILE,
-]
 
 # =============================================================================
 # PLAYBOOK CONFIGURATION
@@ -80,28 +70,10 @@ PLAYBOOK_WORKDIR = "src/telemetry"
 PLAYBOOK_TAGS = [
     "precheck",
     "validate",
-    "execute",
     "deploy",
     "cleanup",
     "upgrade",
     "rollback",
-]
-
-# Cleanup sub-tags (tag-wise cleanup)
-CLEANUP_TAGS = [
-    "cleanup_kafka",
-    "cleanup_victoria_metrics",
-    "cleanup_victoria_logs",
-    "cleanup_idrac",
-    "cleanup_ldms",
-    "cleanup_ome",
-    "cleanup_powerscale",
-    "cleanup_dcgm",
-    "cleanup_ufm",
-    "cleanup_vast",
-    "cleanup_sfm",
-    "cleanup_skyway",
-    "cleanup_powervault",
 ]
 
 # =============================================================================
@@ -111,7 +83,7 @@ CLEANUP_TAGS = [
 TELEMETRY_NAMESPACE = "telemetry"
 
 # =============================================================================
-# SINK COMPONENT NAMES (used for pod verification)
+# SINK COMPONENT NAMES
 # =============================================================================
 
 # VictoriaMetrics cluster pod prefixes
@@ -134,33 +106,14 @@ VL_POD_PREFIXES = {
 # VictoriaLogs agent
 VLAGENT_POD_PREFIX = "vlagent"
 
-# Kafka pod prefixes (Strimzi naming: <cluster>-kafka-<n> for brokers)
-# Kafka CR name in deploy_kafka is "kafka", so pods = "kafka-kafka-*"
+# Kafka pod prefixes (Strimzi naming)
 KAFKA_POD_PREFIXES = {
-    "broker": "kafka-kafka",
+    "broker": "kafka-broker",
     "controller": "kafka-controller",
 }
 
-KAFKA_BRIDGE_PREFIX = "kafka-bridge"
+KAFKA_BRIDGE_PREFIX = "bridge-bridge"
 KAFKA_CR_NAME = "kafka"
-
-# TLS secret name (not a credential — this is a K8s Secret object name)
-VICTORIA_TLS_SECRET = "victoria-tls"  # nosec B105
-
-# Victoria cluster service names (from deploy_victoria vars)
-VM_SERVICES = {
-    "vminsert": "vminsert-victoria-cluster",
-    "vmselect": "vmselect-victoria-cluster",
-    "vmstorage": "vmstorage-victoria-cluster",
-}
-VL_SERVICES = {
-    "vlinsert": "vlinsert-victoria-logs-cluster",
-    "vlselect": "vlselect-victoria-logs-cluster",
-    "vlstorage": "vlstorage-victoria-logs-cluster",
-}
-
-# VM operator
-VM_OPERATOR_DEPLOY = "victoria-metrics-operator"
 
 # =============================================================================
 # SOURCE COMPONENT NAMES
@@ -180,54 +133,111 @@ IDRAC_CONTAINERS = [
 IDRAC_KAFKA_TOPIC = "idrac"
 
 # LDMS (from deploy_ldms/vars/main.yml)
-LDMS_AGG_POD = "nersc-ldms-aggr"
 LDMS_AGG_STS_NAME = "nersc-ldms-aggr"
-LDMS_STORE_POD = "nersc-ldms-store"
 LDMS_STORE_NAME = "nersc-ldms-store"
 LDMS_KAFKA_TOPIC = "ldms"
 
-# DCGM
+# DCGM (from deploy_dcgm/vars/main.yml)
 DCGM_POD_PREFIX = "dcgm-exporter"
 
-# Vector bridges (from deploy_ldms/vars and deploy_ome/vars)
-VECTOR_LDMS_PREFIX = "vector-ldms"
+# PowerScale (from deploy_powerscale/vars/main.yml)
+POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
+POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
+POWERSCALE_SECRET_NAME = "isilon-creds"
+POWERSCALE_EXPECTED_METRICS = [
+    "powerscale_cluster_cpu_use_rate",
+    "powerscale_cluster_disk_read_operation_rate",
+    "powerscale_cluster_disk_throughput_read_rate_megabytes_per_second",
+    "powerscale_cluster_disk_throughput_write_rate_megabytes_per_second",
+    "powerscale_cluster_disk_write_operation_rate",
+    "powerscale_cluster_remaining_capacity_terabytes",
+    "powerscale_cluster_total_capacity_terabytes",
+    "powerscale_cluster_used_capacity_percentage",
+    "karavi_topology_metrics",
+]
+
+# PowerScale syslog port (OneFS default)
+POWERSCALE_SYSLOG_PORT = 514
+
+# Telemetry config key paths (dot notation for read_yaml_key)
+CFG_KEY_PS_SECRET_PATH = "powerscale_configurations.csi_powerscale_secret_path"
+CFG_KEY_PS_METRICS_ENABLED = "telemetry_sources.powerscale.metrics_enabled"
+CFG_KEY_PS_LOGS_ENABLED = "telemetry_sources.powerscale.logs_enabled"
+
+# K8s service names (for dynamic IP/port resolution)
+SVC_VMSELECT = "vmselect-victoria-cluster"
+SVC_VLSELECT = "vlselect-victoria-logs-cluster"
+SVC_VLAGENT = "vlagent-vlagent"
+
+# Default port names inside K8s service specs
+SVC_PORT_NAME_HTTP = "http"
+
+# Vector bridges
 VECTOR_LDMS_APP_NAME = "vector-ldms"
-VECTOR_OME_PREFIX = "vector-ome"
 VECTOR_OME_APP_NAME = "vector-ome"
 
 # OME Kafka user
 OME_KAFKA_USER = "vector-ome-user"
 
-# Telemetry sources as listed in telemetry_config.yml
-TELEMETRY_SOURCES = [
-    "idrac",
-    "ldms",
-    "dcgm",
-    "powerscale",
-    "ufm",
-    "vast",
-    "ome",
-    "sfm",
-    "skyway",
-    "powervault",
+# OME external Kafka TLS cert subdirectory (under output_project_dir)
+OME_KAFKA_CERT_SUBDIR = "external_kafka"
+OME_KAFKA_CERT_FILES = ["ca.crt", "user.crt", "user.key"]
+
+# UFM (from deploy_ufm/vars/main.yml)
+UFM_SVC_NAME = "ufm-external"
+UFM_VMSCRAPE_NAME = "ufm-infiniband-metrics"
+# K8s Secret object name, not a credential value
+UFM_SECRET_NAME = "ufm-telemetry-credentials"  # noqa: S105
+UFM_EXPECTED_METRICS = [
+    "infiniband_CBW",
+    "PortXmitDataExtended",
+    "PortRcvDataExtended",
+    "PortXmitPktsExtended",
+    "PortRcvPktsExtended",
+    "LinkDownedCounterExtended",
 ]
 
-# =============================================================================
-# TELEMETRY SINKS
-# =============================================================================
+# Telemetry config key paths for UFM
+CFG_KEY_UFM_METRICS_ENABLED = "telemetry_sources.ufm.metrics_enabled"
+CFG_KEY_UFM_ENDPOINT = "ufm_configuration.ufm_endpoint"
+CFG_KEY_UFM_PORT = "ufm_configuration.ufm_metrics_port"
 
+# VAST (from deploy_vast/vars/main.yml)
+VAST_SVC_NAME = "vast-external"
+VAST_VMSCRAPE_NAME = "vast-storage-metrics"
+# K8s Secret object name, not a credential value
+VAST_SECRET_NAME = "vast-telemetry-credentials"  # noqa: S105
+# Expected VAST metrics based on documentation and screenshot
+# The screenshot shows: vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count
+VAST_EXPECTED_METRICS = [
+    "vast_read_throughput",
+    "vast_write_throughput",
+    "vast_read_iops",
+    "vast_write_iops",
+    "vast_capacity_total_bytes",
+    "vast_capacity_used_bytes",
+    "vast_capacity_avail_bytes",
+    "vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count",
+]
+
+# Telemetry config key paths for VAST
+CFG_KEY_VAST_METRICS_ENABLED = "telemetry_sources.vast.metrics_enabled"
+CFG_KEY_VAST_LOGS_ENABLED = "telemetry_sources.vast.logs_enabled"
+CFG_KEY_VAST_ENDPOINT = "vast_configuration.vast_endpoint"
+CFG_KEY_VAST_PORT = "vast_configuration.vast_metrics_port"
+
+# Telemetry sources list
+TELEMETRY_SOURCES = [
+    "idrac", "ldms", "dcgm", "powerscale", "ufm",
+    "vast", "ome", "sfm", "skyway", "powervault",
+]
+
+# Telemetry sinks list
 TELEMETRY_SINKS = [
     "victoria_metrics",
     "victoria_logs",
     "kafka",
 ]
-
-# =============================================================================
-# SHARED PATH DEFAULTS (runtime on target host)
-# =============================================================================
-
-DEFAULT_OMNIA_DATA_PATH = "/opt/omnia"
-DEFAULT_PROJECT_NAME = "project_default"
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS
@@ -239,21 +249,13 @@ IPV4_PATTERN = re.compile(
 )
 
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
     "clone_path",
     "report_path",
     "report_name",
 ]
 
-REQUIRED_DATASET_FILES = [
-    "input/telemetry_config.yml",
-    "input/telemetry_storage_config.yml",
-    "input/telemetry_packages.yml",
-]
-
 REQUIRED_SRC_FILES = [
     "telemetry_config.yml",
-    "telemetry_storage_config.yml",
     "telemetry_packages.yml",
 ]
 
@@ -265,13 +267,16 @@ REQUIRED_SRC_FILES = [
 
 CMDS = {
     # --- K8s / kubectl ---
+    "kubectl_get_pods_wide": (
+        "kubectl get pods -n {namespace} -o wide"
+    ),
+    "kubectl_get_pods_json_all": (
+        "kubectl get pods -n {namespace} -o json 2>/dev/null"
+    ),
     "kubectl_get_pods": (
         "kubectl get pods -n {namespace}"
         " --no-headers"
         " -o custom-columns='NAME:.metadata.name,STATUS:.status.phase'"
-    ),
-    "kubectl_get_pods_wide": (
-        "kubectl get pods -n {namespace} -o wide"
     ),
     "kubectl_get_pods_by_prefix": (
         "kubectl get pods -n {namespace}"
@@ -279,64 +284,96 @@ CMDS = {
         " -o custom-columns='NAME:.metadata.name,STATUS:.status.phase'"
         " | grep '^{prefix}'"
     ),
+    "kubectl_get_pods_json_by_label": (
+        "kubectl get pods -n {namespace}"
+        " -l {label_selector}"
+        " -o json 2>/dev/null"
+    ),
+    "kubectl_get_deploy_selector": (
+        "kubectl get deploy {name} -n {namespace}"
+        " -o jsonpath='{{.spec.selector.matchLabels}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_pods_json_by_selector": (
+        "kubectl get pods -n {namespace}"
+        " -l '{label_selector}'"
+        " -o json 2>/dev/null"
+    ),
     "kubectl_get_pod_count": (
         "kubectl get pods -n {namespace}"
         " --no-headers"
         " | grep '^{prefix}' | wc -l"
     ),
-    "kubectl_get_pvc": (
-        "kubectl get pvc -n {namespace}"
-        " --no-headers"
-        " -o custom-columns='NAME:.metadata.name,CAPACITY:.status.capacity.storage'"
-    ),
     "kubectl_get_svc": (
         "kubectl get svc -n {namespace}"
         " --no-headers"
-        " -o custom-columns='NAME:.metadata.name,TYPE:.spec.type,"
-        "CLUSTER-IP:.spec.clusterIP,EXTERNAL-IP:.status.loadBalancer.ingress[0].ip,"
-        "PORT:.spec.ports[0].port'"
+        " -o custom-columns='NAME:.metadata.name'"
     ),
-    "kubectl_get_secret": (  # nosec B105 — dict key, not a credential
-        "kubectl get secret {secret_name} -n {namespace}"
-        " --no-headers 2>/dev/null && echo exists || echo missing"
+    "kubectl_get_svc_json": (
+        "kubectl get svc -n {namespace} -o json 2>/dev/null"
     ),
     "kubectl_get_nodes_ready": (
         "kubectl get nodes --no-headers"
         " -o custom-columns='NAME:.metadata.name,"
-        "STATUS:.status.conditions[-1].type,"
-        "READY:.status.conditions[-1].status,"
-        "ROLE:.metadata.labels.node-role\\.kubernetes\\.io/control-plane'"
-    ),
-    "kubectl_get_control_plane": (
-        "kubectl get nodes"
-        " -l node-role.kubernetes.io/control-plane"
-        " --no-headers"
-        " -o custom-columns='NAME:.metadata.name,"
         "READY:.status.conditions[-1].status'"
-    ),
-    "kubectl_get_workers": (
-        "kubectl get nodes"
-        " -l '!node-role.kubernetes.io/control-plane'"
-        " --no-headers"
-        " -o custom-columns='NAME:.metadata.name,"
-        "READY:.status.conditions[-1].status'"
-    ),
-    "kubectl_get_all_pods_status": (
-        "kubectl get pods --all-namespaces"
-        " --no-headers"
-        " --field-selector metadata.namespace!={namespace}"
-        " -o custom-columns='NAMESPACE:.metadata.namespace,"
-        "NAME:.metadata.name,STATUS:.status.phase'"
-    ),
-    "kubectl_available": (
-        "kubectl version --client --short 2>/dev/null || kubectl version --client 2>/dev/null"
     ),
 
-    # --- Connectivity ---
-    "ping": "ping -c 2 -W 3 {host} 2>/dev/null",
-    "ssh_check": (
-        "ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no"
-        " -o BatchMode=yes {user}@{host} 'echo ok' 2>/dev/null"
+    # --- StatefulSet ---
+    "kubectl_get_sts_ready": (
+        "kubectl get statefulset {name} -n {namespace}"
+        " -o jsonpath='{{.status.readyReplicas}}' 2>/dev/null"
+    ),
+
+    # --- Deployment ---
+    "kubectl_get_deploy_ready": (
+        "kubectl get deployment {name} -n {namespace}"
+        " -o jsonpath='{{.status.readyReplicas}}' 2>/dev/null"
+    ),
+
+    # --- Pod containers ---
+    "kubectl_get_pod_containers": (
+        "kubectl get pod {pod_name} -n {namespace}"
+        " -o jsonpath='{{range .status.containerStatuses[*]}}"
+        "{{.name}}={{.ready}}{{\"\\n\"}}{{end}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Pod by label ---
+    "kubectl_get_pod_by_label": (
+        "kubectl get pods -n {namespace}"
+        " -l app={label}"
+        " -o jsonpath='{{.items[0].metadata.name}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Kafka ---
+    "kafka_wait_ready": (
+        "kubectl wait kafka/{kafka_cr} -n {namespace}"
+        " --for=condition=Ready --timeout=10s 2>/dev/null"
+        " && echo ready || echo not_ready"
+    ),
+    "kafka_get_topics_cr": (
+        "kubectl get kafkatopic -n {namespace}"
+        " --no-headers"
+        " -o custom-columns='NAME:.metadata.name' 2>/dev/null"
+    ),
+    "kafka_topic_ready": (
+        "kubectl get kafkatopic {topic} -n {namespace}"
+        " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- KafkaUser ---
+    "kubectl_get_kafkauser": (
+        "kubectl get kafkauser {name} -n {namespace}"
+        " --no-headers 2>/dev/null && echo exists || echo missing"
+    ),
+
+    # --- VictoriaPump ---
+    "victoriapump_container_running": (
+        "kubectl get pod {pod_name} -n {namespace}"
+        " -o jsonpath='{{.status.containerStatuses[?(@.name==\"victoria-pump\")].ready}}'"
+        " 2>/dev/null"
     ),
 
     # --- Files ---
@@ -350,83 +387,124 @@ CMDS = {
         " --tags {tag} -v 2>&1"
     ),
 
-    # --- VictoriaMetrics health ---
-    "vm_health": (
-        "curl -sk https://{host}:{port}/health 2>/dev/null"
-    ),
-
-    # --- Kafka ---
-    "kafka_topics": (
-        "kubectl exec -n {namespace} {broker_pod} --"
-        " /opt/kafka/bin/kafka-topics.sh --list"
-        " --bootstrap-server localhost:9092 2>/dev/null"
-    ),
-    "kafka_wait_ready": (
-        "kubectl wait kafka/{kafka_cr} -n {namespace}"
-        " --for=condition=Ready --timeout=10s 2>/dev/null"
-        " && echo ready || echo not_ready"
-    ),
-    "kafka_get_topics_cr": (
-        "kubectl get kafkatopic -n {namespace}"
-        " --no-headers"
-        " -o custom-columns='NAME:.metadata.name' 2>/dev/null"
-    ),
-
-    # --- StatefulSet ---
-    "kubectl_get_sts_ready": (
-        "kubectl get statefulset {name} -n {namespace}"
-        " -o jsonpath='{{.status.readyReplicas}}' 2>/dev/null"
-    ),
-    "kubectl_get_sts": (
-        "kubectl get statefulset {name} -n {namespace}"
-        " -o jsonpath='{{.status.readyReplicas}}/{{.spec.replicas}}' 2>/dev/null"
-    ),
-
-    # --- Deployment ---
-    "kubectl_get_deploy_ready": (
-        "kubectl get deployment {name} -n {namespace}"
-        " -o jsonpath='{{.status.readyReplicas}}' 2>/dev/null"
-    ),
-    "kubectl_get_deploy": (
-        "kubectl get deployment {name} -n {namespace}"
-        " -o jsonpath='{{.status.readyReplicas}}/{{.spec.replicas}}' 2>/dev/null"
-    ),
-
-    # --- Pod containers ---
-    "kubectl_get_pod_containers": (
-        "kubectl get pod {pod_name} -n {namespace}"
-        " -o jsonpath='{{range .status.containerStatuses[*]}}{{.name}}={{.ready}}{{\"\\n\"}}{{end}}'"
-        " 2>/dev/null"
-    ),
-
-    # --- KafkaUser ---
-    "kubectl_get_kafkauser": (
-        "kubectl get kafkauser {name} -n {namespace}"
-        " --no-headers 2>/dev/null && echo exists || echo missing"
-    ),
-
-    # --- iDRAC specific ---
-    "kubectl_get_idrac_pod_name": (
-        "kubectl get pods -n {namespace}"
-        " -l app={label}"
-        " -o jsonpath='{{.items[0].metadata.name}}'"
-        " 2>/dev/null"
-    ),
-    "kubectl_get_idrac_container_status": (
-        "kubectl get pod {pod_name} -n {namespace}"
-        " -o jsonpath='{{range .status.containerStatuses[*]}}{{.name}}={{.ready}}{{\"\\n\"}}{{end}}'"
-        " 2>/dev/null"
-    ),
-
-    # --- VictoriaMetrics health ---
-    "victoriapump_metrics": (
-        "kubectl exec -n {namespace} {pod_name} -c victoria-pump --"
-        " wget -qO- http://localhost:2112/metrics 2>/dev/null"
-    ),
-
     # --- LDMS specific ---
     "ldms_sampler_conf_exists": (
-        "test -f {share_path}/samplers/sampler.conf && echo exists || echo missing"
+        "test -f {share_path}/samplers/sampler.conf"
+        " && echo exists || echo missing"
+    ),
+
+    # --- Resolve kube_vip from orchestrator inventory ---
+    "read_kube_vip_ip": (
+        "python3 -c \""
+        "import yaml;"
+        "inv=yaml.safe_load(open('{inventory_path}'));"
+        "print(inv['all']['children']['kube_vip_group']"
+        "['hosts']['kube-vip']['ansible_host'])"
+        "\" 2>/dev/null"
+    ),
+
+    # --- Resolve telemetry config field ---
+    "read_telemetry_config_field": (
+        "python3 -c \""
+        "import yaml;"
+        "cfg=yaml.safe_load(open('{config_path}'));"
+        "print(cfg.get('{field}', ''))"
+        "\" 2>/dev/null"
+    ),
+
+    # --- PowerScale / isilon-creds secret ---
+    "kubectl_get_secret_data": (
+        "kubectl get secret {name} -n {namespace}"
+        " -o jsonpath='{{.data.{key}}}' 2>/dev/null"
+    ),
+
+    # --- VictoriaMetrics queries ---
+    "vm_query_metric_names": (
+        "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/label/__name__/values'"
+    ),
+    "vm_query_instant": (
+        "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query?query={query}'"
+    ),
+
+    # --- iDRAC VictoriaMetrics data ---
+    "vm_query_idrac_service_tag": (
+        "curl -s --max-time 15"
+        " 'http://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query?query={encoded_query}'"
+    ),
+
+    # --- VictoriaLogs queries ---
+    "vl_query_logs": (
+        "curl -sk 'https://{vlselect_ip}:{vlselect_port}"
+        "/select/logsql/query?query={query}&limit={limit}&start=-{range}'"
+    ),
+
+    # --- Service external IP ---
+    "kubectl_get_svc_lb_ip": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_svc_port": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o jsonpath='{{.spec.ports[?(@.name==\"{port_name}\")].port}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_svc_first_port": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o jsonpath='{{.spec.ports[0].port}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- OME REST API ---
+    "ome_get_forwarder": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})'"
+    ),
+    "ome_get_forwarder_status": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})/ConnectivityStatus'"
+    ),
+    "ome_get_forwarders_list": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/Forwarders'"
+    ),
+
+    # --- OpenSSL ---
+    "openssl_create_pfx": (
+        "openssl pkcs12 -export"
+        " -out {cert_dir}/user.pfx"
+        " -inkey {cert_dir}/user.key"
+        " -in {cert_dir}/user.crt"
+        " -passout pass:{password} 2>&1"
+    ),
+
+    # --- OME REST API: upload certificate ---
+    "ome_upload_cert": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/octet-stream'"
+        " --data-binary '@{cert_path}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.UploadCertificate'"
+    ),
+
+    # --- PowerScale syslog config via SSH ---
+    "powerscale_syslog_view": (
+        "sshpass -p '{password}'"
+        " ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
+        " {user}@{host}"
+        " 'isi audit settings global view'"
+    ),
+    "powerscale_syslog_configure": (
+        "sshpass -p '{password}'"
+        " ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
+        " {user}@{host}"
+        " '{isi_cmd}'"
     ),
 
     # --- Cleanup verification ---

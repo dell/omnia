@@ -1,10 +1,10 @@
 # Image Build Manager
 
-**Collection**: `omnia.image_build` v3.0.0
+**Collection**: `omnia.image_build` v2.3.0
 
 Builds OS images (RHEL/Rocky x86_64 + aarch64) for HPC cluster provisioning
 using OpenCHAMI. Deploys MinIO S3 + local OCI registry, builds per-functional-group
-images, and writes `build_status.yml` for downstream consumption by `orchestrator`.
+images, and writes `build_status.yml` for downstream consumption by the provisioning workflow.
 
 ---
 
@@ -28,14 +28,14 @@ export SYSTEM_ADMIN_NIC_IPV4=<your_admin_ip>
 
 # 2. Ensure repo_manager output exists
 #    (run repo_manager first, or copy sample files)
-mkdir -p /opt/omnia/repo_manager/output/project_default
+mkdir -p $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME
 cp samples/repo_manager_output/repo_status.yml \
-   /opt/omnia/repo_manager/output/project_default/
+   $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
 
 # 2b. For catalog mode: copy catalog JSON
-mkdir -p /opt/omnia/catalog
+mkdir -p $OMNIA_DATA_PATH/catalog
 cp samples/repo_manager_output/catalog_rhel.json \
-   /opt/omnia/catalog/
+   $OMNIA_DATA_PATH/catalog/
 
 # 3. Initialize domain (creates log dir + copies input files)
 vi input/project_default/image_build_config.yml
@@ -56,13 +56,11 @@ ansible-playbook image_build_manager.yml --tags cleanup
 | Tag | Description | Credentials |
 |-----|-------------|-------------|
 | `precheck` | Environment and connectivity check | No |
-| `validate` | L1 schema + L2 logic config validation | No |
+| `validate` | Schema + logic config validation | No |
 | `prepare` | Deploy MinIO S3 + OCI container registry | Yes |
 | `build` / `execute` | Build x86_64 + aarch64 OS images | Yes |
 | `cleanup` | Remove services, artifacts, credentials | No |
 | `cleanup_images` | Delete built images from S3 + registry (by pattern or all) | No |
-| `upgrade` | Upgrade flow (placeholder) | Yes |
-| `rollback` | Rollback flow (placeholder) | Yes |
 
 Sub-tags: `x86_64`, `aarch64` (run specific architecture only).
 
@@ -83,7 +81,7 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 ansible-playbook image_build_manager.yml --tags cleanup_images \
   -e cleanup_image_pattern="rhel-os_x86_64*"
 
-# Skip approval prompt (for test automation)
+# Skip approval prompt (for automation)
 ansible-playbook image_build_manager.yml --tags cleanup_images \
   -e skip_approval=true
 ```
@@ -109,11 +107,11 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 ### Output
 
-| File | Location | Consumer |
-|------|----------|----------|
-| `build_status.yml` | `output/<project>/` | orchestrator |
+| File | Location | Description |
+|------|----------|-------------|
+| `build_status.yml` | `output/<project>/` | Per-group S3 artifact paths for provisioning |
 
-See `docs/contracts/` for full contract specifications.
+See `samples/` for example input and output files.
 
 ---
 
@@ -141,62 +139,50 @@ See `docs/contracts/` for full contract specifications.
 
 ---
 
-## Collection Structure
+## AArch64 Build Host
 
+### Prerequisites
+
+| Requirement | Details |
+|------------|---------|
+| Architecture | ARM64 (`uname -m` = `aarch64`) |
+| OS | RHEL 10.x / Rocky 10.x |
+| Podman | 5.0+ (for builder container image) |
+| SSH | Passwordless SSH from OIM (`ssh-copy-id` — automated by `setup_ssh.yml`) |
+| Network | IP reachable from OIM admin NIC; port 22 open |
+| Internet | Optional — required only if Pulp registry is unavailable (for direct image pull and regctl download) |
+| Disk | 30 GB free in `/opt/omnia/image_build_manager/` |
+
+### Constraints
+
+- **Single node only**: The `admin_aarch64` inventory group must contain exactly one host.
+- **Work directory is fixed**: `/opt/omnia/image_build_manager/` on the aarch64 node.
+  The remote node does not run `omnia.sh` and does not use `OMNIA_DATA_PATH`.
+- **regctl installation**: Binary is pre-downloaded on the OIM to
+  `$OMNIA_DATA_PATH/image_build_manager/aarch64/regctl-linux-arm64`,
+  then SCP'd to `/usr/local/bin/regctl` on the aarch64 node. If SCP
+  fails, direct download from GitHub is attempted as a fallback.
+- **Builder image pull**: Tries the OIM's Pulp-based repo manager registry
+  first, then falls back to upstream DockerHub/GHCR.
+- **No NFS**: Build artifacts use local directories on the aarch64 node
+  (no shared filesystem required).
+
+### Configuration
+
+Set in `image_build_config.yml`:
+
+```yaml
+aarch64_inventory_host_ip: "10.20.0.2"   # ARM node IP
+aarch64_ssh_user: "root"                  # SSH user (default: root)
 ```
-image_build_manager/
-+-- galaxy.yml
-+-- meta/runtime.yml
-+-- CHANGELOG.md
-+-- ansible.cfg
-+-- domain-init.sh
-+-- plugins/
-|   +-- modules/                          10 modules (FQCN: omnia.image_build.*)
-|   |   +-- validate_image_build_config.py    L1+L2 config validation
-|   |   +-- validate_system_environment.py    Env var + system validation
-|   |   +-- validate_yaml_schema.py           Generic JSON Schema validator
-|   |   +-- image_build_orchestrator.py       Parallel build with concurrency
-|   |   +-- image_package_collector.py        RPM packages per functional group
-|   |   +-- base_image_package_collector.py   Base image RPM packages
-|   |   +-- generate_functional_groups.py     Functional groups from CSV
-|   |   +-- functional_group_parser.py        Normalize group input
-|   |   +-- parse_catalog.py                  Catalog JSON → RPM package resolution (layer-name classification)
-|   |   +-- parse_repo_status.py              repo_status.yml → repo lists + OS facts
-|   +-- module_utils/
-|   |   +-- input_validation/             L1+L2 validation framework
-|   |   |   +-- core/                     Config, file utils, validation engine
-|   |   |   +-- messages/                 Centralized error messages
-|   |   |   +-- schema/                   JSON Schema files (4 schemas)
-|   |   |   +-- validators/              L2 business logic validators
-|   |   +-- build_image/                  Build constants, config, helpers
-|   +-- callback/
-|       +-- omnia_default.py              Custom callback plugin
-+-- roles/                                10 roles
-|   +-- image_build_setup                 Setup: load env, validate prereqs, parse repo_status
-|   +-- validate_image_build_input        L1+L2 config validation
-|   +-- validate_build_runtime            Runtime environment checks
-|   +-- collect_build_credentials         S3 + SSH credential prompts (Vault)
-|   +-- deploy_minio                      MinIO S3 via Podman Quadlet
-|   +-- deploy_registry                   OCI registry via Podman Quadlet + regctl
-|   +-- fetch_build_packages              Dual-mode package resolution (config/catalog)
-|   +-- prepare_aarch64_node              Prepare ARM build host
-|   +-- build_os_images                   OpenCHAMI image builds + S3 upload + regctl verify
-|   +-- cleanup_build_artifacts           Remove services + artifacts
-+-- playbooks/
-|   +-- image_build_manager.yml           Entry point
-|   +-- validate/                         Config validation sub-playbook
-|   +-- credentials/                      Credential collection sub-playbook
-|   +-- prepare/                          MinIO + Registry sub-playbook
-|   +-- build/                            x86_64 + aarch64 build sub-playbooks
-|   +-- cleanup/                          Cleanup sub-playbook
-|   +-- upgrade/                          Upgrade sub-playbook (placeholder)
-|   +-- rollback/                         Rollback sub-playbook (placeholder)
-+-- input/project_default/               Default input config
-+-- samples/repo_manager_output/         Sample upstream contract files
-+-- containers/image_builder/            Image builder container (Dockerfile)
-+-- vars/                                Shared variables (S3 buckets, commands)
-+-- docs/                                Domain documentation
+
+Set in `image_build_credentials.yml` (auto-encrypted with Ansible Vault):
+
+```yaml
+aarch64_ssh_password: "<password>"        # Only for initial ssh-copy-id
 ```
+
+Leave `aarch64_inventory_host_ip` empty to skip aarch64 builds entirely.
 
 ---
 
@@ -266,8 +252,6 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 +-- cleanup.log               Cleanup sub-playbook log
 +-- credentials.log           Credentials sub-playbook log
 +-- prepare.log               Prepare sub-playbook log
-+-- rollback.log              Rollback sub-playbook log
-+-- upgrade.log               Upgrade sub-playbook log
 +-- validate.log              Validate sub-playbook log
 ```
 
@@ -283,13 +267,11 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 
 | Document | Description |
 |----------|-------------|
-| `docs/architecture.md` | Execution flow, role dependency, data contracts |
+| `docs/architecture.md` | Execution flow, tag reference, role dependency |
 | `docs/package-mapping-guide.md` | RPM package customization guide |
 | `docs/troubleshooting.md` | Common issues and fixes |
 | `docs/contracts/input-contract.md` | Input file specifications |
 | `docs/contracts/output-contract.md` | Output file specifications |
-| `docs/design/` | Design documents |
-| `docs/design/catalog-migration-design.md` | Catalog migration design (dual-mode package resolution) |
 
 ---
 
