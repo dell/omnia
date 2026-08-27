@@ -67,5 +67,4 @@
     - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
     - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0
 
-- name: Update telemetry status
-  ansible.builtin.include_tasks: update_status.yml
+## Status is now collected centrally in deploy.yml Phase 4.

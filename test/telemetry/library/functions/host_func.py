@@ -66,7 +66,7 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
         dest=config["clone_path"],
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
 
@@ -104,5 +104,5 @@ def sync_telemetry_input(host) -> Dict[str, Any]:
     return sync_files(
         mode=conn["mode"], src=local_input, dest=remote_input,
         ip=conn["ip"], user=conn["user"],
-        password=conn["password"], ssh_opts=conn["ssh_opts"],
+        auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
     )

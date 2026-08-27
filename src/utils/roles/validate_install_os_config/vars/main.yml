@@ -36,3 +36,18 @@ invalid_architecture_msg: >-
   'target_architecture' must be 'x86_64' or 'aarch64'. Got: '{{ _os_arch }}'
 invalid_ks_delivery_msg: >-
   'kickstart_delivery_method' must be 'embedded' or 'nfs'. Got: '{{ install_os_config.kickstart_delivery_method | default("") }}'
+ssh_key_not_found_msg: >-
+  SSH public key not found at {{ ssh_public_key_path }}.
+  Passwordless SSH verification requires this key for OS installation.
+  Generate an SSH key with the following command:
+  ssh-keygen -t rsa -b 4096 -N "" -f {{ ssh_public_key_path | dirname }}/id_rsa
+  Or specify a different path in install_os_config.yml: ssh_public_key_path
+config_validated_msg: >-
+  OS Install config validated.
+  Mode: build={{ _mode_build_iso }}, deploy={{ _mode_deploy }}, generate_ks={{ _mode_generate_ks }}.
+  Arch: {{ os_arch | default('N/A') }}.
+  Source ISO: {{ source_iso_path | default('N/A') }}.
+  Custom ISO: {{ custom_iso_path | default('N/A') }}.
+  KS delivery: {{ kickstart_delivery_method | default('embedded') }}.
+  Target BMC: {{ target_bmc_ip | default('N/A') }}.
+  SSH key: {{ ssh_public_key_path | default('N/A') }} (validated).

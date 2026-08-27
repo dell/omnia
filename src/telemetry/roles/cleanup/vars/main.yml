@@ -288,15 +288,4 @@ vast_resources:
   - { type: "endpoints", name: "vast-external" }
   - { type: "service", name: "vast-external" }
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
-
 vast_pod_label: "app=vast-external"
-
-# =============================================================================
-# SFM cleanup resources
-# =============================================================================
-sfm_resources:
-  - { type: "deployment", name: "sfm-exporter" }
-  - { type: "service", name: "sfm-exporter" }
-  - { type: "configmap", name: "sfm-scrape-config" }
-
-sfm_pod_label: "app=sfm-telemetry"
