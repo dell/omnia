@@ -24,6 +24,7 @@ victoria_persistence_size: "8Gi"
 victoria_retention_period: "7d"
 kafka_persistence_size: "8Gi"
 k8s_cluster_mount: "/opt/omnia/k8s_mount"
+slurm_cluster_mount: "/share_omnia"
 
 # Project
 project_name: "project_default"
