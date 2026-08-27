@@ -53,13 +53,13 @@ src/image_build_manager/
 │           ├── schema/
 │           │   ├── image_build_config.json
 │           │   ├── image_build_credentials.json
-│           │   ├── catalog.json                # catalog structure + referential integrity
+│           │   ├── catalog.json                # catalog structure validation
 │           │   └── functional_groups_config.json
 │           └── validators/
 │               ├── __init__.py
 │               ├── image_build_config_validator.py       # L2 config rules
 │               ├── image_build_credentials_validator.py  # L2 credential rules
-│               └── catalog_validator.py                  # L2 catalog referential integrity
+│               └── catalog_validator.py                  # L2 catalog structure validation
 ├── playbooks/
 │   ├── image_build_manager.yml          # Top-level orchestrator (all tag routing)
 │   ├── build/
@@ -252,9 +252,9 @@ The image_build_manager uses a **two-tier validation architecture**:
 │    ├── aarch64 host IP ↔ ssh_user dependency            │
 │    ├── job_async ≥ job_retry × job_delay                │
 │    └── powerscale → s3_access_id required               │
-│  L2: Catalog Referential Integrity (when catalog mode)  │
-│    ├── layers → groups (dangling component check)       │
-│    └── groups → packages (dangling package check)       │
+│  L2: Catalog Structure Validation (when catalog mode)   │
+│    ├── layers have 'name' and 'components' fields       │
+│    └── groups is a dict with proper structure            │
 │  Vault Detection                                        │
 │    └── Skip encrypted files (detect $ANSIBLE_VAULT)     │
 └─────────────────────────────────────────────────────────┘
@@ -266,7 +266,7 @@ The image_build_manager uses a **two-tier validation architecture**:
 |-------|------|-------|------|
 | **L1 — Schema** | JSON Schema type/required/enum checks | `core/validation_engine.py` + `schema/*.json` | Always (Step 1) |
 | **L2 — Logic** | Cross-field business rules | `validators/image_build_config_validator.py` | Always (Step 1) |
-| **L2 — Catalog** | Referential integrity (layers → groups → packages) | `validators/catalog_validator.py` | When `functional_groups_source: "catalog"` |
+| **L2 — Catalog** | Structure validation (layers have name/components, groups is dict) | `validators/catalog_validator.py` | When `functional_groups_source: "catalog"` |
 | **L3 — Runtime** | File existence, S3 reachability, cert validity | `validate_build_runtime` role | Before build (in build playbooks) |
 
 ### 5.3 Validated Files
@@ -288,8 +288,8 @@ The image_build_manager uses a **two-tier validation architecture**:
 | PowerScale access ID | `provider == powerscale` → `s3_access_id` required in credentials | "s3_access_id is required for powerscale" |
 | Catalog file exists | `functional_groups_source == "catalog"` → catalog file exists | "catalog file not found" |
 | Catalog root key | Catalog JSON must have `catalog` root key | "catalog: missing root 'catalog' key" |
-| Catalog layers → groups | Layer components must reference existing groups | "layer references unknown group" |
-| Catalog groups → packages | Group components must reference existing packages | "group references unknown package" |
+| Catalog layer structure | Each layer must have `name` and `components` (list) fields | "functionallayer missing 'name'/'components'" |
+| Catalog groups type | `groups` must be a dictionary | "groups must be a dictionary" |
 
 ### 5.5 Vault-Encrypted File Handling
 

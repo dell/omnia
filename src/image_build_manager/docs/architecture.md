@@ -94,7 +94,7 @@ Roles: `validate_image_build_input`
 - L2 logic validation (S3 provider, aarch64 host, build timeout)
 - L2 catalog validation (when `functional_groups_source: "catalog"` and `CATALOG_FILE_PATH` set):
   - Schema structure checks (functionallayer, groups, packages)
-  - Referential integrity: layers -> groups -> packages
+  - Structure validation: layers have name/components, groups is dict
 - No credentials required
 
 ### Step 2: Credentials (tag: always, skipped for validate/cleanup/cleanup_images/precheck)
@@ -253,7 +253,7 @@ image_build_setup
 |-----------|--------|
 | `image_build_config_validator` | S3 provider/endpoint consistency, aarch64 host/user, build timeout |
 | `image_build_credentials_validator` | S3 access keys (powerscale), aarch64 SSH password |
-| `catalog_validator` | Referential integrity: layers -> groups -> packages |
+| `catalog_validator` | Structure: layers have name/components, groups is dict |
 
 ## Key Design Decisions
 
@@ -264,5 +264,5 @@ image_build_setup
 5. **Layer-name classification** -- baseos vs compute determined by layer name prefix, not component membership
 6. **Dual builder support** -- `image-builder` (standard) or `image-thrillhouse` (next-gen)
 7. **Guaranteed regctl** -- installed by `deploy_registry`, used unconditionally for verification
-8. **Catalog validation** -- referential integrity checks when `functional_groups_source: "catalog"`
+8. **Catalog validation** -- structure checks when `functional_groups_source: "catalog"`
 9. **AArch64 separation of concerns** -- SSH setup on localhost, node prep via SSH, build on remote node

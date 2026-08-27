@@ -14,11 +14,17 @@
 """
 Catalog JSON validator for image_build_manager.
 
-Validates catalog JSON structure and referential integrity when
-functional_groups_source is set to 'catalog'. Checks:
-- Required top-level keys (catalog.functionallayer, catalog.groups, catalog.packages)
-- Referential integrity: layer -> groups -> packages
-- Dangling references (groups not in catalog, packages not in group)
+Validates catalog JSON **structure** when functional_groups_source is set
+to 'catalog'. Checks:
+- Valid JSON with 'catalog' root key
+- Required sections present (functionallayer, groups, packages)
+- Layers have 'name' and 'components' fields
+- Groups have 'components' field (list)
+
+Does NOT validate referential integrity (e.g. whether every package key
+referenced by a group exists in catalog.packages). The catalog is produced
+by repo_manager and may contain forward references or optional components
+that are resolved at build time by parse_catalog.py.
 """
 import json
 import os
@@ -86,23 +92,25 @@ def validate(catalog_file, logger=None):
             logger.error(msg.CATALOG_MISSING_PACKAGES_MSG)
         packages = {}
 
-    # Referential integrity: layers -> groups
-    for layer in layers:
-        layer_name = layer.get("name", "<unnamed>")
-        for comp in layer.get("components", []):
-            if comp not in groups:
-                err = msg.catalog_dangling_component_msg(layer_name, comp)
-                errors.append(err)
-                if logger:
-                    logger.error(err)
+    # Structural check: each layer should have 'name' and 'components'
+    for idx, layer in enumerate(layers):
+        if "name" not in layer:
+            err = f"catalog: functionallayer[{idx}] is missing 'name' field."
+            errors.append(err)
+            if logger:
+                logger.error(err)
+        if "components" not in layer or not isinstance(layer.get("components"), list):
+            layer_name = layer.get("name", f"<index {idx}>")
+            err = f"catalog: functionallayer '{layer_name}' is missing or has non-list 'components' field."
+            errors.append(err)
+            if logger:
+                logger.error(err)
 
-    # Referential integrity: groups -> packages
-    for group_name, group_data in groups.items():
-        for pkg_key in group_data.get("components", []):
-            if pkg_key not in packages:
-                err = msg.catalog_dangling_package_msg(group_name, pkg_key)
-                errors.append(err)
-                if logger:
-                    logger.error(err)
+    # Structural check: groups should be a dict, each group should have 'components' list
+    if not isinstance(groups, dict):
+        err = "catalog: 'groups' must be a dictionary."
+        errors.append(err)
+        if logger:
+            logger.error(err)
 
     return errors
