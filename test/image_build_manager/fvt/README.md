@@ -60,6 +60,20 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_BD_015 | `test_image_packages_aarch64` | image_verification/ | 14 | aarch64, sanity | Verify packages installed in aarch64 S3 images |
 | TC_BD_016 | `test_repo_ssl_verify_applied` | *(validate/status)* | 4 | x86_64, functional | Verify repo_ssl_verify is applied in build templates |
 
+### AArch64 infrastructure
+
+These tests verify that the aarch64 build node was correctly prepared by
+`build_image_aarch64.yml` (SSH setup, work dirs, builder image, regctl).
+All auto-skip when `aarch64_inventory_host_ip` is not configured.
+
+| TC ID | Test | Suite | Order | Markers | Description |
+|-------|------|-------|-------|---------|-------------|
+| TC_BD_017 | `test_aarch64_ssh_connectivity` | aarch64/ | 10 | aarch64, sanity | Verify passwordless SSH to aarch64 node |
+| TC_BD_018 | `test_aarch64_work_dirs` | aarch64/ | 11 | aarch64, sanity | Verify aarch64 work directories exist |
+| TC_BD_019 | `test_aarch64_builder_image` | aarch64/ | 12 | aarch64, functional | Verify builder image on aarch64 node |
+| TC_BD_020 | `test_aarch64_regctl_installed` | aarch64/ | 13 | aarch64, functional | Verify regctl installed on aarch64 node |
+| TC_BD_021 | `test_aarch64_architecture` | aarch64/ | 14 | aarch64, functional | Verify aarch64 node is ARM architecture |
+
 ### Build-type naming convention
 
 These cases verify that the `-imgbld` / `-imgth` artifact suffix is applied correctly
@@ -116,10 +130,10 @@ so the two build engines never overwrite each other's registry images or S3 obje
 | precheck | TC_PC_ | 6 (001–006) | |
 | validate | TC_VL_ | 4 (001–004) | 004 = repo_ssl_verify_config |
 | prepare | TC_PR_ | 8 (001–008) | |
-| build | TC_BD_ | 16 (001–016) | 007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify |
+| build | TC_BD_ | 21 (001–021) | 007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify, 017–021 aarch64 infra |
 | cleanup | TC_CL_ | 8 (001–008) | |
 | cleanup_images | TC_CI_ | 3 (001–003) | |
-| **Total** | | **45** | Plus TC_IB_001 (full-stack deploy) |
+| **Total** | | **50** | Plus TC_IB_001 (full-stack deploy) |
 
 ### Naming Convention Test Matrix
 

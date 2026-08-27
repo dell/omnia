@@ -21,7 +21,6 @@ and cleanup lifecycle.
 
 ```
 src/image_build_manager/
-├── image_build_manager.yml              # Top-level orchestrator
 ├── ansible.cfg                          # Domain config (fully local paths)
 ├── plugins/
 │   ├── modules/
@@ -29,6 +28,8 @@ src/image_build_manager/
 │   │   ├── image_package_collector.py
 │   │   ├── functional_group_parser.py
 │   │   ├── generate_functional_groups.py
+│   │   ├── parse_catalog.py             # Catalog JSON parser (catalog mode)
+│   │   ├── parse_repo_status.py         # Repo status parser (old + new format)
 │   │   ├── validate_image_build_config.py
 │   │   ├── validate_system_environment.py
 │   │   ├── validate_yaml_schema.py
@@ -45,49 +46,71 @@ src/image_build_manager/
 │           │   ├── config.py                   # domain constants, file mappings
 │           │   ├── file_utils.py               # YAML/JSON loaders, vault detection
 │           │   ├── utils.py                    # logger factory, helpers
-│           │   └── validation_engine.py        # L1 schema() + L2 logic() entry points
+│           │   └── validation_engine.py        # L1 schema() + L2 logic() + L2 catalog
 │           ├── messages/
 │           │   ├── __init__.py
 │           │   └── image_build_messages.py     # all validation message constants
 │           ├── schema/
 │           │   ├── image_build_config.json
 │           │   ├── image_build_credentials.json
+│           │   ├── catalog.json                # catalog structure + referential integrity
 │           │   └── functional_groups_config.json
 │           └── validators/
 │               ├── __init__.py
 │               ├── image_build_config_validator.py       # L2 config rules
-│               └── image_build_credentials_validator.py  # L2 credential rules
+│               ├── image_build_credentials_validator.py  # L2 credential rules
+│               └── catalog_validator.py                  # L2 catalog referential integrity
 ├── playbooks/
-│   ├── ansible.cfg                      # Standalone sub-playbook config
-│   ├── prepare_image_build_manager.yml  # Deploy MinIO + Registry + SELinux preflight
-│   ├── build_image_x86_64.yml
-│   ├── build_image_aarch64.yml
-│   ├── cleanup_image_build_manager.yml
-│   ├── get_build_credentials.yml
-│   ├── validate_image_build_config.yml  # Standalone validation
-│   ├── upgrade_image_build_manager.yml
-│   └── rollback_image_build_manager.yml
+│   ├── image_build_manager.yml          # Top-level orchestrator (all tag routing)
+│   ├── build/
+│   │   ├── build_image_x86_64.yml
+│   │   ├── build_image_aarch64.yml
+│   │   └── write_build_status.yml
+│   ├── cleanup/
+│   │   ├── cleanup_image_build_manager.yml
+│   │   └── cleanup_images.yml
+│   ├── credentials/
+│   │   └── get_build_credentials.yml    # Standalone credential collection
+│   ├── precheck/
+│   │   └── precheck_environment.yml
+│   ├── prepare/
+│   │   └── prepare_image_build_manager.yml
+│   ├── rollback/
+│   │   └── rollback_image_build_manager.yml
+│   ├── upgrade/
+│   │   └── upgrade_image_build_manager.yml
+│   └── validate/
+│       └── validate_image_build_config.yml
 ├── roles/
-│   ├── image_build_setup/               # Upgrade guard, input dir, OIM group, guard facts
+│   ├── image_build_setup/               # Tag validation, config loading, prereqs, guard facts
+│   ├── precheck_environment/            # Environment validation (env vars, connectivity)
 │   ├── validate_image_build_input/      # L1 schema + L2 logic validation
-│   ├── collect_build_credentials/        # Credential prompt, encrypt, vault
+│   ├── collect_build_credentials/       # Credential prompt, encrypt, vault
 │   ├── generate_functional_groups/      # Generate functional_groups_config.yml
 │   ├── validate_build_runtime/          # Runtime L2/L3 pre-checks
 │   ├── deploy_minio/                    # MinIO Quadlet container service
-│   ├── deploy_registry/                 # Container registry Quadlet service
-│   ├── fetch_build_packages/            # Package collection + repo fetch
-│   ├── build_os_images/                 # Build base + compute images
-│   ├── prepare_aarch64_node/            # aarch64 build host setup
+│   ├── deploy_registry/                 # Container registry Quadlet service + regctl
+│   ├── fetch_build_packages/            # Package collection + repo fetch (config or catalog)
+│   ├── build_os_images/                 # Build base + compute images (x86_64/aarch64)
+│   ├── prepare_aarch64_node/            # aarch64 build host setup (SSH, Podman, builder image)
 │   └── cleanup_build_artifacts/         # Full cleanup (MinIO, registry, creds, artifacts)
+├── docs/
+│   ├── architecture.md                  # Canonical tag/flow reference
+│   ├── troubleshooting.md
+│   ├── package-mapping-guide.md
+│   ├── contracts/
+│   │   ├── input-contract.md
+│   │   └── output-contract.md
+│   └── design/
+│       ├── image-builder-design.md      # This file
+│       ├── catalog-migration-design.md
+│       ├── standalone-design.md
+│       └── standalone-mode-a.md
 ├── vars/
 │   ├── image_vars.yml                   # S3 bucket constants
 │   └── openchami_image_cmd.yml          # OpenCHAMI build commands
-├── containers/
-│   └── build_images.sh                  # Self-contained image-builder container build
-├── INPUT_CONTRACT.md
-├── OUTPUT_CONTRACT.md
-├── IMAGE_BUILD_MIGRATION_PLAN.md
-└── IMAGE_BUILDER_DESIGN.md             # This file
+└── containers/
+    └── build_images.sh                  # Self-contained image-builder container build
 ```
 
 ---
@@ -173,27 +196,32 @@ Figure: image_build_manager.yml orchestration flow
 
 | Step | Play | Host | Description |
 |------|------|------|-------------|
-| 0 | Setup | localhost | `image_build_setup` role — upgrade guard, dirs, metadata, OIM group |
-| 1 | Validate | localhost | `validate_image_build_config.yml` — L1 schema + L2 logic |
-| 2 | Credentials | localhost | `get_build_credentials.yml` — prompt, encrypt, vault |
-| 3 | Config | localhost | Load `image_build_config.yml` + S3 endpoint resolution |
-| 4 | Pre-check | localhost | Load `repo_status.yml` → repo manager repos + certs |
-| 5 | Prepare | oim (SSH) | Deploy MinIO + Registry + SELinux policy |
-| 6 | Build x86_64 | oim (SSH) | Validate → fetch packages → build images |
-| 7 | Build aarch64 | admin_aarch64 | Prepare ARM node → build images |
-| 8 | Output | localhost | Write `build_status.yml` |
+| 0 | Setup | localhost | `image_build_setup` role — tag validation, config loading, prereqs, guard facts |
+| 1 | Validate | localhost | `validate_image_build_config.yml` — L1 schema + L2 logic + L2 catalog |
+| 2 | Credentials | localhost | `get_build_credentials.yml` — prompt, encrypt, vault (skipped for cleanup/validate/precheck) |
+| 3 | Precheck | localhost | `precheck_environment.yml` — env vars, connectivity (opt-in only) |
+| 4 | Prepare | localhost | Deploy MinIO + Registry + regctl (idempotent) |
+| 5 | Build x86_64 | localhost | Fetch packages → build images → push to S3 + registry |
+| 6 | Build aarch64 | aarch64 node | Prepare ARM node → build images (skipped if no aarch64 host) |
+| 7 | Output | localhost | Write `build_status.yml` |
 
 ### Tags
 
-| Tag | What runs |
-|-----|-----------|
-| *(none)* | Full flow: setup → validate → prepare → build |
-| `prepare` | Steps 0–5 only (deploy infra) |
-| `build` | Steps 0–4 + 5–8 (prepare + build) |
-| `validate` | Steps 0–1 only (validation) |
-| `cleanup` | Cleanup MinIO, registry, artifacts |
-| `upgrade` | Upgrade flow (placeholder) |
-| `rollback` | Rollback flow (placeholder) |
+> **Canonical tag reference**: See [architecture.md](../architecture.md) for the complete tag
+> behavior matrix including credential skip logic and repo_status requirements.
+
+| Tag | What runs | Credentials |
+|-----|-----------|-------------|
+| *(none)* | Full flow: setup → validate → creds → prepare → build | Yes |
+| `precheck` | Environment validation only (env vars, connectivity) | No |
+| `validate` | Config validation only (L1 + L2) | No |
+| `credentials` | Credential collection/update only | Yes |
+| `prepare` | Deploy MinIO + Registry | Yes |
+| `build` / `execute` | Build x86_64 + aarch64 images + write build_status | Yes |
+| `cleanup` | Remove MinIO, registry, build artifacts | No |
+| `cleanup_images` | Delete built images from S3 + registry | No |
+| `upgrade` | Upgrade flow (placeholder) | Yes |
+| `rollback` | Rollback flow (placeholder) | Yes |
 
 ---
 
@@ -217,12 +245,16 @@ The image_build_manager uses a **two-tier validation architecture**:
 │  L1: JSON Schema Validation                             │
 │    ├── image_build_config.json                          │
 │    ├── image_build_credentials.json                     │
+│    ├── catalog.json (when catalog mode)                 │
 │    └── functional_groups_config.json                    │
 │  L2: Cross-Field Logic Validation                       │
 │    ├── S3 provider ↔ endpoint_url consistency           │
 │    ├── aarch64 host IP ↔ ssh_user dependency            │
 │    ├── job_async ≥ job_retry × job_delay                │
 │    └── powerscale → s3_access_id required               │
+│  L2: Catalog Referential Integrity (when catalog mode)  │
+│    ├── layers → groups (dangling component check)       │
+│    └── groups → packages (dangling package check)       │
 │  Vault Detection                                        │
 │    └── Skip encrypted files (detect $ANSIBLE_VAULT)     │
 └─────────────────────────────────────────────────────────┘
@@ -234,6 +266,7 @@ The image_build_manager uses a **two-tier validation architecture**:
 |-------|------|-------|------|
 | **L1 — Schema** | JSON Schema type/required/enum checks | `core/validation_engine.py` + `schema/*.json` | Always (Step 1) |
 | **L2 — Logic** | Cross-field business rules | `validators/image_build_config_validator.py` | Always (Step 1) |
+| **L2 — Catalog** | Referential integrity (layers → groups → packages) | `validators/catalog_validator.py` | When `functional_groups_source: "catalog"` |
 | **L3 — Runtime** | File existence, S3 reachability, cert validity | `validate_build_runtime` role | Before build (in build playbooks) |
 
 ### 5.3 Validated Files
@@ -242,6 +275,7 @@ The image_build_manager uses a **two-tier validation architecture**:
 |------|--------|----------|-------|
 | `image_build_config.yml` | `image_build_config.json` | Yes | S3 config, aarch64 host, job settings |
 | `image_build_credentials.yml` | `image_build_credentials.json` | No | Skipped if vault-encrypted |
+| `catalog_rhel.json` | `catalog.json` | No | When `functional_groups_source: "catalog"` and `CATALOG_FILE_PATH` set |
 | `functional_groups_config.yml` | `functional_groups_config.json` | No | Generated at runtime from mapping.csv |
 
 ### 5.4 L2 Validation Rules
@@ -252,6 +286,10 @@ The image_build_manager uses a **two-tier validation architecture**:
 | aarch64 SSH user | `aarch64_inventory_host_ip` set → `aarch64_ssh_user` required | "aarch64_ssh_user is required when host_ip is set" |
 | Async budget | `job_async < job_retry × job_delay` | "job_async must be >= job_retry × job_delay" |
 | PowerScale access ID | `provider == powerscale` → `s3_access_id` required in credentials | "s3_access_id is required for powerscale" |
+| Catalog file exists | `functional_groups_source == "catalog"` → catalog file exists | "catalog file not found" |
+| Catalog root key | Catalog JSON must have `catalog` root key | "catalog: missing root 'catalog' key" |
+| Catalog layers → groups | Layer components must reference existing groups | "layer references unknown group" |
+| Catalog groups → packages | Group components must reference existing packages | "group references unknown package" |
 
 ### 5.5 Vault-Encrypted File Handling
 

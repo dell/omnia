@@ -148,6 +148,59 @@ def schema_file_not_found_msg(path):
 
 
 # =============================================================================
+# CATALOG VALIDATION MESSAGES
+# =============================================================================
+
+CATALOG_FILE_NOT_FOUND_MSG = (
+    "catalog: Catalog JSON file not found at the path specified by "
+    "CATALOG_FILE_PATH environment variable."
+)
+
+CATALOG_MISSING_ROOT_KEY_MSG = (
+    "catalog: JSON file is missing the required 'catalog' root key."
+)
+
+CATALOG_NO_FUNCTIONAL_LAYERS_MSG = (
+    "catalog: 'functionallayer' array is empty or missing. "
+    "At least one functional layer is required."
+)
+
+CATALOG_MISSING_GROUPS_MSG = (
+    "catalog: 'groups' object is missing. "
+    "Catalog must define groups referenced by functional layers."
+)
+
+CATALOG_MISSING_PACKAGES_MSG = (
+    "catalog: 'packages' object is missing. "
+    "Catalog must define packages referenced by group components."
+)
+
+
+def catalog_dangling_component_msg(layer_name, component):
+    """Returns message when a layer references a group not in catalog.groups."""
+    return (
+        f"catalog: Functional layer '{layer_name}' references component "
+        f"'{component}' which is not defined in catalog.groups."
+    )
+
+
+def catalog_dangling_package_msg(group_name, package_key):
+    """Returns message when a group references a package not in catalog.packages."""
+    return (
+        f"catalog: Group '{group_name}' references package key "
+        f"'{package_key}' which is not defined in catalog.packages."
+    )
+
+
+def catalog_no_arch_layers_msg(build_arch):
+    """Returns message when no functional layers match the build architecture."""
+    return (
+        f"catalog: No functional layers found matching architecture "
+        f"'_{build_arch}'. Layers must be named with a _{build_arch} suffix."
+    )
+
+
+# =============================================================================
 # LOG HEADER/FOOTER MESSAGES
 # =============================================================================
 
