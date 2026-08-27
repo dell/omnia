@@ -13,10 +13,17 @@
 # limitations under the License.
 
 """
-Build Stream GitLab Install — Playbook Deployment.
+Build Stream Install — Playbook Deployment.
 
-Deploys build_stream.yml --tags gitlab_install and verifies the
-playbook completes successfully.
+Deploys build_stream.yml with -e standalone_mode=true and verifies the
+playbook completes successfully.  No --tags filter is applied so that
+all plays (setup, credentials, prepare, build) execute — matching the
+manual invocation::
+
+    ansible-playbook build_stream.yml -e standalone_mode=true
+
+The standalone_mode=true flag tells the playbook to use local input
+directories instead of requiring container-based paths.
 """
 
 import pytest
@@ -36,11 +43,21 @@ from library.messages import (
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_gitlab_install(host):
-    """Deploy build_stream playbook with --tags gitlab_install."""
-    tc = TC["deploy_gitlab_install"]
+def test_deploy_buildstream_install(host):
+    """Deploy build_stream.yml -e standalone_mode=true (no tag filter).
+
+    Runs the full playbook without --tags so all plays execute:
+      1. build_stream_setup (input dirs, OIM metadata)
+      2. credential_utility (create/validate credentials)
+      3. prepare_build_stream (Postgres, GitLab, BSM containers)
+      4. setup_gitlab (GitLab CI/CD configuration)
+    """
+    tc = TC["deploy_buildstream_install"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(tag="gitlab_install", timeout=3600)
+    result = run_playbook(
+        timeout=3600,
+        extra_vars={"standalone_mode": True},
+    )
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -56,7 +73,7 @@ def test_deploy_gitlab_install(host):
 
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook=PLAYBOOK_ENTRY_POINT,
-        tag="gitlab_install",
+        tag="all",
         rc=result["rc"],
         duration=result["duration"],
     )

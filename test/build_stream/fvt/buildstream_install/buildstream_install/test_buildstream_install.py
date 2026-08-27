@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """
-Build Stream GitLab Install — Infrastructure Verification.
+Build Stream Install — Infrastructure Verification.
 
-Validates that --tags gitlab_install created all required resources:
+Validates that --tags buildstream_install created all required resources:
   GitLab packages installed on GitLab server
   GitLab server reachable from OIM
   gitlab-runner container running

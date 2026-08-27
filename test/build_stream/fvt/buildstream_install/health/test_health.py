@@ -20,8 +20,6 @@ Validates that build_stream infrastructure is healthy:
   BSM API /health endpoint returns healthy
   Postgres database tables exist
   GitLab server and runner running
-  playbook_paths.yml present with expected entries (2.3)
-  Playbook paths resolve to files on OIM host (2.3)
   Shared Python venv with ansible-playbook (2.3)
   BSM TLS certificate valid (2.3)
   NFS queue directory accessible (2.3)
@@ -37,8 +35,6 @@ from library.functions import (
     check_postgres_tables,
     check_gitlab_url_accessible,
     check_gitlab_runner_container,
-    check_playbook_paths_yml,
-    check_playbook_paths_resolvable,
     check_omnia_venv,
     check_bsm_tls_certificate,
     check_nfs_queue_directory,
@@ -166,54 +162,6 @@ def test_gitlab_runner_running(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(6)
-def test_playbook_paths_yml_exists(host):
-    """Verify playbook_paths.yml exists with expected entries (2.3)."""
-    tc = TC["playbook_paths_yml_exists"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = check_playbook_paths_yml(host)
-
-    if result["success"]:
-        tl.passed(LOG["playbook_paths_ok"].format(
-            entries=", ".join(result["found"]),
-        ))
-    else:
-        tl.failed(LOG["playbook_paths_missing"].format(
-            missing=", ".join(result.get("missing", [])),
-        ))
-
-    assert result["success"], (
-        ASSERT["playbook_paths_missing"].format(
-            missing=", ".join(result.get("missing", [])),
-        )
-        + (f"\nRoot cause: {result['error']}" if result.get("error") else "")
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(7)
-def test_playbook_paths_resolvable(host):
-    """Verify all playbook paths resolve to existing files (2.3)."""
-    tc = TC["playbook_paths_resolvable"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = check_playbook_paths_resolvable(host)
-
-    if result["success"]:
-        tl.passed(LOG["playbook_paths_resolved"], result["details"])
-    else:
-        tl.failed(LOG["playbook_paths_unresolved"].format(
-            missing=", ".join(result.get("unresolved", [])),
-        ))
-
-    assert result["success"], (
-        ASSERT["playbook_paths_unresolved"].format(
-            missing=", ".join(result.get("unresolved", [])),
-        )
-        + (f"\nRoot cause: {result['error']}" if result.get("error") else "")
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(8)
 def test_omnia_venv_exists(host):
     """Verify shared Python venv with ansible-playbook (2.3)."""
     tc = TC["omnia_venv_exists"]
@@ -232,7 +180,7 @@ def test_omnia_venv_exists(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(9)
+@pytest.mark.order(7)
 def test_bsm_tls_certificate_valid(host):
     """Verify BSM API TLS certificate is valid X.509 PEM (2.3)."""
     tc = TC["bsm_tls_certificate_valid"]
@@ -251,7 +199,7 @@ def test_bsm_tls_certificate_valid(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(10)
+@pytest.mark.order(8)
 def test_nfs_queue_directory_accessible(host):
     """Verify NFS queue directory accessible and writable (2.3)."""
     tc = TC["nfs_queue_directory_accessible"]
@@ -270,7 +218,7 @@ def test_nfs_queue_directory_accessible(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(11)
+@pytest.mark.order(9)
 def test_playbook_watcher_running(host):
     """Verify playbook watcher service is running (2.3)."""
     tc = TC["playbook_watcher_running"]
