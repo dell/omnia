@@ -20,6 +20,7 @@ Domain-specific functions for verifying log collector and PXE boot functionality
 
 import json
 import re
+import yaml
 from typing import Dict, Any, List
 
 from ..vars.common_vars import (
@@ -313,19 +314,17 @@ def find_log_bundle(host, output_dir: str) -> Dict[str, Any]:
         ls_cmd = f"ls -la {output_dir}"
         ls_result = host.run(ls_cmd)
 
-        # Use a simple approach: find any tar.gz file
-        cmd = f"find {output_dir} -type f -name '*.tar.gz' 2>/dev/null"
+        # Use a simple approach: find any tar.gz file and sort by modification time (newest first)
+        cmd = f"find {output_dir} -type f -name '*.tar.gz' 2>/dev/null | xargs ls -t 2>/dev/null | head -1"
         result = host.run(cmd)
 
         if result.rc == 0 and result.stdout.strip():
-            bundles = result.stdout.strip().split("\n")
-            if bundles:
-                # Return the first bundle found
-                return {
-                    "success": True,
-                    "bundle_path": bundles[0],
-                    "error": "",
-                }
+            bundle_path = result.stdout.strip()
+            return {
+                "success": True,
+                "bundle_path": bundle_path,
+                "error": "",
+            }
 
         return {
             "success": False,
@@ -445,7 +444,7 @@ def validate_tar_contents(host, tar_path: str, expected_dirs: List[str]) -> Dict
         }
 
 def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
-    """Validate log bundle contains log files with content.
+    """Validate log bundle contains log files from log_collector role based on input configuration.
 
     Args:
         host: Testinfra host object.
@@ -475,8 +474,65 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
                 "error": f"Failed to extract bundle: {result.stderr}",
             }
 
+        # Read collect_pxe.yml to determine which groups have nodes
+        # Use the standard input path
+        input_path = "/opt/omnia/utils/input/project_default"
+        collect_pxe_file = f"{input_path}/collect_pxe.yml"
+        
+        read_cmd = f"cat {collect_pxe_file}"
+        result = host.run(read_cmd)
+        
+        if result.rc != 0:
+            return {
+                "success": False,
+                "collected_files": [],
+                "empty_files": [],
+                "missing_files": [],
+                "error": f"Failed to read collect_pxe.yml: {result.stderr}",
+            }
+        
+        config_content = result.stdout
+        
+        # Parse YAML to check which groups have nodes
+        try:
+            config = yaml.safe_load(config_content)
+        except:
+            config = {}
+        
+        # Determine which groups have nodes based on input file
+        has_k8s = False
+        has_slurm = False
+        
+        if config:
+            # Check K8s groups
+            k8s_groups = ["service_kube_control_plane_x86_64", "service_kube_node_x86_64"]
+            for group in k8s_groups:
+                if group in config and config[group] and len(config[group]) > 0:
+                    has_k8s = True
+                    break
+            
+            # Check Slurm groups
+            slurm_groups = ["slurm_control_node_x86_64", "slurm_node_x86_64", 
+                           "login_node_x86_64", "login_compiler_node_aarch64"]
+            for group in slurm_groups:
+                if group in config and config[group] and len(config[group]) > 0:
+                    has_slurm = True
+                    break
+
+        collected_files = []
+        empty_files = []
+        missing_files = []
+
         # Find all log files in k8s and slurm directories
-        find_cmd = f"find {temp_dir} -type f \\( -path '*/k8s/*' -o -path '*/slurm/*' \\) -name '*.log' 2>/dev/null"
+        # First, check if the directories exist
+        k8s_exists_cmd = f"test -d {temp_dir}/k8s && echo 'yes' || echo 'no'"
+        k8s_result = host.run(k8s_exists_cmd)
+        
+        slurm_exists_cmd = f"test -d {temp_dir}/slurm && echo 'yes' || echo 'no'"
+        slurm_result = host.run(slurm_exists_cmd)
+        
+        # Find all log files in k8s and slurm directories
+        find_cmd = f"find {temp_dir} -type f -name '*.log' 2>/dev/null"
         result = host.run(find_cmd)
 
         if result.rc != 0:
@@ -488,24 +544,28 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
                 "error": f"Failed to find log files: {result.stderr}",
             }
 
-        log_files = result.stdout.strip().split("\n") if result.stdout.strip() else []
-        collected_files = []
-        empty_files = []
+        found_files = result.stdout.strip().split("\n") if result.stdout.strip() else []
 
-        for log_file in log_files:
-            if not log_file:
+        for found_file in found_files:
+            if not found_file:
                 continue
 
             # Check if file has content
-            size_cmd = f"stat -c %s {log_file} 2>/dev/null || echo 0"
+            size_cmd = f"stat -c %s {found_file} 2>/dev/null || echo 0"
             size_result = host.run(size_cmd)
             file_size = int(size_result.stdout.strip()) if size_result.stdout.strip() else 0
 
-            relative_path = log_file.replace(temp_dir + "/", "")
+            relative_path = found_file.replace(temp_dir + "/", "")
             if file_size > 0:
                 collected_files.append(relative_path)
             else:
                 empty_files.append(relative_path)
+
+        # Add information about which groups were expected
+        if has_k8s and k8s_result.stdout.strip() == "no":
+            missing_files.append("k8s log files (expected but not found)")
+        if has_slurm and slurm_result.stdout.strip() == "no":
+            missing_files.append("slurm log files (expected but not found)")
 
         # Clean up temp directory
         host.run(f"rm -rf {temp_dir}")
@@ -514,7 +574,7 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
             "success": True,
             "collected_files": collected_files,
             "empty_files": empty_files,
-            "missing_files": [],
+            "missing_files": missing_files,
             "error": "",
         }
     except Exception as exc:

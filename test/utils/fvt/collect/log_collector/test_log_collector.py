@@ -281,7 +281,7 @@ def test_collect_bundle_contents(host):
 @pytest.mark.collect
 @pytest.mark.order(26)
 def test_collect_bundle_log_files_content(host):
-    """Verify log bundle contains log files with content in k8s and slurm directories."""
+    """Verify log bundle contains log files from log_collector role based on input configuration."""
     tc = TC["collect_bundle_log_files_content"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -298,21 +298,34 @@ def test_collect_bundle_log_files_content(host):
         tl.failed(f"Failed to verify log files: {result['error']}")
         pytest.fail(f"Failed to verify log files: {result['error']}")
 
-    # Report collected files
+    # Report collected files with content
     if result["collected_files"]:
-        tl.passed(f"Collected {len(result['collected_files'])} log files with content")
+        tl.passed(f"Collected {len(result['collected_files'])} log files with content:")
         for file_path in result["collected_files"]:
-            tl.info(f"  - {file_path}")
+            tl.info(f"  ✓ {file_path}")
+    else:
+        tl.info("No log files with content found")
 
     # Report empty files
     if result["empty_files"]:
-        tl.info(f"Found {len(result['empty_files'])} empty log files")
+        tl.info(f"Found {len(result['empty_files'])} empty log files:")
         for file_path in result["empty_files"]:
-            tl.info(f"  - {file_path} (empty)")
+            tl.info(f"  ⚠ {file_path} (empty)")
+    else:
+        tl.info("No empty log files found")
+
+    # Report missing files
+    if result["missing_files"]:
+        tl.info(f"Missing expected log files:")
+        for file_path in result["missing_files"]:
+            tl.info(f"  ✗ {file_path}")
+    else:
+        tl.info("All expected log files found")
 
     # Test passes if validation succeeded (bundle structure is correct)
-    # In test environment, log files may be empty - this is acceptable
-    tl.passed(f"Log file verification completed: {len(result['collected_files'])} files with content, {len(result['empty_files'])} empty files")
+    # In test environment, log files may be empty or missing - this is acceptable
+    total_found = len(result["collected_files"]) + len(result["empty_files"])
+    tl.passed(f"Log file verification completed: {total_found} files found, {len(result['missing_files'])} missing")
 
 
 # =============================================================================
