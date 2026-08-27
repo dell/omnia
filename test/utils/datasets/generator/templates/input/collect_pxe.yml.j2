@@ -1,0 +1,72 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Log Collector Input File
+# Generated from template with profile variables
+
+# Kubernetes Control Plane Nodes (x86_64)
+{% if service_kube_control_plane_x86_64 %}
+service_kube_control_plane_x86_64:
+{% for ip in service_kube_control_plane_x86_64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+# Kubernetes Worker Nodes (x86_64)
+{% if service_kube_node_x86_64 %}
+service_kube_node_x86_64:
+{% for ip in service_kube_node_x86_64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+# Slurm Control Node (x86_64)
+{% if slurm_control_node_x86_64 %}
+slurm_control_node_x86_64:
+{% for ip in slurm_control_node_x86_64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+# Slurm Compute Nodes (x86_64)
+{% if slurm_node_x86_64 %}
+slurm_node_x86_64:
+{% for ip in slurm_node_x86_64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+# Slurm Compute Nodes (aarch64)
+{% if slurm_node_aarch64 %}
+slurm_node_aarch64:
+{% for ip in slurm_node_aarch64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+# Login Nodes (x86_64)
+{% if login_node_x86_64 %}
+login_node_x86_64:
+{% for ip in login_node_x86_64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+# Login Compiler Nodes (aarch64)
+{% if login_compiler_node_aarch64 %}
+login_compiler_node_aarch64:
+{% for ip in login_compiler_node_aarch64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
