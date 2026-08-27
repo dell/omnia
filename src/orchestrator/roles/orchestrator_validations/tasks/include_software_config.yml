@@ -51,13 +51,21 @@
 - name: Extract k8s version from catalog
   ansible.builtin.set_fact:
     service_k8s_version: >-
-      {{ catalog_data.catalog.functionallayer
+      {% set fl_name = catalog_data.catalog.functionallayer
          | selectattr('name', 'match', '.*kube.*|.*k8s.*')
          | map(attribute='name')
          | first
+         | default('') -%}
+      {% set fl_ver = fl_name | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+')
+         | default('', true) -%}
+      {% set pkg_ver = (catalog_data.catalog.packages.kubeadm.name
          | default('')
-         | regex_search('v([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1')
-         | default([''], true) | first }}
+         | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+')
+         | default('', true))
+         if (catalog_data.catalog.packages is defined and
+             catalog_data.catalog.packages.kubeadm is defined)
+         else '' -%}
+      {{ fl_ver if fl_ver else pkg_ver }}
   when:
     - service_k8s_support | default(false) | bool
     - catalog_data is defined
