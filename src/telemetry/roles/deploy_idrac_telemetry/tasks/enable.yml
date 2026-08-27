@@ -39,6 +39,12 @@
     name: common
     tasks_from: derive_sink_support_flags
 
+- name: Install Python dependencies for telemetry modules
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: install_python_dependencies
+  when: inventory_hostname != 'localhost'
+
 - name: Generate iDRAC telemetry manifests
   ansible.builtin.include_tasks: generate_manifests.yml
 

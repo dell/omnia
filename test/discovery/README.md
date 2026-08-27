@@ -1,6 +1,6 @@
 # Discovery — Test Automation
 
-Functional Verification Tests (FVT) for the `omnia.discovery` Ansible collection.
+Functional Verification Tests (FVT) for the `discovery` domain.
 
 ## Prerequisites
 
@@ -11,31 +11,30 @@ Functional Verification Tests (FVT) for the `omnia.discovery` Ansible collection
 ## Setup
 
 ```bash
-bash setup_env.sh            # One-time: create .venv, install deps
-source .venv/bin/activate
-vi test_config.yml           # Set oim_server_ip, dataset, etc.
+source setup_env.sh            # One-time: create .venv, install deps
+vi test_config.yml             # Set oim_server_ip, dataset, etc.
 ```
 
 ## Running Tests
 
 ```bash
 # Show help
-run_validation --help
+./run_validation.sh --help
 
 # Validate inputs exist on target
-run_validation validate verify --marker sanity
+./run_validation.sh fvt_discovery validate verify --marker sanity
 
 # Full discovery run + verify outputs
-run_validation discovery test
+./run_validation.sh fvt_discovery discovery test
 
 # Verify only output files (no playbook)
-run_validation discovery verify --suite output
+./run_validation.sh fvt_discovery discovery verify --suite output
 
-# Run all scenarios
-run_validation all test
+# List available scenarios
+./run_validation.sh fvt_discovery list
 
 # Batch run from config
-run_validation --config
+./run_validation.sh --config
 ```
 
 ## Scenarios
@@ -53,8 +52,9 @@ See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete test case registry.
 
 ```
 test/discovery/
+├── _run.py                    # ValidationRunner entry point
 ├── setup_env.sh               # Environment setup
-├── run_validation.sh           # CLI runner
+├── run_validation.sh           # CLI runner (delegates to _run.py)
 ├── conftest.py                 # Pytest hooks, fixtures, report generation
 ├── test_config.yml             # Target server and sync settings
 ├── test_creds.yml              # SSH credentials (Ansible Vault)
@@ -72,7 +72,7 @@ test/discovery/
 │
 ├── library/                    # Reusable automation library
 │   ├── functions/              # discovery_func, host_func, validation_func
-│   ├── vars/                   # Constants, paths, commands (common_vars)
+│   ├── vars/                   # Constants, paths, commands (common_vars, domain_vars)
 │   └── messages/               # Test names, log/assert messages
 │
 └── fvt/                        # Functional Verification Tests
@@ -88,4 +88,4 @@ test/discovery/
 ## Using the omnia-auto Pip Package
 
 This module uses the [omnia-auto](../plugins) package for all common test utilities
-(TestLogger, run_playbook, sync_files, etc.).
+(TestLogger, run_playbook, sync_files, ValidationRunner, etc.).

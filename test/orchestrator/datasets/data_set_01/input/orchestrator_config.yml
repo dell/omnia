@@ -18,4 +18,13 @@
 
 ---
 pxe_mapping_file_path: ""
+language: "en_US.UTF-8"
+default_lease_time: "86400"
+dns_enabled: false
+kernel_version_override: ""
+additional_cloud_init_config_file: ""
+boot_kernel_params: ""
+catalog_file_path: ""
+image_build_manager_output_path: ""
 repo_manager_output_path: ""
+dcgm_enabled: true

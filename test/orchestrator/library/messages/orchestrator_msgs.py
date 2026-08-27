@@ -182,7 +182,8 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Copy template: src/orchestrator/input/orchestrator_config.yml\n"
         "\u2551   2. Edit with your cluster settings\n"
-        "\u2551   3. Place in /opt/omnia/input/<project>/orchestrator/\n"
+        "\u2551   3. Place in /opt/omnia/orchestrator/input/<project>/\n"
+        "\u2551   4. Or run: omnia.sh --setup-venv (copies input templates)\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
@@ -195,8 +196,8 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check container: podman ps -a | grep {container}\n"
         "\u2551   2. Check logs: podman logs {container}\n"
-        "\u2551   3. Restart: podman restart {container}\n"
-        "\u2551   4. Re-run: ansible-playbook orchestrator.yml\n"
+        "\u2551   3. Restart target: systemctl restart openchami.target\n"
+        "\u2551   4. Re-run: cd src/orchestrator/playbooks && ansible-playbook orchestrator.yml\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 

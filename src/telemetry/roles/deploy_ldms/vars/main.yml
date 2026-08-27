@@ -41,6 +41,7 @@ ldms_store_name: "nersc-ldms-store"
 
 # Slurm config path (for munge key)
 slurm_config_path: "/etc/slurm"
+munge_key_path: "/etc/munge/munge.key"
 
 # LDMS backup path for PXE change detection
 backup_pxe_mapping_ldms_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/backup_pxe_mapping_ldms.csv"

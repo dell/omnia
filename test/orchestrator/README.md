@@ -1,6 +1,6 @@
 # Orchestrator — Test Automation
 
-Functional Verification Tests (FVT) for the `omnia.orchestrator` Ansible collection.
+Functional Verification Tests (FVT) for the `orchestrator` domain.
 
 ## Prerequisites
 
@@ -12,45 +12,43 @@ Functional Verification Tests (FVT) for the `omnia.orchestrator` Ansible collect
 ## Setup
 
 ```bash
-bash setup_env.sh            # One-time: create .venv, install deps
-source .venv/bin/activate
-vi test_config.yml           # Set oim_server_ip, dataset, etc.
+source setup_env.sh            # One-time: create .venv, install deps
+vi test_config.yml             # Set oim_server_ip, dataset, etc.
 ```
 
 ## Running Tests
 
 ```bash
 # Show help
-run_validation --help
+./run_validation.sh --help
 
 # Validate inputs exist on target
-run_validation validate verify --marker sanity
+./run_validation.sh fvt_orchestrator validate verify --marker sanity
 
 # Deploy prepare and verify OpenCHAMI containers
-run_validation prepare test
+./run_validation.sh fvt_orchestrator prepare test
 
 # Verify only OpenCHAMI containers (no playbook)
-run_validation prepare verify --suite openchami
+./run_validation.sh fvt_orchestrator prepare verify --suite openchami
 
 # Run cleanup and verify removal
-run_validation cleanup test
+./run_validation.sh fvt_orchestrator cleanup test
 
-# Run all scenarios
-run_validation all test
+# List available scenarios
+./run_validation.sh fvt_orchestrator list
 
 # Batch run from config
-run_validation --config
+./run_validation.sh --config
 ```
 
 ## Scenarios
 
 | Scenario | Description |
 |----------|-------------|
-| `validate` | Verify input files (orchestrator_config.yml, omnia_config.yml, etc.) |
+| `validate` | Verify input files (orchestrator_config.yml, network_spec.yml, etc.) |
 | `prepare` | Deploy OpenCHAMI + verify containers and API |
 | `provision` | Full provisioning (K8s, Slurm, OS nodes) |
 | `cleanup` | Cleanup + verify container/service removal |
-| `orchestrator` | Full end-to-end (all phases) |
 
 ## Test Cases
 
@@ -60,8 +58,9 @@ See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete test case registry.
 
 ```
 test/orchestrator/
+├── _run.py                    # ValidationRunner entry point
 ├── setup_env.sh               # Environment setup
-├── run_validation.sh           # CLI runner
+├── run_validation.sh           # CLI runner (delegates to _run.py)
 ├── conftest.py                 # Pytest hooks, fixtures, report generation
 ├── test_config.yml             # Target server and sync settings
 ├── test_creds.yml              # SSH credentials (Ansible Vault)
@@ -80,14 +79,15 @@ test/orchestrator/
 │
 ├── library/                    # Reusable automation library
 │   ├── functions/              # orchestrator_func, host_func, validation_func
-│   ├── vars/                   # Constants, paths, commands (common_vars)
+│   ├── vars/                   # Constants, paths, commands (common_vars, domain_vars)
 │   └── messages/               # Test names, log/assert messages
 │
 └── fvt/                        # Functional Verification Tests
     ├── TEST_CASES.md
     ├── validate/               # Validate scenario
-    │   └── status/
-    │       └── test_status.py
+    │   ├── status/
+    │   │   └── test_status.py
+    │   └── test_dcgm_config.py
     ├── prepare/                # Prepare scenario
     │   └── openchami/
     │       └── test_openchami.py
@@ -101,4 +101,4 @@ test/orchestrator/
 ## Using the omnia-auto Pip Package
 
 This module uses the [omnia-auto](../plugins) package for all common test utilities
-(TestLogger, run_playbook, sync_files, etc.).
+(TestLogger, run_playbook, sync_files, ValidationRunner, etc.).

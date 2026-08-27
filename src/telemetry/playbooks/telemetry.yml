@@ -72,13 +72,6 @@
   tags: [validate, validation]
 
 # =========================================================================
-# Step 2: Deploy — Full telemetry deployment (default flow)
-# =========================================================================
-- name: "Execute | Deploy all telemetry sources"
-  ansible.builtin.import_playbook: deploy/deploy.yml
-  tags: [execute, deploy]
-
-# =========================================================================
 # FLOW: precheck — Environment validation (opt-in only)
 # =========================================================================
 - name: "Precheck | Validate telemetry prerequisites"
@@ -86,6 +79,13 @@
   tags:
     # - never
     - precheck
+
+# =========================================================================
+# Step 2: Deploy — Full telemetry deployment (default flow)
+# =========================================================================
+- name: "Execute | Deploy all telemetry sources"
+  ansible.builtin.import_playbook: deploy/deploy.yml
+  tags: [execute, deploy]
 
 # =========================================================================
 # FLOW: cleanup — Remove telemetry components (opt-in only)

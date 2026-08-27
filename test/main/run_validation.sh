@@ -385,7 +385,7 @@ case "$SCENARIO" in
             echo ""
         done
         echo -e "${BLUE}=================================================================${NC}"
-        echo -e "  Total: ${total}  ${GREEN}Passed: ${pass_count}${NC}  ${RED}Failed: ${fail_count}${NC}"
+        echo -e "  Scenarios: ${total}  ${GREEN}Passed: ${pass_count}${NC}  ${RED}Failed: ${fail_count}${NC}"
         echo -e "${BLUE}=================================================================${NC}"
         [[ $fail_count -eq 0 ]] || exit 1
         exit 0
