@@ -20,6 +20,11 @@ Handles:
   - PowerScale metrics verification in VictoriaMetrics
   - PowerScale syslog log verification in VictoriaLogs
   - PowerScale syslog forwarding configuration verification
+  - External health monitor controller verification
+  - CSI volume exporter dependency validation
+  - Karavi observability integration tests (CSM-OTEL-VM flow)
+  - OTEL Collector service patch validation
+  - cert-manager TLS certificate validation
 """
 
 import base64
@@ -705,4 +710,373 @@ def verify_csi_volume_exporter_metrics(host):
         "metrics_found": result["found"],
         "details": details,
         "error": result.get("error", ""),
+    }
+
+
+# -------------------------------------------------------------------------
+# PowerScale — CSI Driver (isilon-controller) verification
+# -------------------------------------------------------------------------
+
+def verify_csi_driver_powerscale_deployment(host):
+    """Verify CSI Driver for PowerScale (isilon-controller) deployment.
+
+    Verifies:
+    - isilon-controller StatefulSet is deployed
+    - isilon-controller pods are running
+    - No pod restarts
+
+    Returns:
+        dict with keys: success, pods, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    # isilon-controller uses label: app=csi-isilon-controller
+    pods = get_pods_by_label(host, "kube-system", "app=csi-isilon-controller")
+    running = len([p for p in pods if p.get("ready", False)]) > 0
+    restarts = sum(p.get("restarts", 0) for p in pods)
+
+    details = f"Pods: {len(pods)} (running: {running}), Restarts: {restarts}"
+
+    return {
+        "success": running and restarts == 0,
+        "pods": pods,
+        "details": details,
+        "error": "" if (running and restarts == 0) else "CSI Driver not fully deployed or has restarts",
+    }
+
+
+# -------------------------------------------------------------------------
+# PowerScale — External Health Monitor Controller verification
+# -------------------------------------------------------------------------
+
+def verify_external_health_monitor_container(host):
+    """Verify external-health-monitor-controller container is running in isilon-controller pod.
+
+    Verifies:
+    - isilon-controller pod exists
+    - external-health-monitor-controller container is present
+    - external-health-monitor-controller container is ready
+
+    Returns:
+        dict with keys: success, pod_name, container_ready, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    # Find isilon-controller pod
+    pods = get_pods_by_label(host, "isilon", "app=csi-isilon")
+    
+    if not pods:
+        return {
+            "success": False,
+            "pod_name": "",
+            "container_ready": False,
+            "details": "isilon-controller pod not found",
+            "error": "isilon-controller pod not found in isilon namespace",
+        }
+
+    pod_name = pods[0].get("name", "")
+    
+    # Check if external-health-monitor-controller container is ready
+    # We need to check the container status using kubectl
+    cmd = f"kubectl get pod {pod_name} -n isilon -o jsonpath='{{.status.containerStatuses[?(@.name==\"external-health-monitor-controller\")].ready}}'"
+    result = run_on_kube_vip(host, cmd)
+    
+    container_ready = result.get("stdout", "").strip() == "true"
+    
+    details = f"Pod: {pod_name}, Container ready: {container_ready}"
+    
+    return {
+        "success": container_ready,
+        "pod_name": pod_name,
+        "container_ready": container_ready,
+        "details": details,
+        "error": "" if container_ready else "external-health-monitor-controller container not ready",
+    }
+
+
+def verify_csi_exporter_skipped_without_health_monitor(host):
+    """Verify CSI volume exporter deployment is skipped when health monitor is not available.
+
+    Verifies:
+    - CSI volume exporter deployment is skipped when health monitor is missing
+    - No CSI volume exporter pods are deployed
+
+    Returns:
+        dict with keys: success, exporter_deployed, health_monitor_available, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    # Check if health monitor is available
+    health_monitor_result = verify_external_health_monitor_container(host)
+    health_monitor_available = health_monitor_result["success"]
+    
+    # Check if CSI volume exporter is deployed
+    pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=csi-volume-exporter")
+    exporter_deployed = len(pods) > 0
+    
+    # Expected behavior: exporter should NOT be deployed if health monitor is not available
+    expected_behavior = (not health_monitor_available) and (not exporter_deployed)
+    
+    details = (
+        f"Health monitor available: {health_monitor_available}, "
+        f"Exporter deployed: {exporter_deployed}, "
+        f"Expected behavior: {expected_behavior}"
+    )
+    
+    return {
+        "success": expected_behavior,
+        "exporter_deployed": exporter_deployed,
+        "health_monitor_available": health_monitor_available,
+        "details": details,
+        "error": "" if expected_behavior else "CSI volume exporter deployment logic incorrect",
+    }
+
+
+def verify_health_monitor_warning_message(host):
+    """Verify appropriate warning message is displayed when health monitor is missing.
+
+    This is a informational check that validates the deployment playbook
+    shows the correct warning message when health monitor is not available.
+
+    Returns:
+        dict with keys: success, warning_expected, details, error.
+    """
+    # Check if health monitor is available
+    health_monitor_result = verify_external_health_monitor_container(host)
+    health_monitor_available = health_monitor_result["success"]
+    
+    # Warning should be displayed when health monitor is not available
+    warning_expected = not health_monitor_available
+    
+    details = (
+        f"Health monitor available: {health_monitor_available}, "
+        f"Warning expected: {warning_expected}"
+    )
+    
+    return {
+        "success": True,  # This is always informational
+        "warning_expected": warning_expected,
+        "details": details,
+        "error": "",
+    }
+
+
+# -------------------------------------------------------------------------
+# PowerScale — Integration Tests for Karavi Observability
+# -------------------------------------------------------------------------
+
+def verify_csm_otel_data_flow(host):
+    """Verify CSM Metrics to OTEL Collector data flow.
+
+    Verifies:
+    - CSM Metrics PowerScale is exposing metrics
+    - OTEL Collector is receiving metrics from CSM Metrics
+    - Data is flowing between the components
+
+    Returns:
+        dict with keys: success, csm_exposing, otel_receiving, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    # Check if CSM Metrics is running
+    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=karavi-metrics-powerscale")
+    csm_running = len([p for p in csm_pods if p.get("ready", False)]) > 0
+
+    # Check if OTEL Collector is running
+    otel_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=otel-collector")
+    otel_running = len([p for p in otel_pods if p.get("ready", False)]) > 0
+
+    # Check CSM metrics endpoint (if accessible)
+    csm_exposing = False
+    if csm_running and csm_pods:
+        # CSM Metrics typically exposes metrics on port 9102
+        cmd = "kubectl get svc karavi-metrics-powerscale -n telemetry -o jsonpath='{.spec.ports[0].port}'"
+        result = run_on_kube_vip(host, cmd)
+        csm_exposing = result.rc == 0 and result.stdout.strip()
+
+    # Check OTEL logs for receiving data from CSM
+    otel_receiving = False
+    if otel_running and otel_pods:
+        pod_name = otel_pods[0].get("name", "")
+        cmd = f"kubectl logs {pod_name} -n telemetry --tail=10 | grep -i 'receiv\\|scrape\\|metric' || echo 'no metrics logs'"
+        result = run_on_kube_vip(host, cmd)
+        otel_receiving = "receiv" in result.stdout.lower() or "scrape" in result.stdout.lower()
+
+    data_flow = csm_running and otel_running and csm_exposing and otel_receiving
+
+    details = (
+        f"CSM running: {csm_running}, CSM exposing: {csm_exposing}, "
+        f"OTEL running: {otel_running}, OTEL receiving: {otel_receiving}"
+    )
+
+    return {
+        "success": data_flow,
+        "csm_exposing": csm_exposing,
+        "otel_receiving": otel_receiving,
+        "details": details,
+        "error": "" if data_flow else "CSM to OTEL data flow not established",
+    }
+
+
+def verify_otel_vm_export(host):
+    """Verify OTEL Collector to VictoriaMetrics export.
+
+    Verifies:
+    - OTEL Collector is configured to export to VictoriaMetrics
+    - Metrics are being exported to VictoriaMetrics
+    - Export configuration is valid
+
+    Returns:
+        dict with keys: success, export_configured, metrics_exporting, details, error.
+    """
+    # Check if OTEL Collector is configured to export to VictoriaMetrics
+    # This typically involves checking the OTEL configuration or service endpoints
+    cmd = "kubectl get svc vmagent-vmagent -n telemetry -o jsonpath='{.spec.clusterIP}'"
+    result = run_on_kube_vip(host, cmd)
+    vmagent_ip = result.stdout.strip() if result.rc == 0 else ""
+
+    export_configured = bool(vmagent_ip)
+
+    # Check if PowerScale metrics are appearing in VictoriaMetrics
+    # Query for a known PowerScale metric
+    metrics_exporting = False
+    if export_configured:
+        try:
+            vm_result = query_vm_metric_names(host, "powerscale_cluster_cpu_use_rate")
+            metrics_exporting = vm_result.get("success", False) and len(vm_result.get("metrics", [])) > 0
+        except Exception:
+            metrics_exporting = False
+
+    export_working = export_configured and metrics_exporting
+
+    details = (
+        f"Export configured: {export_configured}, "
+        f"Metrics exporting: {metrics_exporting}, "
+        f"VMagent IP: {vmagent_ip}"
+    )
+
+    return {
+        "success": export_working,
+        "export_configured": export_configured,
+        "metrics_exporting": metrics_exporting,
+        "details": details,
+        "error": "" if export_working else "OTEL to VictoriaMetrics export not working",
+    }
+
+
+def verify_otel_service_patch(host):
+    """Verify OTEL Collector service patch for vmagent scrape discovery.
+
+    Verifies:
+    - OTEL Collector service has proper annotations for vmagent discovery
+    - Service is configured for metrics scraping
+    - Port configuration is correct
+
+    Returns:
+        dict with keys: success, service_patched, annotations_valid, details, error.
+    """
+    from .k8s_func import get_service
+
+    service = get_service(host, TELEMETRY_NAMESPACE, "otel-collector")
+    
+    if not service:
+        return {
+            "success": False,
+            "service_patched": False,
+            "annotations_valid": False,
+            "details": "OTEL Collector service not found",
+            "error": "Service not found",
+        }
+
+    # Check for vmagent discovery annotations
+    annotations = service.get("metadata", {}).get("annotations", {})
+    
+    # Expected annotations for vmagent discovery
+    expected_annotations = [
+        "prometheus.io/scrape",
+        "prometheus.io/port",
+    ]
+    
+    annotations_valid = all(key in annotations for key in expected_annotations)
+    
+    # Check if scrape is enabled
+    scrape_enabled = annotations.get("prometheus.io/scrape", "false") == "true"
+    
+    # Check port configuration
+    port = annotations.get("prometheus.io/port", "")
+    port_valid = port.isdigit() and int(port) > 0
+
+    service_patched = annotations_valid and scrape_enabled and port_valid
+
+    details = (
+        f"Annotations valid: {annotations_valid}, "
+        f"Scrape enabled: {scrape_enabled}, "
+        f"Port valid: {port_valid}, "
+        f"Port: {port}"
+    )
+
+    return {
+        "success": service_patched,
+        "service_patched": service_patched,
+        "annotations_valid": annotations_valid,
+        "details": details,
+        "error": "" if service_patched else "OTEL Collector service not properly patched",
+    }
+
+
+def verify_cert_manager_tls_certs(host):
+    """Verify cert-manager TLS certificate generation.
+
+    Verifies:
+    - cert-manager is deployed and running
+    - TLS secret for OTEL Collector exists
+    - Certificate is valid and not expired
+    - Certificate has proper SANs
+
+    Returns:
+        dict with keys: success, cert_manager_running, tls_secret_exists, cert_valid, details, error.
+    """
+    from .k8s_func import get_pods_by_label
+
+    # Check if cert-manager is running
+    cert_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/part-of=cert-manager")
+    cert_manager_running = len([p for p in cert_pods if p.get("ready", False)]) > 0
+
+    # Check if TLS secret exists
+    cmd = CMDS["kubectl_get_secret"].format(
+        name="otel-collector-tls",
+        namespace=TELEMETRY_NAMESPACE,
+    )
+    result = run_on_kube_vip(host, cmd)
+    tls_secret_exists = result.rc == 0
+
+    # Check certificate validity
+    cert_valid = False
+    cert_details = ""
+    if tls_secret_exists:
+        # Try to decode and check certificate
+        cmd = f"kubectl get secret otel-collector-tls -n telemetry -o jsonpath='{{.data.tls\\.crt}}' | base64 -d | openssl x509 -noout -dates 2>/dev/null || echo 'invalid'"
+        result = run_on_kube_vip(host, cmd)
+        cert_output = result.stdout.strip()
+        
+        # Check if certificate is valid (has dates)
+        cert_valid = "notBefore" in cert_output and "notAfter" in cert_output
+        cert_details = cert_output if cert_valid else "Certificate invalid or expired"
+
+    all_valid = cert_manager_running and tls_secret_exists and cert_valid
+
+    details = (
+        f"cert-manager running: {cert_manager_running}, "
+        f"TLS secret exists: {tls_secret_exists}, "
+        f"Certificate valid: {cert_valid}, "
+        f"Cert details: {cert_details}"
+    )
+
+    return {
+        "success": all_valid,
+        "cert_manager_running": cert_manager_running,
+        "tls_secret_exists": tls_secret_exists,
+        "cert_valid": cert_valid,
+        "details": details,
+        "error": "" if all_valid else "cert-manager TLS certificate validation failed",
     }

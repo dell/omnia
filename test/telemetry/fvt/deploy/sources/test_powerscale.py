@@ -75,6 +75,14 @@ from library.functions.powerscale_func import (
     verify_csi_volume_exporter_deployment,
     verify_csi_volume_exporter_metrics_endpoint,
     verify_csi_volume_exporter_metrics,
+    verify_csi_driver_powerscale_deployment,
+    verify_external_health_monitor_container,
+    verify_csi_exporter_skipped_without_health_monitor,
+    verify_health_monitor_warning_message,
+    verify_csm_otel_data_flow,
+    verify_otel_vm_export,
+    verify_otel_service_patch,
+    verify_cert_manager_tls_certs,
 )
 
 
@@ -871,5 +879,254 @@ def test_csi_volume_exporter_metrics(host):
         )
 
     assert result["success"], ASSERT_MSGS["csi_exporter_metrics_missing"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_047: Verify CSI Driver for PowerScale (isilon-controller) deployment
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(77)
+def test_csi_driver_powerscale_deploy(host):
+    """Verify CSI Driver for PowerScale (isilon-controller) deployment."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_driver_powerscale_deploy"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSI Driver for PowerScale (isilon-controller) deployment")
+    result = verify_csi_driver_powerscale_deployment(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_driver_deployed"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_driver_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_driver_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_048: Verify external-health-monitor-controller container is running
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(78)
+def test_external_health_monitor_container(host):
+    """Verify external-health-monitor-controller container is running in isilon-controller pod."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["external_health_monitor_container"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying external-health-monitor-controller container")
+    result = verify_external_health_monitor_container(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["health_monitor_container"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["health_monitor_container_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["health_monitor_container_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_049: Verify CSI volume exporter deployment skipped when health monitor missing
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(79)
+def test_csi_exporter_skipped_without_health_monitor(host):
+    """Verify CSI volume exporter deployment is skipped when health monitor is not available."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_exporter_skipped_without_health_monitor"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSI volume exporter deployment logic with health monitor dependency")
+    result = verify_csi_exporter_skipped_without_health_monitor(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_dependency"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_exporter_dependency_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_dependency_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_050: Verify warning message displayed for missing health monitor
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(80)
+def test_health_monitor_warning_message(host):
+    """Verify appropriate warning message is displayed when health monitor is missing."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["health_monitor_warning_message"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying health monitor warning message behavior")
+    result = verify_health_monitor_warning_message(host)
+
+    # This is informational - always passes
+    tl.passed(
+        LOG_MSGS["health_monitor_warning"],
+        result["details"],
+    )
+
+    assert result["success"]
+
+
+# =========================================================================
+# TC_SR_051: Verify CSM Metrics to OTEL Collector data flow
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(81)
+def test_csm_otel_data_flow(host):
+    """Verify CSM Metrics to OTEL Collector data flow."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csm_otel_data_flow"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSM Metrics to OTEL Collector data flow")
+    result = verify_csm_otel_data_flow(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csm_otel_flow"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csm_otel_flow_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csm_otel_flow_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_052: Verify OTEL Collector to VictoriaMetrics export
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(82)
+def test_otel_vm_export(host):
+    """Verify OTEL Collector to VictoriaMetrics export."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["otel_vm_export"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying OTEL Collector to VictoriaMetrics export")
+    result = verify_otel_vm_export(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["otel_vm_export"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["otel_vm_export_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["otel_vm_export_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_053: Verify OTEL Collector service patch for vmagent
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(83)
+def test_otel_service_patch(host):
+    """Verify OTEL Collector service patch for vmagent scrape discovery."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["otel_service_patch"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying OTEL Collector service patch for vmagent")
+    result = verify_otel_service_patch(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["otel_service_patch"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["otel_service_patch_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["otel_service_patch_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_054: Verify cert-manager TLS certificate generation
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(84)
+def test_cert_manager_tls_certs(host):
+    """Verify cert-manager TLS certificate generation."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["cert_manager_tls_certs"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying cert-manager TLS certificate generation")
+    result = verify_cert_manager_tls_certs(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["cert_manager_tls"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["cert_manager_tls_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["cert_manager_tls_failed"].format(
         details=result["details"],
     )

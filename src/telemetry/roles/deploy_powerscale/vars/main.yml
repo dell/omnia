@@ -75,6 +75,20 @@ ps_telemetry_prepared_msg: >-
   PowerScale telemetry files prepared on NFS share.
   Proceeding with karavi-observability Helm deployment.
 
+ps_health_monitor_not_running_msg: >-
+  WARNING: external-health-monitor-controller container is not running in the isilon-controller pod.
+  CSI volume exporter requires this container to be running to collect health metrics.
+  Please deploy CSI driver with health monitor enabled in CSI driver values.yml.
+  After deploying CSI driver with health monitor enabled, run telemetry.yml again.
+  Skipping CSI volume exporter deployment.
+
+ps_isilon_pod_not_found_msg: >-
+  WARNING: Could not find isilon-controller pod to verify external-health-monitor-controller status.
+  CSI volume exporter requires this container to be running to collect health metrics.
+  Please deploy CSI driver with health monitor enabled in CSI driver values.yml.
+  After deploying CSI driver with health monitor enabled, run telemetry.yml again.
+  Skipping CSI volume exporter deployment.
+
 # CSI Volume Exporter Configuration
 # ============================================================================
 # Usage: csi-volume-exporter.yaml.j2

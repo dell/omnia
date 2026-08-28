@@ -132,6 +132,21 @@ TEST_LOG_MSGS = {
     "csi_exporter_endpoint": "CSI Volume Exporter metrics endpoint: {details}",
     "csi_exporter_endpoint_failed": "CSI Volume Exporter metrics endpoint not accessible: {details}",
     "csi_exporter_metrics": "CSI Volume Exporter metrics: {details}",
+    "csi_driver_deployed": "CSI Driver for PowerScale (isilon-controller) deployment verified: {details}",
+    "csi_driver_failed": "CSI Driver for PowerScale (isilon-controller) deployment failed: {details}",
+    "health_monitor_container": "external-health-monitor-controller container verified: {details}",
+    "health_monitor_container_failed": "external-health-monitor-controller container check failed: {details}",
+    "csi_exporter_dependency": "CSI volume exporter dependency validation: {details}",
+    "csi_exporter_dependency_failed": "CSI volume exporter dependency validation failed: {details}",
+    "health_monitor_warning": "Health monitor warning message behavior: {details}",
+    "csm_otel_flow": "CSM Metrics to OTEL Collector data flow: {details}",
+    "csm_otel_flow_failed": "CSM Metrics to OTEL Collector data flow failed: {details}",
+    "otel_vm_export": "OTEL Collector to VictoriaMetrics export: {details}",
+    "otel_vm_export_failed": "OTEL Collector to VictoriaMetrics export failed: {details}",
+    "otel_service_patch": "OTEL Collector service patch: {details}",
+    "otel_service_patch_failed": "OTEL Collector service patch failed: {details}",
+    "cert_manager_tls": "cert-manager TLS certificate generation: {details}",
+    "cert_manager_tls_failed": "cert-manager TLS certificate generation failed: {details}",
 
     # VAST
     "vast_svc_exists": "VAST external service '{service}' exists with endpoint {endpoint}",
@@ -391,6 +406,62 @@ TEST_ASSERT_MSGS = {
         "  1. Check vmagent scrape targets for CSI Volume Exporter\n"
         "  2. Verify metrics endpoint is accessible\n"
         "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
+    ),
+    "csi_driver_failed": (
+        "CSI Driver for PowerScale (isilon-controller) deployment failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n kube-system | grep isilon-controller\n"
+        "  2. kubectl logs statefulset/isilon-controller -n kube-system\n"
+        "  3. Check CSI driver installation: kubectl get csinodes -n kube-system\n"
+    ),
+    "health_monitor_container_failed": (
+        "external-health-monitor-controller container check failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n isilon | grep isilon-controller\n"
+        "  2. kubectl describe pod <isilon-controller-pod> -n isilon\n"
+        "  3. Check container status: kubectl get pod <isilon-controller-pod> -n isilon -o jsonpath='{.status.containerStatuses}'\n"
+        "  4. Deploy CSI driver with health monitor enabled in CSI driver values.yml\n"
+    ),
+    "csi_exporter_dependency_failed": (
+        "CSI volume exporter dependency validation failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify external-health-monitor-controller container is running\n"
+        "  2. Check deployment logs for warning messages\n"
+        "  3. Ensure CSI driver is deployed with health monitor enabled\n"
+        "  4. Re-run telemetry.yml after fixing CSI driver configuration\n"
+    ),
+    "csm_otel_flow_failed": (
+        "CSM Metrics to OTEL Collector data flow failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check CSM Metrics PowerScale pod logs: kubectl logs deployment/karavi-metrics-powerscale -n telemetry\n"
+        "  2. Verify CSM Metrics is exposing metrics on expected port\n"
+        "  3. Check OTEL Collector pod logs: kubectl logs deployment/otel-collector -n telemetry\n"
+        "  4. Verify OTEL Collector configuration includes CSM Metrics as receiver\n"
+    ),
+    "otel_vm_export_failed": (
+        "OTEL Collector to VictoriaMetrics export failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check OTEL Collector export configuration\n"
+        "  2. Verify VictoriaMetrics vmagent is running: kubectl get pods -n telemetry | grep vmagent\n"
+        "  3. Check vmagent scrape targets include OTEL Collector\n"
+        "  4. Verify network connectivity between OTEL Collector and VictoriaMetrics\n"
+    ),
+    "otel_service_patch_failed": (
+        "OTEL Collector service patch failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check OTEL Collector service annotations: kubectl get svc otel-collector -n telemetry -o yaml\n"
+        "  2. Verify prometheus.io/scrape annotation is set to 'true'\n"
+        "  3. Verify prometheus.io/port annotation points to metrics port\n"
+        "  4. Re-run deployment to apply service patch\n"
+    ),
+    "cert_manager_tls_failed": (
+        "cert-manager TLS certificate generation failed: {details}\n"
+        "HOW TO FIX:\n"
+        "  1. Check cert-manager pods: kubectl get pods -n telemetry | grep cert-manager\n"
+        "  2. Verify cert-manager is running properly\n"
+        "  3. Check TLS secret: kubectl get secret otel-collector-tls -n telemetry\n"
+        "  4. Review cert-manager logs for certificate issuance issues\n"
+        "  5. Verify cert-manager ClusterIssuer is configured\n"
     ),
 
     # VAST

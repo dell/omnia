@@ -229,70 +229,102 @@ TEST_CASES = {
         "id": "TC_SR_046",
         "title": "Verify CSI Volume Exporter metrics in VictoriaMetrics",
     },
+    "csi_driver_powerscale_deploy": {
+        "id": "TC_SR_047",
+        "title": "Verify CSI Driver for PowerScale (isilon-controller) deployment",
+    },
+    "external_health_monitor_container": {
+        "id": "TC_SR_048",
+        "title": "Verify external-health-monitor-controller container is running",
+    },
+    "csi_exporter_skipped_without_health_monitor": {
+        "id": "TC_SR_049",
+        "title": "Verify CSI volume exporter deployment skipped when health monitor missing",
+    },
+    "health_monitor_warning_message": {
+        "id": "TC_SR_050",
+        "title": "Verify warning message displayed for missing health monitor",
+    },
+    "csm_otel_data_flow": {
+        "id": "TC_SR_051",
+        "title": "Verify CSM Metrics to OTEL Collector data flow",
+    },
+    "otel_vm_export": {
+        "id": "TC_SR_052",
+        "title": "Verify OTEL Collector to VictoriaMetrics export",
+    },
+    "otel_service_patch": {
+        "id": "TC_SR_053",
+        "title": "Verify OTEL Collector service patch for vmagent",
+    },
+    "cert_manager_tls_certs": {
+        "id": "TC_SR_054",
+        "title": "Verify cert-manager TLS certificate generation",
+    },
 
     # -- Sources: UFM --------------------------------------------------------
     "ufm_external_svc": {
-        "id": "TC_SR_040",
+        "id": "TC_SR_060",
         "title": "Verify UFM external service exists with correct endpoint",
     },
     "ufm_vmscrape": {
-        "id": "TC_SR_041",
+        "id": "TC_SR_061",
         "title": "Verify UFM VMServiceScrape CR exists",
     },
     "ufm_credentials_secret": {
-        "id": "TC_SR_042",
+        "id": "TC_SR_062",
         "title": "Verify UFM credentials K8s secret exists",
     },
     "ufm_metrics_in_vm": {
-        "id": "TC_SR_043",
+        "id": "TC_SR_063",
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
 
     # -- Sources: VAST -------------------------------------------------------
     "vast_external_svc": {
-        "id": "TC_SR_060",
+        "id": "TC_SR_080",
         "title": "Verify VAST external service exists with correct endpoint",
     },
     "vast_vmscrape": {
-        "id": "TC_SR_061",
+        "id": "TC_SR_081",
         "title": "Verify VAST VMServiceScrape CR exists",
     },
     "vast_credentials_secret": {
-        "id": "TC_SR_062",
+        "id": "TC_SR_082",
         "title": "Verify VAST credentials K8s secret exists",
     },
     "vast_metrics_in_vm": {
-        "id": "TC_SR_063",
+        "id": "TC_SR_083",
         "title": "Verify VAST storage metrics in VictoriaMetrics",
     },
     "vast_logs_in_vl": {
-        "id": "TC_SR_064",
+        "id": "TC_SR_084",
         "title": "Verify VAST logs in VictoriaLogs",
     },
 
     # -- Sources: OME -------------------------------------------------------
     "ome_vector_bridge": {
-        "id": "TC_SR_050",
+        "id": "TC_SR_070",
         "title": "Verify Vector-OME bridge deployment ready",
     },
     "ome_kafka_user": {
-        "id": "TC_SR_051",
+        "id": "TC_SR_071",
         "title": "Verify OME KafkaUser CR exists",
     },
     "ome_external_kafka_certs": {
-        "id": "TC_SR_052",
+        "id": "TC_SR_072",
         "title": "Verify external Kafka TLS certificates exist",
     },
     "ome_pfx_conversion": {
-        "id": "TC_SR_053",
+        "id": "TC_SR_073",
         "title": "Verify user.pfx certificate created for OME mTLS",
     },
     "ome_upload_certs": {
-        "id": "TC_SR_054",
+        "id": "TC_SR_074",
         "title": "Verify TLS certificates uploaded to OME",
     },
     "ome_kafka_connectivity": {
-        "id": "TC_SR_055",
+        "id": "TC_SR_075",
         "title": "Verify OME Kafka forwarder connectivity status",
     },
 

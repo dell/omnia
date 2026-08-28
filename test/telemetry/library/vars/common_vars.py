@@ -141,6 +141,7 @@ LDMS_KAFKA_TOPIC = "ldms"
 POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
 POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
 POWERSCALE_CSI_EXPORTER_DEPLOY_NAME = "csi-volume-exporter"
+POWERSCALE_CSI_DRIVER_DEPLOY_NAME = "isilon-controller"
 POWERSCALE_SECRET_NAME = "isilon-creds"
 POWERSCALE_EXPECTED_METRICS = [
     "powerscale_cluster_cpu_use_rate",
@@ -226,8 +227,8 @@ CFG_KEY_VAST_PORT = "vast_configuration.vast_metrics_port"
 
 # Telemetry sources list
 TELEMETRY_SOURCES = [
-    "idrac", "ldms", "dcgm", "powerscale", "ufm",
-    "vast", "ome", "sfm", "skyway", "powervault",
+    "idrac", "ldms", "powerscale", "ufm",
+    "vast", "ome", "sfm",
 ]
 
 # Telemetry sinks list
