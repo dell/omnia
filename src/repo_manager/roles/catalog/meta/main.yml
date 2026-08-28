@@ -23,7 +23,7 @@ galaxy_info:
         - "10"
   galaxy_tags:
     - catalog
-    - repo_manager
+    - repomanager
     - omnia
 
 dependencies: []
