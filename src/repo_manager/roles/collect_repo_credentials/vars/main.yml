@@ -31,6 +31,7 @@ repo_manager_cred_config:
     - username: docker_username
       username_default: ''
     - password: docker_password
+  conditional_mandatory: []
 
 # Set default username (no prompting)
 pulp_username: 'admin'

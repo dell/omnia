@@ -31,6 +31,31 @@
     path: "{{ repo_manager_credential_file.vault_path }}"
   register: vault_key_check
 
+- name: Check credential file encryption state
+  ansible.builtin.command:
+    argv:
+      - head
+      - -n
+      - "1"
+      - "{{ repo_manager_credential_file.file_path }}"
+  register: _credential_file_head
+  changed_when: false
+  when: credential_file_check.stat.exists | default(false)
+
+- name: Set credential file encryption state
+  ansible.builtin.set_fact:
+    _credential_file_is_encrypted: >-
+      {{ _credential_file_head.stdout | default('') is search('ANSIBLE_VAULT') }}
+
+- name: Fail when encrypted credentials have no vault key
+  ansible.builtin.fail:
+    msg: >-
+      The repo manager credential file is encrypted, but its vault key is missing at
+      {{ repo_manager_credential_file.vault_path }}. Restore the matching key before continuing.
+  when:
+    - _credential_file_is_encrypted | bool
+    - not vault_key_check.stat.exists | default(false)
+
 - name: Set flag for skipping credential flow
   ansible.builtin.set_fact:
     skip_credential_flow: >-
@@ -44,9 +69,9 @@
          (docker_username is defined and docker_username | string | trim | length > 0) or
          (docker_password is defined and docker_password | string | trim | length > 0) }}
 
-- name: Skip credential flow if both files exist and no CLI credentials
+- name: Report existing credential files
   ansible.builtin.debug:
-    msg: "Repo manager credentials already configured (encrypted file and vault key exist) — skipping prompts."
+    msg: "Repo manager credential files found — loading stored values before resolving optional credentials."
   when:
     - skip_credential_flow | bool
     - not credentials_via_cli | default(false) | bool
@@ -88,14 +113,10 @@
 
   rescue:
     - name: Warn credential load failed
-      ansible.builtin.debug:
+      ansible.builtin.fail:
         msg: >-
-          WARNING: Failed to load credentials from encrypted file.
-          File may be corrupted. Delete it and re-run.
-
-    - name: Reset skip flag so prompts will run
-      ansible.builtin.set_fact:
-        skip_credential_flow: false
+          Failed to load the existing repo manager credentials. The credential file
+          may be corrupted or the vault key may not match. The existing file was not overwritten.
 
   always:
     - name: Re-encrypt credential file (always runs)
@@ -104,10 +125,23 @@
         --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
       changed_when: false
       no_log: true
-      failed_when: false
       when:
         - _is_vault_encrypted.rc | default(1) == 0
         - _cred_decrypt_result.rc | default(1) == 0
+
+- name: Validate stored Pulp password
+  ansible.builtin.fail:
+    msg: "Mandatory credential pulp_password is empty or still set to its placeholder."
+  when:
+    - skip_credential_flow | bool
+    - pulp_password | default('') | string | trim | length == 0 or
+      (pulp_password | default('')) == 'CHANGE_THIS_PASSWORD'
+
+- name: Process Docker credentials from existing credential file
+  ansible.builtin.include_tasks: process_docker_credentials.yml
+  when:
+    - skip_credential_flow | bool
+    - not credentials_via_cli | default(false) | bool
 
 - name: Repo manager credential flow
   when: not (skip_credential_flow | default(false) | bool)
@@ -134,6 +168,7 @@
             dest: "{{ repo_manager_credential_file.file_path }}"
             mode: "{{ repo_manager_credential_file.file_mode }}"
           register: repo_manager_file_created
+          no_log: true
 
         - name: Create vault key file
           ansible.builtin.lineinfile:
@@ -143,6 +178,7 @@
             owner: root
             create: true
           when: not repo_manager_vault_key_stat.stat.exists
+          no_log: true
 
         # NOTE: File is NOT encrypted yet - will encrypt after prompting
 
@@ -157,6 +193,7 @@
       when:
         - repo_manager_cred_file_stat.stat.exists
         - not repo_manager_vault_key_stat.stat.exists
+      no_log: true
 
     # Step 4: Load existing credentials from plaintext file (if file exists and not encrypted)
     - name: Load existing credentials from plaintext file
@@ -189,29 +226,11 @@
       loop_control:
         loop_var: cred_field
 
-    # Step 5.5: Prompt for optional credentials (docker_username, docker_password)
-    - name: Build filtered optional credentials list
-      ansible.builtin.set_fact:
-        _filtered_optional_creds: "{{ _filtered_optional_creds_raw | from_yaml }}"
+    # Step 5.5: Resolve Docker credentials after the username decision
+    - name: Process Docker credentials
+      ansible.builtin.include_tasks: process_docker_credentials.yml
       vars:
-        _filtered_optional_creds_raw: >-
-          {% set optional_creds = [] %}
-          {% for cred in repo_manager_cred_config.optional | default([]) %}
-          {% if cred.password is defined and cred.password == 'docker_password' %}
-          {% if docker_username is defined and docker_username | string | trim | length > 0 %}
-          {% set _ = optional_creds.append(cred) %}
-          {% endif %}
-          {% else %}
-          {% set _ = optional_creds.append(cred) %}
-          {% endif %}
-          {% endfor %}
-          {{ optional_creds | to_json }}
-
-    - name: Prompt for optional repo manager credentials
-      ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ _filtered_optional_creds | default([]) }}"
-      loop_control:
-        loop_var: cred_field
+        _docker_defer_encryption: true
 
     # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
     - name: Prompt for conditional mandatory repo manager credentials
@@ -297,6 +316,11 @@
         - pulp_password is defined
         - pulp_password | string | trim | length == 0 or pulp_password == 'CHANGE_THIS_PASSWORD'
 
+    - name: Refresh vault key state before encryption
+      ansible.builtin.stat:
+        path: "{{ repo_manager_credential_file.vault_path }}"
+      register: repo_manager_vault_key_stat
+
     # Step 7.5: Encrypt credential file after prompting
     - name: Check if credential file is already encrypted
       ansible.builtin.shell: |
@@ -323,7 +347,8 @@
       ansible.builtin.command: >-
         ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
         --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
-      changed_when: false
+      changed_when: true
+      no_log: true
       when:
         - repo_manager_credential_file.file_path is file
         - repo_manager_vault_key_stat.stat.exists
@@ -346,8 +371,8 @@
             ansible-vault decrypt "{{ repo_manager_credential_file.file_path }}"
             --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
           changed_when: false
-          failed_when: false
           register: _final_decrypt_result
+          no_log: true
           when: _final_is_vault.rc | default(1) == 0
 
         - name: Load final credentials
@@ -361,6 +386,9 @@
             ansible-vault encrypt "{{ repo_manager_credential_file.file_path }}"
             --vault-password-file "{{ repo_manager_credential_file.vault_path }}"
           changed_when: false
-          failed_when: false
+          no_log: true
+          when:
+            - _final_is_vault.rc | default(1) == 0
+            - _final_decrypt_result.rc | default(1) == 0
 
     # Step 9: Credentials are now saved and encrypted - file-based guard will skip on next run
