@@ -18,13 +18,13 @@
 #
 # Usage (standalone):
 #   cd src/orchestrator/playbooks
-#   ansible-playbook setpxe/set_pxe_boot.yml
+#   ansible-playbook pxeboot/pxeboot.yml
 #
 #   # Disable phone-home verification:
-#   ansible-playbook setpxe/set_pxe_boot.yml -e enable_phone_home=false
+#   ansible-playbook pxeboot/pxeboot.yml -e enable_phone_home=false
 #
 # Usage (via orchestrator.yml):
-#   ansible-playbook orchestrator.yml --tags setpxe
+#   ansible-playbook orchestrator.yml --tags pxeboot
 #
 # Input:
 #   - pxe_mapping_file.csv (BMC_IP, ADMIN_IP, HOSTNAME columns)
@@ -39,7 +39,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
   tasks:
     - name: Run orchestrator_setup if not already initialized
       ansible.builtin.include_role:
@@ -49,13 +49,29 @@
         omnia_metadata_support: false
       when: input_project_dir is not defined
 
+    - name: Check if PXE boot is enabled
+      ansible.builtin.debug:
+        msg: >-
+          PXE boot is disabled (enable_pxe_boot: false in orchestrator_config.yml).
+          This is expected for virtual machine environments without iDRAC/BMC.
+          To enable, set enable_pxe_boot: true in orchestrator_config.yml.
+          Skipping all PXE boot plays.
+      when: not (enable_pxe_boot | default(true) | bool)
+
+    - name: Set PXE boot skip flag
+      ansible.builtin.set_fact:
+        pxe_boot_skip: "{{ not (enable_pxe_boot | default(true) | bool) }}"
+        cacheable: true
+
     - name: Load PXE boot configuration
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/set_pxe_boot_config.yml"
       failed_when: false
       register: pxe_config_loaded
+      when: not (pxe_boot_skip | bool)
 
     - name: Set PXE config defaults
+      when: not (pxe_boot_skip | bool)
       ansible.builtin.set_fact:
         enable_phone_home: "{{ enable_phone_home | default(true) }}"
         phone_home_pause_minutes: "{{ phone_home_pause_minutes | default(3) }}"
@@ -75,7 +91,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
     - name: Load and validate BMC credentials
       block:
@@ -91,7 +111,7 @@
           ansible.builtin.fail:
             msg: >-
               BMC credentials not found. Run orchestrator credentials first:
-              ansible-playbook prepare/prepare_orchestrator.yml
+              ansible-playbook orchestrator.yml --tags prepare
               Or run standalone with credentials already provisioned.
           when: (bmc_username | default('') | length == 0) or (bmc_password | default('') | length == 0)
 
@@ -102,7 +122,11 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
     - name: Build BMC inventory
       block:
@@ -167,7 +191,11 @@
   connection: local
   strategy: host_pinned
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   roles:
     - role: idrac_pxe_boot
 
@@ -178,7 +206,11 @@
   hosts: bmc
   connection: local
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
     - name: Report iDRAC reboot failure
       ansible.builtin.debug:
@@ -211,7 +243,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
     - name: Filter phone-home verification block
       when: enable_phone_home | default(true) | bool
@@ -247,7 +283,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
     - name: Phone-home verification block
       when:
@@ -265,7 +305,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [setpxe, set_pxe, pxe_boot]
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
     - name: Final report block
       block:
