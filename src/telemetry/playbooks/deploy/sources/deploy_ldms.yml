@@ -256,6 +256,7 @@
       ansible.builtin.set_fact:
         telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
         k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
       when: hostvars['localhost']['telemetry_config'] is defined
 
     - name: Configure LDMS sampler on compute nodes
