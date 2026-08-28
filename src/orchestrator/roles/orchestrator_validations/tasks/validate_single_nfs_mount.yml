@@ -23,19 +23,19 @@
 #   4. Extracted NFS server IP is non-empty
 #   5. NFS server is reachable (ping)
 
-- name: "Validate source is not empty for mount '{{ nfs_mount.name }}'"
+- name: "Validate source is not empty for mount ({{ nfs_mount.name }})"
   ansible.builtin.fail:
     msg: >-
       {{ nfs_source_empty_msg }} Mount name: '{{ nfs_mount.name }}'.
       Please set a valid source in storage_config.yml.
   when: nfs_mount.source is not defined or nfs_mount.source | trim | length == 0
 
-- name: "Check if source is a local device or CIFS for mount '{{ nfs_mount.name }}'"
+- name: "Check if source is a local device or CIFS ({{ nfs_mount.name }})"
   ansible.builtin.set_fact:
     _nfs_source_is_local: >-
       {{ nfs_mount.source | trim is match('^(/dev/|UUID=|LABEL=|//)') }}
 
-- name: "Skip NFS validation for local/CIFS source '{{ nfs_mount.name }}'"
+- name: "Skip NFS validation for local/CIFS source ({{ nfs_mount.name }})"
   ansible.builtin.debug:
     msg: >-
       Mount '{{ nfs_mount.name }}' has local/CIFS source '{{ nfs_mount.source }}'.
@@ -45,7 +45,7 @@
 - name: Validate NFS source format and reachability
   when: not (_nfs_source_is_local | bool)
   block:
-    - name: "Validate NFS source contains ':' separator for mount '{{ nfs_mount.name }}'"
+    - name: "Validate NFS source contains ':' separator ({{ nfs_mount.name }})"
       ansible.builtin.fail:
         msg: >-
           {{ nfs_source_format_msg }} Mount name: '{{ nfs_mount.name }}'.
@@ -53,11 +53,11 @@
           Expected format: server_ip:/export/path (e.g., 192.168.1.100:/share/data).
       when: "':' not in nfs_mount.source"
 
-    - name: "Extract NFS server IP from source for mount '{{ nfs_mount.name }}'"
+    - name: "Extract NFS server IP from source ({{ nfs_mount.name }})"
       ansible.builtin.set_fact:
         _nfs_server_ip: "{{ nfs_mount.source | regex_replace(':.*$', '') | trim }}"
 
-    - name: "Validate NFS server IP is not empty for mount '{{ nfs_mount.name }}'"
+    - name: "Validate NFS server IP is not empty ({{ nfs_mount.name }})"
       ansible.builtin.fail:
         msg: >-
           {{ nfs_ip_empty_msg }} Mount name: '{{ nfs_mount.name }}'.
@@ -65,14 +65,14 @@
           The server IP/hostname portion before ':' is empty.
       when: _nfs_server_ip | length == 0
 
-    - name: "Check NFS server reachability for mount '{{ nfs_mount.name }}' ({{ _nfs_server_ip }})"
+    - name: "Check NFS server reachability for mount ({{ _nfs_server_ip }})"
       ansible.builtin.command:
         cmd: "ping -c 2 -W 3 {{ _nfs_server_ip }}"
       register: _nfs_ping_result
       changed_when: false
       failed_when: false
 
-    - name: "Fail if NFS server is unreachable for mount '{{ nfs_mount.name }}'"
+    - name: "Fail if NFS server is unreachable ({{ nfs_mount.name }})"
       ansible.builtin.fail:
         msg: >-
           {{ nfs_unreachable_msg }}
