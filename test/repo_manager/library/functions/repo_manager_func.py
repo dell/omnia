@@ -123,6 +123,39 @@ def check_credentials_present(host) -> Dict[str, Any]:
     }
 
 
+def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Check if a specific repository is configured in repo_manager_config.yml."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    # Check if config file exists
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+    
+    # Read the config file and check if the repo is configured
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); print('configured' if repo and repo.get('url') else 'not_configured')\""
+    result = run_on_host(host, cmd)
+    
+    # Check for exact match of "configured" (not "not_configured")
+    if result.rc == 0 and result.stdout.strip() == "configured":
+        return {
+            "success": True,
+            "details": f"Repository '{repo_name}' is configured in repo_manager_config.yml",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Repository '{repo_name}' is not configured in repo_manager_config.yml",
+        "error": f"Repository '{repo_name}' not configured",
+    }
+
+
 def check_pulp_container_running(host) -> Dict[str, Any]:
     """Verify Pulp container is running."""
     cmd = CMDS["container_running"].format(name=PULP_CONTAINER_NAME)
@@ -830,3 +863,363 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
         "details": "Found {} software packages defined in software_config.json".format(total_packages),
         "error": "",
     }
+
+
+def check_repo_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Check the effective policy for a specific repository."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    # Check if config file exists
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+    
+    # Read the config file and check the repo policy
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); policy = repo.get('policy') if repo else None; print(policy if policy else 'not_set')\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        policy = result.stdout.strip()
+        if policy != "not_set":
+            return {
+                "success": True,
+                "details": f"Repository '{repo_name}' has policy: {policy}",
+                "error": "",
+                "policy": policy,
+                "source": "per_repo"
+            }
+        else:
+            # Check global policy
+            cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(config.get('repo_config', 'not_set'))\""
+            result = run_on_host(host, cmd)
+            if result.rc == 0:
+                global_policy = result.stdout.strip()
+                return {
+                    "success": True,
+                    "details": f"Repository '{repo_name}' uses global policy: {global_policy}",
+                    "error": "",
+                    "policy": global_policy,
+                    "source": "global"
+                }
+    
+    return {
+        "success": False,
+        "details": f"Could not determine policy for repository '{repo_name}'",
+        "error": "Policy determination failed",
+    }
+
+
+def check_repo_caching(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Check the effective caching setting for a specific repository."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    # Check if config file exists
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+    
+    # Read the config file and check the repo caching
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); caching = repo.get('caching') if repo else None; print(str(caching).lower() if caching is not None else 'not_set')\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        caching = result.stdout.strip()
+        if caching != "not_set":
+            return {
+                "success": True,
+                "details": f"Repository '{repo_name}' has caching: {caching}",
+                "error": "",
+                "caching": caching == "true",
+                "source": "per_repo"
+            }
+        else:
+            # Check global caching
+            cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(str(config.get('CACHING_POLICY', False)).lower())\""
+            result = run_on_host(host, cmd)
+            if result.rc == 0:
+                global_caching = result.stdout.strip()
+                return {
+                    "success": True,
+                    "details": f"Repository '{repo_name}' uses global caching: {global_caching}",
+                    "error": "",
+                    "caching": global_caching == "true",
+                    "source": "global"
+                }
+    
+    return {
+        "success": False,
+        "details": f"Could not determine caching for repository '{repo_name}'",
+        "error": "Caching determination failed",
+    }
+
+
+def check_pulp_mode(host, repo_name: str) -> Dict[str, Any]:
+    """Check the actual Pulp mode for a repository from repo_status.yml."""
+    repo_status = _read_repo_status(host)
+    if not repo_status["success"]:
+        return {
+            "success": False,
+            "details": "Could not read repo_status.yml",
+            "error": repo_status["error"],
+        }
+    
+    repo_data = repo_status["details"]
+    try:
+        # Check for Pulp mode in repository data
+        for os_version, archs in repo_data.get("repositories", {}).items():
+            for arch, repos in archs.items():
+                if repo_name in repos:
+                    repo_info = repos[repo_name]
+                    if isinstance(repo_info, dict):
+                        pulp_mode = repo_info.get("pulp_mode", "unknown")
+                        return {
+                            "success": True,
+                            "details": f"Repository '{repo_name}' has Pulp mode: {pulp_mode}",
+                            "error": "",
+                            "mode": pulp_mode
+                        }
+    except (KeyError, TypeError) as exc:
+        return {
+            "success": False,
+            "details": f"Error parsing repo_status.yml: {str(exc)}",
+            "error": "Repository data parsing failed",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Repository '{repo_name}' not found in repo_status.yml",
+        "error": "Repository not found",
+    }
+
+
+def verify_repo_status_pulp_mode(host, repo_name: str, expected_mode: str) -> Dict[str, Any]:
+    """Verify repo_status.yml reflects correct Pulp mode for a repository."""
+    pulp_mode_result = check_pulp_mode(host, repo_name)
+    if not pulp_mode_result["success"]:
+        return pulp_mode_result
+    
+    actual_mode = pulp_mode_result.get("mode", "unknown")
+    if actual_mode == expected_mode:
+        return {
+            "success": True,
+            "details": f"Repository '{repo_name}' has expected Pulp mode: {expected_mode}",
+            "error": "",
+            "expected_mode": expected_mode,
+            "actual_mode": actual_mode
+        }
+    else:
+        return {
+            "success": False,
+            "details": f"Repository '{repo_name}' Pulp mode mismatch: expected {expected_mode}, got {actual_mode}",
+            "error": "Pulp mode verification failed",
+            "expected_mode": expected_mode,
+            "actual_mode": actual_mode
+        }
+
+
+def check_global_repo_config(host) -> Dict[str, Any]:
+    """Check the global repo_config setting."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+    
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(config.get('repo_config', 'not_set'))\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        repo_config = result.stdout.strip()
+        return {
+            "success": True,
+            "details": f"Global repo_config: {repo_config}",
+            "error": "",
+            "repo_config": repo_config
+        }
+    
+    return {
+        "success": False,
+        "details": "Could not read global repo_config",
+        "error": "Global config read failed",
+    }
+
+
+def check_global_caching_policy(host) -> Dict[str, Any]:
+    """Check the global CACHING_POLICY setting."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+    
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(str(config.get('CACHING_POLICY', False)).lower())\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        caching_policy = result.stdout.strip()
+        return {
+            "success": True,
+            "details": f"Global CACHING_POLICY: {caching_policy}",
+            "error": "",
+            "caching_policy": caching_policy == "true"
+        }
+    
+    return {
+        "success": False,
+        "details": "Could not read global CACHING_POLICY",
+        "error": "Global config read failed",
+    }
+
+
+def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Check the actual Pulp remote policy via Pulp CLI (integration test)."""
+    # Construct the full remote name
+    full_remote_name = f"{arch}_{os_version}_{repo_name}"
+    
+    # Use Pulp CLI to get the actual remote policy
+    cmd = f"pulp rpm remote show --name {full_remote_name}"
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        try:
+            remote_info = json.loads(result.stdout)
+            actual_policy = remote_info.get("policy", "unknown")
+            return {
+                "success": True,
+                "details": f"Pulp remote '{full_remote_name}' has policy: {actual_policy}",
+                "error": "",
+                "policy": actual_policy,
+                "remote_name": full_remote_name
+            }
+        except json.JSONDecodeError as exc:
+            return {
+                "success": False,
+                "details": f"Could not parse Pulp remote output: {result.stdout[:200]}",
+                "error": f"JSON decode error: {str(exc)}",
+            }
+    else:
+        return {
+            "success": False,
+            "details": f"Pulp remote command failed with exit code: {result.rc}",
+            "error": f"Pulp remote '{full_remote_name}' not found or Pulp CLI error",
+        }
+
+
+def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Check if a Pulp repository exists via Pulp CLI (integration test)."""
+    # Construct the full repository name
+    full_repo_name = f"{arch}_{os_version}_{repo_name}"
+    
+    # Use Pulp CLI to check if repository exists
+    cmd = f"pulp rpm repository show --name {full_repo_name}"
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        try:
+            repo_info = json.loads(result.stdout)
+            latest_version = repo_info.get("latest_version_href", "unknown")
+            return {
+                "success": True,
+                "details": f"Pulp repository '{full_repo_name}' exists (version: {latest_version})",
+                "error": "",
+                "repo_name": full_repo_name,
+                "latest_version": latest_version
+            }
+        except json.JSONDecodeError as exc:
+            return {
+                "success": False,
+                "details": f"Could not parse Pulp repository output: {result.stdout[:200]}",
+                "error": f"JSON decode error: {str(exc)}",
+            }
+    else:
+        return {
+            "success": False,
+            "details": f"Pulp repository command failed with exit code: {result.rc}",
+            "error": f"Pulp repository '{full_repo_name}' not found or Pulp CLI error",
+        }
+
+
+def verify_policy_resolution(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Verify that the resolved policy from config matches actual Pulp remote policy."""
+    # Get policy from configuration
+    config_policy = check_repo_policy(host, repo_name, arch, os_version)
+    config_caching = check_repo_caching(host, repo_name, arch, os_version)
+    
+    if not config_policy["success"] or not config_caching["success"]:
+        return {
+            "success": False,
+            "details": "Could not read configuration policy/caching",
+            "error": "Config read failed",
+        }
+    
+    # Calculate expected Pulp policy based on policy + caching
+    policy = config_policy.get("policy")
+    caching = config_caching.get("caching")
+    
+    # Policy resolution logic (from software_utils.py)
+    if policy == "always" and not caching:
+        expected_pulp_policy = "immediate"
+    elif policy == "always" and caching:
+        expected_pulp_policy = "on_demand"
+    elif policy == "partial" and not caching:
+        expected_pulp_policy = "streamed"
+    elif policy == "partial" and caching:
+        expected_pulp_policy = "on_demand"
+    elif policy == "never" and not caching:
+        expected_pulp_policy = "streamed"
+    elif policy == "never" and caching:
+        expected_pulp_policy = "streamed"
+    else:
+        expected_pulp_policy = "unknown"
+    
+    # Get actual Pulp remote policy
+    actual_policy_result = check_pulp_remote_policy(host, repo_name, arch, os_version)
+    
+    if not actual_policy_result["success"]:
+        return {
+            "success": False,
+            "details": f"Could not get actual Pulp remote policy",
+            "error": actual_policy_result["error"],
+        }
+    
+    actual_pulp_policy = actual_policy_result.get("policy")
+    
+    # Compare expected vs actual
+    if expected_pulp_policy == actual_pulp_policy:
+        return {
+            "success": True,
+            "details": f"Policy resolution correct: config({policy}+{caching}) → expected({expected_pulp_policy}) → actual({actual_pulp_policy})",
+            "error": "",
+            "expected_policy": expected_pulp_policy,
+            "actual_policy": actual_pulp_policy,
+            "match": True
+        }
+    else:
+        return {
+            "success": False,
+            "details": f"Policy resolution mismatch: config({policy}+{caching}) → expected({expected_pulp_policy}) → actual({actual_pulp_policy})",
+            "error": "Policy resolution bug detected",
+            "expected_policy": expected_pulp_policy,
+            "actual_policy": actual_pulp_policy,
+            "match": False
+        }
