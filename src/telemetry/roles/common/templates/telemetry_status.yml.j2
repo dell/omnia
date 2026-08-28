@@ -11,7 +11,7 @@ deployment_status: "{{ 'cleaned' if _cleanup_status == 'passed' else _cleanup_st
 {% else %}
 deployment_status: "{{ 'deployed' if _deployment_status == 'passed' else _deployment_status | default('skipped') }}"
 {% endif %}
-generated_at: "{{ ansible_date_time.iso8601 }}"
+generated_at: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -Iseconds')) }}"
 namespace: "{{ telemetry_namespace }}"
 kube_vip: "{{ kube_vip | default('') }}"
 

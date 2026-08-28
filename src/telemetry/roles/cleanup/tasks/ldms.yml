@@ -12,101 +12,219 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# =============================================================================
+# LDMS Telemetry Cleanup
+# =============================================================================
+# Cleans up:
+#   - K8s resources (Helm, StatefulSets, Services, ConfigMaps, Secrets, PVCs)
+#   - Vector-LDMS bridge
+#   - LDMS sampler on Slurm compute nodes (ldmsd.sampler service, config files)
+#   - LDMS aggregator on Slurm control node (ldmsd.aggregator service, config)
+# =============================================================================
 
-- name: LDMS | Delete Helm releases
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      if helm list -n {{ telemetry_namespace }} 2>/dev/null | grep -q "{{ item }}"; then
-        helm delete {{ item }} -n {{ telemetry_namespace }} 2>/dev/null || true
-      fi
-    executable: /bin/bash
-  loop: "{{ ldms_helm_releases }}"
-  changed_when: false
-  failed_when: false
+- name: LDMS | Cleanup K8s resources
+  block:
+    - name: LDMS | Delete Helm releases
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          if helm list -n {{ telemetry_namespace }} 2>/dev/null | grep -q "{{ item }}"; then
+            helm delete {{ item }} -n {{ telemetry_namespace }} 2>/dev/null || true
+          fi
+        executable: /bin/bash
+      loop: "{{ ldms_helm_releases }}"
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Wait for Helm resources to terminate
-  ansible.builtin.pause:
-    seconds: "{{ cleanup_post_delete_pause }}"
+    - name: LDMS | Wait for Helm resources to terminate
+      ansible.builtin.pause:
+        seconds: "{{ cleanup_post_delete_pause }}"
 
-- name: LDMS | Delete StatefulSets
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
-    --ignore-not-found=true --wait=false
-  loop: "{{ ldms_statefulset_resources }}"
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete StatefulSets
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_statefulset_resources }}"
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Delete Services
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete service {{ item }}
-    --ignore-not-found=true --wait=false
-  loop: "{{ ldms_service_resources }}"
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete Services
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete service {{ item }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_service_resources }}"
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Delete named ConfigMaps
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
-    --ignore-not-found=true --wait=false
-  loop: "{{ ldms_configmap_resources }}"
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete named ConfigMaps
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_configmap_resources }}"
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Delete ConfigMaps by label
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
-    --ignore-not-found=true --wait=false
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete ConfigMaps by label
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
+        --ignore-not-found=true --wait=false
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Delete Secrets
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
-  loop: "{{ ldms_secret_resources }}"
-  loop_control:
-    label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete Secrets
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ ldms_secret_resources }}"
+      loop_control:
+        label: "{{ item.type }}/{{ item.name }}"
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Delete PVCs
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
-    --ignore-not-found=true --wait=false
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete PVCs
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
+        --ignore-not-found=true --wait=false
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Force delete pods
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pod -l {{ ldms_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Force delete pods
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pod -l {{ ldms_pod_label }}
+        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Delete Vector-LDMS bridge resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
-  loop: "{{ vector_ldms_resources }}"
-  loop_control:
-    label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Delete Vector-LDMS bridge resources
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+        --ignore-not-found=true --wait=false
+      loop: "{{ vector_ldms_resources }}"
+      loop_control:
+        label: "{{ item.type }}/{{ item.name }}"
+      changed_when: false
+      failed_when: false
 
-- name: LDMS | Force delete Vector-LDMS pods
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-  changed_when: false
-  failed_when: false
+    - name: LDMS | Force delete Vector-LDMS pods
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
+        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+      changed_when: false
+      failed_when: false
+
+    - name: LDMS | K8s cleanup complete
+      ansible.builtin.debug:
+        msg: "LDMS K8s cleanup completed (includes Vector-LDMS bridge)"
+
+    - name: LDMS | Register cleanup result (success)
+      ansible.builtin.set_fact:
+        _cleanup_result_ldms: "cleaned"
+      delegate_to: localhost
+      delegate_facts: true
+
+  rescue:
+    - name: LDMS | Register cleanup result (failed)
+      ansible.builtin.set_fact:
+        _cleanup_result_ldms: "failed"
+      delegate_to: localhost
+      delegate_facts: true
+
+    - name: LDMS | Log cleanup failure
+      ansible.builtin.debug:
+        msg: "LDMS K8s cleanup failed. Check logs for details."
+
+# =============================================================================
+# LDMS Sampler cleanup on Slurm compute nodes (delegated)
+# =============================================================================
+- name: LDMS | Cleanup sampler on Slurm nodes
+  block:
+    - name: LDMS | Stop ldmsd sampler service on Slurm nodes
+      ansible.builtin.systemd:
+        name: "{{ ldms_sampler_service_name }}"
+        state: stopped
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Disable ldmsd sampler service on Slurm nodes
+      ansible.builtin.systemd:
+        name: "{{ ldms_sampler_service_name }}"
+        enabled: false
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Remove sampler systemd service file on Slurm nodes
+      ansible.builtin.file:
+        path: "{{ ldms_sampler_service_file }}"
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Remove sampler config directory on Slurm nodes
+      ansible.builtin.file:
+        path: "{{ ldms_sampler_config_dir }}"
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Sampler cleanup complete
+      ansible.builtin.debug:
+        msg: "LDMS sampler cleanup completed on {{ groups['slurm_node'] | default([]) | length }} nodes"
+  when: groups['slurm_node'] | default([]) | length > 0
+
+# =============================================================================
+# LDMS Aggregator cleanup on Slurm control node (delegated)
+# =============================================================================
+- name: LDMS | Cleanup aggregator on Slurm control node
+  block:
+    - name: LDMS | Stop ldmsd aggregator service on control node
+      ansible.builtin.systemd:
+        name: "{{ ldms_aggregator_service_name }}"
+        state: stopped
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_control_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Disable ldmsd aggregator service on control node
+      ansible.builtin.systemd:
+        name: "{{ ldms_aggregator_service_name }}"
+        enabled: false
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_control_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Remove aggregator systemd service file
+      ansible.builtin.file:
+        path: "{{ ldms_aggregator_service_file }}"
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_control_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Remove aggregator config directory on control node
+      ansible.builtin.file:
+        path: "{{ ldms_aggregator_config_dir }}"
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_control_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Remove shared LDMS config directories
+      ansible.builtin.file:
+        path: "{{ ldms_aggregator_shared_dir }}"
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['slurm_control_node'] | default([]) }}"
+      failed_when: false
+
+    - name: LDMS | Aggregator cleanup complete
+      ansible.builtin.debug:
+        msg: "LDMS aggregator cleanup completed on control node"
+  when: groups['slurm_control_node'] | default([]) | length > 0
 
 - name: LDMS | Cleanup complete
   ansible.builtin.debug:
-    msg: "LDMS telemetry cleanup completed (includes Vector-LDMS bridge)"
-
-- name: LDMS | Register cleanup result
-  ansible.builtin.set_fact:
-    _cleanup_result_ldms: "cleaned"
-  delegate_to: localhost
-  delegate_facts: true
+    msg: "LDMS telemetry cleanup completed (K8s + Slurm nodes)"

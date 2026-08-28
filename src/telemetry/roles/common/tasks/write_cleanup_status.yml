@@ -47,8 +47,6 @@
       vast: "{{ hostvars['localhost']['_cleanup_result_vast'] | default('skipped') }}"
       ome: "{{ hostvars['localhost']['_cleanup_result_ome'] | default('skipped') }}"
 
-
-
 # -- Determine overall cleanup status -----------------------------------------
 - name: Determine overall cleanup status
   vars:
