@@ -4,6 +4,15 @@
 
 Repo Manager is a content management system that deploys and manages Pulp for offline content distribution. It handles RPM repositories, container images, Python packages, and other content types for offline cluster deployments.
 
+## Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `OMNIA_DATA_PATH` | Base directory for Omnia installation | `/opt/omnia` |
+| `OMNIA_PROJECT_NAME` | Project name identifier | `project_default` |
+
+These environment variables provide portability for installation paths and project configurations.
+
 ## Architecture
 
 ### Component Overview
@@ -99,15 +108,36 @@ plugins/
 - Automatic setup during deployment
 - Consistent access point
 
+### 6. Policy-Based Configuration
+
+**Rationale**: Provide flexible control over repository behavior and content synchronization
+
+**Implementation**:
+- Repository configuration policy (`repo_config: always|partial`)
+- Caching policy (`caching_policy: true|false`)
+- Per-repo override capability
+- Additional and user repository support
+
+**Policy Prioritization**:
+1. Per-repo `caching` field (highest priority)
+2. Global `caching_policy` setting
+3. Default behavior based on `repo_config` setting
+
 ## Data Flow
 
 ### 1. Configuration Flow
 
 ```
 Input Files
-    ├── repo_manager_config.yml
+    ├── repo_manager_config.yml (with policy config)
     ├── software_config.json
     └── repo_manager_endpoint_config.json
+         │
+         ▼
+    Environment Variable Resolution
+    ├── OMNIA_DATA_PATH
+    ├── OMNIA_PROJECT_NAME
+    └── Policy Configuration
          │
          ▼
     Validation
@@ -116,7 +146,7 @@ Input Files
     Pulp Deployment
          │
          ▼
-    Content Download
+    Content Download (with policy application)
          │
          ▼
     Status Generation
@@ -224,6 +254,8 @@ software_config.json
 - Download functions
 - Metadata management
 - Configuration handling
+- Policy configuration processing
+- Repository prioritization logic
 
 ## Error Handling
 
@@ -266,7 +298,7 @@ software_config.json
 ### 1. SSL/TLS Configuration
 
 **Implementation**:
-- HTTPS for Pulp API
+- HTTPS only for Pulp API (HTTP not supported)
 - Certificate validation
 - Self-signed certificate support
 
@@ -286,18 +318,20 @@ software_config.json
 
 ## Performance Considerations
 
-### 1. Parallel Downloads
+### 1. Policy-Based Content Synchronization
 
 **Implementation**:
-- Configurable concurrency
-- Parallel task execution
-- Resource monitoring
+- Repository configuration policy controls when repos are configured
+- Caching policy controls content synchronization behavior
+- Per-repo override capability for fine-grained control
+- Intelligent download skipping based on caching settings
 
 ### 2. Content Caching
 
 **Implementation**:
 - Pulp content caching
-- Intelligent download skipping
+- On-demand synchronization when caching_policy is true
+- Immediate synchronization when caching_policy is false
 - Metadata optimization
 
 ### 3. Resource Management
@@ -323,6 +357,13 @@ software_config.json
 3. Register in validation engine
 4. Add error messages
 
+### Adding New Policy Configurations
+
+1. Define policy in configuration schema
+2. Add policy processing logic
+3. Update prioritization rules
+4. Add policy validation
+
 ## Testing Strategy
 
 ### 1. Unit Testing
@@ -336,6 +377,8 @@ software_config.json
 - Pulp deployment testing
 - Content download testing
 - Status generation testing
+- Policy configuration testing
+- Environment variable testing
 
 ### 3. End-to-End Testing
 

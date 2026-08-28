@@ -16,7 +16,6 @@
 # ***********************************************************************
 # This file configures the Pulp repository server endpoint used by repo_manager.
 # ***********************************************************************
----
 
 # =============================================================================
 # PULP SERVER ENDPOINT
@@ -36,9 +35,8 @@ pulp_https_enabled: true
 # =============================================================================
 # These paths are under OMNIA_DATA_PATH/repo_manager/pulp_config/ (/opt/omnia/repo_manager/pulp_config by default).
 # Modify only if using a custom OMNIA_DATA_PATH or certificate location.
-# Use OMNIA_DATA_PATH environment variable for portability.
 
 ssl_certificates:
-  server_crt: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
-  server_key: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
-  certs_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/repo_manager/pulp_config/settings/certs"
+  server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+  server_key: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
+  certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"

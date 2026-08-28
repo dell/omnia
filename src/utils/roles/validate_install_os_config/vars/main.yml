@@ -40,7 +40,7 @@ ssh_key_not_found_msg: >-
   SSH public key not found at {{ ssh_public_key_path }}.
   Passwordless SSH verification requires this key for OS installation.
   Generate an SSH key with the following command:
-  ssh-keygen -t rsa -b 4096 -N "" -f {{ ssh_public_key_path | dirname }}/id_rsa
+  ssh-keygen -t rsa -b 4096 -N "" -f {{ ssh_public_key_path | regex_replace('\.pub$', '') }}
   Or specify a different path in install_os_config.yml: ssh_public_key_path
 config_validated_msg: >-
   OS Install config validated.

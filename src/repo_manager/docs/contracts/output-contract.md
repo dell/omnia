@@ -9,7 +9,9 @@ during Pulp deployment, content download, and status generation operations.
 
 ### 1. repo_status.yml
 
-**Location**: `/opt/omnia/repo_manager/output/<project_name>/repo_status.yml`
+**Location**: `$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml`
+
+**Default location**: `/opt/omnia/repo_manager/output/project_default/repo_status.yml`
 
 **Purpose**: Primary output file containing repository URLs, certificate paths, and configuration for cluster nodes
 
@@ -72,7 +74,9 @@ offline_ansible_galaxy_collection_path: "https://192.168.1.100:24817/pulp/conten
 
 ### 2. Download Status CSV
 
-**Location**: `/opt/omnia/repo_manager/output/<project_name>/status.csv`
+**Location**: `$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/status.csv`
+
+**Default location**: `/opt/omnia/repo_manager/output/project_default/status.csv`
 
 **Purpose**: Tracks download status of each software item
 
@@ -107,7 +111,9 @@ geopm,tarball,x86_64,success,geopm_x86_64,https://...,2026-07-30T12:05:00Z
 
 ### 4. Pulp Configuration Files
 
-**Location**: `/opt/omnia/repo_manager/pulp_config/settings/`
+**Location**: `$OMNIA_DATA_PATH/repo_manager/pulp_config/settings/`
+
+**Default location**: `/opt/omnia/repo_manager/pulp_config/settings/`
 
 **Purpose**: Pulp server configuration files
 
@@ -121,8 +127,20 @@ geopm,tarball,x86_64,success,geopm_x86_64,https://...,2026-07-30T12:05:00Z
 
 ## Output Directory Structure
 
+Output locations can be customized using the `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` environment variables:
+
 ```
-/opt/omnia/repo_manager/output/<project_name>/
+$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
+├── repo_status.yml
+├── status.csv
+└── .data/
+    ├── download_metadata.json
+    └── pulp_distributions.json
+```
+
+Default output directory structure (when environment variables are not set):
+```
+/opt/omnia/repo_manager/output/project_default/
 ├── repo_status.yml
 ├── status.csv
 └── .data/
@@ -210,9 +228,11 @@ rpm_repos: "{{ lookup('file', repo_status_file) | from_yaml | rpm_repos }}"
 **Recommended Backup Strategy**:
 
 ```bash
-# Backup output directory
+# Backup output directory (using environment variables)
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
 tar -czf repo_manager_output_backup_$(date +%Y%m%d).tar.gz \
-  /opt/omnia/repo_manager/output/<project_name>/
+  $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
 
 # Backup to remote location
 scp repo_manager_output_backup_*.tar.gz backup-server:/backups/
@@ -227,8 +247,9 @@ scp repo_manager_output_backup_*.tar.gz backup-server:/backups/
 
 **Cleanup Script**:
 ```bash
-# Remove outputs older than 30 days
-find /opt/omnia/repo_manager/output/ -mtime +30 -exec rm -rf {} \;
+# Remove outputs older than 30 days (using environment variables)
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+find $OMNIA_DATA_PATH/repo_manager/output/ -mtime +30 -exec rm -rf {} \;
 ```
 
 ## Output File Permissions
@@ -269,10 +290,12 @@ find /opt/omnia/repo_manager/output/ -mtime +30 -exec rm -rf {} \;
 
 **Monitoring Scripts**:
 ```bash
-# Check if repo_status.yml exists and is valid
-if [ -f /opt/omnia/repo_manager/output/<project_name>/repo_status.yml ]; then
+# Check if repo_status.yml exists and is valid (using environment variables)
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+if [ -f $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml ]; then
   echo "repo_status.yml exists"
-  python3 -c "import yaml; yaml.safe_load(open('/opt/omnia/repo_manager/output/<project_name>/repo_status.yml'))"
+  python3 -c "import yaml; yaml.safe_load(open('$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml'))"
 else
   echo "ERROR: repo_status.yml missing"
   exit 1
@@ -291,8 +314,10 @@ fi
 
 **Version Control Integration**:
 ```bash
-# Tag successful outputs
-cd /opt/omnia/repo_manager/output/<project_name>/
+# Tag successful outputs (using environment variables)
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+cd $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
 git tag repo_status_$(date +%Y%m%d_%H%M%S)
 ```
 

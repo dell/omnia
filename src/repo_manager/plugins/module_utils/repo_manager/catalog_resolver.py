@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-nested-blocks
+# pylint:
+# disable=import-error,line-too-long,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-nested-blocks
 
 """
 Multi-catalog resolver for repo_manager.
@@ -29,13 +30,12 @@ All catalog keys are normalized to lowercase during loading.
 import os
 import json
 import hashlib
-import logging
 from collections import OrderedDict
 
 from ansible.module_utils.repo_manager.config import (
-    PACKAGE_TYPES,
     ARCH_SUFFIXES,
 )
+from ansible.module_utils.repo_manager.software_utils import normalize_repo_name
 
 
 # ---------------------------------------------------------------------------
@@ -241,6 +241,39 @@ def compute_composite_key_hash(package_name, package_type, version, arch):
 # Catalog Resolution: Groups -> Packages (lowercase keys)
 # ---------------------------------------------------------------------------
 
+def extract_os_version_from_functional_layer(catalog, logger):
+    """Extract OS version from functional layer names in the catalog.
+
+    Functional layer names follow the pattern: <layer>_rhel_<version>_<arch>
+    e.g., slurm_control_node_rhel_10_0_x86_64 -> version: 10.0
+
+    Args:
+        catalog (dict): Parsed catalog data (lowercase keys).
+        logger: Logger instance.
+
+    Returns:
+        str: OS version (e.g., "10.0") or default "10.0" if not found.
+    """
+    functional_layers = catalog.get("functionallayer", [])
+
+    for fl in functional_layers:
+        fl_name = fl.get("name", "")
+        # Pattern: <layer>_rhel_<version>_<arch>
+        # Extract version between "rhel_" and "_x86_64" or "_aarch64"
+        if "rhel_" in fl_name:
+            parts = fl_name.split("rhel_")
+            if len(parts) > 1:
+                version_part = parts[1].split("_")[0]  # Get first part after rhel_
+                # Convert underscores to dots (e.g., "10_0" -> "10.0")
+                os_version = version_part.replace("_", ".")
+                logger.info("Extracted OS version '%s' from functional layer '%s'",
+                            os_version, fl_name)
+                return os_version
+
+    logger.warning("Could not extract OS version from functional layers, using default '10.0'")
+    return "10.0"
+
+
 def resolve_catalog_groups(catalog, arch, logger):
     """Resolve functionallayer -> groups -> packages for a given architecture.
 
@@ -441,7 +474,7 @@ def build_global_package_index(catalogs, logger):
             if dup_packages:
                 unique_dups = sorted(set(dup_packages))
                 logger.info("DEDUP summary for %s (%d duplicates): %s",
-                           arch, len(dup_packages), ", ".join(unique_dups))
+                            arch, len(dup_packages), ", ".join(unique_dups))
 
     return global_index
 
@@ -502,7 +535,7 @@ def build_tasklist_from_index(global_index, arch, logger):
 # Repo URL Extraction from New Config Format
 # ---------------------------------------------------------------------------
 
-def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_version, logger):
+def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_version, logger, global_caching_policy=True):
     """Parse repository URLs from the new repo_manager_config.yml format.
 
     The new config has:
@@ -518,6 +551,7 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
         arch (str): Architecture to extract repos for.
         os_version (str): OS version key (e.g., "10.0").
         logger: Logger instance.
+        global_caching_policy (bool): Global caching policy from config (default: True).
 
     Returns:
         list[dict]: List of parsed repo entries with url, gpgkey, name, policy, etc.
@@ -528,8 +562,8 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
 
     parsed = []
     for repo_name, repo_def in arch_repos.items():
-        if repo_name == "additional_repos":
-            # Additional repos handled separately
+        if repo_name in ("additional_repos", "user_repos"):
+            # Additional and user repos handled separately
             continue
         if not isinstance(repo_def, dict):
             continue
@@ -540,7 +574,7 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
 
         gpgkey = repo_def.get("gpgkey", "")
         policy = repo_def.get("policy", repo_config_policy)
-        caching = repo_def.get("caching", True)
+        caching = repo_def.get("caching", global_caching_policy)
         sslcacert = repo_def.get("sslcacert", "")
         sslclientkey = repo_def.get("sslclientkey", "")
         sslclientcert = repo_def.get("sslclientcert", "")
@@ -561,7 +595,8 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
     return parsed
 
 
-def parse_additional_repos_from_config(config_data, repo_config_policy, arch, os_version, logger):
+def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
+                                       os_version, logger, global_caching_policy=True):
     """Parse additional_repos from the new repo_manager_config.yml format.
 
     Args:
@@ -570,6 +605,7 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch, os
         arch (str): Architecture.
         os_version (str): OS version key.
         logger: Logger instance.
+        global_caching_policy (bool): Global caching policy from config (default: True).
 
     Returns:
         list[dict]: List of additional repo entries.
@@ -589,18 +625,73 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch, os
         url = repo_def.get("url", "")
         if not url:
             continue
+
+        # Normalize repo name to standard format
+        normalized_name = normalize_repo_name(repo_name, arch, "rhel", os_version)
+
         parsed.append({
-            "name": repo_name,
+            "name": normalized_name,
+            "original_name": repo_name,  # Keep original for reference
             "url": url,
             "gpgkey": repo_def.get("gpgkey", ""),
             "policy": repo_def.get("policy", repo_config_policy),
-            "caching": repo_def.get("caching", True),
+            "caching": repo_def.get("caching", global_caching_policy),
             "sslcacert": repo_def.get("sslcacert", ""),
             "sslclientkey": repo_def.get("sslclientkey", ""),
             "sslclientcert": repo_def.get("sslclientcert", ""),
         })
 
     logger.info("Parsed %d additional repo entries for arch %s", len(parsed), arch)
+    return parsed
+
+
+def parse_user_repos_from_config(config_data, os_version, arch, repo_config_policy, logger, global_caching_policy=True):
+    """Parse user custom repositories from repo_manager_config.yml user_repos section.
+
+    Args:
+        config_data: Parsed repo_manager_config.yml data
+        os_version: OS version (e.g., "10.0")
+        arch: Architecture (e.g., "x86_64")
+        repo_config_policy: Default repo policy from config
+        logger: Logger instance
+        global_caching_policy (bool): Global caching policy from config (default: True).
+
+    Returns:
+        list: Parsed user repository entries
+    """
+    repositories = config_data.get("repositories", {})
+    version_repos = repositories.get(os_version, {})
+    arch_repos = version_repos.get(arch, {})
+    user_repos = arch_repos.get("user_repos", {})
+
+    if not user_repos or not isinstance(user_repos, dict):
+        return []
+
+    parsed = []
+    for repo_name, repo_def in user_repos.items():
+        if not isinstance(repo_def, dict):
+            continue
+        url = repo_def.get("url", "")
+        if not url:
+            continue
+
+        # Normalize repo name to standard format
+        normalized_name = normalize_repo_name(repo_name, arch, "rhel", os_version)
+
+        parsed.append({
+            "name": normalized_name,
+            "original_name": repo_name,  # Keep original for reference
+            "url": url,
+            "gpgkey": repo_def.get("gpgkey", ""),
+            "policy": repo_def.get("policy", repo_config_policy),
+            "caching": repo_def.get("caching", global_caching_policy),
+            "sslcacert": repo_def.get("sslcacert", ""),
+            "sslclientkey": repo_def.get("sslclientkey", ""),
+            "sslclientcert": repo_def.get("sslclientcert", ""),
+            "priority": repo_def.get("priority"),
+        })
+
+    logger.info("Parsed %d user repo entries for arch %s", len(parsed), arch)
     return parsed
 
 

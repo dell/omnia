@@ -18,6 +18,11 @@
 # This playbook orchestrates repo_manager operations with tag support.
 # All tasks run on localhost (OIM).
 #
+# Environment Variables:
+#   SYSTEM_ADMIN_NIC_IPV4 - Required: Admin network interface IP
+#   CATALOG_FILE_PATH     - Required: Path to catalog JSON file
+#   OMNIA_DATA_PATH       - Optional: Data path (default: /opt/omnia)
+#
 # Usage:
 #   # Prepare credentials and deploy Pulp server
 #   ansible-playbook repo_manager.yml --tags prepare
@@ -32,11 +37,17 @@
 #   # Generate repo_status.yml
 #   ansible-playbook repo_manager.yml --tags status
 #
-#   # Cleanup Pulp server
+#   # Cleanup Pulp server (full cleanup - removes container, data, logs)
 #   ansible-playbook repo_manager.yml --tags cleanup_pulp
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e cleanup_logs=false
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e cleanup_credentials=false
 #
-#   # Cleanup specific repositories
+#   # Cleanup specific repositories (selective cleanup)
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel,aarch64_rhel_10.0_epel"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/library/nginx"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=git,chart-0.48.0"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=all" -e force=true
 #
 #   # Full workflow: precheck -> prepare -> download -> status
 #   ansible-playbook repo_manager.yml --tags "precheck,prepare,download,status"
@@ -49,7 +60,26 @@
 #
 #   # Rollback repo_manager (placeholder)
 #   ansible-playbook repo_manager.yml --tags rollback
+#
+#   # Catalog operations
+#   ansible-playbook repo_manager.yml --tags catalog_generate -e "input_file=input/packages.txt"
+#   ansible-playbook repo_manager.yml --tags catalog_add -e "input_file=input/additions.txt"
+#   ansible-playbook repo_manager.yml --tags catalog_delete -e "input_file=input/removals.txt"
+#   ansible-playbook repo_manager.yml --tags catalog_validate
 # =============================================================================
+
+# -------------------------------------------------------------------------
+# DISPLAY USAGE
+# -------------------------------------------------------------------------
+- name: Display Repo Manager Usage
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Repo Manager Orchestrator - Usage
+      ansible.builtin.debug:
+        msg: "Run with --tags to specify operation (prepare, precheck, download, status, cleanup_pulp, cleanup_repos)"
+  tags: always
 
 # -------------------------------------------------------------------------
 # PRECHECK
@@ -120,8 +150,8 @@
   ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_pulp.yml"
   tags:
     - never
-    - cleanup_pulp
     - cleanup
+    - cleanup_pulp
 
 # -------------------------------------------------------------------------
 # CLEANUP REPOS
@@ -149,3 +179,21 @@
   tags:
     - never
     - rollback
+
+# -------------------------------------------------------------------------
+# CATALOG OPERATIONS
+# -------------------------------------------------------------------------
+- name: Catalog Operations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  roles:
+    - role: catalog
+  tags:
+    - never
+    - catalog_generate
+    - catalog_add
+    - catalog_delete
+    - catalog_validate

@@ -13,8 +13,6 @@
 # ***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
----
-
 # ***********************************************************************
 # NOTE: This config uses the catalog-based approach (Omnia 2.2+).
 #       Package resolution is driven by the catalog.
@@ -52,7 +50,16 @@
 #      partial : Sync only packages declared in the catalog (selective sync)
 #    This can be overridden per-repository using the 'policy' field.
 #
-# 2. registries
+# 2. caching_policy
+# --------------------------
+#    Global caching policy that controls Pulp download behavior.
+#    Allowed values:
+#      true    : Use on_demand policy (metadata only, download on request)
+#      false   : Use immediate policy when repo_config=always (download all)
+#    This can be overridden per-repository using the 'caching' field.
+#    Default: true (on_demand for backward compatibility)
+#
+# 3. registries
 # --------------------------
 #    Container registry configurations.
 #    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
@@ -88,7 +95,7 @@
 #      is not found, RPM syncing will fail.
 #
 #    Optional per-entry fields:
-#      policy      : Sync policy – allowed values: always, partial (default: from software_config)
+#      policy      : Sync policy – allowed values: always, partial (default: from repo_config)
 #      caching     : Local caching – allowed values: true, false (default: true)
 #      sslcacert   : Path to SSL CA certificate
 #      sslclientkey: Path to SSL client key
@@ -104,6 +111,8 @@
 # 1. REPO CONFIG (global sync policy)
 # ------------------------------------------------------------
 repo_config: "partial"  # Options: always | partial
+caching_policy: true    # Options: true (on_demand) | false (immediate)
+# Note: Per-repo 'caching' field overrides global caching_policy when set
 
 # ------------------------------------------------------------
 # 2. REGISTRIES
@@ -139,7 +148,7 @@ repo_config: "partial"  # Options: always | partial
 registries:
 
 # ------------------------------------------------------------
-# 3. REPOSITORIES
+# 4. REPOSITORIES
 #    RPM repository configurations.
 #    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
 #
@@ -162,7 +171,7 @@ registries:
 #       use custom mirrors. Incorrect changes may cause Omnia failure.
 #   - ADDITIONAL REPOS (optional):
 #       For extra repositories not covered above (e.g. grafana, custom tools).
-#       Packages from these repos must be declared in additional_packages.json.
+#       Packages from these repos must be declared in the catalog.
 # ------------------------------------------------------------
 repositories:
   "10.0":
@@ -172,21 +181,15 @@ repositories:
       baseos: {}
       appstream: {}
       codeready-builder: {}
-      # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
-      slurm_custom:
-        url: ""
-        gpgkey: ""
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      ldms: {}
-      # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
         gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
         sslcacert: ""
         sslclientkey: ""
         sslclientcert: ""
+        policy: "partial"
+        caching: true
+        priority: 99
       kubernetes-v1-35:
         url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/"
         gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key"
@@ -194,8 +197,8 @@ repositories:
         sslclientkey: ""
         sslclientcert: ""
       cri-o-v1-35:
-        url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
-        gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        url: "https://ftp.gwdg.de/pub/opensuse/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
+        gpgkey: "https://ftp.gwdg.de/pub/opensuse/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
         sslcacert: ""
         sslclientkey: ""
         sslclientcert: ""
@@ -217,13 +220,17 @@ repositories:
         sslcacert: ""
         sslclientkey: ""
         sslclientcert: ""
+        policy: "partial"
+        caching: true
       nvidia-hpc-sdk:
         url: "https://developer.download.nvidia.com/hpc-sdk/rhel/x86_64"
         gpgkey: "https://developer.download.nvidia.com/hpc-sdk/rhel/RPM-GPG-KEY-NVIDIA-HPC-SDK"
         sslcacert: ""
         sslclientkey: ""
         sslclientcert: ""
-      # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
+        policy: "partial"
+        caching: true
+      # ADDITIONAL REPOS (optional – for third-party packages, declare in the catalog)
       # Example format:
       #   additional_repos:
       #     grafana:
@@ -235,6 +242,7 @@ repositories:
       #       sslclientkey: ""
       #       sslclientcert: ""
       additional_repos: {}
+      user_repos: {}
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
@@ -242,13 +250,6 @@ repositories:
       appstream: {}
       codeready-builder: {}
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
-      slurm_custom:
-        url: ""
-        gpgkey: ""
-        sslcacert: ""
-        sslclientkey: ""
-        sslclientcert: ""
-      ldms: {}
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
@@ -280,7 +281,7 @@ repositories:
         sslcacert: ""
         sslclientkey: ""
         sslclientcert: ""
-      # ADDITIONAL REPOS (optional – for third-party packages, declare in additional_packages.json)
+      # ADDITIONAL REPOS (optional – for third-party packages, declare in the catalog)
       # Example format:
       #   additional_repos:
       #     grafana:
@@ -292,3 +293,4 @@ repositories:
       #       sslclientkey: ""
       #       sslclientcert: ""
       additional_repos: {}
+      user_repos: {}

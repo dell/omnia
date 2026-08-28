@@ -1,8 +1,160 @@
 # Troubleshooting Guide
 
+## Environment Variable Issues
+
+### 1. "OMNIA_DATA_PATH not set"
+
+**Error**:
+```
+Path not found: /repo_manager/input/project_default/
+```
+
+**Fix**: Set the `OMNIA_DATA_PATH` environment variable:
+```bash
+export OMNIA_DATA_PATH=/opt/omnia
+# Or use custom path
+export OMNIA_DATA_PATH=/custom/omnia
+```
+
+**Verification**:
+```bash
+echo $OMNIA_DATA_PATH
+ls -la $OMNIA_DATA_PATH/repo_manager/
+```
+
+---
+
+### 2. "OMNIA_PROJECT_NAME not set"
+
+**Error**:
+```
+Project directory not found: project_default
+```
+
+**Fix**: Set the `OMNIA_PROJECT_NAME` environment variable:
+```bash
+export OMNIA_PROJECT_NAME=my_project
+# Or use default
+export OMNIA_PROJECT_NAME=project_default
+```
+
+**Verification**:
+```bash
+echo $OMNIA_PROJECT_NAME
+ls -la $OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/
+```
+
+---
+
+### 3. "Input files not found in custom path"
+
+**Error**:
+```
+repo_manager_config.yml not found in /custom/omnia/repo_manager/input/my_project/
+```
+
+**Fix**: Ensure both environment variables are set correctly:
+```bash
+export OMNIA_DATA_PATH=/custom/omnia
+export OMNIA_PROJECT_NAME=my_project
+# Verify input files exist
+ls -la $OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/
+```
+
+---
+
+## Policy Configuration Issues
+
+### 4. "Invalid repo_config value"
+
+**Error**:
+```
+Invalid repo_config value: 'invalid'. Must be 'always' or 'partial'
+```
+
+**Fix**: Update `repo_manager_config.yml` with valid value:
+```yaml
+repo_config: "partial"  # Options: always | partial
+```
+
+---
+
+### 5. "Invalid caching_policy value"
+
+**Error**:
+```
+Invalid caching_policy value: 'invalid'. Must be true or false
+```
+
+**Fix**: Update `repo_manager_config.yml` with valid value:
+```yaml
+caching_policy: true    # Options: true (on_demand) | false (immediate)
+```
+
+---
+
+### 6. "Per-repo caching override not working"
+
+**Error**:
+```
+Repository not using expected caching behavior
+```
+
+**Fix**: Check policy prioritization order:
+1. Per-repo `caching` field (highest priority)
+2. Global `caching_policy` setting
+3. Default behavior based on `repo_config` setting
+
+**Example Configuration**:
+```yaml
+# Global policy
+caching_policy: true  # on_demand by default
+
+# Per-repo override
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # This repo uses immediate sync, overriding global policy
+```
+
+---
+
+### 7. "additional_repos configuration not working"
+
+**Error**:
+```
+Additional repositories not being processed
+```
+
+**Fix**: Verify `additional_repos` configuration format:
+```yaml
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # Optional: override global caching_policy
+```
+
+---
+
+### 8. "user_repos configuration not working"
+
+**Error**:
+```
+User repositories not being processed
+```
+
+**Fix**: Verify `user_repos` configuration format:
+```yaml
+user_repos:
+  custom_rhel_repo:
+    url: "http://my-repo.example.com/rhel10/"
+```
+
+---
+
 ## Common Issues
 
-### 1. "Pulp CLI not found"
+### 9. "Pulp CLI not found"
 
 **Error**:
 ```
@@ -25,11 +177,11 @@ ansible-playbook repo_manager.yml --tags deploy
 
 ---
 
-### 2. "Pulp server not responding"
+### 10. "Pulp server not responding"
 
 **Error**:
 ```
-Failed to connect to Pulp server at http://localhost:24817
+Failed to connect to Pulp server at https://localhost:24817
 ```
 
 **Fix**: Check if Pulp containers are running:
@@ -50,7 +202,7 @@ podman logs pulp-content
 
 ---
 
-### 3. "repo_manager_config.yml validation failed"
+### 11. "repo_manager_config.yml validation failed"
 
 **Error**:
 ```
@@ -71,35 +223,37 @@ Common issues:
 
 ---
 
-### 4. "software_config.json not found"
+### 12. "software_config.json not found"
 
 **Error**:
 ```
 software_config.json not found at input/project_default/software_config.json
 ```
 
-**Fix**: Ensure the file exists in the correct location:
+**Fix**: Ensure the file exists in the correct location (using environment variables):
 ```bash
-ls -la /root/oim-multi-repo/omnia/src/repo_manager/input/project_default/software_config.json
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+ls -la $OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/software_config.json
 ```
 
 Copy the sample if needed:
 ```bash
-cp samples/software_config.json input/project_default/
+cp samples/software_config.json input/$OMNIA_PROJECT_NAME/
 ```
 
 ---
 
-### 5. "Download failed for repository"
+### 13. "Download failed for repository"
 
 **Error**:
 ```
-Failed to download content from http://...
+Failed to download content from https://...
 ```
 
 **Fix**: Check network connectivity and URL validity:
 ```bash
-curl -I http://repository-url/
+curl -I https://repository-url/
 ```
 
 If using custom user repositories, verify the URLs in `repo_manager_config.yml`.
@@ -111,7 +265,7 @@ firewall-cmd --list-all
 
 ---
 
-### 6. "Podman container failed to start"
+### 14. "Podman container failed to start"
 
 **Error**:
 ```
@@ -136,7 +290,7 @@ podman logs <container_name>
 
 ---
 
-### 7. "SSL/TLS certificate error"
+### 15. "SSL/TLS certificate error"
 
 **Error**:
 ```
@@ -145,16 +299,17 @@ or
 unable to get local issuer certificate
 ```
 
-**Fix**: Ensure Pulp certificates are properly configured:
+**Fix**: Ensure Pulp certificates are properly configured (using environment variables):
 ```bash
-ls -la /opt/omnia/repo_manager/pulp_config/settings/certs/
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+ls -la $OMNIA_DATA_PATH/repo_manager/pulp_config/settings/certs/
 ```
 
 If using self-signed certificates, ensure the CA cert is trusted.
 
 ---
 
-### 8. "repo_status.yml generation failed"
+### 16. "repo_status.yml generation failed"
 
 **Error**:
 ```
@@ -176,22 +331,23 @@ ansible-playbook repo_manager.yml --tags status
 
 ---
 
-### 9. "Permission denied on log directory"
+### 17. "Permission denied on log directory"
 
 **Error**:
 ```
 Permission denied: /var/log/omnia/repo_manager/
 ```
 
-**Fix**: Ensure the log directory exists with proper permissions:
+**Fix**: Ensure the log directory exists with proper permissions (using environment variables):
 ```bash
-mkdir -p /var/log/omnia/repo_manager/
-chmod 755 /var/log/omnia/repo_manager/
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+mkdir -p $OMNIA_DATA_PATH/repo_manager/log/
+chmod 755 $OMNIA_DATA_PATH/repo_manager/log/
 ```
 
 ---
 
-### 10. "Cleanup failed to remove containers"
+### 18. "Cleanup failed to remove containers"
 
 **Error**:
 ```
@@ -231,13 +387,17 @@ ansible-playbook repo_manager.yml --tags precheck -vvv
 ### Check download status
 
 ```bash
-cat /opt/omnia/repo_manager/output/<project_name>/status.csv
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+cat $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/status.csv
 ```
 
 ### Verify repo_status.yml
 
 ```bash
-cat /opt/omnia/repo_manager/output/<project_name>/repo_status.yml
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+cat $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml
 ```
 
 ### Check Pulp container logs
@@ -274,11 +434,17 @@ ansible-playbook repo_manager.yml --tags status
 
 | Log Type | Location |
 |----------|----------|
-| Ansible playbook logs | `/var/log/omnia/repo_manager/repo_manager.log` |
+| Ansible playbook logs | `$OMNIA_DATA_PATH/repo_manager/log/repo_manager.log` |
 | Pulp API logs | `podman logs pulp-api` |
 | Pulp content logs | `podman logs pulp-content` |
 | Pulp worker logs | `podman logs pulp-worker` |
-| Download status | `/opt/omnia/repo_manager/output/<project_name>/status.csv` |
+| Download status | `$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/status.csv` |
+
+**Default locations** (when environment variables are not set):
+| Log Type | Default Location |
+|----------|-----------------|
+| Ansible playbook logs | `/var/log/omnia/repo_manager/repo_manager.log` |
+| Download status | `/opt/omnia/repo_manager/output/project_default/status.csv` |
 
 ---
 
@@ -286,9 +452,14 @@ ansible-playbook repo_manager.yml --tags status
 
 ### Slow downloads
 
-**Fix**: Increase concurrency in `repo_manager_config.yml`:
+**Fix**: Adjust caching policy in `repo_manager_config.yml`:
 ```yaml
-pulp_concurrency: 8  # Increase from default 4
+caching_policy: false    # Use immediate sync for faster downloads
+# Or use per-repo override for specific repos
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # Immediate sync for this repo
 ```
 
 ### High memory usage
@@ -305,9 +476,11 @@ free -h
 ansible-playbook repo_manager.yml --tags cleanup
 ```
 
-Check disk usage:
+Check disk usage (using environment variables):
 ```bash
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
 df -h
+du -sh $OMNIA_DATA_PATH/repo_manager/pulp_config/
 du -sh /var/lib/containers/
 ```
 
@@ -334,10 +507,10 @@ firewall-cmd --reload
 
 ### Proxy configuration
 
-**Fix**: If using a proxy, configure environment variables:
+**Fix**: If using a proxy, configure environment variables (HTTPS only):
 ```bash
-export http_proxy=http://proxy.example.com:8080
-export https_proxy=http://proxy.example.com:8080
+export https_proxy=https://proxy.example.com:8080
+export no_proxy=localhost,127.0.0.1
 ```
 
 ---
@@ -349,11 +522,15 @@ export https_proxy=http://proxy.example.com:8080
 If you need to completely reset Repo Manager:
 
 ```bash
+# Set environment variables
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+
 # 1. Cleanup
 ansible-playbook repo_manager.yml --tags cleanup
 
 # 2. Remove output directory
-rm -rf /opt/omnia/repo_manager/output/<project_name>/
+rm -rf $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
 
 # 3. Redeploy
 ansible-playbook repo_manager.yml --tags deploy
@@ -370,8 +547,12 @@ ansible-playbook repo_manager.yml --tags status
 If you have a backup of `repo_status.yml`:
 
 ```bash
+# Set environment variables
+export OMNIA_DATA_PATH=${OMNIA_DATA_PATH:-/opt/omnia}
+export OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME:-project_default}
+
 # Restore the file
-cp backup/repo_status.yml /opt/omnia/repo_manager/output/<project_name>/
+cp backup/repo_status.yml $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
 
 # Verify it's valid
 ansible-playbook repo_manager.yml --tags precheck

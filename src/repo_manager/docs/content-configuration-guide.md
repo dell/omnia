@@ -8,6 +8,15 @@ management in Repo Manager.
 
 **Location**: `input/project_default/software_config.json`
 
+## Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `OMNIA_DATA_PATH` | Base directory for Omnia installation | `/opt/omnia` |
+| `OMNIA_PROJECT_NAME` | Project name identifier | `project_default` |
+
+Input and output paths can be customized using these environment variables for portability.
+
 ## File Structure
 
 ```json
@@ -212,11 +221,7 @@ Software can be configured for specific architectures:
 
 ## Download Concurrency
 
-Configure download concurrency in `repo_manager_config.yml`:
-
-```yaml
-pulp_concurrency: 4  # Number of parallel download tasks
-```
+Download concurrency is configured through the repository configuration policy and caching policy settings. See the Policy Configuration section above for details on controlling synchronization behavior.
 
 ## Validation
 
@@ -228,6 +233,72 @@ Common validation errors:
 - Invalid content type
 - Invalid architecture specification
 - Malformed JSON syntax
+
+## Policy Configuration
+
+### Repository Configuration Policy
+
+Controls how repositories are configured and processed:
+
+```yaml
+repo_config: "partial"  # Options: always | partial
+```
+
+- `always`: Always configure all repositories regardless of existing state
+- `partial`: Only configure repositories that are not already configured
+
+### Caching Policy
+
+Controls content synchronization behavior:
+
+```yaml
+caching_policy: true    # Options: true (on_demand) | false (immediate)
+# Note: Per-repo 'caching' field overrides global caching_policy when set
+```
+
+- `true` (on_demand): Content is synchronized only when needed
+- `false` (immediate): Content is always synchronized immediately
+
+### Additional Repositories
+
+Additional repository configurations:
+
+```yaml
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # Override global caching_policy
+```
+
+### User Repositories
+
+User-defined repository configurations:
+
+```yaml
+user_repos:
+  custom_rhel_repo:
+    url: "http://my-repo.example.com/rhel10/"
+```
+
+### Policy Prioritization
+
+Repository policies are prioritized in the following order:
+
+1. Per-repo `caching` field (highest priority)
+2. Global `caching_policy` setting
+3. Default behavior based on `repo_config` setting
+
+Example:
+```yaml
+# Global policy
+caching_policy: true  # on_demand by default
+
+# Per-repo override
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # This repo uses immediate sync, overriding global policy
+```
 
 ## Historical Context
 

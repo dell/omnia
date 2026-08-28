@@ -111,7 +111,7 @@ max_retries: 10
 # PARALLEL EXECUTION CONFIGURATION
 # -----------------------------------------------------------------------------
 parallel_config:
-  default_nthreads: 4
+  default_nthreads: 1
   default_timeout_seconds: 60
   task_poll_interval_seconds: 10
 
@@ -124,10 +124,47 @@ download_config:
   iso_timeout_minutes: 45
 
 # -----------------------------------------------------------------------------
+# CONTAINER SYNC POLICY
+# -----------------------------------------------------------------------------
+# Default sync policy for container images.
+# For airgap: always use "immediate" to ensure full download
+# Options: immediate | on_demand | streamed
+container_sync_policy: "immediate"
+
+# -----------------------------------------------------------------------------
 # PULP CONFIGURATION
 # -----------------------------------------------------------------------------
-pulp_config:
-  concurrency: 1
+# pulp_config.concurrency is DEPRECATED and not used in default code path
+# The actual parallelism is controlled by rpm_repo_config.thread_pool_size
+# pulp_config:
+#   concurrency: 4
+
+# -----------------------------------------------------------------------------
+# RPM REPOSITORY PROCESSING CONFIGURATION
+# -----------------------------------------------------------------------------
+rpm_repo_config:
+  # Number of repos to process in parallel (1-10)
+  thread_pool_size: 1      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
+
+  # Maximum time for any single Pulp command in seconds
+  pulp_timeout: 86400      # ENV: REPO_MANAGER_PULP_TIMEOUT (24 hours)
+
+  # Continue processing other repos if one fails
+  continue_on_failure: true # ENV: REPO_MANAGER_CONTINUE_ON_FAILURE
+
+  # File lock wait time in seconds
+  file_lock_timeout: 60    # ENV: REPO_MANAGER_FILE_LOCK_TIMEOUT
+
+  # Progress-based stuck detection timeout in seconds
+  # If download/parsing progress doesn't change for this long, sync is considered stuck
+  sync_stuck_timeout: 600  # ENV: REPO_MANAGER_SYNC_STUCK_TIMEOUT (10 minutes)
+
+  # How often to check Pulp task progress in seconds
+  progress_check_interval: 30  # ENV: REPO_MANAGER_PROGRESS_CHECK_INTERVAL
+
+  # Cleanup behavior after stuck sync timeout
+  cleanup_on_timeout: true  # ENV: REPO_MANAGER_CLEANUP_ON_TIMEOUT (clean up partial repo state after timeout)
+  cleanup_orphans_only: false  # ENV: REPO_MANAGER_CLEANUP_ORPHANS_ONLY (if true, only clean orphans, don't delete repo)
 
 # -----------------------------------------------------------------------------
 # CLEANUP CONFIGURATION

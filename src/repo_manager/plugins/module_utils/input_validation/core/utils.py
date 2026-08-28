@@ -507,17 +507,8 @@ def validate_cluster_items(cluster_items, json_file_path):
     failures = []
     successes = []
 
-    is_additional_packages = json_file_path.endswith('additional_packages.json')
-    allowed_types_for_additional = {'rpm', 'image'}
-
     for item in cluster_items:
         item_type = item.get('type')
-
-        if is_additional_packages and item_type not in allowed_types_for_additional:
-            failures.append(
-                f"Failed. Type '{item_type}' is not allowed in '{json_file_path}'. "
-                f"Only 'rpm' and 'image' types are permitted in this file.")
-            continue
 
         required_fields = TYPE_REQUIREMENTS.get(item_type)
 
@@ -547,42 +538,3 @@ def validate_cluster_items(cluster_items, json_file_path):
 
     return successes, failures
 
-
-def validate_softwaresubgroup_entries(software_name, json_path, json_data, validation_results, failures):
-    """
-    Validates the entries for a specific software subgroup in a JSON file.
-
-    Args:
-        software_name (str): The name of the software.
-        json_path (str): The path to the JSON file.
-        json_data (dict): The JSON data.
-        validation_results (list): A list to store the validation results.
-        failures (list): A list to store the failure messages.
-
-    Returns:
-        tuple: A tuple containing the updated validation results and failures.
-    """
-    try:
-        if software_name in json_data:
-            validation_results.append((json_path, True))
-            if 'cluster' in json_data[software_name]:
-                cluster_items = json_data[software_name]['cluster']
-                item_successes, item_failures = validate_cluster_items(cluster_items, json_path)
-                if item_failures:
-                    failures.extend(item_failures)
-            else:
-                failures.append(
-                    f"Failed. Invalid JSON format for: '{software_name}' in file '{json_path}'. "
-                    f"Cluster property is missing")
-        else:
-            validation_results.append((json_path, False))
-            failures.append(f"Failed. Invalid software name: '{software_name}' in file '{json_path}'.")
-
-    except KeyError as e:
-        failures.append(f"Failed. Missing key {str(e)} in file '{json_path}'.")
-    except TypeError as e:
-        failures.append(f"Failed. Type error in file '{json_path}': {str(e)}")
-    except Exception as e:
-        failures.append(f"Failed. Unexpected error in file '{json_path}': {str(e)}")
-
-    return validation_results, failures

@@ -19,29 +19,6 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# USAGE INFORMATION
-# -----------------------------------------------------------------------------
-repo_manager_usage_info_msg:
-  - "========== REPO MANAGER =========="
-  - "Available tags:"
-  - "  prepare      - Prepare credentials and deploy Pulp server"
-  - "  deploy       - Prepare credentials and deploy Pulp server (same as prepare)"
-  - "  precheck     - Precheck input configurations"
-  - "  download     - Download and sync packages/repositories"
-  - "  status       - Generate repo_status.yml"
-  - "  cleanup_pulp - Cleanup Pulp server and data"
-  - "  cleanup_repos - Cleanup specific repositories"
-  - "  upgrade      - Upgrade Repo Manager (placeholder)"
-  - "  rollback     - Rollback Repo Manager (placeholder)"
-  - ""
-  - "Examples:"
-  - "  ansible-playbook repo_manager.yml --tags prepare"
-  - "  ansible-playbook repo_manager.yml --tags prepare -e pulp_password='your_password'"
-  - "  ansible-playbook repo_manager.yml --tags precheck,prepare,download,status"
-  - "  ansible-playbook repo_manager.yml --tags cleanup_pulp"
-  - "=================================="
-
-# -----------------------------------------------------------------------------
 # ERROR MESSAGES
 # -----------------------------------------------------------------------------
 log_dir_creation_fail_msg: "Failed to create log directory: {{ repo_manager_log_dir }}"

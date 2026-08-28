@@ -1,0 +1,92 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# pulp_health_check.yml
+# 3 checks: container → API → internal health
+# Uses pulp CLI (authenticated) for reliable results
+
+# ═══ Load required variables if not already set ═══
+- name: Load deploy_pulp role variables
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/deploy_pulp/vars/main.yml"
+  when: pulp_container_port_https is not defined
+
+# ═══ CHECK 1: Container running ═══
+- name: Check if Pulp container is running
+  ansible.builtin.command:
+    cmd: podman ps --filter name={{ pulp_container_name }} --format "{{ '{{' }}.Status{{ '}}' }}"
+  register: _container_status
+  changed_when: false
+  failed_when: false
+
+- name: Fail if Pulp container is not running
+  ansible.builtin.fail:
+    msg: "Pulp container '{{ pulp_container_name }}' is not running. Fix: podman start {{ pulp_container_name }}"
+  when: _container_status.rc != 0 or 'Up' not in (_container_status.stdout | default(''))
+
+# ═══ CHECK 2: API responding (with retries) ═══
+- name: Check Pulp API
+  ansible.builtin.uri:
+    url: "https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}/pulp/api/v3/status/"
+    validate_certs: false
+    timeout: 30
+    status_code: [200]
+  register: _api_check
+  retries: 6
+  delay: 10
+  until: _api_check.status | default(-1) == 200
+  failed_when: false
+
+- name: Fail if Pulp API is not responding
+  ansible.builtin.fail:
+    msg: "Pulp API not responding after 6 retries (status: {{ _api_check.status | default('NO RESPONSE') }}). Fix: podman restart {{ pulp_container_name }}"
+  when: _api_check.status | default(0) != 200
+
+# ═══ CHECK 3: Internal health via CLI ═══
+- name: Get Pulp status
+  ansible.builtin.command:
+    cmd: pulp status
+  register: _pulp_cli
+  changed_when: false
+  failed_when: false
+
+- name: Validate Pulp internal health
+  when: _pulp_cli.rc == 0
+  block:
+    - name: Parse status
+      ansible.builtin.set_fact:
+        _ps: "{{ _pulp_cli.stdout | from_json }}"
+
+    - name: Fail if database not connected
+      ansible.builtin.fail:
+        msg: "Pulp database is not connected. Fix: podman restart {{ pulp_container_name }}"
+      when: not (_ps.database_connection.connected | default(false) | bool)
+
+    - name: Fail if no workers
+      ansible.builtin.fail:
+        msg: "No Pulp workers online. Fix: podman restart {{ pulp_container_name }}"
+      when: (_ps.online_workers | default([]) | length) == 0
+
+    - name: Fail if no content apps
+      ansible.builtin.fail:
+        msg: "No Pulp content apps online. Fix: podman restart {{ pulp_container_name }}"
+      when: (_ps.online_content_apps | default([]) | length) == 0
+
+    - name: Pulp is healthy
+      ansible.builtin.debug:
+        msg: >-
+          Pulp healthy —
+          Workers: {{ _ps.online_workers | length }},
+          ContentApps: {{ _ps.online_content_apps | length }},
+          Storage: {{ _ps.storage.free | default(0) | int // 1073741824 }}GB free
