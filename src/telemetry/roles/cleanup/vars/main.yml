@@ -223,16 +223,17 @@ vector_ldms_resources:
 
 vector_ldms_pod_label: "app=vector-ldms"
 
-# LDMS sampler cleanup (Slurm compute nodes)
+# LDMS sampler cleanup (all LDMS-enabled nodes)
 ldms_sampler_service_name: "ldmsd.sampler"
-ldms_sampler_service_file: "/etc/systemd/system/ldmsd.service"
+ldms_sampler_service_file: "/etc/systemd/system/ldmsd.sampler.service"
 ldms_sampler_config_dir: "/opt/ovis-ldms/etc/ldms"
 
-# LDMS aggregator cleanup (Slurm control node)
-ldms_aggregator_service_name: "ldmsd.aggregator"
-ldms_aggregator_service_file: "/etc/systemd/system/ldmsd.aggregator.service"
-ldms_aggregator_config_dir: "/opt/ovis-ldms/etc/ldms"
-ldms_aggregator_shared_dir: "/opt/omnia/telemetry/ldms"
+# LDMS functional groups that have sampler installed
+ldms_sampler_groups:
+  - slurm_node
+  - slurm_control_node
+  - login_node
+  - login_compiler_node
 
 # =============================================================================
 # OME cleanup resources

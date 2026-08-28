@@ -18,8 +18,7 @@
 # Cleans up:
 #   - K8s resources (Helm, StatefulSets, Services, ConfigMaps, Secrets, PVCs)
 #   - Vector-LDMS bridge
-#   - LDMS sampler on Slurm compute nodes (ldmsd.sampler service, config files)
-#   - LDMS aggregator on Slurm control node (ldmsd.aggregator service, config)
+#   - LDMS sampler service on all LDMS-enabled nodes
 # =============================================================================
 
 - name: LDMS | Cleanup K8s resources
@@ -134,96 +133,54 @@
         msg: "LDMS K8s cleanup failed. Check logs for details."
 
 # =============================================================================
-# LDMS Sampler cleanup on Slurm compute nodes (delegated)
+# LDMS Sampler cleanup on all LDMS-enabled nodes (delegated)
 # =============================================================================
-- name: LDMS | Cleanup sampler on Slurm nodes
+- name: LDMS | Build list of all LDMS sampler hosts
+  ansible.builtin.set_fact:
+    _ldms_sampler_hosts: >-
+      {{ (groups['slurm_node'] | default([]))
+         + (groups['slurm_control_node'] | default([]))
+         + (groups['login_node'] | default([]))
+         + (groups['login_compiler_node'] | default([])) }}
+
+- name: LDMS | Cleanup sampler on all LDMS-enabled nodes
   block:
-    - name: LDMS | Stop ldmsd sampler service on Slurm nodes
+    - name: LDMS | Stop ldmsd sampler service
       ansible.builtin.systemd:
         name: "{{ ldms_sampler_service_name }}"
         state: stopped
       delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_node'] | default([]) }}"
+      loop: "{{ _ldms_sampler_hosts }}"
       failed_when: false
 
-    - name: LDMS | Disable ldmsd sampler service on Slurm nodes
+    - name: LDMS | Disable ldmsd sampler service
       ansible.builtin.systemd:
         name: "{{ ldms_sampler_service_name }}"
         enabled: false
       delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_node'] | default([]) }}"
+      loop: "{{ _ldms_sampler_hosts }}"
       failed_when: false
 
-    - name: LDMS | Remove sampler systemd service file on Slurm nodes
+    - name: LDMS | Remove sampler systemd service file
       ansible.builtin.file:
         path: "{{ ldms_sampler_service_file }}"
         state: absent
       delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_node'] | default([]) }}"
+      loop: "{{ _ldms_sampler_hosts }}"
       failed_when: false
 
-    - name: LDMS | Remove sampler config directory on Slurm nodes
+    - name: LDMS | Remove sampler config directory
       ansible.builtin.file:
         path: "{{ ldms_sampler_config_dir }}"
         state: absent
       delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_node'] | default([]) }}"
+      loop: "{{ _ldms_sampler_hosts }}"
       failed_when: false
 
     - name: LDMS | Sampler cleanup complete
       ansible.builtin.debug:
-        msg: "LDMS sampler cleanup completed on {{ groups['slurm_node'] | default([]) | length }} nodes"
-  when: groups['slurm_node'] | default([]) | length > 0
-
-# =============================================================================
-# LDMS Aggregator cleanup on Slurm control node (delegated)
-# =============================================================================
-- name: LDMS | Cleanup aggregator on Slurm control node
-  block:
-    - name: LDMS | Stop ldmsd aggregator service on control node
-      ansible.builtin.systemd:
-        name: "{{ ldms_aggregator_service_name }}"
-        state: stopped
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_control_node'] | default([]) }}"
-      failed_when: false
-
-    - name: LDMS | Disable ldmsd aggregator service on control node
-      ansible.builtin.systemd:
-        name: "{{ ldms_aggregator_service_name }}"
-        enabled: false
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_control_node'] | default([]) }}"
-      failed_when: false
-
-    - name: LDMS | Remove aggregator systemd service file
-      ansible.builtin.file:
-        path: "{{ ldms_aggregator_service_file }}"
-        state: absent
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_control_node'] | default([]) }}"
-      failed_when: false
-
-    - name: LDMS | Remove aggregator config directory on control node
-      ansible.builtin.file:
-        path: "{{ ldms_aggregator_config_dir }}"
-        state: absent
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_control_node'] | default([]) }}"
-      failed_when: false
-
-    - name: LDMS | Remove shared LDMS config directories
-      ansible.builtin.file:
-        path: "{{ ldms_aggregator_shared_dir }}"
-        state: absent
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['slurm_control_node'] | default([]) }}"
-      failed_when: false
-
-    - name: LDMS | Aggregator cleanup complete
-      ansible.builtin.debug:
-        msg: "LDMS aggregator cleanup completed on control node"
-  when: groups['slurm_control_node'] | default([]) | length > 0
+        msg: "LDMS sampler cleanup completed on {{ _ldms_sampler_hosts | length }} nodes"
+  when: _ldms_sampler_hosts | length > 0
 
 - name: LDMS | Cleanup complete
   ansible.builtin.debug:

@@ -34,12 +34,22 @@ sinks:
 
 sources:
 {% if _status_type | default('deploy') == 'cleanup' %}
-  idrac: "{{ _cleanup_results.idrac | default('skipped') }}"
-  ldms: "{{ _cleanup_results.ldms | default('skipped') }}"
-  powerscale: "{{ _cleanup_results.powerscale | default('skipped') }}"
-  ufm: "{{ _cleanup_results.ufm | default('skipped') }}"
-  vast: "{{ _cleanup_results.vast | default('skipped') }}"
-  ome: "{{ _cleanup_results.ome | default('skipped') }}"
+  idrac:
+    metrics: "{{ _cleanup_results.idrac | default('skipped') }}"
+  ldms:
+    metrics: "{{ _cleanup_results.ldms | default('skipped') }}"
+  powerscale:
+    metrics: "{{ _cleanup_results.powerscale | default('skipped') }}"
+    logs: "{{ _cleanup_results.powerscale | default('skipped') }}"
+  ufm:
+    metrics: "{{ _cleanup_results.ufm | default('skipped') }}"
+    logs: "{{ _cleanup_results.ufm | default('skipped') }}"
+  vast:
+    metrics: "{{ _cleanup_results.vast | default('skipped') }}"
+    logs: "{{ _cleanup_results.vast | default('skipped') }}"
+  ome:
+    metrics: "{{ _cleanup_results.ome | default('skipped') }}"
+    logs: "{{ _cleanup_results.ome | default('skipped') }}"
 {% else %}
   idrac:
     metrics: "{{ _source_results.idrac_metrics | default('skipped') }}"
@@ -59,8 +69,11 @@ sources:
     logs: "{{ _source_results.ome_logs | default('skipped') }}"
 {% endif %}
 
-{% if _status_type | default('deploy') == 'deploy' %}
 bridges:
+{% if _status_type | default('deploy') == 'cleanup' %}
+  vector_ldms: "{{ _cleanup_results.ldms | default('skipped') }}"
+  vector_ome: "{{ _cleanup_results.ome | default('skipped') }}"
+{% else %}
   vector_ldms: "{{ _bridge_results.vector_ldms | default('skipped') }}"
   vector_ome: "{{ _bridge_results.vector_ome | default('skipped') }}"
 {% endif %}

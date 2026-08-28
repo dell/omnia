@@ -63,7 +63,17 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   tasks:
     - name: Load telemetry configuration
       ansible.builtin.include_role:
@@ -150,7 +160,17 @@
 - name: "Telemetry Cleanup | Remove selected components"
   hosts: kube_vip_group
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   tasks:
     # -- Source cleanups --
     - name: "Cleanup iDRAC telemetry"
@@ -259,7 +279,17 @@
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   vars:
     telemetry_namespace: "telemetry"
   tasks:
@@ -288,7 +318,17 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   tasks:
     - name: Display cleanup summary
       vars:
