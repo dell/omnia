@@ -173,6 +173,7 @@
   ansible.builtin.set_fact:
     image_build_manager_output_path: "{{ _orch_config.image_build_manager_output_path | default(default_build_status_path) }}"
     boot_kernel_params: "{{ _orch_config.boot_kernel_params | default('') }}"
+    pxe_mapping_file_path: "{{ _orch_config.pxe_mapping_file_path | default('') }}"
     cacheable: true
 
 # Step 7: Load repo_manager output (repo_status.yml)
