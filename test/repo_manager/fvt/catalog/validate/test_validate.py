@@ -32,7 +32,7 @@ from library.messages import (
 def test_catalog_validate_deploy(host):
     """TC_RM_CAT_VAL_000: Deploy catalog_validate playbook."""
     tl = TestLogger(TEST_NAMES["catalog_validate_deploy"], "TC_RM_CAT_VAL_000")
-    
+
     result = run_playbook(tag="catalog_validate")
 
     if result["success"]:
@@ -46,14 +46,15 @@ def test_catalog_validate_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.positive
 @pytest.mark.order(1)
-def test_catalog_validation_completed(host):
+def test_catalog_validation_completed(_host):
     """TC_RM_CAT_VAL_001: Verify catalog validation completed successfully."""
     tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "TC_RM_CAT_VAL_001")
-    
+
     # The validate operation should complete without errors
     # The playbook result from test_catalog_validate_deploy already verified this
     # This test just confirms the operation ran
-    tl.passed("Catalog validation completed", "Validate playbook executed successfully")
+    tl.passed("Catalog validation completed",
+              "Validate playbook executed successfully")
 
 
 @pytest.mark.functional
@@ -62,15 +63,17 @@ def test_catalog_validation_completed(host):
 def test_catalog_validation_log_exists(host):
     """TC_RM_CAT_VAL_002: Verify catalog validation log file exists."""
     tl = TestLogger(TEST_NAMES["catalog_log_file_exists"], "TC_RM_CAT_VAL_002")
-    
+
     # Check the log file exists and has recent entries
     log_path = "/opt/omnia/repo_manager/log/catalog/catalog_manager.log"
     result = host.run(f"test -f {log_path} && echo 'exists' || echo 'missing'")
-    
+
     if "exists" in result.stdout:
-        tl.passed("Catalog validation log file exists", f"Log file found at {log_path}")
+        tl.passed("Catalog validation log file exists",
+                  f"Log file found at {log_path}")
     else:
-        tl.failed("Catalog validation log file missing", f"Log file not found at {log_path}")
+        tl.failed("Catalog validation log file missing",
+                  f"Log file not found at {log_path}")
         assert False, "Catalog validation log file should exist"
 
 
@@ -80,16 +83,18 @@ def test_catalog_validation_log_exists(host):
 def test_catalog_still_valid_after_validation(host):
     """TC_RM_CAT_VAL_003: Verify catalog file still valid after validation."""
     tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "TC_RM_CAT_VAL_003")
-    
+
     # This test requires catalog_generate to have run first
     result = check_catalog_structure(host)
 
     if result["success"]:
         tl.passed(LOG["catalog_structure_ok"], result["details"])
     else:
-        tl.failed(LOG["catalog_structure_invalid"], 
-                 f"Catalog structure invalid or catalog doesn't exist.\n"
-                 f"This test requires catalog_generate to complete successfully first.\n"
-                 f"Ensure the input file is provided and catalog_generate test passes.")
+        tl.failed(LOG["catalog_structure_invalid"],
+                 "Catalog structure invalid or catalog doesn't exist.\n"
+                 "This test requires catalog_generate to complete "
+                 "successfully first.\n"
+                 "Ensure the input file is provided and catalog_generate "
+                 "test passes.")
 
     assert result["success"], ASSERT["catalog_structure_must_be_valid"]
